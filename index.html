@@ -986,14 +986,77 @@
       .match-card {
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 13px;
+        border-radius: 16px;
+        padding: 16px;
         position: relative;
         overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        animation: slideInUp 0.5s ease-out forwards;
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      .match-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        border-color: rgba(245, 200, 66, 0.3);
       }
       .match-card.fire-card {
-        box-shadow: 0 0 18px rgba(255, 179, 0, 0.15);
-        border-color: rgba(255, 179, 0, 0.4);
+        box-shadow: 0 0 20px rgba(255, 179, 0, 0.2);
+        border-color: rgba(255, 179, 0, 0.5);
+        background: linear-gradient(
+          135deg,
+          var(--card),
+          rgba(255, 179, 0, 0.05)
+        );
+      }
+      .match-card.fire-card::before,
+      .match-card.dominate-card::before,
+      .match-card.zero-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        animation: shimmer 2s ease-in-out infinite;
+      }
+      .match-card.fire-card::before {
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+      }
+      .match-card.dominate-card {
+        box-shadow: 0 0 24px rgba(200, 120, 255, 0.25);
+        border-color: rgba(200, 120, 255, 0.45);
+        background: linear-gradient(
+          135deg,
+          var(--card),
+          rgba(200, 120, 255, 0.06)
+        );
+      }
+      .match-card.dominate-card::before {
+        background: linear-gradient(
+          90deg,
+          rgba(200, 120, 255, 0.8),
+          rgba(180, 80, 255, 0.3),
+          rgba(200, 120, 255, 0.8)
+        );
+      }
+      .match-card.zero-card {
+        box-shadow: 0 0 24px rgba(255, 79, 79, 0.25);
+        border-color: rgba(255, 79, 79, 0.5);
+        background: linear-gradient(
+          135deg,
+          var(--card),
+          rgba(255, 79, 79, 0.06)
+        );
+      }
+      .match-card.zero-card::before {
+        background: linear-gradient(
+          90deg,
+          rgba(255, 79, 79, 0.8),
+          rgba(255, 120, 120, 0.3),
+          rgba(255, 79, 79, 0.8)
+        );
       }
       .match-top {
         display: flex;
@@ -1123,6 +1186,41 @@
         border: 1.5px solid rgba(255, 79, 79, 0.4);
         text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
       }
+      .player-insights {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+        margin-bottom: 8px;
+      }
+      .insight-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px 14px;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+      }
+      .insight-head {
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .insight-main {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .insight-meta {
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .empty-insight {
+        color: var(--muted);
+        font-size: 13px;
+        padding: 10px 0;
+      }
       @keyframes badgePop {
         0%,
         100% {
@@ -1141,6 +1239,24 @@
         }
         50% {
           transform: translateY(-3px);
+        }
+      }
+      @keyframes slideInUp {
+        0% {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes shimmer {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(100%);
         }
       }
 
@@ -1452,17 +1568,49 @@
         style="
           flex-shrink: 0;
           padding: 10px 12px 0;
-          background: var(--surface);
+          background: linear-gradient(135deg, var(--surface), var(--surface2));
           border-bottom: 1px solid var(--border);
+          position: relative;
+          overflow: hidden;
         "
       >
+        <div
+          style="
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+              radial-gradient(
+                circle at 30% 20%,
+                rgba(245, 200, 66, 0.1),
+                transparent 50%
+              ),
+              radial-gradient(
+                circle at 70% 80%,
+                rgba(224, 112, 26, 0.08),
+                transparent 50%
+              );
+            pointer-events: none;
+          "
+        ></div>
         <input
           id="modern-match-search"
           class="match-search"
           placeholder="🔍  Search players or teams…"
           oninput="renderModernMatches()"
+          style="position: relative; z-index: 1"
         />
-        <div class="filters" style="padding-bottom: 8px">
+        <div
+          id="player-insight-strip"
+          class="player-insights"
+          style="position: relative; z-index: 1; margin-bottom: 10px"
+        ></div>
+        <div
+          class="filters"
+          style="padding-bottom: 8px; position: relative; z-index: 1"
+        >
           <button class="filt on" data-mf="all" onclick="filterMatchTab('all')">
             All
           </button>
@@ -1511,7 +1659,14 @@
       <div
         class="scroll"
         id="modern-match-list"
-        style="padding: 10px 11px 10px"
+        style="
+          padding: 10px 11px 10px;
+          background: linear-gradient(
+            to bottom,
+            var(--bg),
+            rgba(9, 9, 15, 0.95)
+          );
+        "
       ></div>
       <div class="tabbar">
         <button class="tbb" onclick="switchMainTab('home')">
@@ -1540,9 +1695,6 @@
       <div class="itabs">
         <button class="itab on" onclick="switchITab('matches')">
           📋 Add Matches
-        </button>
-        <button class="itab" onclick="switchITab('viewmatches')">
-          🏓 History
         </button>
         <button class="itab" onclick="switchITab('names')">👤 Names</button>
         <button class="itab" onclick="switchITab('manage')">⚙️ Manage</button>
@@ -1574,9 +1726,8 @@ Ank RaM vs Nil Tej 4-2"
               Clear
             </button>
           </div>
-        </div>
-        <div class="panel" id="ip-viewmatches">
-          <!-- mini history inside add page -->
+          <!-- History merged below Add Matches -->
+          <div class="slbl" style="margin-top: 20px">Match History</div>
           <input
             id="add-match-search"
             class="match-search"
@@ -1586,6 +1737,7 @@ Ank RaM vs Nil Tej 4-2"
           />
           <div id="add-match-list" class="match-grid"></div>
         </div>
+
         <div class="panel" id="ip-names">
           <div class="slbl">Name Master</div>
           <textarea
@@ -1601,6 +1753,10 @@ Parthiv - Par"
             <button class="btn-p" onclick="saveNames()">Save Names</button>
             <button class="btn-s" onclick="loadNames()">Edit</button>
           </div>
+          <div class="slbl" style="margin-top: 20px">
+            Existing Names & Aliases
+          </div>
+          <div id="names-table" style="margin-top: 10px"></div>
         </div>
         <div class="panel" id="ip-manage">
           <div class="slbl">Storage Info</div>
@@ -1608,6 +1764,13 @@ Parthiv - Par"
           <div class="slbl">Actions</div>
           <button class="btn-p" onclick="exportData()" style="width: 100%">
             📤 Export All Data
+          </button>
+          <button
+            class="btn-p"
+            onclick="importData()"
+            style="width: 100%; margin-top: 8px"
+          >
+            📥 Import Data
           </button>
           <div class="msg ok" id="expOk"></div>
           <button class="btn-danger" onclick="clearMatches()">
@@ -1621,30 +1784,51 @@ Parthiv - Par"
     </div>
 
     <!-- FAB — only visible on add page -->
-    <button class="fab-modern" id="fab" onclick="openModernAddModal()">
-      +
-    </button>
+    <button class="fab-modern" id="fab" onclick="openFabModal()">+</button>
 
     <!-- Quick-add modal -->
     <div id="modern-add-modal" class="modern-modal">
       <div class="modern-sheet">
         <div class="sheet-title">Quick Add Match</div>
-        <input
-          id="modern-team-a"
-          class="input-modern"
-          placeholder="Team A  (Rahul, Ankit)"
-        />
+        <div style="display: flex; gap: 8px; margin-bottom: 12px">
+          <input
+            id="modern-team-a-p1"
+            class="input-modern"
+            list="player-suggestions"
+            placeholder="Player 1 (Team A)"
+            style="flex: 1"
+          />
+          <input
+            id="modern-team-a-p2"
+            class="input-modern"
+            list="player-suggestions"
+            placeholder="Player 2 (Team A)"
+            style="flex: 1"
+          />
+        </div>
         <input
           id="modern-score-a"
           class="input-modern"
           type="number"
           placeholder="Score A"
         />
-        <input
-          id="modern-team-b"
-          class="input-modern"
-          placeholder="Team B  (Sid, Jay)"
-        />
+        <div style="display: flex; gap: 8px; margin-bottom: 12px">
+          <input
+            id="modern-team-b-p1"
+            class="input-modern"
+            list="player-suggestions"
+            placeholder="Player 1 (Team B)"
+            style="flex: 1"
+          />
+          <input
+            id="modern-team-b-p2"
+            class="input-modern"
+            list="player-suggestions"
+            placeholder="Player 2 (Team B)"
+            style="flex: 1"
+          />
+        </div>
+        <datalist id="player-suggestions"></datalist>
         <input
           id="modern-score-b"
           class="input-modern"
@@ -1657,6 +1841,44 @@ Parthiv - Par"
         </button>
         <button
           onclick="closeModernAddModal()"
+          style="
+            width: 100%;
+            margin-top: 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: &quot;DM Sans&quot;, sans-serif;
+          "
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick-add name modal -->
+    <div id="name-add-modal" class="modern-modal">
+      <div class="modern-sheet">
+        <div class="sheet-title">Quick Add Name</div>
+        <input
+          id="name-display"
+          class="input-modern"
+          placeholder="Display Name (e.g., Ankit)"
+        />
+        <input
+          id="name-aliases"
+          class="input-modern"
+          placeholder="Aliases (e.g., Ank, AK)"
+        />
+        <button class="save-modern-btn" onclick="saveQuickName()">
+          Save Name
+        </button>
+        <button
+          onclick="closeNameAddModal()"
           style="
             width: 100%;
             margin-top: 10px;
@@ -1869,7 +2091,7 @@ Parthiv - Par"
       }
 
       function switchITab(id) {
-        const keys = ["matches", "viewmatches", "names", "manage"];
+        const keys = ["matches", "names", "manage"];
         document
           .querySelectorAll(".itab")
           .forEach((t, i) => t.classList.toggle("on", keys[i] === id));
@@ -1878,7 +2100,7 @@ Parthiv - Par"
           .forEach((p) => p.classList.remove("show"));
         document.getElementById("ip-" + id).classList.add("show");
         if (id === "manage") refreshManage();
-        if (id === "viewmatches") renderAddMatches();
+        if (id === "names") renderNamesTable();
       }
 
       function refreshManage() {
@@ -1932,7 +2154,9 @@ Parthiv - Par"
 
       function parseMatchLine(line) {
         line = line.trim().replace(/\s+/g, " ");
-        const m = line.match(/^(.+?)\s+vs|v\s+(.+?)\s+(\d+)\s*[-–]\s*(\d+)$/i);
+        const m = line.match(
+          /^(.+?)\s+(?:vs|v)\s+(.+?)\s+(\d+)\s*[-–]\s*(\d+)$/i,
+        );
         if (!m) return null;
         const tA = m[1].trim().split(" ").filter(Boolean),
           tB = m[2].trim().split(" ").filter(Boolean);
@@ -2111,11 +2335,99 @@ Parthiv - Par"
         oEl.textContent = `Saved ${Object.keys(am).length} player mappings.`;
         oEl.classList.add("show");
         setTimeout(() => oEl.classList.remove("show"), 2500);
+        renderNamesTable();
       }
       function loadNames() {
         document.getElementById("namesTA").value = Object.entries(aliasMap)
           .map(([n, a]) => `${n} - ${a.join(", ")}`)
           .join("\n");
+      }
+
+      function editNameEntry(displayName) {
+        const aliases = aliasMap[displayName] || [];
+        const newDisplay = prompt("Display name", displayName);
+        if (newDisplay === null) return;
+        const cleanedDisplay = newDisplay.trim();
+        if (!cleanedDisplay) {
+          alert("Display name cannot be empty.");
+          return;
+        }
+        const newAliases = prompt(
+          "Aliases (comma-separated)",
+          aliases.join(", "),
+        );
+        if (newAliases === null) return;
+        const parsed = newAliases
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean);
+        if (!parsed.length) {
+          alert("At least one alias is required.");
+          return;
+        }
+
+        // Remove old mappings for this display name
+        delete aliasMap[displayName];
+        Object.keys(nameMap).forEach((alias) => {
+          if (nameMap[alias] === displayName) delete nameMap[alias];
+        });
+
+        // Add new mapping
+        aliasMap[cleanedDisplay] = parsed;
+        parsed.forEach((alias) => {
+          nameMap[alias] = cleanedDisplay;
+        });
+
+        saveCloudData();
+        renderNamesTable();
+        if (document.querySelector(".itab.on")?.textContent.includes("Names")) {
+          loadNames();
+        }
+      }
+
+      function renderNamesTable() {
+        const table = document.getElementById("names-table");
+        if (!Object.keys(aliasMap).length) {
+          table.innerHTML =
+            '<p style="color: var(--muted); font-size: 14px;">No names saved yet.</p>';
+          return;
+        }
+        const sortedEntries = Object.entries(aliasMap).sort(([a], [b]) =>
+          a.localeCompare(b, undefined, { sensitivity: "base" }),
+        );
+        const html = `
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background: var(--surface2);">
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Display Name</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Aliases</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); width: 88px;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedEntries
+                .map(
+                  ([name, aliases]) => `
+                <tr style="border-bottom: 1px solid var(--border);">
+                  <td style="padding: 8px; color: var(--accent); font-weight: 500;">${name}</td>
+                  <td style="padding: 8px; color: var(--muted);">${aliases.join(", ")}</td>
+                  <td style="padding: 8px; text-align: right;">
+                    <button
+                      class="action-btn edit-btn"
+                      style="padding: 6px 10px; font-size: 11px;"
+                      onclick="editNameEntry('${name.replace(/'/g, "\\'")}')"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              `,
+                )
+                .join("")}
+            </tbody>
+          </table>
+        `;
+        table.innerHTML = html;
       }
 
       function clearMatches() {
@@ -2135,7 +2447,7 @@ Parthiv - Par"
       }
       function exportData() {
         navigator.clipboard
-          .writeText(JSON.stringify({ allMatches, aliasMap }, null, 2))
+          .writeText(JSON.stringify({ allMatches, aliasMap, nameMap }, null, 2))
           .then(() => {
             const el = document.getElementById("expOk");
             el.textContent = "Copied!";
@@ -2143,6 +2455,37 @@ Parthiv - Par"
             setTimeout(() => el.classList.remove("show"), 2500);
           })
           .catch(() => alert("Copy failed"));
+      }
+      function importData() {
+        const raw = prompt(
+          "Paste JSON export data to import (matches + names + aliases):",
+        );
+        if (!raw) return;
+        let data;
+        try {
+          data = JSON.parse(raw);
+        } catch (err) {
+          alert("Invalid JSON data");
+          return;
+        }
+        if (
+          !Array.isArray(data.allMatches) ||
+          typeof data.aliasMap !== "object"
+        ) {
+          alert("JSON must include allMatches array and aliasMap object.");
+          return;
+        }
+        allMatches = data.allMatches || [];
+        aliasMap = data.aliasMap || {};
+        nameMap = data.nameMap || {};
+        saveCloudData();
+        renderHome();
+        renderCompact();
+        renderModernMatches();
+        renderAddMatches();
+        refreshManage();
+        renderNamesTable();
+        alert("Data imported successfully.");
       }
 
       // ── RENDER HOME ────────────────────────────────────────────
@@ -2261,7 +2604,7 @@ Parthiv - Par"
           return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
         return [...matches]
           .reverse()
-          .map((m) => {
+          .map((m, index) => {
             const aWon = m.scoreA > m.scoreB;
             const diff = Math.abs(m.scoreA - m.scoreB);
             const isFire = diff <= 1;
@@ -2294,8 +2637,10 @@ Parthiv - Par"
                 `<span class="event-badge zero">😂 ZERO SE HAAR GAYE!</span>`,
               );
 
+            const delay = Math.min(index * 0.1, 1); // Staggered delay up to 1s
+
             return `
-          <div class="match-card${isFire ? " fire-card" : ""}">
+          <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;">
             <div class="match-top">
               <span class="match-date">📅 ${m.date || "—"}</span>
               <span class="match-tag">${diff} pt gap</span>
@@ -2359,6 +2704,84 @@ Parthiv - Par"
           );
         document.getElementById("modern-match-list").innerHTML =
           buildMatchCards(matches, true);
+        renderHistoryInsights();
+      }
+
+      function renderHistoryInsights() {
+        const strip = document.getElementById("player-insight-strip");
+        if (!strip) return;
+        const stats = getPlayerStats(allMatches);
+        if (!stats.length) {
+          strip.innerHTML =
+            '<div class="empty-insight">No player history yet.</div>';
+          return;
+        }
+        const topActive = stats[0];
+        const topWin = [...stats].sort(
+          (a, b) => b.wins / b.matches - a.wins / a.matches,
+        )[0];
+        const topDiff = [...stats].sort((a, b) => b.net - a.net)[0];
+        strip.innerHTML = `
+          <div class="insight-card">
+            <div class="insight-head">Most Active</div>
+            <div class="insight-main">${topActive.name}</div>
+            <div class="insight-meta">${topActive.matches} matches</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-head">Best Win Rate</div>
+            <div class="insight-main">${topWin.name}</div>
+            <div class="insight-meta">${Math.round((topWin.wins / topWin.matches) * 100)}%</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-head">Best Net Games</div>
+            <div class="insight-main">${topDiff.name}</div>
+            <div class="insight-meta">${topDiff.net > 0 ? "+" + topDiff.net : topDiff.net} diff</div>
+          </div>
+        `;
+      }
+
+      function getPlayerStats(matches) {
+        const stats = {};
+        matches.forEach((m) => {
+          const aWon = m.scoreA > m.scoreB;
+          m.teamA.forEach((p) => {
+            if (!stats[p])
+              stats[p] = {
+                name: p,
+                matches: 0,
+                wins: 0,
+                losses: 0,
+                gw: 0,
+                gl: 0,
+                net: 0,
+              };
+            stats[p].matches++;
+            stats[p].gw += m.scoreA;
+            stats[p].gl += m.scoreB;
+            stats[p].net = stats[p].gw - stats[p].gl;
+            if (aWon) stats[p].wins++;
+            else stats[p].losses++;
+          });
+          m.teamB.forEach((p) => {
+            if (!stats[p])
+              stats[p] = {
+                name: p,
+                matches: 0,
+                wins: 0,
+                losses: 0,
+                gw: 0,
+                gl: 0,
+                net: 0,
+              };
+            stats[p].matches++;
+            stats[p].gw += m.scoreB;
+            stats[p].gl += m.scoreA;
+            stats[p].net = stats[p].gw - stats[p].gl;
+            if (!aWon) stats[p].wins++;
+            else stats[p].losses++;
+          });
+        });
+        return Object.values(stats).sort((a, b) => b.matches - a.matches);
       }
 
       function renderAddMatches() {
@@ -2407,9 +2830,47 @@ Parthiv - Par"
       }
 
       // ── FAB MODAL ──────────────────────────────────────────────
+      function populatePlayerDropdowns() {
+        const names = new Set();
+        Object.entries(aliasMap).forEach(([display, aliases]) => {
+          names.add(display);
+          aliases.forEach((alias) => names.add(alias));
+        });
+        allMatches.forEach((m) => {
+          (m.teamA || []).forEach((p) => names.add(p));
+          (m.teamB || []).forEach((p) => names.add(p));
+        });
+        const data = document.getElementById("player-suggestions");
+        data.innerHTML = [...names]
+          .sort((a, b) =>
+            a.localeCompare(b, undefined, { sensitivity: "base" }),
+          )
+          .map((player) => `<option value="${player}">`)
+          .join("");
+        [
+          "modern-team-a-p1",
+          "modern-team-a-p2",
+          "modern-team-b-p1",
+          "modern-team-b-p2",
+        ].forEach((id) => {
+          const input = document.getElementById(id);
+          if (input) input.value = "";
+        });
+      }
+
+      function openFabModal() {
+        const activeTab = document.querySelector(".itab.on");
+        if (activeTab && activeTab.textContent.includes("Add Matches")) {
+          openModernAddModal();
+        } else if (activeTab && activeTab.textContent.includes("Names")) {
+          openNameAddModal();
+        }
+      }
+
       function openModernAddModal() {
         document.getElementById("modern-add-modal").classList.add("show");
         document.getElementById("modern-date").value = todayISO();
+        populatePlayerDropdowns();
       }
       function closeModernAddModal() {
         document.getElementById("modern-add-modal").classList.remove("show");
@@ -2420,23 +2881,65 @@ Parthiv - Par"
           if (e.target.id === "modern-add-modal") closeModernAddModal();
         });
 
+      function openNameAddModal() {
+        document.getElementById("name-add-modal").classList.add("show");
+      }
+      function closeNameAddModal() {
+        document.getElementById("name-add-modal").classList.remove("show");
+      }
+      document
+        .getElementById("name-add-modal")
+        .addEventListener("click", (e) => {
+          if (e.target.id === "name-add-modal") closeNameAddModal();
+        });
+
+      function saveQuickName() {
+        const display = document.getElementById("name-display").value.trim();
+        const aliasesText = document
+          .getElementById("name-aliases")
+          .value.trim();
+
+        if (!display) {
+          alert("Display name is required");
+          return;
+        }
+
+        const aliases = aliasesText
+          ? aliasesText
+              .split(",")
+              .map((a) => a.trim())
+              .filter(Boolean)
+          : [];
+
+        // Add to textarea format
+        const currentText = document.getElementById("namesTA").value;
+        const newEntry = `${display} - ${aliases.join(", ")}`;
+        document.getElementById("namesTA").value = currentText
+          ? currentText + "\n" + newEntry
+          : newEntry;
+
+        // Save the names
+        saveNames();
+
+        // Close modal and clear fields
+        closeNameAddModal();
+        document.getElementById("name-display").value = "";
+        document.getElementById("name-aliases").value = "";
+      }
+
       function saveModernMatch() {
-        const teamA = document
-          .getElementById("modern-team-a")
-          .value.split(",")
-          .map((x) => x.trim())
-          .filter(Boolean);
-        const teamB = document
-          .getElementById("modern-team-b")
-          .value.split(",")
-          .map((x) => x.trim())
-          .filter(Boolean);
+        const p1a = document.getElementById("modern-team-a-p1").value;
+        const p2a = document.getElementById("modern-team-a-p2").value;
+        const p1b = document.getElementById("modern-team-b-p1").value;
+        const p2b = document.getElementById("modern-team-b-p2").value;
         const sA = parseInt(document.getElementById("modern-score-a").value);
         const sB = parseInt(document.getElementById("modern-score-b").value);
         const date = document.getElementById("modern-date").value || todayISO();
         if (
-          !teamA.length ||
-          !teamB.length ||
+          !p1a ||
+          !p2a ||
+          !p1b ||
+          !p2b ||
           isNaN(sA) ||
           isNaN(sB) ||
           sA === sB
@@ -2444,6 +2947,8 @@ Parthiv - Par"
           alert("Invalid match data");
           return;
         }
+        const teamA = [p1a, p2a];
+        const teamB = [p1b, p2b];
         allMatches.push({ teamA, teamB, scoreA: sA, scoreB: sB, date });
         saveCloudData();
         closeModernAddModal();
@@ -2551,6 +3056,7 @@ Parthiv - Par"
       loadCloudData();
       renderHome();
       renderCompact();
+      renderNamesTable();
 
       // Expose globals
       Object.assign(window, {
@@ -2578,6 +3084,14 @@ Parthiv - Par"
         closeModernAddModal,
         saveModernMatch,
         showAnalytics,
+        populatePlayerDropdowns,
+        renderNamesTable,
+        editNameEntry,
+        importData,
+        openFabModal,
+        openNameAddModal,
+        closeNameAddModal,
+        saveQuickName,
       });
     </script>
   </body>
