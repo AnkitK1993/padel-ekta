@@ -1046,6 +1046,9 @@
         <button class="tbb" onclick="switchMainTab('compact')">
           <span class="ico">📋</span>Snapshot
         </button>
+        <button class="tbb" onclick="switchMainTab('viewmatches')">
+          <span class="ico">🏓</span>Matches
+        </button>
         <button class="tbb" onclick="goTo('add')">
           <span class="ico">➕</span>Add
         </button>
@@ -1119,7 +1122,10 @@
       </div>
       <div class="itabs">
         <button class="itab on" onclick="switchITab('matches')">
-          📋 Matches
+          📋 Add Matches
+        </button>
+        <button class="itab" onclick="switchITab('viewmatches')">
+          🏓 Matches
         </button>
         <button class="itab" onclick="switchITab('names')">👤 Names</button>
         <button class="itab" onclick="switchITab('manage')">⚙️ Manage</button>
@@ -1152,19 +1158,68 @@ Ank RaM vs Nil Tej 4-2"
             </button>
           </div>
         </div>
+        <div class="panel" id="ip-viewmatches">
+          <div class="slbl">All Matches</div>
+
+          <div class="filter-wrap" style="padding: 0; border-bottom: none">
+            <div class="filters">
+              <button
+                class="filt on"
+                data-mf="all"
+                onclick="filterMatchTab('all')"
+              >
+                All
+              </button>
+              <button
+                class="filt"
+                data-mf="today"
+                onclick="filterMatchTab('today')"
+              >
+                Today
+              </button>
+              <button
+                class="filt"
+                data-mf="week"
+                onclick="filterMatchTab('week')"
+              >
+                Week
+              </button>
+              <button
+                class="filt"
+                data-mf="month"
+                onclick="filterMatchTab('month')"
+              >
+                Month
+              </button>
+              <button
+                class="filt"
+                data-mf="range"
+                onclick="filterMatchTab('range')"
+              >
+                Range
+              </button>
+            </div>
+          </div>
+
+          <div class="dr-wrap" id="matchDr">
+            <div class="dr-g">
+              <label>From</label><input type="date" id="matchFrom" />
+            </div>
+            <div class="dr-g">
+              <label>To</label><input type="date" id="matchTo" />
+            </div>
+            <button class="btn-go" onclick="renderMatchList()">Apply</button>
+          </div>
+
+          <div id="matchList" style="margin-top: 10px"></div>
+        </div>
         <div class="panel" id="ip-names">
           <div class="slbl">Name Master</div>
           <textarea
             id="namesTA"
-            placeholder="Ankur - Ank, Ankur
+            placeholder="Ankit - Ank, AK
 Puneet - Pun
-Parth - Par
-Eshaan - Esh
-Ramesh - RaM, Ram
-Nilesh - Nil
-Rajesh - RaG
-Godwin - God
-Akhil - Akh"
+Parthiv - Par"
           ></textarea>
           <p class="hint">Format: <code>Display Name - alias1, alias2</code></p>
           <div class="msg err" id="nErr"></div>
@@ -1250,6 +1305,10 @@ Akhil - Akh"
       var allMatches = [];
       var nameMap = {};
       var aliasMap = {};
+      var matchTabFilter = "all";
+      var matchFrom = null;
+      var matchTo = null;
+
       try {
         var r = JSON.parse(localStorage.getItem("pnm") || "{}");
         nameMap = r.nameMap || {};
@@ -1346,7 +1405,15 @@ Akhil - Akh"
         });
 
         if (!isAdmin) {
-          document.getElementById("pg-add").style.display = "none";
+          document.querySelectorAll(".itab").forEach((btn) => {
+            if (
+              btn.textContent.includes("Add Matches") ||
+              btn.textContent.includes("Names") ||
+              btn.textContent.includes("Manage")
+            ) {
+              btn.style.display = "none";
+            }
+          });
         }
 
         const btn = document.getElementById("loginBtn");
@@ -1358,7 +1425,133 @@ Akhil - Akh"
         }
       }
 
+      function renderMatchList() {
+        let matches = filterMatches(matchTabFilter, matchFrom, matchTo);
+        const el = document.getElementById("matchList");
+
+        if (!matches.length) {
+          el.innerHTML = `
+      <div class="empty">
+        <div class="ico">🏓</div>
+        <p>No matches found for this filter</p>
+      </div>`;
+          return;
+        }
+
+        const sorted = [...matches].sort((a, b) =>
+          a.date.localeCompare(b.date),
+        );
+
+        const reversed = [...sorted].reverse();
+
+        const isWin = (player, m) => {
+          const aWin = m.scoreA > m.scoreB;
+          const inA = m.teamA.includes(player);
+          const inB = m.teamB.includes(player);
+
+          if (inA) return aWin;
+          if (inB) return !aWin;
+          return false;
+        };
+
+        el.innerHTML = reversed
+          .map((m) => {
+            const teamA = (m.teamA || []).join(" & ");
+            const teamB = (m.teamB || []).join(" & ");
+
+            const aWin = m.scoreA > m.scoreB;
+            const diff = Math.abs(m.scoreA - m.scoreB);
+            const isClose = diff <= 2;
+
+            // 😂 if someone gets 0 games
+            const teamALaugh = m.scoreB === 0 ? " 😂" : "";
+            const teamBLaugh = m.scoreA === 0 ? " 😂" : "";
+
+            return `
+        <div class="pc" style="
+          ${isClose ? "box-shadow:0 0 0 1px rgba(245,200,66,0.25)" : ""}
+        ">
+
+          <div class="ct" style="justify-content:center; flex-direction:column; text-align:center;">
+
+            
+
+            <div class="pname" style="
+              font-size:14px;
+              line-height:1.5;
+              text-align:center;
+              width:100%;
+            ">
+
+              <span style="
+                color:${aWin ? "var(--green)" : "var(--red)"};
+                display:block;
+              ">
+                ${teamA}${aWin ? " 👑" : teamALaugh}
+              </span>
+
+              <span style="
+                color:var(--muted);
+                font-size:11px;
+                display:block;
+                margin:2px 0;
+              ">
+                vs
+              </span>
+
+              <span style="
+                color:${aWin ? "var(--red)" : "var(--green)"};
+                display:block;
+              ">
+                ${teamB}${!aWin ? " 👑" : teamBLaugh}
+              </span>
+
+            </div>
+          </div>
+
+          <div style="
+            font-size:15px;
+            font-weight:800;
+            text-align:center;
+            margin:6px 0;
+            color:var(--accent);
+          ">
+            ${m.scoreA} - ${m.scoreB}
+          </div>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            font-size:10px;
+            color:var(--muted);
+          ">
+            <span>📅 ${m.date}</span>
+            ${isClose ? "<span>🔥 Fire Match</span>" : ""}
+          </div>
+
+        </div>
+      `;
+          })
+          .join("");
+      }
+
+      function filterMatchTab(f) {
+        matchTabFilter = f;
+
+        document
+          .querySelectorAll("[data-mf]")
+          .forEach((b) => b.classList.remove("on"));
+        document.querySelector(`[data-mf="${f}"]`).classList.add("on");
+
+        const dr = document.getElementById("matchDr");
+        if (f === "range") dr.classList.add("show");
+        else dr.classList.remove("show");
+
+        renderMatchList();
+      }
+
       function goTo(id) {
+        // Only restrict ADD page, not view-matches
         if (id === "add" && !isAdmin) {
           alert("Only admin can add data");
           return;
@@ -1383,12 +1576,22 @@ Akhil - Akh"
         document.querySelectorAll(".page").forEach(function (p) {
           p.classList.remove("active");
         });
+
+        if (id === "viewmatches") {
+          document.getElementById("pg-add").classList.add("active");
+          switchITab("viewmatches");
+          renderMatchList();
+          return;
+        }
+
         document.getElementById("pg-" + id).classList.add("active");
+
         if (id === "home") renderHome();
         if (id === "compact") renderCompact();
+        if (id === "add") refreshManage();
       }
       function switchITab(id) {
-        var keys = ["matches", "names", "manage"];
+        var keys = ["matches", "viewmatches", "names", "manage"];
         document.querySelectorAll(".itab").forEach(function (t, i) {
           t.classList.toggle("on", keys[i] === id);
         });
@@ -1397,6 +1600,7 @@ Akhil - Akh"
         });
         document.getElementById("ip-" + id).classList.add("show");
         if (id === "manage") refreshManage();
+        if (id === "viewmatches") renderMatchList();
       }
       function refreshManage() {
         var days = new Set(
@@ -1593,14 +1797,12 @@ Akhil - Akh"
       function clearMatches() {
         if (!confirm("Clear all match data?")) return;
         allMatches = [];
-        localStorage.removeItem("pm");
         refreshManage();
       }
       function clearNames() {
         if (!confirm("Clear name aliases?")) return;
         nameMap = {};
         aliasMap = {};
-        localStorage.removeItem("pnm");
         refreshManage();
       }
       function exportData() {
@@ -1893,6 +2095,8 @@ Akhil - Akh"
       window.saveCloudData = saveCloudData;
       window.switchMainTab = switchMainTab;
       window.switchITab = switchITab;
+      window.filterMatchTab = filterMatchTab;
+      window.renderMatchList = renderMatchList;
       window.applyRange = applyRange;
       window.onCmpFilter = onCmpFilter;
       window.addMatches = addMatches;
