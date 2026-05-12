@@ -33,12 +33,14 @@
         box-sizing: border-box;
         margin: 0;
         padding: 0;
+        max-width: 100%;
         -webkit-tap-highlight-color: transparent;
       }
       html,
       body {
         height: 100%;
         overflow: hidden;
+        overflow-x: hidden;
       }
       body {
         background: var(--bg);
@@ -57,13 +59,13 @@
         display: flex;
       }
 
-      /* TABBAR */
+      /* ── TABBAR ── */
       .tabbar {
         flex-shrink: 0;
         display: flex;
         background: var(--surface);
         border-top: 1px solid var(--border);
-        height: 52px;
+        height: 54px;
         z-index: 20;
       }
       .tbb {
@@ -82,16 +84,20 @@
         font-weight: 600;
         letter-spacing: 0.06em;
         text-transform: uppercase;
+        padding: 0 2px;
       }
       .tbb .ico {
-        font-size: 17px;
+        font-size: 16px;
         line-height: 1;
       }
       .tbb.on {
         color: var(--accent);
       }
+      .tbb:active {
+        opacity: 0.7;
+      }
 
-      /* TOP NAV */
+      /* ── TOP NAV ── */
       .nav {
         flex-shrink: 0;
         display: flex;
@@ -110,6 +116,7 @@
         font-size: 19px;
         letter-spacing: 0.12em;
         color: var(--text);
+        white-space: nowrap;
       }
       .nav-title span {
         color: var(--accent);
@@ -128,29 +135,22 @@
       .nav-btn.ac {
         color: var(--accent);
       }
+
       #loginBtn {
         background: linear-gradient(135deg, var(--accent), var(--accent2));
         color: #09090f;
         border: none;
-        padding: 8px 16px;
+        padding: 7px 14px;
         border-radius: 10px;
         font-size: 12px;
         font-weight: 700;
         cursor: pointer;
-        transition: 0.2s ease;
         box-shadow: 0 4px 12px rgba(245, 200, 66, 0.2);
+        font-family: "DM Sans", sans-serif;
+        flex-shrink: 0;
       }
 
-      #loginBtn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(245, 200, 66, 0.3);
-      }
-
-      #loginBtn:active {
-        transform: scale(0.98);
-      }
-
-      /* HOME HEADER */
+      /* ── HOME HEADER ── */
       .home-header {
         flex-shrink: 0;
         background: linear-gradient(160deg, #0d0c18, #0f0e1a, #09090f);
@@ -195,7 +195,6 @@
         font-size: 34px;
         letter-spacing: 0.06em;
         line-height: 1;
-        margin-bottom: 0;
       }
       .home-title span {
         color: var(--accent);
@@ -207,7 +206,7 @@
         text-transform: uppercase;
       }
 
-      /* FILTERS */
+      /* ── FILTERS ── */
       .filter-wrap {
         flex-shrink: 0;
         background: var(--surface);
@@ -288,7 +287,7 @@
         font-family: "DM Sans", sans-serif;
       }
 
-      /* STATS ROW */
+      /* ── STATS ROW ── */
       .stats-row {
         flex-shrink: 0;
         display: flex;
@@ -330,7 +329,7 @@
         color: var(--accent);
       }
 
-      /* SCROLL */
+      /* ── SCROLL / BOARD ── */
       .scroll {
         flex: 1;
         overflow-y: auto;
@@ -338,7 +337,7 @@
         padding: 9px 11px 10px;
       }
 
-      /* PLAYER CARD */
+      /* ── PLAYER CARD ── */
       .pc {
         background: var(--card);
         border: 1px solid var(--border);
@@ -546,7 +545,7 @@
         font-family: "DM Sans", sans-serif;
       }
 
-      /* ══ COMPACT PAGE ══ */
+      /* ── COMPACT PAGE ── */
       .cmp-topbar {
         flex-shrink: 0;
         display: flex;
@@ -627,8 +626,6 @@
         outline: none;
         flex: 1;
       }
-
-      /* meta + formula in one row */
       .cmp-infobar {
         flex-shrink: 0;
         display: flex;
@@ -652,44 +649,10 @@
       .cmp-formula strong {
         color: var(--accent);
       }
-
-      /* TABLE */
       .cmp-scroll {
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        height: calc(100vh - 170px);
-      }
-      @media (max-width: 768px) {
-        table.cmp tbody td {
-          padding: 4px 3px;
-          font-size: 10px;
-        }
-
-        table.cmp tbody td:nth-child(2) {
-          font-size: 10.5px;
-        }
-
-        .sr-val {
-          font-size: 11px;
-        }
-
-        .mini-bg {
-          width: 20px;
-        }
-
-        table.cmp thead th {
-          font-size: 7px;
-          padding: 4px 2px;
-        }
-
-        .cmp-topbar {
-          padding: 5px 8px;
-        }
-
-        .cmp-infobar {
-          padding: 3px 8px;
-        }
       }
       table.cmp {
         width: 100%;
@@ -823,19 +786,26 @@
         color: var(--muted);
       }
 
-      /* ══ ADD PAGE ══ */
+      /* ── ADD PAGE ── */
+      /* Uniform inner tab row — all items are .itab */
       .itabs {
         flex-shrink: 0;
         display: flex;
         background: var(--surface);
         border-bottom: 1px solid var(--border);
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .itabs::-webkit-scrollbar {
+        display: none;
       }
       .itab {
         flex: 1;
+        min-width: 0;
         padding: 10px 6px;
         font-size: 10px;
         font-weight: 700;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
         color: var(--muted);
         text-align: center;
@@ -844,6 +814,8 @@
         background: transparent;
         border-bottom: 2px solid transparent;
         font-family: "DM Sans", sans-serif;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
       .itab.on {
         color: var(--accent);
@@ -983,16 +955,369 @@
       .slbl:first-child {
         margin-top: 0;
       }
+
+      /* ── MATCH HISTORY ── */
+      .match-history-wrap {
+        padding: 0;
+      }
+      .match-search {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 11px 13px;
+        color: var(--text);
+        margin-bottom: 12px;
+        font-size: 13px;
+        font-family: "DM Sans", sans-serif;
+        outline: none;
+      }
+      .match-search:focus {
+        border-color: var(--accent);
+      }
+      .match-search::placeholder {
+        color: var(--muted);
+      }
+      .match-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .match-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 13px;
+        position: relative;
+        overflow: hidden;
+      }
+      .match-card.fire-card {
+        box-shadow: 0 0 18px rgba(255, 179, 0, 0.15);
+        border-color: rgba(255, 179, 0, 0.4);
+      }
+      .match-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .match-badge {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--accent);
+        background: rgba(245, 200, 66, 0.12);
+        padding: 4px 9px;
+        border-radius: 20px;
+      }
+      .match-date {
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .match-score-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .team-block {
+        flex: 1;
+        text-align: center;
+      }
+      .team-name {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+        word-break: break-word;
+      }
+      .team-name.winner {
+        color: var(--green);
+        font-weight: 700;
+      }
+      .team-score {
+        font-size: 30px;
+        font-weight: 900;
+        margin-top: 6px;
+        color: var(--text);
+      }
+      .team-score.win {
+        color: var(--green);
+      }
+      .vs-text {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .match-footer {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .match-tag {
+        font-size: 10px;
+        padding: 4px 9px;
+        border-radius: 20px;
+        background: var(--surface2);
+        color: var(--muted);
+        border: 1px solid var(--border);
+      }
+      .match-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .action-btn {
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 10px;
+        font-weight: 700;
+        font-family: "DM Sans", sans-serif;
+      }
+      .edit-btn {
+        background: rgba(245, 200, 66, 0.12);
+        color: var(--accent);
+        border: 1px solid rgba(245, 200, 66, 0.25);
+      }
+      .delete-btn {
+        background: rgba(255, 103, 103, 0.12);
+        color: var(--red);
+        border: 1px solid rgba(240, 80, 80, 0.25);
+      }
+      .match-event-strip {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .event-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 6px 13px;
+        border-radius: 20px;
+        animation: badgePop 1.4s ease-in-out infinite;
+      }
+      .event-badge.fire {
+        color: #ff9500;
+        background: rgba(255, 149, 0, 0.15);
+        border: 1.5px solid rgba(255, 149, 0, 0.45);
+        text-shadow: 0 0 8px rgba(255, 149, 0, 0.5);
+      }
+      .event-badge.dominate {
+        color: #c87cff;
+        background: rgba(180, 80, 255, 0.12);
+        border: 1.5px solid rgba(180, 80, 255, 0.4);
+        text-shadow: 0 0 8px rgba(180, 80, 255, 0.4);
+      }
+      .event-badge.zero {
+        color: #ff4f4f;
+        background: rgba(255, 79, 79, 0.12);
+        border: 1.5px solid rgba(255, 79, 79, 0.4);
+        text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
+      }
+      @keyframes badgePop {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.06);
+          opacity: 0.85;
+        }
+      }
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-3px);
+        }
+      }
+
+      /* ── FAB ── */
+      .fab-modern {
+        position: fixed;
+        right: 18px;
+        bottom: 64px;
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        border: none;
+        background: var(--accent);
+        color: #111;
+        font-size: 28px;
+        font-weight: 900;
+        box-shadow: 0 8px 24px rgba(245, 200, 66, 0.3);
+        cursor: pointer;
+        z-index: 99;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* ── MODAL SHEET ── */
+      .modern-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.72);
+        z-index: 999;
+        display: none;
+        align-items: flex-end;
+      }
+      .modern-modal.show {
+        display: flex;
+      }
+      .modern-sheet {
+        width: 100%;
+        background: var(--surface);
+        border-radius: 22px 22px 0 0;
+        padding: 22px;
+        max-height: 90vh;
+        overflow: auto;
+        border-top: 1px solid var(--border);
+      }
+      .sheet-title {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 16px;
+        color: var(--text);
+      }
+      .input-modern {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 13px;
+        color: var(--text);
+        margin-bottom: 10px;
+        font-size: 13px;
+        font-family: "DM Sans", sans-serif;
+        outline: none;
+      }
+      .input-modern:focus {
+        border-color: var(--accent);
+      }
+      .input-modern::placeholder {
+        color: var(--muted);
+      }
+      .save-modern-btn {
+        width: 100%;
+        border: none;
+        background: var(--accent);
+        color: #09090f;
+        font-weight: 800;
+        padding: 14px;
+        border-radius: 14px;
+        margin-top: 6px;
+        font-size: 15px;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+      }
+
+      /* ── ANALYTICS MODAL ── */
+      #analytics-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.82);
+        z-index: 9999;
+        overflow: auto;
+        padding: 20px;
+      }
+      .analytics-inner {
+        max-width: 520px;
+        margin: auto;
+        background: var(--surface);
+        border-radius: 22px;
+        padding: 20px;
+        border: 1px solid var(--border);
+      }
+      .analytics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 18px;
+      }
+      .analytics-title {
+        font-size: 22px;
+        font-weight: 900;
+      }
+      .analytics-close {
+        background: var(--surface2);
+        color: var(--text);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .analytics-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ana-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .ana-card .badge {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--accent);
+        background: rgba(245, 200, 66, 0.12);
+        padding: 4px 9px;
+        border-radius: 20px;
+        margin-bottom: 10px;
+        display: inline-block;
+      }
+      .ana-card .name {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+      .ana-card .sub {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 999px;
+      }
     </style>
   </head>
   <body>
-    <!-- HOME PAGE -->
+    <!-- ══════════ HOME PAGE ══════════ -->
     <div class="page active" id="pg-home">
       <div class="nav">
         <div style="flex: 1"></div>
         <div class="nav-title">PADEL <span>PRO</span></div>
-        <button class="nav-btn ac" onclick="goTo('add')">+ Add</button>
-        <button class="nav-btn" id="loginBtn">Login</button>
+        <div
+          style="display: flex; align-items: center; gap: 6px; flex-shrink: 0"
+        >
+          <button class="nav-btn ac" onclick="goTo('add')" id="addNavBtn">
+            + Add
+          </button>
+          <button id="loginBtn">Login</button>
+        </div>
       </div>
       <div class="home-header">
         <div class="home-badge">🏓 Club Rankings</div>
@@ -1035,10 +1360,11 @@
         </div>
       </div>
       <div class="formula">
-        <strong>SR</strong> = (Match Win Rate x5) + (Game Win Rate x3) +
-        (Activity x2) = max <strong>10</strong>
+        <strong>SR</strong> = (Match Win Rate ×5) + (Game Win Rate ×3) +
+        (Activity ×2) · max <strong>10</strong>
       </div>
       <div class="scroll" id="board"></div>
+      <!-- 4 uniform tabs -->
       <div class="tabbar">
         <button class="tbb on" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
@@ -1046,16 +1372,16 @@
         <button class="tbb" onclick="switchMainTab('compact')">
           <span class="ico">📋</span>Snapshot
         </button>
-        <button class="tbb" onclick="switchMainTab('viewmatches')">
-          <span class="ico">🏓</span>Matches
+        <button class="tbb" onclick="switchMainTab('history')">
+          <span class="ico">🏓</span>History
         </button>
-        <button class="tbb" onclick="goTo('add')">
-          <span class="ico">➕</span>Add
+        <button class="tbb" onclick="showAnalytics()">
+          <span class="ico">📈</span>Analytics
         </button>
       </div>
     </div>
 
-    <!-- COMPACT PAGE -->
+    <!-- ══════════ COMPACT PAGE ══════════ -->
     <div class="page" id="pg-compact">
       <div class="cmp-topbar">
         <div class="cmp-brand">
@@ -1072,8 +1398,7 @@
         </select>
       </div>
       <div class="cmp-dr" id="cmpDr">
-        <input type="date" id="cmpFrom" />
-        <input type="date" id="cmpTo" />
+        <input type="date" id="cmpFrom" /><input type="date" id="cmpTo" />
         <button class="btn-go" onclick="applyRange('compact')">Go</button>
       </div>
       <div class="cmp-infobar">
@@ -1107,29 +1432,117 @@
         <button class="tbb on" onclick="switchMainTab('compact')">
           <span class="ico">📋</span>Snapshot
         </button>
-        <button class="tbb" onclick="goTo('add')">
-          <span class="ico">➕</span>Add
+        <button class="tbb" onclick="switchMainTab('history')">
+          <span class="ico">🏓</span>History
+        </button>
+        <button class="tbb" onclick="showAnalytics()">
+          <span class="ico">📈</span>Analytics
         </button>
       </div>
     </div>
 
-    <!-- ADD PAGE -->
+    <!-- ══════════ HISTORY PAGE ══════════ -->
+    <div class="page" id="pg-history">
+      <div class="nav">
+        <div style="flex: 1"></div>
+        <div class="nav-title">MATCH <span>HISTORY</span></div>
+        <div style="flex: 1"></div>
+      </div>
+      <div
+        style="
+          flex-shrink: 0;
+          padding: 10px 12px 0;
+          background: var(--surface);
+          border-bottom: 1px solid var(--border);
+        "
+      >
+        <input
+          id="modern-match-search"
+          class="match-search"
+          placeholder="🔍  Search players or teams…"
+          oninput="renderModernMatches()"
+        />
+        <div class="filters" style="padding-bottom: 8px">
+          <button class="filt on" data-mf="all" onclick="filterMatchTab('all')">
+            All
+          </button>
+          <button
+            class="filt"
+            data-mf="today"
+            onclick="filterMatchTab('today')"
+          >
+            Today
+          </button>
+          <button class="filt" data-mf="week" onclick="filterMatchTab('week')">
+            Week
+          </button>
+          <button
+            class="filt"
+            data-mf="weekend"
+            onclick="filterMatchTab('weekend')"
+          >
+            Weekend
+          </button>
+          <button
+            class="filt"
+            data-mf="month"
+            onclick="filterMatchTab('month')"
+          >
+            Month
+          </button>
+          <button
+            class="filt"
+            data-mf="range"
+            onclick="filterMatchTab('range')"
+          >
+            Range
+          </button>
+        </div>
+      </div>
+      <div class="dr-wrap" id="matchDr">
+        <div class="dr-g">
+          <label>From</label><input type="date" id="matchFrom" />
+        </div>
+        <div class="dr-g">
+          <label>To</label><input type="date" id="matchTo" />
+        </div>
+        <button class="btn-go" onclick="renderModernMatches()">Apply</button>
+      </div>
+      <div
+        class="scroll"
+        id="modern-match-list"
+        style="padding: 10px 11px 10px"
+      ></div>
+      <div class="tabbar">
+        <button class="tbb" onclick="switchMainTab('home')">
+          <span class="ico">📊</span>Detailed
+        </button>
+        <button class="tbb" onclick="switchMainTab('compact')">
+          <span class="ico">📋</span>Snapshot
+        </button>
+        <button class="tbb on" onclick="switchMainTab('history')">
+          <span class="ico">🏓</span>History
+        </button>
+        <button class="tbb" onclick="showAnalytics()">
+          <span class="ico">📈</span>Analytics
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════ ADD PAGE ══════════ -->
     <div class="page" id="pg-add">
       <div class="nav">
         <button class="nav-btn" onclick="goBack()">← Back</button>
         <div class="nav-title">ADD <span>DATA</span></div>
         <div style="flex: 1"></div>
       </div>
+      <!-- All four tabs use .itab — uniform style -->
       <div class="itabs">
         <button class="itab on" onclick="switchITab('matches')">
           📋 Add Matches
         </button>
-        <button
-          class="btn-s"
-          style="width: 100%"
-          onclick="switchITab('viewmatches')"
-        >
-          Match History
+        <button class="itab" onclick="switchITab('viewmatches')">
+          🏓 History
         </button>
         <button class="itab" onclick="switchITab('names')">👤 Names</button>
         <button class="itab" onclick="switchITab('manage')">⚙️ Manage</button>
@@ -1163,59 +1576,15 @@ Ank RaM vs Nil Tej 4-2"
           </div>
         </div>
         <div class="panel" id="ip-viewmatches">
-          <div class="slbl">All Matches</div>
-
-          <div class="filter-wrap" style="padding: 0; border-bottom: none">
-            <div class="filters">
-              <button
-                class="filt on"
-                data-mf="all"
-                onclick="filterMatchTab('all')"
-              >
-                All
-              </button>
-              <button
-                class="filt"
-                data-mf="today"
-                onclick="filterMatchTab('today')"
-              >
-                Today
-              </button>
-              <button
-                class="filt"
-                data-mf="week"
-                onclick="filterMatchTab('week')"
-              >
-                Week
-              </button>
-              <button
-                class="filt"
-                data-mf="month"
-                onclick="filterMatchTab('month')"
-              >
-                Month
-              </button>
-              <button
-                class="filt"
-                data-mf="range"
-                onclick="filterMatchTab('range')"
-              >
-                Range
-              </button>
-            </div>
-          </div>
-
-          <div class="dr-wrap" id="matchDr">
-            <div class="dr-g">
-              <label>From</label><input type="date" id="matchFrom" />
-            </div>
-            <div class="dr-g">
-              <label>To</label><input type="date" id="matchTo" />
-            </div>
-            <button class="btn-go" onclick="renderMatchList()">Apply</button>
-          </div>
-
-          <div id="matchList" style="margin-top: 10px"></div>
+          <!-- mini history inside add page -->
+          <input
+            id="add-match-search"
+            class="match-search"
+            style="margin-top: 4px"
+            placeholder="🔍  Search…"
+            oninput="renderAddMatches()"
+          />
+          <div id="add-match-list" class="match-grid"></div>
         </div>
         <div class="panel" id="ip-names">
           <div class="slbl">Name Master</div>
@@ -1250,9 +1619,65 @@ Parthiv - Par"
         </div>
       </div>
     </div>
+
+    <!-- FAB — only visible on add page -->
+    <button class="fab-modern" id="fab" onclick="openModernAddModal()">
+      +
+    </button>
+
+    <!-- Quick-add modal -->
+    <div id="modern-add-modal" class="modern-modal">
+      <div class="modern-sheet">
+        <div class="sheet-title">Quick Add Match</div>
+        <input
+          id="modern-team-a"
+          class="input-modern"
+          placeholder="Team A  (Rahul, Ankit)"
+        />
+        <input
+          id="modern-score-a"
+          class="input-modern"
+          type="number"
+          placeholder="Score A"
+        />
+        <input
+          id="modern-team-b"
+          class="input-modern"
+          placeholder="Team B  (Sid, Jay)"
+        />
+        <input
+          id="modern-score-b"
+          class="input-modern"
+          type="number"
+          placeholder="Score B"
+        />
+        <input id="modern-date" class="input-modern" type="date" />
+        <button class="save-modern-btn" onclick="saveModernMatch()">
+          Save Match
+        </button>
+        <button
+          onclick="closeModernAddModal()"
+          style="
+            width: 100%;
+            margin-top: 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: &quot;DM Sans&quot;, sans-serif;
+          "
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
       import {
         getFirestore,
         doc,
@@ -1260,7 +1685,6 @@ Parthiv - Par"
         setDoc,
         onSnapshot,
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
       import {
         getAuth,
         GoogleAuthProvider,
@@ -1283,81 +1707,57 @@ Parthiv - Par"
         measurementId: "G-LN19GL652D",
       };
 
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-
       const ADMIN_EMAIL = "ankit.konchady@gmail.com";
-
+      const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
 
-      window.db = db;
-      window.auth = auth;
-      window.provider = provider;
-      window.doc = doc;
-      window.getDoc = getDoc;
-      window.setDoc = setDoc;
-      window.onSnapshot = onSnapshot;
-      window.signInWithPopup = signInWithPopup;
-      window.onAuthStateChanged = onAuthStateChanged;
-      window.signOut = signOut;
-
-      window.isAdmin = false;
-      window.ADMIN_EMAIL = ADMIN_EMAIL;
-
-      var allMatches = [];
-      var nameMap = {};
-      var aliasMap = {};
-      var matchTabFilter = "all";
-      var matchFrom = null;
-      var matchTo = null;
-
-      try {
-        var r = JSON.parse(localStorage.getItem("pnm") || "{}");
-        nameMap = r.nameMap || {};
-        aliasMap = r.aliasMap || {};
-      } catch (e) {}
-      var homeFilter = "all",
+      // ── STATE ──────────────────────────────────────────────────
+      let allMatches = [];
+      let nameMap = {};
+      let aliasMap = {};
+      let matchTabFilter = "all",
+        matchFrom = null,
+        matchTo = null;
+      let homeFilter = "all",
         homeFrom = null,
         homeTo = null;
-      var cmpFilter = "all",
+      let cmpFilter = "all",
         cmpFrom = null,
         cmpTo = null;
-      var prevPage = "home";
+      let prevPage = "home";
+      window.isAdmin = false;
 
+      // ── CLOUD SAVE (Firestore + localStorage fallback) ─────────
       async function saveCloudData() {
+        const payload = { matches: allMatches, aliasMap, nameMap };
         try {
-          await setDoc(
-            doc(db, "padel", "main"),
-            {
-              matches: allMatches,
-              aliasMap: aliasMap,
-              nameMap: nameMap,
-            },
-            { merge: true },
-          );
-        } catch (e) {
-          console.error("Save failed:", e);
-          alert("Cloud save failed");
+          if (auth.currentUser && window.isAdmin) {
+            await setDoc(doc(db, "padel", "main"), payload);
+          }
+        } catch (err) {
+          console.error("Firestore save failed:", err);
         }
+        try {
+          localStorage.setItem("padel_matches", JSON.stringify(allMatches));
+        } catch (e) {}
       }
 
       function loadCloudData() {
         onSnapshot(doc(db, "padel", "main"), (snap) => {
           if (!snap.exists()) return;
-
           const data = snap.data();
-
           allMatches = data.matches || [];
           aliasMap = data.aliasMap || {};
           nameMap = data.nameMap || {};
-
           renderHome();
           renderCompact();
           refreshManage();
         });
       }
+
+      // ── AUTH ───────────────────────────────────────────────────
       document
         .getElementById("loginBtn")
         .addEventListener("click", async () => {
@@ -1366,506 +1766,177 @@ Parthiv - Par"
               await signOut(auth);
               return;
             }
-
             await signInWithPopup(auth, provider);
           } catch (err) {
-            console.error(err);
-
-            // fallback if popup blocked
-            if (err.code === "auth/popup-blocked") {
+            if (err.code === "auth/popup-blocked")
               await signInWithRedirect(auth, provider);
-            } else {
-              alert(err.message);
-            }
+            else alert(err.message);
           }
         });
 
       getRedirectResult(auth)
-        .then((result) => {
-          if (result?.user) {
-            console.log("Logged in:", result.user.email);
-          }
+        .then((r) => {
+          if (r?.user) console.log("Logged in:", r.user.email);
         })
-        .catch((error) => {
-          console.error(error);
-        });
+        .catch(console.error);
 
       onAuthStateChanged(auth, (user) => {
         window.isAdmin = !!user && user.email === ADMIN_EMAIL;
-
         updateAdminUI(user);
-
         renderHome();
         renderCompact();
       });
 
       function updateAdminUI(user) {
-        const addButtons = document.querySelectorAll(
-          ".tbb:last-child, .nav-btn.ac",
-        );
-
-        addButtons.forEach((el) => {
-          el.style.display = isAdmin ? "flex" : "none";
-
-          if (el.classList.contains("nav-btn")) {
-            el.style.display = isAdmin ? "block" : "none";
+        const addBtn = document.getElementById("addNavBtn");
+        const fab = document.getElementById("fab");
+        addBtn.style.display = window.isAdmin ? "block" : "none";
+        fab.style.display = window.isAdmin ? "flex" : "none";
+        document.getElementById("loginBtn").textContent = user
+          ? "Logout"
+          : "Login";
+        // Hide edit/add tabs for non-admins
+        document.querySelectorAll(".itab").forEach((tab) => {
+          const txt = tab.textContent.trim();
+          if (
+            !window.isAdmin &&
+            (txt.includes("Add") ||
+              txt.includes("Names") ||
+              txt.includes("Manage"))
+          ) {
+            tab.style.display = "none";
+          } else {
+            tab.style.display = "";
           }
         });
-
-        if (!isAdmin) {
-          document.querySelectorAll(".itab").forEach((btn) => {
-            if (
-              btn.textContent.includes("Add Matches") ||
-              btn.textContent.includes("Names") ||
-              btn.textContent.includes("Manage")
-            ) {
-              btn.style.display = "none";
-            }
-          });
-        }
-
-        const btn = document.getElementById("loginBtn");
-
-        if (user) {
-          btn.textContent = "Logout";
-        } else {
-          btn.textContent = "Login";
-        }
       }
 
-      function renderMatchList() {
-        let matches = filterMatches(matchTabFilter, matchFrom, matchTo);
-        const el = document.getElementById("matchList");
-
-        if (!matches.length) {
-          el.innerHTML = `
-      <div class="empty">
-        <div class="ico">🏓</div>
-        <p>No matches found for this filter</p>
-      </div>`;
-          return;
-        }
-
-        const sorted = [...matches].sort((a, b) =>
-          a.date.localeCompare(b.date),
-        );
-
-        const reversed = [...sorted].reverse();
-
-        const getFlags = (m) => {
-          const aWin = m.scoreA > m.scoreB;
-          const diff = Math.abs(m.scoreA - m.scoreB);
-
-          return {
-            aWin,
-            bWin: !aWin,
-            diff,
-            isFire: diff <= 1,
-
-            teamAZeroLoss: m.scoreA === 0 && m.scoreB > 0,
-            teamBZeroLoss: m.scoreB === 0 && m.scoreA > 0,
-          };
-        };
-
-        el.innerHTML = reversed
-          .map((m) => {
-            const teamA = (m.teamA || []).join(" & ");
-            const teamB = (m.teamB || []).join(" & ");
-            const f = getFlags(m);
-
-            const badgeRight =
-              f.isFire || f.teamAZeroLoss || f.teamBZeroLoss
-                ? `
-        <div style="
-          position:absolute;
-          right:12px;
-          top:50%;
-          transform:translateY(-50%);
-          display:flex;
-          flex-direction:column;
-          gap:6px;
-          text-align:right;
-        ">
-
-          ${
-            f.isFire
-              ? `
-            <div class="fire-badge">
-              🔥 FIRE MATCH
-            </div>
-          `
-              : ""
-          }
-
-          ${
-            f.teamAZeroLoss || f.teamBZeroLoss
-              ? `
-            <div class="zero-badge">
-              <span class="bounce">😂 ZERO SE HAAR GAYE</span>
-            </div>
-          `
-              : ""
-          }
-
-        </div>
-
-        <style>
-          .bounce {
-            display:inline-block;
-            animation:bounceMove 1.2s infinite;
-          }
-
-          .fire-badge {
-            font-size:16px;
-            font-weight:900;
-            color:#ffb300;
-            letter-spacing:0.08em;
-            animation:bounceMove 1.2s infinite;
-            text-shadow:0 0 10px rgba(255,179,0,0.35);
-          }
-
-          .zero-badge {
-            font-size:16px;
-            font-weight:900;
-            color:#ff3b3b;
-            display:flex;
-            align-items:center;
-            gap:6px;
-          }
-
-          @keyframes bounceMove {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px) scale(1.08); }
-          }
-        </style>
-      `
-                : "";
-
-            return `
-      <div class="pc"
-        style="
-          position:relative;
-          ${f.isFire ? "box-shadow:0 0 18px rgba(255,179,0,0.15), 0 0 0 1px rgba(255,179,0,0.4);" : ""}
-        "
-      >
-
-        ${badgeRight}
-
-        <div class="ct"
-          style="
-            justify-content:center;
-            flex-direction:column;
-            text-align:center;
-            padding-top:10px;
-          "
-        >
-
-          <div class="pname"
-            style="
-              font-size:14px;
-              line-height:1.6;
-              text-align:center;
-              width:100%;
-            "
-          >
-
-            <!-- TEAM A -->
-            <span style="
-              display:flex;
-              justify-content:center;
-              align-items:flex-start;
-              gap:6px;
-              color:${f.aWin ? "var(--green)" : "var(--red)"};
-            ">
-              ${f.aWin ? `<span style="font-size:22px; line-height:1;">👑</span>` : ""}
-              <span>${teamA}</span>
-            </span>
-
-            <span style="
-              color:var(--muted);
-              font-size:11px;
-              display:block;
-              margin:2px 0;
-            ">
-              vs
-            </span>
-
-            <!-- TEAM B -->
-            <span style="
-              display:flex;
-              justify-content:center;
-              align-items:flex-start;
-              gap:6px;
-              color:${f.bWin ? "var(--green)" : "var(--red)"};
-            ">
-              ${f.bWin ? `<span style="font-size:22px; line-height:1;">👑</span>` : ""}
-              <span>${teamB}</span>
-            </span>
-
-          </div>
-        </div>
-
-        <!-- SCORE -->
-        <div style="
-          font-size:15px;
-          font-weight:900;
-          text-align:center;
-          margin:6px 0;
-          color:var(--accent);
-        ">
-          ${m.scoreA} - ${m.scoreB}
-        </div>
-
-        <!-- FOOTER -->
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          font-size:10px;
-          color:var(--muted);
-          margin-top:10px;
-          gap:10px;
-        ">
-          <span>📅 ${m.date}</span>
-
-          ${
-            isAdmin
-              ? `
-            <div style="display:flex; gap:8px;">
-              <button
-                onclick="editMatch(${matches.indexOf(m)})"
-                style="
-                  background:rgba(245,200,66,0.12);
-                  border:1px solid rgba(245,200,66,0.25);
-                  color:var(--accent);
-                  padding:6px 10px;
-                  border-radius:8px;
-                  font-size:10px;
-                  font-weight:700;
-                  cursor:pointer;
-                "
-              >
-                ✏️ Edit
-              </button>
-
-              <button
-                onclick="deleteMatch(${matches.indexOf(m)})"
-                style="
-                  background:rgba(240,80,80,0.12);
-                  border:1px solid rgba(240,80,80,0.25);
-                  color:var(--red);
-                  padding:6px 10px;
-                  border-radius:8px;
-                  font-size:10px;
-                  font-weight:700;
-                  cursor:pointer;
-                "
-              >
-                🗑 Delete
-              </button>
-            </div>
-          `
-              : ""
-          }
-        </div>
-    `;
-          })
-          .join("");
-      }
-
-      function deleteMatch(index) {
-        if (!confirm("Delete this match?")) return;
-
-        const matches = filterMatches(matchTabFilter, matchFrom, matchTo);
-        const target = matches[index];
-
-        allMatches = allMatches.filter((m) => m !== target);
-
-        saveCloudData();
-        renderMatchList();
-        renderHome();
-        renderCompact();
-      }
-
-      function editMatch(index) {
-        const matches = filterMatches(matchTabFilter, matchFrom, matchTo);
-        const m = matches[index];
-
-        const newScoreA = prompt("Edit Team A Score", m.scoreA);
-        if (newScoreA === null) return;
-
-        const newScoreB = prompt("Edit Team B Score", m.scoreB);
-        if (newScoreB === null) return;
-
-        const a = parseInt(newScoreA);
-        const b = parseInt(newScoreB);
-
-        if (isNaN(a) || isNaN(b) || a === b) {
-          alert("Invalid scores");
-          return;
-        }
-
-        m.scoreA = a;
-        m.scoreB = b;
-
-        saveCloudData();
-        renderMatchList();
-        renderHome();
-        renderCompact();
-      }
-
-      function filterMatchTab(f) {
-        matchTabFilter = f;
-
-        document
-          .querySelectorAll("[data-mf]")
-          .forEach((b) => b.classList.remove("on"));
-        document.querySelector(`[data-mf="${f}"]`).classList.add("on");
-
-        const dr = document.getElementById("matchDr");
-        if (f === "range") dr.classList.add("show");
-        else dr.classList.remove("show");
-
-        renderMatchList();
-      }
-
+      // ── NAVIGATION ─────────────────────────────────────────────
       function goTo(id) {
-        // Only restrict ADD page, not view-matches
-        if (id === "add" && !isAdmin) {
+        if (id === "add" && !window.isAdmin) {
           alert("Only admin can add data");
           return;
         }
-
         prevPage = document.querySelector(".page.active").id.replace("pg-", "");
-
-        document.querySelectorAll(".page").forEach(function (p) {
-          p.classList.remove("active");
-        });
-
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
         document.getElementById("pg-" + id).classList.add("active");
-
+        document.getElementById("fab").style.display =
+          id === "add" && window.isAdmin ? "flex" : "none";
         if (id === "home") renderHome();
         if (id === "compact") renderCompact();
-        if (id === "add") refreshManage();
+        if (id === "history") {
+          renderModernMatches();
+        }
+        if (id === "add") {
+          refreshManage();
+          renderAddMatches();
+        }
       }
       function goBack() {
         goTo(prevPage === "add" ? "home" : prevPage);
       }
+
       function switchMainTab(id) {
-        document.querySelectorAll(".page").forEach(function (p) {
-          p.classList.remove("active");
+        // Update all tabbars
+        document
+          .querySelectorAll(".tabbar .tbb")
+          .forEach((b) => b.classList.remove("on"));
+        document.querySelectorAll(`.tabbar .tbb`).forEach((b) => {
+          const map = {
+            home: "Detailed",
+            compact: "Snapshot",
+            history: "History",
+            analytics: "Analytics",
+          };
+          if (
+            b.textContent
+              .trim()
+              .toLowerCase()
+              .includes(id === "history" ? "history" : id)
+          )
+            b.classList.add("on");
         });
-
-        if (id === "viewmatches") {
-          document.getElementById("pg-add").classList.add("active");
-
-          document.querySelectorAll(".itab").forEach((t) => {
-            t.classList.remove("on");
-          });
-
-          const tabs = document.querySelectorAll(".itab");
-
-          tabs.forEach((tab) => {
-            if (tab.textContent.includes("Matches")) {
-              tab.classList.add("on");
-            }
-          });
-
-          document.querySelectorAll(".panel").forEach((p) => {
-            p.classList.remove("show");
-          });
-
-          document.getElementById("ip-viewmatches").classList.add("show");
-
-          renderMatchList();
-          return;
-        }
-
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
         document.getElementById("pg-" + id).classList.add("active");
-
+        document.getElementById("fab").style.display = "none";
         if (id === "home") renderHome();
         if (id === "compact") renderCompact();
-        if (id === "add") refreshManage();
-      }
-      function switchITab(id) {
-        var keys = ["matches", "viewmatches", "names", "manage"];
-        document.querySelectorAll(".itab").forEach(function (t, i) {
-          t.classList.toggle("on", keys[i] === id);
-        });
-        document.querySelectorAll(".panel").forEach(function (p) {
-          p.classList.remove("show");
-        });
-        document.getElementById("ip-" + id).classList.add("show");
-        if (id === "manage") refreshManage();
-        if (id === "viewmatches") renderMatchList();
-      }
-      function refreshManage() {
-        var days = new Set(
-          allMatches.map(function (m) {
-            return m.date;
-          }),
-        ).size;
-        document.getElementById("manageInfo").innerHTML =
-          "Matches: <strong>" +
-          allMatches.length +
-          "</strong><br>Days: <strong>" +
-          days +
-          "</strong><br>Players mapped: <strong>" +
-          Object.keys(aliasMap).length +
-          "</strong>";
+        if (id === "history") renderModernMatches();
       }
 
+      function switchITab(id) {
+        const keys = ["matches", "viewmatches", "names", "manage"];
+        document
+          .querySelectorAll(".itab")
+          .forEach((t, i) => t.classList.toggle("on", keys[i] === id));
+        document
+          .querySelectorAll(".panel")
+          .forEach((p) => p.classList.remove("show"));
+        document.getElementById("ip-" + id).classList.add("show");
+        if (id === "manage") refreshManage();
+        if (id === "viewmatches") renderAddMatches();
+      }
+
+      function refreshManage() {
+        const days = new Set(allMatches.map((m) => m.date)).size;
+        document.getElementById("manageInfo").innerHTML =
+          `Matches: <strong>${allMatches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(aliasMap).length}</strong>`;
+      }
+
+      // ── DATE HELPERS ───────────────────────────────────────────
       function todayISO() {
         return new Date().toISOString().slice(0, 10);
       }
       function weekISO() {
-        var d = new Date();
-        var day = d.getDay(); // 0=Sun, 1=Mon...
-        var diff = day === 0 ? -6 : 1 - day; // Monday start
+        const d = new Date(),
+          day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day; // Monday
         d.setDate(d.getDate() + diff);
         return d.toISOString().slice(0, 10);
       }
+      function weekEndISO() {
+        const s = new Date(weekISO());
+        s.setDate(s.getDate() + 6);
+        return s.toISOString().slice(0, 10);
+      }
       function weekendRange() {
-        var now = new Date();
-        var day = now.getDay();
-
-        // Find current week's Saturday
-        var saturday = new Date(now);
-        var diffToSat = day === 0 ? -1 : 6 - day;
-        saturday.setDate(now.getDate() + diffToSat);
-
-        var sunday = new Date(saturday);
-        sunday.setDate(saturday.getDate() + 1);
-
+        const now = new Date(),
+          day = now.getDay();
+        const sat = new Date(now);
+        sat.setDate(now.getDate() + (day === 0 ? -1 : 6 - day));
+        const sun = new Date(sat);
+        sun.setDate(sat.getDate() + 1);
         return {
-          from: saturday.toISOString().slice(0, 10),
-          to: sunday.toISOString().slice(0, 10),
+          from: sat.toISOString().slice(0, 10),
+          to: sun.toISOString().slice(0, 10),
         };
       }
       function monthISO() {
-        var d = new Date();
+        const d = new Date();
         d.setDate(1);
         return d.toISOString().slice(0, 10);
       }
+
       function parseDateHdr(s) {
-        var m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
         if (!m) return null;
-        var d = m[1],
-          mo = m[2],
-          y = m[3];
+        let [, d, mo, y] = m;
         if (y.length === 2) y = "20" + y;
-        return y + "-" + mo.padStart(2, "0") + "-" + d.padStart(2, "0");
+        return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
       }
-      var resolve = function (a) {
-        return nameMap[a] || a;
-      };
+      const resolve = (a) => nameMap[a] || a;
+
       function parseMatchLine(line) {
         line = line.trim().replace(/\s+/g, " ");
-        var m = line.match(/^(.+?)\s+vs\s+(.+?)\s+(\d+)\s*[-\u2013]\s*(\d+)$/i);
+        const m = line.match(/^(.+?)\s+vs\s+(.+?)\s+(\d+)\s*[-–]\s*(\d+)$/i);
         if (!m) return null;
-        var tA = m[1].trim().split(" ").filter(Boolean);
-        var tB = m[2].trim().split(" ").filter(Boolean);
-        var sA = +m[3],
+        const tA = m[1].trim().split(" ").filter(Boolean),
+          tB = m[2].trim().split(" ").filter(Boolean);
+        const sA = +m[3],
           sB = +m[4];
         if (tA.length < 1 || tA.length > 2 || tB.length < 1 || tB.length > 2)
           return null;
@@ -1878,170 +1949,38 @@ Parthiv - Par"
           scoreB: sB,
         };
       }
+
       function parseBlock(raw) {
-        var parsed = [],
+        const parsed = [],
           errors = [],
-          cur = todayISO();
-        raw.split("\n").forEach(function (line, i) {
-          var t = line.trim();
+          cur = { d: todayISO() };
+        raw.split("\n").forEach((line, i) => {
+          const t = line.trim();
           if (!t) return;
-          var dt = parseDateHdr(t);
+          const dt = parseDateHdr(t);
           if (dt) {
-            cur = dt;
+            cur.d = dt;
             return;
           }
-          var m = parseMatchLine(t);
-          if (m) {
-            var obj = { date: cur };
-            Object.assign(obj, m);
-            parsed.push(obj);
-          } else errors.push({ ln: i + 1, text: t });
+          const m = parseMatchLine(t);
+          if (m) parsed.push({ date: cur.d, ...m });
+          else errors.push({ ln: i + 1, text: t });
         });
-        return { parsed: parsed, errors: errors };
-      }
-      function addMatches() {
-        var raw = document.getElementById("matchTA").value;
-        var eEl = document.getElementById("mErr"),
-          oEl = document.getElementById("mOk");
-        eEl.classList.remove("show");
-        oEl.classList.remove("show");
-        var res = parseBlock(raw);
-        if (res.errors.length) {
-          eEl.innerHTML =
-            "Skipped " +
-            res.errors.length +
-            " line(s):<br>" +
-            res.errors
-              .slice(0, 4)
-              .map(function (e) {
-                return "Line " + e.ln + ": " + e.text;
-              })
-              .join("<br>") +
-            (res.errors.length > 4 ? "<br>...and more" : "");
-          eEl.classList.add("show");
-        }
-        if (res.parsed.length) {
-          allMatches = allMatches.concat(res.parsed);
-          saveCloudData();
-          document.getElementById("matchTA").value = "";
-          oEl.textContent =
-            "Added " +
-            res.parsed.length +
-            " match" +
-            (res.parsed.length > 1 ? "es" : "") +
-            ".";
-          oEl.classList.add("show");
-          setTimeout(function () {
-            oEl.classList.remove("show");
-          }, 2500);
-        }
-      }
-      function saveNames() {
-        var raw = document.getElementById("namesTA").value;
-        var eEl = document.getElementById("nErr"),
-          oEl = document.getElementById("nOk");
-        eEl.classList.remove("show");
-        oEl.classList.remove("show");
-        var nm = {},
-          am = {},
-          errs = [];
-        raw.split("\n").forEach(function (line, i) {
-          var t = line.trim();
-          if (!t) return;
-          var idx = t.indexOf("-");
-          if (idx < 1) {
-            errs.push("Line " + (i + 1));
-            return;
-          }
-          var display = t.slice(0, idx).trim();
-          var aliases = t
-            .slice(idx + 1)
-            .split(",")
-            .map(function (a) {
-              return a.trim();
-            })
-            .filter(Boolean);
-          if (!display || !aliases.length) {
-            errs.push("Line " + (i + 1));
-            return;
-          }
-          aliases.forEach(function (a) {
-            nm[a] = display;
-          });
-          am[display] = aliases;
-        });
-        if (errs.length) {
-          eEl.innerHTML = errs.length + " line(s) skipped";
-          eEl.classList.add("show");
-        }
-        nameMap = nm;
-        aliasMap = am;
-        saveCloudData();
-        oEl.textContent =
-          "Saved " + Object.keys(am).length + " player mappings.";
-        oEl.classList.add("show");
-        setTimeout(function () {
-          oEl.classList.remove("show");
-        }, 2500);
-      }
-      function loadNames() {
-        document.getElementById("namesTA").value = Object.entries(aliasMap)
-          .map(function (e) {
-            return e[0] + " - " + e[1].join(", ");
-          })
-          .join("\n");
-      }
-      function clearMatches() {
-        if (!confirm("Clear all match data?")) return;
-        allMatches = [];
-        refreshManage();
-      }
-      function clearNames() {
-        if (!confirm("Clear name aliases?")) return;
-        nameMap = {};
-        aliasMap = {};
-        refreshManage();
-      }
-      function exportData() {
-        navigator.clipboard
-          .writeText(
-            JSON.stringify(
-              { allMatches: allMatches, aliasMap: aliasMap },
-              null,
-              2,
-            ),
-          )
-          .then(function () {
-            var el = document.getElementById("expOk");
-            el.textContent = "Copied!";
-            el.classList.add("show");
-            setTimeout(function () {
-              el.classList.remove("show");
-            }, 2500);
-          })
-          .catch(function () {
-            alert("Copy failed");
-          });
+        return { parsed, errors };
       }
 
+      // ── FILTER ─────────────────────────────────────────────────
       function filterMatches(f, from, to) {
-        var t = todayISO(),
+        const t = todayISO(),
           sw = weekISO(),
+          swe = weekEndISO(),
           sm = monthISO(),
           wr = weekendRange();
-        return allMatches.filter(function (m) {
+        return allMatches.filter((m) => {
           if (f === "all") return true;
           if (f === "today") return m.date === t;
-          if (f === "week") {
-            var end = new Date(sw);
-            end.setDate(end.getDate() + 6);
-            var weekEnd = end.toISOString().slice(0, 10);
-            return m.date >= sw && m.date <= weekEnd;
-          }
-
-          if (f === "weekend") {
-            return m.date >= wr.from && m.date <= wr.to;
-          }
+          if (f === "week") return m.date >= sw && m.date <= swe;
+          if (f === "weekend") return m.date >= wr.from && m.date <= wr.to;
           if (f === "month") return m.date >= sm && m.date <= t;
           if (f === "range") {
             if (from && m.date < from) return false;
@@ -2051,61 +1990,162 @@ Parthiv - Par"
           return true;
         });
       }
+
+      // ── COMPUTE STATS ──────────────────────────────────────────
       function computeStats(matches) {
-        var P = {};
-        function g(n) {
+        const P = {};
+        const g = (n) => {
           if (!P[n]) P[n] = { name: n, mp: 0, mw: 0, gw: 0, gl: 0 };
           return P[n];
-        }
-        matches.forEach(function (m) {
-          var aWon = m.scoreA > m.scoreB;
-          m.teamA.forEach(function (p) {
-            var pl = g(p);
+        };
+        matches.forEach((m) => {
+          const aWon = m.scoreA > m.scoreB;
+          m.teamA.forEach((p) => {
+            const pl = g(p);
             pl.mp++;
             pl.gw += m.scoreA;
             pl.gl += m.scoreB;
             if (aWon) pl.mw++;
           });
-          m.teamB.forEach(function (p) {
-            var pl = g(p);
+          m.teamB.forEach((p) => {
+            const pl = g(p);
             pl.mp++;
             pl.gw += m.scoreB;
             pl.gl += m.scoreA;
             if (!aWon) pl.mw++;
           });
         });
-        var rows = Object.values(P);
-        var maxMP = Math.max.apply(
-          null,
-          [1].concat(
-            rows.map(function (p) {
-              return p.mp;
-            }),
-          ),
-        );
+        const rows = Object.values(P);
+        const maxMP = Math.max(1, ...rows.map((p) => p.mp));
         return rows
-          .map(function (p) {
-            var ml = p.mp - p.mw,
+          .map((p) => {
+            const ml = p.mp - p.mw,
               total = p.gw + p.gl;
-            var mwr = p.mp > 0 ? p.mw / p.mp : 0;
-            var gwr = total > 0 ? p.gw / total : 0;
-            var act = p.mp / maxMP;
-            var sr = mwr * 5 + gwr * 3 + act * 2;
-            return Object.assign({}, p, {
-              ml: ml,
+            const mwr = p.mp > 0 ? p.mw / p.mp : 0,
+              gwr = total > 0 ? p.gw / total : 0,
+              act = p.mp / maxMP;
+            const sr = mwr * 5 + gwr * 3 + act * 2;
+            return {
+              ...p,
+              ml,
               diff: p.gw - p.gl,
-              sr: sr,
-              mwr: mwr,
-              gwr: gwr,
-              act: act,
+              sr,
+              mwr,
+              gwr,
+              act,
               winPct: mwr * 100,
               gamePct: gwr * 100,
-            });
+            };
           })
-          .sort(function (a, b) {
-            return b.sr - a.sr;
-          });
+          .sort((a, b) => b.sr - a.sr);
       }
+
+      // ── ADD MATCHES ────────────────────────────────────────────
+      function addMatches() {
+        const raw = document.getElementById("matchTA").value;
+        const eEl = document.getElementById("mErr"),
+          oEl = document.getElementById("mOk");
+        eEl.classList.remove("show");
+        oEl.classList.remove("show");
+        const { parsed, errors } = parseBlock(raw);
+        if (errors.length) {
+          eEl.innerHTML =
+            `Skipped ${errors.length} line(s):<br>` +
+            errors
+              .slice(0, 4)
+              .map((e) => `Line ${e.ln}: ${e.text}`)
+              .join("<br>") +
+            (errors.length > 4 ? "<br>…and more" : "");
+          eEl.classList.add("show");
+        }
+        if (parsed.length) {
+          allMatches.push(...parsed);
+          saveCloudData();
+          document.getElementById("matchTA").value = "";
+          oEl.textContent = `Added ${parsed.length} match${parsed.length > 1 ? "es" : ""}.`;
+          oEl.classList.add("show");
+          setTimeout(() => oEl.classList.remove("show"), 2500);
+          renderHome();
+          renderCompact();
+        }
+      }
+
+      // ── NAMES ──────────────────────────────────────────────────
+      function saveNames() {
+        const raw = document.getElementById("namesTA").value;
+        const eEl = document.getElementById("nErr"),
+          oEl = document.getElementById("nOk");
+        eEl.classList.remove("show");
+        oEl.classList.remove("show");
+        const nm = {},
+          am = {},
+          errs = [];
+        raw.split("\n").forEach((line, i) => {
+          const t = line.trim();
+          if (!t) return;
+          const idx = t.indexOf("-");
+          if (idx < 1) {
+            errs.push(`Line ${i + 1}`);
+            return;
+          }
+          const display = t.slice(0, idx).trim();
+          const aliases = t
+            .slice(idx + 1)
+            .split(",")
+            .map((a) => a.trim())
+            .filter(Boolean);
+          if (!display || !aliases.length) {
+            errs.push(`Line ${i + 1}`);
+            return;
+          }
+          aliases.forEach((a) => (nm[a] = display));
+          am[display] = aliases;
+        });
+        if (errs.length) {
+          eEl.innerHTML = `${errs.length} line(s) skipped`;
+          eEl.classList.add("show");
+        }
+        nameMap = nm;
+        aliasMap = am;
+        saveCloudData(); // now includes nameMap + aliasMap
+        oEl.textContent = `Saved ${Object.keys(am).length} player mappings.`;
+        oEl.classList.add("show");
+        setTimeout(() => oEl.classList.remove("show"), 2500);
+      }
+      function loadNames() {
+        document.getElementById("namesTA").value = Object.entries(aliasMap)
+          .map(([n, a]) => `${n} - ${a.join(", ")}`)
+          .join("\n");
+      }
+
+      function clearMatches() {
+        if (!confirm("Clear all match data?")) return;
+        allMatches = [];
+        saveCloudData();
+        renderHome();
+        renderCompact();
+        refreshManage();
+      }
+      function clearNames() {
+        if (!confirm("Clear name aliases?")) return;
+        nameMap = {};
+        aliasMap = {};
+        saveCloudData();
+        refreshManage();
+      }
+      function exportData() {
+        navigator.clipboard
+          .writeText(JSON.stringify({ allMatches, aliasMap }, null, 2))
+          .then(() => {
+            const el = document.getElementById("expOk");
+            el.textContent = "Copied!";
+            el.classList.add("show");
+            setTimeout(() => el.classList.remove("show"), 2500);
+          })
+          .catch(() => alert("Copy failed"));
+      }
+
+      // ── RENDER HOME ────────────────────────────────────────────
       function applyRange(page) {
         if (page === "home") {
           homeFrom = document.getElementById("drFrom").value || null;
@@ -2119,7 +2159,7 @@ Parthiv - Par"
       }
       function onCmpFilter() {
         cmpFilter = document.getElementById("cmpSel").value;
-        var dr = document.getElementById("cmpDr");
+        const dr = document.getElementById("cmpDr");
         if (cmpFilter === "range") dr.classList.add("show");
         else {
           dr.classList.remove("show");
@@ -2127,14 +2167,15 @@ Parthiv - Par"
         }
       }
 
-      document.querySelectorAll(".filt").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          document.querySelectorAll(".filt").forEach(function (b) {
-            b.classList.remove("on");
-          });
+      document.querySelectorAll(".filt[data-f]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          btn
+            .closest(".filters")
+            .querySelectorAll(".filt")
+            .forEach((b) => b.classList.remove("on"));
           btn.classList.add("on");
           homeFilter = btn.dataset.f;
-          var dr = document.getElementById("drWrap");
+          const dr = document.getElementById("drWrap");
           if (homeFilter === "range") dr.classList.add("show");
           else {
             dr.classList.remove("show");
@@ -2144,77 +2185,39 @@ Parthiv - Par"
       });
 
       function renderHome() {
-        var filtered = filterMatches(homeFilter, homeFrom, homeTo);
-        var stats = computeStats(filtered);
-        var totalG = filtered.reduce(function (s, m) {
-          return s + m.scoreA + m.scoreB;
-        }, 0);
-        var uniqD = new Set(
-          filtered.map(function (m) {
-            return m.date;
-          }),
-        ).size;
+        const filtered = filterMatches(homeFilter, homeFrom, homeTo);
+        const stats = computeStats(filtered);
+        const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
+        const uniqD = new Set(filtered.map((m) => m.date)).size;
         document.getElementById("stP").textContent = stats.length;
         document.getElementById("stM").textContent = filtered.length;
         document.getElementById("stG").textContent = totalG;
         document.getElementById("stD").textContent = uniqD;
-        var board = document.getElementById("board");
+        const board = document.getElementById("board");
         if (!stats.length) {
-          board.innerHTML =
-            '<div class="empty"><div class="ico">🏓</div><p>No matches yet.<br>Tap <strong style="color:var(--accent)">+ Add</strong> to get started.</p><button class="add-cta" onclick="goTo(\'add\')">Add Matches</button></div>';
+          board.innerHTML = `<div class="empty"><div class="ico">🏓</div><p>No matches yet.<br>Tap <strong style="color:var(--accent)">+ Add</strong> to get started.</p><button class="add-cta" onclick="goTo('add')">Add Matches</button></div>`;
           return;
         }
-        var maxSR = stats[0].sr || 1;
+        const maxSR = stats[0].sr || 1;
         board.innerHTML = stats
-          .map(function (p, i) {
-            var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
-            var ri = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1;
-            var bw = ((p.sr / maxSR) * 100).toFixed(1);
-            var ds = p.diff > 0 ? "+" + p.diff : "" + p.diff;
-            var dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
-            var mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-            return (
-              '<div class="pc ' +
-              rc +
-              '"><div class="glow"></div><div class="ct"><div class="rb">' +
-              ri +
-              '</div><div class="pname">' +
-              p.name +
-              '</div><div class="skill-block"><div class="skill-num">' +
-              p.sr.toFixed(2) +
-              '</div><div class="skill-lbl">SR / 10</div></div></div><div class="bar-track"><div class="bar-fill" style="width:' +
-              bw +
-              '%"></div></div><div class="row3"><div class="cs"><div class="cv">' +
-              p.mp +
-              '</div><div class="cl">Played</div></div><div class="cs"><div class="cv ' +
-              mc +
-              '">' +
-              p.mw +
-              "W–" +
-              p.ml +
-              'L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">' +
-              p.winPct.toFixed(0) +
-              '%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">' +
-              p.gw +
-              '</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">' +
-              p.gl +
-              '</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ' +
-              dc +
-              '">' +
-              ds +
-              '</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">' +
-              p.gamePct.toFixed(0) +
-              '%</div><div class="cl">Game %</div></div></div></div>'
-            );
+          .map((p, i) => {
+            const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+            const ri = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1;
+            const bw = ((p.sr / maxSR) * 100).toFixed(1);
+            const ds = p.diff > 0 ? `+${p.diff}` : `${p.diff}`;
+            const dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
+            const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
+            return `<div class="pc ${rc}"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div><div class="skill-lbl">SR / 10</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div></div>`;
           })
           .join("");
       }
 
+      // ── RENDER COMPACT ─────────────────────────────────────────
       function renderCompact() {
-        var filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-        var stats = computeStats(filtered);
-        var maxSR = stats.length ? stats[0].sr || 1 : 1;
-        var fname = {
+        const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
+        const stats = computeStats(filtered);
+        const maxSR = stats.length ? stats[0].sr || 1 : 1;
+        const fname = {
           all: "All Time",
           today: "Today",
           week: "This Week",
@@ -2223,90 +2226,359 @@ Parthiv - Par"
           range: "Custom Range",
         };
         document.getElementById("cmpMeta").innerHTML =
-          "<strong>" +
-          stats.length +
-          "</strong> players &nbsp;·&nbsp; <strong>" +
-          filtered.length +
-          "</strong> matches &nbsp;·&nbsp; " +
-          fname[cmpFilter];
-        var tbody = document.getElementById("cmpBody");
+          `<strong>${stats.length}</strong> players &nbsp;·&nbsp; <strong>${filtered.length}</strong> matches &nbsp;·&nbsp; ${fname[cmpFilter]}`;
+        const tbody = document.getElementById("cmpBody");
         if (!stats.length) {
-          tbody.innerHTML =
-            '<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
           return;
         }
         tbody.innerHTML = stats
-          .map(function (p, i) {
-            var rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
-            var ri =
+          .map((p, i) => {
+            const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
+            const ri =
               i === 0
                 ? "🥇"
                 : i === 1
                   ? "🥈"
                   : i === 2
                     ? "🥉"
-                    : '<span class="rn">' + (i + 1) + "</span>";
-            var mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-            var gc = p.gamePct >= 50 ? "tp" : "tn";
-            var bw = ((p.sr / maxSR) * 100).toFixed(0);
-            return (
-              '<tr class="' +
-              rc +
-              '"><td>' +
-              ri +
-              "</td><td>" +
-              p.name +
-              "</td><td>" +
-              p.mp +
-              '</td><td><span class="rec-cell ' +
-              mc +
-              '">' +
-              p.mw +
-              "–" +
-              p.ml +
-              "</span></td><td>" +
-              p.winPct.toFixed(0) +
-              '%</td><td class="tp">' +
-              p.gw +
-              '</td><td class="tn">' +
-              p.gl +
-              '</td><td class="' +
-              gc +
-              '">' +
-              p.gamePct.toFixed(0) +
-              '%</td><td><div class="sr-cell"><div class="mini-bg"><div class="mini-fill" style="width:' +
-              bw +
-              '%"></div></div><span class="sr-val">' +
-              p.sr.toFixed(1) +
-              "</span></div></td></tr>"
-            );
+                    : `<span class="rn">${i + 1}</span>`;
+            const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
+            const gc = p.gamePct >= 50 ? "tp" : "tn";
+            const bw = ((p.sr / maxSR) * 100).toFixed(0);
+            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-cell"><div class="mini-bg"><div class="mini-fill" style="width:${bw}%"></div></div><span class="sr-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
           })
           .join("");
       }
+
+      // ── MATCH HISTORY HELPERS ──────────────────────────────────
+      function getMatchTag(m) {
+        return null; // tag moved to event strip below score
+      }
+
+      function buildMatchCards(matches, showAdmin) {
+        if (!matches.length)
+          return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
+        return [...matches]
+          .reverse()
+          .map((m) => {
+            const aWon = m.scoreA > m.scoreB;
+            const diff = Math.abs(m.scoreA - m.scoreB);
+            const isFire = diff <= 1;
+            const isDominating = diff >= 5;
+            const aZero = m.scoreA === 0,
+              bZero = m.scoreB === 0;
+            const isZero = aZero || bZero;
+
+            const bWon = !aWon;
+            const teamARaw = (m.teamA || []).join(" & ");
+            const teamBRaw = (m.teamB || []).join(" & ");
+            // Add 😭 to whichever team lost with 0 games
+            const teamALabel = aZero && bWon ? teamARaw + " 😭" : teamARaw;
+            const teamBLabel = bZero && aWon ? teamBRaw + " 😭" : teamBRaw;
+
+            const realIdx = allMatches.indexOf(m);
+
+            // Event badges
+            const badges = [];
+            if (isFire)
+              badges.push(
+                `<span class="event-badge fire">🔥 FIRE MATCH</span>`,
+              );
+            if (isDominating)
+              badges.push(
+                `<span class="event-badge dominate">💀 DOMINATING</span>`,
+              );
+            if (isZero)
+              badges.push(
+                `<span class="event-badge zero">😂 ZERO SE HAAR GAYE!</span>`,
+              );
+
+            return `
+          <div class="match-card${isFire ? " fire-card" : ""}">
+            <div class="match-top">
+              <span class="match-date">📅 ${m.date || "—"}</span>
+              <span class="match-tag">${diff} pt gap</span>
+            </div>
+            <div class="match-score-row" style="margin-top:10px">
+              <div class="team-block">
+                <div class="team-name ${aWon ? "winner" : ""}">${aWon ? "👑 " : ""}${teamALabel}</div>
+                <div class="team-score ${aWon ? "win" : ""}">${m.scoreA}</div>
+              </div>
+              <div class="vs-text">VS</div>
+              <div class="team-block">
+                <div class="team-name ${bWon ? "winner" : ""}">${bWon ? "👑 " : ""}${teamBLabel}</div>
+                <div class="team-score ${bWon ? "win" : ""}">${m.scoreB}</div>
+              </div>
+            </div>
+            ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
+            <div class="match-footer" style="margin-top:10px">
+              ${
+                showAdmin && window.isAdmin
+                  ? `<div class="match-actions">
+                <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx})">✏ Edit</button>
+                <button class="action-btn delete-btn" onclick="deleteMatchByIndex(${realIdx})">🗑 Del</button>
+              </div>`
+                  : `<div></div>`
+              }
+            </div>
+          </div>`;
+          })
+          .join("");
+      }
+
+      function filterMatchTab(f) {
+        matchTabFilter = f;
+        document
+          .querySelectorAll("[data-mf]")
+          .forEach((b) => b.classList.remove("on"));
+        const active = document.querySelector(`[data-mf="${f}"]`);
+        if (active) active.classList.add("on");
+        const dr = document.getElementById("matchDr");
+        if (f === "range") dr.classList.add("show");
+        else dr.classList.remove("show");
+        renderModernMatches();
+      }
+
+      function renderModernMatches() {
+        const query = (
+          document.getElementById("modern-match-search")?.value || ""
+        ).toLowerCase();
+        const mfrom =
+          matchTabFilter === "range"
+            ? document.getElementById("matchFrom")?.value || null
+            : null;
+        const mto =
+          matchTabFilter === "range"
+            ? document.getElementById("matchTo")?.value || null
+            : null;
+        let matches = filterMatches(matchTabFilter, mfrom, mto);
+        if (query)
+          matches = matches.filter((m) =>
+            JSON.stringify(m).toLowerCase().includes(query),
+          );
+        document.getElementById("modern-match-list").innerHTML =
+          buildMatchCards(matches, true);
+      }
+
+      function renderAddMatches() {
+        const query = (
+          document.getElementById("add-match-search")?.value || ""
+        ).toLowerCase();
+        let matches = query
+          ? allMatches.filter((m) =>
+              JSON.stringify(m).toLowerCase().includes(query),
+            )
+          : [...allMatches];
+        document.getElementById("add-match-list").innerHTML = buildMatchCards(
+          matches,
+          true,
+        );
+      }
+
+      function deleteMatchByIndex(i) {
+        if (!confirm("Delete this match?")) return;
+        allMatches.splice(i, 1);
+        saveCloudData();
+        renderModernMatches();
+        renderAddMatches();
+        renderHome();
+        renderCompact();
+      }
+      function editMatchByIndex(i) {
+        const m = allMatches[i];
+        const a = prompt("Team A score", m.scoreA);
+        if (a === null) return;
+        const b = prompt("Team B score", m.scoreB);
+        if (b === null) return;
+        const sa = parseInt(a),
+          sb = parseInt(b);
+        if (isNaN(sa) || isNaN(sb) || sa === sb) {
+          alert("Invalid scores");
+          return;
+        }
+        m.scoreA = sa;
+        m.scoreB = sb;
+        saveCloudData();
+        renderModernMatches();
+        renderAddMatches();
+        renderHome();
+        renderCompact();
+      }
+
+      // ── FAB MODAL ──────────────────────────────────────────────
+      function openModernAddModal() {
+        document.getElementById("modern-add-modal").classList.add("show");
+        document.getElementById("modern-date").value = todayISO();
+      }
+      function closeModernAddModal() {
+        document.getElementById("modern-add-modal").classList.remove("show");
+      }
+      document
+        .getElementById("modern-add-modal")
+        .addEventListener("click", (e) => {
+          if (e.target.id === "modern-add-modal") closeModernAddModal();
+        });
+
+      function saveModernMatch() {
+        const teamA = document
+          .getElementById("modern-team-a")
+          .value.split(",")
+          .map((x) => x.trim())
+          .filter(Boolean);
+        const teamB = document
+          .getElementById("modern-team-b")
+          .value.split(",")
+          .map((x) => x.trim())
+          .filter(Boolean);
+        const sA = parseInt(document.getElementById("modern-score-a").value);
+        const sB = parseInt(document.getElementById("modern-score-b").value);
+        const date = document.getElementById("modern-date").value || todayISO();
+        if (
+          !teamA.length ||
+          !teamB.length ||
+          isNaN(sA) ||
+          isNaN(sB) ||
+          sA === sB
+        ) {
+          alert("Invalid match data");
+          return;
+        }
+        allMatches.push({ teamA, teamB, scoreA: sA, scoreB: sB, date });
+        saveCloudData();
+        closeModernAddModal();
+        renderModernMatches();
+        renderAddMatches();
+        renderHome();
+        renderCompact();
+      }
+
+      // ── ANALYTICS ──────────────────────────────────────────────
+      function showAnalytics() {
+        document.getElementById("analytics-modal")?.remove();
+        if (!allMatches.length) {
+          alert("No matches available");
+          return;
+        }
+        const stats = {};
+        allMatches.forEach((m) => {
+          const aWon = m.scoreA > m.scoreB;
+          const winners = aWon ? m.teamA : m.teamB,
+            losers = aWon ? m.teamB : m.teamA;
+          [...m.teamA, ...m.teamB].forEach((p) => {
+            if (!stats[p])
+              stats[p] = {
+                name: p,
+                wins: 0,
+                losses: 0,
+                matches: 0,
+                streak: 0,
+                bestStreak: 0,
+                teammates: {},
+              };
+          });
+          winners.forEach((p) => {
+            stats[p].wins++;
+            stats[p].matches++;
+            stats[p].streak++;
+            if (stats[p].streak > stats[p].bestStreak)
+              stats[p].bestStreak = stats[p].streak;
+          });
+          losers.forEach((p) => {
+            stats[p].losses++;
+            stats[p].matches++;
+            stats[p].streak = 0;
+          });
+          [m.teamA, m.teamB].forEach((team) =>
+            team.forEach((p) =>
+              team.forEach((tm) => {
+                if (p !== tm)
+                  stats[p].teammates[tm] = (stats[p].teammates[tm] || 0) + 1;
+              }),
+            ),
+          );
+        });
+        const players = Object.values(stats);
+        const mostActive = [...players].sort(
+          (a, b) => b.matches - a.matches,
+        )[0];
+        const topWinRate = [...players].sort(
+          (a, b) =>
+            b.wins / Math.max(1, b.matches) - a.wins / Math.max(1, a.matches),
+        )[0];
+        const topStreak = [...players].sort(
+          (a, b) => b.bestStreak - a.bestStreak,
+        )[0];
+
+        const card = (badge, name, sub) =>
+          `<div class="ana-card"><span class="badge">${badge}</span><div class="name">${name || "—"}</div><div class="sub">${sub}</div></div>`;
+        const html = `
+        <div id="analytics-modal">
+          <div class="analytics-inner">
+            <div class="analytics-header">
+              <div class="analytics-title">📈 Analytics</div>
+              <button class="analytics-close" onclick="document.getElementById('analytics-modal').remove()">✕</button>
+            </div>
+            <div class="analytics-cards">
+              ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches || 0} matches`)}
+              ${card("🏆 Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}
+              ${card("🔥 Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}
+            </div>
+            <div style="margin-top:18px;font-size:14px;font-weight:700;margin-bottom:10px">All Players</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${players
+                .sort((a, b) => b.wins - a.wins)
+                .map((p) => {
+                  const bestMate = Object.entries(p.teammates).sort(
+                    (a, b) => b[1] - a[1],
+                  )[0];
+                  const wr = p.matches
+                    ? Math.round((p.wins / p.matches) * 100)
+                    : 0;
+                  return `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center">
+                  <div><div class="name" style="font-size:16px">${p.name}</div><div class="sub">${p.wins}W · ${p.losses}L · ${p.matches} played</div><div style="font-size:11px;color:var(--green);margin-top:3px">🔥 Best streak: ${p.bestStreak}</div></div>
+                  <div style="text-align:right"><div style="color:var(--accent);font-size:15px;font-weight:700">${wr}%</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Best mate</div><div style="font-size:12px">${bestMate?.[0] || "—"}</div></div>
+                </div>`;
+                })
+                .join("")}
+            </div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
+
+      // ── INIT ───────────────────────────────────────────────────
       loadCloudData();
       renderHome();
       renderCompact();
 
-      window.goTo = goTo;
-      window.goBack = goBack;
-      window.saveCloudData = saveCloudData;
-      window.switchMainTab = switchMainTab;
-      window.switchITab = switchITab;
-      window.filterMatchTab = filterMatchTab;
-      window.renderMatchList = renderMatchList;
-      window.applyRange = applyRange;
-      window.onCmpFilter = onCmpFilter;
-      window.addMatches = addMatches;
-      window.saveNames = saveNames;
-      window.loadNames = loadNames;
-      window.clearMatches = clearMatches;
-      window.clearNames = clearNames;
-      window.exportData = exportData;
-      window.renderHome = renderHome;
-      window.renderCompact = renderCompact;
-      window.refreshManage = refreshManage;
-      window.deleteMatch = deleteMatch;
-      window.editMatch = editMatch;
+      // Expose globals
+      Object.assign(window, {
+        goTo,
+        goBack,
+        switchMainTab,
+        switchITab,
+        filterMatchTab,
+        applyRange,
+        onCmpFilter,
+        addMatches,
+        saveNames,
+        loadNames,
+        clearMatches,
+        clearNames,
+        exportData,
+        renderHome,
+        renderCompact,
+        renderModernMatches,
+        renderAddMatches,
+        refreshManage,
+        deleteMatchByIndex,
+        editMatchByIndex,
+        openModernAddModal,
+        closeModernAddModal,
+        saveModernMatch,
+        showAnalytics,
+      });
     </script>
   </body>
 </html>
