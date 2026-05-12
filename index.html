@@ -1309,7 +1309,7 @@
     <div class="page active" id="pg-home">
       <div class="nav">
         <div style="flex: 1"></div>
-        <div class="nav-title">PADEL <span>PRO</span></div>
+        <div class="nav-title">EKTA <span>PADEL</span></div>
         <div
           style="display: flex; align-items: center; gap: 6px; flex-shrink: 0"
         >
@@ -1320,7 +1320,7 @@
         </div>
       </div>
       <div class="home-header">
-        <div class="home-badge">🏓 Club Rankings</div>
+        <div class="home-badge">🏓 Sunday Group ET Rankings</div>
         <div class="home-title">LEADER<span>BOARD</span></div>
         <div class="home-sub">Detailed View</div>
       </div>
@@ -1385,8 +1385,8 @@
     <div class="page" id="pg-compact">
       <div class="cmp-topbar">
         <div class="cmp-brand">
-          <div class="t1">PADEL <span>PRO</span></div>
-          <div class="pill">Snapshot</div>
+          <div class="t1">EKTA <span>PADEL</span></div>
+          <div class="pill">Summary</div>
         </div>
         <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
           <option value="all">All Time</option>
@@ -1430,7 +1430,7 @@
           <span class="ico">📊</span>Detailed
         </button>
         <button class="tbb on" onclick="switchMainTab('compact')">
-          <span class="ico">📋</span>Snapshot
+          <span class="ico">📋</span>Summary
         </button>
         <button class="tbb" onclick="switchMainTab('history')">
           <span class="ico">🏓</span>History
@@ -1932,7 +1932,7 @@ Parthiv - Par"
 
       function parseMatchLine(line) {
         line = line.trim().replace(/\s+/g, " ");
-        const m = line.match(/^(.+?)\s+vs\s+(.+?)\s+(\d+)\s*[-–]\s*(\d+)$/i);
+        const m = line.match(/^(.+?)\s+vs|v\s+(.+?)\s+(\d+)\s*[-–]\s*(\d+)$/i);
         if (!m) return null;
         const tA = m[1].trim().split(" ").filter(Boolean),
           tB = m[2].trim().split(" ").filter(Boolean);
