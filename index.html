@@ -824,7 +824,11 @@
         padding-left: 3px;
       }
       table.cmp thead th:last-child {
+        text-align: center;
         padding-right: 9px;
+      }
+      table.cmp tbody td:last-child {
+        text-align: center;
       }
       table.cmp tbody tr {
         border-bottom: 1px solid var(--border);
@@ -872,23 +876,58 @@
         line-height: 1;
       }
       .sr-ring {
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        display: inline-grid;
+        width: 100%;
+        max-width: 98px;
+        min-width: 98px;
+        height: 34px;
+        border-radius: 999px;
+        position: relative;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        display: grid;
         place-items: center;
-        background: conic-gradient(
-          var(--accent) calc(var(--sr) * 1%),
-          rgba(255, 255, 255, 0.08) 0%
+        margin: 0 auto;
+      }
+      .sr-ring::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          #f25c63 0%,
+          #f25c63 18%,
+          #f2a33c 22%,
+          #f2a33c 50%,
+          #5ac36f 54%,
+          #5ac36f 100%
         );
-        box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.04);
+        clip-path: inset(0 calc(100% - var(--battery-level, 0%)) 0 0);
+        transition: clip-path 0.35s ease;
+      }
+      .sr-ring::after {
+        display: none;
       }
       .sr-ring .sr-val {
+        position: relative;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
         font-family: "Bebas Neue", sans-serif;
-        font-size: 12px;
+        font-size: 13px;
         letter-spacing: 0.02em;
         color: var(--text);
         line-height: 1;
+        text-align: center;
+      }
+      .sr-ring.sr-high::before,
+      .sr-ring.sr-mid::before,
+      .sr-ring.sr-low::before {
+        --battery-color: initial;
       }
       .trend-arrow {
         font-size: 10px;
@@ -1727,7 +1766,6 @@
       <div class="home-header">
         <div class="home-badge">🏓 Sunday Group ET Rankings</div>
         <div class="home-title">LEADER<span>BOARD</span></div>
-        <div class="home-sub">Detailed View</div>
       </div>
       <div class="filter-wrap">
         <div class="filters">
@@ -1771,7 +1809,7 @@
           <span class="ico">📊</span>Detailed
         </button>
         <button class="tbb" onclick="switchMainTab('compact')">
-          <span class="ico">📋</span>Snapshot
+          <span class="ico">📋</span>Summary
         </button>
         <button class="tbb" onclick="switchMainTab('history')">
           <span class="ico">🏓</span>History
@@ -2117,7 +2155,7 @@
           <span class="ico">📊</span>Detailed
         </button>
         <button class="tbb" onclick="switchMainTab('compact')">
-          <span class="ico">📋</span>Snapshot
+          <span class="ico">📋</span>Summary
         </button>
         <button class="tbb on" onclick="switchMainTab('history')">
           <span class="ico">🏓</span>History
@@ -3298,10 +3336,16 @@ Parthiv - Par"
             const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
             const ri = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1;
             const bw = ((p.sr / maxSR) * 100).toFixed(1);
+            const ratingPct = Math.min(
+              100,
+              Math.max(0, Math.round((p.sr / 10) * 100)),
+            );
+            const ratingClass =
+              p.sr >= 6 ? "sr-high" : p.sr >= 4 ? "sr-mid" : "sr-low";
             const ds = p.diff > 0 ? `+${p.diff}` : `${p.diff}`;
             const dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
             const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div><div class="skill-lbl">SR / 10</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div></div>`;
+            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div></div>`;
           })
           .join("");
       }
@@ -3368,9 +3412,14 @@ Parthiv - Par"
                     : `<span class="rn">${i + 1}</span>`;
             const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
             const gc = p.gamePct >= 50 ? "tp" : "tn";
-            const bw = ((p.sr / maxSR) * 100).toFixed(0);
+            const ratingPct = Math.min(
+              100,
+              Math.max(0, Math.round((p.sr / 10) * 100)),
+            );
+            const ratingClass =
+              p.sr >= 6 ? "sr-high" : p.sr >= 4 ? "sr-mid" : "sr-low";
             const trend = p.gamePct >= 60 ? "↑" : p.gamePct <= 40 ? "↓" : "→";
-            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring" style="--sr:${bw}"><span class="sr-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
+            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--battery-level:${ratingPct}%"><span class="sr-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
           })
           .join("");
         document.getElementById("cmpMatches").innerHTML = buildMatchCards(
