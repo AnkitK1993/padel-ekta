@@ -334,6 +334,20 @@
         position: relative;
         overflow: hidden;
         animation: fu 0.22s ease both;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          border-color 0.18s ease;
+      }
+      .pc:hover {
+        transform: translateY(-6px);
+        border-color: rgba(245, 200, 66, 0.35);
+        box-shadow: 0 20px 38px rgba(0, 0, 0, 0.18);
+      }
+      .pc.r1:hover,
+      .pc.r2:hover,
+      .pc.r3:hover {
+        transform: translateY(-8px);
       }
       @keyframes fu {
         from {
@@ -358,14 +372,20 @@
         animation-delay: 0.08s;
       }
       .pc.r1 {
-        border-color: rgba(245, 200, 66, 0.45);
-        background: linear-gradient(135deg, #1b1808, #131320);
+        border-color: rgba(245, 200, 66, 0.75);
+        background: linear-gradient(135deg, rgba(245, 200, 66, 0.14), #131320);
+        box-shadow: 0 18px 40px rgba(245, 200, 66, 0.16);
+        transform: translateY(-1px);
       }
       .pc.r2 {
-        border-color: rgba(152, 152, 184, 0.28);
+        border-color: rgba(152, 152, 184, 0.42);
+        background: rgba(255, 255, 255, 0.02);
+        box-shadow: 0 12px 26px rgba(152, 152, 184, 0.1);
       }
       .pc.r3 {
-        border-color: rgba(196, 106, 40, 0.32);
+        border-color: rgba(196, 106, 40, 0.48);
+        background: rgba(255, 255, 255, 0.015);
+        box-shadow: 0 10px 20px rgba(196, 106, 40, 0.08);
       }
       .glow {
         position: absolute;
@@ -746,6 +766,20 @@
         color: var(--muted);
         text-align: right;
         white-space: nowrap;
+      }
+      table.cmp thead th.sortable {
+        cursor: pointer;
+        transition: color 0.15s ease;
+      }
+      table.cmp thead th.sortable:hover {
+        color: var(--accent);
+      }
+      .sort-arrow {
+        font-size: 10px;
+        margin-left: 4px;
+        display: inline-block;
+        width: 10px;
+        text-align: center;
       }
       table.cmp thead th:first-child {
         text-align: left;
@@ -1711,15 +1745,33 @@
         <table class="cmp">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Player</th>
-              <th>MP</th>
-              <th>W–L</th>
-              <th>Win%</th>
-              <th>GW</th>
-              <th>GL</th>
-              <th>G%</th>
-              <th>SR</th>
+              <th class="sortable" onclick="setCmpSort('sr')">
+                # <span class="sort-arrow" id="sort-rank"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('name')">
+                Player <span class="sort-arrow" id="sort-name"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('mp')">
+                MP <span class="sort-arrow" id="sort-mp"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('record')">
+                W–L <span class="sort-arrow" id="sort-record"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('winPct')">
+                Win% <span class="sort-arrow" id="sort-winPct"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('gw')">
+                GW <span class="sort-arrow" id="sort-gw"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('gl')">
+                GL <span class="sort-arrow" id="sort-gl"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('gamePct')">
+                G% <span class="sort-arrow" id="sort-gamePct"></span>
+              </th>
+              <th class="sortable" onclick="setCmpSort('sr')">
+                SR <span class="sort-arrow" id="sort-sr"></span>
+              </th>
             </tr>
           </thead>
           <tbody id="cmpBody"></tbody>
@@ -2296,6 +2348,9 @@ Parthiv - Par"
       let cmpFilter = "all",
         cmpFrom = null,
         cmpTo = null;
+      let cmpSortKey = "sr";
+      let cmpSortAsc = false;
+      let cmpRecordSortMode = "wins";
       let prevPage = "home";
       let lastMatchSnapshot = null;
       window.isAdmin = false;
@@ -3167,7 +3222,34 @@ Parthiv - Par"
       function renderCompact() {
         const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
         const stats = computeStats(filtered);
-        const maxSR = stats.length ? stats[0].sr || 1 : 1;
+        const sortFns = {
+          name: (a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+          mp: (a, b) => a.mp - b.mp,
+          record: (a, b) => {
+            if (cmpRecordSortMode === "wins") {
+              if (a.mw !== b.mw) return a.mw - b.mw;
+              if (a.ml !== b.ml) return a.ml - b.ml;
+            } else {
+              if (a.ml !== b.ml) return a.ml - b.ml;
+              if (a.mw !== b.mw) return a.mw - b.mw;
+            }
+            return 0;
+          },
+          winPct: (a, b) => a.winPct - b.winPct,
+          gw: (a, b) => a.gw - b.gw,
+          gl: (a, b) => a.gl - b.gl,
+          gamePct: (a, b) => a.gamePct - b.gamePct,
+          sr: (a, b) => a.sr - b.sr,
+        };
+        const sorted = [...stats].sort((a, b) => {
+          const cmp = sortFns[cmpSortKey](a, b);
+          if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
+          return a.name.localeCompare(b.name, undefined, {
+            sensitivity: "base",
+          });
+        });
+        const maxSR = sorted.length ? sorted[0].sr || 1 : 1;
         const fname = {
           all: "All Time",
           today: "Today",
@@ -3179,11 +3261,13 @@ Parthiv - Par"
         document.getElementById("cmpMeta").innerHTML =
           `<strong>${stats.length}</strong> players &nbsp;·&nbsp; <strong>${filtered.length}</strong> matches &nbsp;·&nbsp; ${fname[cmpFilter]}`;
         const tbody = document.getElementById("cmpBody");
-        if (!stats.length) {
+        if (!sorted.length) {
           tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
+          updateSortArrows(sorted);
           return;
         }
-        tbody.innerHTML = stats
+        updateSortArrows();
+        tbody.innerHTML = sorted
           .map((p, i) => {
             const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
             const ri =
@@ -3204,6 +3288,44 @@ Parthiv - Par"
           filtered,
           false,
         );
+      }
+
+      function updateSortArrows() {
+        const keyMap = {
+          name: ["sort-name"],
+          mp: ["sort-mp"],
+          record: ["sort-record"],
+          winPct: ["sort-winPct"],
+          gw: ["sort-gw"],
+          gl: ["sort-gl"],
+          gamePct: ["sort-gamePct"],
+          sr: ["sort-sr", "sort-rank"],
+        };
+        Object.entries(keyMap).forEach(([key, ids]) => {
+          ids.forEach((id) => {
+            const arrow = document.getElementById(id);
+            if (!arrow) return;
+            arrow.textContent =
+              cmpSortKey === key ? (cmpSortAsc ? "▲" : "▼") : "";
+          });
+        });
+      }
+
+      function setCmpSort(key) {
+        if (cmpSortKey === key) {
+          if (key === "record") {
+            cmpRecordSortMode =
+              cmpRecordSortMode === "wins" ? "losses" : "wins";
+            cmpSortAsc = false;
+          } else {
+            cmpSortAsc = !cmpSortAsc;
+          }
+        } else {
+          cmpSortKey = key;
+          cmpSortAsc = key === "name";
+          if (key === "record") cmpRecordSortMode = "wins";
+        }
+        renderCompact();
       }
 
       // ── MATCH HISTORY HELPERS ──────────────────────────────────
@@ -3850,8 +3972,8 @@ Parthiv - Par"
             });
           }
 
-          // Track shutout losses
-          if (winScore === 0) {
+          // Track shutout losses: a player lost while scoring 0
+          if (aWon ? m.scoreB === 0 : m.scoreA === 0) {
             losers.forEach((p) => {
               shutoutLosses[p] = (shutoutLosses[p] || 0) + 1;
             });
@@ -3919,12 +4041,17 @@ Parthiv - Par"
         )[0];
 
         // Find shutout leaders
-        const mostShutoutWins = Object.entries(shutoutWins).sort(
+        const shutoutWinEntries = Object.entries(shutoutWins).sort(
           (a, b) => b[1] - a[1],
-        )[0];
-        const mostShutoutLosses = Object.entries(shutoutLosses).sort(
+        );
+        const shutoutLossEntries = Object.entries(shutoutLosses).sort(
           (a, b) => b[1] - a[1],
-        )[0];
+        );
+        const mostShutoutWins = shutoutWinEntries[0];
+        const mostShutoutLossCount = shutoutLossEntries[0]?.[1] || 0;
+        const mostShutoutLosses = shutoutLossEntries
+          .filter(([, count]) => count === mostShutoutLossCount)
+          .map(([player]) => player);
 
         // Find highest margin victory
         const biggestWin =
@@ -3966,7 +4093,11 @@ Parthiv - Par"
             <div style="margin-top:18px;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.1em">🎯 Shutout Records</div>
             <div class="analytics-cards">
               ${card("🚫 Most Shutout Wins", mostShutoutWins?.[0], `${mostShutoutWins?.[1] || 0} games won X-0`)}
-              ${card("💔 Most Shutout Losses", mostShutoutLosses?.[0], `${mostShutoutLosses?.[1] || 0} games lost 0-X`)}
+              ${card(
+                "💔 Most Shutout Losses",
+                mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null,
+                `${mostShutoutLossCount} games lost 0-X`,
+              )}
             </div>
 
             <div style="margin-top:18px;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.1em">⚡ Extreme Stats</div>
@@ -4057,6 +4188,7 @@ Parthiv - Par"
         exportData,
         renderHome,
         renderCompact,
+        setCmpSort,
         renderModernMatches,
         setHistPlayerFilter,
         setHistOutcome,
