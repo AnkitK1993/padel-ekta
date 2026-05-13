@@ -316,19 +316,6 @@
         letter-spacing: 0.1em;
         margin-top: 1px;
       }
-      .formula {
-        flex-shrink: 0;
-        padding: 4px 14px;
-        background: rgba(245, 200, 66, 0.04);
-        border-bottom: 1px solid rgba(245, 200, 66, 0.1);
-        font-size: 9px;
-        color: var(--muted);
-        text-align: center;
-      }
-      .formula strong {
-        color: var(--accent);
-      }
-
       /* ── SCROLL / BOARD ── */
       .scroll {
         flex: 1;
@@ -688,13 +675,6 @@
       }
       .cmp-meta strong {
         color: var(--text);
-      }
-      .cmp-formula {
-        font-size: 8px;
-        color: var(--muted);
-      }
-      .cmp-formula strong {
-        color: var(--accent);
       }
       .cmp-scroll {
         flex-shrink: 0;
@@ -1537,6 +1517,33 @@
         font-family: "DM Sans", sans-serif;
         outline: none;
       }
+      .h2h-field {
+        display: inline-flex;
+        align-items: center;
+        flex-shrink: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .h2h-field .hist-input {
+        border: none;
+        border-radius: 0;
+        min-width: 104px;
+      }
+      .h2h-clear {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        width: 28px;
+        align-self: stretch;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .h2h-clear:active {
+        opacity: 0.7;
+      }
       .match-preview {
         display: none;
         margin-top: 10px;
@@ -1635,10 +1642,6 @@
           <div class="stl">Days</div>
         </div>
       </div>
-      <div class="formula">
-        <strong>SR</strong> = (Match Win Rate ×5) + (Game Win Rate ×3) +
-        (Activity ×2) · max <strong>10</strong>
-      </div>
       <div class="scroll" id="board"></div>
       <!-- Main tabs -->
       <div class="tabbar">
@@ -1679,9 +1682,6 @@
       </div>
       <div class="cmp-infobar">
         <div class="cmp-meta" id="cmpMeta">0 players</div>
-        <div class="cmp-formula">
-          <strong>SR</strong> = MWR×5 + GWR×3 + Act×2
-        </div>
       </div>
       <div class="cmp-scroll">
         <table class="cmp">
@@ -1836,18 +1836,40 @@
           <option value="">All Pairs</option>
         </select>
         <span class="hist-filter-label">H2H</span>
-        <input
-          class="hist-input"
-          id="h2hPlayerA"
-          list="player-suggestions"
-          placeholder="Player A"
-        />
-        <input
-          class="hist-input"
-          id="h2hPlayerB"
-          list="player-suggestions"
-          placeholder="Player B"
-        />
+        <span class="h2h-field">
+          <input
+            class="hist-input"
+            id="h2hPlayerA"
+            list="player-suggestions"
+            placeholder="Player A"
+            oninput="onHeadToHeadInput()"
+          />
+          <button
+            class="h2h-clear"
+            type="button"
+            onclick="clearHeadToHeadPlayer('A')"
+            title="Clear player A"
+          >
+            ×
+          </button>
+        </span>
+        <span class="h2h-field">
+          <input
+            class="hist-input"
+            id="h2hPlayerB"
+            list="player-suggestions"
+            placeholder="Player B"
+            oninput="onHeadToHeadInput()"
+          />
+          <button
+            class="h2h-clear"
+            type="button"
+            onclick="clearHeadToHeadPlayer('B')"
+            title="Clear player B"
+          >
+            ×
+          </button>
+        </span>
         <button class="hfilt" onclick="applyHeadToHeadFilter()">Apply</button>
         <button class="hfilt" onclick="clearHeadToHeadFilter()">Clear</button>
         <span class="hist-filter-label">Score</span>
@@ -3369,6 +3391,24 @@ Parthiv - Par"
         renderModernMatches();
       }
 
+      function onHeadToHeadInput() {
+        const a = document.getElementById("h2hPlayerA").value.trim();
+        const b = document.getElementById("h2hPlayerB").value.trim();
+        if (!a || !b) {
+          h2hFilterA = "";
+          h2hFilterB = "";
+          renderModernMatches();
+        }
+      }
+
+      function clearHeadToHeadPlayer(which) {
+        const id = which === "A" ? "h2hPlayerA" : "h2hPlayerB";
+        document.getElementById(id).value = "";
+        h2hFilterA = "";
+        h2hFilterB = "";
+        renderModernMatches();
+      }
+
       function clearHeadToHeadFilter() {
         h2hFilterA = "";
         h2hFilterB = "";
@@ -3914,6 +3954,8 @@ Parthiv - Par"
         setHistScorelineFilter,
         setHistSeasonFilter,
         applyHeadToHeadFilter,
+        onHeadToHeadInput,
+        clearHeadToHeadPlayer,
         clearHeadToHeadFilter,
         populateHistoryPlayerChips,
         populateHistoryAdvancedFilters,
