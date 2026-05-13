@@ -1420,7 +1420,8 @@
       }
 
       /* ── ANALYTICS MODAL ── */
-      #analytics-modal {
+      #analytics-modal,
+      #player-detail-modal {
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.82);
@@ -1485,6 +1486,86 @@
       .ana-card .sub {
         font-size: 12px;
         color: var(--muted);
+      }
+      .mini-tools {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      .tool-btn {
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+      }
+      .tool-btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #09090f;
+      }
+      .stat-chip {
+        display: inline-block;
+        background: var(--surface2);
+        border-radius: 6px;
+        padding: 3px 7px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text);
+        margin: 2px;
+      }
+      .stat-chip.sr {
+        color: var(--accent);
+        border: 1px solid rgba(245, 200, 66, 0.22);
+      }
+      .hist-select,
+      .hist-input {
+        flex-shrink: 0;
+        min-width: 118px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 6px 9px;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: "DM Sans", sans-serif;
+        outline: none;
+      }
+      .match-preview {
+        display: none;
+        margin-top: 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .match-preview.show {
+        display: block;
+      }
+      .preview-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .preview-row:last-child {
+        border-bottom: none;
+      }
+      .preview-warn {
+        color: var(--accent);
+      }
+      .pc {
+        cursor: pointer;
       }
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
@@ -1745,6 +1826,51 @@
           All
         </button>
       </div>
+      <div class="hist-filter-row">
+        <span class="hist-filter-label">Pair</span>
+        <select
+          class="hist-select"
+          id="histPairFilter"
+          onchange="setHistPairFilter(this.value)"
+        >
+          <option value="">All Pairs</option>
+        </select>
+        <span class="hist-filter-label">H2H</span>
+        <input
+          class="hist-input"
+          id="h2hPlayerA"
+          list="player-suggestions"
+          placeholder="Player A"
+        />
+        <input
+          class="hist-input"
+          id="h2hPlayerB"
+          list="player-suggestions"
+          placeholder="Player B"
+        />
+        <button class="hfilt" onclick="applyHeadToHeadFilter()">Apply</button>
+        <button class="hfilt" onclick="clearHeadToHeadFilter()">Clear</button>
+        <span class="hist-filter-label">Score</span>
+        <select
+          class="hist-select"
+          id="histScorelineFilter"
+          onchange="setHistScorelineFilter(this.value)"
+        >
+          <option value="">Any</option>
+          <option value="4-1">4-1</option>
+          <option value="6-1">6-1</option>
+          <option value="6-2">6-2</option>
+          <option value="zero">Won/Lost 0</option>
+        </select>
+        <span class="hist-filter-label">Season</span>
+        <select
+          class="hist-select"
+          id="histSeasonFilter"
+          onchange="setHistSeasonFilter(this.value)"
+        >
+          <option value="">All</option>
+        </select>
+      </div>
       <!-- Outcome + Margin filters -->
       <div class="hist-filter-row">
         <span class="hist-filter-label">Result</span>
@@ -1847,6 +1973,7 @@
           <div class="slbl">Paste Match Data</div>
           <textarea
             id="matchTA"
+            oninput="previewMatchImport()"
             placeholder="8/5/26
 Ank God vs Nil RaM 2-4
 RaM RaG vs God Akh 4-2
@@ -1858,13 +1985,22 @@ Ank RaM vs Nil Tej 4-2"
             Date header: <code>D/M/YY</code> on its own line.<br />Match:
             <code>P1 P2 vs P3 P4 Score-Score</code>
           </p>
+          <div class="match-preview" id="matchPreview"></div>
           <div class="msg err" id="mErr"></div>
           <div class="msg ok" id="mOk"></div>
           <div class="btn-row">
             <button class="btn-p" onclick="addMatches()">Add Matches</button>
             <button
               class="btn-s"
-              onclick="document.getElementById('matchTA').value = ''"
+              id="undoAddBtn"
+              onclick="undoLastAdd()"
+              style="display: none"
+            >
+              Undo
+            </button>
+            <button
+              class="btn-s"
+              onclick="document.getElementById('matchTA').value = ''; previewMatchImport()"
             >
               Clear
             </button>
@@ -2085,6 +2221,11 @@ Parthiv - Par"
         histPlayerFilter = "",
         histOutcomeFilter = "all",
         histMarginFilter = "all",
+        histPairFilter = "",
+        histScorelineFilter = "",
+        histSeasonFilter = "",
+        h2hFilterA = "",
+        h2hFilterB = "",
         matchFrom = null,
         matchTo = null;
       let homeFilter = "all",
@@ -2094,6 +2235,7 @@ Parthiv - Par"
         cmpFrom = null,
         cmpTo = null;
       let prevPage = "home";
+      let lastMatchSnapshot = null;
       window.isAdmin = false;
 
       // ── CLOUD SAVE (Firestore + localStorage fallback) ─────────
@@ -2406,7 +2548,175 @@ Parthiv - Par"
           .sort((a, b) => b.sr - a.sr);
       }
 
+      function normPlayer(name) {
+        return (nameMap[name] || name || "").trim();
+      }
+
+      function normalizedScoreline(m) {
+        const hi = Math.max(Number(m.scoreA), Number(m.scoreB));
+        const lo = Math.min(Number(m.scoreA), Number(m.scoreB));
+        return `${hi}-${lo}`;
+      }
+
+      function sameMatch(a, b) {
+        if (!a || !b) return false;
+        const ta = [...(a.teamA || [])].sort().join("|");
+        const tb = [...(a.teamB || [])].sort().join("|");
+        const oa = [...(b.teamA || [])].sort().join("|");
+        const ob = [...(b.teamB || [])].sort().join("|");
+        return (
+          a.date === b.date &&
+          a.scoreA === b.scoreA &&
+          a.scoreB === b.scoreB &&
+          ta === oa &&
+          tb === ob
+        );
+      }
+
+      function getAllPlayerNamesFromMatches() {
+        const names = new Set(Object.keys(aliasMap));
+        allMatches.forEach((m) => {
+          [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
+            names.add(normPlayer(p)),
+          );
+        });
+        return [...names]
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+      }
+
+      function getPairKey(team) {
+        return [...team].map(normPlayer).sort().join(" & ");
+      }
+
+      function getPairStats(matches = allMatches) {
+        const pairs = {};
+        matches.forEach((m) => {
+          const aWon = Number(m.scoreA) > Number(m.scoreB);
+          [
+            { team: m.teamA || [], gf: Number(m.scoreA), ga: Number(m.scoreB), won: aWon },
+            { team: m.teamB || [], gf: Number(m.scoreB), ga: Number(m.scoreA), won: !aWon },
+          ].forEach((row) => {
+            if (row.team.length < 2) return;
+            const key = getPairKey(row.team);
+            if (!pairs[key])
+              pairs[key] = { key, players: key.split(" & "), played: 0, wins: 0, gf: 0, ga: 0 };
+            pairs[key].played++;
+            pairs[key].wins += row.won ? 1 : 0;
+            pairs[key].gf += row.gf;
+            pairs[key].ga += row.ga;
+          });
+        });
+        return Object.values(pairs)
+          .map((p) => ({
+            ...p,
+            losses: p.played - p.wins,
+            winPct: p.played ? Math.round((p.wins / p.played) * 100) : 0,
+            diff: p.gf - p.ga,
+          }))
+          .sort((a, b) => b.winPct - a.winPct || b.played - a.played || b.diff - a.diff);
+      }
+
+      function pairInMatch(m, pairKey) {
+        if (!pairKey) return true;
+        return getPairKey(m.teamA || []) === pairKey || getPairKey(m.teamB || []) === pairKey;
+      }
+
+      function playersOpposed(m, a, b) {
+        if (!a || !b) return true;
+        const na = a.toLowerCase();
+        const nb = b.toLowerCase();
+        const inA1 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === na);
+        const inA2 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === nb);
+        const inB1 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === na);
+        const inB2 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === nb);
+        return (inA1 && inB2) || (inB1 && inA2);
+      }
+
+      function getHeadToHeadStats(a, b, matches = allMatches) {
+        const rows = matches.filter((m) => playersOpposed(m, a, b));
+        let aWins = 0,
+          bWins = 0,
+          diff = 0;
+        rows.forEach((m) => {
+          const aInTeamA = (m.teamA || []).some((p) => normPlayer(p) === a);
+          const aWon = aInTeamA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+          if (aWon) aWins++;
+          else bWins++;
+          diff += aInTeamA ? m.scoreA - m.scoreB : m.scoreB - m.scoreA;
+        });
+        return { matches: rows, aWins, bWins, diff };
+      }
+
+      function getPlayerDetail(name) {
+        const matches = allMatches.filter((m) =>
+          [...(m.teamA || []), ...(m.teamB || [])].some((p) => normPlayer(p) === name),
+        );
+        const stats = computeStats(allMatches).find((p) => p.name === name);
+        const teammateCounts = {};
+        const opponentCounts = {};
+        const recent = matches.slice(-8).map((m) => {
+          const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
+          const own = inA ? Number(m.scoreA) : Number(m.scoreB);
+          const opp = inA ? Number(m.scoreB) : Number(m.scoreA);
+          const won = own > opp;
+          const teammates = (inA ? m.teamA : m.teamB).map(normPlayer).filter((p) => p !== name);
+          const opponents = (inA ? m.teamB : m.teamA).map(normPlayer);
+          teammates.forEach((p) => (teammateCounts[p] = (teammateCounts[p] || 0) + 1));
+          opponents.forEach((p) => (opponentCounts[p] = (opponentCounts[p] || 0) + 1));
+          return { date: m.date, won, score: `${own}-${opp}`, opponents: opponents.join(" & ") };
+        });
+        const topMate = Object.entries(teammateCounts).sort((a, b) => b[1] - a[1])[0];
+        const toughOpp = Object.entries(opponentCounts).sort((a, b) => b[1] - a[1])[0];
+        return { stats, matches, recent, topMate, toughOpp };
+      }
+
+      function getAchievements() {
+        const stats = computeStats(allMatches);
+        const achievements = [];
+        stats.forEach((p) => {
+          const detail = getPlayerDetail(p.name);
+          const last = detail.recent.slice(-5);
+          const wins = last.filter((m) => m.won).length;
+          const losses = last.length - wins;
+          if (last.length >= 3 && wins === last.length)
+            achievements.push({ title: "Hot Streak", name: p.name, sub: `${wins} wins in recent form` });
+          if (last.length >= 3 && losses === last.length)
+            achievements.push({ title: "Cold Run", name: p.name, sub: `${losses} recent losses` });
+          if (p.diff >= 10)
+            achievements.push({ title: "Game Diff Boss", name: p.name, sub: `+${p.diff} game differential` });
+        });
+        getPairStats()
+          .slice(0, 3)
+          .forEach((p) =>
+            achievements.push({ title: "Pair Power", name: p.key, sub: `${p.winPct}% across ${p.played} matches` }),
+          );
+        return achievements.slice(0, 10);
+      }
+
       // ── ADD MATCHES ────────────────────────────────────────────
+      function previewMatchImport() {
+        const raw = document.getElementById("matchTA").value;
+        const box = document.getElementById("matchPreview");
+        if (!raw.trim()) {
+          box.classList.remove("show");
+          box.innerHTML = "";
+          return;
+        }
+        const { parsed, errors } = parseBlock(raw);
+        const duplicates = parsed.filter((m) => allMatches.some((old) => sameMatch(old, m)));
+        const rows = parsed.slice(0, 5).map((m) => {
+          const dup = allMatches.some((old) => sameMatch(old, m));
+          return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${dup ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${dup ? " · duplicate?" : ""}</strong></div>`;
+        });
+        box.innerHTML = `
+          <div><strong style="color:var(--text)">${parsed.length}</strong> parsed · <strong class="${errors.length ? "preview-warn" : ""}">${errors.length}</strong> skipped · <strong class="${duplicates.length ? "preview-warn" : ""}">${duplicates.length}</strong> duplicate warning(s)</div>
+          ${rows.join("")}
+          ${parsed.length > 5 ? `<div class="preview-row"><span>+ ${parsed.length - 5} more</span><span></span></div>` : ""}
+        `;
+        box.classList.add("show");
+      }
+
       function addMatches() {
         const raw = document.getElementById("matchTA").value;
         const eEl = document.getElementById("mErr"),
@@ -2425,15 +2735,37 @@ Parthiv - Par"
           eEl.classList.add("show");
         }
         if (parsed.length) {
+          lastMatchSnapshot = [...allMatches];
           allMatches.push(...parsed);
           saveCloudData();
           document.getElementById("matchTA").value = "";
+          previewMatchImport();
           oEl.textContent = `Added ${parsed.length} match${parsed.length > 1 ? "es" : ""}.`;
           oEl.classList.add("show");
+          document.getElementById("undoAddBtn").style.display = "block";
           setTimeout(() => oEl.classList.remove("show"), 2500);
           renderHome();
           renderCompact();
+          renderModernMatches();
+          renderAddMatches();
         }
+      }
+
+      function undoLastAdd() {
+        if (!lastMatchSnapshot) return;
+        allMatches = lastMatchSnapshot;
+        lastMatchSnapshot = null;
+        saveCloudData();
+        renderHome();
+        renderCompact();
+        renderModernMatches();
+        renderAddMatches();
+        refreshManage();
+        document.getElementById("undoAddBtn").style.display = "none";
+        const oEl = document.getElementById("mOk");
+        oEl.textContent = "Last match import undone.";
+        oEl.classList.add("show");
+        setTimeout(() => oEl.classList.remove("show"), 2500);
       }
 
       // ── NAMES ──────────────────────────────────────────────────
@@ -2575,6 +2907,8 @@ Parthiv - Par"
       function clearMatches() {
         if (!confirm("Clear all match data?")) return;
         allMatches = [];
+        lastMatchSnapshot = null;
+        document.getElementById("undoAddBtn").style.display = "none";
         saveCloudData();
         renderHome();
         renderCompact();
@@ -2620,6 +2954,8 @@ Parthiv - Par"
         allMatches = data.allMatches || [];
         aliasMap = data.aliasMap || {};
         nameMap = data.nameMap || {};
+        lastMatchSnapshot = null;
+        document.getElementById("undoAddBtn").style.display = "none";
         saveCloudData();
         renderHome();
         renderCompact();
@@ -2692,7 +3028,7 @@ Parthiv - Par"
             const ds = p.diff > 0 ? `+${p.diff}` : `${p.diff}`;
             const dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
             const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-            return `<div class="pc ${rc}"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div><div class="skill-lbl">SR / 10</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div></div>`;
+            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div><div class="skill-lbl">SR / 10</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div></div>`;
           })
           .join("");
       }
@@ -2865,6 +3201,9 @@ Parthiv - Par"
           matches = matches.filter((m) =>
             JSON.stringify(m).toLowerCase().includes(query),
           );
+        if (histSeasonFilter) {
+          matches = matches.filter((m) => (m.date || "").startsWith(histSeasonFilter));
+        }
         // Player filter
         if (histPlayerFilter) {
           matches = matches.filter((m) =>
@@ -2888,6 +3227,20 @@ Parthiv - Par"
             return histOutcomeFilter === "win" ? playerWon : !playerWon;
           });
         }
+        if (histPairFilter) {
+          matches = matches.filter((m) => pairInMatch(m, histPairFilter));
+        }
+        if (h2hFilterA && h2hFilterB) {
+          matches = matches.filter((m) =>
+            playersOpposed(m, h2hFilterA, h2hFilterB),
+          );
+        }
+        if (histScorelineFilter) {
+          matches = matches.filter((m) => {
+            if (histScorelineFilter === "zero") return isZeroMatch(m);
+            return normalizedScoreline(m) === histScorelineFilter;
+          });
+        }
         // Margin filter
         if (histMarginFilter !== "all") {
           matches = matches.filter((m) => {
@@ -2897,9 +3250,15 @@ Parthiv - Par"
             return true;
           });
         }
+        let summary = "";
+        if (h2hFilterA && h2hFilterB) {
+          const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, matches);
+          summary = `<div class="ana-card" style="margin-bottom:10px"><span class="badge">Head-to-Head</span><div class="name" style="font-size:18px">${h2hFilterA} ${h2h.aWins}-${h2h.bWins} ${h2hFilterB}</div><div class="sub">${h2h.matches.length} match(es) · ${h2hFilterA} diff ${h2h.diff >= 0 ? "+" : ""}${h2h.diff}</div></div>`;
+        }
         document.getElementById("modern-match-list").innerHTML =
-          buildMatchCards(matches, true);
+          summary + buildMatchCards(matches, true);
         populateHistoryPlayerChips();
+        populateHistoryAdvancedFilters();
       }
 
       function populateHistoryPlayerChips() {
@@ -2919,6 +3278,48 @@ Parthiv - Par"
                 `<button class="hfilt player-chip ${histPlayerFilter === name ? "on" : ""}" data-player="${name}" onclick="setHistPlayerFilter(\'${name.replace(/\'/g, "\\'")}\')">${name}</button>`,
             )
             .join("");
+      }
+
+      function populateHistoryAdvancedFilters() {
+        const pairSelect = document.getElementById("histPairFilter");
+        if (!pairSelect) return;
+        const currentPair = pairSelect.value || histPairFilter;
+        const pairOptions = getPairStats()
+          .map(
+            (p) =>
+              `<option value="${p.key.replace(/"/g, "&quot;")}" ${currentPair === p.key ? "selected" : ""}>${p.key} (${p.wins}-${p.losses})</option>`,
+          )
+          .join("");
+        pairSelect.innerHTML = `<option value="">All Pairs</option>${pairOptions}`;
+        pairSelect.value = currentPair;
+
+        const seasonSelect = document.getElementById("histSeasonFilter");
+        if (seasonSelect) {
+          const currentSeason = seasonSelect.value || histSeasonFilter;
+          const seasons = [
+            ...new Set(
+              allMatches
+                .map((m) => (m.date || "").slice(0, 7))
+                .filter((date) => /^\d{4}-\d{2}$/.test(date)),
+            ),
+          ].sort((a, b) => b.localeCompare(a));
+          seasonSelect.innerHTML =
+            '<option value="">All</option>' +
+            seasons
+              .map(
+                (season) =>
+                  `<option value="${season}" ${currentSeason === season ? "selected" : ""}>${season}</option>`,
+              )
+              .join("");
+          seasonSelect.value = currentSeason;
+        }
+
+        const data = document.getElementById("player-suggestions");
+        if (data) {
+          data.innerHTML = getAllPlayerNamesFromMatches()
+            .map((player) => `<option value="${player}">`)
+            .join("");
+        }
       }
 
       function setHistPlayerFilter(name) {
@@ -2944,6 +3345,35 @@ Parthiv - Par"
           .querySelectorAll("[data-margin]")
           .forEach((b) => b.classList.remove("on"));
         document.querySelector(`[data-margin="${val}"]`)?.classList.add("on");
+        renderModernMatches();
+      }
+
+      function setHistPairFilter(val) {
+        histPairFilter = val;
+        renderModernMatches();
+      }
+
+      function setHistScorelineFilter(val) {
+        histScorelineFilter = val;
+        renderModernMatches();
+      }
+
+      function setHistSeasonFilter(val) {
+        histSeasonFilter = val;
+        renderModernMatches();
+      }
+
+      function applyHeadToHeadFilter() {
+        h2hFilterA = document.getElementById("h2hPlayerA").value.trim();
+        h2hFilterB = document.getElementById("h2hPlayerB").value.trim();
+        renderModernMatches();
+      }
+
+      function clearHeadToHeadFilter() {
+        h2hFilterA = "";
+        h2hFilterB = "";
+        document.getElementById("h2hPlayerA").value = "";
+        document.getElementById("h2hPlayerB").value = "";
         renderModernMatches();
       }
 
@@ -3165,6 +3595,7 @@ Parthiv - Par"
         }
         const teamA = [p1a, p2a];
         const teamB = [p1b, p2b];
+        lastMatchSnapshot = [...allMatches];
         allMatches.push({ teamA, teamB, scoreA: sA, scoreB: sB, date });
         saveCloudData();
         closeModernAddModal();
@@ -3172,6 +3603,59 @@ Parthiv - Par"
         renderAddMatches();
         renderHome();
         renderCompact();
+      }
+
+      function openPlayerDetail(name) {
+        document.getElementById("player-detail-modal")?.remove();
+        const detail = getPlayerDetail(name);
+        if (!detail.stats) {
+          alert("No player stats found.");
+          return;
+        }
+        const form = detail.recent
+          .map(
+            (m) =>
+              `<span class="stat-chip ${m.won ? "sr" : ""}" title="${m.date} vs ${m.opponents}">${m.won ? "W" : "L"} ${m.score}</span>`,
+          )
+          .join(" ");
+        const recentCards = detail.recent
+          .slice()
+          .reverse()
+          .map(
+            (m) =>
+              `<div class="ana-card"><div class="name" style="font-size:15px">${m.won ? "Win" : "Loss"} · ${m.score}</div><div class="sub">${m.date} vs ${m.opponents}</div></div>`,
+          )
+          .join("");
+        const html = `
+          <div id="player-detail-modal">
+            <div class="analytics-inner">
+              <div class="analytics-header">
+                <div class="analytics-title">${name}</div>
+                <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
+              </div>
+              <div class="analytics-cards">
+                <div class="ana-card">
+                  <span class="badge">Player Detail</span>
+                  <div class="name">${detail.stats.sr.toFixed(2)} SR</div>
+                  <div class="sub">${detail.stats.mw}-${detail.stats.ml} · ${detail.stats.winPct.toFixed(0)}% win · ${detail.stats.diff >= 0 ? "+" : ""}${detail.stats.diff} diff</div>
+                  <div class="mini-tools">
+                    <button class="tool-btn" onclick="setHistPlayerFilter('${name.replace(/'/g, "\\'")}'); switchMainTab('history'); document.getElementById('player-detail-modal')?.remove()">History</button>
+                  </div>
+                </div>
+                <div class="ana-card">
+                  <span class="badge">Recent Form</span>
+                  <div>${form || '<span class="sub">No recent matches</span>'}</div>
+                </div>
+                <div class="ana-card">
+                  <span class="badge">Connections</span>
+                  <div class="sub">Best mate: <strong style="color:var(--text)">${detail.topMate?.[0] || "—"}</strong> · Toughest repeat opponent: <strong style="color:var(--text)">${detail.toughOpp?.[0] || "—"}</strong></div>
+                </div>
+              </div>
+              <div style="margin-top:18px;font-size:14px;font-weight:700;margin-bottom:10px">Recent Matches</div>
+              <div class="analytics-cards">${recentCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
+            </div>
+          </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
       }
 
       // ── ANALYTICS ──────────────────────────────────────────────
@@ -3302,6 +3786,13 @@ Parthiv - Par"
           (a, b) =>
             b.wins / Math.max(1, b.played) - a.wins / Math.max(1, a.played),
         )[0];
+        const pairLeaderboard = getPairStats().slice(0, 8);
+        const achievements = getAchievements();
+        const playersByMatches = getAllPlayerNamesFromMatches();
+        const sampleH2H =
+          playersByMatches.length >= 2
+            ? getHeadToHeadStats(playersByMatches[0], playersByMatches[1])
+            : null;
 
         const card = (badge, name, sub) =>
           `<div class="ana-card"><span class="badge">${badge}</span><div class="name">${name || "—"}</div><div class="sub">${sub}</div></div>`;
@@ -3331,6 +3822,40 @@ Parthiv - Par"
             <div class="analytics-cards">
               ${card("💣 Biggest Victory", biggestWin?.player, `+${biggestWin?.margin} margin (${biggestWin?.score})`)}
               ${bestPartnership ? card("👫 Dominant Duo", bestPartnership.players.join(" & "), `${bestPartnership.wins}W–${bestPartnership.played - bestPartnership.wins}L (${Math.round((bestPartnership.wins / bestPartnership.played) * 100)}%)`) : card("👫 Dominant Duo", "—", "—")}
+            </div>
+
+            <div style="margin-top:18px;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.1em">Pair Leaderboard</div>
+            <div class="analytics-cards">
+              ${
+                pairLeaderboard.length
+                  ? pairLeaderboard
+                      .map(
+                        (p, i) =>
+                          `<div class="ana-card" style="display:flex;justify-content:space-between;gap:10px"><div><span class="badge">#${i + 1}</span><div class="name" style="font-size:16px">${p.key}</div><div class="sub">${p.wins}-${p.losses} · ${p.played} together · ${p.diff >= 0 ? "+" : ""}${p.diff} diff</div></div><div style="color:var(--accent);font-size:20px;font-weight:900">${p.winPct}%</div></div>`,
+                      )
+                      .join("")
+                  : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
+              }
+            </div>
+
+            <div style="margin-top:18px;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.1em">Achievements</div>
+            <div class="analytics-cards">
+              ${
+                achievements.length
+                  ? achievements
+                      .map((a) => card(a.title, a.name, a.sub))
+                      .join("")
+                  : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
+              }
+            </div>
+
+            <div style="margin-top:18px;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.1em">Head-to-Head</div>
+            <div class="ana-card">
+              <div class="sub">Use the H2H controls in History to compare any two players.${
+                sampleH2H
+                  ? ` Example: ${playersByMatches[0]} ${sampleH2H.aWins}-${sampleH2H.bWins} ${playersByMatches[1]} across ${sampleH2H.matches.length} match(es).`
+                  : ""
+              }</div>
             </div>
 
             <div style="margin-top:18px;font-size:14px;font-weight:700;margin-bottom:10px">All Players</div>
@@ -3385,7 +3910,13 @@ Parthiv - Par"
         setHistPlayerFilter,
         setHistOutcome,
         setHistMargin,
+        setHistPairFilter,
+        setHistScorelineFilter,
+        setHistSeasonFilter,
+        applyHeadToHeadFilter,
+        clearHeadToHeadFilter,
         populateHistoryPlayerChips,
+        populateHistoryAdvancedFilters,
         renderAddMatches,
         refreshManage,
         deleteMatchByIndex,
@@ -3402,6 +3933,9 @@ Parthiv - Par"
         openNameAddModal,
         closeNameAddModal,
         saveQuickName,
+        previewMatchImport,
+        undoLastAdd,
+        openPlayerDetail,
       });
     </script>
   </body>
