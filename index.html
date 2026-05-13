@@ -1782,14 +1782,21 @@
           data-margin="close"
           onclick="setHistMargin('close')"
         >
-          🤏 Close (≤2)
+          🔥 Close
         </button>
         <button
           class="hfilt"
-          data-margin="blowout"
-          onclick="setHistMargin('blowout')"
+          data-margin="dominating"
+          onclick="setHistMargin('dominating')"
         >
-          💥 One Side (≥5)
+          💀 One Side
+        </button>
+        <button
+          class="hfilt"
+          data-margin="zero"
+          onclick="setHistMargin('zero')"
+        >
+          ZERO
         </button>
       </div>
       <div
@@ -2738,6 +2745,23 @@ Parthiv - Par"
         return null; // tag moved to event strip below score
       }
 
+      function isFireMatch(m) {
+        return Math.abs(m.scoreA - m.scoreB) <= 1;
+      }
+
+      function isDominatingMatch(m) {
+        const winnerScore = Math.max(Number(m.scoreA), Number(m.scoreB));
+        const loserScore = Math.min(Number(m.scoreA), Number(m.scoreB));
+        return (
+          (winnerScore === 4 && loserScore === 1) ||
+          (winnerScore === 6 && (loserScore === 1 || loserScore === 2))
+        );
+      }
+
+      function isZeroMatch(m) {
+        return Number(m.scoreA) === 0 || Number(m.scoreB) === 0;
+      }
+
       function buildMatchCards(matches, showAdmin) {
         if (!matches.length)
           return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
@@ -2746,15 +2770,11 @@ Parthiv - Par"
           .map((m, index) => {
             const aWon = m.scoreA > m.scoreB;
             const diff = Math.abs(m.scoreA - m.scoreB);
-            const isFire = diff <= 1;
-            const winnerScore = Math.max(m.scoreA, m.scoreB);
-            const loserScore = Math.min(m.scoreA, m.scoreB);
-            const isDominating =
-              (winnerScore === 4 && loserScore === 1) ||
-              (winnerScore >= 6 && diff >= 4);
+            const isFire = isFireMatch(m);
+            const isDominating = isDominatingMatch(m);
             const aZero = m.scoreA === 0,
               bZero = m.scoreB === 0;
-            const isZero = aZero || bZero;
+            const isZero = isZeroMatch(m);
 
             const bWon = !aWon;
             const teamARaw = (m.teamA || []).join(" & ");
@@ -2871,9 +2891,9 @@ Parthiv - Par"
         // Margin filter
         if (histMarginFilter !== "all") {
           matches = matches.filter((m) => {
-            const diff = Math.abs(m.scoreA - m.scoreB);
-            if (histMarginFilter === "close") return diff <= 2;
-            if (histMarginFilter === "blowout") return diff >= 5;
+            if (histMarginFilter === "close") return isFireMatch(m);
+            if (histMarginFilter === "dominating") return isDominatingMatch(m);
+            if (histMarginFilter === "zero") return isZeroMatch(m);
             return true;
           });
         }
