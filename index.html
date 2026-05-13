@@ -1746,6 +1746,150 @@
         background: var(--border);
         border-radius: 999px;
       }
+
+      .history-highlights {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-bottom: 16px;
+        align-items: stretch;
+      }
+      .achievement-banner,
+      .history-prediction {
+        flex: 1 1 320px;
+        min-width: 260px;
+        background: rgba(18, 18, 28, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+        backdrop-filter: blur(18px);
+      }
+      .achievement-banner .banner-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .achievement-banner .banner-title .title {
+        font-size: 16px;
+        font-weight: 900;
+      }
+      .achievement-banner .banner-title .sub {
+        font-size: 12px;
+        color: var(--muted);
+        max-width: 220px;
+        line-height: 1.4;
+      }
+      .achievement-carousel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .achievement-pill {
+        flex: 1 1 140px;
+        min-width: 140px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 12px 14px;
+        animation: slideInUp 0.32s ease both;
+      }
+      .achievement-pill .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(245, 200, 66, 0.16);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 900;
+        margin-bottom: 8px;
+      }
+      .achievement-pill .name {
+        font-size: 13px;
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+      .achievement-pill .sub {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+      .history-prediction {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .prediction-title {
+        font-size: 16px;
+        font-weight: 900;
+      }
+      .prediction-name {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+      }
+      .prediction-sub,
+      .prediction-footer {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .prediction-block {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 12px 14px;
+      }
+      .prediction-block .pair {
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .prediction-block .confidence {
+        font-size: 14px;
+        font-weight: 900;
+        color: var(--accent);
+      }
+      .match-card-momentum {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      .momentum-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .momentum-bar {
+        width: 100%;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .momentum-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(
+          90deg,
+          rgba(95, 255, 175, 0.92),
+          rgba(53, 183, 255, 0.92)
+        );
+        box-shadow: 0 0 18px rgba(53, 183, 255, 0.15);
+        transition: width 0.35s ease;
+      }
     </style>
   </head>
   <body>
@@ -2984,6 +3128,15 @@ Parthiv - Par"
               name: p.name,
               sub: `${losses} recent losses`,
             });
+          const shutoutWins = last.filter(
+            (m) => m.won && m.score.endsWith("-0"),
+          ).length;
+          if (shutoutWins)
+            achievements.push({
+              title: "Shutout King",
+              name: p.name,
+              sub: `${shutoutWins} 0-X shutout wins`,
+            });
           if (p.diff >= 10)
             achievements.push({
               title: "Game Diff Boss",
@@ -3528,6 +3681,10 @@ Parthiv - Par"
               );
 
             const delay = Math.min(index * 0.1, 1); // Staggered delay up to 1s
+            const total = m.scoreA + m.scoreB || 1;
+            const winnerScore = Math.max(m.scoreA, m.scoreB);
+            const momentumPct = Math.round((winnerScore / total) * 100);
+            const momentumSide = aWon ? teamALabel : teamBLabel;
 
             return `
           <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;">
@@ -3547,6 +3704,10 @@ Parthiv - Par"
               </div>
             </div>
             ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
+            <div class="match-card-momentum">
+              <div class="momentum-label"><span>${momentumSide} Momentum</span><span>${momentumPct}%</span></div>
+              <div class="momentum-bar"><div class="momentum-fill" style="width:${momentumPct}%"></div></div>
+            </div>
             <div class="match-footer" style="margin-top:10px">
               ${
                 showAdmin && window.isAdmin
