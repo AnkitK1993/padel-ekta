@@ -533,13 +533,26 @@
       }
 
       /* ── HISTORY EXTRA FILTERS ── */
-      .hist-filter-row {
+      .history-filter-panel {
         flex-shrink: 0;
-        display: flex;
-        gap: 6px;
-        padding: 6px 12px;
-        background: var(--surface);
+        background: linear-gradient(
+          180deg,
+          var(--surface),
+          rgba(17, 17, 24, 0.96)
+        );
         border-bottom: 1px solid var(--border);
+        padding: 10px 10px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .hist-filter-row {
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        background: rgba(26, 26, 38, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
         align-items: center;
         overflow-x: auto;
         scrollbar-width: none;
@@ -550,20 +563,21 @@
       .hist-filter-label {
         font-size: 9px;
         font-weight: 700;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: var(--muted);
+        color: var(--accent);
         flex-shrink: 0;
+        min-width: max-content;
       }
       .hfilt {
         flex-shrink: 0;
-        padding: 4px 10px;
-        border-radius: 20px;
+        padding: 6px 11px;
+        border-radius: 999px;
         font-size: 11px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
         border: 1px solid var(--border);
-        background: transparent;
+        background: rgba(9, 9, 15, 0.35);
         color: var(--muted);
         font-family: "DM Sans", sans-serif;
         white-space: nowrap;
@@ -574,10 +588,20 @@
         color: #09090f;
         border-color: var(--accent);
       }
-      .hfilt.player-chip.on {
-        background: var(--surface2);
-        color: var(--text);
-        border-color: var(--accent);
+      .player-filter-select {
+        min-width: 190px;
+      }
+      .hist-filter-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .hist-filter-divider {
+        width: 1px;
+        height: 24px;
+        background: var(--border);
+        flex-shrink: 0;
       }
       /* ── COMPACT PAGE ── */
       .cmp-topbar {
@@ -1510,8 +1534,8 @@
         background: var(--surface2);
         border: 1px solid var(--border);
         color: var(--text);
-        border-radius: 8px;
-        padding: 6px 9px;
+        border-radius: 9px;
+        padding: 7px 9px;
         font-size: 11px;
         font-weight: 600;
         font-family: "DM Sans", sans-serif;
@@ -1523,7 +1547,7 @@
         flex-shrink: 0;
         background: var(--surface2);
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: 9px;
         overflow: hidden;
       }
       .h2h-field .hist-input {
@@ -1815,137 +1839,150 @@
         </div>
         <button class="btn-go" onclick="renderModernMatches()">Apply</button>
       </div>
-      <!-- Player filter chips -->
-      <div class="hist-filter-row" id="hist-player-row">
-        <span class="hist-filter-label">Player</span>
-        <button
-          class="hfilt player-chip on"
-          data-player=""
-          onclick="setHistPlayerFilter('')"
-        >
-          All
-        </button>
-      </div>
-      <div class="hist-filter-row">
-        <span class="hist-filter-label">Pair</span>
-        <select
-          class="hist-select"
-          id="histPairFilter"
-          onchange="setHistPairFilter(this.value)"
-        >
-          <option value="">All Pairs</option>
-        </select>
-        <span class="hist-filter-label">H2H</span>
-        <span class="h2h-field">
-          <input
-            class="hist-input"
-            id="h2hPlayerA"
-            list="player-suggestions"
-            placeholder="Player A"
-            oninput="onHeadToHeadInput()"
-          />
-          <button
-            class="h2h-clear"
-            type="button"
-            onclick="clearHeadToHeadPlayer('A')"
-            title="Clear player A"
+      <div class="history-filter-panel">
+        <div class="hist-filter-row" id="hist-player-row">
+          <span class="hist-filter-label">Player</span>
+          <select
+            class="hist-select player-filter-select"
+            id="histPlayerSelect"
+            onchange="setHistPlayerFilter(this.value)"
           >
-            ×
-          </button>
-        </span>
-        <span class="h2h-field">
-          <input
-            class="hist-input"
-            id="h2hPlayerB"
-            list="player-suggestions"
-            placeholder="Player B"
-            oninput="onHeadToHeadInput()"
-          />
-          <button
-            class="h2h-clear"
-            type="button"
-            onclick="clearHeadToHeadPlayer('B')"
-            title="Clear player B"
-          >
-            ×
-          </button>
-        </span>
-        <button class="hfilt" onclick="applyHeadToHeadFilter()">Apply</button>
-        <button class="hfilt" onclick="clearHeadToHeadFilter()">Clear</button>
-        <span class="hist-filter-label">Score</span>
-        <select
-          class="hist-select"
-          id="histScorelineFilter"
-          onchange="setHistScorelineFilter(this.value)"
-        >
-          <option value="">Any</option>
-          <option value="4-1">4-1</option>
-          <option value="6-1">6-1</option>
-          <option value="6-2">6-2</option>
-          <option value="zero">Won/Lost 0</option>
-        </select>
-        <span class="hist-filter-label">Season</span>
-        <select
-          class="hist-select"
-          id="histSeasonFilter"
-          onchange="setHistSeasonFilter(this.value)"
-        >
-          <option value="">All</option>
-        </select>
-      </div>
-      <!-- Outcome + Margin filters -->
-      <div class="hist-filter-row">
-        <span class="hist-filter-label">Result</span>
-        <button
-          class="hfilt on"
-          data-outcome="all"
-          onclick="setHistOutcome('all')"
-        >
-          All
-        </button>
-        <button
-          class="hfilt"
-          data-outcome="win"
-          onclick="setHistOutcome('win')"
-        >
-          🏆 Win
-        </button>
-        <button
-          class="hfilt"
-          data-outcome="loss"
-          onclick="setHistOutcome('loss')"
-        >
-          ❌ Loss
-        </button>
-        <span class="hist-filter-label" style="margin-left: 8px">Margin</span>
-        <button
-          class="hfilt on"
-          data-margin="all"
-          onclick="setHistMargin('all')"
-        >
-          All
-        </button>
-        <button
-          class="hfilt"
-          data-margin="close"
-          onclick="setHistMargin('close')"
-        >
-          🔥 Close
-        </button>
-        <button
-          class="hfilt"
-          data-margin="dominating"
-          onclick="setHistMargin('dominating')"
-        >
-          💀 One Side
-        </button>
-        <button
-          class="hfilt"
-          data-margin="zero"
-          onclick="setHistMargin('zero')"
-        >
-          ZERO
-        </button>
+            <option value="">All Players</option>
+          </select>
+        </div>
+        <div class="hist-filter-row">
+          <span class="hist-filter-group">
+            <span class="hist-filter-label">Result</span>
+            <button
+              class="hfilt on"
+              data-outcome="all"
+              onclick="setHistOutcome('all')"
+            >
+              All
+            </button>
+            <button
+              class="hfilt"
+              data-outcome="win"
+              onclick="setHistOutcome('win')"
+            >
+              🏆 Win
+            </button>
+            <button
+              class="hfilt"
+              data-outcome="loss"
+              onclick="setHistOutcome('loss')"
+            >
+              ❌ Loss
+            </button>
+          </span>
+          <span class="hist-filter-divider"></span>
+          <span class="hist-filter-group">
+            <span class="hist-filter-label">Tags</span>
+            <button
+              class="hfilt on"
+              data-margin="all"
+              onclick="setHistMargin('all')"
+            >
+              All
+            </button>
+            <button
+              class="hfilt"
+              data-margin="close"
+              onclick="setHistMargin('close')"
+            >
+              🔥 Close
+            </button>
+            <button
+              class="hfilt"
+              data-margin="dominating"
+              onclick="setHistMargin('dominating')"
+            >
+              💀 One Side
+            </button>
+            <button
+              class="hfilt"
+              data-margin="zero"
+              onclick="setHistMargin('zero')"
+            >
+              ZERO
+            </button>
+          </span>
+        </div>
+        <div class="hist-filter-row">
+          <span class="hist-filter-group">
+            <span class="hist-filter-label">Pair</span>
+            <select
+              class="hist-select"
+              id="histPairFilter"
+              onchange="setHistPairFilter(this.value)"
+            >
+              <option value="">All Pairs</option>
+            </select>
+          </span>
+          <span class="hist-filter-group">
+            <span class="hist-filter-label">Score</span>
+            <select
+              class="hist-select"
+              id="histScorelineFilter"
+              onchange="setHistScorelineFilter(this.value)"
+            >
+              <option value="">Any</option>
+              <option value="4-1">4-1</option>
+              <option value="6-1">6-1</option>
+              <option value="6-2">6-2</option>
+              <option value="zero">Won/Lost 0</option>
+            </select>
+          </span>
+          <span class="hist-filter-group">
+            <span class="hist-filter-label">Season</span>
+            <select
+              class="hist-select"
+              id="histSeasonFilter"
+              onchange="setHistSeasonFilter(this.value)"
+            >
+              <option value="">All</option>
+            </select>
+          </span>
+        </div>
+        <div class="hist-filter-row">
+          <span class="hist-filter-label">Head-to-head</span>
+          <span class="h2h-field">
+            <input
+              class="hist-input"
+              id="h2hPlayerA"
+              list="player-suggestions"
+              placeholder="Player A"
+              oninput="onHeadToHeadInput()"
+            />
+            <button
+              class="h2h-clear"
+              type="button"
+              onclick="clearHeadToHeadPlayer('A')"
+              title="Clear player A"
+            >
+              ×
+            </button>
+          </span>
+          <span class="h2h-field">
+            <input
+              class="hist-input"
+              id="h2hPlayerB"
+              list="player-suggestions"
+              placeholder="Player B"
+              oninput="onHeadToHeadInput()"
+            />
+            <button
+              class="h2h-clear"
+              type="button"
+              onclick="clearHeadToHeadPlayer('B')"
+              title="Clear player B"
+            >
+              ×
+            </button>
+          </span>
+          <button class="hfilt" onclick="applyHeadToHeadFilter()">Apply</button>
+          <button class="hfilt" onclick="clearHeadToHeadFilter()">Clear</button>
+        </div>
       </div>
       <div
         class="scroll"
@@ -2022,7 +2059,10 @@ Ank RaM vs Nil Tej 4-2"
             </button>
             <button
               class="btn-s"
-              onclick="document.getElementById('matchTA').value = ''; previewMatchImport()"
+              onclick="
+                document.getElementById('matchTA').value = '';
+                previewMatchImport();
+              "
             >
               Clear
             </button>
@@ -2604,7 +2644,9 @@ Parthiv - Par"
         });
         return [...names]
           .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+          .sort((a, b) =>
+            a.localeCompare(b, undefined, { sensitivity: "base" }),
+          );
       }
 
       function getPairKey(team) {
@@ -2616,13 +2658,30 @@ Parthiv - Par"
         matches.forEach((m) => {
           const aWon = Number(m.scoreA) > Number(m.scoreB);
           [
-            { team: m.teamA || [], gf: Number(m.scoreA), ga: Number(m.scoreB), won: aWon },
-            { team: m.teamB || [], gf: Number(m.scoreB), ga: Number(m.scoreA), won: !aWon },
+            {
+              team: m.teamA || [],
+              gf: Number(m.scoreA),
+              ga: Number(m.scoreB),
+              won: aWon,
+            },
+            {
+              team: m.teamB || [],
+              gf: Number(m.scoreB),
+              ga: Number(m.scoreA),
+              won: !aWon,
+            },
           ].forEach((row) => {
             if (row.team.length < 2) return;
             const key = getPairKey(row.team);
             if (!pairs[key])
-              pairs[key] = { key, players: key.split(" & "), played: 0, wins: 0, gf: 0, ga: 0 };
+              pairs[key] = {
+                key,
+                players: key.split(" & "),
+                played: 0,
+                wins: 0,
+                gf: 0,
+                ga: 0,
+              };
             pairs[key].played++;
             pairs[key].wins += row.won ? 1 : 0;
             pairs[key].gf += row.gf;
@@ -2636,22 +2695,36 @@ Parthiv - Par"
             winPct: p.played ? Math.round((p.wins / p.played) * 100) : 0,
             diff: p.gf - p.ga,
           }))
-          .sort((a, b) => b.winPct - a.winPct || b.played - a.played || b.diff - a.diff);
+          .sort(
+            (a, b) =>
+              b.winPct - a.winPct || b.played - a.played || b.diff - a.diff,
+          );
       }
 
       function pairInMatch(m, pairKey) {
         if (!pairKey) return true;
-        return getPairKey(m.teamA || []) === pairKey || getPairKey(m.teamB || []) === pairKey;
+        return (
+          getPairKey(m.teamA || []) === pairKey ||
+          getPairKey(m.teamB || []) === pairKey
+        );
       }
 
       function playersOpposed(m, a, b) {
         if (!a || !b) return true;
         const na = a.toLowerCase();
         const nb = b.toLowerCase();
-        const inA1 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === na);
-        const inA2 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === nb);
-        const inB1 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === na);
-        const inB2 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === nb);
+        const inA1 = (m.teamA || []).some(
+          (p) => normPlayer(p).toLowerCase() === na,
+        );
+        const inA2 = (m.teamA || []).some(
+          (p) => normPlayer(p).toLowerCase() === nb,
+        );
+        const inB1 = (m.teamB || []).some(
+          (p) => normPlayer(p).toLowerCase() === na,
+        );
+        const inB2 = (m.teamB || []).some(
+          (p) => normPlayer(p).toLowerCase() === nb,
+        );
         return (inA1 && inB2) || (inB1 && inA2);
       }
 
@@ -2672,7 +2745,9 @@ Parthiv - Par"
 
       function getPlayerDetail(name) {
         const matches = allMatches.filter((m) =>
-          [...(m.teamA || []), ...(m.teamB || [])].some((p) => normPlayer(p) === name),
+          [...(m.teamA || []), ...(m.teamB || [])].some(
+            (p) => normPlayer(p) === name,
+          ),
         );
         const stats = computeStats(allMatches).find((p) => p.name === name);
         const teammateCounts = {};
@@ -2682,14 +2757,29 @@ Parthiv - Par"
           const own = inA ? Number(m.scoreA) : Number(m.scoreB);
           const opp = inA ? Number(m.scoreB) : Number(m.scoreA);
           const won = own > opp;
-          const teammates = (inA ? m.teamA : m.teamB).map(normPlayer).filter((p) => p !== name);
+          const teammates = (inA ? m.teamA : m.teamB)
+            .map(normPlayer)
+            .filter((p) => p !== name);
           const opponents = (inA ? m.teamB : m.teamA).map(normPlayer);
-          teammates.forEach((p) => (teammateCounts[p] = (teammateCounts[p] || 0) + 1));
-          opponents.forEach((p) => (opponentCounts[p] = (opponentCounts[p] || 0) + 1));
-          return { date: m.date, won, score: `${own}-${opp}`, opponents: opponents.join(" & ") };
+          teammates.forEach(
+            (p) => (teammateCounts[p] = (teammateCounts[p] || 0) + 1),
+          );
+          opponents.forEach(
+            (p) => (opponentCounts[p] = (opponentCounts[p] || 0) + 1),
+          );
+          return {
+            date: m.date,
+            won,
+            score: `${own}-${opp}`,
+            opponents: opponents.join(" & "),
+          };
         });
-        const topMate = Object.entries(teammateCounts).sort((a, b) => b[1] - a[1])[0];
-        const toughOpp = Object.entries(opponentCounts).sort((a, b) => b[1] - a[1])[0];
+        const topMate = Object.entries(teammateCounts).sort(
+          (a, b) => b[1] - a[1],
+        )[0];
+        const toughOpp = Object.entries(opponentCounts).sort(
+          (a, b) => b[1] - a[1],
+        )[0];
         return { stats, matches, recent, topMate, toughOpp };
       }
 
@@ -2702,16 +2792,32 @@ Parthiv - Par"
           const wins = last.filter((m) => m.won).length;
           const losses = last.length - wins;
           if (last.length >= 3 && wins === last.length)
-            achievements.push({ title: "Hot Streak", name: p.name, sub: `${wins} wins in recent form` });
+            achievements.push({
+              title: "Hot Streak",
+              name: p.name,
+              sub: `${wins} wins in recent form`,
+            });
           if (last.length >= 3 && losses === last.length)
-            achievements.push({ title: "Cold Run", name: p.name, sub: `${losses} recent losses` });
+            achievements.push({
+              title: "Cold Run",
+              name: p.name,
+              sub: `${losses} recent losses`,
+            });
           if (p.diff >= 10)
-            achievements.push({ title: "Game Diff Boss", name: p.name, sub: `+${p.diff} game differential` });
+            achievements.push({
+              title: "Game Diff Boss",
+              name: p.name,
+              sub: `+${p.diff} game differential`,
+            });
         });
         getPairStats()
           .slice(0, 3)
           .forEach((p) =>
-            achievements.push({ title: "Pair Power", name: p.key, sub: `${p.winPct}% across ${p.played} matches` }),
+            achievements.push({
+              title: "Pair Power",
+              name: p.key,
+              sub: `${p.winPct}% across ${p.played} matches`,
+            }),
           );
         return achievements.slice(0, 10);
       }
@@ -2726,7 +2832,9 @@ Parthiv - Par"
           return;
         }
         const { parsed, errors } = parseBlock(raw);
-        const duplicates = parsed.filter((m) => allMatches.some((old) => sameMatch(old, m)));
+        const duplicates = parsed.filter((m) =>
+          allMatches.some((old) => sameMatch(old, m)),
+        );
         const rows = parsed.slice(0, 5).map((m) => {
           const dup = allMatches.some((old) => sameMatch(old, m));
           return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${dup ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${dup ? " · duplicate?" : ""}</strong></div>`;
@@ -3224,7 +3332,9 @@ Parthiv - Par"
             JSON.stringify(m).toLowerCase().includes(query),
           );
         if (histSeasonFilter) {
-          matches = matches.filter((m) => (m.date || "").startsWith(histSeasonFilter));
+          matches = matches.filter((m) =>
+            (m.date || "").startsWith(histSeasonFilter),
+          );
         }
         // Player filter
         if (histPlayerFilter) {
@@ -3284,22 +3394,23 @@ Parthiv - Par"
       }
 
       function populateHistoryPlayerChips() {
-        const row = document.getElementById("hist-player-row");
-        if (!row) return;
+        const select = document.getElementById("histPlayerSelect");
+        if (!select) return;
+        const currentPlayer = histPlayerFilter;
         const names = new Set();
         allMatches.forEach((m) => {
           [...m.teamA, ...m.teamB].forEach((p) => names.add(nameMap[p] || p));
         });
         const sorted = [...names].sort((a, b) => a.localeCompare(b));
-        row.innerHTML =
-          '<span class="hist-filter-label">Player</span>' +
-          `<button class="hfilt player-chip ${histPlayerFilter === "" ? "on" : ""}" data-player="" onclick="setHistPlayerFilter(\'\')">All</button>` +
+        select.innerHTML =
+          '<option value="">All Players</option>' +
           sorted
             .map(
               (name) =>
-                `<button class="hfilt player-chip ${histPlayerFilter === name ? "on" : ""}" data-player="${name}" onclick="setHistPlayerFilter(\'${name.replace(/\'/g, "\\'")}\')">${name}</button>`,
+                `<option value="${name.replace(/"/g, "&quot;")}" ${currentPlayer === name ? "selected" : ""}>${name}</option>`,
             )
             .join("");
+        select.value = currentPlayer;
       }
 
       function populateHistoryAdvancedFilters() {
