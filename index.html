@@ -3077,11 +3077,39 @@ Parthiv - Par"
         const stats = computeStats(allMatches).find((p) => p.name === name);
         const teammateCounts = {};
         const opponentCounts = {};
-        const recent = matches.slice(-8).map((m) => {
+        const sortedMatches = [...matches].sort((a, b) => {
+          const da = new Date(a.date || "1970-01-01");
+          const db = new Date(b.date || "1970-01-01");
+          return da - db;
+        });
+        let currentStreak = 0;
+        let currentType = null;
+        let maxWinStreak = 0;
+        let maxLossStreak = 0;
+        let shutoutWins = 0;
+        let shutoutLosses = 0;
+        sortedMatches.forEach((m) => {
           const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
           const own = inA ? Number(m.scoreA) : Number(m.scoreB);
           const opp = inA ? Number(m.scoreB) : Number(m.scoreA);
           const won = own > opp;
+          if (won) {
+            if (currentType === "win") currentStreak += 1;
+            else {
+              currentType = "win";
+              currentStreak = 1;
+            }
+            maxWinStreak = Math.max(maxWinStreak, currentStreak);
+          } else {
+            if (currentType === "loss") currentStreak += 1;
+            else {
+              currentType = "loss";
+              currentStreak = 1;
+            }
+            maxLossStreak = Math.max(maxLossStreak, currentStreak);
+          }
+          if (won && opp === 0) shutoutWins += 1;
+          if (!won && own === 0) shutoutLosses += 1;
           const teammates = (inA ? m.teamA : m.teamB)
             .map(normPlayer)
             .filter((p) => p !== name);
@@ -3092,6 +3120,13 @@ Parthiv - Par"
           opponents.forEach(
             (p) => (opponentCounts[p] = (opponentCounts[p] || 0) + 1),
           );
+        });
+        const recent = sortedMatches.slice(-8).map((m) => {
+          const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
+          const own = inA ? Number(m.scoreA) : Number(m.scoreB);
+          const opp = inA ? Number(m.scoreB) : Number(m.scoreA);
+          const won = own > opp;
+          const opponents = (inA ? m.teamB : m.teamA).map(normPlayer);
           return {
             date: m.date,
             won,
@@ -3105,7 +3140,17 @@ Parthiv - Par"
         const toughOpp = Object.entries(opponentCounts).sort(
           (a, b) => b[1] - a[1],
         )[0];
-        return { stats, matches, recent, topMate, toughOpp };
+        return {
+          stats,
+          matches,
+          recent,
+          topMate,
+          toughOpp,
+          maxWinStreak,
+          maxLossStreak,
+          shutoutWins,
+          shutoutLosses,
+        };
       }
 
       function getAchievements() {
@@ -4216,12 +4261,23 @@ Parthiv - Par"
                   </div>
                 </div>
                 <div class="ana-card">
-                  <span class="badge">Recent Form</span>
-                  <div>${form || '<span class="sub">No recent matches</span>'}</div>
+                  <span class="badge">Streaks</span>
+                  <div class="sub">Winning streak: <strong>${detail.maxWinStreak}</strong> · Losing streak: <strong>${detail.maxLossStreak}</strong></div>
                 </div>
                 <div class="ana-card">
+                  <span class="badge">Clean Sheets</span>
+                  <div class="sub">Wins : <strong>${detail.shutoutWins}</strong> · Losses: <strong>${detail.shutoutLosses}</strong></div>
+                </div>
+                <!--
+                <div class="ana-card">
                   <span class="badge">Connections</span>
-                  <div class="sub">Best mate: <strong style="color:var(--text)">${detail.topMate?.[0] || "—"}</strong> · Toughest repeat opponent: <strong style="color:var(--text)">${detail.toughOpp?.[0] || "—"}</strong></div>
+                  <div class="sub">Best partner: <strong style="color:var(--text)">${detail.topMate?.[0] || "—"}</strong> (${detail.topMate?.[1] || 0} matches)</div>
+                  <div class="sub">Most faced opponent: <strong style="color:var(--text)">${detail.toughOpp?.[0] || "—"}</strong> (${detail.toughOpp?.[1] || 0} matches)</div>
+                </div>
+                -->
+                <div class="ana-card">
+                  <span class="badge">Recent Form</span>
+                  <div>${form || '<span class="sub">No recent matches</span>'}</div>
                 </div>
               </div>
               <div style="margin-top:18px;font-size:14px;font-weight:700;margin-bottom:10px">Recent Matches</div>
