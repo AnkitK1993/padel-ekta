@@ -875,95 +875,147 @@
         color: var(--muted);
         line-height: 1;
       }
+      /* Speedometer: semicircle gauge */
       .sr-ring {
-        display: inline-flex;
+        display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 10px;
-        min-width: 130px;
-        max-width: 180px;
-        margin: 0 auto;
+        justify-content: center;
+        width: 64px;
       }
       .sr-ring .gauge {
         position: relative;
-        width: 72px;
-        height: 40px;
-        overflow: hidden;
+        width: 64px;
+        height: 32px;
+        overflow: hidden; /* ✅ ADD THIS */
       }
+      /* Outer coloured arc: full circle, rotated so the
+         colour sweep runs left (red) → top (yellow) → right (green)
+         The conic starts at the left edge (270deg) and sweeps 180deg */
       .sr-ring .gauge::before {
         content: "";
         position: absolute;
-        left: 50%;
-        bottom: 0;
-        width: 140px;
-        height: 140px;
-        transform: translateX(-50%);
-        background: conic-gradient(
-          red 0%,
-          orange 30%,
-          yellow 60%,
-          #36d47e 100%
-        );
+        width: 64px;
+        height: 64px;
+        top: 4px;
+        left: 0;
+
         border-radius: 50%;
+
+        background: conic-gradient(
+          from 270deg,
+
+          /* RED ZONE */ #f04f4f 0deg 10deg,
+          #0000 10deg 11deg,
+          #f04f4f 12deg 22deg,
+          #0000 22deg 24deg,
+          #f04f4f 24deg 34deg,
+          #0000 34deg 36deg,
+
+          /* ORANGE */ #f5a623 36deg 46deg,
+          #0000 46deg 48deg,
+          #f5a623 48deg 58deg,
+          #0000 58deg 60deg,
+
+          /* YELLOW */ #f5c842 60deg 70deg,
+          #0000 70deg 72deg,
+          #f5c842 72deg 82deg,
+          #0000 82deg 84deg,
+          #f5c842 84deg 94deg,
+          #0000 94deg 96deg,
+
+          /* GREEN */ #36d47e 96deg 110deg,
+          #0000 110deg 112deg,
+          #36d47e 112deg 126deg,
+          #0000 126deg 128deg,
+          #36d47e 128deg 142deg,
+          #0000 142deg 144deg,
+          #36d47e 144deg 158deg,
+          #0000 158deg 160deg,
+          #36d47e 160deg 180deg,
+
+          transparent 180deg
+        );
       }
+      /* Inner dark hole — creates the donut ring effect */
       .sr-ring .gauge::after {
         content: "";
         position: absolute;
+        width: 44px;
+        height: 44px;
+        top: 10px;
         left: 50%;
-        bottom: 0;
-        width: 116px;
-        height: 116px;
         transform: translateX(-50%);
-        background: rgba(9, 9, 15, 0.95);
+
+        background: var(--surface);
         border-radius: 50%;
       }
+      /* Needle pivots from the centre-bottom of the semicircle */
       .sr-ring .needle {
         position: absolute;
+        bottom: 0;
         left: 50%;
-        bottom: 4px;
-        width: 3px;
-        height: 42px;
+        width: 2px;
+        height: 28px;
+
         background: #fff;
+
         transform-origin: bottom center;
-        transform: rotate(calc(-90deg + var(--speed-angle, 0deg)));
-        transition: transform 0.35s ease;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+        transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle)));
+
+        transition: transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+        z-index: 3;
+        border-radius: 2px 2px 0 0;
       }
+      /* Pivot dot */
       .sr-ring .needle::after {
         content: "";
         position: absolute;
         left: 50%;
-        bottom: 0;
-        width: 10px;
-        height: 10px;
+        bottom: -2px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         background: #fff;
         transform: translateX(-50%);
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+        box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
       }
+      /* SR value sits just below the gauge */
       .sr-ring .sr-val {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 13px;
-        letter-spacing: 0.02em;
-        color: var(--text);
-        line-height: 1;
-        min-width: 34px;
-        text-align: right;
+        position: relative;
+        z-index: 5; /* ✅ ensures it sits above */
+        color: var(--text); /* force visibility */
+        font-size: 12px;
+        letter-spacing: 0.05em;
       }
       .sr-ring.sr-high .needle {
+        background: #36d47e;
+        box-shadow: 0 0 6px rgba(54, 212, 126, 0.7);
+      }
+      .sr-ring.sr-high .needle::after {
         background: #36d47e;
       }
       .sr-ring.sr-mid .needle {
         background: #f5c842;
+        box-shadow: 0 0 6px rgba(245, 200, 66, 0.7);
+      }
+      .sr-ring.sr-mid .needle::after {
+        background: #f5c842;
       }
       .sr-ring.sr-low .needle {
         background: #f04f4f;
+        box-shadow: 0 0 6px rgba(240, 79, 79, 0.7);
+      }
+      .sr-ring.sr-low .needle::after {
+        background: #f04f4f;
+      }
+      .rg .sr-val {
+        color: var(--gold);
       }
       .trend-arrow {
         font-size: 10px;
         margin-left: 4px;
-      }
-      .rg .sr-val {
-        color: var(--gold);
       }
       .tp {
         color: var(--green);
@@ -1389,6 +1441,62 @@
         background: rgba(255, 79, 79, 0.12);
         border: 1.5px solid rgba(255, 79, 79, 0.4);
         text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
+      }
+
+      /* ── ABSENCE TRACKER ── */
+      .absence-banner {
+        flex-shrink: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(98, 182, 255, 0.06),
+          rgba(98, 182, 255, 0.02)
+        );
+        border-bottom: 1px solid rgba(98, 182, 255, 0.2);
+        padding: 8px 12px;
+      }
+      .absence-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 7px;
+      }
+      .absence-title {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent3);
+      }
+      .absence-sub {
+        font-size: 9px;
+        color: var(--muted);
+      }
+      .absence-chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .absence-chip {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(9, 9, 15, 0.6);
+        border: 1px solid rgba(98, 182, 255, 0.2);
+        border-radius: 20px;
+        padding: 4px 10px;
+      }
+      .absence-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .absence-days {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--accent3);
+        background: rgba(98, 182, 255, 0.12);
+        padding: 1px 5px;
+        border-radius: 10px;
       }
 
       /* ── FORM SPARKLINE ── */
@@ -2286,6 +2394,7 @@
           <div class="stl">Days</div>
         </div>
       </div>
+      <div id="absence-banner"></div>
       <div class="scroll" id="board"></div>
       <!-- Main tabs -->
       <div class="tabbar">
@@ -2990,6 +3099,19 @@ Parthiv - Par"
           renderHome();
           renderCompact();
           refreshManage();
+        });
+      }
+
+      function animateGauges() {
+        const gauges = document.querySelectorAll(".sr-ring");
+
+        gauges.forEach((g, i) => {
+          const target = getComputedStyle(g).getPropertyValue("--target-angle");
+
+          // delay each row slightly for stagger effect
+          setTimeout(() => {
+            g.style.setProperty("--speed-angle", target);
+          }, i * 80); // 80ms stagger
         });
       }
 
@@ -3898,6 +4020,71 @@ Parthiv - Par"
         });
       });
 
+      // ── ABSENCE TRACKER ────────────────────────────────────────
+      function renderAbsenceBanner() {
+        const banner = document.getElementById("absence-banner");
+        if (!banner) return;
+        if (!allMatches.length) {
+          banner.innerHTML = "";
+          return;
+        }
+
+        // Get today's date as ISO string
+        const today = new Date();
+        const todayISO = today.toISOString().slice(0, 10);
+
+        // Find each player's last match date
+        const lastSeen = {};
+        allMatches.forEach((m) => {
+          [...m.teamA, ...m.teamB].forEach((p) => {
+            if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
+          });
+        });
+
+        // Only flag players who have played at least 3 matches (regulars)
+        const matchCounts = {};
+        allMatches.forEach((m) => {
+          [...m.teamA, ...m.teamB].forEach((p) => {
+            matchCounts[p] = (matchCounts[p] || 0) + 1;
+          });
+        });
+
+        const THRESHOLD = 7; // days
+        const absent = Object.entries(lastSeen)
+          .filter(([p]) => matchCounts[p] >= 3)
+          .map(([p, lastDate]) => {
+            const last = new Date(lastDate + "T00:00:00");
+            const days = Math.floor((today - last) / (1000 * 60 * 60 * 24));
+            return { name: p, days, lastDate };
+          })
+          .filter((a) => a.days >= THRESHOLD)
+          .sort((a, b) => b.days - a.days);
+
+        if (!absent.length) {
+          banner.innerHTML = "";
+          return;
+        }
+
+        const chips = absent
+          .map((a) => {
+            const weeks = Math.floor(a.days / 7);
+            const label = weeks >= 2 ? `${weeks}w` : `${a.days}d`;
+            return `<div class="absence-chip" title="Last played ${a.lastDate}">
+            <span class="absence-name">${a.name}</span>
+            <span class="absence-days">${label} away</span>
+          </div>`;
+          })
+          .join("");
+
+        banner.innerHTML = `<div class="absence-banner">
+          <div class="absence-header">
+            <span class="absence-title">👻 Missing in Action</span>
+            <span class="absence-sub">${absent.length} player${absent.length > 1 ? "s" : ""} MIA 7+ days</span>
+          </div>
+          <div class="absence-chips">${chips}</div>
+        </div>`;
+      }
+
       // ── FORM SPARKLINE ─────────────────────────────────────────
       function getFormSparkline(playerName, width = 80, height = 28) {
         // Get all matches involving player, sorted by date
@@ -3969,6 +4156,7 @@ Parthiv - Par"
       }
 
       function renderHome() {
+        renderAbsenceBanner();
         const filtered = filterMatches(homeFilter, homeFrom, homeTo);
         const stats = computeStats(filtered);
         const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
@@ -4052,9 +4240,11 @@ Parthiv - Par"
         const tbody = document.getElementById("cmpBody");
         if (!sorted.length) {
           tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
+          setTimeout(animateGauges, 50);
           updateSortArrows(sorted);
           return;
         }
+        setTimeout(animateGauges, 50);
         updateSortArrows();
         tbody.innerHTML = sorted
           .map((p, i) => {
@@ -4076,9 +4266,9 @@ Parthiv - Par"
             const speedAngle = Math.round((ratingPct / 100) * 180);
             const ratingClass =
               p.sr >= 6 ? "sr-high" : p.sr >= 4 ? "sr-mid" : "sr-low";
-            const trend = p.gamePct >= 60 ? "↑" : p.gamePct <= 40 ? "↓" : "→";
+            const trend = "";
             const momentumBadge = getMomentumBadge(p.name);
-            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--speed-angle:${speedAngle}deg"><div class="gauge"><div class="needle"></div></div><span class="sr-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
+            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--target-angle:${speedAngle}deg; --speed-angle:0deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(1)}</div></div></td></tr>`;
           })
           .join("");
         document.getElementById("cmpMatches").innerHTML = buildMatchCards(
