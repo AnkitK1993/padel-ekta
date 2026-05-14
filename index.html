@@ -748,10 +748,16 @@
       .cmp-meta strong {
         color: var(--text);
       }
+      .cmp-body-scroll {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
       .cmp-scroll {
         flex-shrink: 0;
         overflow: visible;
-        -webkit-overflow-scrolling: touch;
+        height: auto;
         margin-bottom: 0;
         padding-bottom: 0;
         background: linear-gradient(
@@ -762,14 +768,14 @@
       }
       .cmp-matches-header {
         flex-shrink: 0;
-        padding: 0 11px 8px;
-        margin-top: -1px;
+        padding: 8px 11px 8px;
+        margin-top: 0;
         background: linear-gradient(
           180deg,
           rgba(7, 7, 12, 1) 0%,
           rgba(9, 9, 15, 1) 100%
         );
-        border-top: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         position: relative;
       }
@@ -801,8 +807,9 @@
       .cmp-matches {
         flex: unset;
         overflow: visible;
-        padding: 0 11px 95px;
-        margin-top: -1px;
+        height: auto;
+        padding: 0 11px 110px;
+        margin-top: 0;
         background: linear-gradient(
           180deg,
           rgba(6, 6, 12, 1) 0%,
@@ -903,13 +910,16 @@
       }
       table.cmp thead th:nth-child(9),
       table.cmp tbody td:nth-child(9) {
-        width: 26%;
+        width: 22%;
         text-align: center;
-        padding-right: 4px;
+        padding: 2px 2px;
+        vertical-align: middle;
       }
 
       table.cmp tbody tr {
         border-bottom: 1px solid var(--border);
+        height: 80px;
+        vertical-align: middle;
       }
       table.cmp tbody tr:last-child {
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
@@ -2615,9 +2625,7 @@
       .add-scroll,
       .cmp-scroll,
       .cmp-matches {
-        scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
-        padding-bottom: 110px;
       }
 
       /* GPU acceleration */
@@ -2881,7 +2889,7 @@
         }
 
         .cmp-matches {
-          padding-bottom: 140px;
+          padding-bottom: 120px;
         }
       }
 
@@ -2922,6 +2930,8 @@
         .cmp-infobar,
         .cmp-matches-header {
           width: 100%;
+        }
+        .cmp-scroll {
           overflow-x: hidden;
         }
 
@@ -2932,16 +2942,17 @@
         }
         table.cmp tbody td {
           font-size: 10px;
-          padding: 7px 1px;
+          padding: 4px 1px;
+          vertical-align: middle;
         }
         table.cmp tbody td:nth-child(2) {
           font-size: 10.5px;
         }
 
-        /* Speedometer — scale slightly to fit column */
+        /* Speedometer — scale to fit column, anchor from top so sr-val stays visible */
         .sr-ring {
-          transform: scale(0.85);
-          transform-origin: center;
+          transform: scale(0.88);
+          transform-origin: top center;
         }
         .rn {
           font-size: 10px;
@@ -2993,14 +3004,15 @@
         }
         table.cmp tbody td {
           font-size: 9px;
-          padding: 6px 1px;
+          padding: 3px 1px;
+          vertical-align: middle;
         }
         table.cmp tbody td:nth-child(2) {
           font-size: 9.5px;
         }
         .sr-ring {
-          transform: scale(0.72);
-          transform-origin: center;
+          transform: scale(0.78);
+          transform-origin: top center;
         }
         .cmp-brand .t1 {
           font-size: 12px;
@@ -3118,46 +3130,48 @@
       <div class="cmp-infobar">
         <div class="cmp-meta" id="cmpMeta">0 players</div>
       </div>
-      <div class="cmp-scroll">
-        <table class="cmp">
-          <thead>
-            <tr>
-              <th class="sortable" onclick="setCmpSort('sr')">
-                # <span class="sort-arrow" id="sort-rank"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('name')">
-                Player <span class="sort-arrow" id="sort-name"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('mp')">
-                MP <span class="sort-arrow" id="sort-mp"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('record')">
-                W–L <span class="sort-arrow" id="sort-record"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('winPct')">
-                Win% <span class="sort-arrow" id="sort-winPct"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('gw')">
-                GW <span class="sort-arrow" id="sort-gw"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('gl')">
-                GL <span class="sort-arrow" id="sort-gl"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('gamePct')">
-                G% <span class="sort-arrow" id="sort-gamePct"></span>
-              </th>
-              <th class="sortable" onclick="setCmpSort('sr')">
-                SR <span class="sort-arrow" id="sort-sr"></span>
-              </th>
-            </tr>
-          </thead>
-          <tbody id="cmpBody"></tbody>
-        </table>
+      <div class="cmp-body-scroll">
+        <div class="cmp-scroll">
+          <table class="cmp">
+            <thead>
+              <tr>
+                <th class="sortable" onclick="setCmpSort('sr')">
+                  # <span class="sort-arrow" id="sort-rank"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('name')">
+                  Player <span class="sort-arrow" id="sort-name"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('mp')">
+                  MP <span class="sort-arrow" id="sort-mp"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('record')">
+                  W–L <span class="sort-arrow" id="sort-record"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('winPct')">
+                  Win% <span class="sort-arrow" id="sort-winPct"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('gw')">
+                  GW <span class="sort-arrow" id="sort-gw"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('gl')">
+                  GL <span class="sort-arrow" id="sort-gl"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('gamePct')">
+                  G% <span class="sort-arrow" id="sort-gamePct"></span>
+                </th>
+                <th class="sortable" onclick="setCmpSort('sr')">
+                  SR <span class="sort-arrow" id="sort-sr"></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="cmpBody"></tbody>
+          </table>
+        </div>
+        <div class="cmp-matches-header">
+          <div class="t1">MATCHES <span>HISTORY</span></div>
+        </div>
+        <div class="cmp-matches" id="cmpMatches"></div>
       </div>
-      <div class="cmp-matches-header">
-        <div class="t1">MATCHES <span>HISTORY</span></div>
-      </div>
-      <div class="cmp-matches scroll" id="cmpMatches"></div>
       <div class="tabbar">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
