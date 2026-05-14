@@ -2982,6 +2982,28 @@ Parthiv - Par"
           .sort((a, b) => b.sr - a.sr);
       }
 
+      // ── MOMENTUM BADGE ─────────────────────────────────────────
+      function getMomentumBadge(playerName) {
+        // Get last 3 matches for this player, in chronological order
+        const playerMatches = allMatches
+          .filter(
+            (m) => m.teamA.includes(playerName) || m.teamB.includes(playerName),
+          )
+          .slice(-3);
+        if (playerMatches.length < 2) return "";
+        let wins = 0,
+          losses = 0;
+        playerMatches.forEach((m) => {
+          const onA = m.teamA.includes(playerName);
+          const won = onA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+          if (won) wins++;
+          else losses++;
+        });
+        if (wins >= 2) return "🔥";
+        if (losses >= 2) return "❄️";
+        return "";
+      }
+
       function normPlayer(name) {
         return (nameMap[name] || name || "").trim();
       }
@@ -3594,7 +3616,8 @@ Parthiv - Par"
             const ds = p.diff > 0 ? `+${p.diff}` : `${p.diff}`;
             const dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
             const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div></div>`;
+            const momentumBadge = getMomentumBadge(p.name);
+            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div></div>`;
           })
           .join("");
       }
@@ -3669,7 +3692,8 @@ Parthiv - Par"
             const ratingClass =
               p.sr >= 6 ? "sr-high" : p.sr >= 4 ? "sr-mid" : "sr-low";
             const trend = p.gamePct >= 60 ? "↑" : p.gamePct <= 40 ? "↓" : "→";
-            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--speed-angle:${speedAngle}deg"><div class="gauge"><div class="needle"></div></div><span class="sr-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
+            const momentumBadge = getMomentumBadge(p.name);
+            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--speed-angle:${speedAngle}deg"><div class="gauge"><div class="needle"></div></div><span class="sr-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
           })
           .join("");
         document.getElementById("cmpMatches").innerHTML = buildMatchCards(
