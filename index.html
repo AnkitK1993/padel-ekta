@@ -1391,6 +1391,67 @@
         text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
       }
 
+      /* ── P VS P MATRIX ── */
+      .pvp-table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: max-content;
+        font-size: 11px;
+      }
+      .pvp-corner {
+        width: 44px;
+        min-width: 44px;
+      }
+      .pvp-th {
+        padding: 5px 4px;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+        min-width: 38px;
+      }
+      .pvp-row-hdr {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--text);
+        padding: 4px 6px 4px 2px;
+        text-align: left;
+        white-space: nowrap;
+        border-right: 1px solid var(--border);
+      }
+      .pvp-td {
+        text-align: center;
+        padding: 5px 3px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 4px;
+        min-width: 38px;
+      }
+      .pvp-self {
+        color: var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .pvp-none {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .pvp-win {
+        color: var(--green);
+        background: rgba(54, 212, 126, 0.1);
+      }
+      .pvp-loss {
+        color: var(--red);
+        background: rgba(240, 80, 80, 0.1);
+      }
+      .pvp-even {
+        color: var(--accent);
+        background: rgba(245, 200, 66, 0.08);
+      }
+
       /* ── SESSION SUMMARY CARD ── */
       .session-summary-card {
         background: linear-gradient(
@@ -4800,6 +4861,56 @@ Parthiv - Par"
         document.body.insertAdjacentHTML("beforeend", html);
       }
 
+      // ── P VS P MATRIX ──────────────────────────────────────────
+      function buildH2HMatrix(players) {
+        if (players.length < 2)
+          return '<div style="color:var(--muted);font-size:11px">Need at least 2 players with matches.</div>';
+
+        // Build win % for each row vs col (row beats col)
+        const matrix = {};
+        players.forEach((a) => {
+          matrix[a] = {};
+          players.forEach((b) => {
+            if (a === b) {
+              matrix[a][b] = null;
+              return;
+            }
+            const h2h = getHeadToHeadStats(a, b);
+            const total = h2h.aWins + h2h.bWins;
+            matrix[a][b] = total > 0 ? { wins: h2h.aWins, total } : null;
+          });
+        });
+
+        // Short name: first 5 chars to keep columns tight
+        const short = (n) => (n.length > 6 ? n.slice(0, 5) + "…" : n);
+
+        const colHeaders = players
+          .map((p) => `<th class="pvp-th" title="${p}">${short(p)}</th>`)
+          .join("");
+
+        const rows = players
+          .map((a) => {
+            const cells = players
+              .map((b) => {
+                if (a === b) return `<td class="pvp-td pvp-self">·</td>`;
+                const d = matrix[a][b];
+                if (!d) return `<td class="pvp-td pvp-none">—</td>`;
+                const pct = Math.round((d.wins / d.total) * 100);
+                const cls =
+                  pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
+                return `<td class="pvp-td ${cls}" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L">${pct}%</td>`;
+              })
+              .join("");
+            return `<tr><td class="pvp-row-hdr" title="${a}">${short(a)}</td>${cells}</tr>`;
+          })
+          .join("");
+
+        return `<table class="pvp-table">
+          <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+
       // ── ANALYTICS ──────────────────────────────────────────────
       function showAnalytics() {
         document.getElementById("analytics-modal")?.remove();
@@ -4943,6 +5054,7 @@ Parthiv - Par"
 
         const card = (badge, name, sub) =>
           `<div class="ana-card"><span class="badge">${badge}</span><div class="name">${name || "—"}</div><div class="sub">${sub}</div></div>`;
+        const matrixHtml = buildH2HMatrix(playersByMatches);
 
         const html = `
         <div id="analytics-modal">
@@ -5000,13 +5112,10 @@ Parthiv - Par"
               }
             </div>
 
-            <div style="margin-top:18px;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.1em">Head-to-Head</div>
-            <div class="ana-card">
-              <div class="sub">Use the H2H controls in History to compare any two players.${
-                sampleH2H
-                  ? ` Example: ${playersByMatches[0]} ${sampleH2H.aWins}-${sampleH2H.bWins} ${playersByMatches[1]} across ${sampleH2H.matches.length} match(es).`
-                  : ""
-              }</div>
+            <div style="margin-top:18px;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.1em">⚔️ Player vs Player Matrix</div>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+              <div style="font-size:9px;color:var(--muted);margin:0 2px 8px;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border)">Win % of <strong style="color:var(--accent)">row player</strong> vs column when facing each other. — = never met.</div>
+              ${matrixHtml}
             </div>
 
             <div style="margin-top:18px;font-size:14px;font-weight:700;margin-bottom:10px">All Players</div>
