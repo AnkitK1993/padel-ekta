@@ -1737,124 +1737,90 @@
       }
 
       /* Compact pvp table — fixed layout, no scroll */
-      .pvp-table {
-        border-collapse: collapse;
+      /* ── P VS P MATRIX ── */
+      .pvp-wrap {
         width: 100%;
-        table-layout: fixed;
-        font-size: 10px;
+        overflow: hidden;
+      }
+      .pvp-table {
+        border-collapse: separate;
+        border-spacing: 3px;
+        width: 100%;
+        table-layout: auto; /* browser sizes cols to content */
       }
       .pvp-corner {
-        width: 30%;
+        /* empty top-left cell */
       }
-      .pvp-th {
-        padding: 4px 2px;
-        text-align: center;
-        font-size: 8px;
-        font-weight: 700;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        border-bottom: 1px solid var(--border);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
+      /* Row header: alias (2-3 chars), auto-width, no fixed % */
       .pvp-row-hdr {
         font-size: 9px;
-        font-weight: 700;
-        color: var(--text);
-        padding: 5px 4px 5px 2px;
-        text-align: left;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        border-right: 1px solid var(--border);
-      }
-      .pvp-td {
-        text-align: center;
-        padding: 5px 1px;
-        font-size: 9.5px;
-        font-weight: 700;
-        border-radius: 3px;
-      }
-      .pvp-self {
-        color: var(--border);
-      }
-      .pvp-none {
+        font-weight: 800;
         color: var(--muted);
-        font-size: 9px;
-      }
-      .pvp-win {
-        color: var(--green);
-        background: rgba(54, 212, 126, 0.1);
-      }
-      .pvp-loss {
-        color: var(--red);
-        background: rgba(240, 80, 80, 0.1);
-      }
-      .pvp-even {
-        color: var(--accent);
-        background: rgba(245, 200, 66, 0.08);
-      }
-
-      .pvp-table {
-        border-collapse: collapse;
-        width: 100%;
-        min-width: max-content;
-        font-size: 11px;
-      }
-      .pvp-corner {
-        width: 44px;
-        min-width: 44px;
-      }
-      .pvp-th {
-        padding: 5px 4px;
-        text-align: center;
-        font-size: 9px;
-        font-weight: 700;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        border-bottom: 1px solid var(--border);
-        white-space: nowrap;
-        min-width: 38px;
-      }
-      .pvp-row-hdr {
-        font-size: 9px;
-        font-weight: 700;
-        color: var(--text);
         padding: 4px 6px 4px 2px;
         text-align: left;
         white-space: nowrap;
-        border-right: 1px solid var(--border);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        vertical-align: middle;
       }
+      /* Column headers: same alias, uniform */
+      .pvp-th {
+        padding: 4px 4px 6px;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 800;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        white-space: nowrap;
+      }
+      /* Data cells: uniform padding, percentage fits naturally */
       .pvp-td {
         text-align: center;
-        padding: 5px 3px;
-        font-size: 11px;
+        padding: 4px 3px;
+        font-size: 9px;
         font-weight: 700;
         border-radius: 4px;
-        min-width: 38px;
+        white-space: nowrap;
+        vertical-align: middle;
       }
       .pvp-self {
-        color: var(--border);
+        color: rgba(255, 255, 255, 0.1);
         background: rgba(255, 255, 255, 0.02);
       }
       .pvp-none {
-        color: var(--muted);
-        font-size: 10px;
+        color: rgba(255, 255, 255, 0.18);
       }
       .pvp-win {
-        color: var(--green);
-        background: rgba(54, 212, 126, 0.1);
+        color: #36d47e;
+        background: rgba(54, 212, 126, 0.16);
       }
       .pvp-loss {
-        color: var(--red);
-        background: rgba(240, 80, 80, 0.1);
+        color: #f04f4f;
+        background: rgba(240, 80, 80, 0.16);
       }
       .pvp-even {
-        color: var(--accent);
-        background: rgba(245, 200, 66, 0.08);
+        color: #f5c842;
+        background: rgba(245, 200, 66, 0.14);
+      }
+      /* Alias legend below the matrix */
+      .pvp-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 10px;
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .pvp-legend-item {
+        font-size: 9px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .pvp-legend-item strong {
+        color: var(--text);
+        font-weight: 700;
+        margin-right: 2px;
       }
 
       /* ── SESSION SUMMARY CARD ── */
@@ -6080,6 +6046,7 @@ Parthiv - Par"
         if (players.length < 2)
           return '<div style="color:var(--muted);font-size:11px">Need at least 2 players with matches.</div>';
 
+        // Build head-to-head matrix
         const matrix = {};
         players.forEach((a) => {
           matrix[a] = {};
@@ -6094,20 +6061,40 @@ Parthiv - Par"
           });
         });
 
-        // Initials: first 3 chars, guaranteed unique by appending number if clash
-        const initials = {};
+        // Build unique 2-char aliases (fall back to 3 if clash)
+        const usedAliases = new Set();
+        const aliases = {};
         players.forEach((p) => {
-          let init = p.slice(0, 3).toUpperCase();
-          const clashes = players.filter(
-            (q) => q !== p && q.slice(0, 3).toUpperCase() === init,
-          );
-          if (clashes.length)
-            init = p.slice(0, 2).toUpperCase() + p.slice(-1).toUpperCase();
-          initials[p] = init;
+          // Strategy 1: first 2 chars
+          let alias = p.slice(0, 2).toUpperCase();
+          if (!usedAliases.has(alias)) {
+            aliases[p] = alias;
+            usedAliases.add(alias);
+            return;
+          }
+          // Strategy 2: first char + last char
+          alias = (p[0] + p[p.length - 1]).toUpperCase();
+          if (!usedAliases.has(alias)) {
+            aliases[p] = alias;
+            usedAliases.add(alias);
+            return;
+          }
+          // Strategy 3: first 3 chars
+          alias = p.slice(0, 3).toUpperCase();
+          if (!usedAliases.has(alias)) {
+            aliases[p] = alias;
+            usedAliases.add(alias);
+            return;
+          }
+          // Fallback: first 2 + index digit
+          let i = 1;
+          while (usedAliases.has(p.slice(0, 1).toUpperCase() + i)) i++;
+          aliases[p] = p.slice(0, 1).toUpperCase() + i;
+          usedAliases.add(aliases[p]);
         });
 
         const colHeaders = players
-          .map((p) => `<th class="pvp-th" title="${p}">${initials[p]}</th>`)
+          .map((p) => `<th class="pvp-th" title="${p}">${aliases[p]}</th>`)
           .join("");
 
         const rows = players
@@ -6123,19 +6110,25 @@ Parthiv - Par"
                 return `<td class="pvp-td ${cls}" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L">${pct}%</td>`;
               })
               .join("");
-            const shortName = a.length > 8 ? a.slice(0, 7) + "…" : a;
-            return `<tr>
-            <td class="pvp-row-hdr" title="${a}">${shortName}</td>
-            ${cells}
-          </tr>`;
+            // Row label: use same alias as column header
+            return `<tr><td class="pvp-row-hdr" title="${a}">${aliases[a]}</td>${cells}</tr>`;
           })
           .join("");
 
-        return `<div style="width:100%;overflow:hidden">
-          <table class="pvp-table" style="width:100%;table-layout:fixed">
-            <thead><tr><th class="pvp-corner" style="width:30%"></th>${colHeaders}</tr></thead>
+        // Legend: alias → full name, two per line
+        const legend = players
+          .map(
+            (p) =>
+              `<span class="pvp-legend-item"><strong>${aliases[p]}</strong> ${p}</span>`,
+          )
+          .join("");
+
+        return `<div class="pvp-wrap">
+          <table class="pvp-table">
+            <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
             <tbody>${rows}</tbody>
           </table>
+          <div class="pvp-legend">${legend}</div>
         </div>`;
       }
 
