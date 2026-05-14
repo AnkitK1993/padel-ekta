@@ -68,7 +68,9 @@
         transition:
           opacity 0.22s ease,
           transform 0.22s ease;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
         will-change: opacity, transform;
       }
       .page.active {
@@ -748,15 +750,43 @@
       }
       .cmp-scroll {
         flex-shrink: 0;
-        overflow-y: auto;
+        overflow: visible;
         -webkit-overflow-scrolling: touch;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(9, 9, 15, 1) 0%,
+          rgba(7, 7, 12, 1) 100%
+        );
       }
       .cmp-matches-header {
         flex-shrink: 0;
-        padding: 7px 11px 6px;
-        background: var(--surface);
-        border-top: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
+        padding: 0 11px 8px;
+        margin-top: -1px;
+        background: linear-gradient(
+          180deg,
+          rgba(7, 7, 12, 1) 0%,
+          rgba(9, 9, 15, 1) 100%
+        );
+        border-top: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+      }
+
+      .cmp-matches-header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 11px;
+        right: 11px;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(245, 200, 66, 0.18),
+          transparent
+        );
       }
       .cmp-matches-header .t1 {
         font-family: "Bebas Neue", sans-serif;
@@ -769,15 +799,25 @@
         color: var(--accent);
       }
       .cmp-matches {
-        flex: 1;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        padding: 10px 11px 10px;
-        background: linear-gradient(to bottom, var(--bg), rgba(9, 9, 15, 0.95));
+        flex: unset;
+        overflow: visible;
+        padding: 0 11px 95px;
+        margin-top: -1px;
+        background: linear-gradient(
+          180deg,
+          rgba(6, 6, 12, 1) 0%,
+          rgba(9, 9, 15, 1) 100%
+        );
       }
       table.cmp {
         width: 100%;
         border-collapse: collapse;
+        margin-bottom: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(10, 10, 18, 0.96),
+          rgba(6, 6, 12, 0.98)
+        );
       }
       table.cmp thead tr {
         background: var(--surface2);
@@ -834,7 +874,7 @@
         border-bottom: 1px solid var(--border);
       }
       table.cmp tbody tr:last-child {
-        border-bottom: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
       }
       table.cmp tbody tr.rg {
         background: rgba(245, 200, 66, 0.07);
@@ -1897,6 +1937,30 @@
         border-radius: 12px;
         margin-bottom: 8px;
       }
+      /* SUMMARY CONTINUITY FIX */
+
+      .cmp-scroll table.cmp tbody {
+        background: transparent;
+      }
+
+      .cmp-scroll table.cmp tbody tr:last-child td {
+        padding-bottom: 12px;
+      }
+
+      .cmp-matches-header .t1 {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .cmp-matches-header .t1::before {
+        content: "";
+        width: 4px;
+        height: 16px;
+        border-radius: 10px;
+        background: linear-gradient(180deg, var(--accent), var(--accent2));
+        box-shadow: 0 0 12px rgba(245, 200, 66, 0.4);
+      }
       .cmp-matches .match-top {
         margin-bottom: 6px;
       }
@@ -2506,14 +2570,30 @@
         text-rendering: optimizeLegibility;
       }
 
-      /* Better scrolling */
-      .scroll,
-      .add-scroll,
-      .cmp-scroll,
-      .cmp-matches {
-        scroll-behavior: smooth;
+      /* pg-compact: single unified scroll — no child scroll zones */
+      #pg-compact {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
+      }
+      #pg-compact .cmp-topbar,
+      #pg-compact .cmp-dr,
+      #pg-compact .cmp-infobar,
+      #pg-compact .cmp-scroll,
+      #pg-compact .cmp-matches-header,
+      #pg-compact .cmp-matches {
+        flex-shrink: 0;
+        overflow: visible;
+      }
+      #pg-compact .cmp-matches {
         padding-bottom: 110px;
+      }
+      #pg-compact .tabbar {
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
       }
 
       /* GPU acceleration */
@@ -2807,6 +2887,174 @@
           scroll-behavior: auto !important;
         }
       }
+      /* ─────────────────────────────
+   SUMMARY PAGE MOBILE FIX
+───────────────────────────── */
+
+      @media (max-width: 768px) {
+        /* MAIN SUMMARY WRAPPER */
+        .cmp-scroll,
+        .cmp-matches,
+        .cmp-topbar,
+        .cmp-infobar,
+        .cmp-matches-header {
+          width: 100%;
+          overflow-x: hidden;
+        }
+
+        /* TABLE */
+        table.cmp {
+          width: 100%;
+          table-layout: fixed;
+          min-width: unset !important;
+        }
+
+        /* HEADER */
+        table.cmp thead th {
+          font-size: 6.8px;
+          padding: 5px 1px;
+          letter-spacing: 0.03em;
+        }
+
+        /* BODY */
+        table.cmp tbody td {
+          font-size: 9px;
+          padding: 6px 1px;
+        }
+
+        /* PLAYER NAME */
+        table.cmp tbody td:nth-child(2) {
+          font-size: 9.5px;
+          max-width: 74px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        /* RANK */
+        .rn {
+          font-size: 10px;
+        }
+
+        /* SPEEDOMETER */
+        .sr-ring {
+          width: 52px;
+          transform: scale(0.72);
+          transform-origin: center;
+        }
+
+        .sr-ring .gauge {
+          width: 52px;
+          height: 26px;
+        }
+
+        .sr-ring .gauge::before {
+          width: 52px;
+          height: 52px;
+        }
+
+        .sr-ring .gauge::after {
+          width: 34px;
+          height: 34px;
+          top: 10px;
+        }
+
+        .sr-ring .needle {
+          height: 22px;
+        }
+
+        .sr-ring .sr-val {
+          font-size: 11px;
+          margin-top: 0;
+        }
+
+        /* TREND ARROWS */
+        .trend-arrow {
+          font-size: 7px;
+          margin-left: 1px;
+        }
+
+        /* RECORD CELLS */
+        .rec-cell {
+          font-size: 8px;
+        }
+
+        /* COMPACT INFOBAR */
+        .cmp-infobar {
+          padding: 4px 8px;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+
+        .cmp-meta {
+          font-size: 8px;
+        }
+
+        /* HEADER */
+        .cmp-topbar {
+          padding: 6px 8px;
+        }
+
+        .cmp-brand .t1 {
+          font-size: 14px;
+        }
+
+        select.cmp-sel {
+          font-size: 10px;
+          padding: 5px 22px 5px 7px;
+        }
+
+        /* MATCHES */
+        .cmp-matches {
+          padding: 8px;
+        }
+
+        .cmp-matches .match-card {
+          padding: 9px;
+        }
+
+        .cmp-matches .team-score {
+          font-size: 20px;
+        }
+
+        .cmp-matches .team-name {
+          font-size: 10px;
+        }
+      }
+
+      /* EXTRA SMALL DEVICES */
+      @media (max-width: 480px) {
+        table.cmp thead th {
+          font-size: 5.8px;
+          padding: 4px 0;
+        }
+
+        table.cmp tbody td {
+          font-size: 8px;
+          padding: 5px 0;
+        }
+
+        table.cmp tbody td:nth-child(2) {
+          max-width: 60px;
+          font-size: 8.5px;
+        }
+
+        .sr-ring {
+          transform: scale(0.62);
+        }
+
+        .cmp-brand .t1 {
+          font-size: 12px;
+        }
+
+        .cmp-meta {
+          font-size: 7px;
+        }
+
+        .rec-cell {
+          font-size: 7px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -2952,7 +3200,7 @@
       <div class="cmp-matches-header">
         <div class="t1">MATCHES <span>HISTORY</span></div>
       </div>
-      <div class="cmp-matches scroll" id="cmpMatches"></div>
+      <div class="cmp-matches" id="cmpMatches"></div>
       <div class="tabbar">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
