@@ -6061,38 +6061,34 @@ Parthiv - Par"
           });
         });
 
-        // Build unique 2-char aliases (fall back to 3 if clash)
-        const usedAliases = new Set();
+        // Use aliases already loaded from Firestore/cloud
         const aliases = {};
-        players.forEach((p) => {
-          // Strategy 1: first 2 chars
-          let alias = p.slice(0, 2).toUpperCase();
-          if (!usedAliases.has(alias)) {
-            aliases[p] = alias;
-            usedAliases.add(alias);
-            return;
-          }
-          // Strategy 2: first char + last char
-          alias = (p[0] + p[p.length - 1]).toUpperCase();
-          if (!usedAliases.has(alias)) {
-            aliases[p] = alias;
-            usedAliases.add(alias);
-            return;
-          }
-          // Strategy 3: first 3 chars
-          alias = p.slice(0, 3).toUpperCase();
-          if (!usedAliases.has(alias)) {
-            aliases[p] = alias;
-            usedAliases.add(alias);
-            return;
-          }
-          // Fallback: first 2 + index digit
-          let i = 1;
-          while (usedAliases.has(p.slice(0, 1).toUpperCase() + i)) i++;
-          aliases[p] = p.slice(0, 1).toUpperCase() + i;
-          usedAliases.add(aliases[p]);
-        });
 
+        players.forEach((p) => {
+          // Find matching player object from cloud-loaded state
+          const playerObj = (window.players || []).find(
+            (x) => x.displayName === p || x.name === p,
+          );
+
+          let alias = "";
+
+          // Use FIRST stored alias
+          if (
+            playerObj &&
+            Array.isArray(playerObj.aliases) &&
+            playerObj.aliases.length
+          ) {
+            alias = String(playerObj.aliases[0]).trim().toUpperCase();
+          }
+
+          // Fallback to display name
+          if (!alias) {
+            alias = String(p).trim().toUpperCase().slice(0, 3);
+          }
+
+          // Keep matrix compact
+          aliases[p] = alias.slice(0, 3);
+        });
         const colHeaders = players
           .map((p) => `<th class="pvp-th" title="${p}">${aliases[p]}</th>`)
           .join("");
