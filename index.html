@@ -5365,7 +5365,7 @@ Parthiv - Par"
         const isThriller = Math.abs(motd.scoreA - motd.scoreB) <= 1;
         const motdLabel = isThriller ? "🎭 THRILLER" : "⚡ MATCH OF THE DAY";
         const motdSub = isThriller
-          ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} point!`
+          ? `Closest match of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} game!`
           : `Most dramatic result of the session`;
 
         const motdHtml = `<div class="motd-card">
@@ -5606,8 +5606,8 @@ Parthiv - Par"
         const motdHtml = buildMatchOfTheDay();
         const sessionSummaryHtml = buildSessionSummary();
         document.getElementById("modern-match-list").innerHTML =
-          sessionSummaryHtml +
           motdHtml +
+          sessionSummaryHtml +
           summary +
           buildMatchCards(matches, true);
         populateHistoryPlayerChips();
