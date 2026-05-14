@@ -2490,6 +2490,323 @@
         box-shadow: 0 0 18px rgba(53, 183, 255, 0.15);
         transition: width 0.35s ease;
       }
+      /* ─────────────────────────────
+   ADVANCED MOBILE OPTIMIZATION
+───────────────────────────── */
+
+      html,
+      body {
+        overscroll-behavior-y: contain;
+        touch-action: manipulation;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      /* Better scrolling */
+      .scroll,
+      .add-scroll,
+      .cmp-scroll,
+      .cmp-matches {
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 110px;
+      }
+
+      /* GPU acceleration */
+      .pc,
+      .match-card,
+      .ana-card,
+      .session-summary-card,
+      .motd-card,
+      .sr-ring,
+      .tabbar,
+      .nav {
+        transform: translateZ(0);
+        will-change: transform;
+      }
+
+      /* Better tap targets */
+      .tbb,
+      .filt,
+      .hfilt,
+      .itab,
+      .btn-go,
+      .btn-p,
+      .btn-s,
+      .action-btn,
+      .tool-btn,
+      .save-modern-btn {
+        min-height: 44px;
+      }
+
+      /* Prevent accidental zoom */
+      input,
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+
+      /* Improve card rendering */
+      .pc,
+      .match-card,
+      .ana-card {
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+
+      /* Safe area support */
+      .tabbar {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .fab-modern {
+        bottom: calc(70px + env(safe-area-inset-bottom));
+      }
+
+      /* ── TABLE RESPONSIVENESS ── */
+      .cmp-scroll {
+        overflow-x: auto;
+      }
+
+      table.cmp {
+        min-width: 720px;
+      }
+
+      /* ── MOBILE LAYOUT ── */
+      @media (max-width: 768px) {
+        .home-header {
+          padding: 12px 14px 10px;
+        }
+
+        .home-title {
+          font-size: 28px;
+        }
+
+        .home-sub {
+          font-size: 8px;
+        }
+
+        .nav {
+          height: 52px;
+        }
+
+        .nav-title {
+          font-size: 17px;
+        }
+
+        .tabbar {
+          height: 62px;
+        }
+
+        .tbb {
+          font-size: 8px;
+          gap: 3px;
+        }
+
+        .tbb .ico {
+          font-size: 18px;
+        }
+
+        /* Player cards */
+        .pc {
+          border-radius: 18px;
+          padding: 12px;
+        }
+
+        .pname {
+          font-size: 21px;
+        }
+
+        .skill-num {
+          font-size: 22px;
+        }
+
+        .row3,
+        .row4 {
+          gap: 5px;
+        }
+
+        .cv {
+          font-size: 11px;
+        }
+
+        .cl {
+          font-size: 6px;
+        }
+
+        /* Match cards */
+        .match-card {
+          padding: 14px;
+          border-radius: 18px;
+        }
+
+        .team-score {
+          font-size: 26px;
+        }
+
+        .motd-score {
+          font-size: 30px;
+        }
+
+        /* Better filter scrolling */
+        .filters,
+        .hist-filter-row,
+        .itabs {
+          scroll-snap-type: x proximity;
+        }
+
+        .filt,
+        .hfilt,
+        .itab {
+          scroll-snap-align: start;
+        }
+
+        /* Compact mode */
+        .cmp-topbar {
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .cmp-brand {
+          width: 100%;
+          justify-content: center;
+        }
+
+        /* Modal optimization */
+        .analytics-inner {
+          width: 100%;
+          max-width: 100%;
+          border-radius: 22px 22px 0 0;
+          margin: 0;
+          min-height: 90vh;
+        }
+
+        .modern-sheet {
+          border-radius: 22px 22px 0 0;
+          padding-bottom: calc(28px + env(safe-area-inset-bottom));
+        }
+
+        /* Better FAB */
+        .fab-modern {
+          width: 60px;
+          height: 60px;
+          font-size: 30px;
+          right: 16px;
+        }
+
+        /* Speedometer */
+        .sr-ring {
+          transform: scale(0.92);
+        }
+
+        /* Stats */
+        .stats-row {
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+
+        .stats-row::-webkit-scrollbar {
+          display: none;
+        }
+
+        .st {
+          min-width: 25%;
+        }
+      }
+
+      /* ── SMALL PHONES ── */
+      @media (max-width: 480px) {
+        .home-title {
+          font-size: 24px;
+        }
+
+        .nav-title {
+          font-size: 15px;
+        }
+
+        .pname {
+          font-size: 19px;
+        }
+
+        .skill-num {
+          font-size: 20px;
+        }
+
+        .team-score,
+        .motd-score {
+          font-size: 22px;
+        }
+
+        .match-card {
+          padding: 12px;
+        }
+
+        .match-top,
+        .match-footer {
+          gap: 6px;
+        }
+
+        .team-name {
+          font-size: 10px;
+        }
+
+        .event-badge {
+          font-size: 9px;
+          padding: 4px 8px;
+        }
+
+        .btn-row {
+          flex-direction: column;
+        }
+
+        .btn-p,
+        .btn-s {
+          width: 100%;
+        }
+
+        .fab-modern {
+          width: 56px;
+          height: 56px;
+        }
+
+        .sr-ring {
+          transform: scale(0.84);
+        }
+
+        .cmp-matches {
+          padding-bottom: 140px;
+        }
+      }
+
+      /* Disable hover effects on touch devices */
+      @media (hover: none) {
+        .pc:hover,
+        .match-card:hover {
+          transform: none;
+          box-shadow: inherit;
+        }
+      }
+
+      /* Better momentum scrolling */
+      * {
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Reduce animation cost on low power devices */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -4474,7 +4791,7 @@ Parthiv - Par"
               ratingClass = "sr-mid";
             }
             /* REV LIMITER */
-            if (normalizedSR >= 7.1) {
+            if (normalizedSR >= 7.0) {
               ratingClass += " rev-limit";
             }
             const trend = "";
