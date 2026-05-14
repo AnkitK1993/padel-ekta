@@ -3484,7 +3484,7 @@
               </select>
             </span>
             <span class="hist-filter-group">
-              <span class="hist-filter-label">Season</span>
+              <span class="hist-filter-label">Month</span>
               <select
                 class="hist-select"
                 id="histSeasonFilter"
@@ -5365,7 +5365,7 @@ Parthiv - Par"
         const isThriller = Math.abs(motd.scoreA - motd.scoreB) <= 1;
         const motdLabel = isThriller ? "🎭 THRILLER" : "⚡ MATCH OF THE DAY";
         const motdSub = isThriller
-          ? `Closest match of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} game!`
+          ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} game!`
           : `Most dramatic result of the session`;
 
         const motdHtml = `<div class="motd-card">
