@@ -6309,6 +6309,12 @@ Parthiv - Par"
           `<div class="ana-section-title">${title}</div>`;
 
         container.innerHTML = `
+          ${section("⚔️ Player vs Player Matrix")}
+          <div class="ana-card" style="padding:10px 8px">
+            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
+            ${matrixHtml}
+          </div>
+
           ${section("Core Stats")}
           <div class="analytics-cards">
             ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches || 0} matches`)}
@@ -6354,40 +6360,6 @@ Parthiv - Par"
                 : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
             }
           </div>
-
-          ${section("⚔️ Player vs Player Matrix")}
-          <div class="ana-card" style="padding:10px 8px">
-            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
-            ${matrixHtml}
-          </div>
-
-          ${section("All Players")}
-          <div style="display:flex;flex-direction:column;gap:8px">
-            ${players
-              .sort((a, b) => b.wins - a.wins)
-              .map((p) => {
-                const bestMate = Object.entries(p.teammates).sort(
-                  (a, b) => b[1] - a[1],
-                )[0];
-                const wr = p.matches
-                  ? Math.round((p.wins / p.matches) * 100)
-                  : 0;
-                const soWins = shutoutWins[p.name] || 0;
-                const soLosses = shutoutLosses[p.name] || 0;
-                return `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center">
-                <div>
-                  <div class="name" style="font-size:16px">${p.name}</div>
-                  <div class="sub">${p.wins}W · ${p.losses}L · ${p.matches} played</div>
-                  <div style="font-size:11px;color:var(--green);margin-top:3px">🔥 ${p.bestStreak} streak · 🚫 ${soWins} shutouts · 💔 ${soLosses} blanked</div>
-                </div>
-                <div style="text-align:right">
-                  <div style="color:var(--accent);font-size:15px;font-weight:700">${wr}%</div>
-                  <div style="font-size:10px;color:var(--muted);margin-top:4px">Best mate</div>
-                  <div style="font-size:12px">${bestMate?.[0] || "—"}</div>
-                </div>
-              </div>`;
-              })
-              .join("")}
           </div>`;
       }
 
