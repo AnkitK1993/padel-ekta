@@ -349,6 +349,36 @@
         padding: 9px 11px 10px;
       }
 
+      /* ── FULL-PAGE SCROLL WRAPPER ── */
+      /* Each main page: header/filters/nav scroll WITH content */
+      /* Tabbar stays fixed at bottom outside this wrapper */
+      .page-body-scroll {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        display: flex;
+        flex-direction: column;
+      }
+      /* Inside page-body-scroll, .scroll children are natural height */
+      .page-body-scroll .scroll {
+        flex: unset;
+        overflow: visible;
+        height: auto;
+      }
+      /* cmp-body-scroll inside page-body-scroll: also natural */
+      .page-body-scroll .cmp-body-scroll {
+        flex: unset;
+        overflow: visible;
+        height: auto;
+      }
+      /* Give match list bottom padding so last card clears the tabbar */
+      .page-body-scroll #board,
+      .page-body-scroll #modern-match-list,
+      .page-body-scroll .cmp-matches {
+        padding-bottom: 110px;
+      }
+
       /* ── PLAYER CARD ── */
       .pc {
         background: rgba(15, 15, 25, 0.82);
@@ -3029,59 +3059,63 @@
   <body>
     <!-- ══════════ HOME PAGE ══════════ -->
     <div class="page active" id="pg-home">
-      <div class="nav">
-        <div style="flex: 1"></div>
-        <div class="nav-title">EKTA <span>PADEL</span></div>
-        <div
-          style="display: flex; align-items: center; gap: 6px; flex-shrink: 0"
-        >
-          <button class="nav-btn ac" onclick="goTo('add')" id="addNavBtn">
-            + Add
-          </button>
-          <button id="loginBtn">Login</button>
+      <div class="page-body-scroll">
+        <div class="nav">
+          <div style="flex: 1"></div>
+          <div class="nav-title">EKTA <span>PADEL</span></div>
+          <div
+            style="display: flex; align-items: center; gap: 6px; flex-shrink: 0"
+          >
+            <button class="nav-btn ac" onclick="goTo('add')" id="addNavBtn">
+              + Add
+            </button>
+            <button id="loginBtn">Login</button>
+          </div>
         </div>
+        <div class="home-header">
+          <div class="home-badge">🏓 Sunday Group ET Rankings</div>
+          <div class="home-title">LEADER<span>BOARD</span></div>
+        </div>
+        <div class="filter-wrap">
+          <div class="filters">
+            <button class="filt on" data-f="all">All Time</button>
+            <button class="filt" data-f="today">Today</button>
+            <button class="filt" data-f="week">This Week</button>
+            <button class="filt" data-f="weekend">Weekend</button>
+            <button class="filt" data-f="month">This Month</button>
+            <button class="filt" data-f="range">Date Range</button>
+          </div>
+        </div>
+        <div class="dr-wrap" id="drWrap">
+          <div class="dr-g">
+            <label>From</label><input type="date" id="drFrom" />
+          </div>
+          <div class="dr-g">
+            <label>To</label><input type="date" id="drTo" />
+          </div>
+          <button class="btn-go" onclick="applyRange('home')">Apply</button>
+        </div>
+        <div class="stats-row">
+          <div class="st">
+            <div class="stv" id="stP">0</div>
+            <div class="stl">Players</div>
+          </div>
+          <div class="st">
+            <div class="stv" id="stM">0</div>
+            <div class="stl">Matches</div>
+          </div>
+          <div class="st">
+            <div class="stv" id="stG">0</div>
+            <div class="stl">Games</div>
+          </div>
+          <div class="st">
+            <div class="stv" id="stD">0</div>
+            <div class="stl">Days</div>
+          </div>
+        </div>
+        <div id="absence-banner"></div>
+        <div id="board" style="padding: 9px 11px 110px"></div>
       </div>
-      <div class="home-header">
-        <div class="home-badge">🏓 Sunday Group ET Rankings</div>
-        <div class="home-title">LEADER<span>BOARD</span></div>
-      </div>
-      <div class="filter-wrap">
-        <div class="filters">
-          <button class="filt on" data-f="all">All Time</button>
-          <button class="filt" data-f="today">Today</button>
-          <button class="filt" data-f="week">This Week</button>
-          <button class="filt" data-f="weekend">Weekend</button>
-          <button class="filt" data-f="month">This Month</button>
-          <button class="filt" data-f="range">Date Range</button>
-        </div>
-      </div>
-      <div class="dr-wrap" id="drWrap">
-        <div class="dr-g">
-          <label>From</label><input type="date" id="drFrom" />
-        </div>
-        <div class="dr-g"><label>To</label><input type="date" id="drTo" /></div>
-        <button class="btn-go" onclick="applyRange('home')">Apply</button>
-      </div>
-      <div class="stats-row">
-        <div class="st">
-          <div class="stv" id="stP">0</div>
-          <div class="stl">Players</div>
-        </div>
-        <div class="st">
-          <div class="stv" id="stM">0</div>
-          <div class="stl">Matches</div>
-        </div>
-        <div class="st">
-          <div class="stv" id="stG">0</div>
-          <div class="stl">Games</div>
-        </div>
-        <div class="st">
-          <div class="stv" id="stD">0</div>
-          <div class="stl">Days</div>
-        </div>
-      </div>
-      <div id="absence-banner"></div>
-      <div class="scroll" id="board"></div>
       <!-- Main tabs -->
       <div class="tabbar">
         <button class="tbb on" data-tab="home" onclick="switchMainTab('home')">
@@ -3109,69 +3143,72 @@
 
     <!-- ══════════ COMPACT PAGE ══════════ -->
     <div class="page" id="pg-compact">
-      <div class="cmp-topbar">
-        <div class="cmp-brand">
-          <div class="t1">EKTA <span>PADEL</span></div>
-          <div class="pill">Summary</div>
+      <div class="page-body-scroll">
+        <div class="cmp-topbar">
+          <div class="cmp-brand">
+            <div class="t1">EKTA <span>PADEL</span></div>
+            <div class="pill">Summary</div>
+          </div>
+          <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="weekend">Weekend</option>
+            <option value="month">This Month</option>
+            <option value="range">Date Range...</option>
+          </select>
         </div>
-        <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
-          <option value="all">All Time</option>
-          <option value="today">Today</option>
-          <option value="week">This Week</option>
-          <option value="weekend">Weekend</option>
-          <option value="month">This Month</option>
-          <option value="range">Date Range...</option>
-        </select>
-      </div>
-      <div class="cmp-dr" id="cmpDr">
-        <input type="date" id="cmpFrom" /><input type="date" id="cmpTo" />
-        <button class="btn-go" onclick="applyRange('compact')">Go</button>
-      </div>
-      <div class="cmp-infobar">
-        <div class="cmp-meta" id="cmpMeta">0 players</div>
-      </div>
-      <div class="cmp-body-scroll">
-        <div class="cmp-scroll">
-          <table class="cmp">
-            <thead>
-              <tr>
-                <th class="sortable" onclick="setCmpSort('sr')">
-                  # <span class="sort-arrow" id="sort-rank"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('name')">
-                  Player <span class="sort-arrow" id="sort-name"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('mp')">
-                  MP <span class="sort-arrow" id="sort-mp"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('record')">
-                  W–L <span class="sort-arrow" id="sort-record"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('winPct')">
-                  Win% <span class="sort-arrow" id="sort-winPct"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('gw')">
-                  GW <span class="sort-arrow" id="sort-gw"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('gl')">
-                  GL <span class="sort-arrow" id="sort-gl"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('gamePct')">
-                  G% <span class="sort-arrow" id="sort-gamePct"></span>
-                </th>
-                <th class="sortable" onclick="setCmpSort('sr')">
-                  SR <span class="sort-arrow" id="sort-sr"></span>
-                </th>
-              </tr>
-            </thead>
-            <tbody id="cmpBody"></tbody>
-          </table>
+        <div class="cmp-dr" id="cmpDr">
+          <input type="date" id="cmpFrom" /><input type="date" id="cmpTo" />
+          <button class="btn-go" onclick="applyRange('compact')">Go</button>
         </div>
-        <div class="cmp-matches-header">
-          <div class="t1">MATCHES <span>HISTORY</span></div>
+        <div class="cmp-infobar">
+          <div class="cmp-meta" id="cmpMeta">0 players</div>
         </div>
-        <div class="cmp-matches" id="cmpMatches"></div>
+        <div class="cmp-body-scroll">
+          <div class="cmp-scroll">
+            <table class="cmp">
+              <thead>
+                <tr>
+                  <th class="sortable" onclick="setCmpSort('sr')">
+                    # <span class="sort-arrow" id="sort-rank"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('name')">
+                    Player <span class="sort-arrow" id="sort-name"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('mp')">
+                    MP <span class="sort-arrow" id="sort-mp"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('record')">
+                    W–L <span class="sort-arrow" id="sort-record"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('winPct')">
+                    Win% <span class="sort-arrow" id="sort-winPct"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('gw')">
+                    GW <span class="sort-arrow" id="sort-gw"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('gl')">
+                    GL <span class="sort-arrow" id="sort-gl"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('gamePct')">
+                    G% <span class="sort-arrow" id="sort-gamePct"></span>
+                  </th>
+                  <th class="sortable" onclick="setCmpSort('sr')">
+                    SR <span class="sort-arrow" id="sort-sr"></span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="cmpBody"></tbody>
+            </table>
+          </div>
+          <div class="cmp-matches-header">
+            <div class="t1">MATCHES <span>HISTORY</span></div>
+          </div>
+          <div class="cmp-matches" id="cmpMatches"></div>
+        </div>
       </div>
+      <!-- end page-body-scroll -->
       <div class="tabbar">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
@@ -3198,255 +3235,274 @@
 
     <!-- ══════════ HISTORY PAGE ══════════ -->
     <div class="page" id="pg-history">
-      <div class="nav">
-        <div style="flex: 1"></div>
-        <div class="nav-title">MATCH <span>HISTORY</span></div>
-        <div style="flex: 1"></div>
-      </div>
-      <div
-        style="
-          flex-shrink: 0;
-          padding: 10px 12px 0;
-          background: linear-gradient(135deg, var(--surface), var(--surface2));
-          border-bottom: 1px solid var(--border);
-          position: relative;
-          overflow: hidden;
-        "
-      >
+      <div class="page-body-scroll">
+        <div class="nav">
+          <div style="flex: 1"></div>
+          <div class="nav-title">MATCH <span>HISTORY</span></div>
+          <div style="flex: 1"></div>
+        </div>
         <div
           style="
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background:
-              radial-gradient(
-                circle at 30% 20%,
-                rgba(245, 200, 66, 0.1),
-                transparent 50%
-              ),
-              radial-gradient(
-                circle at 70% 80%,
-                rgba(224, 112, 26, 0.08),
-                transparent 50%
-              );
-            pointer-events: none;
+            flex-shrink: 0;
+            padding: 10px 12px 0;
+            background: linear-gradient(
+              135deg,
+              var(--surface),
+              var(--surface2)
+            );
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <div
+            style="
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background:
+                radial-gradient(
+                  circle at 30% 20%,
+                  rgba(245, 200, 66, 0.1),
+                  transparent 50%
+                ),
+                radial-gradient(
+                  circle at 70% 80%,
+                  rgba(224, 112, 26, 0.08),
+                  transparent 50%
+                );
+              pointer-events: none;
+            "
+          ></div>
+          <input
+            id="modern-match-search"
+            class="match-search"
+            placeholder="🔍  Search players or teams…"
+            oninput="renderModernMatches()"
+            style="position: relative; z-index: 1"
+          />
+          <div
+            class="filters"
+            style="padding-bottom: 8px; position: relative; z-index: 1"
+          >
+            <button
+              class="filt on"
+              data-mf="all"
+              onclick="filterMatchTab('all')"
+            >
+              All
+            </button>
+            <button
+              class="filt"
+              data-mf="today"
+              onclick="filterMatchTab('today')"
+            >
+              Today
+            </button>
+            <button
+              class="filt"
+              data-mf="week"
+              onclick="filterMatchTab('week')"
+            >
+              Week
+            </button>
+            <button
+              class="filt"
+              data-mf="weekend"
+              onclick="filterMatchTab('weekend')"
+            >
+              Weekend
+            </button>
+            <button
+              class="filt"
+              data-mf="month"
+              onclick="filterMatchTab('month')"
+            >
+              Month
+            </button>
+            <button
+              class="filt"
+              data-mf="range"
+              onclick="filterMatchTab('range')"
+            >
+              Range
+            </button>
+          </div>
+        </div>
+        <div class="dr-wrap" id="matchDr">
+          <div class="dr-g">
+            <label>From</label><input type="date" id="matchFrom" />
+          </div>
+          <div class="dr-g">
+            <label>To</label><input type="date" id="matchTo" />
+          </div>
+          <button class="btn-go" onclick="renderModernMatches()">Apply</button>
+        </div>
+        <div class="history-filter-panel">
+          <div class="hist-filter-row" id="hist-player-row">
+            <span class="hist-filter-label">Player</span>
+            <select
+              class="hist-select player-filter-select"
+              id="histPlayerSelect"
+              onchange="setHistPlayerFilter(this.value)"
+            >
+              <option value="">All Players</option>
+            </select>
+          </div>
+          <div class="hist-filter-row">
+            <span class="hist-filter-group">
+              <span class="hist-filter-label">Result</span>
+              <button
+                class="hfilt on"
+                data-outcome="all"
+                onclick="setHistOutcome('all')"
+              >
+                All
+              </button>
+              <button
+                class="hfilt"
+                data-outcome="win"
+                onclick="setHistOutcome('win')"
+              >
+                🏆 Win
+              </button>
+              <button
+                class="hfilt"
+                data-outcome="loss"
+                onclick="setHistOutcome('loss')"
+              >
+                ❌ Loss
+              </button>
+            </span>
+            <span class="hist-filter-divider"></span>
+            <span class="hist-filter-group">
+              <span class="hist-filter-label">Tags</span>
+              <button
+                class="hfilt on"
+                data-margin="all"
+                onclick="setHistMargin('all')"
+              >
+                All
+              </button>
+              <button
+                class="hfilt"
+                data-margin="close"
+                onclick="setHistMargin('close')"
+              >
+                🔥 Close
+              </button>
+              <button
+                class="hfilt"
+                data-margin="dominating"
+                onclick="setHistMargin('dominating')"
+              >
+                💀 One Side
+              </button>
+              <button
+                class="hfilt"
+                data-margin="zero"
+                onclick="setHistMargin('zero')"
+              >
+                ZERO
+              </button>
+            </span>
+          </div>
+          <div class="hist-filter-row">
+            <span class="hist-filter-group">
+              <span class="hist-filter-label">Pair</span>
+              <select
+                class="hist-select"
+                id="histPairFilter"
+                onchange="setHistPairFilter(this.value)"
+              >
+                <option value="">All Pairs</option>
+              </select>
+            </span>
+            <span class="hist-filter-group">
+              <span class="hist-filter-label">Score</span>
+              <select
+                class="hist-select"
+                id="histScorelineFilter"
+                onchange="setHistScorelineFilter(this.value)"
+              >
+                <option value="">Any</option>
+                <option value="4-1">4-1</option>
+                <option value="6-1">6-1</option>
+                <option value="6-2">6-2</option>
+                <option value="zero">Won/Lost 0</option>
+              </select>
+            </span>
+            <span class="hist-filter-group">
+              <span class="hist-filter-label">Season</span>
+              <select
+                class="hist-select"
+                id="histSeasonFilter"
+                onchange="setHistSeasonFilter(this.value)"
+              >
+                <option value="">All</option>
+              </select>
+            </span>
+          </div>
+          <div class="hist-filter-row">
+            <span class="hist-filter-label">Head-to-head</span>
+            <span class="h2h-field">
+              <input
+                class="hist-input"
+                id="h2hPlayerA"
+                list="player-suggestions"
+                placeholder="Player A"
+                oninput="onHeadToHeadInput()"
+              />
+              <button
+                class="h2h-clear"
+                type="button"
+                onclick="clearHeadToHeadPlayer('A')"
+                title="Clear player A"
+              >
+                ×
+              </button>
+            </span>
+            <span class="h2h-field">
+              <input
+                class="hist-input"
+                id="h2hPlayerB"
+                list="player-suggestions"
+                placeholder="Player B"
+                oninput="onHeadToHeadInput()"
+              />
+              <button
+                class="h2h-clear"
+                type="button"
+                onclick="clearHeadToHeadPlayer('B')"
+                title="Clear player B"
+              >
+                ×
+              </button>
+            </span>
+            <button class="hfilt" onclick="applyHeadToHeadFilter()">
+              Apply
+            </button>
+            <button class="hfilt" onclick="clearHeadToHeadFilter()">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div
+          class="scroll"
+          id="modern-match-list"
+          style="
+            padding: 10px 11px 0;
+            background: linear-gradient(
+              to bottom,
+              var(--bg),
+              rgba(9, 9, 15, 0.95)
+            );
           "
         ></div>
-        <input
-          id="modern-match-search"
-          class="match-search"
-          placeholder="🔍  Search players or teams…"
-          oninput="renderModernMatches()"
-          style="position: relative; z-index: 1"
-        />
-        <div
-          class="filters"
-          style="padding-bottom: 8px; position: relative; z-index: 1"
-        >
-          <button class="filt on" data-mf="all" onclick="filterMatchTab('all')">
-            All
-          </button>
-          <button
-            class="filt"
-            data-mf="today"
-            onclick="filterMatchTab('today')"
-          >
-            Today
-          </button>
-          <button class="filt" data-mf="week" onclick="filterMatchTab('week')">
-            Week
-          </button>
-          <button
-            class="filt"
-            data-mf="weekend"
-            onclick="filterMatchTab('weekend')"
-          >
-            Weekend
-          </button>
-          <button
-            class="filt"
-            data-mf="month"
-            onclick="filterMatchTab('month')"
-          >
-            Month
-          </button>
-          <button
-            class="filt"
-            data-mf="range"
-            onclick="filterMatchTab('range')"
-          >
-            Range
-          </button>
-        </div>
       </div>
-      <div class="dr-wrap" id="matchDr">
-        <div class="dr-g">
-          <label>From</label><input type="date" id="matchFrom" />
-        </div>
-        <div class="dr-g">
-          <label>To</label><input type="date" id="matchTo" />
-        </div>
-        <button class="btn-go" onclick="renderModernMatches()">Apply</button>
-      </div>
-      <div class="history-filter-panel">
-        <div class="hist-filter-row" id="hist-player-row">
-          <span class="hist-filter-label">Player</span>
-          <select
-            class="hist-select player-filter-select"
-            id="histPlayerSelect"
-            onchange="setHistPlayerFilter(this.value)"
-          >
-            <option value="">All Players</option>
-          </select>
-        </div>
-        <div class="hist-filter-row">
-          <span class="hist-filter-group">
-            <span class="hist-filter-label">Result</span>
-            <button
-              class="hfilt on"
-              data-outcome="all"
-              onclick="setHistOutcome('all')"
-            >
-              All
-            </button>
-            <button
-              class="hfilt"
-              data-outcome="win"
-              onclick="setHistOutcome('win')"
-            >
-              🏆 Win
-            </button>
-            <button
-              class="hfilt"
-              data-outcome="loss"
-              onclick="setHistOutcome('loss')"
-            >
-              ❌ Loss
-            </button>
-          </span>
-          <span class="hist-filter-divider"></span>
-          <span class="hist-filter-group">
-            <span class="hist-filter-label">Tags</span>
-            <button
-              class="hfilt on"
-              data-margin="all"
-              onclick="setHistMargin('all')"
-            >
-              All
-            </button>
-            <button
-              class="hfilt"
-              data-margin="close"
-              onclick="setHistMargin('close')"
-            >
-              🔥 Close
-            </button>
-            <button
-              class="hfilt"
-              data-margin="dominating"
-              onclick="setHistMargin('dominating')"
-            >
-              💀 One Side
-            </button>
-            <button
-              class="hfilt"
-              data-margin="zero"
-              onclick="setHistMargin('zero')"
-            >
-              ZERO
-            </button>
-          </span>
-        </div>
-        <div class="hist-filter-row">
-          <span class="hist-filter-group">
-            <span class="hist-filter-label">Pair</span>
-            <select
-              class="hist-select"
-              id="histPairFilter"
-              onchange="setHistPairFilter(this.value)"
-            >
-              <option value="">All Pairs</option>
-            </select>
-          </span>
-          <span class="hist-filter-group">
-            <span class="hist-filter-label">Score</span>
-            <select
-              class="hist-select"
-              id="histScorelineFilter"
-              onchange="setHistScorelineFilter(this.value)"
-            >
-              <option value="">Any</option>
-              <option value="4-1">4-1</option>
-              <option value="6-1">6-1</option>
-              <option value="6-2">6-2</option>
-              <option value="zero">Won/Lost 0</option>
-            </select>
-          </span>
-          <span class="hist-filter-group">
-            <span class="hist-filter-label">Season</span>
-            <select
-              class="hist-select"
-              id="histSeasonFilter"
-              onchange="setHistSeasonFilter(this.value)"
-            >
-              <option value="">All</option>
-            </select>
-          </span>
-        </div>
-        <div class="hist-filter-row">
-          <span class="hist-filter-label">Head-to-head</span>
-          <span class="h2h-field">
-            <input
-              class="hist-input"
-              id="h2hPlayerA"
-              list="player-suggestions"
-              placeholder="Player A"
-              oninput="onHeadToHeadInput()"
-            />
-            <button
-              class="h2h-clear"
-              type="button"
-              onclick="clearHeadToHeadPlayer('A')"
-              title="Clear player A"
-            >
-              ×
-            </button>
-          </span>
-          <span class="h2h-field">
-            <input
-              class="hist-input"
-              id="h2hPlayerB"
-              list="player-suggestions"
-              placeholder="Player B"
-              oninput="onHeadToHeadInput()"
-            />
-            <button
-              class="h2h-clear"
-              type="button"
-              onclick="clearHeadToHeadPlayer('B')"
-              title="Clear player B"
-            >
-              ×
-            </button>
-          </span>
-          <button class="hfilt" onclick="applyHeadToHeadFilter()">Apply</button>
-          <button class="hfilt" onclick="clearHeadToHeadFilter()">Clear</button>
-        </div>
-      </div>
-      <div
-        class="scroll"
-        id="modern-match-list"
-        style="
-          padding: 10px 11px 10px;
-          background: linear-gradient(
-            to bottom,
-            var(--bg),
-            rgba(9, 9, 15, 0.95)
-          );
-        "
-      ></div>
+      <!-- end page-body-scroll -->
       <div class="tabbar">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
