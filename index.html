@@ -813,6 +813,7 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 0;
+        table-layout: fixed;
         background: linear-gradient(
           180deg,
           rgba(10, 10, 18, 0.96),
@@ -824,14 +825,15 @@
         border-bottom: 2px solid var(--border);
       }
       table.cmp thead th {
-        padding: 6px 4px;
-        font-size: 8px;
+        padding: 7px 2px;
+        font-size: 7.5px;
         font-weight: 700;
-        letter-spacing: 0.07em;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
         color: var(--muted);
         text-align: right;
         white-space: nowrap;
+        overflow: hidden;
       }
       table.cmp thead th.sortable {
         cursor: pointer;
@@ -841,10 +843,10 @@
         color: var(--accent);
       }
       .sort-arrow {
-        font-size: 10px;
-        margin-left: 4px;
+        font-size: 8px;
+        margin-left: 2px;
         display: inline-block;
-        width: 10px;
+        width: 8px;
         text-align: center;
         opacity: 0.6;
         transition: opacity 0.2s ease;
@@ -854,22 +856,58 @@
         color: var(--accent);
         animation: pulse 2.4s ease-in-out infinite;
       }
-      table.cmp thead th:first-child {
-        text-align: left;
-        padding-left: 9px;
-        width: 24px;
+
+      /*
+        9 columns. Widths add to 100%.
+        #=5%  Player=22%  MP=7%  W-L=10%  Win%=8%  GW=7%  GL=7%  G%=8%  SR=26%
+        SR=26% → on 380px screen = ~99px, enough for the 72px gauge + padding
+      */
+      table.cmp colgroup {
+        display: table-column-group;
       }
-      table.cmp thead th:nth-child(2) {
+      table.cmp thead th:nth-child(1),
+      table.cmp tbody td:nth-child(1) {
+        width: 5%;
+        text-align: left;
+        padding-left: 6px;
+      }
+      table.cmp thead th:nth-child(2),
+      table.cmp tbody td:nth-child(2) {
+        width: 22%;
         text-align: left;
         padding-left: 3px;
       }
-      table.cmp thead th:last-child {
-        text-align: center;
-        padding-right: 9px;
+      table.cmp thead th:nth-child(3),
+      table.cmp tbody td:nth-child(3) {
+        width: 7%;
       }
-      table.cmp tbody td:last-child {
-        text-align: center;
+      table.cmp thead th:nth-child(4),
+      table.cmp tbody td:nth-child(4) {
+        width: 10%;
       }
+      table.cmp thead th:nth-child(5),
+      table.cmp tbody td:nth-child(5) {
+        width: 8%;
+      }
+      table.cmp thead th:nth-child(6),
+      table.cmp tbody td:nth-child(6) {
+        width: 7%;
+      }
+      table.cmp thead th:nth-child(7),
+      table.cmp tbody td:nth-child(7) {
+        width: 7%;
+      }
+      table.cmp thead th:nth-child(8),
+      table.cmp tbody td:nth-child(8) {
+        width: 8%;
+      }
+      table.cmp thead th:nth-child(9),
+      table.cmp tbody td:nth-child(9) {
+        width: 26%;
+        text-align: center;
+        padding-right: 4px;
+      }
+
       table.cmp tbody tr {
         border-bottom: 1px solid var(--border);
       }
@@ -889,25 +927,27 @@
         background: rgba(255, 255, 255, 0.012);
       }
       table.cmp tbody td {
-        padding: 6px 4px;
+        padding: 6px 2px;
         text-align: right;
         vertical-align: middle;
         color: var(--text);
-        font-size: 12px;
-      }
-      table.cmp tbody td:first-child {
-        padding-left: 9px;
-        text-align: left;
-        width: 24px;
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       table.cmp tbody td:nth-child(2) {
         text-align: left;
         font-weight: 600;
         padding-left: 3px;
-        font-size: 12.5px;
+        font-size: 11.5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      table.cmp tbody td:last-child {
-        padding-right: 9px;
+      table.cmp tbody td:nth-child(9) {
+        padding-right: 4px;
+        text-align: center;
       }
       .rn {
         font-family: "Bebas Neue", sans-serif;
@@ -2570,30 +2610,14 @@
         text-rendering: optimizeLegibility;
       }
 
-      /* pg-compact: single unified scroll — no child scroll zones */
-      #pg-compact {
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-        overflow-x: hidden;
+      /* Better scrolling */
+      .scroll,
+      .add-scroll,
+      .cmp-scroll,
+      .cmp-matches {
+        scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
-      }
-      #pg-compact .cmp-topbar,
-      #pg-compact .cmp-dr,
-      #pg-compact .cmp-infobar,
-      #pg-compact .cmp-scroll,
-      #pg-compact .cmp-matches-header,
-      #pg-compact .cmp-matches {
-        flex-shrink: 0;
-        overflow: visible;
-      }
-      #pg-compact .cmp-matches {
         padding-bottom: 110px;
-      }
-      #pg-compact .tabbar {
-        position: sticky;
-        bottom: 0;
-        z-index: 20;
       }
 
       /* GPU acceleration */
@@ -2647,13 +2671,12 @@
         bottom: calc(70px + env(safe-area-inset-bottom));
       }
 
-      /* ── TABLE RESPONSIVENESS ── */
+      /* ── TABLE FITS VIEWPORT — no horizontal scroll ── */
       .cmp-scroll {
-        overflow-x: auto;
+        overflow-x: hidden;
       }
-
       table.cmp {
-        min-width: 720px;
+        min-width: unset;
       }
 
       /* ── MOBILE LAYOUT ── */
@@ -2902,155 +2925,89 @@
           overflow-x: hidden;
         }
 
-        /* TABLE */
-        table.cmp {
-          width: 100%;
-          table-layout: fixed;
-          min-width: unset !important;
-        }
-
-        /* HEADER */
+        /* TABLE — already fixed layout, just adjust font/padding */
         table.cmp thead th {
-          font-size: 6.8px;
-          padding: 5px 1px;
-          letter-spacing: 0.03em;
-        }
-
-        /* BODY */
-        table.cmp tbody td {
-          font-size: 9px;
+          font-size: 6.5px;
           padding: 6px 1px;
         }
-
-        /* PLAYER NAME */
+        table.cmp tbody td {
+          font-size: 10px;
+          padding: 7px 1px;
+        }
         table.cmp tbody td:nth-child(2) {
-          font-size: 9.5px;
-          max-width: 74px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          font-size: 10.5px;
         }
 
-        /* RANK */
+        /* Speedometer — scale slightly to fit column */
+        .sr-ring {
+          transform: scale(0.85);
+          transform-origin: center;
+        }
         .rn {
           font-size: 10px;
         }
-
-        /* SPEEDOMETER */
-        .sr-ring {
-          width: 52px;
-          transform: scale(0.72);
-          transform-origin: center;
-        }
-
-        .sr-ring .gauge {
-          width: 52px;
-          height: 26px;
-        }
-
-        .sr-ring .gauge::before {
-          width: 52px;
-          height: 52px;
-        }
-
-        .sr-ring .gauge::after {
-          width: 34px;
-          height: 34px;
-          top: 10px;
-        }
-
-        .sr-ring .needle {
-          height: 22px;
-        }
-
-        .sr-ring .sr-val {
-          font-size: 11px;
-          margin-top: 0;
-        }
-
-        /* TREND ARROWS */
-        .trend-arrow {
-          font-size: 7px;
-          margin-left: 1px;
-        }
-
-        /* RECORD CELLS */
         .rec-cell {
           font-size: 8px;
         }
 
-        /* COMPACT INFOBAR */
+        /* Infobar */
         .cmp-infobar {
           padding: 4px 8px;
           gap: 6px;
           flex-wrap: wrap;
         }
-
         .cmp-meta {
           font-size: 8px;
         }
-
-        /* HEADER */
         .cmp-topbar {
           padding: 6px 8px;
         }
-
         .cmp-brand .t1 {
           font-size: 14px;
         }
-
         select.cmp-sel {
-          font-size: 10px;
+          font-size: 14px;
           padding: 5px 22px 5px 7px;
         }
 
-        /* MATCHES */
+        /* Matches below table */
         .cmp-matches {
-          padding: 8px;
+          padding: 8px 8px 100px;
         }
-
         .cmp-matches .match-card {
           padding: 9px;
         }
-
         .cmp-matches .team-score {
           font-size: 20px;
         }
-
         .cmp-matches .team-name {
           font-size: 10px;
         }
       }
 
-      /* EXTRA SMALL DEVICES */
+      /* EXTRA SMALL (≤480px) */
       @media (max-width: 480px) {
         table.cmp thead th {
-          font-size: 5.8px;
-          padding: 4px 0;
+          font-size: 5.5px;
+          padding: 5px 1px;
         }
-
         table.cmp tbody td {
-          font-size: 8px;
-          padding: 5px 0;
+          font-size: 9px;
+          padding: 6px 1px;
         }
-
         table.cmp tbody td:nth-child(2) {
-          max-width: 60px;
-          font-size: 8.5px;
+          font-size: 9.5px;
         }
-
         .sr-ring {
-          transform: scale(0.62);
+          transform: scale(0.72);
+          transform-origin: center;
         }
-
         .cmp-brand .t1 {
           font-size: 12px;
         }
-
         .cmp-meta {
           font-size: 7px;
         }
-
         .rec-cell {
           font-size: 7px;
         }
@@ -3200,7 +3157,7 @@
       <div class="cmp-matches-header">
         <div class="t1">MATCHES <span>HISTORY</span></div>
       </div>
-      <div class="cmp-matches" id="cmpMatches"></div>
+      <div class="cmp-matches scroll" id="cmpMatches"></div>
       <div class="tabbar">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
