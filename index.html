@@ -1391,6 +1391,129 @@
         text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
       }
 
+      /* ── MATCH OF THE DAY ── */
+      .motd-card {
+        background: linear-gradient(
+          135deg,
+          rgba(245, 200, 66, 0.08),
+          rgba(224, 112, 26, 0.06)
+        );
+        border: 1.5px solid rgba(245, 200, 66, 0.45);
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 0 28px rgba(245, 200, 66, 0.1);
+      }
+      .motd-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          var(--accent2),
+          var(--accent),
+          var(--accent2)
+        );
+      }
+      .motd-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .motd-label {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: rgba(245, 200, 66, 0.12);
+        padding: 3px 9px;
+        border-radius: 20px;
+        border: 1px solid rgba(245, 200, 66, 0.25);
+      }
+      .motd-date {
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .motd-teams {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .motd-team {
+        flex: 1;
+        text-align: center;
+      }
+      .motd-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+      .motd-team.winner .motd-name {
+        color: var(--green);
+      }
+      .motd-score {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 38px;
+        color: var(--text);
+        line-height: 1;
+        margin-top: 4px;
+      }
+      .motd-score.win {
+        color: var(--accent);
+      }
+      .motd-vs {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+      .upset-card {
+        background: linear-gradient(
+          135deg,
+          rgba(240, 80, 80, 0.08),
+          rgba(200, 50, 50, 0.04)
+        );
+        border-color: rgba(240, 80, 80, 0.45);
+        box-shadow: 0 0 28px rgba(240, 80, 80, 0.1);
+        margin-top: -6px;
+      }
+      .upset-card::before {
+        background: linear-gradient(
+          90deg,
+          var(--red),
+          rgba(240, 80, 80, 0.4),
+          var(--red)
+        );
+      }
+      .upset-label {
+        color: var(--red) !important;
+        background: rgba(240, 80, 80, 0.12) !important;
+        border-color: rgba(240, 80, 80, 0.25) !important;
+      }
+      .upset-rank {
+        font-size: 9px;
+        color: var(--muted);
+        margin-top: 3px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+      .motd-sub {
+        font-size: 10px;
+        color: var(--muted);
+        text-align: center;
+        font-style: italic;
+      }
+
       /* ── COMPACT MATCH CARDS ── */
       .cmp-matches .match-card {
         padding: 10px;
@@ -3857,6 +3980,137 @@ Parthiv - Par"
         renderModernMatches();
       }
 
+      // ── MATCH OF THE DAY + BIGGEST UPSET ──────────────────────
+      function getPlayerRankAtDate(playerName, beforeDate) {
+        // Rank based on SR from all matches strictly before this date
+        const prior = allMatches.filter((m) => m.date < beforeDate);
+        if (!prior.length) return null;
+        const stats = computeStats(prior);
+        const idx = stats.findIndex((p) => p.name === playerName);
+        return idx === -1 ? null : idx + 1; // 1-based rank
+      }
+
+      function buildMatchOfTheDay() {
+        if (!allMatches.length) return "";
+        const latestDate = allMatches.reduce(
+          (max, m) => (m.date > max ? m.date : max),
+          "",
+        );
+        const sessionMatches = allMatches.filter((m) => m.date === latestDate);
+        if (!sessionMatches.length) return "";
+
+        // ── MATCH OF THE DAY: closest scoreline, then highest total ──
+        const scored = sessionMatches.map((m) => ({
+          m,
+          diff: Math.abs(m.scoreA - m.scoreB),
+          total: m.scoreA + m.scoreB,
+        }));
+        scored.sort((a, b) => a.diff - b.diff || b.total - a.total);
+        const { m: motd } = scored[0];
+
+        const aWon = motd.scoreA > motd.scoreB;
+        const teamA = motd.teamA.join(" & ");
+        const teamB = motd.teamB.join(" & ");
+        const winner = aWon ? teamA : teamB;
+        const loser = aWon ? teamB : teamA;
+        const wScore = aWon ? motd.scoreA : motd.scoreB;
+        const lScore = aWon ? motd.scoreB : motd.scoreA;
+        const isThriller = Math.abs(motd.scoreA - motd.scoreB) <= 1;
+        const motdLabel = isThriller ? "🎭 THRILLER" : "⚡ MATCH OF THE DAY";
+        const motdSub = isThriller
+          ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} point!`
+          : `Most dramatic result of the session`;
+
+        const motdHtml = `<div class="motd-card">
+          <div class="motd-header">
+            <span class="motd-label">${motdLabel}</span>
+            <span class="motd-date">📅 ${latestDate}</span>
+          </div>
+          <div class="motd-teams">
+            <div class="motd-team winner">
+              <div class="motd-name">👑 ${winner}</div>
+              <div class="motd-score win">${wScore}</div>
+            </div>
+            <div class="motd-vs">VS</div>
+            <div class="motd-team">
+              <div class="motd-name">${loser}</div>
+              <div class="motd-score">${lScore}</div>
+            </div>
+          </div>
+          <div class="motd-sub">${motdSub}</div>
+        </div>`;
+
+        // ── BIGGEST UPSET: lower-ranked pair beats higher-ranked pair ──
+        let upsetHtml = "";
+        const priorStats = computeStats(
+          allMatches.filter((m) => m.date < latestDate),
+        );
+        if (priorStats.length >= 2) {
+          const rankMap = {};
+          priorStats.forEach((p, i) => {
+            rankMap[p.name] = i + 1;
+          });
+
+          let bestUpset = null,
+            bestGap = 0;
+          sessionMatches.forEach((m) => {
+            const winTeam = m.scoreA > m.scoreB ? m.teamA : m.teamB;
+            const loseTeam = m.scoreA > m.scoreB ? m.teamB : m.teamA;
+            const winRanks = winTeam
+              .map((p) => rankMap[p])
+              .filter((r) => r != null);
+            const loseRanks = loseTeam
+              .map((p) => rankMap[p])
+              .filter((r) => r != null);
+            if (!winRanks.length || !loseRanks.length) return;
+            const avgWin =
+              winRanks.reduce((a, b) => a + b, 0) / winRanks.length;
+            const avgLose =
+              loseRanks.reduce((a, b) => a + b, 0) / loseRanks.length;
+            // Upset = winner had a worse (higher number) rank than loser
+            const gap = avgWin - avgLose;
+            if (gap > 0 && gap > bestGap) {
+              bestGap = gap;
+              bestUpset = {
+                m,
+                winTeam,
+                loseTeam,
+                avgWin: Math.round(avgWin),
+                avgLose: Math.round(avgLose),
+              };
+            }
+          });
+
+          if (bestUpset) {
+            const { m: um, winTeam, loseTeam, avgWin, avgLose } = bestUpset;
+            const uWin = um.scoreA > um.scoreB ? um.scoreA : um.scoreB;
+            const uLose = um.scoreA > um.scoreB ? um.scoreB : um.scoreA;
+            upsetHtml = `<div class="motd-card upset-card">
+              <div class="motd-header">
+                <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
+                <span class="motd-date">📅 ${latestDate}</span>
+              </div>
+              <div class="motd-teams">
+                <div class="motd-team winner">
+                  <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
+                  <div class="motd-score win">${uWin}</div>
+                  <div class="upset-rank">Ranked #${avgWin}</div>
+                </div>
+                <div class="motd-vs">VS</div>
+                <div class="motd-team">
+                  <div class="motd-name">${loseTeam.join(" & ")}</div>
+                  <div class="motd-score">${uLose}</div>
+                  <div class="upset-rank">#${avgLose} expected to win</div>
+                </div>
+              </div>
+              <div class="motd-sub">Lower-ranked team pulled off a shock win 😤</div>
+            </div>`;
+          }
+        }
+
+        return motdHtml + upsetHtml;
+      }
+
       function renderModernMatches() {
         const query = (
           document.getElementById("modern-match-search")?.value || ""
@@ -3930,8 +4184,9 @@ Parthiv - Par"
           const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, matches);
           summary = `<div class="ana-card" style="margin-bottom:10px"><span class="badge">Head-to-Head</span><div class="name" style="font-size:18px">${h2hFilterA} ${h2h.aWins}-${h2h.bWins} ${h2hFilterB}</div><div class="sub">${h2h.matches.length} match(es) · ${h2hFilterA} diff ${h2h.diff >= 0 ? "+" : ""}${h2h.diff}</div></div>`;
         }
+        const motdHtml = buildMatchOfTheDay();
         document.getElementById("modern-match-list").innerHTML =
-          summary + buildMatchCards(matches, true);
+          motdHtml + summary + buildMatchCards(matches, true);
         populateHistoryPlayerChips();
         populateHistoryAdvancedFilters();
       }
