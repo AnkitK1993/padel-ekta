@@ -4882,10 +4882,10 @@ Parthiv - Par"
           return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${dup ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${dup ? " · duplicate?" : ""}</strong></div>`;
         });
         box.innerHTML = `
-          <div><strong style="color:var(--text)">${parsed.length}</strong> parsed · <strong class="${errors.length ? "preview-warn" : ""}">${errors.length}</strong> skipped · <strong class="${duplicates.length ? "preview-warn" : ""}">${duplicates.length}</strong> duplicate warning(s)</div>
-          ${rows.join("")}
-          ${parsed.length > 5 ? `<div class="preview-row"><span>+ ${parsed.length - 5} more</span><span></span></div>` : ""}
-        `;
+              <div><strong style="color:var(--text)">${parsed.length}</strong> parsed · <strong class="${errors.length ? "preview-warn" : ""}">${errors.length}</strong> skipped · <strong class="${duplicates.length ? "preview-warn" : ""}">${duplicates.length}</strong> duplicate warning(s)</div>
+              ${rows.join("")}
+              ${parsed.length > 5 ? `<div class="preview-row"><span>+ ${parsed.length - 5} more</span><span></span></div>` : ""}
+            `;
         box.classList.add("show");
       }
 
@@ -5042,37 +5042,37 @@ Parthiv - Par"
           a.localeCompare(b, undefined, { sensitivity: "base" }),
         );
         const html = `
-          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <thead>
-              <tr style="background: var(--surface2);">
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Display Name</th>
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Aliases</th>
-                <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); width: 88px;">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortedEntries
-                .map(
-                  ([name, aliases]) => `
-                <tr style="border-bottom: 1px solid var(--border);">
-                  <td style="padding: 8px; color: var(--accent); font-weight: 500;">${name}</td>
-                  <td style="padding: 8px; color: var(--muted);">${aliases.join(", ")}</td>
-                  <td style="padding: 8px; text-align: right;">
-                    <button
-                      class="action-btn edit-btn"
-                      style="padding: 6px 10px; font-size: 11px;"
-                      onclick="editNameEntry('${name.replace(/'/g, "\\'")}')"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              `,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        `;
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                  <tr style="background: var(--surface2);">
+                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Display Name</th>
+                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Aliases</th>
+                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); width: 88px;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${sortedEntries
+                    .map(
+                      ([name, aliases]) => `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                      <td style="padding: 8px; color: var(--accent); font-weight: 500;">${name}</td>
+                      <td style="padding: 8px; color: var(--muted);">${aliases.join(", ")}</td>
+                      <td style="padding: 8px; text-align: right;">
+                        <button
+                          class="action-btn edit-btn"
+                          style="padding: 6px 10px; font-size: 11px;"
+                          onclick="editNameEntry('${name.replace(/'/g, "\\'")}')"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            `;
         table.innerHTML = html;
       }
 
@@ -5227,19 +5227,19 @@ Parthiv - Par"
             const weeks = Math.floor(a.days / 7);
             const label = weeks >= 2 ? `${weeks}w` : `${a.days}d`;
             return `<div class="absence-chip" title="Last played ${a.lastDate}">
-            <span class="absence-name">${a.name}</span>
-            <span class="absence-days">${label} away</span>
-          </div>`;
+                <span class="absence-name">${a.name}</span>
+                <span class="absence-days">${label} away</span>
+              </div>`;
           })
           .join("");
 
         banner.innerHTML = `<div class="absence-banner">
-          <div class="absence-header">
-            <span class="absence-title">👻 Missing in Action</span>
-            <span class="absence-sub">${absent.length} player${absent.length > 1 ? "s" : ""} MIA 7+ days</span>
-          </div>
-          <div class="absence-chips">${chips}</div>
-        </div>`;
+              <div class="absence-header">
+                <span class="absence-title">👻 Missing in Action</span>
+                <span class="absence-sub">${absent.length} player${absent.length > 1 ? "s" : ""} MIA 7+ days</span>
+              </div>
+              <div class="absence-chips">${chips}</div>
+            </div>`;
       }
 
       // ── FORM SPARKLINE ─────────────────────────────────────────
@@ -5300,16 +5300,16 @@ Parthiv - Par"
         const areaPath = `M${firstPt[0]},${pad + h} L${pts.join(" L")} L${lastPt[0]},${pad + h} Z`;
 
         return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
-          <defs>
-            <linearGradient id="sg_${playerName.replace(/\s/g, "_")}" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
-              <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
-            </linearGradient>
-          </defs>
-          <path d="${areaPath}" fill="url(#sg_${playerName.replace(/\s/g, "_")})" />
-          <polyline points="${pts.join(" ")}" fill="none" stroke="${lineColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="2.5" fill="${lineColor}"/>
-        </svg>`;
+              <defs>
+                <linearGradient id="sg_${playerName.replace(/\s/g, "_")}" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
+                  <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
+                </linearGradient>
+              </defs>
+              <path d="${areaPath}" fill="url(#sg_${playerName.replace(/\s/g, "_")})" />
+              <polyline points="${pts.join(" ")}" fill="none" stroke="${lineColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="2.5" fill="${lineColor}"/>
+            </svg>`;
       }
 
       function renderHome() {
@@ -5599,38 +5599,38 @@ Parthiv - Par"
             const momentumSide = aWon ? teamALabel : teamBLabel;
 
             return `
-          <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;">
-            <div class="match-top">
-              <span class="match-date">📅 ${m.date || "—"}</span>
-              <span class="match-tag">${diff} pt gap</span>
-            </div>
-            <div class="match-score-row" style="margin-top:10px">
-              <div class="team-block">
-                <div class="team-name ${aWon ? "winner" : ""}">${aWon ? "👑 " : ""}${teamALabel}</div>
-                <div class="team-score ${aWon ? "win" : ""}">${m.scoreA}</div>
-              </div>
-              <div class="vs-text">VS</div>
-              <div class="team-block">
-                <div class="team-name ${bWon ? "winner" : ""}">${bWon ? "👑 " : ""}${teamBLabel}</div>
-                <div class="team-score ${bWon ? "win" : ""}">${m.scoreB}</div>
-              </div>
-            </div>
-            ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
-            <div class="match-card-momentum">
-              <div class="momentum-label"><span>${momentumSide} Momentum</span><span>${momentumPct}%</span></div>
-              <div class="momentum-bar"><div class="momentum-fill" style="width:${momentumPct}%"></div></div>
-            </div>
-            <div class="match-footer" style="margin-top:10px">
-              ${
-                showAdmin && window.isAdmin
-                  ? `<div class="match-actions">
-                <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx})">✏ Edit</button>
-                <button class="action-btn delete-btn" onclick="deleteMatchByIndex(${realIdx})">🗑 Del</button>
-              </div>`
-                  : `<div></div>`
-              }
-            </div>
-          </div>`;
+              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;">
+                <div class="match-top">
+                  <span class="match-date">📅 ${m.date || "—"}</span>
+                  <span class="match-tag">${diff} pt gap</span>
+                </div>
+                <div class="match-score-row" style="margin-top:10px">
+                  <div class="team-block">
+                    <div class="team-name ${aWon ? "winner" : ""}">${aWon ? "👑 " : ""}${teamALabel}</div>
+                    <div class="team-score ${aWon ? "win" : ""}">${m.scoreA}</div>
+                  </div>
+                  <div class="vs-text">VS</div>
+                  <div class="team-block">
+                    <div class="team-name ${bWon ? "winner" : ""}">${bWon ? "👑 " : ""}${teamBLabel}</div>
+                    <div class="team-score ${bWon ? "win" : ""}">${m.scoreB}</div>
+                  </div>
+                </div>
+                ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
+                <div class="match-card-momentum">
+                  <div class="momentum-label"><span>${momentumSide} Momentum</span><span>${momentumPct}%</span></div>
+                  <div class="momentum-bar"><div class="momentum-fill" style="width:${momentumPct}%"></div></div>
+                </div>
+                <div class="match-footer" style="margin-top:10px">
+                  ${
+                    showAdmin && window.isAdmin
+                      ? `<div class="match-actions">
+                    <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx})">✏ Edit</button>
+                    <button class="action-btn delete-btn" onclick="deleteMatchByIndex(${realIdx})">🗑 Del</button>
+                  </div>`
+                      : `<div></div>`
+                  }
+                </div>
+              </div>`;
           })
           .join("");
       }
@@ -5690,23 +5690,23 @@ Parthiv - Par"
           : `Most dramatic result of the session`;
 
         const motdHtml = `<div class="motd-card">
-          <div class="motd-header">
-            <span class="motd-label">${motdLabel}</span>
-            <span class="motd-date">📅 ${latestDate}</span>
-          </div>
-          <div class="motd-teams">
-            <div class="motd-team winner">
-              <div class="motd-name">👑 ${winner}</div>
-              <div class="motd-score win">${wScore}</div>
-            </div>
-            <div class="motd-vs">VS</div>
-            <div class="motd-team">
-              <div class="motd-name">${loser}</div>
-              <div class="motd-score">${lScore}</div>
-            </div>
-          </div>
-          <div class="motd-sub">${motdSub}</div>
-        </div>`;
+              <div class="motd-header">
+                <span class="motd-label">${motdLabel}</span>
+                <span class="motd-date">📅 ${latestDate}</span>
+              </div>
+              <div class="motd-teams">
+                <div class="motd-team winner">
+                  <div class="motd-name">👑 ${winner}</div>
+                  <div class="motd-score win">${wScore}</div>
+                </div>
+                <div class="motd-vs">VS</div>
+                <div class="motd-team">
+                  <div class="motd-name">${loser}</div>
+                  <div class="motd-score">${lScore}</div>
+                </div>
+              </div>
+              <div class="motd-sub">${motdSub}</div>
+            </div>`;
 
         // ── BIGGEST UPSET: lower-ranked pair beats higher-ranked pair ──
         let upsetHtml = "";
@@ -5754,25 +5754,25 @@ Parthiv - Par"
             const uWin = um.scoreA > um.scoreB ? um.scoreA : um.scoreB;
             const uLose = um.scoreA > um.scoreB ? um.scoreB : um.scoreA;
             upsetHtml = `<div class="motd-card upset-card">
-              <div class="motd-header">
-                <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
-                <span class="motd-date">📅 ${latestDate}</span>
-              </div>
-              <div class="motd-teams">
-                <div class="motd-team winner">
-                  <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
-                  <div class="motd-score win">${uWin}</div>
-                  <div class="upset-rank">Ranked #${avgWin}</div>
-                </div>
-                <div class="motd-vs">VS</div>
-                <div class="motd-team">
-                  <div class="motd-name">${loseTeam.join(" & ")}</div>
-                  <div class="motd-score">${uLose}</div>
-                  <div class="upset-rank">#${avgLose} expected to win</div>
-                </div>
-              </div>
-              <div class="motd-sub">Lower-ranked team pulled off a shock win 😤</div>
-            </div>`;
+                  <div class="motd-header">
+                    <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
+                    <span class="motd-date">📅 ${latestDate}</span>
+                  </div>
+                  <div class="motd-teams">
+                    <div class="motd-team winner">
+                      <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
+                      <div class="motd-score win">${uWin}</div>
+                      <div class="upset-rank">Ranked #${avgWin}</div>
+                    </div>
+                    <div class="motd-vs">VS</div>
+                    <div class="motd-team">
+                      <div class="motd-name">${loseTeam.join(" & ")}</div>
+                      <div class="motd-score">${uLose}</div>
+                      <div class="upset-rank">#${avgLose} expected to win</div>
+                    </div>
+                  </div>
+                  <div class="motd-sub">Lower-ranked team pulled off a shock win 😤</div>
+                </div>`;
           }
         }
 
@@ -5817,38 +5817,38 @@ Parthiv - Par"
         );
 
         return `<div class="session-summary-card">
-          <div class="ss-header">
-            <span class="ss-label">📋 SESSION RECAP</span>
-            <span class="ss-date">${dateLabel}</span>
-          </div>
-          <div class="ss-stats">
-            <div class="ss-stat">
-              <div class="ss-val">${sessionMatches.length}</div>
-              <div class="ss-lbl">Matches</div>
-            </div>
-            <div class="ss-stat">
-              <div class="ss-val">${playerSet.size}</div>
-              <div class="ss-lbl">Players</div>
-            </div>
-            <div class="ss-stat">
-              <div class="ss-val">${totalGames}</div>
-              <div class="ss-lbl">Total Games</div>
-            </div>
-            <div class="ss-stat">
-              <div class="ss-val">${closestScore}</div>
-              <div class="ss-lbl">Closest Score</div>
-            </div>
-          </div>
-          ${
-            top
-              ? `<div class="ss-top">
-            <span class="ss-top-label">⭐ Top Performer</span>
-            <span class="ss-top-name">${top.name}</span>
-            <span class="ss-top-rec">${top.mw}W–${top.ml}L &nbsp;·&nbsp; ${top.winPct.toFixed(0)}% win rate</span>
-          </div>`
-              : ""
-          }
-        </div>`;
+              <div class="ss-header">
+                <span class="ss-label">📋 SESSION RECAP</span>
+                <span class="ss-date">${dateLabel}</span>
+              </div>
+              <div class="ss-stats">
+                <div class="ss-stat">
+                  <div class="ss-val">${sessionMatches.length}</div>
+                  <div class="ss-lbl">Matches</div>
+                </div>
+                <div class="ss-stat">
+                  <div class="ss-val">${playerSet.size}</div>
+                  <div class="ss-lbl">Players</div>
+                </div>
+                <div class="ss-stat">
+                  <div class="ss-val">${totalGames}</div>
+                  <div class="ss-lbl">Total Games</div>
+                </div>
+                <div class="ss-stat">
+                  <div class="ss-val">${closestScore}</div>
+                  <div class="ss-lbl">Closest Score</div>
+                </div>
+              </div>
+              ${
+                top
+                  ? `<div class="ss-top">
+                <span class="ss-top-label">⭐ Top Performer</span>
+                <span class="ss-top-name">${top.name}</span>
+                <span class="ss-top-rec">${top.mw}W–${top.ml}L &nbsp;·&nbsp; ${top.winPct.toFixed(0)}% win rate</span>
+              </div>`
+                  : ""
+              }
+            </div>`;
       }
 
       function renderModernMatches() {
@@ -6320,46 +6320,74 @@ Parthiv - Par"
           )
           .join("");
         const html = `
-          <div id="player-detail-modal">
-            <div class="analytics-inner">
-              <div class="analytics-header">
-                <div class="analytics-title">${name}</div>
-                <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
-              </div>
-              <div class="analytics-cards">
-                <div class="ana-card">
-                  <span class="badge">Player Detail</span>
-                  <div class="name">${detail.stats.sr.toFixed(2)} SR</div>
-                  <div class="sub">${detail.stats.mw}-${detail.stats.ml} · ${detail.stats.winPct.toFixed(0)}% win · ${detail.stats.diff >= 0 ? "+" : ""}${detail.stats.diff} diff</div>
-                  <div class="mini-tools">
-                    <button class="tool-btn" onclick="setHistPlayerFilter('${name.replace(/'/g, "\\'")}'); switchMainTab('history'); document.getElementById('player-detail-modal')?.remove()">History</button>
+              <div id="player-detail-modal">
+                <div class="analytics-inner">
+                  <div class="analytics-header">
+                    <div class="analytics-title">${name}</div>
+                    <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
                   </div>
+                  <div class="analytics-cards">
+                    <div class="ana-card">
+                      <span class="badge">Player Detail</span>
+                      <div class="name">${detail.stats.sr.toFixed(2)} SR</div>
+                      <div class="sub">${detail.stats.mw}-${detail.stats.ml} · ${detail.stats.winPct.toFixed(0)}% win · ${detail.stats.diff >= 0 ? "+" : ""}${detail.stats.diff} diff</div>
+                      <div class="mini-tools">
+                        <button class="tool-btn" onclick="setHistPlayerFilter('${name.replace(/'/g, "\\'")}'); switchMainTab('history'); document.getElementById('player-detail-modal')?.remove()">History</button>
+                      </div>
+                    </div>
+                    <div class="ana-card">
+                      <span class="badge">Streaks</span>
+                      <div class="sub">Winning streak: <strong>${detail.maxWinStreak}</strong> · Losing streak: <strong>${detail.maxLossStreak}</strong></div>
+                    </div>
+                    <div class="ana-card">
+                      <span class="badge">Clean Sheets</span>
+                      <div class="sub">Wins : <strong>${detail.shutoutWins}</strong> · Losses: <strong>${detail.shutoutLosses}</strong></div>
+                    </div>
+                    <!--
+                    <div class="ana-card">
+                      <span class="badge">Connections</span>
+                      <div class="sub">Best partner: <strong style="color:var(--text)">${detail.topMate?.[0] || "—"}</strong> (${detail.topMate?.[1] || 0} matches)</div>
+                      <div class="sub">Most faced opponent: <strong style="color:var(--text)">${detail.toughOpp?.[0] || "—"}</strong> (${detail.toughOpp?.[1] || 0} matches)</div>
+                    </div>
+                    -->
+                    <div class="ana-card">
+                      <span class="badge">Recent Form</span>
+                      <div>${form || '<span class="sub">No recent matches</span>'}</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:18px;font-size:14px;font-weight:700;margin-bottom:10px">Recent Matches</div>
+                  <div class="analytics-cards">${recentCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
                 </div>
-                <div class="ana-card">
-                  <span class="badge">Streaks</span>
-                  <div class="sub">Winning streak: <strong>${detail.maxWinStreak}</strong> · Losing streak: <strong>${detail.maxLossStreak}</strong></div>
-                </div>
-                <div class="ana-card">
-                  <span class="badge">Clean Sheets</span>
-                  <div class="sub">Wins : <strong>${detail.shutoutWins}</strong> · Losses: <strong>${detail.shutoutLosses}</strong></div>
-                </div>
-                <!--
-                <div class="ana-card">
-                  <span class="badge">Connections</span>
-                  <div class="sub">Best partner: <strong style="color:var(--text)">${detail.topMate?.[0] || "—"}</strong> (${detail.topMate?.[1] || 0} matches)</div>
-                  <div class="sub">Most faced opponent: <strong style="color:var(--text)">${detail.toughOpp?.[0] || "—"}</strong> (${detail.toughOpp?.[1] || 0} matches)</div>
-                </div>
-                -->
-                <div class="ana-card">
-                  <span class="badge">Recent Form</span>
-                  <div>${form || '<span class="sub">No recent matches</span>'}</div>
-                </div>
-              </div>
-              <div style="margin-top:18px;font-size:14px;font-weight:700;margin-bottom:10px">Recent Matches</div>
-              <div class="analytics-cards">${recentCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
-            </div>
-          </div>`;
+              </div>`;
         document.body.insertAdjacentHTML("beforeend", html);
+      }
+
+      function getMatrixAlias(name) {
+        // If already an alias array from firebase
+        if (Array.isArray(name)) {
+          return String(name[0] || "")
+            .trim()
+            .toUpperCase()
+            .slice(0, 3);
+        }
+
+        // If passed actual player name string
+        const aliases = aliasMap?.[name];
+
+        if (Array.isArray(aliases) && aliases.length > 0) {
+          return String(aliases[0] || "")
+            .trim()
+            .toUpperCase()
+            .slice(0, 3);
+        }
+
+        // Fallback initials
+        return String(name || "")
+          .split(" ")
+          .map((p) => p[0] || "")
+          .join("")
+          .slice(0, 3)
+          .toUpperCase();
       }
 
       // ── P VS P MATRIX (COMPACT, NO SCROLL) ────────────────────
@@ -6383,39 +6411,42 @@ Parthiv - Par"
         });
 
         // Build unique 2-char aliases (fall back to 3 if clash)
-        const usedAliases = new Set();
-        const aliases = {};
-        players.forEach((p) => {
-          // Strategy 1: first 2 chars
-          let alias = p.slice(0, 2).toUpperCase();
-          if (!usedAliases.has(alias)) {
-            aliases[p] = alias;
-            usedAliases.add(alias);
-            return;
-          }
-          // Strategy 2: first char + last char
-          alias = (p[0] + p[p.length - 1]).toUpperCase();
-          if (!usedAliases.has(alias)) {
-            aliases[p] = alias;
-            usedAliases.add(alias);
-            return;
-          }
-          // Strategy 3: first 3 chars
-          alias = p.slice(0, 3).toUpperCase();
-          if (!usedAliases.has(alias)) {
-            aliases[p] = alias;
-            usedAliases.add(alias);
-            return;
-          }
-          // Fallback: first 2 + index digit
-          let i = 1;
-          while (usedAliases.has(p.slice(0, 1).toUpperCase() + i)) i++;
-          aliases[p] = p.slice(0, 1).toUpperCase() + i;
-          usedAliases.add(aliases[p]);
-        });
+        // const usedAliases = new Set();
+        // const aliases = {};
+        // players.forEach((p) => {
+        //   // Strategy 1: first 2 chars
+        //   let alias = p.slice(0, 3).toUpperCase();
+        //   if (!usedAliases.has(alias)) {
+        //     aliases[p] = alias;
+        //     usedAliases.add(alias);
+        //     return;
+        //   }
+        //   // Strategy 2: first char + last char
+        //   alias = (p[0] + p[p.length - 1]).toUpperCase();
+        //   if (!usedAliases.has(alias)) {
+        //     aliases[p] = alias;
+        //     usedAliases.add(alias);
+        //     return;
+        //   }
+        //   // Strategy 3: first 3 chars
+        //   alias = p.slice(0, 3).toUpperCase();
+        //   if (!usedAliases.has(alias)) {
+        //     aliases[p] = alias;
+        //     usedAliases.add(alias);
+        //     return;
+        //   }
+        //   // Fallback: first 2 + index digit
+        //   let i = 1;
+        //   while (usedAliases.has(p.slice(0, 1).toUpperCase() + i)) i++;
+        //   aliases[p] = p.slice(0, 1).toUpperCase() + i;
+        //   usedAliases.add(aliases[p]);
+        // });
 
         const colHeaders = players
-          .map((p) => `<th class="pvp-th" title="${p}">${aliases[p]}</th>`)
+          .map(
+            (p) =>
+              `<th class="pvp-th" title="${p}">${getMatrixAlias(aliasMap[p])}</th>`,
+          )
           .join("");
 
         const rows = players
@@ -6432,7 +6463,7 @@ Parthiv - Par"
               })
               .join("");
             // Row label: use same alias as column header
-            return `<tr><td class="pvp-row-hdr" title="${a}">${aliases[a]}</td>${cells}</tr>`;
+            return `<tr><td class="pvp-row-hdr" title="${a}">${getMatrixAlias(aliasMap[a])}</td>${cells}</tr>`;
           })
           .join("");
 
@@ -6440,17 +6471,17 @@ Parthiv - Par"
         const legend = players
           .map(
             (p) =>
-              `<span class="pvp-legend-item"><strong>${aliases[p]}</strong> ${p}</span>`,
+              `<span class="pvp-legend-item"><strong>${getMatrixAlias(aliasMap[p])}</strong> ${p}</span>`,
           )
           .join("");
 
         return `<div class="pvp-wrap">
-          <table class="pvp-table">
-            <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <div class="pvp-legend">${legend}</div>
-        </div>`;
+              <table class="pvp-table">
+                <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+              <div class="pvp-legend">${legend}</div>
+            </div>`;
       }
 
       // ── P VS P MATRIX ──────────────────────────────────────────
@@ -6477,7 +6508,10 @@ Parthiv - Par"
         const short = (n) => (n.length > 6 ? n.slice(0, 5) + "…" : n);
 
         const colHeaders = players
-          .map((p) => `<th class="pvp-th" title="${p}">${short(p)}</th>`)
+          .map(
+            (p) =>
+              `<th class="pvp-th" title="${p}">${getMatrixAlias(short(p))}</th>`,
+          )
           .join("");
 
         const rows = players
@@ -6498,9 +6532,9 @@ Parthiv - Par"
           .join("");
 
         return `<table class="pvp-table">
-          <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
-          <tbody>${rows}</tbody>
-        </table>`;
+              <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
+              <tbody>${rows}</tbody>
+            </table>`;
       }
 
       // ── ANALYTICS ──────────────────────────────────────────────
@@ -6630,58 +6664,60 @@ Parthiv - Par"
           `<div class="ana-section-title">${title}</div>`;
 
         container.innerHTML = `
-          ${section("⚔️ Player vs Player Matrix")}
-          <div class="ana-card" style="padding:10px 8px">
-            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
-            ${matrixHtml}
-          </div>
+              ${section("⚔️ Player vs Player Matrix")}
+              <div class="ana-card" style="padding:10px 8px">
+                <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
+                ${matrixHtml}
+              </div>
 
-          ${section("Core Stats")}
-          <div class="analytics-cards">
-            ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches || 0} matches`)}
-            ${card("🏆 Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}
-            ${card("🔥 Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}
-          </div>
+              ${section("Core Stats")}
+              <div class="analytics-cards">
+                ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches || 0} matches`)}
+                ${card("🏆 Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}
+                ${card("🔥 Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}
+              </div>
 
-          ${section("🎯 Shutout Records")}
-          <div class="analytics-cards">
-            ${card("🚫 Most Shutout Wins", mostShutoutWins?.[0], `${mostShutoutWins?.[1] || 0} games won X-0`)}
-            ${card("💔 Most Shutout Losses", mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null, `${mostShutoutLossCount} games lost 0-X`)}
-          </div>
+              ${section("🎯 Shutout Records")}
+              <div class="analytics-cards">
+                ${card("🚫 Most Shutout Wins", mostShutoutWins?.[0], `${mostShutoutWins?.[1] || 0} games won X-0`)}
+                ${card("💔 Most Shutout Losses", mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null, `${mostShutoutLossCount} games lost 0-X`)}
+              </div>
 
-          ${section("⚡ Extreme Stats")}
-          <div class="analytics-cards">
-            ${card("💣 Biggest Victory", biggestWin?.player, `+${biggestWin?.margin} margin (${biggestWin?.score})`)}
-            ${bestPartnership ? card("👫 Dominant Duo", bestPartnership.players.join(" & "), `${bestPartnership.wins}W–${bestPartnership.played - bestPartnership.wins}L (${Math.round((bestPartnership.wins / bestPartnership.played) * 100)}%)`) : card("👫 Dominant Duo", "—", "—")}
-          </div>
+              ${section("⚡ Extreme Stats")}
+              <div class="analytics-cards">
+                ${card("💣 Biggest Victory", biggestWin?.player, `+${biggestWin?.margin} margin (${biggestWin?.score})`)}
+                ${bestPartnership ? card("👫 Dominant Duo", bestPartnership.players.join(" & "), `${bestPartnership.wins}W–${bestPartnership.played - bestPartnership.wins}L (${Math.round((bestPartnership.wins / bestPartnership.played) * 100)}%)`) : card("👫 Dominant Duo", "—", "—")}
+              </div>
 
 
-          ${section("Achievements")}
-          <div class="analytics-cards">
-            ${
-              achievements.length
-                ? achievements.map((a) => card(a.title, a.name, a.sub)).join("")
-                : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
-            }
-          </div>
+              ${section("Achievements")}
+              <div class="analytics-cards">
+                ${
+                  achievements.length
+                    ? achievements
+                        .map((a) => card(a.title, a.name, a.sub))
+                        .join("")
+                    : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
+                }
+              </div>
 
-          ${section("Pair Leaderboard")}
-          <div class="analytics-cards">
-            ${
-              pairLeaderboard.length
-                ? pairLeaderboard
-                    .map(
-                      (p, i) =>
-                        `<div class="ana-card" style="display:flex;justify-content:space-between;gap:10px">
-                    <div><span class="badge">#${i + 1}</span><div class="name" style="font-size:16px">${p.key}</div>
-                    <div class="sub">${p.wins}-${p.losses} · ${p.played} together · ${p.diff >= 0 ? "+" : ""}${p.diff} diff</div></div>
-                    <div style="color:var(--accent);font-size:20px;font-weight:900;align-self:center">${p.winPct}%</div>
-                  </div>`,
-                    )
-                    .join("")
-                : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
-            }
-          </div>`;
+              ${section("Pair Leaderboard")}
+              <div class="analytics-cards">
+                ${
+                  pairLeaderboard.length
+                    ? pairLeaderboard
+                        .map(
+                          (p, i) =>
+                            `<div class="ana-card" style="display:flex;justify-content:space-between;gap:10px">
+                        <div><span class="badge">#${i + 1}</span><div class="name" style="font-size:16px">${p.key}</div>
+                        <div class="sub">${p.wins}-${p.losses} · ${p.played} together · ${p.diff >= 0 ? "+" : ""}${p.diff} diff</div></div>
+                        <div style="color:var(--accent);font-size:20px;font-weight:900;align-self:center">${p.winPct}%</div>
+                      </div>`,
+                        )
+                        .join("")
+                    : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
+                }
+              </div>`;
       }
 
       // Keep showAnalytics as alias for backward compat
@@ -6926,6 +6962,55 @@ Parthiv - Par"
           analyticsPage.insertBefore(matrixBlock, firstSection);
         }
       });
+    </script>
+
+    <script>
+      (function () {
+        const originalBuildPvpMatrix = window.buildPvpMatrix;
+
+        if (!originalBuildPvpMatrix) return;
+
+        window.buildPvpMatrix = function (...args) {
+          const result = originalBuildPvpMatrix.apply(this, args);
+
+          try {
+            if (typeof aliasMap !== "undefined" && aliasMap) {
+              document
+                .querySelectorAll(
+                  ".pvp-matrix th, .matrix th, .matrix-header, .pvp-header",
+                )
+                .forEach((el) => {
+                  const txt = (el.textContent || "").trim();
+
+                  Object.keys(aliasMap).forEach((player) => {
+                    const aliases = aliasMap[player];
+
+                    if (Array.isArray(aliases) && aliases.length) {
+                      const short3 = String(aliases[0])
+                        .replace(/[^a-zA-Z]/g, "")
+                        .slice(0, 3);
+
+                      const old2 = player
+                        .replace(/[^a-zA-Z]/g, "")
+                        .slice(0, 2)
+                        .toUpperCase();
+
+                      if (txt === old2) {
+                        el.textContent =
+                          short3.charAt(0).toUpperCase() +
+                          short3.slice(1).toLowerCase();
+                      }
+                    }
+                  });
+                });
+            }
+          } catch (e) {
+            console.log(e);
+          }
+
+          return result;
+        };
+      })();
     </script>
   </body>
 </html>
