@@ -6330,6 +6330,15 @@ Parthiv - Par"
             ${bestPartnership ? card("👫 Dominant Duo", bestPartnership.players.join(" & "), `${bestPartnership.wins}W–${bestPartnership.played - bestPartnership.wins}L (${Math.round((bestPartnership.wins / bestPartnership.played) * 100)}%)`) : card("👫 Dominant Duo", "—", "—")}
           </div>
 
+          ${section("Achievements")}
+          <div class="analytics-cards">
+            ${
+              achievements.length
+                ? achievements.map((a) => card(a.title, a.name, a.sub)).join("")
+                : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
+            }
+          </div>
+
           ${section("Pair Leaderboard")}
           <div class="analytics-cards">
             ${
@@ -6345,15 +6354,6 @@ Parthiv - Par"
                     )
                     .join("")
                 : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
-            }
-          </div>
-
-          ${section("Achievements")}
-          <div class="analytics-cards">
-            ${
-              achievements.length
-                ? achievements.map((a) => card(a.title, a.name, a.sub)).join("")
-                : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
             }
           </div>
           </div>`;
