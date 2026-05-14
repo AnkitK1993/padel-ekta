@@ -681,64 +681,205 @@
         background: var(--border);
         flex-shrink: 0;
       }
+
+      .compact-history-panel {
+        gap: 8px;
+        padding: 10px;
+      }
+
+      .compact-row {
+        display: flex;
+        gap: 12px;
+        padding: 10px;
+        background: rgba(17, 17, 24, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 16px;
+        align-items: flex-end;
+      }
+
+      .top-filter-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .bottom-filter-row {
+        display: grid;
+        grid-template-columns: 1fr 1.5fr;
+      }
+
+      .compact-filter-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .compact-filter-item .hist-filter-label {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+        white-space: nowrap;
+      }
+
+      .compact-select {
+        width: 100%;
+        height: 44px;
+        border-radius: 14px;
+        background: rgba(18, 18, 30, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        padding: 0 40px 0 14px;
+        font-size: 13px;
+        font-weight: 700;
+        outline: none;
+      }
+
+      .h2h-inline-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .compact-h2h-field {
+        position: relative;
+        flex: 1;
+      }
+
+      .h2h-select {
+        width: 100%;
+        padding-right: 50px;
+      }
+
+      .h2h-clear {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        color: var(--muted);
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .h2h-vs {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      .compact-clear-btn {
+        height: 44px;
+        border-radius: 14px;
+        padding: 0 16px;
+      }
+
       /* ── COMPACT PAGE ── */
+
       .cmp-topbar {
         flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 7px 11px 6px;
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
-        gap: 8px;
+        padding: 8px 12px;
+        background: linear-gradient(
+          180deg,
+          rgba(14, 14, 22, 0.98),
+          rgba(10, 10, 18, 0.96)
+        );
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        gap: 10px;
+        position: sticky;
+        top: 0;
+        z-index: 12;
+        backdrop-filter: blur(14px);
       }
+
       .cmp-brand {
         display: flex;
         align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
+        gap: 8px;
+        min-width: 0;
       }
+
       .cmp-brand .t1 {
         font-family: "Bebas Neue", sans-serif;
-        font-size: 18px;
-        letter-spacing: 0.1em;
+        font-size: 20px;
+        letter-spacing: 0.12em;
         color: var(--text);
         line-height: 1;
+        white-space: nowrap;
       }
+
       .cmp-brand .t1 span {
         color: var(--accent);
       }
+
       .cmp-brand .pill {
-        font-size: 8px;
-        font-weight: 700;
-        letter-spacing: 0.14em;
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--accent);
-        background: rgba(245, 200, 66, 0.1);
-        border: 1px solid rgba(245, 200, 66, 0.25);
+        background: rgba(245, 200, 66, 0.08);
+        border: 1px solid rgba(245, 200, 66, 0.18);
         padding: 2px 6px;
-        border-radius: 9px;
+        border-radius: 999px;
+        box-shadow: 0 0 12px rgba(245, 200, 66, 0.08);
       }
+
       select.cmp-sel {
-        background: var(--surface2);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 6px 26px 6px 9px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
+        min-width: 92px;
+        max-width: 120px;
+        height: 32px;
+        background: linear-gradient(
+          180deg,
+          rgba(24, 24, 36, 0.98),
+          rgba(16, 16, 26, 0.98)
+        );
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--accent);
+        text-align: center;
+        text-align-last: center;
+        padding: 0 30px 0 14px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
         font-family: "DM Sans", sans-serif;
         outline: none;
         cursor: pointer;
         -webkit-appearance: none;
         appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2360607a'/%3E%3C/svg%3E");
+        transition:
+          border-color 0.18s ease,
+          box-shadow 0.18s ease,
+          transform 0.18s ease;
+
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23f5c842'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
-        background-position: right 8px center;
+        background-position: right 10px center;
+
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.04),
+          0 0 16px rgba(0, 0, 0, 0.18);
       }
+
+      select.cmp-sel:hover {
+        border-color: rgba(245, 200, 66, 0.28);
+      }
+
       select.cmp-sel:focus {
         border-color: var(--accent);
+        box-shadow:
+          0 0 0 3px rgba(245, 200, 66, 0.08),
+          0 0 16px rgba(245, 200, 66, 0.12);
       }
+
       .cmp-dr {
         display: none;
         flex-shrink: 0;
@@ -763,11 +904,7 @@
         flex: 1;
       }
       .cmp-infobar {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 4px 11px;
+        padding: 3px 11px;
         border-bottom: 1px solid var(--border);
         background: var(--card);
       }
@@ -3117,16 +3254,6 @@
           <div class="home-badge">🏓 Sunday Group ET Rankings</div>
           <div class="home-title">LEADER<span>BOARD</span></div>
         </div>
-        <div class="filter-wrap">
-          <div class="filters">
-            <button class="filt on" data-f="all">All Time</button>
-            <button class="filt" data-f="today">Today</button>
-            <button class="filt" data-f="week">This Week</button>
-            <button class="filt" data-f="weekend">Weekend</button>
-            <button class="filt" data-f="month">This Month</button>
-            <button class="filt" data-f="range">Date Range</button>
-          </div>
-        </div>
         <div class="dr-wrap" id="drWrap">
           <div class="dr-g">
             <label>From</label><input type="date" id="drFrom" />
@@ -3193,15 +3320,16 @@
           <div class="cmp-brand">
             <div class="t1">EKTA <span>PADEL</span></div>
             <div class="pill">Summary</div>
+
+            <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="weekend">Weekend</option>
+              <option value="month">This Month</option>
+              <option value="range">Date Range...</option>
+            </select>
           </div>
-          <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
-            <option value="all">All Time</option>
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="weekend">Weekend</option>
-            <option value="month">This Month</option>
-            <option value="range">Date Range...</option>
-          </select>
         </div>
         <div class="cmp-dr" id="cmpDr">
           <input type="date" id="cmpFrom" /><input type="date" id="cmpTo" />
@@ -3290,96 +3418,6 @@
           <div class="nav-title">MATCH <span>HISTORY</span></div>
           <div style="flex: 1"></div>
         </div>
-        <div
-          style="
-            flex-shrink: 0;
-            padding: 10px 12px 0;
-            background: linear-gradient(
-              135deg,
-              var(--surface),
-              var(--surface2)
-            );
-            border-bottom: 1px solid var(--border);
-            position: relative;
-            overflow: hidden;
-          "
-        >
-          <div
-            style="
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background:
-                radial-gradient(
-                  circle at 30% 20%,
-                  rgba(245, 200, 66, 0.1),
-                  transparent 50%
-                ),
-                radial-gradient(
-                  circle at 70% 80%,
-                  rgba(224, 112, 26, 0.08),
-                  transparent 50%
-                );
-              pointer-events: none;
-            "
-          ></div>
-          <input
-            id="modern-match-search"
-            class="match-search"
-            placeholder="🔍  Search players or teams…"
-            oninput="renderModernMatches()"
-            style="position: relative; z-index: 1"
-          />
-          <div
-            class="filters"
-            style="padding-bottom: 8px; position: relative; z-index: 1"
-          >
-            <button
-              class="filt on"
-              data-mf="all"
-              onclick="filterMatchTab('all')"
-            >
-              All
-            </button>
-            <button
-              class="filt"
-              data-mf="today"
-              onclick="filterMatchTab('today')"
-            >
-              Today
-            </button>
-            <button
-              class="filt"
-              data-mf="week"
-              onclick="filterMatchTab('week')"
-            >
-              Week
-            </button>
-            <button
-              class="filt"
-              data-mf="weekend"
-              onclick="filterMatchTab('weekend')"
-            >
-              Weekend
-            </button>
-            <button
-              class="filt"
-              data-mf="month"
-              onclick="filterMatchTab('month')"
-            >
-              Month
-            </button>
-            <button
-              class="filt"
-              data-mf="range"
-              onclick="filterMatchTab('range')"
-            >
-              Range
-            </button>
-          </div>
-        </div>
         <div class="dr-wrap" id="matchDr">
           <div class="dr-g">
             <label>From</label><input type="date" id="matchFrom" />
@@ -3389,155 +3427,131 @@
           </div>
           <button class="btn-go" onclick="renderModernMatches()">Apply</button>
         </div>
-        <div class="history-filter-panel">
-          <div class="hist-filter-row" id="hist-player-row">
-            <span class="hist-filter-label">Player</span>
-            <select
-              class="hist-select player-filter-select"
-              id="histPlayerSelect"
-              onchange="setHistPlayerFilter(this.value)"
-            >
-              <option value="">All Players</option>
-            </select>
-          </div>
-          <div class="hist-filter-row">
-            <span class="hist-filter-group">
+
+        <div class="history-filter-panel compact-history-panel">
+          <div class="hist-filter-row compact-row top-filter-row">
+            <div class="compact-filter-item">
+              <span class="hist-filter-label">Date</span>
+              <select
+                class="hist-select compact-select"
+                id="histDateFilter"
+                onchange="setHistoryDateFilter(this.value)"
+              >
+                <option value="all">All</option>
+                <option value="today">Today</option>
+                <option value="week">Week</option>
+                <option value="weekend">Weekend</option>
+                <option value="month">Month</option>
+                <option value="range">Range</option>
+              </select>
+            </div>
+
+            <div class="compact-filter-item compact-player">
+              <span class="hist-filter-label">Player</span>
+              <select
+                class="hist-select compact-select"
+                id="histPlayerSelect"
+                onchange="setHistPlayerFilter(this.value)"
+              >
+                <option value="">All Players</option>
+              </select>
+            </div>
+
+            <div class="compact-filter-item">
               <span class="hist-filter-label">Result</span>
-              <button
-                class="hfilt on"
-                data-outcome="all"
-                onclick="setHistOutcome('all')"
+              <select
+                class="hist-select compact-select"
+                id="histResultFilter"
+                onchange="setHistOutcome(this.value)"
               >
-                All
-              </button>
-              <button
-                class="hfilt"
-                data-outcome="win"
-                onclick="setHistOutcome('win')"
-              >
-                🏆 Win
-              </button>
-              <button
-                class="hfilt"
-                data-outcome="loss"
-                onclick="setHistOutcome('loss')"
-              >
-                ❌ Loss
-              </button>
-            </span>
-            <span class="hist-filter-divider"></span>
-            <span class="hist-filter-group">
+                <option value="all">All</option>
+                <option value="win">🏆 Win</option>
+                <option value="loss">❌ Loss</option>
+              </select>
+            </div>
+
+            <div class="compact-filter-item">
               <span class="hist-filter-label">Tags</span>
-              <button
-                class="hfilt on"
-                data-margin="all"
-                onclick="setHistMargin('all')"
+              <select
+                class="hist-select compact-select"
+                id="histTagFilter"
+                onchange="setHistMargin(this.value)"
               >
-                All
-              </button>
-              <button
-                class="hfilt"
-                data-margin="close"
-                onclick="setHistMargin('close')"
-              >
-                🔥 Close
-              </button>
-              <button
-                class="hfilt"
-                data-margin="dominating"
-                onclick="setHistMargin('dominating')"
-              >
-                💀 One Side
-              </button>
-              <button
-                class="hfilt"
-                data-margin="zero"
-                onclick="setHistMargin('zero')"
-              >
-                ZERO
-              </button>
-            </span>
+                <option value="all">All</option>
+                <option value="close">🔥 Close</option>
+                <option value="dominating">💀 One Side</option>
+                <option value="zero">ZERO</option>
+              </select>
+            </div>
           </div>
-          <div class="hist-filter-row">
-            <span class="hist-filter-group">
+
+          <div class="hist-filter-row compact-row bottom-filter-row">
+            <div class="compact-filter-item compact-pair">
               <span class="hist-filter-label">Pair</span>
               <select
-                class="hist-select"
+                class="hist-select compact-select"
                 id="histPairFilter"
                 onchange="setHistPairFilter(this.value)"
               >
                 <option value="">All Pairs</option>
               </select>
-            </span>
-            <span class="hist-filter-group">
-              <span class="hist-filter-label">Score</span>
-              <select
-                class="hist-select"
-                id="histScorelineFilter"
-                onchange="setHistScorelineFilter(this.value)"
-              >
-                <option value="">Any</option>
-                <option value="4-1">4-1</option>
-                <option value="6-1">6-1</option>
-                <option value="6-2">6-2</option>
-                <option value="zero">Won/Lost 0</option>
-              </select>
-            </span>
-            <span class="hist-filter-group">
-              <span class="hist-filter-label">Month</span>
-              <select
-                class="hist-select"
-                id="histSeasonFilter"
-                onchange="setHistSeasonFilter(this.value)"
-              >
-                <option value="">All</option>
-              </select>
-            </span>
-          </div>
-          <div class="hist-filter-row">
-            <span class="hist-filter-label">Head-to-head</span>
-            <span class="h2h-field">
-              <input
-                class="hist-input"
-                id="h2hPlayerA"
-                list="player-suggestions"
-                placeholder="Player A"
-                oninput="onHeadToHeadInput()"
-              />
-              <button
-                class="h2h-clear"
-                type="button"
-                onclick="clearHeadToHeadPlayer('A')"
-                title="Clear player A"
-              >
-                ×
-              </button>
-            </span>
-            <span class="h2h-field">
-              <input
-                class="hist-input"
-                id="h2hPlayerB"
-                list="player-suggestions"
-                placeholder="Player B"
-                oninput="onHeadToHeadInput()"
-              />
-              <button
-                class="h2h-clear"
-                type="button"
-                onclick="clearHeadToHeadPlayer('B')"
-                title="Clear player B"
-              >
-                ×
-              </button>
-            </span>
-            <button class="hfilt" onclick="applyHeadToHeadFilter()">
-              Apply
-            </button>
-            <button class="hfilt" onclick="clearHeadToHeadFilter()">
-              Clear
-            </button>
+            </div>
+
+            <div class="compact-filter-item compact-h2h">
+              <span class="hist-filter-label">H2H</span>
+
+              <div class="h2h-inline-wrap">
+                <div class="h2h-field compact-h2h-field">
+                  <select
+                    class="hist-select compact-select h2h-select"
+                    id="h2hPlayerA"
+                    onchange="applyHeadToHeadFilter()"
+                  >
+                    <option value="">Player A</option>
+                  </select>
+
+                  <button
+                    class="h2h-clear"
+                    type="button"
+                    onclick="clearHeadToHeadPlayer('A')"
+                    title="Clear player A"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <span class="h2h-vs">vs</span>
+
+                <div class="h2h-field compact-h2h-field">
+                  <select
+                    class="hist-select compact-select h2h-select"
+                    id="h2hPlayerB"
+                    onchange="applyHeadToHeadFilter()"
+                  >
+                    <option value="">Player B</option>
+                  </select>
+
+                  <button
+                    class="h2h-clear"
+                    type="button"
+                    onclick="clearHeadToHeadPlayer('B')"
+                    title="Clear player B"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <button
+                  class="hfilt compact-clear-btn"
+                  onclick="clearHeadToHeadFilter()"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+
         <div
           class="scroll"
           id="modern-match-list"
@@ -3675,13 +3689,7 @@ Ank RaM vs Nil Tej 4-2"
           </div>
           <!-- History merged below Add Matches -->
           <div class="slbl" style="margin-top: 20px">Match History</div>
-          <input
-            id="add-match-search"
-            class="match-search"
-            style="margin-top: 4px"
-            placeholder="🔍  Search…"
-            oninput="renderAddMatches()"
-          />
+
           <div id="add-match-list" class="match-grid"></div>
         </div>
 
@@ -5365,7 +5373,7 @@ Parthiv - Par"
         const isThriller = Math.abs(motd.scoreA - motd.scoreB) <= 1;
         const motdLabel = isThriller ? "🎭 THRILLER" : "⚡ MATCH OF THE DAY";
         const motdSub = isThriller
-          ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} game!`
+          ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} point!`
           : `Most dramatic result of the session`;
 
         const motdHtml = `<div class="motd-card">
@@ -5606,8 +5614,8 @@ Parthiv - Par"
         const motdHtml = buildMatchOfTheDay();
         const sessionSummaryHtml = buildSessionSummary();
         document.getElementById("modern-match-list").innerHTML =
-          motdHtml +
           sessionSummaryHtml +
+          motdHtml +
           summary +
           buildMatchCards(matches, true);
         populateHistoryPlayerChips();
@@ -6061,34 +6069,38 @@ Parthiv - Par"
           });
         });
 
-        // Use aliases already loaded from Firestore/cloud
+        // Build unique 2-char aliases (fall back to 3 if clash)
+        const usedAliases = new Set();
         const aliases = {};
-
         players.forEach((p) => {
-          // Find matching player object from cloud-loaded state
-          const playerObj = (window.players || []).find(
-            (x) => x.displayName === p || x.name === p,
-          );
-
-          let alias = "";
-
-          // Use FIRST stored alias
-          if (
-            playerObj &&
-            Array.isArray(playerObj.aliases) &&
-            playerObj.aliases.length
-          ) {
-            alias = String(playerObj.aliases[0]).trim().toUpperCase();
+          // Strategy 1: first 2 chars
+          let alias = p.slice(0, 2).toUpperCase();
+          if (!usedAliases.has(alias)) {
+            aliases[p] = alias;
+            usedAliases.add(alias);
+            return;
           }
-
-          // Fallback to display name
-          if (!alias) {
-            alias = String(p).trim().toUpperCase().slice(0, 3);
+          // Strategy 2: first char + last char
+          alias = (p[0] + p[p.length - 1]).toUpperCase();
+          if (!usedAliases.has(alias)) {
+            aliases[p] = alias;
+            usedAliases.add(alias);
+            return;
           }
-
-          // Keep matrix compact
-          aliases[p] = alias.slice(0, 3);
+          // Strategy 3: first 3 chars
+          alias = p.slice(0, 3).toUpperCase();
+          if (!usedAliases.has(alias)) {
+            aliases[p] = alias;
+            usedAliases.add(alias);
+            return;
+          }
+          // Fallback: first 2 + index digit
+          let i = 1;
+          while (usedAliases.has(p.slice(0, 1).toUpperCase() + i)) i++;
+          aliases[p] = p.slice(0, 1).toUpperCase() + i;
+          usedAliases.add(aliases[p]);
         });
+
         const colHeaders = players
           .map((p) => `<th class="pvp-th" title="${p}">${aliases[p]}</th>`)
           .join("");
@@ -6305,12 +6317,6 @@ Parthiv - Par"
           `<div class="ana-section-title">${title}</div>`;
 
         container.innerHTML = `
-          ${section("⚔️ Player vs Player Matrix")}
-          <div class="ana-card" style="padding:10px 8px">
-            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
-            ${matrixHtml}
-          </div>
-
           ${section("Core Stats")}
           <div class="analytics-cards">
             ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches || 0} matches`)}
@@ -6330,15 +6336,6 @@ Parthiv - Par"
             ${bestPartnership ? card("👫 Dominant Duo", bestPartnership.players.join(" & "), `${bestPartnership.wins}W–${bestPartnership.played - bestPartnership.wins}L (${Math.round((bestPartnership.wins / bestPartnership.played) * 100)}%)`) : card("👫 Dominant Duo", "—", "—")}
           </div>
 
-          ${section("Achievements")}
-          <div class="analytics-cards">
-            ${
-              achievements.length
-                ? achievements.map((a) => card(a.title, a.name, a.sub)).join("")
-                : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
-            }
-          </div>
-
           ${section("Pair Leaderboard")}
           <div class="analytics-cards">
             ${
@@ -6356,6 +6353,49 @@ Parthiv - Par"
                 : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
             }
           </div>
+
+          ${section("Achievements")}
+          <div class="analytics-cards">
+            ${
+              achievements.length
+                ? achievements.map((a) => card(a.title, a.name, a.sub)).join("")
+                : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
+            }
+          </div>
+
+          ${section("⚔️ Player vs Player Matrix")}
+          <div class="ana-card" style="padding:10px 8px">
+            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
+            ${matrixHtml}
+          </div>
+
+          ${section("All Players")}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${players
+              .sort((a, b) => b.wins - a.wins)
+              .map((p) => {
+                const bestMate = Object.entries(p.teammates).sort(
+                  (a, b) => b[1] - a[1],
+                )[0];
+                const wr = p.matches
+                  ? Math.round((p.wins / p.matches) * 100)
+                  : 0;
+                const soWins = shutoutWins[p.name] || 0;
+                const soLosses = shutoutLosses[p.name] || 0;
+                return `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div class="name" style="font-size:16px">${p.name}</div>
+                  <div class="sub">${p.wins}W · ${p.losses}L · ${p.matches} played</div>
+                  <div style="font-size:11px;color:var(--green);margin-top:3px">🔥 ${p.bestStreak} streak · 🚫 ${soWins} shutouts · 💔 ${soLosses} blanked</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="color:var(--accent);font-size:15px;font-weight:700">${wr}%</div>
+                  <div style="font-size:10px;color:var(--muted);margin-top:4px">Best mate</div>
+                  <div style="font-size:12px">${bestMate?.[0] || "—"}</div>
+                </div>
+              </div>`;
+              })
+              .join("")}
           </div>`;
       }
 
@@ -6422,6 +6462,48 @@ Parthiv - Par"
         undoLastAdd,
         openPlayerDetail,
       });
+
+      function setHistoryDateFilter(value) {
+        window.histDateFilter = value || "all";
+        renderModernMatchHistory();
+      }
+
+      function isMatchWithinDateFilter(match, filterValue) {
+        if (!filterValue || filterValue === "all") return true;
+
+        const now = new Date();
+        const matchDate = new Date(match.date || match.createdAt || Date.now());
+
+        const startOfToday = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        );
+
+        if (filterValue === "today") {
+          return matchDate >= startOfToday;
+        }
+
+        if (filterValue === "week") {
+          const weekAgo = new Date();
+          weekAgo.setDate(now.getDate() - 7);
+          return matchDate >= weekAgo;
+        }
+
+        if (filterValue === "weekend") {
+          const day = matchDate.getDay();
+          return day === 0 || day === 6;
+        }
+
+        if (filterValue === "month") {
+          return (
+            matchDate.getMonth() === now.getMonth() &&
+            matchDate.getFullYear() === now.getFullYear()
+          );
+        }
+
+        return true;
+      }
     </script>
   </body>
 </html>
