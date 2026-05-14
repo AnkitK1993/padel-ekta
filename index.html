@@ -4841,15 +4841,6 @@ Parthiv - Par"
               name: p.name,
               sub: `${losses} recent losses`,
             });
-          const shutoutWins = last.filter(
-            (m) => m.won && m.score.endsWith("-0"),
-          ).length;
-          if (shutoutWins)
-            achievements.push({
-              title: "Shutout King",
-              name: p.name,
-              sub: `${shutoutWins} 0-X shutout wins`,
-            });
         });
         // Game Diff Boss — single player with highest positive differential
         const diffBoss = stats
@@ -6639,6 +6630,12 @@ Parthiv - Par"
           `<div class="ana-section-title">${title}</div>`;
 
         container.innerHTML = `
+          ${section("⚔️ Player vs Player Matrix")}
+          <div class="ana-card" style="padding:10px 8px">
+            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
+            ${matrixHtml}
+          </div>
+
           ${section("Core Stats")}
           <div class="analytics-cards">
             ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches || 0} matches`)}
@@ -6658,6 +6655,16 @@ Parthiv - Par"
             ${bestPartnership ? card("👫 Dominant Duo", bestPartnership.players.join(" & "), `${bestPartnership.wins}W–${bestPartnership.played - bestPartnership.wins}L (${Math.round((bestPartnership.wins / bestPartnership.played) * 100)}%)`) : card("👫 Dominant Duo", "—", "—")}
           </div>
 
+
+          ${section("Achievements")}
+          <div class="analytics-cards">
+            ${
+              achievements.length
+                ? achievements.map((a) => card(a.title, a.name, a.sub)).join("")
+                : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
+            }
+          </div>
+
           ${section("Pair Leaderboard")}
           <div class="analytics-cards">
             ${
@@ -6674,50 +6681,6 @@ Parthiv - Par"
                     .join("")
                 : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
             }
-          </div>
-
-          ${section("Achievements")}
-          <div class="analytics-cards">
-            ${
-              achievements.length
-                ? achievements.map((a) => card(a.title, a.name, a.sub)).join("")
-                : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
-            }
-          </div>
-
-          ${section("⚔️ Player vs Player Matrix")}
-          <div class="ana-card" style="padding:10px 8px">
-            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
-            ${matrixHtml}
-          </div>
-
-          ${section("All Players")}
-          <div style="display:flex;flex-direction:column;gap:8px">
-            ${players
-              .sort((a, b) => b.wins - a.wins)
-              .map((p) => {
-                const bestMate = Object.entries(p.teammates).sort(
-                  (a, b) => b[1] - a[1],
-                )[0];
-                const wr = p.matches
-                  ? Math.round((p.wins / p.matches) * 100)
-                  : 0;
-                const soWins = shutoutWins[p.name] || 0;
-                const soLosses = shutoutLosses[p.name] || 0;
-                return `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center">
-                <div>
-                  <div class="name" style="font-size:16px">${p.name}</div>
-                  <div class="sub">${p.wins}W · ${p.losses}L · ${p.matches} played</div>
-                  <div style="font-size:11px;color:var(--green);margin-top:3px">🔥 ${p.bestStreak} streak · 🚫 ${soWins} shutouts · 💔 ${soLosses} blanked</div>
-                </div>
-                <div style="text-align:right">
-                  <div style="color:var(--accent);font-size:15px;font-weight:700">${wr}%</div>
-                  <div style="font-size:10px;color:var(--muted);margin-top:4px">Best mate</div>
-                  <div style="font-size:12px">${bestMate?.[0] || "—"}</div>
-                </div>
-              </div>`;
-              })
-              .join("")}
           </div>`;
       }
 
@@ -6896,6 +6859,72 @@ Parthiv - Par"
 
         // Initial state
         setTimeout(toggleHistoryFeatureCards, 250);
+      });
+    </script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // Remove ALL PLAYERS cards
+        document.querySelectorAll("*").forEach((el) => {
+          const txt = (el.textContent || "").trim().toUpperCase();
+
+          if (txt === "ALL PLAYERS" || txt.includes("ALL PLAYERS")) {
+            // Find likely card container
+            let parent = el;
+
+            for (let i = 0; i < 5; i++) {
+              if (!parent) break;
+
+              if (
+                parent.classList &&
+                (parent.classList.contains("panel") ||
+                  parent.classList.contains("card") ||
+                  parent.classList.contains("ana-card") ||
+                  parent.classList.contains("stats-card"))
+              ) {
+                parent.style.display = "none";
+                break;
+              }
+
+              parent = parent.parentElement;
+            }
+          }
+        });
+
+        // Move Player vs Player Matrix to top
+        const analyticsPage =
+          document.querySelector("#analyticsPage") ||
+          document.querySelector(".analytics-page") ||
+          document.querySelector('[data-page="analytics"]');
+
+        if (!analyticsPage) return;
+
+        const matrixTitle = Array.from(
+          analyticsPage.querySelectorAll("*"),
+        ).find((el) => {
+          const txt = (el.textContent || "").trim().toLowerCase();
+          return txt.includes("player vs player");
+        });
+
+        if (!matrixTitle) return;
+
+        // Find matrix block
+        let matrixBlock =
+          matrixTitle.closest("section") ||
+          matrixTitle.closest(".card") ||
+          matrixTitle.closest(".panel") ||
+          matrixTitle.parentElement;
+
+        if (!matrixBlock) return;
+
+        // Insert near top
+        const firstSection =
+          analyticsPage.querySelector(".ana-section-title") ||
+          analyticsPage.firstElementChild;
+
+        if (firstSection && matrixBlock !== firstSection) {
+          analyticsPage.insertBefore(matrixBlock, firstSection);
+        }
       });
     </script>
   </body>
