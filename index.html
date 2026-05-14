@@ -1391,6 +1391,112 @@
         text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
       }
 
+      /* ── SESSION SUMMARY CARD ── */
+      .session-summary-card {
+        background: linear-gradient(
+          135deg,
+          rgba(98, 182, 255, 0.07),
+          rgba(98, 182, 255, 0.03)
+        );
+        border: 1.5px solid rgba(98, 182, 255, 0.35);
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        position: relative;
+        overflow: hidden;
+      }
+      .session-summary-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          var(--accent3),
+          rgba(98, 182, 255, 0.3),
+          var(--accent3)
+        );
+      }
+      .ss-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .ss-label {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent3);
+        background: rgba(98, 182, 255, 0.1);
+        padding: 3px 9px;
+        border-radius: 20px;
+        border: 1px solid rgba(98, 182, 255, 0.25);
+      }
+      .ss-date {
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .ss-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .ss-stat {
+        background: rgba(9, 9, 15, 0.5);
+        border-radius: 8px;
+        padding: 8px 4px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .ss-val {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 22px;
+        color: var(--accent3);
+        line-height: 1;
+      }
+      .ss-lbl {
+        font-size: 7.5px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-top: 2px;
+      }
+      .ss-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(245, 200, 66, 0.06);
+        border: 1px solid rgba(245, 200, 66, 0.15);
+        border-radius: 8px;
+        padding: 7px 10px;
+        flex-wrap: wrap;
+      }
+      .ss-top-label {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        flex-shrink: 0;
+      }
+      .ss-top-name {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 16px;
+        color: var(--gold);
+        letter-spacing: 0.05em;
+        flex: 1;
+      }
+      .ss-top-rec {
+        font-size: 10px;
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+
       /* ── MATCH OF THE DAY ── */
       .motd-card {
         background: linear-gradient(
@@ -4111,6 +4217,78 @@ Parthiv - Par"
         return motdHtml + upsetHtml;
       }
 
+      // ── SESSION SUMMARY CARD ───────────────────────────────────
+      function buildSessionSummary() {
+        if (!allMatches.length) return "";
+        const latestDate = allMatches.reduce(
+          (max, m) => (m.date > max ? m.date : max),
+          "",
+        );
+        const sessionMatches = allMatches.filter((m) => m.date === latestDate);
+        if (!sessionMatches.length) return "";
+
+        const playerSet = new Set();
+        sessionMatches.forEach((m) => {
+          [...m.teamA, ...m.teamB].forEach((p) => playerSet.add(p));
+        });
+        const totalGames = sessionMatches.reduce(
+          (s, m) => s + m.scoreA + m.scoreB,
+          0,
+        );
+
+        // Top performer: best win rate in session, tie-break by game diff
+        const sessionStats = computeStats(sessionMatches);
+        const top = sessionStats[0];
+
+        // Closest game
+        const closest = [...sessionMatches].sort(
+          (a, b) =>
+            Math.abs(a.scoreA - a.scoreB) - Math.abs(b.scoreA - b.scoreB),
+        )[0];
+        const closestScore = `${Math.max(closest.scoreA, closest.scoreB)}-${Math.min(closest.scoreA, closest.scoreB)}`;
+
+        // Format date nicely
+        const [y, mo, d] = latestDate.split("-");
+        const dateLabel = new Date(latestDate + "T00:00:00").toLocaleDateString(
+          "en-IN",
+          { day: "numeric", month: "short", year: "numeric" },
+        );
+
+        return `<div class="session-summary-card">
+          <div class="ss-header">
+            <span class="ss-label">📋 SESSION RECAP</span>
+            <span class="ss-date">${dateLabel}</span>
+          </div>
+          <div class="ss-stats">
+            <div class="ss-stat">
+              <div class="ss-val">${sessionMatches.length}</div>
+              <div class="ss-lbl">Matches</div>
+            </div>
+            <div class="ss-stat">
+              <div class="ss-val">${playerSet.size}</div>
+              <div class="ss-lbl">Players</div>
+            </div>
+            <div class="ss-stat">
+              <div class="ss-val">${totalGames}</div>
+              <div class="ss-lbl">Total Games</div>
+            </div>
+            <div class="ss-stat">
+              <div class="ss-val">${closestScore}</div>
+              <div class="ss-lbl">Closest Score</div>
+            </div>
+          </div>
+          ${
+            top
+              ? `<div class="ss-top">
+            <span class="ss-top-label">⭐ Top Performer</span>
+            <span class="ss-top-name">${top.name}</span>
+            <span class="ss-top-rec">${top.mw}W–${top.ml}L &nbsp;·&nbsp; ${top.winPct.toFixed(0)}% win rate</span>
+          </div>`
+              : ""
+          }
+        </div>`;
+      }
+
       function renderModernMatches() {
         const query = (
           document.getElementById("modern-match-search")?.value || ""
@@ -4185,8 +4363,12 @@ Parthiv - Par"
           summary = `<div class="ana-card" style="margin-bottom:10px"><span class="badge">Head-to-Head</span><div class="name" style="font-size:18px">${h2hFilterA} ${h2h.aWins}-${h2h.bWins} ${h2hFilterB}</div><div class="sub">${h2h.matches.length} match(es) · ${h2hFilterA} diff ${h2h.diff >= 0 ? "+" : ""}${h2h.diff}</div></div>`;
         }
         const motdHtml = buildMatchOfTheDay();
+        const sessionSummaryHtml = buildSessionSummary();
         document.getElementById("modern-match-list").innerHTML =
-          motdHtml + summary + buildMatchCards(matches, true);
+          sessionSummaryHtml +
+          motdHtml +
+          summary +
+          buildMatchCards(matches, true);
         populateHistoryPlayerChips();
         populateHistoryAdvancedFilters();
       }
