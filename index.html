@@ -1053,14 +1053,14 @@
       /* REV LIMITER */
       .sr-ring.rev-limit {
         animation:
-          limiterShake 0.08s infinite,
-          limiterPulse 0.28s infinite alternate;
+          limiterShake 0.08s linear 25,
+          limiterPulse 0.28s ease-in-out 7 alternate;
       }
 
       .sr-ring.rev-limit .needle {
         animation:
-          limiterNeedle 0.07s infinite alternate,
-          limiterGlow 0.18s infinite alternate;
+          limiterNeedle 0.07s linear 28 alternate,
+          limiterGlow 0.18s ease-in-out 11 alternate;
       }
 
       .sr-ring.rev-limit .gauge::before {
@@ -1088,7 +1088,7 @@
           transparent 70%
         );
 
-        animation: redFlash 0.18s infinite alternate;
+        animation: redFlash 0.18s ease-in-out 11 alternate;
         z-index: 0;
       }
       .rg .sr-val {
@@ -4358,19 +4358,40 @@ Parthiv - Par"
             if (!ring) return;
             const angle =
               getComputedStyle(ring).getPropertyValue("--speed-angle");
-            needle.animate(
-              [
-                { transform: "translateX(-50%) rotate(-100deg)" },
+            document.querySelectorAll(".needle").forEach((needle) => {
+              const ring = needle.closest(".sr-ring");
+
+              if (!ring) return;
+
+              const targetAngle = getComputedStyle(ring)
+                .getPropertyValue("--speed-angle")
+                .trim();
+
+              needle.animate(
+                [
+                  /* START AT 0 */
+                  {
+                    transform: "translateX(-50%) rotate(-90deg)",
+                  },
+
+                  /* GO FULL 100 / MAX REV */
+                  {
+                    transform: "translateX(-50%) rotate(90deg)",
+                    offset: 0.62,
+                  },
+
+                  /* SETTLE TO ACTUAL VALUE */
+                  {
+                    transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))`,
+                  },
+                ],
                 {
-                  transform: `translateX(-50%) rotate(calc(-90deg + ${angle}))`,
+                  duration: 2200,
+                  easing: "cubic-bezier(0.22,1.15,0.36,1)",
+                  fill: "forwards",
                 },
-              ],
-              {
-                duration: 1400,
-                easing: "cubic-bezier(0.22,1.4,0.36,1)",
-                fill: "forwards",
-              },
-            );
+              );
+            });
           });
         });
       }
@@ -4444,12 +4465,21 @@ Parthiv - Par"
               100,
               Math.max(0, Math.round((p.sr / 10) * 100)),
             );
-            const speedAngle = Math.round((ratingPct / 100) * 180);
-            const ratingClass =
-              p.sr >= 6 ? "sr-high" : p.sr >= 4 ? "sr-mid" : "sr-low";
+            const normalizedSR = Math.max(0, Math.min(8, p.sr));
+            const speedAngle = (normalizedSR / 8) * 180;
+            let ratingClass = "sr-low";
+            if (normalizedSR >= 6) {
+              ratingClass = "sr-high";
+            } else if (normalizedSR >= 4) {
+              ratingClass = "sr-mid";
+            }
+            /* REV LIMITER */
+            if (normalizedSR >= 7.1) {
+              ratingClass += " rev-limit";
+            }
             const trend = "";
             const momentumBadge = getMomentumBadge(p.name);
-            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--speed-angle: ${speedAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(1)}</div></div></td></tr>`;
+            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--speed-angle: ${speedAngle}deg;--target-angle:${speedAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(1)}</div></div></td></tr>`;
           })
           .join("");
         document.getElementById("cmpMatches").innerHTML = buildMatchCards(
