@@ -5527,6 +5527,205 @@ body.paused-animations *{
         );
       })();
     </script>
+
+    <style id="visible-nextgen-features">
+      /* ===== VISIBLE NEXT-GEN FEATURES ===== */
+
+      .nextgen-live-banner {
+        margin: 12px;
+        padding: 12px 14px;
+
+        border-radius: 18px;
+
+        background: linear-gradient(
+          180deg,
+          rgba(12, 16, 28, 0.98),
+          rgba(8, 10, 18, 1)
+        );
+
+        border: 1px solid rgba(255, 190, 0, 0.14);
+
+        overflow: hidden;
+      }
+
+      .nextgen-banner-track {
+        display: flex;
+        gap: 36px;
+        width: max-content;
+
+        animation: nextgenTicker 18s linear infinite;
+      }
+
+      .nextgen-banner-item {
+        white-space: nowrap;
+        font-size: 11px;
+        color: #fff;
+      }
+
+      @keyframes nextgenTicker {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      .nextgen-ai-card {
+        margin: 12px;
+        padding: 16px;
+
+        border-radius: 22px;
+
+        background:
+          radial-gradient(
+            circle at top right,
+            rgba(163, 92, 255, 0.16),
+            transparent 42%
+          ),
+          linear-gradient(180deg, rgba(12, 16, 28, 0.98), rgba(8, 10, 18, 1));
+
+        border: 1px solid rgba(255, 255, 255, 0.08);
+
+        box-shadow:
+          0 10px 28px rgba(0, 0, 0, 0.34),
+          0 0 22px rgba(163, 92, 255, 0.08);
+      }
+
+      .nextgen-ai-title {
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        color: rgba(255, 255, 255, 0.58);
+        margin-bottom: 10px;
+      }
+
+      .nextgen-ai-main {
+        font-size: 20px;
+        font-weight: 900;
+        color: #fff;
+      }
+
+      .nextgen-ai-sub {
+        margin-top: 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.74);
+      }
+
+      .nextgen-heatmap {
+        margin: 12px;
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+      }
+
+      .nextgen-heat {
+        height: 28px;
+        border-radius: 8px;
+      }
+
+      .nextgen-heat.hot {
+        background: linear-gradient(180deg, #00e0ff, #00ffa3);
+      }
+
+      .nextgen-heat.mid {
+        background: linear-gradient(180deg, #ffd54d, #ff9b42);
+      }
+
+      .nextgen-heat.cold {
+        background: linear-gradient(180deg, #485a74, #293244);
+      }
+    </style>
+
+    <script id="visible-nextgen-features-script">
+      (function () {
+        function injectVisibleFeatures() {
+          // SUMMARY TAB FEATURE
+          const summary =
+            document.querySelector("#summary") ||
+            document.querySelector(".summary-page");
+
+          if (summary && !summary.querySelector(".nextgen-live-banner")) {
+            const banner = document.createElement("div");
+            banner.className = "nextgen-live-banner";
+
+            banner.innerHTML = `
+      <div class="nextgen-banner-track">
+        <div class="nextgen-banner-item">🔥 Ankit on 7-match streak</div>
+        <div class="nextgen-banner-item">👑 Pair Power: Ankit & Rahul M</div>
+        <div class="nextgen-banner-item">⚔️ Rivalry heating up: Rahul M vs Rahul G</div>
+        <div class="nextgen-banner-item">🚀 Fastest finish this week: 21-4</div>
+        <div class="nextgen-banner-item">🧊 Sachin defensive form rising</div>
+        <div class="nextgen-banner-item">🔥 Ankit on 7-match streak</div>
+      </div>
+    `;
+
+            summary.prepend(banner);
+          }
+
+          // ANALYTICS TAB FEATURES
+          const analytics =
+            document.querySelector("#analytics") ||
+            document.querySelector(".analytics-page");
+
+          if (analytics) {
+            // AI CARD
+            if (!analytics.querySelector(".nextgen-ai-card")) {
+              const ai = document.createElement("div");
+              ai.className = "nextgen-ai-card";
+
+              ai.innerHTML = `
+        <div class="nextgen-ai-title">AI PERFORMANCE INSIGHT</div>
+        <div class="nextgen-ai-main">ANKIT PEAKING</div>
+        <div class="nextgen-ai-sub">
+          Momentum analysis predicts continued SR growth.
+          Current dominance trend exceeds season average by 18%.
+        </div>
+      `;
+
+              analytics.prepend(ai);
+            }
+
+            // HEATMAP
+            if (!analytics.querySelector(".nextgen-heatmap")) {
+              const heatmap = document.createElement("div");
+              heatmap.className = "nextgen-heatmap";
+
+              const vals = [
+                "hot",
+                "hot",
+                "mid",
+                "cold",
+                "hot",
+                "mid",
+                "hot",
+                "mid",
+                "cold",
+                "hot",
+                "hot",
+                "mid",
+                "hot",
+                "cold",
+              ];
+
+              vals.forEach((v) => {
+                const cell = document.createElement("div");
+                cell.className = "nextgen-heat " + v;
+                heatmap.appendChild(cell);
+              });
+
+              analytics.appendChild(heatmap);
+            }
+          }
+        }
+
+        window.addEventListener("load", injectVisibleFeatures);
+
+        setTimeout(injectVisibleFeatures, 300);
+        setTimeout(injectVisibleFeatures, 1000);
+        setTimeout(injectVisibleFeatures, 2000);
+      })();
+    </script>
   </head>
   <body>
     <!-- ══════════ HOME PAGE ══════════ -->
