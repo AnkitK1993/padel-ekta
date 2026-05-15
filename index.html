@@ -144,6 +144,68 @@
       .nav-title span {
         color: var(--accent);
       }
+
+      /* ── HISTORY PAGE HEADER (replaces generic nav) ── */
+      .history-nav {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
+        border-bottom: 1px solid rgba(245, 200, 66, 0.1);
+        padding: 14px 16px 12px;
+        position: relative;
+        overflow: hidden;
+        gap: 4px;
+      }
+      .history-nav::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(245, 200, 66, 0.4),
+          transparent
+        );
+      }
+      .history-nav::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(245, 200, 66, 0.12),
+          transparent
+        );
+      }
+      .history-nav-eyebrow {
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .history-nav-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 28px;
+        letter-spacing: 0.18em;
+        color: var(--text);
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .history-nav-title span {
+        color: var(--accent);
+        text-shadow: 0 0 22px rgba(245, 200, 66, 0.35);
+      }
       .nav-btn {
         background: none;
         border: none;
@@ -855,21 +917,17 @@
       .cmp-topbar {
         flex-shrink: 0;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
-        padding: 10px 14px;
-        background: linear-gradient(180deg, #08080f 0%, #0b0c17 100%);
+        justify-content: center;
+        background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
         border-bottom: 1px solid rgba(245, 200, 66, 0.1);
-        gap: 10px;
-        position: sticky;
-        top: 0;
-        z-index: 12;
-        backdrop-filter: blur(24px);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        padding: 14px 16px 14px;
+        position: relative;
         overflow: hidden;
+        gap: 10px;
       }
 
-      /* subtle top accent line */
       .cmp-topbar::before {
         content: "";
         position: absolute;
@@ -880,50 +938,47 @@
         background: linear-gradient(
           90deg,
           transparent,
-          rgba(245, 200, 66, 0.35),
+          rgba(245, 200, 66, 0.4),
+          transparent
+        );
+      }
+
+      .cmp-topbar::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(245, 200, 66, 0.12),
           transparent
         );
       }
 
       .cmp-brand {
-        display: flex;
-        align-items: center;
-        width: 50%;
-        min-width: 0;
-        gap: 8px;
-      }
-
-      .cmp-brand .t1 {
         display: none;
       }
 
-      /* SUMMARY label — clean wordmark style */
-      .cmp-brand .pill {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 22px;
-        font-weight: 400;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--accent);
-        background: none;
-        border: none;
-        padding: 0;
-        border-radius: 0;
-        box-shadow: none;
-        line-height: 1;
-        text-shadow: 0 0 20px rgba(245, 200, 66, 0.3);
+      .summary-filter-row {
+        width: 100%;
+        display: flex;
+        justify-content: stretch;
       }
 
       .cmp-sel-wrap {
         display: flex;
         align-items: center;
-        width: 50%;
+        width: 100%;
+        max-width: 100%;
         position: relative;
       }
 
       select.cmp-sel {
         width: 100%;
-        height: 36px;
+        height: 40px;
         background: rgba(245, 200, 66, 0.06);
         border: 1px solid rgba(245, 200, 66, 0.18);
         color: var(--text);
@@ -1899,7 +1954,6 @@
         flex-shrink: 0;
         width: 28px;
       }
-
       /* ── ANALYTICS PAGE ── */
       .ana-section-title {
         font-size: 11px;
@@ -3574,7 +3628,7 @@
         line-height: 1;
         color: var(--text);
         min-width: 28px;
-        text-align: right;
+        text-align: center;
       }
       .rg .sr-pill-val {
         color: var(--gold);
@@ -3842,19 +3896,19 @@
     <!-- ══════════ COMPACT PAGE ══════════ -->
     <div class="page" id="pg-compact">
       <div class="page-body-scroll">
-        <div class="cmp-topbar">
-          <div class="cmp-brand">
-            <div class="pill">Summary</div>
-          </div>
-          <div class="cmp-sel-wrap">
-            <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="weekend">Weekend</option>
-              <option value="month">This Month</option>
-              <option value="range">Date Range...</option>
-            </select>
+        <div class="cmp-topbar history-style-summary">
+          <div class="history-nav-title">SUM<span>MARY</span></div>
+          <div class="summary-filter-row">
+            <div class="cmp-sel-wrap">
+              <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="weekend">Weekend</option>
+                <option value="month">This Month</option>
+                <option value="range">Date Range...</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="cmp-dr" id="cmpDr">
@@ -3939,10 +3993,8 @@
     <!-- ══════════ HISTORY PAGE ══════════ -->
     <div class="page" id="pg-history">
       <div class="page-body-scroll">
-        <div class="nav">
-          <div style="flex: 1"></div>
-          <div class="nav-title">MATCH <span>HISTORY</span></div>
-          <div style="flex: 1"></div>
+        <div class="history-nav">
+          <div class="history-nav-title">MATCH <span>HISTORY</span></div>
         </div>
         <div class="dr-wrap" id="matchDr">
           <div class="dr-g">
@@ -4123,9 +4175,7 @@
     <div class="page" id="pg-analytics">
       <div class="page-body-scroll">
         <div class="nav">
-          <div style="flex: 1"></div>
-          <div class="nav-title">📈 <span>ANALYTICS</span></div>
-          <div style="flex: 1"></div>
+          <div class="history-nav-title">ANAL<span>YTICS</span></div>
         </div>
         <div id="analytics-page-content" style="padding: 0 11px 110px"></div>
       </div>
@@ -6180,6 +6230,31 @@ Parthiv - Par"
           .join("");
         pairSelect.innerHTML = `<option value="">All Pairs</option>${pairOptions}`;
         pairSelect.value = currentPair;
+
+        // ── Populate H2H player selects ──
+        const h2hA = document.getElementById("h2hPlayerA");
+        const h2hB = document.getElementById("h2hPlayerB");
+        if (h2hA && h2hB) {
+          const names = new Set();
+          allMatches.forEach((m) => {
+            [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
+              names.add(nameMap[p] || p),
+            );
+          });
+          const sorted = [...names].sort((a, b) => a.localeCompare(b));
+          const opts = sorted
+            .map(
+              (n) =>
+                `<option value="${n.replace(/"/g, "&quot;")}">${n}</option>`,
+            )
+            .join("");
+          const savedA = h2hA.value || h2hFilterA;
+          const savedB = h2hB.value || h2hFilterB;
+          h2hA.innerHTML = `<option value="">Player A</option>${opts}`;
+          h2hB.innerHTML = `<option value="">Player B</option>${opts}`;
+          if (savedA) h2hA.value = savedA;
+          if (savedB) h2hB.value = savedB;
+        }
 
         const seasonSelect = document.getElementById("histSeasonFilter");
         if (seasonSelect) {
