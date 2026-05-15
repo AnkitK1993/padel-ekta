@@ -145,10 +145,29 @@
         color: var(--accent);
       }
 
+      .nav-title-inline {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: max-content;
+      }
+
+      .nav-inline-sub {
+        font-family: "DM Sans", sans-serif;
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
       /* ── HISTORY PAGE HEADER (replaces generic nav) ── */
       .history-nav {
         flex-shrink: 0;
         display: flex;
+        text-align: center;
         flex-direction: column;
         align-items: center;
         justify-content: center;
@@ -195,6 +214,8 @@
         color: var(--muted);
       }
       .history-nav-title {
+        width: 100%;
+        text-align: center;
         font-family: "Bebas Neue", sans-serif;
         font-size: 28px;
         letter-spacing: 0.18em;
@@ -233,6 +254,21 @@
         box-shadow: 0 4px 12px rgba(245, 200, 66, 0.2);
         font-family: "DM Sans", sans-serif;
         flex-shrink: 0;
+      }
+
+      .detailed-header {
+        min-height: 74px;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
+      }
+
+      .detailed-header-title {
+        width: 100%;
+        text-align: center;
+        font-size: 28px;
+        letter-spacing: 0.18em;
       }
 
       /* ── HOME HEADER ── */
@@ -3156,7 +3192,7 @@
         }
 
         .nav-title {
-          font-size: 15px;
+          font-size: 24px;
         }
 
         .pname {
@@ -3807,7 +3843,13 @@
       <div class="page-body-scroll">
         <div class="nav">
           <div style="flex: 1"></div>
-          <div class="nav-title">EKTA <span>PADEL</span></div>
+
+          <div class="nav-title nav-title-inline">
+            EKTA <span>PADEL</span> STATISTICS<span
+              class="nav-inline-sub"
+            ></span>
+          </div>
+
           <div
             style="display: flex; align-items: center; gap: 6px; flex-shrink: 0"
           >
@@ -3817,10 +3859,7 @@
             <button id="loginBtn">Login</button>
           </div>
         </div>
-        <div class="home-header">
-          <div class="home-badge">🏓 Sunday Group ET Rankings</div>
-          <div class="home-title">LEADER<span>BOARD</span></div>
-        </div>
+        <div class="home-header"></div>
         <div class="home-filter-bar">
           <div class="home-filter-pill">
             <select
