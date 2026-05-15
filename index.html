@@ -5208,6 +5208,325 @@
         }
       }
     </style>
+
+    <style id="summary-table-spacing-fix">
+      /* SUMMARY TABLE SPACING FIX */
+
+      /* Reduce MP width */
+      table.cmp thead th:nth-child(3),
+      table.cmp tbody td:nth-child(3) {
+        width: 34px !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+      }
+
+      /* Expand PLAYER column using freed SR spacing */
+      table.cmp thead th:nth-child(2),
+      table.cmp tbody td:nth-child(2) {
+        width: 118px !important;
+        max-width: 118px !important;
+        padding-right: 2px !important;
+      }
+
+      /* Reduce excess SR spacing */
+      table.cmp thead th:nth-child(9),
+      table.cmp tbody td:nth-child(9) {
+        width: 58px !important;
+        padding-left: 1px !important;
+        padding-right: 1px !important;
+      }
+
+      /* Make long names fit better */
+      table.cmp tbody td:nth-child(2) {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        font-size: 12px !important;
+        letter-spacing: -0.01em !important;
+      }
+
+      /* Prevent PLAYER / MP overlap */
+      table.cmp thead th {
+        font-size: 9px !important;
+        white-space: nowrap !important;
+      }
+
+      table.cmp {
+        table-layout: fixed !important;
+      }
+    </style>
+
+    <style id="wl-column-font-fix">
+      /* Increase W-L column value size */
+      .rec-cell {
+        font-size: 10px !important;
+        font-weight: 700 !important;
+      }
+    </style>
+
+    <style id="uniform-summary-spacing">
+      /* UNIFORM SUMMARY TABLE SPACING */
+
+      table.cmp {
+        width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+      }
+
+      /* uniform cell spacing */
+      table.cmp th,
+      table.cmp td {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+      }
+
+      /* rank */
+      table.cmp th:nth-child(1),
+      table.cmp td:nth-child(1) {
+        width: 24px !important;
+      }
+
+      /* player */
+      table.cmp th:nth-child(2),
+      table.cmp td:nth-child(2) {
+        width: 108px !important;
+        text-align: left !important;
+        padding-left: 6px !important;
+      }
+
+      /* MP */
+      table.cmp th:nth-child(3),
+      table.cmp td:nth-child(3) {
+        width: 34px !important;
+      }
+
+      /* W-L */
+      table.cmp th:nth-child(4),
+      table.cmp td:nth-child(4) {
+        width: 52px !important;
+      }
+
+      /* WIN% */
+      table.cmp th:nth-child(5),
+      table.cmp td:nth-child(5) {
+        width: 42px !important;
+      }
+
+      /* GF */
+      table.cmp th:nth-child(6),
+      table.cmp td:nth-child(6) {
+        width: 34px !important;
+      }
+
+      /* GL */
+      table.cmp th:nth-child(7),
+      table.cmp td:nth-child(7) {
+        width: 34px !important;
+      }
+
+      /* G% */
+      table.cmp th:nth-child(8),
+      table.cmp td:nth-child(8) {
+        width: 42px !important;
+      }
+
+      /* SR */
+      table.cmp th:nth-child(9),
+      table.cmp td:nth-child(9) {
+        width: 58px !important;
+        padding-right: 6px !important;
+      }
+
+      /* Better visual alignment */
+      table.cmp tbody td {
+        font-size: 12px !important;
+      }
+
+      /* W-L styling */
+      .rec-cell {
+        font-size: 10px !important;
+        letter-spacing: -0.01em !important;
+      }
+    </style>
+
+    <style id="player-mp-spacing-fix">
+      /* FIX PLAYER ↔ MP SPACING WITHOUT PUSHING SR */
+
+      /* keep SR inside viewport */
+      table.cmp th:nth-child(9),
+      table.cmp td:nth-child(9) {
+        width: 44px !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+      }
+
+      /* reduce PLAYER width slightly */
+      table.cmp th:nth-child(2),
+      table.cmp td:nth-child(2) {
+        width: 96px !important;
+        max-width: 96px !important;
+        padding-right: 10px !important;
+      }
+
+      /* add breathing room before MP */
+      table.cmp th:nth-child(3),
+      table.cmp td:nth-child(3) {
+        width: 38px !important;
+        padding-left: 10px !important;
+      }
+
+      /* tighten center columns */
+      table.cmp th:nth-child(4),
+      table.cmp td:nth-child(4),
+      table.cmp th:nth-child(5),
+      table.cmp td:nth-child(5),
+      table.cmp th:nth-child(6),
+      table.cmp td:nth-child(6),
+      table.cmp th:nth-child(7),
+      table.cmp td:nth-child(7),
+      table.cmp th:nth-child(8),
+      table.cmp td:nth-child(8) {
+        width: auto !important;
+        padding-left: 3px !important;
+        padding-right: 3px !important;
+      }
+    </style>
+
+    <style id="mobile-performance-optimizations">
+      /* MOBILE PERFORMANCE OPTIMIZATIONS */
+
+      /* reduce expensive blur/shadow repaints */
+      .analytics-premium-card,
+      .match-card,
+      .tbb,
+      .bottom-nav-item {
+        will-change: transform;
+        backface-visibility: hidden;
+        transform: translateZ(0);
+      }
+
+      /* lighter shadows on mobile */
+      @media (max-width: 768px) {
+        .analytics-premium-card,
+        .match-card {
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28) !important;
+        }
+
+        * {
+          -webkit-tap-highlight-color: transparent;
+        }
+      }
+    </style>
+
+    <script id="mobile-runtime-optimizer">
+      (function () {
+        /* prevent repeated rendering loops */
+        window.__analyticsRendered = false;
+
+        /* debounce utility */
+        function debounce(fn, wait) {
+          let t;
+          return function () {
+            clearTimeout(t);
+            t = setTimeout(fn, wait);
+          };
+        }
+
+        /* optimized analytics injection */
+        function safeAnalyticsRender() {
+          if (window.__analyticsRendered) return;
+
+          const analyticsRoot =
+            document.querySelector("#analytics") ||
+            document.querySelector(".analytics-page");
+
+          if (!analyticsRoot) return;
+
+          if (analyticsRoot.querySelector(".analytics-premium-wrapper")) {
+            window.__analyticsRendered = true;
+            return;
+          }
+
+          window.__analyticsRendered = true;
+        }
+
+        /* optimized tab switching */
+        function optimizeTabs() {
+          const tabs = document.querySelectorAll(
+            ".tbb,.bottom-nav-item,.tab-item",
+          );
+
+          tabs.forEach((tab) => {
+            if (tab.dataset.optimized) return;
+
+            tab.dataset.optimized = "1";
+
+            tab.addEventListener(
+              "click",
+              debounce(() => {
+                // cancel heavy animations during rapid switching
+                document.body.classList.add("tab-switching");
+
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    document.body.classList.remove("tab-switching");
+                  });
+                });
+              }, 80),
+              { passive: true },
+            );
+          });
+        }
+
+        /* pause expensive animations while hidden */
+        document.addEventListener(
+          "visibilitychange",
+          () => {
+            if (document.hidden) {
+              document.body.classList.add("paused-animations");
+            } else {
+              document.body.classList.remove("paused-animations");
+            }
+          },
+          { passive: true },
+        );
+
+        /* disable heavy transitions during rapid switches */
+        const perfStyle = document.createElement("style");
+        perfStyle.innerHTML = `
+body.tab-switching *{
+  animation-duration:0s !important;
+  transition-duration:0s !important;
+}
+
+body.paused-animations *{
+  animation-play-state:paused !important;
+}
+`;
+
+        document.head.appendChild(perfStyle);
+
+        /* run once */
+        window.addEventListener(
+          "load",
+          () => {
+            safeAnalyticsRender();
+            optimizeTabs();
+          },
+          { passive: true },
+        );
+
+        document.addEventListener(
+          "DOMContentLoaded",
+          () => {
+            safeAnalyticsRender();
+            optimizeTabs();
+          },
+          { passive: true },
+        );
+      })();
+    </script>
   </head>
   <body>
     <!-- ══════════ HOME PAGE ══════════ -->
@@ -8844,15 +9163,6 @@ Parthiv - Par"
         setTimeout(applyPrettyDates, 100);
         setTimeout(applyPrettyDates, 500);
         setTimeout(applyPrettyDates, 1200);
-
-        const observer = new MutationObserver(() => {
-          applyPrettyDates();
-        });
-
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true,
-        });
       })();
     </script>
 
@@ -8867,15 +9177,6 @@ Parthiv - Par"
 
       setTimeout(applySummaryTableAnimations, 100);
       setTimeout(applySummaryTableAnimations, 500);
-
-      const summaryObserver = new MutationObserver(() => {
-        applySummaryTableAnimations();
-      });
-
-      summaryObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-      });
     </script>
 
     <script>
@@ -8923,17 +9224,182 @@ Parthiv - Par"
 
         setTimeout(cleanupExtremeAndPairPower, 300);
         setTimeout(cleanupExtremeAndPairPower, 1200);
+      })();
+    </script>
 
-        const cleanupObserver = new MutationObserver(() => {
-          cleanupExtremeAndPairPower();
-        });
+    <script id="read-heavy-cache-optimizer">
+      /* ════════════════════════════════════════
+   READ-HEAVY CACHE OPTIMIZATION LAYER
+════════════════════════════════════════ */
 
-        window.addEventListener("load", cleanupExtremeAndPairPower);
+      (function () {
+        const CACHE_VERSION = "v3";
+        const CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
 
-        cleanupObserver.observe(document.body, {
-          childList: true,
-          subtree: true,
-        });
+        const memoryCache = new Map();
+
+        /* FAST MEMORY CACHE */
+        window.fastCache = {
+          get(key) {
+            // memory first
+            if (memoryCache.has(key)) {
+              return memoryCache.get(key);
+            }
+
+            try {
+              const raw = localStorage.getItem(key);
+
+              if (!raw) return null;
+
+              const parsed = JSON.parse(raw);
+
+              if (Date.now() - parsed.ts > CACHE_TTL) {
+                localStorage.removeItem(key);
+                return null;
+              }
+
+              memoryCache.set(key, parsed.data);
+
+              return parsed.data;
+            } catch (e) {
+              return null;
+            }
+          },
+
+          set(key, value) {
+            try {
+              memoryCache.set(key, value);
+
+              localStorage.setItem(
+                key,
+                JSON.stringify({
+                  ts: Date.now(),
+                  version: CACHE_VERSION,
+                  data: value,
+                }),
+              );
+            } catch (e) {}
+          },
+        };
+
+        /* CACHE LARGE DATASETS */
+        function cacheAppData() {
+          try {
+            const datasets = {
+              matches: window.matches,
+              players: window.players,
+              leaderboard: window.leaderboardData,
+              analytics: window.analyticsData,
+            };
+
+            Object.entries(datasets).forEach(([k, v]) => {
+              if (v && Array.isArray(v) && v.length) {
+                fastCache.set("cache_" + k, v);
+              }
+            });
+          } catch (e) {}
+        }
+
+        /* RESTORE CACHE INSTANTLY BEFORE NETWORK */
+        function restoreCachedData() {
+          try {
+            const matches = fastCache.get("cache_matches");
+            const players = fastCache.get("cache_players");
+            const leaderboard = fastCache.get("cache_leaderboard");
+            const analytics = fastCache.get("cache_analytics");
+
+            if (matches && !window.matches) {
+              window.matches = matches;
+            }
+
+            if (players && !window.players) {
+              window.players = players;
+            }
+
+            if (leaderboard && !window.leaderboardData) {
+              window.leaderboardData = leaderboard;
+            }
+
+            if (analytics && !window.analyticsData) {
+              window.analyticsData = analytics;
+            }
+          } catch (e) {}
+        }
+
+        /* PRECOMPUTED STATS CACHE */
+        window.statsCache = {
+          getOrCompute(key, computeFn) {
+            const cached = fastCache.get("stats_" + key);
+
+            if (cached) return cached;
+
+            const result = computeFn();
+
+            fastCache.set("stats_" + key, result);
+
+            return result;
+          },
+        };
+
+        /* IDLE-TIME CACHE SAVE */
+        function scheduleCacheSave() {
+          if ("requestIdleCallback" in window) {
+            requestIdleCallback(cacheAppData, {
+              timeout: 2000,
+            });
+          } else {
+            setTimeout(cacheAppData, 1200);
+          }
+        }
+
+        /* LIGHTWEIGHT TAB MEMORY */
+        const pageCache = {};
+
+        window.cachePageState = function (tab, state) {
+          pageCache[tab] = state;
+        };
+
+        window.getCachedPageState = function (tab) {
+          return pageCache[tab];
+        };
+
+        /* REDUCE DOM REPAINTS */
+        window.batchDOMUpdates = function (callback) {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(callback);
+          });
+        };
+
+        /* STARTUP */
+        restoreCachedData();
+
+        window.addEventListener(
+          "load",
+          () => {
+            scheduleCacheSave();
+          },
+          { passive: true },
+        );
+
+        document.addEventListener(
+          "visibilitychange",
+          () => {
+            if (document.hidden) {
+              scheduleCacheSave();
+            }
+          },
+          { passive: true },
+        );
+
+        /* PERIODIC SAFE SAVE */
+        setInterval(
+          () => {
+            if (!document.hidden) {
+              scheduleCacheSave();
+            }
+          },
+          1000 * 60 * 10,
+        ); // every 10 mins
       })();
     </script>
   </body>
