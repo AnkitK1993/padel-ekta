@@ -513,12 +513,10 @@
       }
       .skill-block {
         text-align: right;
-      }
-      .skill-block .mini-gauge-wrap {
+        flex-shrink: 0;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: flex-end;
-        gap: 5px;
       }
       .skill-num {
         font-family: "Bebas Neue", sans-serif;
@@ -617,26 +615,34 @@
       }
 
       /* ── HISTORY EXTRA FILTERS ── */
+      /* ── HISTORY FILTER PANEL ── */
       .history-filter-panel {
         flex-shrink: 0;
-        background: linear-gradient(
-          180deg,
-          var(--surface),
-          rgba(17, 17, 24, 0.96)
-        );
-        border-bottom: 1px solid var(--border);
-        padding: 10px 10px 8px;
+        background: linear-gradient(180deg, #08080f 0%, #0c0d1a 100%);
+        border-bottom: 1px solid rgba(245, 200, 66, 0.08);
+        padding: 14px 14px 12px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
+        position: relative;
+      }
+      .history-filter-panel::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(245, 200, 66, 0.25),
+          transparent
+        );
       }
       .hist-filter-row {
         display: flex;
-        gap: 8px;
-        padding: 8px;
-        background: rgba(26, 26, 38, 0.62);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
+        gap: 6px;
         align-items: center;
         overflow-x: auto;
         scrollbar-width: none;
@@ -645,23 +651,23 @@
         display: none;
       }
       .hist-filter-label {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 0.12em;
+        font-size: 8.5px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--accent);
+        color: var(--muted);
         flex-shrink: 0;
         min-width: max-content;
       }
       .hfilt {
         flex-shrink: 0;
-        padding: 6px 11px;
+        padding: 5px 12px;
         border-radius: 999px;
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 600;
         cursor: pointer;
-        border: 1px solid var(--border);
-        background: rgba(9, 9, 15, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: rgba(255, 255, 255, 0.04);
         color: var(--muted);
         font-family: "DM Sans", sans-serif;
         white-space: nowrap;
@@ -671,6 +677,7 @@
         background: var(--accent);
         color: #09090f;
         border-color: var(--accent);
+        font-weight: 700;
       }
       .player-filter-select {
         min-width: 190px;
@@ -683,105 +690,164 @@
       }
       .hist-filter-divider {
         width: 1px;
-        height: 24px;
-        background: var(--border);
+        height: 20px;
+        background: rgba(255, 255, 255, 0.07);
         flex-shrink: 0;
       }
 
+      /* compact panel wrapper */
       .compact-history-panel {
-        gap: 8px;
-        padding: 10px;
+        gap: 10px;
+        padding: 14px 14px 12px;
       }
 
+      /* base compact-row: no card chrome */
       .compact-row {
         display: flex;
-        gap: 12px;
-        padding: 10px;
-        background: rgba(17, 17, 24, 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 16px;
+        gap: 0;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
         align-items: flex-end;
       }
 
+      /* TOP ROW — 2 columns × 2 rows grid */
       .top-filter-row {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+        gap: 8px;
       }
 
+      /* BOTTOM ROW — full-width stacked column */
       .bottom-filter-row {
-        display: grid;
-        grid-template-columns: 1fr 1.5fr;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .compact-pair {
+        width: 100%;
       }
 
       .compact-filter-item {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 5px;
         min-width: 0;
       }
 
       .compact-filter-item .hist-filter-label {
-        font-size: 10px;
+        font-size: 8.5px;
         font-weight: 800;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--accent);
+        color: var(--muted);
         white-space: nowrap;
+        padding-left: 0;
+        text-align: center;
+        align-self: center;
+        width: 100%;
       }
 
+      /* shared select style — no arrow */
       .compact-select {
         width: 100%;
-        height: 44px;
-        border-radius: 14px;
-        background: rgba(18, 18, 30, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        height: 42px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.09);
         color: var(--text);
-        padding: 0 40px 0 14px;
+        padding: 0 12px;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 600;
+        font-family: "DM Sans", sans-serif;
         outline: none;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+        background-image: none;
+        text-align: center;
+        text-align-last: center;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .compact-select:focus,
+      .compact-select:hover {
+        border-color: rgba(245, 200, 66, 0.35);
+        background: rgba(245, 200, 66, 0.06);
+      }
+
+      /* H2H section — Player A · vs · Player B on one line, Clear below */
+      .compact-h2h {
+        width: 100%;
+        align-items: stretch;
       }
 
       .h2h-inline-wrap {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        width: 100%;
       }
 
       .compact-h2h-field {
-        position: relative;
         flex: 1;
+        min-width: 0;
       }
 
       .h2h-select {
         width: 100%;
-        padding-right: 50px;
+        padding: 0 12px;
       }
 
+      /* hide the × clear buttons inside h2h selects */
       .h2h-clear {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: transparent;
-        border: none;
-        color: var(--muted);
-        font-size: 16px;
-        font-weight: 700;
-        cursor: pointer;
+        display: none;
       }
 
       .h2h-vs {
-        color: var(--muted);
-        font-size: 11px;
+        color: rgba(255, 255, 255, 0.2);
+        font-size: 9px;
         font-weight: 700;
         flex-shrink: 0;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
+      /* Clear button — full width below H2H selects */
       .compact-clear-btn {
-        height: 44px;
-        border-radius: 14px;
-        padding: 0 16px;
+        width: 100%;
+        height: 36px;
+        border-radius: 10px;
+        padding: 0;
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition:
+          border-color 0.15s,
+          background 0.15s,
+          color 0.15s;
+        margin-top: 4px;
+      }
+      .compact-clear-btn:hover {
+        border-color: rgba(240, 79, 79, 0.4);
+        background: rgba(240, 79, 79, 0.08);
+        color: var(--red);
+      }
+
+      /* thin separator between filter sections */
+      .compact-history-panel .top-filter-row + .bottom-filter-row {
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding-top: 10px;
+        margin-top: 0;
       }
 
       /* ── COMPACT PAGE ── */
@@ -791,109 +857,104 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 18px;
-        background:
-          radial-gradient(
-            circle at top center,
-            rgba(245, 200, 66, 0.1),
-            transparent 40%
-          ),
-          linear-gradient(180deg, #06070d 0%, #0a0b14 100%);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        gap: 12px;
+        padding: 10px 14px;
+        background: linear-gradient(180deg, #08080f 0%, #0b0c17 100%);
+        border-bottom: 1px solid rgba(245, 200, 66, 0.1);
+        gap: 10px;
         position: sticky;
         top: 0;
         z-index: 12;
-        backdrop-filter: blur(20px);
-        box-shadow:
-          0 10px 30px rgba(0, 0, 0, 0.35),
-          inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(24px);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+      }
+
+      /* subtle top accent line */
+      .cmp-topbar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(245, 200, 66, 0.35),
+          transparent
+        );
       }
 
       .cmp-brand {
         display: flex;
         align-items: center;
-        gap: 8px;
+        width: 50%;
         min-width: 0;
+        gap: 8px;
       }
 
       .cmp-brand .t1 {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 36px;
-        letter-spacing: 0.08em;
-        color: #ffffff;
-        line-height: 1;
-        white-space: nowrap;
-        text-shadow:
-          0 0 14px rgba(255, 255, 255, 0.12),
-          0 0 30px rgba(245, 200, 66, 0.08);
+        display: none;
       }
 
-      .cmp-brand .t1 span {
-        color: var(--accent);
-      }
-
+      /* SUMMARY label — clean wordmark style */
       .cmp-brand .pill {
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.18em;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 22px;
+        font-weight: 400;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--accent);
-        background: rgba(245, 200, 66, 0.08);
-        border: 1px solid rgba(245, 200, 66, 0.35);
-        padding: 7px 14px;
-        border-radius: 999px;
-        box-shadow:
-          0 0 18px rgba(245, 200, 66, 0.12),
-          inset 0 0 12px rgba(245, 200, 66, 0.08);
+        background: none;
+        border: none;
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+        line-height: 1;
+        text-shadow: 0 0 20px rgba(245, 200, 66, 0.3);
+      }
+
+      .cmp-sel-wrap {
+        display: flex;
+        align-items: center;
+        width: 50%;
+        position: relative;
       }
 
       select.cmp-sel {
-        min-width: 92px;
-        max-width: 120px;
-        height: 32px;
-        background: linear-gradient(
-          180deg,
-          rgba(24, 24, 36, 0.98),
-          rgba(16, 16, 26, 0.98)
-        );
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: var(--accent);
+        width: 100%;
+        height: 36px;
+        background: rgba(245, 200, 66, 0.06);
+        border: 1px solid rgba(245, 200, 66, 0.18);
+        color: var(--text);
         text-align: center;
         text-align-last: center;
-        padding: 0 30px 0 14px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
+        padding: 0 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
         letter-spacing: 0.03em;
         font-family: "DM Sans", sans-serif;
         outline: none;
         cursor: pointer;
         -webkit-appearance: none;
         appearance: none;
+        background-image: none;
+        box-shadow: none;
         transition:
           border-color 0.18s ease,
-          box-shadow 0.18s ease,
-          transform 0.18s ease;
-
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23f5c842'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.04),
-          0 0 16px rgba(0, 0, 0, 0.18);
+          background 0.18s ease;
       }
 
       select.cmp-sel:hover {
-        border-color: rgba(245, 200, 66, 0.28);
+        border-color: rgba(245, 200, 66, 0.38);
+        background: rgba(245, 200, 66, 0.1);
       }
 
       select.cmp-sel:focus {
-        border-color: var(--accent);
-        box-shadow:
-          0 0 0 3px rgba(245, 200, 66, 0.08),
-          0 0 16px rgba(245, 200, 66, 0.12);
+        border-color: rgba(245, 200, 66, 0.5);
+        background: rgba(245, 200, 66, 0.1);
+        box-shadow: 0 0 0 3px rgba(245, 200, 66, 0.08);
       }
 
       .cmp-dr {
@@ -920,7 +981,7 @@
         flex: 1;
       }
       .cmp-infobar {
-        padding: 3px 11px;
+        padding: 1px 11px;
         border-bottom: 1px solid var(--border);
         background: var(--card);
       }
@@ -1003,7 +1064,7 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 0;
-        table-layout: auto;
+        table-layout: fixed;
         background: linear-gradient(
           180deg,
           rgba(10, 10, 18, 0.96),
@@ -1015,8 +1076,8 @@
         border-bottom: 2px solid var(--border);
       }
       table.cmp thead th {
-        padding: 7px 4px;
-        font-size: 7.5px;
+        padding: 8px 4px;
+        font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -1053,10 +1114,10 @@
         padding-left: 6px;
         width: 28px;
       }
-      /* Player col: left-aligned, no shrink */
+      /* Player col: center-aligned */
       table.cmp thead th:nth-child(2),
       table.cmp tbody td:nth-child(2) {
-        text-align: left;
+        text-align: center;
         padding-left: 4px;
       }
       /* SR col */
@@ -1089,18 +1150,18 @@
         background: rgba(255, 255, 255, 0.012);
       }
       table.cmp tbody td {
-        padding: 7px 4px;
+        padding: 9px 4px;
         text-align: center;
         vertical-align: middle;
         color: var(--text);
-        font-size: 11px;
+        font-size: 13px;
         white-space: nowrap;
       }
       table.cmp tbody td:nth-child(2) {
-        text-align: left;
+        text-align: center;
         font-weight: 600;
         padding-left: 4px;
-        font-size: 11.5px;
+        font-size: 13px;
         max-width: 90px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2580,6 +2641,9 @@
         font-weight: 600;
         font-family: "DM Sans", sans-serif;
         outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        background-image: none;
       }
       .h2h-field {
         display: inline-flex;
@@ -2972,28 +3036,21 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 18px;
-          background:
-            radial-gradient(
-              circle at top center,
-              rgba(245, 200, 66, 0.1),
-              transparent 40%
-            ),
-            linear-gradient(180deg, #06070d 0%, #0a0b14 100%);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-          gap: 12px;
+          padding: 10px 14px;
+          background: linear-gradient(180deg, #08080f 0%, #0b0c17 100%);
+          border-bottom: 1px solid rgba(245, 200, 66, 0.1);
+          gap: 10px;
           position: sticky;
           top: 0;
           z-index: 12;
-          backdrop-filter: blur(20px);
-          box-shadow:
-            0 10px 30px rgba(0, 0, 0, 0.35),
-            inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+          backdrop-filter: blur(24px);
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+          overflow: hidden;
         }
 
         .cmp-brand {
-          width: 100%;
-          justify-content: center;
+          width: 50%;
+          justify-content: flex-start;
         }
 
         /* Modal optimization */
@@ -3146,16 +3203,16 @@
 
         /* TABLE — already fixed layout, just adjust font/padding */
         table.cmp thead th {
-          font-size: 6.5px;
-          padding: 6px 1px;
+          font-size: 9px;
+          padding: 7px 2px;
         }
         table.cmp tbody td {
-          font-size: 10px;
-          padding: 4px 1px;
+          font-size: 12px;
+          padding: 6px 2px;
           vertical-align: middle;
         }
         table.cmp tbody td:nth-child(2) {
-          font-size: 10.5px;
+          font-size: 12.5px;
         }
 
         .rn {
@@ -3180,40 +3237,25 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 18px;
-          background:
-            radial-gradient(
-              circle at top center,
-              rgba(245, 200, 66, 0.1),
-              transparent 40%
-            ),
-            linear-gradient(180deg, #06070d 0%, #0a0b14 100%);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-          gap: 12px;
+          padding: 10px 14px;
+          background: linear-gradient(180deg, #08080f 0%, #0b0c17 100%);
+          border-bottom: 1px solid rgba(245, 200, 66, 0.1);
+          gap: 10px;
           position: sticky;
           top: 0;
           z-index: 12;
-          backdrop-filter: blur(20px);
-          box-shadow:
-            0 10px 30px rgba(0, 0, 0, 0.35),
-            inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+          backdrop-filter: blur(24px);
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+          overflow: hidden;
         }
 
         .cmp-brand .t1 {
-          font-family: "Bebas Neue", sans-serif;
-          font-size: 36px;
-          letter-spacing: 0.08em;
-          color: #ffffff;
-          line-height: 1;
-          white-space: nowrap;
-          text-shadow:
-            0 0 14px rgba(255, 255, 255, 0.12),
-            0 0 30px rgba(245, 200, 66, 0.08);
+          display: none;
         }
 
         select.cmp-sel {
-          font-size: 14px;
-          padding: 5px 22px 5px 7px;
+          font-size: 12px;
+          padding: 0 12px;
         }
 
         /* Matches below table */
@@ -3234,28 +3276,16 @@
       /* EXTRA SMALL (≤480px) */
       @media (max-width: 480px) {
         table.cmp thead th {
-          font-size: 5.5px;
-          padding: 5px 1px;
+          font-size: 8px;
+          padding: 6px 1px;
         }
         table.cmp tbody td {
-          font-size: 9px;
-          padding: 3px 1px;
+          font-size: 11px;
+          padding: 5px 1px;
           vertical-align: middle;
         }
         table.cmp tbody td:nth-child(2) {
-          font-size: 9.5px;
-        }
-
-        .cmp-brand .t1 {
-          font-family: "Bebas Neue", sans-serif;
-          font-size: 36px;
-          letter-spacing: 0.08em;
-          color: #ffffff;
-          line-height: 1;
-          white-space: nowrap;
-          text-shadow:
-            0 0 14px rgba(255, 255, 255, 0.12),
-            0 0 30px rgba(245, 200, 66, 0.08);
+          font-size: 11.5px;
         }
 
         .cmp-meta {
@@ -3560,70 +3590,74 @@
       }
 
       /* ── MINI SPEEDOMETER (Detailed player card) ── */
+      /* ── CARD SPEEDOMETER: gauge + value side-by-side ── */
       .mini-gauge-wrap {
         display: flex;
         align-items: center;
-        gap: 4px;
-      }
-      .mini-gauge {
-        position: relative;
-        width: 44px;
-        height: 23px;
-        overflow: hidden;
+        gap: 5px;
         flex-shrink: 0;
       }
-      .mini-gauge::before {
-        content: "";
-        position: absolute;
-        left: 50%;
-        bottom: 0;
-        width: 44px;
-        height: 44px;
-        transform: translateX(-50%);
-        background: conic-gradient(
-          from 270deg,
-          #f04f4f 0%,
-          #f5a623 25%,
-          #f5c842 50%,
-          #36d47e 100%
-        );
-        border-radius: 50%;
+      /* Override sr-ring to horizontal layout */
+      .mini-gauge-wrap .sr-ring {
+        flex-direction: row;
+        align-items: center;
+        width: auto;
+        gap: 5px;
       }
-      .mini-gauge::after {
-        content: "";
-        position: absolute;
-        left: 50%;
-        bottom: 0;
-        width: 30px;
-        height: 30px;
-        transform: translateX(-50%);
-        background: var(--card);
-        border-radius: 50%;
-        z-index: 1;
+      /* Scale gauge down so semicircle height ≈ pname height (25px) */
+      .mini-gauge-wrap .sr-ring .gauge {
+        width: 50px;
+        height: 25px;
+        filter: none; /* no glow on card */
       }
-      .mini-needle {
-        position: absolute;
-        left: 50%;
-        bottom: 1px;
-        width: 1.5px;
-        height: 18px;
-        background: #fff;
-        transform-origin: bottom center;
-        transform: rotate(calc(-90deg + var(--mini-angle, 0deg)));
-        z-index: 2;
-        border-radius: 2px 2px 0 0;
-        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      .mini-gauge-wrap .sr-ring .gauge::before {
+        width: 50px;
+        height: 50px;
+        top: 2px;
       }
-      .mini-needle::after {
-        content: "";
-        position: absolute;
-        left: 50%;
-        bottom: -1px;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: #fff;
-        transform: translateX(-50%);
+      .mini-gauge-wrap .sr-ring .gauge::after {
+        width: 34px;
+        height: 34px;
+        top: 10px;
+      }
+      .mini-gauge-wrap .sr-ring .needle {
+        height: 21px;
+      }
+      .mini-gauge-wrap .sr-ring .needle::before {
+        width: 5px;
+        height: 5px;
+        top: -3px;
+      }
+      .mini-gauge-wrap .sr-ring .needle::after {
+        width: 8px;
+        height: 8px;
+        bottom: -3px;
+      }
+      /* SR value: sits to the right, matches pname font size */
+      .mini-gauge-wrap .sr-ring .sr-val {
+        margin-top: 0;
+        font-size: 25px;
+        letter-spacing: 0.04em;
+        color: var(--text);
+        line-height: 1;
+      }
+      .mini-gauge-wrap .sr-ring.sr-high .sr-val {
+        color: #32d74b;
+      }
+      .mini-gauge-wrap .sr-ring.sr-mid .sr-val {
+        color: #ffd60a;
+      }
+      .mini-gauge-wrap .sr-ring.sr-low .sr-val {
+        color: #ff3b30;
+      }
+      .r1 .mini-gauge-wrap .sr-ring .sr-val {
+        color: var(--gold);
+      }
+      .mini-gauge-wrap .sr-ring.rev-limit .sr-val {
+        color: #ff453a;
+        text-shadow:
+          0 0 10px rgba(255, 69, 58, 0.9),
+          0 0 20px rgba(255, 69, 58, 0.45);
       }
 
       /* ── DETAILED PAGE DATE FILTER BAR ── */
@@ -3810,9 +3844,9 @@
       <div class="page-body-scroll">
         <div class="cmp-topbar">
           <div class="cmp-brand">
-            <div class="t1">EKTA <span>PADEL</span></div>
             <div class="pill">Summary</div>
-
+          </div>
+          <div class="cmp-sel-wrap">
             <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
               <option value="all">All Time</option>
               <option value="today">Today</option>
@@ -3921,6 +3955,7 @@
         </div>
 
         <div class="history-filter-panel compact-history-panel">
+          <!-- Row 1: Date · Player · Result · Tags -->
           <div class="hist-filter-row compact-row top-filter-row">
             <div class="compact-filter-item">
               <span class="hist-filter-label">Date</span>
@@ -3978,6 +4013,7 @@
           </div>
 
           <div class="hist-filter-row compact-row bottom-filter-row">
+            <!-- PAIR -->
             <div class="compact-filter-item compact-pair">
               <span class="hist-filter-label">Pair</span>
               <select
@@ -3989,9 +4025,9 @@
               </select>
             </div>
 
+            <!-- H2H -->
             <div class="compact-filter-item compact-h2h">
-              <span class="hist-filter-label">H2H</span>
-
+              <span class="hist-filter-label">Head To Head</span>
               <div class="h2h-inline-wrap">
                 <div class="h2h-field compact-h2h-field">
                   <select
@@ -4001,7 +4037,6 @@
                   >
                     <option value="">Player A</option>
                   </select>
-
                   <button
                     class="h2h-clear"
                     type="button"
@@ -4022,7 +4057,6 @@
                   >
                     <option value="">Player B</option>
                   </select>
-
                   <button
                     class="h2h-clear"
                     type="button"
@@ -4032,14 +4066,13 @@
                     ×
                   </button>
                 </div>
-
-                <button
-                  class="hfilt compact-clear-btn"
-                  onclick="clearHeadToHeadFilter()"
-                >
-                  Clear
-                </button>
               </div>
+              <button
+                class="compact-clear-btn"
+                onclick="clearHeadToHeadFilter()"
+              >
+                Clear Head To Head
+              </button>
             </div>
           </div>
         </div>
@@ -5521,9 +5554,18 @@ Parthiv - Par"
             const cardAngle = Math.round(
               (Math.max(0, Math.min(8, p.sr)) / 8) * 180,
             );
-            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="mini-gauge"><div class="mini-needle" style="--mini-angle:${cardAngle}deg"></div></div><div class="skill-num">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div>${sparklineHtml}</div>`;
+            let cardRatingClass =
+              normalizedSR >= 6
+                ? "sr-high"
+                : normalizedSR >= 4
+                  ? "sr-mid"
+                  : "sr-low";
+            if (normalizedSR >= 7.0) cardRatingClass += " rev-limit";
+            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div>${sparklineHtml}</div>`;
           })
           .join("");
+        runSpeedometerSweep();
+        setTimeout(animateGauges, 50);
       }
 
       // ── RENDER COMPACT ─────────────────────────────────────────
@@ -6953,6 +6995,7 @@ Parthiv - Par"
         previewMatchImport,
         undoLastAdd,
         openPlayerDetail,
+        onHomeFilterChange,
       });
 
       function setHistoryDateFilter(value) {
