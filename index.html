@@ -487,12 +487,17 @@
         margin-bottom: 9px;
         position: relative;
         overflow: hidden;
-        animation: fu 0.22s ease both;
+        opacity: 0;
+        transform: translateY(24px) scale(0.985);
+        animation: detailedCardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1)
+          forwards;
+        animation-delay: calc(var(--card-index, 0) * 0.055s);
         transition:
           transform 0.18s ease,
           box-shadow 0.18s ease,
           border-color 0.18s ease,
           background 0.18s ease;
+        will-change: transform, opacity;
       }
       .pc:hover {
         transform: translateY(-6px);
@@ -505,27 +510,22 @@
       .pc.r3:hover {
         transform: translateY(-8px);
       }
-      @keyframes fu {
-        from {
+      @keyframes detailedCardReveal {
+        0% {
           opacity: 0;
-          transform: translateY(5px);
+          transform: translateY(24px) scale(0.985);
+          filter: blur(8px);
         }
-        to {
+        60% {
           opacity: 1;
-          transform: translateY(0);
+          transform: translateY(-3px) scale(1.008);
+          filter: blur(0);
         }
-      }
-      .pc:nth-child(1) {
-        animation-delay: 0.02s;
-      }
-      .pc:nth-child(2) {
-        animation-delay: 0.04s;
-      }
-      .pc:nth-child(3) {
-        animation-delay: 0.06s;
-      }
-      .pc:nth-child(n + 4) {
-        animation-delay: 0.08s;
+        100% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          filter: blur(0);
+        }
       }
       .pc.r1 {
         border-color: rgba(245, 200, 66, 0.75);
@@ -1997,6 +1997,53 @@
         flex-shrink: 0;
         width: 28px;
       }
+
+      /* ── ANALYTICS CARD ANIMATIONS ── */
+      .session-summary-card,
+      .motd-card,
+      .pvp-wrap,
+      .manage-stat,
+      .ana-card,
+      .analytics-card {
+        opacity: 0;
+        transform: translateY(22px) scale(0.985);
+        animation: analyticsCardReveal 0.58s cubic-bezier(0.22, 1, 0.36, 1)
+          forwards;
+        animation-delay: calc(var(--analytics-index, 0) * 0.08s);
+        will-change: transform, opacity;
+        transition:
+          transform 0.22s ease,
+          box-shadow 0.22s ease,
+          border-color 0.22s ease;
+      }
+
+      .session-summary-card:hover,
+      .motd-card:hover,
+      .pvp-wrap:hover,
+      .manage-stat:hover,
+      .ana-card:hover,
+      .analytics-card:hover {
+        transform: translateY(-4px) scale(1.01);
+      }
+
+      @keyframes analyticsCardReveal {
+        0% {
+          opacity: 0;
+          transform: translateY(22px) scale(0.985);
+          filter: blur(8px);
+        }
+        65% {
+          opacity: 1;
+          transform: translateY(-2px) scale(1.006);
+          filter: blur(0);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          filter: blur(0);
+        }
+      }
+
       /* ── ANALYTICS PAGE ── */
       .ana-section-title {
         font-size: 11px;
@@ -4844,6 +4891,7 @@ Parthiv - Par"
           populateHistoryPlayerChips();
         }
         if (id === "analytics") renderAnalyticsPage();
+        setTimeout(applyAnalyticsAnimations, 0);
         if (id === "add") {
           refreshManage();
           renderAddMatches();
@@ -5832,6 +5880,12 @@ Parthiv - Par"
           })
           .join("");
         runSpeedometerSweep();
+        setTimeout(() => {
+          document.querySelectorAll("#board .pc").forEach((card, index) => {
+            card.style.setProperty("--card-index", index);
+          });
+        }, 0);
+
         setTimeout(animateGauges, 50);
       }
 
@@ -5926,6 +5980,12 @@ Parthiv - Par"
         if (!sorted.length) {
           tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
           runSpeedometerSweep();
+          setTimeout(() => {
+            document.querySelectorAll("#board .pc").forEach((card, index) => {
+              card.style.setProperty("--card-index", index);
+            });
+          }, 0);
+
           setTimeout(animateGauges, 50);
           updateSortArrows(sorted);
           return;
