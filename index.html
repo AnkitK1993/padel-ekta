@@ -5147,6 +5147,66 @@
       .history-scroll {
         gap: 10px !important;
       }
+
+      /* ─────────────────────────────────────────
+   SUMMARY TABLE LOAD ANIMATION
+───────────────────────────────────────── */
+
+      table.cmp tbody tr {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+
+        animation: summaryTableReveal 0.48s cubic-bezier(0.22, 1, 0.36, 1)
+          forwards;
+        animation-delay: calc(var(--row-index, 0) * 0.045s);
+
+        will-change: transform, opacity;
+      }
+
+      @keyframes summaryTableReveal {
+        0% {
+          opacity: 0;
+          transform: translateY(18px) scale(0.985);
+          filter: blur(6px);
+        }
+
+        60% {
+          opacity: 1;
+          transform: translateY(-2px) scale(1.006);
+          filter: blur(0);
+        }
+
+        100% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          filter: blur(0);
+        }
+      }
+
+      /* subtle shimmer while loading */
+      table.cmp tbody tr::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.04),
+          transparent
+        );
+
+        transform: translateX(-120%);
+        animation: rowShimmer 1.1s ease forwards;
+        animation-delay: calc(var(--row-index, 0) * 0.045s);
+      }
+
+      @keyframes rowShimmer {
+        to {
+          transform: translateX(120%);
+        }
+      }
     </style>
   </head>
   <body>
@@ -8794,6 +8854,28 @@ Parthiv - Par"
           subtree: true,
         });
       })();
+    </script>
+
+    <script>
+      function applySummaryTableAnimations() {
+        document
+          .querySelectorAll("table.cmp tbody tr")
+          .forEach((row, index) => {
+            row.style.setProperty("--row-index", index);
+          });
+      }
+
+      setTimeout(applySummaryTableAnimations, 100);
+      setTimeout(applySummaryTableAnimations, 500);
+
+      const summaryObserver = new MutationObserver(() => {
+        applySummaryTableAnimations();
+      });
+
+      summaryObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
     </script>
   </body>
 </html>
