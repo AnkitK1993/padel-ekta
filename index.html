@@ -8877,5 +8877,64 @@ Parthiv - Par"
         subtree: true,
       });
     </script>
+
+    <script>
+      (function () {
+        function cleanupExtremeAndPairPower() {
+          // Remove EXTREME STATS section and following cards
+          document.querySelectorAll(".ana-section-title").forEach((title) => {
+            const txt = (title.textContent || "").toLowerCase().trim();
+
+            if (txt.includes("extreme stats")) {
+              let next = title.nextElementSibling;
+
+              title.remove();
+
+              while (next && !next.classList.contains("ana-section-title")) {
+                const current = next;
+                next = next.nextElementSibling;
+                current.remove();
+              }
+            }
+          });
+
+          // Keep only first PAIR POWER card
+          let found = false;
+
+          document
+            .querySelectorAll(
+              ".achievement-card, .manage-stat, .analytics-card, .ana-card, .session-summary-card",
+            )
+            .forEach((card) => {
+              const txt = (card.textContent || "").toLowerCase();
+
+              if (txt.includes("pair power")) {
+                if (!found) {
+                  found = true;
+
+                  card.style.gridColumn = "1 / -1";
+                  card.style.borderColor = "rgba(245,200,66,0.35)";
+                } else {
+                  card.remove();
+                }
+              }
+            });
+        }
+
+        setTimeout(cleanupExtremeAndPairPower, 300);
+        setTimeout(cleanupExtremeAndPairPower, 1200);
+
+        const cleanupObserver = new MutationObserver(() => {
+          cleanupExtremeAndPairPower();
+        });
+
+        window.addEventListener("load", cleanupExtremeAndPairPower);
+
+        cleanupObserver.observe(document.body, {
+          childList: true,
+          subtree: true,
+        });
+      })();
+    </script>
   </body>
 </html>
