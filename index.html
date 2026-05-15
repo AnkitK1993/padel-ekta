@@ -950,21 +950,20 @@
 
       /* ── COMPACT PAGE ── */
 
-      .cmp-topbar {
+      /* ── SUMMARY PAGE HEADER ── */
+      .summary-nav {
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
-        border-bottom: 1px solid rgba(245, 200, 66, 0.1);
         padding: 14px 16px 14px;
         position: relative;
         overflow: hidden;
-        gap: 10px;
+        gap: 4px;
       }
-
-      .cmp-topbar::before {
+      .summary-nav::before {
         content: "";
         position: absolute;
         top: 0;
@@ -979,17 +978,25 @@
         );
       }
 
-      .cmp-topbar::after {
+      /* ── SUMMARY FILTER BAR ── */
+      .summary-filter-bar {
+        flex-shrink: 0;
+        background: linear-gradient(180deg, #08080f 0%, #0c0d1a 100%);
+        border-bottom: 1px solid rgba(245, 200, 66, 0.08);
+        padding: 10px 14px;
+        position: relative;
+      }
+      .summary-filter-bar::before {
         content: "";
         position: absolute;
-        bottom: 0;
+        top: 0;
         left: 0;
         right: 0;
         height: 1px;
         background: linear-gradient(
           90deg,
           transparent,
-          rgba(245, 200, 66, 0.12),
+          rgba(245, 200, 66, 0.15),
           transparent
         );
       }
@@ -3121,26 +3128,9 @@
 
         /* Compact mode */
 
-        .cmp-topbar {
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px 14px;
-          background: linear-gradient(180deg, #08080f 0%, #0b0c17 100%);
-          border-bottom: 1px solid rgba(245, 200, 66, 0.1);
-          gap: 10px;
-          position: sticky;
-          top: 0;
-          z-index: 12;
-          backdrop-filter: blur(24px);
-          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-          overflow: hidden;
-        }
-
-        .cmp-brand {
-          width: 50%;
-          justify-content: flex-start;
+        .summary-nav,
+        .summary-filter-bar {
+          width: 100%;
         }
 
         /* Modal optimization */
@@ -3282,7 +3272,8 @@
         /* MAIN SUMMARY WRAPPER */
         .cmp-scroll,
         .cmp-matches,
-        .cmp-topbar,
+        .summary-nav,
+        .summary-filter-bar,
         .cmp-infobar,
         .cmp-matches-header {
           width: 100%;
@@ -3320,23 +3311,6 @@
         }
         .cmp-meta {
           font-size: 8px;
-        }
-
-        .cmp-topbar {
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px 14px;
-          background: linear-gradient(180deg, #08080f 0%, #0b0c17 100%);
-          border-bottom: 1px solid rgba(245, 200, 66, 0.1);
-          gap: 10px;
-          position: sticky;
-          top: 0;
-          z-index: 12;
-          backdrop-filter: blur(24px);
-          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-          overflow: hidden;
         }
 
         .cmp-brand .t1 {
@@ -3853,9 +3827,6 @@
           <div
             style="display: flex; align-items: center; gap: 6px; flex-shrink: 0"
           >
-            <button class="nav-btn ac" onclick="goTo('add')" id="addNavBtn">
-              + Add
-            </button>
             <button id="loginBtn">Login</button>
           </div>
         </div>
@@ -3929,25 +3900,35 @@
         >
           <span class="ico">📈</span>Analytics
         </button>
+        <button
+          class="tbb admin-tab"
+          data-tab="add"
+          onclick="switchMainTab('add')"
+          style="display: none"
+        >
+          <span class="ico">🔧</span>Admin
+        </button>
       </div>
     </div>
 
     <!-- ══════════ COMPACT PAGE ══════════ -->
     <div class="page" id="pg-compact">
       <div class="page-body-scroll">
-        <div class="cmp-topbar history-style-summary">
-          <div class="history-nav-title">SUM<span>MARY</span></div>
-          <div class="summary-filter-row">
-            <div class="cmp-sel-wrap">
-              <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="weekend">Weekend</option>
-                <option value="month">This Month</option>
-                <option value="range">Date Range...</option>
-              </select>
-            </div>
+        <!-- Title header — matches History/Analytics style -->
+        <div class="summary-nav">
+          <div class="history-nav-title">PLAYER <span>SUMMARY</span></div>
+        </div>
+        <!-- Filter bar — separated by partition -->
+        <div class="summary-filter-bar">
+          <div class="cmp-sel-wrap">
+            <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="weekend">Weekend</option>
+              <option value="month">This Month</option>
+              <option value="range">Date Range...</option>
+            </select>
           </div>
         </div>
         <div class="cmp-dr" id="cmpDr">
@@ -4025,6 +4006,14 @@
           onclick="switchMainTab('analytics')"
         >
           <span class="ico">📈</span>Analytics
+        </button>
+        <button
+          class="tbb admin-tab"
+          data-tab="add"
+          onclick="switchMainTab('add')"
+          style="display: none"
+        >
+          <span class="ico">🔧</span>Admin
         </button>
       </div>
     </div>
@@ -4207,6 +4196,14 @@
         >
           <span class="ico">📈</span>Analytics
         </button>
+        <button
+          class="tbb admin-tab"
+          data-tab="add"
+          onclick="switchMainTab('add')"
+          style="display: none"
+        >
+          <span class="ico">🔧</span>Admin
+        </button>
       </div>
     </div>
 
@@ -4243,14 +4240,22 @@
         >
           <span class="ico">📈</span>Analytics
         </button>
+        <button
+          class="tbb admin-tab"
+          data-tab="add"
+          onclick="switchMainTab('add')"
+          style="display: none"
+        >
+          <span class="ico">🔧</span>Admin
+        </button>
       </div>
     </div>
 
     <!-- ══════════ ADD PAGE ══════════ -->
     <div class="page" id="pg-add">
       <div class="nav">
-        <button class="nav-btn" onclick="goBack()">← Back</button>
-        <div class="nav-title">ADD <span>DATA</span></div>
+        <div style="flex: 1"></div>
+        <div class="nav-title nav-title-inline">ADD <span>DATA</span></div>
         <div style="flex: 1"></div>
       </div>
       <!-- Admin tabs use .itab — uniform style -->
@@ -4349,6 +4354,40 @@ Parthiv - Par"
             🗑 Clear Name Aliases
           </button>
         </div>
+      </div>
+      <div class="tabbar">
+        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
+          <span class="ico">📊</span>Detailed
+        </button>
+        <button
+          class="tbb"
+          data-tab="compact"
+          onclick="switchMainTab('compact')"
+        >
+          <span class="ico">📋</span>Summary
+        </button>
+        <button
+          class="tbb"
+          data-tab="history"
+          onclick="switchMainTab('history')"
+        >
+          <span class="ico">🏓</span>History
+        </button>
+        <button
+          class="tbb"
+          data-tab="analytics"
+          onclick="switchMainTab('analytics')"
+        >
+          <span class="ico">📈</span>Analytics
+        </button>
+        <button
+          class="tbb on admin-tab"
+          data-tab="add"
+          onclick="switchMainTab('add')"
+          style="display: none"
+        >
+          <span class="ico">🔧</span>Admin
+        </button>
       </div>
     </div>
 
@@ -4603,10 +4642,15 @@ Parthiv - Par"
       });
 
       function updateAdminUI(user) {
-        const addBtn = document.getElementById("addNavBtn");
         const fab = document.getElementById("fab");
-        addBtn.style.display = window.isAdmin ? "block" : "none";
-        fab.style.display = window.isAdmin ? "flex" : "none";
+        // Show/hide admin tabs in all tabbars
+        document.querySelectorAll(".admin-tab").forEach((tab) => {
+          tab.style.display = window.isAdmin ? "flex" : "none";
+        });
+        // FAB only shows when on the add page and admin
+        const currentPage = document.querySelector(".page.active")?.id;
+        fab.style.display =
+          window.isAdmin && currentPage === "pg-add" ? "flex" : "none";
         document.getElementById("loginBtn").textContent = user
           ? "Logout"
           : "Login";
@@ -4654,6 +4698,10 @@ Parthiv - Par"
       }
 
       function switchMainTab(id) {
+        if (id === "add" && !window.isAdmin) {
+          alert("Only admin can access this");
+          return;
+        }
         // Update all tabbars
         document
           .querySelectorAll(".tabbar .tbb")
@@ -4665,7 +4713,9 @@ Parthiv - Par"
           .querySelectorAll(".page")
           .forEach((p) => p.classList.remove("active"));
         document.getElementById("pg-" + id).classList.add("active");
-        document.getElementById("fab").style.display = "none";
+        // FAB only visible on admin/add page
+        document.getElementById("fab").style.display =
+          id === "add" && window.isAdmin ? "flex" : "none";
         if (id === "home") renderHome();
         if (id === "compact") renderCompact();
         if (id === "history") {
@@ -4673,6 +4723,10 @@ Parthiv - Par"
           populateHistoryPlayerChips();
         }
         if (id === "analytics") renderAnalyticsPage();
+        if (id === "add") {
+          refreshManage();
+          renderAddMatches();
+        }
       }
 
       let touchStartX = 0,
@@ -4708,6 +4762,9 @@ Parthiv - Par"
           .querySelectorAll(".panel")
           .forEach((p) => p.classList.remove("show"));
         document.getElementById("ip-" + id).classList.add("show");
+        // FAB hidden only on Manage sub-tab
+        document.getElementById("fab").style.display =
+          id !== "manage" && window.isAdmin ? "flex" : "none";
         if (id === "manage") refreshManage();
         if (id === "names") renderNamesTable();
       }
