@@ -514,6 +514,12 @@
       .skill-block {
         text-align: right;
       }
+      .skill-block .mini-gauge-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+      }
       .skill-num {
         font-family: "Bebas Neue", sans-serif;
         font-size: 27px;
@@ -997,7 +1003,7 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 0;
-        table-layout: fixed;
+        table-layout: auto;
         background: linear-gradient(
           180deg,
           rgba(10, 10, 18, 0.96),
@@ -1009,15 +1015,14 @@
         border-bottom: 2px solid var(--border);
       }
       table.cmp thead th {
-        padding: 7px 2px;
+        padding: 7px 4px;
         font-size: 7.5px;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         color: var(--muted);
-        text-align: right;
+        text-align: center;
         white-space: nowrap;
-        overflow: hidden;
       }
       table.cmp thead th.sortable {
         cursor: pointer;
@@ -1041,61 +1046,31 @@
         animation: pulse 2.4s ease-in-out infinite;
       }
 
-      /*
-        9 columns. Widths add to 100%.
-        #=5%  Player=22%  MP=7%  W-L=10%  Win%=8%  GW=7%  GL=7%  G%=8%  SR=26%
-        SR=26% → on 380px screen = ~99px, enough for the 72px gauge + padding
-      */
-      table.cmp colgroup {
-        display: table-column-group;
-      }
+      /* Rank col: compact, left-pad */
       table.cmp thead th:nth-child(1),
       table.cmp tbody td:nth-child(1) {
-        width: 5%;
-        text-align: left;
+        text-align: center;
         padding-left: 6px;
+        width: 28px;
       }
+      /* Player col: left-aligned, no shrink */
       table.cmp thead th:nth-child(2),
       table.cmp tbody td:nth-child(2) {
-        width: 22%;
         text-align: left;
-        padding-left: 3px;
+        padding-left: 4px;
       }
-      table.cmp thead th:nth-child(3),
-      table.cmp tbody td:nth-child(3) {
-        width: 7%;
-      }
-      table.cmp thead th:nth-child(4),
-      table.cmp tbody td:nth-child(4) {
-        width: 10%;
-      }
-      table.cmp thead th:nth-child(5),
-      table.cmp tbody td:nth-child(5) {
-        width: 8%;
-      }
-      table.cmp thead th:nth-child(6),
-      table.cmp tbody td:nth-child(6) {
-        width: 7%;
-      }
-      table.cmp thead th:nth-child(7),
-      table.cmp tbody td:nth-child(7) {
-        width: 7%;
-      }
-      table.cmp thead th:nth-child(8),
-      table.cmp tbody td:nth-child(8) {
-        width: 8%;
-      }
+      /* SR col */
       table.cmp thead th:nth-child(9),
       table.cmp tbody td:nth-child(9) {
-        width: 22%;
         text-align: center;
-        padding: 2px 2px;
+        padding: 5px 6px;
         vertical-align: middle;
+        width: 72px;
       }
 
       table.cmp tbody tr {
         border-bottom: 1px solid var(--border);
-        height: 80px;
+        height: auto;
         vertical-align: middle;
       }
       table.cmp tbody tr:last-child {
@@ -1114,28 +1089,24 @@
         background: rgba(255, 255, 255, 0.012);
       }
       table.cmp tbody td {
-        padding: 6px 2px;
-        text-align: right;
+        padding: 7px 4px;
+        text-align: center;
         vertical-align: middle;
         color: var(--text);
         font-size: 11px;
-        overflow: hidden;
-        text-overflow: ellipsis;
         white-space: nowrap;
       }
       table.cmp tbody td:nth-child(2) {
         text-align: left;
         font-weight: 600;
-        padding-left: 3px;
+        padding-left: 4px;
         font-size: 11.5px;
+        max-width: 90px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      table.cmp tbody td:nth-child(9) {
-        padding-right: 4px;
-        text-align: center;
-      }
+
       .rn {
         font-family: "Bebas Neue", sans-serif;
         font-size: 13px;
@@ -3187,11 +3158,6 @@
           font-size: 10.5px;
         }
 
-        /* Speedometer — scale to fit column, anchor from top so sr-val stays visible */
-        .sr-ring {
-          transform: scale(0.88);
-          transform-origin: top center;
-        }
         .rn {
           font-size: 10px;
         }
@@ -3278,10 +3244,6 @@
         }
         table.cmp tbody td:nth-child(2) {
           font-size: 9.5px;
-        }
-        .sr-ring {
-          transform: scale(0.78);
-          transform-origin: top center;
         }
 
         .cmp-brand .t1 {
@@ -3554,6 +3516,201 @@
           font-size: 20px !important;
         }
       }
+
+      /* ── SR PILL INDICATOR (Summary table) ── */
+      .sr-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+      }
+      .sr-pill-bar {
+        width: 36px;
+        height: 5px;
+        border-radius: 99px;
+        background: var(--border);
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .sr-pill-fill {
+        height: 100%;
+        border-radius: 99px;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .sr-pill-val {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 15px;
+        letter-spacing: 0.04em;
+        line-height: 1;
+        color: var(--text);
+        min-width: 28px;
+        text-align: right;
+      }
+      .rg .sr-pill-val {
+        color: var(--gold);
+      }
+      .sr-pill.sr-high .sr-pill-fill {
+        background: #36d47e;
+      }
+      .sr-pill.sr-mid .sr-pill-fill {
+        background: #f5c842;
+      }
+      .sr-pill.sr-low .sr-pill-fill {
+        background: #f04f4f;
+      }
+
+      /* ── MINI SPEEDOMETER (Detailed player card) ── */
+      .mini-gauge-wrap {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .mini-gauge {
+        position: relative;
+        width: 44px;
+        height: 23px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .mini-gauge::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 44px;
+        height: 44px;
+        transform: translateX(-50%);
+        background: conic-gradient(
+          from 270deg,
+          #f04f4f 0%,
+          #f5a623 25%,
+          #f5c842 50%,
+          #36d47e 100%
+        );
+        border-radius: 50%;
+      }
+      .mini-gauge::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 30px;
+        height: 30px;
+        transform: translateX(-50%);
+        background: var(--card);
+        border-radius: 50%;
+        z-index: 1;
+      }
+      .mini-needle {
+        position: absolute;
+        left: 50%;
+        bottom: 1px;
+        width: 1.5px;
+        height: 18px;
+        background: #fff;
+        transform-origin: bottom center;
+        transform: rotate(calc(-90deg + var(--mini-angle, 0deg)));
+        z-index: 2;
+        border-radius: 2px 2px 0 0;
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .mini-needle::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -1px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: #fff;
+        transform: translateX(-50%);
+      }
+
+      /* ── DETAILED PAGE DATE FILTER BAR ── */
+      /* ── DETAILED PAGE DATE FILTER ── */
+      .home-filter-bar {
+        display: flex;
+        align-items: center;
+        padding: 7px 11px 8px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .home-filter-pill {
+        display: flex;
+        flex: 1;
+        width: 100%;
+      }
+      .home-filter-sel {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        flex: 1;
+        width: 100%;
+        height: 34px;
+        background: linear-gradient(
+          180deg,
+          rgba(24, 24, 36, 0.98),
+          rgba(16, 16, 26, 0.98)
+        );
+        border: 1px solid rgba(245, 200, 66, 0.35);
+        color: var(--accent);
+        text-align: center;
+        text-align-last: center;
+        padding: 0 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        font-family: "DM Sans", sans-serif;
+        outline: none;
+        cursor: pointer;
+        background-image: none;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.04),
+          0 0 14px rgba(245, 200, 66, 0.08);
+        transition:
+          border-color 0.18s,
+          box-shadow 0.18s;
+      }
+      .home-filter-sel:hover {
+        border-color: rgba(245, 200, 66, 0.55);
+      }
+      .home-filter-sel:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(245, 200, 66, 0.12);
+      }
+      .home-filter-sel option {
+        background: var(--surface2);
+        color: var(--text);
+        font-weight: 600;
+      }
+      .home-dr-row {
+        display: none;
+        gap: 6px;
+        padding: 0 11px 8px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .home-dr-row.show {
+        display: flex;
+      }
+      .home-dr-row input[type="date"] {
+        flex: 1;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 11px;
+        font-family: "DM Sans", sans-serif;
+        outline: none;
+      }
+      .home-dr-row .btn-go {
+        flex-shrink: 0;
+      }
     </style>
   </head>
   <body>
@@ -3576,14 +3733,27 @@
           <div class="home-badge">🏓 Sunday Group ET Rankings</div>
           <div class="home-title">LEADER<span>BOARD</span></div>
         </div>
-        <div class="dr-wrap" id="drWrap">
-          <div class="dr-g">
-            <label>From</label><input type="date" id="drFrom" />
+        <div class="home-filter-bar">
+          <div class="home-filter-pill">
+            <select
+              class="home-filter-sel"
+              id="homeFilterSel"
+              onchange="onHomeFilterChange(this.value)"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="weekend">Weekend</option>
+              <option value="month">This Month</option>
+              <option value="range">Date Range</option>
+            </select>
           </div>
-          <div class="dr-g">
-            <label>To</label><input type="date" id="drTo" />
-          </div>
-          <button class="btn-go" onclick="applyRange('home')">Apply</button>
+        </div>
+        <div class="home-dr-row" id="homeDrRow">
+          <input type="date" id="drFrom" placeholder="From" />
+          <span style="color: var(--muted); font-size: 11px">to</span>
+          <input type="date" id="drTo" placeholder="To" />
+          <button class="btn-go" onclick="applyRange('home')">Go</button>
         </div>
         <div class="stats-row">
           <div class="st">
@@ -5143,13 +5313,26 @@ Parthiv - Par"
         if (page === "home") {
           homeFrom = document.getElementById("drFrom").value || null;
           homeTo = document.getElementById("drTo").value || null;
-          renderHome();
+          if (homeFrom && homeTo) renderHome();
         } else {
           cmpFrom = document.getElementById("cmpFrom").value || null;
           cmpTo = document.getElementById("cmpTo").value || null;
           renderCompact();
         }
       }
+      function onHomeFilterChange(val) {
+        homeFilter = val;
+        const dr = document.getElementById("homeDrRow");
+        if (val === "range") {
+          dr.classList.add("show");
+        } else {
+          dr.classList.remove("show");
+          homeFrom = null;
+          homeTo = null;
+          renderHome();
+        }
+      }
+
       function onCmpFilter() {
         cmpFilter = document.getElementById("cmpSel").value;
         const dr = document.getElementById("cmpDr");
@@ -5160,22 +5343,7 @@ Parthiv - Par"
         }
       }
 
-      document.querySelectorAll(".filt[data-f]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          btn
-            .closest(".filters")
-            .querySelectorAll(".filt")
-            .forEach((b) => b.classList.remove("on"));
-          btn.classList.add("on");
-          homeFilter = btn.dataset.f;
-          const dr = document.getElementById("drWrap");
-          if (homeFilter === "range") dr.classList.add("show");
-          else {
-            dr.classList.remove("show");
-            renderHome();
-          }
-        });
-      });
+      // home filter handled by onHomeFilterChange dropdown
 
       // ── ABSENCE TRACKER ────────────────────────────────────────
       function renderAbsenceBanner() {
@@ -5350,7 +5518,10 @@ Parthiv - Par"
             const sparklineHtml = sparklineSvg
               ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg}</div>`
               : "";
-            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="skill-num">${p.sr.toFixed(2)}</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div>${sparklineHtml}</div>`;
+            const cardAngle = Math.round(
+              (Math.max(0, Math.min(8, p.sr)) / 8) * 180,
+            );
+            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="mini-gauge"><div class="mini-needle" style="--mini-angle:${cardAngle}deg"></div></div><div class="skill-num">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div>${sparklineHtml}</div>`;
           })
           .join("");
       }
@@ -5450,7 +5621,6 @@ Parthiv - Par"
           updateSortArrows(sorted);
           return;
         }
-        setTimeout(animateGauges, 50);
         updateSortArrows();
         tbody.innerHTML = sorted
           .map((p, i) => {
@@ -5484,7 +5654,8 @@ Parthiv - Par"
             }
             const trend = "";
             const momentumBadge = getMomentumBadge(p.name);
-            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}% <span class="trend-arrow">${trend}</span></td><td><div class="sr-ring ${ratingClass}" style="--speed-angle: ${speedAngle}deg;--target-angle:${speedAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(1)}</div></div></td></tr>`;
+            const pillW = Math.round((normalizedSR / 8) * 100);
+            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
           })
           .join("");
         document.getElementById("cmpMatches").innerHTML = buildMatchCards(
