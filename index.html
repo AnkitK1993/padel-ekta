@@ -3859,6 +3859,77 @@
           font-size: 5px !important;
         }
       }
+
+      /* ── SUBTLE PREMIUM CARD EFFECTS ── */
+      .pc {
+        position: relative;
+        overflow: hidden;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.22s ease,
+          border-color 0.22s ease;
+      }
+
+      /* Left glow strip */
+      .pc::before {
+        content: "";
+        position: absolute;
+        top: 10%;
+        left: 0;
+        width: 3px;
+        height: 80%;
+        border-radius: 999px;
+        background: linear-gradient(
+          180deg,
+          rgba(245, 200, 66, 0),
+          rgba(245, 200, 66, 0.85),
+          rgba(245, 200, 66, 0)
+        );
+
+        box-shadow:
+          0 0 8px rgba(245, 200, 66, 0.35),
+          0 0 16px rgba(245, 200, 66, 0.12);
+
+        opacity: 0.85;
+      }
+
+      /* Hover pop */
+      .pc:hover {
+        transform: scale(1.018) translateY(-2px);
+        border-color: rgba(245, 200, 66, 0.28);
+
+        box-shadow:
+          0 10px 24px rgba(0, 0, 0, 0.22),
+          0 0 18px rgba(245, 200, 66, 0.08);
+      }
+
+      /* Top 3 enhanced glow */
+      .pc.r1::before {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 230, 120, 0),
+          rgba(255, 230, 120, 1),
+          rgba(255, 230, 120, 0)
+        );
+      }
+
+      .pc.r2::before {
+        background: linear-gradient(
+          180deg,
+          rgba(180, 180, 210, 0),
+          rgba(180, 180, 210, 0.95),
+          rgba(180, 180, 210, 0)
+        );
+      }
+
+      .pc.r3::before {
+        background: linear-gradient(
+          180deg,
+          rgba(210, 120, 70, 0),
+          rgba(210, 120, 70, 0.9),
+          rgba(210, 120, 70, 0)
+        );
+      }
     </style>
   </head>
   <body>
