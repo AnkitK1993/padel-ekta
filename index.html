@@ -5290,52 +5290,66 @@
       /* player */
       table.cmp th:nth-child(2),
       table.cmp td:nth-child(2) {
-        width: 108px !important;
+        width: 96px !important;
         text-align: left !important;
         padding-left: 6px !important;
+        padding-right: 6px !important;
       }
 
       /* MP */
       table.cmp th:nth-child(3),
       table.cmp td:nth-child(3) {
-        width: 34px !important;
+        width: 38px !important;
       }
 
       /* W-L */
       table.cmp th:nth-child(4),
       table.cmp td:nth-child(4) {
-        width: 52px !important;
+        width: 54px !important;
       }
 
-      /* WIN% */
+      /* W% */
       table.cmp th:nth-child(5),
       table.cmp td:nth-child(5) {
-        width: 42px !important;
+        width: 46px !important;
       }
 
-      /* GF */
+      /* GW */
       table.cmp th:nth-child(6),
       table.cmp td:nth-child(6) {
-        width: 34px !important;
+        width: 38px !important;
       }
 
       /* GL */
       table.cmp th:nth-child(7),
       table.cmp td:nth-child(7) {
-        width: 34px !important;
+        width: 38px !important;
       }
 
       /* G% */
       table.cmp th:nth-child(8),
       table.cmp td:nth-child(8) {
-        width: 42px !important;
+        width: 50px !important;
+        padding-right: 6px !important;
       }
 
       /* SR */
       table.cmp th:nth-child(9),
       table.cmp td:nth-child(9) {
-        width: 58px !important;
-        padding-right: 6px !important;
+        width: 72px !important;
+        padding-left: 6px !important;
+        padding-right: 8px !important;
+      }
+
+      table.cmp thead th {
+        letter-spacing: 0.05em !important;
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+      }
+
+      table.cmp tbody td {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
       }
 
       /* Better visual alignment */
@@ -5872,7 +5886,7 @@ body.paused-animations *{
                     W–L <span class="sort-arrow" id="sort-record"></span>
                   </th>
                   <th class="sortable" onclick="setCmpSort('winPct')">
-                    Win% <span class="sort-arrow" id="sort-winPct"></span>
+                    W% <span class="sort-arrow" id="sort-winPct"></span>
                   </th>
                   <th class="sortable" onclick="setCmpSort('gw')">
                     GW <span class="sort-arrow" id="sort-gw"></span>
