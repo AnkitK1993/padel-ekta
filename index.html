@@ -1256,13 +1256,15 @@
         white-space: nowrap;
       }
       table.cmp tbody td:nth-child(2) {
-        text-align: center;
+        text-align: left;
         font-weight: 600;
         padding-left: 4px;
+        padding-right: 2px;
         font-size: 13px;
-        max-width: 90px;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        width: 1%;
+        max-width: fit-content;
+        overflow: visible;
+        text-overflow: unset;
         white-space: nowrap;
       }
 
@@ -1518,6 +1520,12 @@
       }
       .rec-cell.m {
         color: var(--muted);
+      }
+
+      /* W-L values larger */
+      table.cmp tbody td:nth-child(4) {
+        font-size: 11px !important;
+        font-weight: 700 !important;
       }
 
       /* ── ADD PAGE ── */
@@ -5223,8 +5231,8 @@
       /* Expand PLAYER column using freed SR spacing */
       table.cmp thead th:nth-child(2),
       table.cmp tbody td:nth-child(2) {
-        width: 118px !important;
-        max-width: 118px !important;
+        width: 72px !important;
+        max-width: 96px !important;
         padding-right: 2px !important;
       }
 
@@ -5290,10 +5298,13 @@
       /* player */
       table.cmp th:nth-child(2),
       table.cmp td:nth-child(2) {
-        width: 96px !important;
+        width: auto !important;
+        min-width: 82px !important;
+        max-width: 108px !important;
         text-align: left !important;
         padding-left: 6px !important;
-        padding-right: 6px !important;
+        padding-right: 2px !important;
+        white-space: nowrap !important;
       }
 
       /* MP */
