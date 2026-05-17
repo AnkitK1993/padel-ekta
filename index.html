@@ -10030,7 +10030,13 @@ Parthiv - Par"
         const hCells=[];
         for(let i=111;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().substring(0,10);hCells.push({ds,c:dateCounts[ds]||0});}
         const maxH=Math.max(...hCells.map(c=>c.c),1);
-        const heatHtml=`<div class="hm-grid">${hCells.map(c=>{const a=c.c===0?0:Math.max(0.2,c.c/maxH);const bg=c.c===0?'rgba(255,255,255,0.04)':`rgba(var(--theme-rgb),${a.toFixed(2)})`;return `<div class="hm-cell" style="background:${bg}" title="${c.ds}${c.c?': '+c.c+' match'+(c.c>1?'es':''):''}"></div>`;}).join('')}</div><div style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:9px;color:var(--muted)"><span>Less</span><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.04)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.3)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.7)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),1)"></div><span>More</span></div>`;
+        const hmMonthLabels=(()=>{
+          const moN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          const labels=[];let lastMo='';
+          hCells.forEach((c,i)=>{const mo=c.ds.substring(0,7);if(mo!==lastMo){labels.push({i,label:moN[parseInt(c.ds.substring(5,7))-1]});lastMo=mo;}});
+          return `<div style="display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin-bottom:3px">${Array.from({length:16},(_,col)=>{const lbl=labels.find(l=>Math.floor(l.i/7)===col);return `<div style="font-size:7px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden">${lbl?lbl.label:''}</div>`;}).join('')}</div>`;
+        })();
+        const heatHtml=`<div style="font-size:9px;color:var(--muted);margin-bottom:4px">Match activity — last 112 days</div>${hmMonthLabels}<div class="hm-grid">${hCells.map(c=>{const a=c.c===0?0:Math.max(0.2,c.c/maxH);const bg=c.c===0?'rgba(255,255,255,0.04)':`rgba(var(--theme-rgb),${a.toFixed(2)})`;return `<div class="hm-cell" style="background:${bg}" title="${c.ds}${c.c?': '+c.c+' match'+(c.c>1?'es':''):''}"></div>`;}).join('')}</div><div style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:9px;color:var(--muted)"><span>Less</span><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.04)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.3)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.7)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),1)"></div><span>More</span></div>`;
 
         // ── SCORE DISTRIBUTION ─────────────────────────────────
         const sdHtml=scoreDistSorted.map(([s,c])=>`<div class="sdist-row"><div class="sdist-lbl">${s}</div><div class="sdist-bar-wrap"><div class="sdist-bar" style="width:${(c/maxSD*100).toFixed(0)}%"></div></div><div class="sdist-count">${c}</div></div>`).join('');
@@ -10068,7 +10074,7 @@ Parthiv - Par"
           :'<div class="ana-card"><div class="sub">No clear upsets found.</div></div>';
 
         // ── CHEMISTRY ─────────────────────────────────────────
-        const chemData=Object.entries(partnerships).filter(([,v])=>v.played>=2).sort((a,b)=>b[1].wins/b[1].played-a[1].wins/a[1].played).slice(0,6);
+        const chemData=Object.entries(partnerships).filter(([,v])=>v.played>=2).sort((a,b)=>{const diff=b[1].wins/b[1].played-a[1].wins/a[1].played;return diff!==0?diff:b[1].played-a[1].played;}).slice(0,6);
         const chemHtml=chemData.length
           ?chemData.map(([,p])=>{const pc=Math.round(p.wins/p.played*100);const col=pc>=60?'var(--green)':pc<=40?'var(--red)':'var(--text)';return `<div class="chem-row"><div class="chem-names">${p.players.join(' & ')}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;}).join('')
           :'<div class="sub" style="padding:8px">Need more doubles data.</div>';
@@ -10122,8 +10128,7 @@ Parthiv - Par"
             ${lrHtml}
           </div>
 
-          ${section("📈 Win Rate Over Time")}
-          <div class="ana-card">${winChartHtml}</div>
+          ${uniqueMonths.length>=2 ? `${section("📈 Win Rate Over Time")}<div class="ana-card">${winChartHtml}</div>` : ''}
 
           ${section("📅 Activity Heatmap")}
           <div class="ana-card">${heatHtml}</div>
@@ -10139,8 +10144,6 @@ Parthiv - Par"
           ${cmHtml}
           <div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BIGGEST UPSETS</div>
           ${upHtml}
-          <div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">SCORE PATTERNS</div>
-          <div class="ana-card">${sdHtml}</div>
 
           ${section("🤝 Partnership Analytics")}
           <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div>
@@ -10242,6 +10245,7 @@ Parthiv - Par"
         openPlayerDetail,
         onHomeFilterChange,
         prefillMatchTADate,
+        renderH2HDeepDive,
       });
 
       function setHistoryDateFilter(value) {
