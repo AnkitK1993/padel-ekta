@@ -2158,6 +2158,92 @@
         margin-right: 2px;
       }
 
+      /* ── COMPACT MATCH ROWS (Summary tab) ── */
+      .cmp-match-rows {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .cmr-row {
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+      }
+      .cmr-row:last-child {
+        border-bottom: none;
+      }
+      .cmr-row:nth-child(even) {
+        background: rgba(255, 255, 255, 0.012);
+      }
+      .cmr-date {
+        width: 34px;
+        padding: 8px 2px 8px 4px;
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .cmr-team {
+        padding: 8px 3px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 0; /* forces ellipsis with table-layout:fixed */
+        width: 30%;
+      }
+      .cmr-team-r {
+        text-align: right;
+      }
+      .cmr-team.cmr-win {
+        color: var(--green);
+      }
+      .cmr-team.cmr-loss {
+        color: var(--muted);
+      }
+      .cmr-score {
+        width: 18px;
+        padding: 8px 2px;
+        font-size: 14px;
+        font-weight: 900;
+        text-align: center;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .cmr-score.cmr-win {
+        color: var(--green);
+      }
+      .cmr-score.cmr-loss {
+        color: var(--red);
+        opacity: 0.7;
+      }
+      .cmr-vs {
+        width: 10px;
+        padding: 8px 1px;
+        text-align: center;
+        font-size: 10px;
+        color: var(--muted);
+        opacity: 0.4;
+      }
+      .cmr-meta {
+        width: 42px;
+        padding: 8px 4px 8px 2px;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .cmr-gap {
+        font-size: 9px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .cmr-badge {
+        font-size: 11px;
+        margin-right: 2px;
+        vertical-align: middle;
+      }
+
       /* ── SESSION SUMMARY CARD ── */
       .session-summary-card {
         background: linear-gradient(
@@ -2387,28 +2473,18 @@
         font-style: italic;
       }
 
-      /* ── COMPACT MATCH CARDS ── */
-      .cmp-matches .match-card {
-        padding: 10px;
-        border-radius: 12px;
-        margin-bottom: 8px;
-      }
       /* SUMMARY CONTINUITY FIX */
-
       .cmp-scroll table.cmp tbody {
         background: transparent;
       }
-
       .cmp-scroll table.cmp tbody tr:last-child td {
         padding-bottom: 12px;
       }
-
       .cmp-matches-header .t1 {
         display: flex;
         align-items: center;
         gap: 6px;
       }
-
       .cmp-matches-header .t1::before {
         content: "";
         width: 4px;
@@ -2416,41 +2492,6 @@
         border-radius: 10px;
         background: linear-gradient(180deg, var(--accent), var(--accent2));
         box-shadow: 0 0 12px rgba(245, 200, 66, 0.4);
-      }
-      .cmp-matches .match-top {
-        margin-bottom: 6px;
-      }
-      .cmp-matches .match-date {
-        font-size: 9px;
-      }
-      .cmp-matches .match-tag {
-        font-size: 9px;
-        padding: 3px 7px;
-      }
-      .cmp-matches .match-score-row {
-        margin-top: 6px;
-        gap: 6px;
-      }
-      .cmp-matches .team-name {
-        font-size: 11px;
-      }
-      .cmp-matches .team-score {
-        font-size: 24px;
-        margin-top: 4px;
-      }
-      .cmp-matches .vs-text {
-        font-size: 10px;
-      }
-      .cmp-matches .match-event-strip {
-        margin-top: 6px;
-        gap: 4px;
-      }
-      .cmp-matches .event-badge {
-        font-size: 10px;
-        padding: 4px 9px;
-      }
-      .cmp-matches .match-footer {
-        margin-top: 6px;
       }
 
       @keyframes badgePop {
@@ -3383,16 +3424,7 @@
 
         /* Matches below table */
         .cmp-matches {
-          padding: 8px 8px 100px;
-        }
-        .cmp-matches .match-card {
-          padding: 9px;
-        }
-        .cmp-matches .team-score {
-          font-size: 20px;
-        }
-        .cmp-matches .team-name {
-          font-size: 10px;
+          padding: 0 0 100px;
         }
       }
 
@@ -6665,6 +6697,36 @@ Parthiv - Par"
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
 
+      // ── DATE FORMATTER ────────────────────────────────────────────
+      const MONTHS_SHORT = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      function fmtDate(raw) {
+        if (!raw) return "—";
+        const s = String(raw);
+        // Full date: YYYY-MM-DD → DD MMM YYYY
+        let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m)
+          return (
+            Number(m[3]) + " " + MONTHS_SHORT[Number(m[2]) - 1] + " " + m[1]
+          );
+        // Short: MM-DD → DD MMM
+        m = s.match(/^(\d{2})-(\d{2})$/);
+        if (m) return Number(m[2]) + " " + MONTHS_SHORT[Number(m[1]) - 1];
+        return s;
+      }
+
       // ── STATE ──────────────────────────────────────────────────
       let allMatches = [];
       let nameMap = {};
@@ -8193,10 +8255,8 @@ Parthiv - Par"
             return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
           })
           .join("");
-        document.getElementById("cmpMatches").innerHTML = buildMatchCards(
-          filtered,
-          false,
-        );
+        document.getElementById("cmpMatches").innerHTML =
+          buildCompactMatchRows(filtered);
       }
 
       function updateSortArrows() {
@@ -8260,6 +8320,47 @@ Parthiv - Par"
         return Number(m.scoreA) === 0 || Number(m.scoreB) === 0;
       }
 
+      function buildCompactMatchRows(matches) {
+        if (!matches.length)
+          return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+        return `<table class="cmp-match-rows">
+          <tbody>
+            ${[...matches]
+              .reverse()
+              .map((m) => {
+                const aWon = m.scoreA > m.scoreB;
+                const winA = aWon ? "cmr-win" : "cmr-loss";
+                const winB = !aWon ? "cmr-win" : "cmr-loss";
+                const teamA = (m.teamA || []).join(" & ");
+                const teamB = (m.teamB || []).join(" & ");
+                const diff = Math.abs(m.scoreA - m.scoreB);
+                const isFire = isFireMatch(m);
+                const isDom = isDominatingMatch(m);
+                const isZero = isZeroMatch(m);
+                const badge = isFire
+                  ? `<span class="cmr-badge cmr-fire">🔥</span>`
+                  : isDom
+                    ? `<span class="cmr-badge cmr-dom">💀</span>`
+                    : isZero
+                      ? `<span class="cmr-badge cmr-zero">😂</span>`
+                      : "";
+                return `<tr class="cmr-row">
+                <td class="cmr-date">${fmtDate(m.date)
+                  .replace(/\s+\d{4}$/, "")
+                  .toUpperCase()}</td>
+                <td class="cmr-team ${winA}">${aWon ? "👑 " : ""}${teamA}</td>
+                <td class="cmr-score ${winA}">${m.scoreA}</td>
+                <td class="cmr-vs">–</td>
+                <td class="cmr-score ${winB}">${m.scoreB}</td>
+                <td class="cmr-team cmr-team-r ${winB}">${!aWon ? "👑 " : ""}${teamB}</td>
+                <td class="cmr-meta">${badge}<span class="cmr-gap">${diff} game${diff === 1 ? "" : "s"}</span></td>
+              </tr>`;
+              })
+              .join("")}
+          </tbody>
+        </table>`;
+      }
+
       function buildMatchCards(matches, showAdmin) {
         if (!matches.length)
           return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
@@ -8307,8 +8408,8 @@ Parthiv - Par"
             return `
               <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;">
                 <div class="match-top">
-                  <span class="match-date">📅 ${m.date || "—"}</span>
-                  <span class="match-tag">${diff} pt gap</span>
+                  <span class="match-date">📅 ${fmtDate(m.date)}</span>
+                  <span class="match-tag">${diff} game${diff === 1 ? "" : "s"} gap</span>
                 </div>
                 <div class="match-score-row" style="margin-top:10px">
                   <div class="team-block">
@@ -8392,13 +8493,13 @@ Parthiv - Par"
         const isThriller = Math.abs(motd.scoreA - motd.scoreB) <= 1;
         const motdLabel = isThriller ? "🎭 THRILLER" : "⚡ MATCH OF THE DAY";
         const motdSub = isThriller
-          ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} point!`
+          ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} game${Math.abs(motd.scoreA - motd.scoreB) === 1 ? "" : "s"}!`
           : `Most dramatic result of the session`;
 
         const motdHtml = `<div class="motd-card">
               <div class="motd-header">
                 <span class="motd-label">${motdLabel}</span>
-                <span class="motd-date">📅 ${latestDate}</span>
+                <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
               </div>
               <div class="motd-teams">
                 <div class="motd-team winner">
@@ -8462,7 +8563,7 @@ Parthiv - Par"
             upsetHtml = `<div class="motd-card upset-card">
                   <div class="motd-header">
                     <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
-                    <span class="motd-date">📅 ${latestDate}</span>
+                    <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
                   </div>
                   <div class="motd-teams">
                     <div class="motd-team winner">
@@ -8516,11 +8617,7 @@ Parthiv - Par"
         const closestScore = `${Math.max(closest.scoreA, closest.scoreB)}-${Math.min(closest.scoreA, closest.scoreB)}`;
 
         // Format date nicely
-        const [y, mo, d] = latestDate.split("-");
-        const dateLabel = new Date(latestDate + "T00:00:00").toLocaleDateString(
-          "en-IN",
-          { day: "numeric", month: "short", year: "numeric" },
-        );
+        const dateLabel = fmtDate(latestDate);
 
         return `<div class="session-summary-card">
               <div class="ss-header">
@@ -9039,7 +9136,7 @@ Parthiv - Par"
         const form = detail.recent
           .map(
             (m) =>
-              `<span class="stat-chip ${m.won ? "sr" : ""}" title="${m.date} vs ${m.opponents}">${m.won ? "W" : "L"} ${m.score}</span>`,
+              `<span class="stat-chip ${m.won ? "sr" : ""}" title="${fmtDate(m.date)} vs ${m.opponents}">${m.won ? "W" : "L"} ${m.score}</span>`,
           )
           .join(" ");
         const recentCards = detail.recent
@@ -9047,7 +9144,7 @@ Parthiv - Par"
           .reverse()
           .map(
             (m) =>
-              `<div class="ana-card"><div class="name" style="font-size:15px">${m.won ? "Win" : "Loss"} · ${m.score}</div><div class="sub">${m.date} vs ${m.opponents}</div></div>`,
+              `<div class="ana-card"><div class="name" style="font-size:15px">${m.won ? "Win" : "Loss"} · ${m.score}</div><div class="sub">${fmtDate(m.date)} vs ${m.opponents}</div></div>`,
           )
           .join("");
         const html = `
@@ -9384,7 +9481,6 @@ Parthiv - Par"
           .filter((p) => p.played >= 2)
           .sort((a, b) => b.wins / b.played - a.wins / a.played)[0];
         const pairLeaderboard = getPairStats().slice(0, 8);
-        const achievements = getAchievements();
         const playersByMatches = getAllPlayerNamesFromMatches();
         const matrixHtml = buildH2HMatrixCompact(playersByMatches);
 
@@ -9412,24 +9508,6 @@ Parthiv - Par"
               <div class="analytics-cards">
                 ${card("🚫 Most Shutout Wins", mostShutoutWins?.[0], `${mostShutoutWins?.[1] || 0} games won X-0`)}
                 ${card("💔 Most Shutout Losses", mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null, `${mostShutoutLossCount} games lost 0-X`)}
-              </div>
-
-              ${section("⚡ Extreme Stats")}
-              <div class="analytics-cards">
-                ${card("💣 Biggest Victory", biggestWin?.player, `+${biggestWin?.margin} margin (${biggestWin?.score})`)}
-                ${bestPartnership ? card("👫 Dominant Duo", bestPartnership.players.join(" & "), `${bestPartnership.wins}W–${bestPartnership.played - bestPartnership.wins}L (${Math.round((bestPartnership.wins / bestPartnership.played) * 100)}%)`) : card("👫 Dominant Duo", "—", "—")}
-              </div>
-
-
-              ${section("Achievements")}
-              <div class="analytics-cards">
-                ${
-                  achievements.length
-                    ? achievements
-                        .map((a) => card(a.title, a.name, a.sub))
-                        .join("")
-                    : '<div class="ana-card"><div class="sub">More matches will unlock achievements.</div></div>'
-                }
               </div>
 
               ${section("Pair Leaderboard")}
@@ -9712,31 +9790,22 @@ Parthiv - Par"
           const month = Number(match[2]) - 1;
           const day = Number(match[3]);
 
-          const suffix =
-            day % 10 === 1 && day !== 11
-              ? "st"
-              : day % 10 === 2 && day !== 12
-                ? "nd"
-                : day % 10 === 3 && day !== 13
-                  ? "rd"
-                  : "th";
-
           const months = [
-            "January",
-            "February",
-            "March",
-            "April",
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
             "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
           ];
 
-          return `${day}${suffix} ${months[month]} ${year}`;
+          return `${day} ${months[month]} ${year}`;
         }
 
         function applyPrettyDates() {
@@ -9795,54 +9864,6 @@ Parthiv - Par"
 
       setTimeout(applySummaryTableAnimations, 100);
       setTimeout(applySummaryTableAnimations, 500);
-    </script>
-
-    <script>
-      (function () {
-        function cleanupExtremeAndPairPower() {
-          // Remove EXTREME STATS section and following cards
-          document.querySelectorAll(".ana-section-title").forEach((title) => {
-            const txt = (title.textContent || "").toLowerCase().trim();
-
-            if (txt.includes("extreme stats")) {
-              let next = title.nextElementSibling;
-
-              title.remove();
-
-              while (next && !next.classList.contains("ana-section-title")) {
-                const current = next;
-                next = next.nextElementSibling;
-                current.remove();
-              }
-            }
-          });
-
-          // Keep only first PAIR POWER card
-          let found = false;
-
-          document
-            .querySelectorAll(
-              ".achievement-card, .manage-stat, .analytics-card, .ana-card, .session-summary-card",
-            )
-            .forEach((card) => {
-              const txt = (card.textContent || "").toLowerCase();
-
-              if (txt.includes("pair power")) {
-                if (!found) {
-                  found = true;
-
-                  card.style.gridColumn = "1 / -1";
-                  card.style.borderColor = "rgba(245,200,66,0.35)";
-                } else {
-                  card.remove();
-                }
-              }
-            });
-        }
-
-        setTimeout(cleanupExtremeAndPairPower, 300);
-        setTimeout(cleanupExtremeAndPairPower, 1200);
-      })();
     </script>
   </body>
 </html>
