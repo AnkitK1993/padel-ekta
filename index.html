@@ -245,26 +245,41 @@
       }
 
       #loginBtn {
-        background: linear-gradient(135deg, rgba(var(--theme-rgb), 0.16), rgba(var(--theme-rgb), 0.06));
+        background: linear-gradient(
+          135deg,
+          rgba(var(--theme-rgb), 0.16),
+          rgba(var(--theme-rgb), 0.06)
+        );
         color: var(--theme);
-        border: 1px solid rgba(var(--theme-rgb), 0.50);
+        border: 1px solid rgba(var(--theme-rgb), 0.5);
         padding: 7px 14px;
         border-radius: 10px;
         font-size: 8.5px;
         font-weight: 800;
         letter-spacing: 0.08em;
         cursor: pointer;
-        box-shadow: 0 0 18px rgba(var(--theme-rgb), 0.15), inset 0 1px 0 rgba(255,255,255,0.06);
+        box-shadow:
+          0 0 18px rgba(var(--theme-rgb), 0.15),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
         font-family: "DM Sans", sans-serif;
         flex-shrink: 0;
         backdrop-filter: blur(12px);
-        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        transition:
+          border-color 0.18s ease,
+          box-shadow 0.18s ease,
+          background 0.18s ease;
         text-transform: uppercase;
       }
       #loginBtn:hover {
-        border-color: rgba(var(--theme-rgb), 0.80);
-        box-shadow: 0 0 28px rgba(var(--theme-rgb), 0.28), inset 0 1px 0 rgba(255,255,255,0.08);
-        background: linear-gradient(135deg, rgba(var(--theme-rgb), 0.24), rgba(var(--theme-rgb), 0.10));
+        border-color: rgba(var(--theme-rgb), 0.8);
+        box-shadow:
+          0 0 28px rgba(var(--theme-rgb), 0.28),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        background: linear-gradient(
+          135deg,
+          rgba(var(--theme-rgb), 0.24),
+          rgba(var(--theme-rgb), 0.1)
+        );
       }
 
       /* ── Theme toggle button ── */
@@ -277,8 +292,13 @@
         cursor: pointer;
         padding: 0;
         flex-shrink: 0;
-        box-shadow: 0 0 14px rgba(var(--theme-rgb), 0.45), 0 0 28px rgba(var(--theme-rgb), 0.18);
-        transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
+        box-shadow:
+          0 0 14px rgba(var(--theme-rgb), 0.45),
+          0 0 28px rgba(var(--theme-rgb), 0.18);
+        transition:
+          transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+          box-shadow 0.22s ease,
+          border-color 0.22s ease;
         position: relative;
       }
       #themeBtn::after {
@@ -292,19 +312,27 @@
       }
       #themeBtn:hover {
         transform: scale(1.18);
-        box-shadow: 0 0 22px rgba(var(--theme-rgb), 0.65), 0 0 40px rgba(var(--theme-rgb), 0.28);
-        border-color: rgba(255, 255, 255, 0.40);
+        box-shadow:
+          0 0 22px rgba(var(--theme-rgb), 0.65),
+          0 0 40px rgba(var(--theme-rgb), 0.28);
+        border-color: rgba(255, 255, 255, 0.4);
       }
       #themeBtn:active {
         transform: scale(0.92) rotate(30deg);
       }
       #themeBtn.theme-spin {
-        animation: themeSpin 0.35s cubic-bezier(0.22,1,0.36,1);
+        animation: themeSpin 0.35s cubic-bezier(0.22, 1, 0.36, 1);
       }
       @keyframes themeSpin {
-        0%   { transform: scale(0.8) rotate(0deg); }
-        60%  { transform: scale(1.22) rotate(200deg); }
-        100% { transform: scale(1) rotate(360deg); }
+        0% {
+          transform: scale(0.8) rotate(0deg);
+        }
+        60% {
+          transform: scale(1.22) rotate(200deg);
+        }
+        100% {
+          transform: scale(1) rotate(360deg);
+        }
       }
 
       .detailed-header {
@@ -523,7 +551,11 @@
       }
 
       .pc {
-        background: linear-gradient(135deg, rgba(12,12,22,0.94) 0%, rgba(18,18,32,0.90) 100%);
+        background: linear-gradient(
+          135deg,
+          rgba(12, 12, 22, 0.94) 0%,
+          rgba(18, 18, 32, 0.9) 100%
+        );
         border: 1px solid rgba(var(--theme-rgb), 0.22);
         backdrop-filter: blur(24px);
         border-radius: 16px;
@@ -567,26 +599,50 @@
       .pc:hover {
         transform: translateY(-6px);
         border-color: rgba(var(--theme-rgb), 0.55);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(var(--theme-rgb), 0.12);
-        background: linear-gradient(135deg, rgba(16,16,28,0.97) 0%, rgba(22,22,38,0.95) 100%);
+        box-shadow:
+          0 20px 40px rgba(0, 0, 0, 0.4),
+          0 0 30px rgba(var(--theme-rgb), 0.12);
+        background: linear-gradient(
+          135deg,
+          rgba(16, 16, 28, 0.97) 0%,
+          rgba(22, 22, 38, 0.95) 100%
+        );
       }
       .pc.r1:hover {
         transform: translateY(-8px);
         border-color: rgba(255, 230, 80, 0.85);
-        box-shadow: 0 22px 44px rgba(0,0,0,0.45), 0 0 36px rgba(255,210,40,0.22);
-        background: linear-gradient(135deg, rgba(26, 18, 4, 0.98) 0%, rgba(16, 14, 24, 0.96) 100%);
+        box-shadow:
+          0 22px 44px rgba(0, 0, 0, 0.45),
+          0 0 36px rgba(255, 210, 40, 0.22);
+        background: linear-gradient(
+          135deg,
+          rgba(26, 18, 4, 0.98) 0%,
+          rgba(16, 14, 24, 0.96) 100%
+        );
       }
       .pc.r2:hover {
         transform: translateY(-8px);
-        border-color: rgba(190, 210, 255, 0.70);
-        box-shadow: 0 22px 44px rgba(0,0,0,0.42), 0 0 30px rgba(160,200,255,0.18);
-        background: linear-gradient(135deg, rgba(12, 14, 26, 0.98) 0%, rgba(16, 18, 32, 0.96) 100%);
+        border-color: rgba(190, 210, 255, 0.7);
+        box-shadow:
+          0 22px 44px rgba(0, 0, 0, 0.42),
+          0 0 30px rgba(160, 200, 255, 0.18);
+        background: linear-gradient(
+          135deg,
+          rgba(12, 14, 26, 0.98) 0%,
+          rgba(16, 18, 32, 0.96) 100%
+        );
       }
       .pc.r3:hover {
         transform: translateY(-8px);
         border-color: rgba(230, 140, 60, 0.72);
-        box-shadow: 0 22px 44px rgba(0,0,0,0.42), 0 0 28px rgba(220,120,40,0.18);
-        background: linear-gradient(135deg, rgba(20, 12, 4, 0.98) 0%, rgba(16, 14, 24, 0.96) 100%);
+        box-shadow:
+          0 22px 44px rgba(0, 0, 0, 0.42),
+          0 0 28px rgba(220, 120, 40, 0.18);
+        background: linear-gradient(
+          135deg,
+          rgba(20, 12, 4, 0.98) 0%,
+          rgba(16, 14, 24, 0.96) 100%
+        );
       }
       @keyframes rowReveal {
         from {
@@ -620,74 +676,201 @@
         }
       }
       @keyframes holoBorder {
-        0%, 100% { border-color: rgba(var(--theme-rgb), 0.30); }
-        25%       { border-color: rgba(160, 80, 255, 0.42); }
-        50%       { border-color: rgba(255, 60, 160, 0.38); }
-        75%       { border-color: rgba(80, 220, 120, 0.35); }
+        0%,
+        100% {
+          border-color: rgba(var(--theme-rgb), 0.3);
+        }
+        25% {
+          border-color: rgba(160, 80, 255, 0.42);
+        }
+        50% {
+          border-color: rgba(255, 60, 160, 0.38);
+        }
+        75% {
+          border-color: rgba(80, 220, 120, 0.35);
+        }
       }
       @keyframes holoGlow {
-        0%, 100% { box-shadow: 0 8px 28px rgba(0,0,0,0.35), 0 0 22px rgba(var(--theme-rgb),0.12); }
-        25%       { box-shadow: 0 8px 28px rgba(0,0,0,0.35), 0 0 22px rgba(160,80,255,0.12); }
-        50%       { box-shadow: 0 8px 28px rgba(0,0,0,0.35), 0 0 22px rgba(255,60,160,0.10); }
-        75%       { box-shadow: 0 8px 28px rgba(0,0,0,0.35), 0 0 22px rgba(80,220,120,0.10); }
+        0%,
+        100% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.35),
+            0 0 22px rgba(var(--theme-rgb), 0.12);
+        }
+        25% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.35),
+            0 0 22px rgba(160, 80, 255, 0.12);
+        }
+        50% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.35),
+            0 0 22px rgba(255, 60, 160, 0.1);
+        }
+        75% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.35),
+            0 0 22px rgba(80, 220, 120, 0.1);
+        }
       }
       @keyframes holoSweep {
-        0%        { left: -80%; opacity: 0; }
-        4%        { opacity: 1; }
-        16%, 100% { left: 130%; opacity: 0; }
+        0% {
+          left: -80%;
+          opacity: 0;
+        }
+        4% {
+          opacity: 1;
+        }
+        16%,
+        100% {
+          left: 130%;
+          opacity: 0;
+        }
       }
       @keyframes holoBorderR1 {
-        0%, 100% { border-color: rgba(255, 215, 60, 0.70); }
-        25%       { border-color: rgba(255, 160, 60, 0.60); }
-        50%       { border-color: rgba(255, 240, 120, 0.65); }
-        75%       { border-color: rgba(255, 190, 40, 0.55); }
+        0%,
+        100% {
+          border-color: rgba(255, 215, 60, 0.7);
+        }
+        25% {
+          border-color: rgba(255, 160, 60, 0.6);
+        }
+        50% {
+          border-color: rgba(255, 240, 120, 0.65);
+        }
+        75% {
+          border-color: rgba(255, 190, 40, 0.55);
+        }
       }
       @keyframes holoGlowR1 {
-        0%, 100% { box-shadow: 0 10px 32px rgba(0,0,0,0.40), 0 0 28px rgba(255,200,40,0.18); }
-        25%       { box-shadow: 0 10px 32px rgba(0,0,0,0.40), 0 0 28px rgba(255,160,30,0.14); }
-        50%       { box-shadow: 0 10px 32px rgba(0,0,0,0.40), 0 0 32px rgba(255,240,80,0.20); }
-        75%       { box-shadow: 0 10px 32px rgba(0,0,0,0.40), 0 0 24px rgba(255,120,30,0.14); }
+        0%,
+        100% {
+          box-shadow:
+            0 10px 32px rgba(0, 0, 0, 0.4),
+            0 0 28px rgba(255, 200, 40, 0.18);
+        }
+        25% {
+          box-shadow:
+            0 10px 32px rgba(0, 0, 0, 0.4),
+            0 0 28px rgba(255, 160, 30, 0.14);
+        }
+        50% {
+          box-shadow:
+            0 10px 32px rgba(0, 0, 0, 0.4),
+            0 0 32px rgba(255, 240, 80, 0.2);
+        }
+        75% {
+          box-shadow:
+            0 10px 32px rgba(0, 0, 0, 0.4),
+            0 0 24px rgba(255, 120, 30, 0.14);
+        }
       }
       @keyframes holoBorderR2 {
-        0%, 100% { border-color: rgba(180, 195, 230, 0.50); }
-        25%       { border-color: rgba(120, 200, 255, 0.48); }
-        50%       { border-color: rgba(200, 210, 240, 0.45); }
-        75%       { border-color: rgba(160, 140, 220, 0.42); }
+        0%,
+        100% {
+          border-color: rgba(180, 195, 230, 0.5);
+        }
+        25% {
+          border-color: rgba(120, 200, 255, 0.48);
+        }
+        50% {
+          border-color: rgba(200, 210, 240, 0.45);
+        }
+        75% {
+          border-color: rgba(160, 140, 220, 0.42);
+        }
       }
       @keyframes holoGlowR2 {
-        0%, 100% { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 20px rgba(180,200,255,0.12); }
-        25%       { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 20px rgba(100,190,255,0.14); }
-        50%       { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 20px rgba(200,215,255,0.10); }
-        75%       { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 20px rgba(160,130,220,0.12); }
+        0%,
+        100% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.38),
+            0 0 20px rgba(180, 200, 255, 0.12);
+        }
+        25% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.38),
+            0 0 20px rgba(100, 190, 255, 0.14);
+        }
+        50% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.38),
+            0 0 20px rgba(200, 215, 255, 0.1);
+        }
+        75% {
+          box-shadow:
+            0 8px 28px rgba(0, 0, 0, 0.38),
+            0 0 20px rgba(160, 130, 220, 0.12);
+        }
       }
       @keyframes holoBorderR3 {
-        0%, 100% { border-color: rgba(205, 115, 50, 0.55); }
-        25%       { border-color: rgba(230, 140, 40, 0.52); }
-        50%       { border-color: rgba(200, 90, 30, 0.50); }
-        75%       { border-color: rgba(220, 160, 60, 0.48); }
+        0%,
+        100% {
+          border-color: rgba(205, 115, 50, 0.55);
+        }
+        25% {
+          border-color: rgba(230, 140, 40, 0.52);
+        }
+        50% {
+          border-color: rgba(200, 90, 30, 0.5);
+        }
+        75% {
+          border-color: rgba(220, 160, 60, 0.48);
+        }
       }
       @keyframes holoGlowR3 {
-        0%, 100% { box-shadow: 0 8px 26px rgba(0,0,0,0.38), 0 0 18px rgba(210,120,50,0.12); }
-        25%       { box-shadow: 0 8px 26px rgba(0,0,0,0.38), 0 0 18px rgba(240,150,40,0.14); }
-        50%       { box-shadow: 0 8px 26px rgba(0,0,0,0.38), 0 0 18px rgba(200,80,30,0.10); }
-        75%       { box-shadow: 0 8px 26px rgba(0,0,0,0.38), 0 0 18px rgba(220,170,60,0.12); }
+        0%,
+        100% {
+          box-shadow:
+            0 8px 26px rgba(0, 0, 0, 0.38),
+            0 0 18px rgba(210, 120, 50, 0.12);
+        }
+        25% {
+          box-shadow:
+            0 8px 26px rgba(0, 0, 0, 0.38),
+            0 0 18px rgba(240, 150, 40, 0.14);
+        }
+        50% {
+          box-shadow:
+            0 8px 26px rgba(0, 0, 0, 0.38),
+            0 0 18px rgba(200, 80, 30, 0.1);
+        }
+        75% {
+          box-shadow:
+            0 8px 26px rgba(0, 0, 0, 0.38),
+            0 0 18px rgba(220, 170, 60, 0.12);
+        }
       }
       @keyframes glowPulse {
-        0%   { filter: hue-rotate(0deg) brightness(1); }
-        50%  { filter: hue-rotate(40deg) brightness(1.3); }
-        100% { filter: hue-rotate(-20deg) brightness(1); }
+        0% {
+          filter: hue-rotate(0deg) brightness(1);
+        }
+        50% {
+          filter: hue-rotate(40deg) brightness(1.3);
+        }
+        100% {
+          filter: hue-rotate(-20deg) brightness(1);
+        }
       }
       .pc.r1 {
-        border-color: rgba(255, 215, 60, 0.70);
-        background: linear-gradient(135deg, rgba(22, 15, 4, 0.97) 0%, rgba(14, 12, 22, 0.94) 100%);
+        border-color: rgba(255, 215, 60, 0.7);
+        background: linear-gradient(
+          135deg,
+          rgba(22, 15, 4, 0.97) 0%,
+          rgba(14, 12, 22, 0.94) 100%
+        );
         animation:
           detailedCardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards,
           holoBorderR1 8s ease-in-out 0.6s infinite,
           holoGlowR1 8s ease-in-out 0.6s infinite;
       }
       .pc.r2 {
-        border-color: rgba(180, 195, 230, 0.50);
-        background: linear-gradient(135deg, rgba(10, 12, 22, 0.96) 0%, rgba(14, 16, 28, 0.93) 100%);
+        border-color: rgba(180, 195, 230, 0.5);
+        background: linear-gradient(
+          135deg,
+          rgba(10, 12, 22, 0.96) 0%,
+          rgba(14, 16, 28, 0.93) 100%
+        );
         animation:
           detailedCardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards,
           holoBorderR2 8s ease-in-out 0.6s infinite,
@@ -695,7 +878,11 @@
       }
       .pc.r3 {
         border-color: rgba(205, 115, 50, 0.55);
-        background: linear-gradient(135deg, rgba(16, 10, 4, 0.96) 0%, rgba(14, 12, 22, 0.93) 100%);
+        background: linear-gradient(
+          135deg,
+          rgba(16, 10, 4, 0.96) 0%,
+          rgba(14, 12, 22, 0.93) 100%
+        );
         animation:
           detailedCardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards,
           holoBorderR3 8s ease-in-out 0.6s infinite,
@@ -710,7 +897,7 @@
         pointer-events: none;
         background: radial-gradient(
           circle at top right,
-          rgba(var(--theme-rgb), 0.10) 0%,
+          rgba(var(--theme-rgb), 0.1) 0%,
           rgba(180, 80, 255, 0.05) 45%,
           transparent 70%
         );
@@ -720,7 +907,7 @@
         background: radial-gradient(
           circle at top right,
           rgba(255, 215, 60, 0.24) 0%,
-          rgba(255, 140, 30, 0.10) 45%,
+          rgba(255, 140, 30, 0.1) 45%,
           transparent 70%
         );
       }
@@ -768,13 +955,16 @@
         overflow: visible;
       }
       .r1 .rb {
-        filter: drop-shadow(0 0 10px rgba(255, 210, 0, 0.60)) drop-shadow(0 3px 8px rgba(0,0,0,0.55));
+        filter: drop-shadow(0 0 10px rgba(255, 210, 0, 0.6))
+          drop-shadow(0 3px 8px rgba(0, 0, 0, 0.55));
       }
       .r2 .rb {
-        filter: drop-shadow(0 0 10px rgba(160, 180, 240, 0.55)) drop-shadow(0 3px 8px rgba(0,0,0,0.50));
+        filter: drop-shadow(0 0 10px rgba(160, 180, 240, 0.55))
+          drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
       }
       .r3 .rb {
-        filter: drop-shadow(0 0 9px rgba(200, 120, 50, 0.55)) drop-shadow(0 3px 8px rgba(0,0,0,0.50));
+        filter: drop-shadow(0 0 9px rgba(200, 120, 50, 0.55))
+          drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
       }
       .pname {
         font-family: "Bebas Neue", sans-serif;
@@ -1766,7 +1956,11 @@
       }
       .btn-p {
         flex: 1;
-        background: linear-gradient(135deg, rgba(var(--theme-rgb), 0.22), rgba(var(--theme-rgb), 0.10));
+        background: linear-gradient(
+          135deg,
+          rgba(var(--theme-rgb), 0.22),
+          rgba(var(--theme-rgb), 0.1)
+        );
         color: var(--theme);
         border: 1px solid rgba(var(--theme-rgb), 0.55);
         padding: 12px;
@@ -1775,14 +1969,20 @@
         font-weight: 700;
         cursor: pointer;
         font-family: "DM Sans", sans-serif;
-        box-shadow: 0 0 20px rgba(var(--theme-rgb), 0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+        box-shadow:
+          0 0 20px rgba(var(--theme-rgb), 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
         backdrop-filter: blur(10px);
         letter-spacing: 0.04em;
-        transition: box-shadow 0.18s ease, border-color 0.18s ease;
+        transition:
+          box-shadow 0.18s ease,
+          border-color 0.18s ease;
       }
       .btn-p:hover {
-        border-color: rgba(var(--theme-rgb), 0.80);
-        box-shadow: 0 0 30px rgba(var(--theme-rgb), 0.22), inset 0 1px 0 rgba(255,255,255,0.08);
+        border-color: rgba(var(--theme-rgb), 0.8);
+        box-shadow:
+          0 0 30px rgba(var(--theme-rgb), 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
       }
       .btn-s {
         background: var(--surface2);
@@ -2166,9 +2366,9 @@
         gap: 4px;
         margin-top: 6px;
         padding: 6px 4px;
-        background: rgba(255,255,255,0.025);
+        background: rgba(255, 255, 255, 0.025);
         border-radius: 8px;
-        border: 1px solid rgba(255,255,255,0.05);
+        border: 1px solid rgba(255, 255, 255, 0.05);
       }
       .row5 .cs {
         flex: 1;
@@ -2202,14 +2402,14 @@
         letter-spacing: 0;
       }
       .fd-w {
-        background: rgba(54, 212, 126, 0.20);
+        background: rgba(54, 212, 126, 0.2);
         color: var(--green);
         border: 1px solid rgba(54, 212, 126, 0.35);
       }
       .fd-l {
         background: rgba(240, 79, 79, 0.18);
         color: var(--red);
-        border: 1px solid rgba(240, 79, 79, 0.30);
+        border: 1px solid rgba(240, 79, 79, 0.3);
       }
 
       /* insights row — partner + nemesis */
@@ -2224,9 +2424,9 @@
         align-items: center;
         gap: 5px;
         padding: 5px 7px;
-        background: rgba(255,255,255,0.025);
+        background: rgba(255, 255, 255, 0.025);
         border-radius: 8px;
-        border: 1px solid rgba(255,255,255,0.05);
+        border: 1px solid rgba(255, 255, 255, 0.05);
         min-width: 0;
       }
       .ins-icon {
@@ -2333,18 +2533,39 @@
         margin-bottom: 4px;
       }
       .award-card {
-        background: rgba(14,14,24,0.82);
-        border: 1px solid rgba(255,255,255,0.07);
+        background: rgba(14, 14, 24, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.07);
         border-radius: 14px;
         padding: 12px 12px 10px;
         display: flex;
         flex-direction: column;
         gap: 2px;
       }
-      .award-icon { font-size: 20px; line-height: 1; margin-bottom: 4px; }
-      .award-title { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-      .award-name { font-size: 14px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .award-sub { font-size: 10px; color: var(--accent); font-weight: 600; }
+      .award-icon {
+        font-size: 20px;
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+      .award-title {
+        font-size: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+      }
+      .award-name {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .award-sub {
+        font-size: 10px;
+        color: var(--accent);
+        font-weight: 600;
+      }
 
       /* ── HEATMAP ─────────────────────────────────── */
       .hm-grid {
@@ -2361,8 +2582,12 @@
 
       /* ── HISTORY SUMMARY CARD ───────────────────── */
       .hist-summary-card {
-        background: linear-gradient(135deg, rgba(54,212,126,0.07), rgba(54,212,126,0.02));
-        border: 1.5px solid rgba(54,212,126,0.28);
+        background: linear-gradient(
+          135deg,
+          rgba(54, 212, 126, 0.07),
+          rgba(54, 212, 126, 0.02)
+        );
+        border: 1.5px solid rgba(54, 212, 126, 0.28);
         border-radius: 16px;
         padding: 14px 14px 12px;
         margin: 6px 0 16px;
@@ -2372,9 +2597,16 @@
       .hist-summary-card::before {
         content: "";
         position: absolute;
-        top: 0; left: 0; right: 0;
+        top: 0;
+        left: 0;
+        right: 0;
         height: 2px;
-        background: linear-gradient(90deg, var(--green), rgba(54,212,126,0.2), var(--green));
+        background: linear-gradient(
+          90deg,
+          var(--green),
+          rgba(54, 212, 126, 0.2),
+          var(--green)
+        );
       }
       .hsum-header {
         display: flex;
@@ -2388,12 +2620,15 @@
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--green);
-        background: rgba(54,212,126,0.1);
+        background: rgba(54, 212, 126, 0.1);
         padding: 3px 9px;
         border-radius: 20px;
-        border: 1px solid rgba(54,212,126,0.22);
+        border: 1px solid rgba(54, 212, 126, 0.22);
       }
-      .hsum-count { font-size: 10px; color: var(--muted); }
+      .hsum-count {
+        font-size: 10px;
+        color: var(--muted);
+      }
       .hsum-stats {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -2401,11 +2636,11 @@
         margin-bottom: 12px;
       }
       .hsum-stat {
-        background: rgba(9,9,15,0.5);
+        background: rgba(9, 9, 15, 0.5);
         border-radius: 8px;
         padding: 7px 4px;
         text-align: center;
-        border: 1px solid rgba(255,255,255,0.05);
+        border: 1px solid rgba(255, 255, 255, 0.05);
       }
       .hsum-val {
         font-family: "Bebas Neue", sans-serif;
@@ -2428,19 +2663,28 @@
         color: var(--muted);
         margin: 10px 0 6px;
         padding-bottom: 4px;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       }
-      .hsum-podium { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+      .hsum-podium {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 4px;
+      }
       .hsum-row {
         display: flex;
         align-items: center;
         gap: 6px;
         padding: 5px 8px;
-        background: rgba(255,255,255,0.03);
+        background: rgba(255, 255, 255, 0.03);
         border-radius: 8px;
-        border: 1px solid rgba(255,255,255,0.04);
+        border: 1px solid rgba(255, 255, 255, 0.04);
       }
-      .hsum-medal { font-size: 14px; flex-shrink: 0; line-height: 1; }
+      .hsum-medal {
+        font-size: 14px;
+        flex-shrink: 0;
+        line-height: 1;
+      }
       .hsum-pname {
         font-size: 13px;
         font-weight: 700;
@@ -2450,8 +2694,18 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .hsum-rec { font-size: 10px; color: var(--muted); flex-shrink: 0; }
-      .hsum-pct { font-size: 11px; font-weight: 800; flex-shrink: 0; min-width: 32px; text-align: right; }
+      .hsum-rec {
+        font-size: 10px;
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+      .hsum-pct {
+        font-size: 11px;
+        font-weight: 800;
+        flex-shrink: 0;
+        min-width: 32px;
+        text-align: right;
+      }
       .hsum-sr {
         font-size: 10px;
         color: var(--accent);
@@ -2460,18 +2714,26 @@
         text-align: right;
         font-weight: 700;
       }
-      .hsum-highlights { display: flex; flex-direction: column; gap: 4px; }
+      .hsum-highlights {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
       .hsum-hl {
         display: flex;
         align-items: center;
         gap: 7px;
         padding: 5px 8px;
-        background: rgba(255,255,255,0.025);
+        background: rgba(255, 255, 255, 0.025);
         border-radius: 8px;
-        border: 1px solid rgba(255,255,255,0.04);
+        border: 1px solid rgba(255, 255, 255, 0.04);
         min-width: 0;
       }
-      .hsum-hl-icon { font-size: 13px; flex-shrink: 0; line-height: 1; }
+      .hsum-hl-icon {
+        font-size: 13px;
+        flex-shrink: 0;
+        line-height: 1;
+      }
       .hsum-hl-label {
         font-size: 8px;
         font-weight: 800;
@@ -2492,64 +2754,335 @@
       }
 
       /* ── SCORE DISTRIBUTION ──────────────────────── */
-      .sdist-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-      .sdist-lbl { font-size: 11px; font-weight: 700; color: var(--text); width: 34px; flex-shrink: 0; }
-      .sdist-bar-wrap { flex: 1; height: 10px; background: rgba(255,255,255,0.05); border-radius: 99px; overflow: hidden; }
-      .sdist-bar { height: 100%; background: linear-gradient(90deg, rgba(var(--theme-rgb),0.7), rgba(var(--theme-rgb),1)); border-radius: 99px; transition: width 0.4s ease; }
-      .sdist-count { font-size: 10px; font-weight: 700; color: var(--muted); width: 20px; text-align: right; flex-shrink: 0; }
+      .sdist-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .sdist-lbl {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text);
+        width: 34px;
+        flex-shrink: 0;
+      }
+      .sdist-bar-wrap {
+        flex: 1;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .sdist-bar {
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          rgba(var(--theme-rgb), 0.7),
+          rgba(var(--theme-rgb), 1)
+        );
+        border-radius: 99px;
+        transition: width 0.4s ease;
+      }
+      .sdist-count {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--muted);
+        width: 20px;
+        text-align: right;
+        flex-shrink: 0;
+      }
 
       /* ── FORM TABLE ──────────────────────────────── */
-      .ftable-header { display: grid; grid-template-columns: 22px 1fr auto 36px; gap: 8px; padding: 0 4px 6px; border-bottom: 1px solid var(--border); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-      .ftable-row { display: grid; grid-template-columns: 22px 1fr auto 36px; gap: 8px; align-items: center; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-      .ftable-rank { font-size: 10px; font-weight: 800; color: var(--muted); text-align: center; }
-      .ftable-name { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .ftable-dots { display: flex; gap: 2px; }
-      .ftable-pct { font-size: 12px; font-weight: 800; text-align: right; }
+      .ftable-header {
+        display: grid;
+        grid-template-columns: 22px 1fr auto 36px;
+        gap: 8px;
+        padding: 0 4px 6px;
+        border-bottom: 1px solid var(--border);
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .ftable-row {
+        display: grid;
+        grid-template-columns: 22px 1fr auto 36px;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .ftable-rank {
+        font-size: 10px;
+        font-weight: 800;
+        color: var(--muted);
+        text-align: center;
+      }
+      .ftable-name {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ftable-dots {
+        display: flex;
+        gap: 2px;
+      }
+      .ftable-pct {
+        font-size: 12px;
+        font-weight: 800;
+        text-align: right;
+      }
 
       /* ── LEADERBOARD RACE ────────────────────────── */
-      .lrace-header { display: grid; grid-template-columns: 42px 1fr 52px 42px; gap: 6px; padding: 0 4px 6px; border-bottom: 1px solid var(--border); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-      .lrace-row { display: grid; grid-template-columns: 42px 1fr 52px 42px; gap: 6px; align-items: center; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-      .lrace-rank { font-size: 12px; font-weight: 800; color: var(--accent); }
-      .lrace-name { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .lrace-1mo { font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; }
-      .lrace-delta { font-size: 11px; font-weight: 800; text-align: right; }
+      .lrace-header {
+        display: grid;
+        grid-template-columns: 42px 1fr 52px 42px;
+        gap: 6px;
+        padding: 0 4px 6px;
+        border-bottom: 1px solid var(--border);
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .lrace-row {
+        display: grid;
+        grid-template-columns: 42px 1fr 52px 42px;
+        gap: 6px;
+        align-items: center;
+        padding: 7px 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .lrace-rank {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--accent);
+      }
+      .lrace-name {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .lrace-1mo {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        text-align: center;
+      }
+      .lrace-delta {
+        font-size: 11px;
+        font-weight: 800;
+        text-align: right;
+      }
 
       /* ── CHEMISTRY / PAIR ROWS ───────────────────── */
-      .chem-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-      .chem-names { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .chem-bar-wrap { width: 60px; height: 6px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; flex-shrink: 0; }
-      .chem-bar { height: 100%; border-radius: 99px; }
-      .chem-pct { font-size: 11px; font-weight: 800; width: 34px; text-align: right; flex-shrink: 0; }
-      .chem-played { font-size: 9px; color: var(--muted); width: 22px; text-align: right; flex-shrink: 0; }
-      .bpair-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-      .bpair-player { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; }
-      .bpair-partner { font-size: 11px; color: var(--muted); flex: 1; }
-      .bpair-pct { font-size: 12px; font-weight: 800; }
-      .pform-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-      .pform-name { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .pform-dots { display: flex; gap: 2px; flex-shrink: 0; }
-      .pform-stat { font-size: 10px; color: var(--muted); flex-shrink: 0; text-align: right; min-width: 56px; }
+      .chem-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .chem-names {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text);
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .chem-bar-wrap {
+        width: 60px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 99px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .chem-bar {
+        height: 100%;
+        border-radius: 99px;
+      }
+      .chem-pct {
+        font-size: 11px;
+        font-weight: 800;
+        width: 34px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .chem-played {
+        font-size: 9px;
+        color: var(--muted);
+        width: 22px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .bpair-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .bpair-player {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
+        flex: 1;
+      }
+      .bpair-partner {
+        font-size: 11px;
+        color: var(--muted);
+        flex: 1;
+      }
+      .bpair-pct {
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .pform-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .pform-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text);
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pform-dots {
+        display: flex;
+        gap: 2px;
+        flex-shrink: 0;
+      }
+      .pform-stat {
+        font-size: 10px;
+        color: var(--muted);
+        flex-shrink: 0;
+        text-align: right;
+        min-width: 56px;
+      }
 
       /* ── RIVALRY ─────────────────────────────────── */
-      .rivalry-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
-      .rivalry-player { font-family: "Bebas Neue", sans-serif; font-size: 22px; letter-spacing: 0.04em; color: var(--text); flex: 1; text-align: center; }
-      .rivalry-vs { font-size: 11px; font-weight: 900; color: var(--muted); padding: 0 4px; flex-shrink: 0; }
-      .rivalry-record { display: flex; align-items: center; justify-content: space-around; background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px; margin-bottom: 12px; }
-      .rivalry-stat { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-      .rivalry-val { font-size: 26px; font-weight: 900; line-height: 1; }
-      .rivalry-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+      .rivalry-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .rivalry-player {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 22px;
+        letter-spacing: 0.04em;
+        color: var(--text);
+        flex: 1;
+        text-align: center;
+      }
+      .rivalry-vs {
+        font-size: 11px;
+        font-weight: 900;
+        color: var(--muted);
+        padding: 0 4px;
+        flex-shrink: 0;
+      }
+      .rivalry-record {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 10px;
+        margin-bottom: 12px;
+      }
+      .rivalry-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+      }
+      .rivalry-val {
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1;
+      }
+      .rivalry-lbl {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
 
       /* ── SESSION CARDS ───────────────────────────── */
-      .session-card { background: rgba(14,14,24,0.82); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
-      .session-date { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
-      .session-stats { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-      .session-mvp { font-size: 11px; color: var(--accent); font-weight: 700; margin-bottom: 6px; }
-      .session-players { display: flex; flex-wrap: wrap; gap: 4px; }
-      .session-chip { background: rgba(255,255,255,0.06); border-radius: 6px; padding: 2px 7px; font-size: 10px; font-weight: 600; color: var(--text); }
+      .session-card {
+        background: rgba(14, 14, 24, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+      }
+      .session-date {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .session-stats {
+        display: flex;
+        gap: 12px;
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .session-mvp {
+        font-size: 11px;
+        color: var(--accent);
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .session-players {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .session-chip {
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text);
+      }
 
       /* ── H2H FORM ────────────────────────────────── */
-      .h2h-form { display: flex; flex-direction: column; gap: 0; }
-      .h2h-selects { display: flex; align-items: center; gap: 8px; }
+      .h2h-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .h2h-selects {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
 
       .pvp-wrap {
         width: 100%;
@@ -2842,7 +3375,7 @@
         margin-bottom: 14px;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 0 28px rgba(var(--theme-rgb), 0.10);
+        box-shadow: 0 0 28px rgba(var(--theme-rgb), 0.1);
       }
       .motd-card::before {
         content: "";
@@ -3325,7 +3858,7 @@
       .det-streak-div {
         width: 1px;
         height: 36px;
-        background: rgba(255,255,255,0.07);
+        background: rgba(255, 255, 255, 0.07);
         flex-shrink: 0;
       }
       .det-form-row {
@@ -3334,7 +3867,7 @@
         gap: 8px;
         margin-top: 12px;
         padding-top: 10px;
-        border-top: 1px solid rgba(255,255,255,0.06);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
       }
       .det-form-dots {
         display: flex;
@@ -3360,9 +3893,9 @@
         align-items: center;
         gap: 10px;
         padding: 8px 10px;
-        background: rgba(255,255,255,0.03);
+        background: rgba(255, 255, 255, 0.03);
         border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.06);
+        border: 1px solid rgba(255, 255, 255, 0.06);
       }
       .det-conn-icon {
         font-size: 18px;
@@ -3394,7 +3927,7 @@
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--muted);
-        background: rgba(255,255,255,0.05);
+        background: rgba(255, 255, 255, 0.05);
         border-radius: 6px;
         padding: 3px 7px;
         flex-shrink: 0;
@@ -3428,9 +3961,11 @@
 
       /* ── OVERVIEW CARD ───────────────────────────── */
       .ov-card {
-        background: linear-gradient(135deg,
-          rgba(14,14,24,0.92) 0%,
-          rgba(10,10,20,0.96) 100%);
+        background: linear-gradient(
+          135deg,
+          rgba(14, 14, 24, 0.92) 0%,
+          rgba(10, 10, 20, 0.96) 100%
+        );
         border: 1px solid rgba(var(--theme-rgb), 0.18) !important;
         position: relative;
         overflow: hidden;
@@ -3443,9 +3978,11 @@
         width: 140px;
         height: 140px;
         border-radius: 50%;
-        background: radial-gradient(circle,
-          rgba(var(--theme-rgb), 0.10) 0%,
-          transparent 70%);
+        background: radial-gradient(
+          circle,
+          rgba(var(--theme-rgb), 0.1) 0%,
+          transparent 70%
+        );
         pointer-events: none;
       }
       .ov-header {
@@ -3458,7 +3995,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        background: rgba(var(--theme-rgb), 0.10);
+        background: rgba(var(--theme-rgb), 0.1);
         border: 1px solid rgba(var(--theme-rgb), 0.25);
         border-radius: 14px;
         padding: 10px 14px;
@@ -3507,8 +4044,8 @@
         gap: 6px;
       }
       .ov-cell {
-        background: rgba(255,255,255,0.035);
-        border: 1px solid rgba(255,255,255,0.06);
+        background: rgba(255, 255, 255, 0.035);
+        border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 10px;
         padding: 8px 4px;
         text-align: center;
@@ -4082,7 +4619,6 @@
           font-size: 8px;
         }
 
-
         select.cmp-sel {
           font-size: 12px;
           padding: 0 12px;
@@ -4122,7 +4658,7 @@
         background:
           radial-gradient(
             circle at top center,
-            rgba(var(--theme-rgb), 0.10),
+            rgba(var(--theme-rgb), 0.1),
             transparent 32%
           ),
           linear-gradient(180deg, #06070c 0%, #090b14 55%, #0b0d18 100%);
@@ -4261,13 +4797,16 @@
         overflow: visible !important;
       }
       .r1 .rb {
-        filter: drop-shadow(0 0 14px rgba(255, 210, 0, 0.65)) drop-shadow(0 4px 10px rgba(0,0,0,0.60)) !important;
+        filter: drop-shadow(0 0 14px rgba(255, 210, 0, 0.65))
+          drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)) !important;
       }
       .r2 .rb {
-        filter: drop-shadow(0 0 14px rgba(160, 180, 240, 0.60)) drop-shadow(0 4px 10px rgba(0,0,0,0.55)) !important;
+        filter: drop-shadow(0 0 14px rgba(160, 180, 240, 0.6))
+          drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55)) !important;
       }
       .r3 .rb {
-        filter: drop-shadow(0 0 12px rgba(200, 120, 50, 0.60)) drop-shadow(0 4px 10px rgba(0,0,0,0.55)) !important;
+        filter: drop-shadow(0 0 12px rgba(200, 120, 50, 0.6))
+          drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55)) !important;
       }
 
       .pname {
@@ -5010,7 +5549,7 @@
 
       .sr-ring .gauge {
         filter: drop-shadow(0 0 14px rgba(var(--theme-rgb), 0.14))
-          drop-shadow(0 0 24px rgba(var(--theme-rgb), 0.10)) !important;
+          drop-shadow(0 0 24px rgba(var(--theme-rgb), 0.1)) !important;
       }
 
       .sr-ring .sr-val {
@@ -5774,7 +6313,6 @@
         transform: translateY(24px) scale(0.985) !important;
         filter: none !important;
       }
-
     </style>
 
     <style id="summary-table-spacing-fix">
@@ -6354,8 +6892,12 @@ body.paused-animations *{
     <div class="page active" id="pg-home">
       <div class="page-body-scroll">
         <div class="nav">
-          <div style="display:flex;align-items:center;flex:1">
-            <button id="themeBtn" onclick="cycleTheme()" title="Change theme color"></button>
+          <div style="display: flex; align-items: center; flex: 1">
+            <button
+              id="themeBtn"
+              onclick="cycleTheme()"
+              title="Change theme color"
+            ></button>
           </div>
 
           <div class="nav-title nav-title-inline">
@@ -7031,25 +7573,43 @@ Parthiv - Par"
     <script>
       // ── THEME SWITCHER (plain script — must be global for onclick) ──
       var THEMES = [
-        { name: "Neon Blue",   hex: "#18d7ff", r: 24,  g: 215, b: 255 },
-        { name: "Gold",        hex: "#f5c842", r: 245, g: 200, b: 66  },
-        { name: "Neon Green",  hex: "#00ff9d", r: 0,   g: 255, b: 157 },
-        { name: "Neon Pink",   hex: "#ff2d78", r: 255, g: 45,  b: 120 },
-        { name: "Neon Purple", hex: "#b44dff", r: 180, g: 77,  b: 255 },
+        { name: "Neon Blue", hex: "#18d7ff", r: 24, g: 215, b: 255 },
+        { name: "Gold", hex: "#f5c842", r: 245, g: 200, b: 66 },
+        { name: "Neon Green", hex: "#00ff9d", r: 0, g: 255, b: 157 },
+        { name: "Neon Pink", hex: "#ff2d78", r: 255, g: 45, b: 120 },
+        { name: "Neon Purple", hex: "#b44dff", r: 180, g: 77, b: 255 },
       ];
       var _themeIdx = 0;
 
       function applyTheme(t) {
         var root = document.documentElement;
-        root.style.setProperty("--theme",     t.hex);
+        root.style.setProperty("--theme", t.hex);
         root.style.setProperty("--theme-rgb", t.r + ", " + t.g + ", " + t.b);
-        root.style.setProperty("--theme2",    "rgba(" + t.r + "," + t.g + "," + t.b + ",0.6)");
+        root.style.setProperty(
+          "--theme2",
+          "rgba(" + t.r + "," + t.g + "," + t.b + ",0.6)",
+        );
         var btn = document.getElementById("themeBtn");
         if (btn) {
           btn.style.background = t.hex;
-          btn.style.boxShadow = "0 0 14px rgba(" + t.r + "," + t.g + "," + t.b + ",0.45), 0 0 28px rgba(" + t.r + "," + t.g + "," + t.b + ",0.18)";
+          btn.style.boxShadow =
+            "0 0 14px rgba(" +
+            t.r +
+            "," +
+            t.g +
+            "," +
+            t.b +
+            ",0.45), 0 0 28px rgba(" +
+            t.r +
+            "," +
+            t.g +
+            "," +
+            t.b +
+            ",0.18)";
         }
-        try { localStorage.setItem("padel-theme-idx", _themeIdx); } catch(e) {}
+        try {
+          localStorage.setItem("padel-theme-idx", _themeIdx);
+        } catch (e) {}
       }
 
       function cycleTheme() {
@@ -7076,8 +7636,11 @@ Parthiv - Par"
             // Also apply CSS vars immediately (button may not exist yet but vars will)
             var root = document.documentElement;
             var t = THEMES[_themeIdx];
-            root.style.setProperty("--theme",     t.hex);
-            root.style.setProperty("--theme-rgb", t.r + ", " + t.g + ", " + t.b);
+            root.style.setProperty("--theme", t.hex);
+            root.style.setProperty(
+              "--theme-rgb",
+              t.r + ", " + t.g + ", " + t.b,
+            );
           }
         } catch (e) {}
       })();
@@ -7704,15 +8267,24 @@ Parthiv - Par"
       function computeStats(matches) {
         const P = {};
         const g = (n) => {
-          if (!P[n]) P[n] = {
-            name: n, mp: 0, mw: 0, gw: 0, gl: 0,
-            results: [],
-            partnerPlayed: {}, partnerWins: {},
-            oppPlayed: {}, oppWins: {},
-          };
+          if (!P[n])
+            P[n] = {
+              name: n,
+              mp: 0,
+              mw: 0,
+              gw: 0,
+              gl: 0,
+              results: [],
+              partnerPlayed: {},
+              partnerWins: {},
+              oppPlayed: {},
+              oppWins: {},
+            };
           return P[n];
         };
-        const sorted = [...matches].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        const sorted = [...matches].sort((a, b) =>
+          (a.date || "").localeCompare(b.date || ""),
+        );
         sorted.forEach((m) => {
           const aWon = m.scoreA > m.scoreB;
           m.teamA.forEach((p) => {
@@ -7724,8 +8296,10 @@ Parthiv - Par"
             pl.results.push({ won: aWon, margin: m.scoreA - m.scoreB });
             m.teamA.forEach((partner) => {
               if (partner !== p) {
-                pl.partnerPlayed[partner] = (pl.partnerPlayed[partner] || 0) + 1;
-                if (aWon) pl.partnerWins[partner] = (pl.partnerWins[partner] || 0) + 1;
+                pl.partnerPlayed[partner] =
+                  (pl.partnerPlayed[partner] || 0) + 1;
+                if (aWon)
+                  pl.partnerWins[partner] = (pl.partnerWins[partner] || 0) + 1;
               }
             });
             m.teamB.forEach((opp) => {
@@ -7742,8 +8316,10 @@ Parthiv - Par"
             pl.results.push({ won: !aWon, margin: m.scoreB - m.scoreA });
             m.teamB.forEach((partner) => {
               if (partner !== p) {
-                pl.partnerPlayed[partner] = (pl.partnerPlayed[partner] || 0) + 1;
-                if (!aWon) pl.partnerWins[partner] = (pl.partnerWins[partner] || 0) + 1;
+                pl.partnerPlayed[partner] =
+                  (pl.partnerPlayed[partner] || 0) + 1;
+                if (!aWon)
+                  pl.partnerWins[partner] = (pl.partnerWins[partner] || 0) + 1;
               }
             });
             m.teamA.forEach((opp) => {
@@ -7756,63 +8332,101 @@ Parthiv - Par"
         const maxMP = Math.max(1, ...rows.map((p) => p.mp));
         return rows
           .map((p) => {
-            const ml = p.mp - p.mw, total = p.gw + p.gl;
+            const ml = p.mp - p.mw,
+              total = p.gw + p.gl;
             const mwr = p.mp > 0 ? p.mw / p.mp : 0,
               gwr = total > 0 ? p.gw / total : 0,
               act = p.mp / maxMP;
             const sr = mwr * 5 + gwr * 3 + act * 2;
 
             // Feature 1: win streak
-            let curStreak = 0, curType = '', bestWinStreak = 0, runW = 0;
+            let curStreak = 0,
+              curType = "",
+              bestWinStreak = 0,
+              runW = 0;
             if (p.results.length > 0) {
-              curType = p.results[p.results.length - 1].won ? 'W' : 'L';
+              curType = p.results[p.results.length - 1].won ? "W" : "L";
               for (let i = p.results.length - 1; i >= 0; i--) {
                 const r = p.results[i];
-                if ((r.won && curType === 'W') || (!r.won && curType === 'L')) curStreak++;
+                if ((r.won && curType === "W") || (!r.won && curType === "L"))
+                  curStreak++;
                 else break;
               }
             }
-            p.results.forEach(r => {
-              if (r.won) { runW++; bestWinStreak = Math.max(bestWinStreak, runW); }
-              else runW = 0;
+            p.results.forEach((r) => {
+              if (r.won) {
+                runW++;
+                bestWinStreak = Math.max(bestWinStreak, runW);
+              } else runW = 0;
             });
 
             // Feature 2: partnership stats (min 2 games together)
             const MIN_G = 2;
-            let bestPartner = null, worstPartner = null, bestPPct = -1, worstPPct = 101;
-            Object.keys(p.partnerPlayed).forEach(partner => {
+            let bestPartner = null,
+              worstPartner = null,
+              bestPPct = -1,
+              worstPPct = 101;
+            Object.keys(p.partnerPlayed).forEach((partner) => {
               const played = p.partnerPlayed[partner];
               if (played < MIN_G) return;
               const pct = ((p.partnerWins[partner] || 0) / played) * 100;
-              if (pct > bestPPct) { bestPPct = pct; bestPartner = { name: partner, pct, played }; }
-              if (pct < worstPPct) { worstPPct = pct; worstPartner = { name: partner, pct, played }; }
+              if (pct > bestPPct) {
+                bestPPct = pct;
+                bestPartner = { name: partner, pct, played };
+              }
+              if (pct < worstPPct) {
+                worstPPct = pct;
+                worstPartner = { name: partner, pct, played };
+              }
             });
 
             // Feature 3: nemesis / favourite opponent (min 2 games)
-            let favOpp = null, nemesis = null, favOPct = -1, nemOPct = 101;
-            Object.keys(p.oppPlayed).forEach(opp => {
+            let favOpp = null,
+              nemesis = null,
+              favOPct = -1,
+              nemOPct = 101;
+            Object.keys(p.oppPlayed).forEach((opp) => {
               const played = p.oppPlayed[opp];
               if (played < MIN_G) return;
               const pct = ((p.oppWins[opp] || 0) / played) * 100;
-              if (pct > favOPct) { favOPct = pct; favOpp = { name: opp, pct, played }; }
-              if (pct < nemOPct) { nemOPct = pct; nemesis = { name: opp, pct, played }; }
+              if (pct > favOPct) {
+                favOPct = pct;
+                favOpp = { name: opp, pct, played };
+              }
+              if (pct < nemOPct) {
+                nemOPct = pct;
+                nemesis = { name: opp, pct, played };
+              }
             });
 
             // Feature 4: form — last 5 W/L
-            const form = p.results.slice(-5).map(r => r.won ? 'W' : 'L');
+            const form = p.results.slice(-5).map((r) => (r.won ? "W" : "L"));
 
             // Feature 5: avg score margin
-            const avgMargin = p.results.length > 0
-              ? p.results.reduce((s, r) => s + r.margin, 0) / p.results.length
-              : 0;
+            const avgMargin =
+              p.results.length > 0
+                ? p.results.reduce((s, r) => s + r.margin, 0) / p.results.length
+                : 0;
 
             return {
-              ...p, ml, diff: p.gw - p.gl, sr, mwr, gwr, act,
-              winPct: mwr * 100, gamePct: gwr * 100,
-              curStreak, curType, bestWinStreak,
-              bestPartner, worstPartner,
-              favOpp, nemesis,
-              form, avgMargin,
+              ...p,
+              ml,
+              diff: p.gw - p.gl,
+              sr,
+              mwr,
+              gwr,
+              act,
+              winPct: mwr * 100,
+              gamePct: gwr * 100,
+              curStreak,
+              curType,
+              bestWinStreak,
+              bestPartner,
+              worstPartner,
+              favOpp,
+              nemesis,
+              form,
+              avgMargin,
             };
           })
           .sort((a, b) => b.sr - a.sr);
@@ -8548,7 +9162,12 @@ Parthiv - Par"
       }
 
       function getSRRatingClass(normalizedSR) {
-        let c = normalizedSR >= 6 ? "sr-high" : normalizedSR >= 4 ? "sr-mid" : "sr-low";
+        let c =
+          normalizedSR >= 6
+            ? "sr-high"
+            : normalizedSR >= 4
+              ? "sr-mid"
+              : "sr-low";
         if (normalizedSR >= 7.0) c += " rev-limit";
         return c;
       }
@@ -8566,29 +9185,30 @@ Parthiv - Par"
         }
         const maxSR = stats[0].sr || 1;
         const cardHtmls = stats.map((p, i) => {
-            const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
-            const ri = i === 0
+          const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+          const ri =
+            i === 0
               ? `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="display:block"><defs><radialGradient id="mgG" cx="36%" cy="28%" r="72%"><stop offset="0%" stop-color="#fffce0"/><stop offset="28%" stop-color="#FFD700"/><stop offset="65%" stop-color="#C8920A"/><stop offset="100%" stop-color="#8B6307"/></radialGradient><radialGradient id="mgGHL" cx="30%" cy="22%" r="44%"><stop offset="0%" stop-color="rgba(255,255,255,0.6)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><circle cx="20" cy="20" r="19.5" fill="#5c3700"/><circle cx="20" cy="20" r="18" fill="url(#mgG)"/><circle cx="20" cy="20" r="18" fill="url(#mgGHL)"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="rgba(255,240,120,0.55)" stroke-width="1.2"/><text x="20" y="27.5" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="19" font-weight="900" fill="#3d2000">1</text></svg>`
               : i === 1
-              ? `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="display:block"><defs><radialGradient id="mgS" cx="36%" cy="28%" r="72%"><stop offset="0%" stop-color="#ffffff"/><stop offset="30%" stop-color="#d4d8e8"/><stop offset="65%" stop-color="#8a92b0"/><stop offset="100%" stop-color="#5a618a"/></radialGradient><radialGradient id="mgSHL" cx="30%" cy="22%" r="44%"><stop offset="0%" stop-color="rgba(255,255,255,0.65)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><circle cx="20" cy="20" r="19.5" fill="#2a2f4a"/><circle cx="20" cy="20" r="18" fill="url(#mgS)"/><circle cx="20" cy="20" r="18" fill="url(#mgSHL)"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="rgba(200,210,240,0.5)" stroke-width="1.2"/><text x="20" y="27.5" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="19" font-weight="900" fill="#1a1f3a">2</text></svg>`
-              : i === 2
-              ? `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="display:block"><defs><radialGradient id="mgB" cx="36%" cy="28%" r="72%"><stop offset="0%" stop-color="#ffe8cc"/><stop offset="28%" stop-color="#CD853F"/><stop offset="65%" stop-color="#8B5A2B"/><stop offset="100%" stop-color="#5d3a1a"/></radialGradient><radialGradient id="mgBHL" cx="30%" cy="22%" r="44%"><stop offset="0%" stop-color="rgba(255,255,255,0.55)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><circle cx="20" cy="20" r="19.5" fill="#3d1f08"/><circle cx="20" cy="20" r="18" fill="url(#mgB)"/><circle cx="20" cy="20" r="18" fill="url(#mgBHL)"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="rgba(255,180,100,0.5)" stroke-width="1.2"/><text x="20" y="27.5" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="19" font-weight="900" fill="#2d1000">3</text></svg>`
-              : i + 1;
-            const bw = ((p.sr / maxSR) * 100).toFixed(1);
-            const normalizedSR = Math.max(0, Math.min(8, p.sr));
-            const cardAngle = Math.round((normalizedSR / 8) * 180);
-            const cardRatingClass = getSRRatingClass(normalizedSR);
-            const ds = p.diff > 0 ? `+${p.diff}` : `${p.diff}`;
-            const dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
-            const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-            const momentumBadge = getMomentumBadge(p.name);
-            const sparklineSvg = getFormSparkline(p.name, 64, 20);
-            const sparklineHtml = sparklineSvg
-              ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg}</div>`
-              : "";
+                ? `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="display:block"><defs><radialGradient id="mgS" cx="36%" cy="28%" r="72%"><stop offset="0%" stop-color="#ffffff"/><stop offset="30%" stop-color="#d4d8e8"/><stop offset="65%" stop-color="#8a92b0"/><stop offset="100%" stop-color="#5a618a"/></radialGradient><radialGradient id="mgSHL" cx="30%" cy="22%" r="44%"><stop offset="0%" stop-color="rgba(255,255,255,0.65)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><circle cx="20" cy="20" r="19.5" fill="#2a2f4a"/><circle cx="20" cy="20" r="18" fill="url(#mgS)"/><circle cx="20" cy="20" r="18" fill="url(#mgSHL)"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="rgba(200,210,240,0.5)" stroke-width="1.2"/><text x="20" y="27.5" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="19" font-weight="900" fill="#1a1f3a">2</text></svg>`
+                : i === 2
+                  ? `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="display:block"><defs><radialGradient id="mgB" cx="36%" cy="28%" r="72%"><stop offset="0%" stop-color="#ffe8cc"/><stop offset="28%" stop-color="#CD853F"/><stop offset="65%" stop-color="#8B5A2B"/><stop offset="100%" stop-color="#5d3a1a"/></radialGradient><radialGradient id="mgBHL" cx="30%" cy="22%" r="44%"><stop offset="0%" stop-color="rgba(255,255,255,0.55)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><circle cx="20" cy="20" r="19.5" fill="#3d1f08"/><circle cx="20" cy="20" r="18" fill="url(#mgB)"/><circle cx="20" cy="20" r="18" fill="url(#mgBHL)"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="rgba(255,180,100,0.5)" stroke-width="1.2"/><text x="20" y="27.5" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="19" font-weight="900" fill="#2d1000">3</text></svg>`
+                  : i + 1;
+          const bw = ((p.sr / maxSR) * 100).toFixed(1);
+          const normalizedSR = Math.max(0, Math.min(8, p.sr));
+          const cardAngle = Math.round((normalizedSR / 8) * 180);
+          const cardRatingClass = getSRRatingClass(normalizedSR);
+          const ds = p.diff > 0 ? `+${p.diff}` : `${p.diff}`;
+          const dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
+          const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
+          const momentumBadge = getMomentumBadge(p.name);
+          const sparklineSvg = getFormSparkline(p.name, 64, 20);
+          const sparklineHtml = sparklineSvg
+            ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg}</div>`
+            : "";
 
-            return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div>${sparklineHtml}</div>`;
-          });
+          return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div>${sparklineHtml}</div>`;
+        });
 
         if (document.body.classList.contains("splash-done")) {
           board.innerHTML = "";
@@ -8623,9 +9243,15 @@ Parthiv - Par"
               [
                 { transform: "translateX(-50%) rotate(-90deg)" },
                 { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
-                { transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))` },
+                {
+                  transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))`,
+                },
               ],
-              { duration: 2200, easing: "cubic-bezier(0.22,1.15,0.36,1)", fill: "forwards" },
+              {
+                duration: 2200,
+                easing: "cubic-bezier(0.22,1.15,0.36,1)",
+                fill: "forwards",
+              },
             );
           });
         });
@@ -8675,7 +9301,8 @@ Parthiv - Par"
         const tbody = document.getElementById("cmpBody");
         if (!sorted.length) {
           tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
-          document.getElementById("cmpMatches").innerHTML = buildCompactMatchRows(filtered);
+          document.getElementById("cmpMatches").innerHTML =
+            buildCompactMatchRows(filtered);
           updateSortArrows(sorted);
           return;
         }
@@ -8684,27 +9311,29 @@ Parthiv - Par"
         const splashDone = document.body.classList.contains("splash-done");
 
         const leaderRowHtmls = sorted.map((p, i) => {
-            const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
-            const ri =
-              i === 0
-                ? "🥇"
-                : i === 1
-                  ? "🥈"
-                  : i === 2
-                    ? "🥉"
-                    : `<span class="rn">${i + 1}</span>`;
-            const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-            const gc = p.gamePct >= 50 ? "tp" : "tn";
-            const normalizedSR = Math.max(0, Math.min(8, p.sr));
-            const ratingClass = getSRRatingClass(normalizedSR);
-            const momentumBadge = getMomentumBadge(p.name);
-            const pillW = Math.round((normalizedSR / 8) * 100);
-            const animClass = splashDone ? " row-reveal-anim" : "";
-            return `<tr class="${rc}${animClass}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
-          });
+          const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
+          const ri =
+            i === 0
+              ? "🥇"
+              : i === 1
+                ? "🥈"
+                : i === 2
+                  ? "🥉"
+                  : `<span class="rn">${i + 1}</span>`;
+          const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
+          const gc = p.gamePct >= 50 ? "tp" : "tn";
+          const normalizedSR = Math.max(0, Math.min(8, p.sr));
+          const ratingClass = getSRRatingClass(normalizedSR);
+          const momentumBadge = getMomentumBadge(p.name);
+          const pillW = Math.round((normalizedSR / 8) * 100);
+          const animClass = splashDone ? " row-reveal-anim" : "";
+          return `<tr class="${rc}${animClass}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
+        });
 
         const matchAnimClass = splashDone ? " row-reveal-anim" : "";
-        const matchRowHtmls = [...filtered].reverse().map((m) => buildMatchRowHtml(m, matchAnimClass));
+        const matchRowHtmls = [...filtered]
+          .reverse()
+          .map((m) => buildMatchRowHtml(m, matchAnimClass));
 
         const cmpMatchesEl = document.getElementById("cmpMatches");
         const matchesHeader = cmpMatchesEl.previousElementSibling;
@@ -8714,7 +9343,8 @@ Parthiv - Par"
           cmpMatchesEl.innerHTML = "";
           matchesHeader.style.opacity = "0";
           matchesHeader.style.transform = "translateY(14px)";
-          matchesHeader.style.transition = "opacity 0.38s cubic-bezier(0.22,1,0.36,1), transform 0.38s cubic-bezier(0.22,1,0.36,1)";
+          matchesHeader.style.transition =
+            "opacity 0.38s cubic-bezier(0.22,1,0.36,1), transform 0.38s cubic-bezier(0.22,1,0.36,1)";
 
           leaderRowHtmls.forEach((html, i) => {
             setTimeout(() => {
@@ -8735,9 +9365,12 @@ Parthiv - Par"
             table.appendChild(matchTbody);
             setTimeout(() => cmpMatchesEl.appendChild(table), matchStartDelay);
             matchRowHtmls.forEach((html, i) => {
-              setTimeout(() => {
-                matchTbody.insertAdjacentHTML("beforeend", html);
-              }, matchStartDelay + i * 80);
+              setTimeout(
+                () => {
+                  matchTbody.insertAdjacentHTML("beforeend", html);
+                },
+                matchStartDelay + i * 80,
+              );
             });
           } else {
             setTimeout(() => {
@@ -8827,7 +9460,9 @@ Parthiv - Par"
               ? `<span class="cmr-badge cmr-zero">😂</span>`
               : "";
         return `<tr class="cmr-row${extraClass}">
-          <td class="cmr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</td>
+          <td class="cmr-date">${fmtDate(m.date)
+            .replace(/\s+\d{4}$/, "")
+            .toUpperCase()}</td>
           <td class="cmr-team ${winA}">${aWon ? "👑 " : ""}${teamA}</td>
           <td class="cmr-score ${winA}">${m.scoreA}</td>
           <td class="cmr-vs">–</td>
@@ -8840,7 +9475,10 @@ Parthiv - Par"
       function buildCompactMatchRows(matches) {
         if (!matches.length)
           return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
-        return `<table class="cmp-match-rows"><tbody>${[...matches].reverse().map((m) => buildMatchRowHtml(m)).join("")}</tbody></table>`;
+        return `<table class="cmp-match-rows"><tbody>${[...matches]
+          .reverse()
+          .map((m) => buildMatchRowHtml(m))
+          .join("")}</tbody></table>`;
       }
 
       function buildMatchCards(matches, showAdmin) {
@@ -9137,55 +9775,75 @@ Parthiv - Par"
       }
 
       function buildHistorySummary(matches) {
-        if (matches.length < 3) return '';
+        if (matches.length < 3) return "";
         const stats = computeStats(matches);
         const playerSet = new Set();
-        let totalGames = 0, totalMargin = 0;
+        let totalGames = 0,
+          totalMargin = 0;
         const scoreDist = {};
-        matches.forEach(m => {
-          [...m.teamA, ...m.teamB].forEach(p => playerSet.add(normPlayer(p)));
+        matches.forEach((m) => {
+          [...m.teamA, ...m.teamB].forEach((p) => playerSet.add(normPlayer(p)));
           totalGames += m.scoreA + m.scoreB;
           totalMargin += Math.abs(m.scoreA - m.scoreB);
-          const hi = Math.max(m.scoreA, m.scoreB), lo = Math.min(m.scoreA, m.scoreB);
+          const hi = Math.max(m.scoreA, m.scoreB),
+            lo = Math.min(m.scoreA, m.scoreB);
           const k = `${hi}-${lo}`;
           scoreDist[k] = (scoreDist[k] || 0) + 1;
         });
         const avgMargin = (totalMargin / matches.length).toFixed(1);
         const top3 = stats.slice(0, Math.min(3, stats.length));
-        const medals = ['🥇','🥈','🥉'];
-        const medalColors = ['var(--gold)','var(--silver)','var(--bronze)'];
-        const podiumHtml = top3.map((p, i) =>
-          `<div class="hsum-row">
+        const medals = ["🥇", "🥈", "🥉"];
+        const medalColors = ["var(--gold)", "var(--silver)", "var(--bronze)"];
+        const podiumHtml = top3
+          .map(
+            (p, i) =>
+              `<div class="hsum-row">
             <span class="hsum-medal">${medals[i]}</span>
             <span class="hsum-pname">${p.name}</span>
             <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
             <span class="hsum-pct" style="color:${medalColors[i]}">${p.winPct.toFixed(0)}%</span>
             <span class="hsum-sr">${p.sr.toFixed(1)} SR</span>
-          </div>`
-        ).join('');
+          </div>`,
+          )
+          .join("");
         const highlights = [];
-        const pairs = getPairStats(matches).filter(p => p.played >= 2);
+        const pairs = getPairStats(matches).filter((p) => p.played >= 2);
         if (pairs.length) {
           const b = pairs[0];
-          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">🤝</span><span class="hsum-hl-label">Best Pair</span><span class="hsum-hl-val">${b.key} &nbsp;<span style="color:var(--green)">${b.winPct}% · ${b.played}g</span></span></div>`);
+          highlights.push(
+            `<div class="hsum-hl"><span class="hsum-hl-icon">🤝</span><span class="hsum-hl-label">Best Pair</span><span class="hsum-hl-val">${b.key} &nbsp;<span style="color:var(--green)">${b.winPct}% · ${b.played}g</span></span></div>`,
+          );
         }
-        const bigWin = [...matches].sort((a,b) => Math.abs(b.scoreA-b.scoreB) - Math.abs(a.scoreA-a.scoreB))[0];
+        const bigWin = [...matches].sort(
+          (a, b) =>
+            Math.abs(b.scoreA - b.scoreB) - Math.abs(a.scoreA - a.scoreB),
+        )[0];
         if (bigWin) {
           const w = bigWin.scoreA > bigWin.scoreB ? bigWin.teamA : bigWin.teamB;
-          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">💀</span><span class="hsum-hl-label">Biggest Win</span><span class="hsum-hl-val">${bigWin.scoreA}–${bigWin.scoreB} &nbsp;${w.join(' & ')}</span></div>`);
+          highlights.push(
+            `<div class="hsum-hl"><span class="hsum-hl-icon">💀</span><span class="hsum-hl-label">Biggest Win</span><span class="hsum-hl-val">${bigWin.scoreA}–${bigWin.scoreB} &nbsp;${w.join(" & ")}</span></div>`,
+          );
         }
-        const hottest = stats.filter(p => p.curStreak > 0 && p.curType === 'W').sort((a,b) => b.curStreak - a.curStreak)[0];
+        const hottest = stats
+          .filter((p) => p.curStreak > 0 && p.curType === "W")
+          .sort((a, b) => b.curStreak - a.curStreak)[0];
         if (hottest) {
-          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label">On Fire</span><span class="hsum-hl-val">${hottest.name} &nbsp;<span style="color:var(--green)">${hottest.curStreak} win streak</span></span></div>`);
+          highlights.push(
+            `<div class="hsum-hl"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label">On Fire</span><span class="hsum-hl-val">${hottest.name} &nbsp;<span style="color:var(--green)">${hottest.curStreak} win streak</span></span></div>`,
+          );
         }
-        const topScore = Object.entries(scoreDist).sort((a,b) => b[1]-a[1])[0];
+        const topScore = Object.entries(scoreDist).sort(
+          (a, b) => b[1] - a[1],
+        )[0];
         if (topScore && topScore[1] > 1) {
-          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">🎯</span><span class="hsum-hl-label">Top Scoreline</span><span class="hsum-hl-val">${topScore[0]} &nbsp;<span style="color:var(--muted)">${topScore[1]}× played</span></span></div>`);
+          highlights.push(
+            `<div class="hsum-hl"><span class="hsum-hl-icon">🎯</span><span class="hsum-hl-label">Top Scoreline</span><span class="hsum-hl-val">${topScore[0]} &nbsp;<span style="color:var(--muted)">${topScore[1]}× played</span></span></div>`,
+          );
         }
         return `<div class="hist-summary-card">
           <div class="hsum-header">
             <span class="hsum-title">📊 SUMMARY</span>
-            <span class="hsum-count">${matches.length} match${matches.length > 1 ? 'es' : ''}</span>
+            <span class="hsum-count">${matches.length} match${matches.length > 1 ? "es" : ""}</span>
           </div>
           <div class="hsum-stats">
             <div class="hsum-stat"><div class="hsum-val">${matches.length}</div><div class="hsum-lbl">Matches</div></div>
@@ -9193,8 +9851,8 @@ Parthiv - Par"
             <div class="hsum-stat"><div class="hsum-val">${totalGames}</div><div class="hsum-lbl">Games</div></div>
             <div class="hsum-stat"><div class="hsum-val">±${avgMargin}</div><div class="hsum-lbl">Avg Margin</div></div>
           </div>
-          ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ''}
-          ${highlights.length ? `<div class="hsum-section-lbl">Highlights</div><div class="hsum-highlights">${highlights.join('')}</div>` : ''}
+          ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
+          ${highlights.length ? `<div class="hsum-section-lbl">Highlights</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
         </div>`;
       }
 
@@ -9681,21 +10339,43 @@ Parthiv - Par"
         const s = detail.stats;
 
         // Feature 1: current streak
-        const streakIcon = s.curStreak > 0 ? (s.curType === 'W' ? '🔥' : '❄️') : '';
-        const streakColor = s.curStreak > 0 ? (s.curType === 'W' ? 'var(--green)' : 'var(--red)') : 'var(--muted)';
-        const streakStr = s.curStreak > 0 ? `${streakIcon} ${s.curStreak}${s.curType}` : '—';
+        const streakIcon =
+          s.curStreak > 0 ? (s.curType === "W" ? "🔥" : "❄️") : "";
+        const streakColor =
+          s.curStreak > 0
+            ? s.curType === "W"
+              ? "var(--green)"
+              : "var(--red)"
+            : "var(--muted)";
+        const streakStr =
+          s.curStreak > 0 ? `${streakIcon} ${s.curStreak}${s.curType}` : "—";
 
         // Feature 4: form dots (larger in detail view)
-        const formDotsHtml = s.form.length > 0
-          ? s.form.map(r => `<span class="fd fd-lg ${r === 'W' ? 'fd-w' : 'fd-l'}">${r}</span>`).join('')
-          : `<span style="color:var(--muted);font-size:11px">—</span>`;
+        const formDotsHtml =
+          s.form.length > 0
+            ? s.form
+                .map(
+                  (r) =>
+                    `<span class="fd fd-lg ${r === "W" ? "fd-w" : "fd-l"}">${r}</span>`,
+                )
+                .join("")
+            : `<span style="color:var(--muted);font-size:11px">—</span>`;
 
         // Feature 5: avg margin
-        const marginVal = s.avgMargin >= 0 ? `+${s.avgMargin.toFixed(1)}` : s.avgMargin.toFixed(1);
-        const marginColor = s.avgMargin > 0 ? 'var(--green)' : s.avgMargin < 0 ? 'var(--red)' : 'var(--muted)';
+        const marginVal =
+          s.avgMargin >= 0
+            ? `+${s.avgMargin.toFixed(1)}`
+            : s.avgMargin.toFixed(1);
+        const marginColor =
+          s.avgMargin > 0
+            ? "var(--green)"
+            : s.avgMargin < 0
+              ? "var(--red)"
+              : "var(--muted)";
 
         // Feature 2: best / worst partner
-        const bestPartnerHtml = s.bestPartner ? `
+        const bestPartnerHtml = s.bestPartner
+          ? `
           <div class="det-conn">
             <div class="det-conn-icon">🤝</div>
             <div class="det-conn-body">
@@ -9703,9 +10383,12 @@ Parthiv - Par"
               <div class="det-conn-meta"><span class="p">${s.bestPartner.pct.toFixed(0)}% win</span> · ${s.bestPartner.played}g</div>
             </div>
             <div class="det-conn-tag">Best Partner</div>
-          </div>` : '';
+          </div>`
+          : "";
 
-        const worstPartnerHtml = s.worstPartner && s.worstPartner.name !== s.bestPartner?.name ? `
+        const worstPartnerHtml =
+          s.worstPartner && s.worstPartner.name !== s.bestPartner?.name
+            ? `
           <div class="det-conn">
             <div class="det-conn-icon">⚡</div>
             <div class="det-conn-body">
@@ -9713,10 +10396,12 @@ Parthiv - Par"
               <div class="det-conn-meta"><span class="n">${s.worstPartner.pct.toFixed(0)}% win</span> · ${s.worstPartner.played}g</div>
             </div>
             <div class="det-conn-tag">Worst Partner</div>
-          </div>` : '';
+          </div>`
+            : "";
 
         // Feature 3: nemesis / fav opponent
-        const nemesisHtml = s.nemesis ? `
+        const nemesisHtml = s.nemesis
+          ? `
           <div class="det-conn">
             <div class="det-conn-icon">⚔️</div>
             <div class="det-conn-body">
@@ -9724,9 +10409,12 @@ Parthiv - Par"
               <div class="det-conn-meta"><span class="n">${s.nemesis.pct.toFixed(0)}% win rate</span> · ${s.nemesis.played}g</div>
             </div>
             <div class="det-conn-tag">Nemesis</div>
-          </div>` : '';
+          </div>`
+          : "";
 
-        const favOppHtml = s.favOpp && s.favOpp.name !== s.nemesis?.name ? `
+        const favOppHtml =
+          s.favOpp && s.favOpp.name !== s.nemesis?.name
+            ? `
           <div class="det-conn">
             <div class="det-conn-icon">💪</div>
             <div class="det-conn-body">
@@ -9734,28 +10422,31 @@ Parthiv - Par"
               <div class="det-conn-meta"><span class="p">${s.favOpp.pct.toFixed(0)}% win rate</span> · ${s.favOpp.played}g</div>
             </div>
             <div class="det-conn-tag">Fav Opponent</div>
-          </div>` : '';
+          </div>`
+            : "";
 
-        const connectionsHtml = bestPartnerHtml || worstPartnerHtml || nemesisHtml || favOppHtml
-          ? `<div class="ana-card">
+        const connectionsHtml =
+          bestPartnerHtml || worstPartnerHtml || nemesisHtml || favOppHtml
+            ? `<div class="ana-card">
               <span class="badge">Connections</span>
               <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}</div>
-            </div>` : '';
+            </div>`
+            : "";
 
         const recentCards = detail.recent
           .slice()
           .reverse()
-          .map(m => {
-            const scoreColor = m.won ? 'var(--green)' : 'var(--red)';
+          .map((m) => {
+            const scoreColor = m.won ? "var(--green)" : "var(--red)";
             return `<div class="ana-card det-match-card">
-              <div class="det-match-result" style="color:${scoreColor}">${m.won ? 'W' : 'L'}</div>
+              <div class="det-match-result" style="color:${scoreColor}">${m.won ? "W" : "L"}</div>
               <div class="det-match-body">
                 <div class="det-match-score">${m.score}</div>
                 <div class="sub">${fmtDate(m.date)} · vs ${m.opponents}</div>
               </div>
             </div>`;
           })
-          .join('');
+          .join("");
 
         const html = `
           <div id="player-detail-modal">
@@ -9787,7 +10478,7 @@ Parthiv - Par"
                       <div class="ov-lbl">Games Lost</div>
                     </div>
                     <div class="ov-cell">
-                      <div class="ov-val ${s.diff >= 0 ? 'p' : 'n'}">${s.diff >= 0 ? '+' : ''}${s.diff}</div>
+                      <div class="ov-val ${s.diff >= 0 ? "p" : "n"}">${s.diff >= 0 ? "+" : ""}${s.diff}</div>
                       <div class="ov-lbl">Game Diff</div>
                     </div>
                     <div class="ov-cell">
@@ -10031,22 +10722,26 @@ Parthiv - Par"
 
       // ── ANALYTICS ──────────────────────────────────────────────
       function renderH2HDeepDive() {
-        const p1 = document.getElementById('h2hP1')?.value;
-        const p2 = document.getElementById('h2hP2')?.value;
-        const result = document.getElementById('h2h-result');
+        const p1 = document.getElementById("h2hP1")?.value;
+        const p2 = document.getElementById("h2hP2")?.value;
+        const result = document.getElementById("h2h-result");
         if (!result) return;
         if (!p1 || !p2 || p1 === p2) {
-          result.innerHTML = '<div class="sub" style="padding:8px;color:var(--red)">Select two different players.</div>';
+          result.innerHTML =
+            '<div class="sub" style="padding:8px;color:var(--red)">Select two different players.</div>';
           return;
         }
         const h2h = getHeadToHeadStats(p1, p2);
         const total = h2h.aWins + h2h.bWins;
         if (total === 0) {
-          result.innerHTML = '<div class="sub" style="padding:8px">These players have never faced each other.</div>';
+          result.innerHTML =
+            '<div class="sub" style="padding:8px">These players have never faced each other.</div>';
           return;
         }
-        const p1Pct = Math.round(h2h.aWins / total * 100);
-        const recent = [...h2h.matches].sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,5);
+        const p1Pct = Math.round((h2h.aWins / total) * 100);
+        const recent = [...h2h.matches]
+          .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+          .slice(0, 5);
         result.innerHTML = `
           <div class="rivalry-header" style="margin-top:12px">
             <div class="rivalry-player">${p1}</div>
@@ -10056,263 +10751,677 @@ Parthiv - Par"
           <div class="rivalry-record">
             <div class="rivalry-stat"><div class="rivalry-val p">${h2h.aWins}</div><div class="rivalry-lbl">${p1Pct}%</div></div>
             <div class="rivalry-stat"><div class="rivalry-val m">${total}</div><div class="rivalry-lbl">Meetings</div></div>
-            <div class="rivalry-stat"><div class="rivalry-val n">${h2h.bWins}</div><div class="rivalry-lbl">${100-p1Pct}%</div></div>
+            <div class="rivalry-stat"><div class="rivalry-val n">${h2h.bWins}</div><div class="rivalry-lbl">${100 - p1Pct}%</div></div>
           </div>
-          ${recent.map(m => {
-            const p1InA = m.teamA.includes(p1);
-            const p1Won = p1InA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-              <span style="font-size:12px;font-weight:700;color:${p1Won?'var(--green)':'var(--red)'}">${p1Won?p1:p2} won</span>
+          ${recent
+            .map((m) => {
+              const p1InA = m.teamA.includes(p1);
+              const p1Won = p1InA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+              return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+              <span style="font-size:12px;font-weight:700;color:${p1Won ? "var(--green)" : "var(--red)"}">${p1Won ? p1 : p2} won</span>
               <span style="font-size:11px;color:var(--muted)">${m.scoreA}–${m.scoreB} · ${fmtDate(m.date)}</span>
             </div>`;
-          }).join('')}`;
+            })
+            .join("")}`;
       }
 
       function renderAnalyticsPage() {
         const container = document.getElementById("analytics-page-content");
         if (!container) return;
         if (!allMatches.length) {
-          container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
+          container.innerHTML =
+            '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
           return;
         }
 
         // ── DATA COLLECTION ────────────────────────────────────
-        const stats = {}, shutoutWins = {}, shutoutLosses = {};
-        const highestMargins = [], partnerships = {};
-        const monthlyStats = {}, dateCounts = {}, scoreDist = {}, rivalryCount = {};
-        const closeWins = {}, closePlayed = {};
+        const stats = {},
+          shutoutWins = {},
+          shutoutLosses = {};
+        const highestMargins = [],
+          partnerships = {};
+        const monthlyStats = {},
+          dateCounts = {},
+          scoreDist = {},
+          rivalryCount = {};
+        const closeWins = {},
+          closePlayed = {};
 
-        const sortedM = [...allMatches].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+        const sortedM = [...allMatches].sort((a, b) =>
+          (a.date || "").localeCompare(b.date || ""),
+        );
 
-        sortedM.forEach(m => {
+        sortedM.forEach((m) => {
           const aWon = m.scoreA > m.scoreB;
-          const winners = aWon ? m.teamA : m.teamB, losers = aWon ? m.teamB : m.teamA;
-          const winScore = aWon ? m.scoreA : m.scoreB, loseScore = aWon ? m.scoreB : m.scoreA;
+          const winners = aWon ? m.teamA : m.teamB,
+            losers = aWon ? m.teamB : m.teamA;
+          const winScore = aWon ? m.scoreA : m.scoreB,
+            loseScore = aWon ? m.scoreB : m.scoreA;
           const margin = Math.abs(m.scoreA - m.scoreB);
 
-          [...m.teamA, ...m.teamB].forEach(p => {
-            if (!stats[p]) stats[p] = { name:p, wins:0, losses:0, matches:0, streak:0, bestStreak:0, teammates:{} };
+          [...m.teamA, ...m.teamB].forEach((p) => {
+            if (!stats[p])
+              stats[p] = {
+                name: p,
+                wins: 0,
+                losses: 0,
+                matches: 0,
+                streak: 0,
+                bestStreak: 0,
+                teammates: {},
+              };
           });
-          winners.forEach(p => { stats[p].wins++; stats[p].matches++; stats[p].streak++; if(stats[p].streak>stats[p].bestStreak) stats[p].bestStreak=stats[p].streak; });
-          losers.forEach(p => { stats[p].losses++; stats[p].matches++; stats[p].streak=0; });
+          winners.forEach((p) => {
+            stats[p].wins++;
+            stats[p].matches++;
+            stats[p].streak++;
+            if (stats[p].streak > stats[p].bestStreak)
+              stats[p].bestStreak = stats[p].streak;
+          });
+          losers.forEach((p) => {
+            stats[p].losses++;
+            stats[p].matches++;
+            stats[p].streak = 0;
+          });
 
           if (loseScore === 0) {
-            winners.forEach(p => { shutoutWins[p]=(shutoutWins[p]||0)+1; });
-            losers.forEach(p => { shutoutLosses[p]=(shutoutLosses[p]||0)+1; });
+            winners.forEach((p) => {
+              shutoutWins[p] = (shutoutWins[p] || 0) + 1;
+            });
+            losers.forEach((p) => {
+              shutoutLosses[p] = (shutoutLosses[p] || 0) + 1;
+            });
           }
-          winners.forEach(p => highestMargins.push({ player:p, margin, score:`${winScore}-${loseScore}` }));
+          winners.forEach((p) =>
+            highestMargins.push({
+              player: p,
+              margin,
+              score: `${winScore}-${loseScore}`,
+            }),
+          );
 
-          if (m.teamA.length===2 && m.teamB.length===2) {
+          if (m.teamA.length === 2 && m.teamB.length === 2) {
             const addP = (t, won) => {
-              const key=[...t].sort().join(' & ');
-              if (!partnerships[key]) partnerships[key]={ players:[...t].sort(), wins:0, played:0, diff:0 };
+              const key = [...t].sort().join(" & ");
+              if (!partnerships[key])
+                partnerships[key] = {
+                  players: [...t].sort(),
+                  wins: 0,
+                  played: 0,
+                  diff: 0,
+                };
               partnerships[key].played++;
-              if (won) { partnerships[key].wins++; partnerships[key].diff+=margin; } else partnerships[key].diff-=margin;
+              if (won) {
+                partnerships[key].wins++;
+                partnerships[key].diff += margin;
+              } else partnerships[key].diff -= margin;
             };
-            addP(m.teamA, aWon); addP(m.teamB, !aWon);
+            addP(m.teamA, aWon);
+            addP(m.teamB, !aWon);
           }
-          if (m.teamA.length===2) { const[a,b]=m.teamA; stats[a].teammates[b]=(stats[a].teammates[b]||0)+1; stats[b].teammates[a]=(stats[b].teammates[a]||0)+1; }
-          if (m.teamB.length===2) { const[a,b]=m.teamB; stats[a].teammates[b]=(stats[a].teammates[b]||0)+1; stats[b].teammates[a]=(stats[b].teammates[a]||0)+1; }
+          if (m.teamA.length === 2) {
+            const [a, b] = m.teamA;
+            stats[a].teammates[b] = (stats[a].teammates[b] || 0) + 1;
+            stats[b].teammates[a] = (stats[b].teammates[a] || 0) + 1;
+          }
+          if (m.teamB.length === 2) {
+            const [a, b] = m.teamB;
+            stats[a].teammates[b] = (stats[a].teammates[b] || 0) + 1;
+            stats[b].teammates[a] = (stats[b].teammates[a] || 0) + 1;
+          }
 
           // Monthly win rates
-          const mo = (m.date||'').substring(0,7);
+          const mo = (m.date || "").substring(0, 7);
           if (mo) {
-            if (!monthlyStats[mo]) monthlyStats[mo]={};
-            m.teamA.forEach(p => { if(!monthlyStats[mo][p]) monthlyStats[mo][p]={w:0,m:0}; monthlyStats[mo][p].m++; if(aWon) monthlyStats[mo][p].w++; });
-            m.teamB.forEach(p => { if(!monthlyStats[mo][p]) monthlyStats[mo][p]={w:0,m:0}; monthlyStats[mo][p].m++; if(!aWon) monthlyStats[mo][p].w++; });
+            if (!monthlyStats[mo]) monthlyStats[mo] = {};
+            m.teamA.forEach((p) => {
+              if (!monthlyStats[mo][p]) monthlyStats[mo][p] = { w: 0, m: 0 };
+              monthlyStats[mo][p].m++;
+              if (aWon) monthlyStats[mo][p].w++;
+            });
+            m.teamB.forEach((p) => {
+              if (!monthlyStats[mo][p]) monthlyStats[mo][p] = { w: 0, m: 0 };
+              monthlyStats[mo][p].m++;
+              if (!aWon) monthlyStats[mo][p].w++;
+            });
           }
-          if (m.date) dateCounts[m.date]=(dateCounts[m.date]||0)+1;
+          if (m.date) dateCounts[m.date] = (dateCounts[m.date] || 0) + 1;
 
-          const hi=Math.max(m.scoreA,m.scoreB), lo=Math.min(m.scoreA,m.scoreB);
-          scoreDist[`${hi}-${lo}`]=(scoreDist[`${hi}-${lo}`]||0)+1;
+          const hi = Math.max(m.scoreA, m.scoreB),
+            lo = Math.min(m.scoreA, m.scoreB);
+          scoreDist[`${hi}-${lo}`] = (scoreDist[`${hi}-${lo}`] || 0) + 1;
 
-          m.teamA.forEach(a => m.teamB.forEach(b => {
-            const k=[a,b].sort().join('|');
-            rivalryCount[k]=(rivalryCount[k]||0)+1;
-          }));
+          m.teamA.forEach((a) =>
+            m.teamB.forEach((b) => {
+              const k = [a, b].sort().join("|");
+              rivalryCount[k] = (rivalryCount[k] || 0) + 1;
+            }),
+          );
 
           if (margin <= 1) {
-            winners.forEach(p => { closeWins[p]=(closeWins[p]||0)+1; closePlayed[p]=(closePlayed[p]||0)+1; });
-            losers.forEach(p => { closePlayed[p]=(closePlayed[p]||0)+1; });
+            winners.forEach((p) => {
+              closeWins[p] = (closeWins[p] || 0) + 1;
+              closePlayed[p] = (closePlayed[p] || 0) + 1;
+            });
+            losers.forEach((p) => {
+              closePlayed[p] = (closePlayed[p] || 0) + 1;
+            });
           }
         });
 
         // ── DERIVED ────────────────────────────────────────────
         const players = Object.values(stats);
-        const mostActive = [...players].sort((a,b)=>b.matches-a.matches)[0];
-        const topWinRate = [...players].filter(p=>p.matches>=3).sort((a,b)=>b.wins/b.matches-a.wins/a.matches)[0];
-        const topStreak = [...players].sort((a,b)=>b.bestStreak-a.bestStreak)[0];
-        const mostShutoutWinsEntry = Object.entries(shutoutWins).sort((a,b)=>b[1]-a[1])[0];
-        const maxLosses = Math.max(...Object.values(shutoutLosses),0);
-        const mostShutoutLosses = Object.entries(shutoutLosses).filter(([,v])=>v===maxLosses).map(([k])=>k);
-        const biggestWin = [...highestMargins].sort((a,b)=>b.margin-a.margin)[0];
-        const bestPartnership = Object.values(partnerships).filter(p=>p.played>=2).sort((a,b)=>b.wins/b.played-a.wins/a.played)[0];
-        const pairLeaderboard = getPairStats().slice(0,8);
+        const mostActive = [...players].sort(
+          (a, b) => b.matches - a.matches,
+        )[0];
+        const topWinRate = [...players]
+          .filter((p) => p.matches >= 3)
+          .sort((a, b) => b.wins / b.matches - a.wins / a.matches)[0];
+        const topStreak = [...players].sort(
+          (a, b) => b.bestStreak - a.bestStreak,
+        )[0];
+        const mostShutoutWinsEntry = Object.entries(shutoutWins).sort(
+          (a, b) => b[1] - a[1],
+        )[0];
+        const maxLosses = Math.max(...Object.values(shutoutLosses), 0);
+        const mostShutoutLosses = Object.entries(shutoutLosses)
+          .filter(([, v]) => v === maxLosses)
+          .map(([k]) => k);
+        const biggestWin = [...highestMargins].sort(
+          (a, b) => b.margin - a.margin,
+        )[0];
+        const bestPartnership = Object.values(partnerships)
+          .filter((p) => p.played >= 2)
+          .sort((a, b) => b.wins / b.played - a.wins / a.played)[0];
+        const pairLeaderboard = getPairStats().slice(0, 8);
         const playersByMatches = getAllPlayerNamesFromMatches();
         const matrixHtml = buildH2HMatrixCompact(playersByMatches);
 
         const compList = computeStats(allMatches);
-        const clutchP = Object.keys(closePlayed).filter(p=>closePlayed[p]>=3).sort((a,b)=>(closeWins[b]||0)/closePlayed[b]-(closeWins[a]||0)/closePlayed[a])[0];
-        const destroyer = compList.filter(p=>p.mp>=3).sort((a,b)=>b.avgMargin-a.avgMargin)[0];
+        const clutchP = Object.keys(closePlayed)
+          .filter((p) => closePlayed[p] >= 3)
+          .sort(
+            (a, b) =>
+              (closeWins[b] || 0) / closePlayed[b] -
+              (closeWins[a] || 0) / closePlayed[a],
+          )[0];
+        const destroyer = compList
+          .filter((p) => p.mp >= 3)
+          .sort((a, b) => b.avgMargin - a.avgMargin)[0];
 
-        const topRivalEntry = Object.entries(rivalryCount).sort((a,b)=>b[1]-a[1])[0];
-        const [rivalA, rivalB] = topRivalEntry?.[0]?.split('|')||[null,null];
-        const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB) : null;
+        const topRivalEntry = Object.entries(rivalryCount).sort(
+          (a, b) => b[1] - a[1],
+        )[0];
+        const [rivalA, rivalB] = topRivalEntry?.[0]?.split("|") || [null, null];
+        const rivalry =
+          rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB) : null;
 
         const uniqueMonths = Object.keys(monthlyStats).sort();
-        const top5 = [...players].sort((a,b)=>b.matches-a.matches).slice(0,5).map(p=>p.name);
-        const scoreDistSorted = Object.entries(scoreDist).sort((a,b)=>b[1]-a[1]).slice(0,7);
-        const maxSD = scoreDistSorted[0]?.[1]||1;
+        const top5 = [...players]
+          .sort((a, b) => b.matches - a.matches)
+          .slice(0, 5)
+          .map((p) => p.name);
+        const scoreDistSorted = Object.entries(scoreDist)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 7);
+        const maxSD = scoreDistSorted[0]?.[1] || 1;
 
-        const closeMatches = sortedM.filter(m=>Math.abs(m.scoreA-m.scoreB)<=1).slice(-5).reverse();
+        const closeMatches = sortedM
+          .filter((m) => Math.abs(m.scoreA - m.scoreB) <= 1)
+          .slice(-5)
+          .reverse();
 
-        const pwrMap = {}; compList.forEach(p=>{ pwrMap[p.name]=p.mwr; });
-        const upsets = sortedM.map(m=>{
-          const aWon=m.scoreA>m.scoreB;
-          const wTeam=aWon?m.teamA:m.teamB, lTeam=aWon?m.teamB:m.teamA;
-          const wR=wTeam.reduce((s,p)=>s+(pwrMap[p]||0.5),0)/Math.max(wTeam.length,1);
-          const lR=lTeam.reduce((s,p)=>s+(pwrMap[p]||0.5),0)/Math.max(lTeam.length,1);
-          return {m,wTeam,lTeam,gap:lR-wR};
-        }).filter(u=>u.gap>0.08).sort((a,b)=>b.gap-a.gap).slice(0,3);
+        const pwrMap = {};
+        compList.forEach((p) => {
+          pwrMap[p.name] = p.mwr;
+        });
+        const upsets = sortedM
+          .map((m) => {
+            const aWon = m.scoreA > m.scoreB;
+            const wTeam = aWon ? m.teamA : m.teamB,
+              lTeam = aWon ? m.teamB : m.teamA;
+            const wR =
+              wTeam.reduce((s, p) => s + (pwrMap[p] || 0.5), 0) /
+              Math.max(wTeam.length, 1);
+            const lR =
+              lTeam.reduce((s, p) => s + (pwrMap[p] || 0.5), 0) /
+              Math.max(lTeam.length, 1);
+            return { m, wTeam, lTeam, gap: lR - wR };
+          })
+          .filter((u) => u.gap > 0.08)
+          .sort((a, b) => b.gap - a.gap)
+          .slice(0, 3);
 
-        const nowD=new Date(); nowD.setHours(0,0,0,0);
-        const mo1D=new Date(nowD); mo1D.setMonth(mo1D.getMonth()-1);
-        const mo1Str=mo1D.toISOString().substring(0,10);
-        const rankAll=compList.reduce((o,p,i)=>({...o,[p.name]:i+1}),{});
-        const rank1mo=computeStats(allMatches.filter(m=>(m.date||'')>=mo1Str)).reduce((o,p,i)=>({...o,[p.name]:i+1}),{});
-        const rankRace=compList.slice(0,10).map(p=>({
-          name:p.name, rAll:rankAll[p.name]||'—', r1mo:rank1mo[p.name]||'—',
-          delta:typeof rank1mo[p.name]==='number'&&typeof rankAll[p.name]==='number'?rankAll[p.name]-rank1mo[p.name]:null
+        const nowD = new Date();
+        nowD.setHours(0, 0, 0, 0);
+        const mo1D = new Date(nowD);
+        mo1D.setMonth(mo1D.getMonth() - 1);
+        const mo1Str = mo1D.toISOString().substring(0, 10);
+        const rankAll = compList.reduce(
+          (o, p, i) => ({ ...o, [p.name]: i + 1 }),
+          {},
+        );
+        const rank1mo = computeStats(
+          allMatches.filter((m) => (m.date || "") >= mo1Str),
+        ).reduce((o, p, i) => ({ ...o, [p.name]: i + 1 }), {});
+        const rankRace = compList.slice(0, 10).map((p) => ({
+          name: p.name,
+          rAll: rankAll[p.name] || "—",
+          r1mo: rank1mo[p.name] || "—",
+          delta:
+            typeof rank1mo[p.name] === "number" &&
+            typeof rankAll[p.name] === "number"
+              ? rankAll[p.name] - rank1mo[p.name]
+              : null,
         }));
 
-        const formTable = playersByMatches.map(name=>{
-          const pm=sortedM.filter(m=>m.teamA.includes(name)||m.teamB.includes(name)).slice(-10);
-          if (pm.length<3) return null;
-          let w=0;
-          const dots=pm.map(m=>{ const won=m.teamA.includes(name)?m.scoreA>m.scoreB:m.scoreB>m.scoreA; if(won)w++; return won?'W':'L'; });
-          return {name,dots,pct:Math.round(w/pm.length*100),n:pm.length};
-        }).filter(Boolean).sort((a,b)=>b.pct-a.pct);
+        const formTable = playersByMatches
+          .map((name) => {
+            const pm = sortedM
+              .filter((m) => m.teamA.includes(name) || m.teamB.includes(name))
+              .slice(-10);
+            if (pm.length < 3) return null;
+            let w = 0;
+            const dots = pm.map((m) => {
+              const won = m.teamA.includes(name)
+                ? m.scoreA > m.scoreB
+                : m.scoreB > m.scoreA;
+              if (won) w++;
+              return won ? "W" : "L";
+            });
+            return {
+              name,
+              dots,
+              pct: Math.round((w / pm.length) * 100),
+              n: pm.length,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => b.pct - a.pct);
 
-        const bestPairPerP = compList.map(p=>({name:p.name,partner:p.bestPartner})).filter(p=>p.partner);
-        const pairFormData = getPairStats().filter(p=>p.played>=3).slice(0,6).map(pair=>{
-          const pm=sortedM.filter(m=>{const ak=[...m.teamA].sort().join(' & '),bk=[...m.teamB].sort().join(' & ');return ak===pair.key||bk===pair.key;}).slice(-5);
-          const form=pm.map(m=>{const won=[...m.teamA].sort().join(' & ')===pair.key?m.scoreA>m.scoreB:m.scoreB>m.scoreA;return won?'W':'L';});
-          return {...pair,form};
-        });
+        const bestPairPerP = compList
+          .map((p) => ({ name: p.name, partner: p.bestPartner }))
+          .filter((p) => p.partner);
+        const pairFormData = getPairStats()
+          .filter((p) => p.played >= 3)
+          .slice(0, 6)
+          .map((pair) => {
+            const pm = sortedM
+              .filter((m) => {
+                const ak = [...m.teamA].sort().join(" & "),
+                  bk = [...m.teamB].sort().join(" & ");
+                return ak === pair.key || bk === pair.key;
+              })
+              .slice(-5);
+            const form = pm.map((m) => {
+              const won =
+                [...m.teamA].sort().join(" & ") === pair.key
+                  ? m.scoreA > m.scoreB
+                  : m.scoreB > m.scoreA;
+              return won ? "W" : "L";
+            });
+            return { ...pair, form };
+          });
 
-        const sessionMap={};
-        sortedM.forEach(m=>{ if(!m.date)return; if(!sessionMap[m.date]) sessionMap[m.date]={matches:[],players:new Set()}; sessionMap[m.date].matches.push(m); [...m.teamA,...m.teamB].forEach(p=>sessionMap[m.date].players.add(p)); });
-        const sessions=Object.entries(sessionMap).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,5).map(([date,d])=>{
-          const dw={}; d.matches.forEach(m=>{(m.scoreA>m.scoreB?m.teamA:m.teamB).forEach(p=>{dw[p]=(dw[p]||0)+1;});});
-          return {date,matches:d.matches,players:[...d.players],mvp:Object.entries(dw).sort((a,b)=>b[1]-a[1])[0]};
+        const sessionMap = {};
+        sortedM.forEach((m) => {
+          if (!m.date) return;
+          if (!sessionMap[m.date])
+            sessionMap[m.date] = { matches: [], players: new Set() };
+          sessionMap[m.date].matches.push(m);
+          [...m.teamA, ...m.teamB].forEach((p) =>
+            sessionMap[m.date].players.add(p),
+          );
         });
+        const sessions = Object.entries(sessionMap)
+          .sort((a, b) => b[0].localeCompare(a[0]))
+          .slice(0, 5)
+          .map(([date, d]) => {
+            const dw = {};
+            d.matches.forEach((m) => {
+              (m.scoreA > m.scoreB ? m.teamA : m.teamB).forEach((p) => {
+                dw[p] = (dw[p] || 0) + 1;
+              });
+            });
+            return {
+              date,
+              matches: d.matches,
+              players: [...d.players],
+              mvp: Object.entries(dw).sort((a, b) => b[1] - a[1])[0],
+            };
+          });
 
         // ── HTML HELPERS ───────────────────────────────────────
-        const card=(badge,name,sub)=>`<div class="ana-card"><span class="badge">${badge}</span><div class="name">${name||'—'}</div><div class="sub">${sub}</div></div>`;
-        const section=title=>`<div class="ana-section-title">${title}</div>`;
-        const fdots=arr=>arr.map(r=>`<span class="fd ${r==='W'?'fd-w':'fd-l'}" style="width:14px;height:14px;font-size:7px">${r}</span>`).join('');
-        const chartColors=['#f5c842','#18d7ff','#36d47e','#f04f4f','#b44dff'];
+        const card = (badge, name, sub) =>
+          `<div class="ana-card"><span class="badge">${badge}</span><div class="name">${name || "—"}</div><div class="sub">${sub}</div></div>`;
+        const section = (title) =>
+          `<div class="ana-section-title">${title}</div>`;
+        const fdots = (arr) =>
+          arr
+            .map(
+              (r) =>
+                `<span class="fd ${r === "W" ? "fd-w" : "fd-l"}" style="width:14px;height:14px;font-size:7px">${r}</span>`,
+            )
+            .join("");
+        const chartColors = [
+          "#f5c842",
+          "#18d7ff",
+          "#36d47e",
+          "#f04f4f",
+          "#b44dff",
+        ];
 
         // ── WIN RATE CHART ─────────────────────────────────────
-        let winChartHtml='<div class="sub" style="padding:8px">Need matches across multiple months.</div>';
-        if (uniqueMonths.length>=2) {
-          const W=300,H=110,pl=32,pr=8,pt=10,pb=18,cW=W-pl-pr,cH=H-pt-pb;
-          const moN=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          const yL=[0,50,100].map(p=>{const y=pt+(1-p/100)*cH;return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W-pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/><text x="${(pl-3)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.35)">${p}%</text>`;}).join('');
-          const xL=uniqueMonths.map((mo,i)=>{const x=pl+(i/(uniqueMonths.length-1||1))*cW;return `<text x="${x.toFixed(1)}" y="${H-3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN[parseInt(mo.substring(5))]||mo.substring(5)}</text>`;}).join('');
-          const lines=top5.map((pn,ci)=>{
-            const pts=uniqueMonths.map((mo,i)=>{const d=monthlyStats[mo]?.[pn];if(!d||d.m===0)return null;return{x:pl+(i/(uniqueMonths.length-1||1))*cW,y:pt+(1-d.w/d.m)*cH};}).filter(Boolean);
-            if(pts.length<1)return '';
-            const color=chartColors[ci%5];
-            return `<polyline points="${pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="${color}"/>`).join('')}`;
-          }).join('');
-          const legend=top5.map((p,ci)=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:rgba(255,255,255,0.65)"><span style="display:inline-block;width:10px;height:2px;background:${chartColors[ci%5]};border-radius:1px"></span>${p.split(' ')[0]}</span>`).join('');
-          winChartHtml=`<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">${yL}${lines}${xL}</svg></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">${legend}</div>`;
+        let winChartHtml =
+          '<div class="sub" style="padding:8px">Need matches across multiple months.</div>';
+        if (uniqueMonths.length >= 2) {
+          const W = 300,
+            H = 110,
+            pl = 32,
+            pr = 8,
+            pt = 10,
+            pb = 18,
+            cW = W - pl - pr,
+            cH = H - pt - pb;
+          const moN = [
+            "",
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ];
+          const yL = [0, 50, 100]
+            .map((p) => {
+              const y = pt + (1 - p / 100) * cH;
+              return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.35)">${p}%</text>`;
+            })
+            .join("");
+          const xL = uniqueMonths
+            .map((mo, i) => {
+              const x = pl + (i / (uniqueMonths.length - 1 || 1)) * cW;
+              return `<text x="${x.toFixed(1)}" y="${H - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN[parseInt(mo.substring(5))] || mo.substring(5)}</text>`;
+            })
+            .join("");
+          const lines = top5
+            .map((pn, ci) => {
+              const pts = uniqueMonths
+                .map((mo, i) => {
+                  const d = monthlyStats[mo]?.[pn];
+                  if (!d || d.m === 0) return null;
+                  return {
+                    x: pl + (i / (uniqueMonths.length - 1 || 1)) * cW,
+                    y: pt + (1 - d.w / d.m) * cH,
+                  };
+                })
+                .filter(Boolean);
+              if (pts.length < 1) return "";
+              const color = chartColors[ci % 5];
+              return `<polyline points="${pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>${pts.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="${color}"/>`).join("")}`;
+            })
+            .join("");
+          const legend = top5
+            .map(
+              (p, ci) =>
+                `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:rgba(255,255,255,0.65)"><span style="display:inline-block;width:10px;height:2px;background:${chartColors[ci % 5]};border-radius:1px"></span>${p.split(" ")[0]}</span>`,
+            )
+            .join("");
+          winChartHtml = `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">${yL}${lines}${xL}</svg></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">${legend}</div>`;
         }
 
         // ── HEATMAP ────────────────────────────────────────────
-        const hCells=[];
-        for(let i=111;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().substring(0,10);hCells.push({ds,c:dateCounts[ds]||0});}
-        const maxH=Math.max(...hCells.map(c=>c.c),1);
-        const hmMonthLabels=(()=>{
-          const moN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const hCells = [];
+        for (let i = 111; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const ds = d.toISOString().substring(0, 10);
+          hCells.push({ ds, c: dateCounts[ds] || 0 });
+        }
+        const maxH = Math.max(...hCells.map((c) => c.c), 1);
+        const hmMonthLabels = (() => {
+          const moN = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ];
           // With column-major flow, column k = cells k*7 … k*7+6 (one week per column)
-          return `<div style="display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin-bottom:3px">${Array.from({length:16},(_,col)=>{
-            const first=hCells[col*7];
-            if(!first)return '<div></div>';
-            const mo=parseInt(first.ds.substring(5,7))-1;
-            const prev=col>0?parseInt(hCells[(col-1)*7]?.ds.substring(5,7)||'0')-1:-1;
-            return `<div style="font-size:7px;color:var(--muted);white-space:nowrap;overflow:hidden">${mo!==prev?moN[mo]:''}</div>`;
-          }).join('')}</div>`;
+          return `<div style="display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin-bottom:3px">${Array.from(
+            { length: 16 },
+            (_, col) => {
+              const first = hCells[col * 7];
+              if (!first) return "<div></div>";
+              const mo = parseInt(first.ds.substring(5, 7)) - 1;
+              const prev =
+                col > 0
+                  ? parseInt(hCells[(col - 1) * 7]?.ds.substring(5, 7) || "0") -
+                    1
+                  : -1;
+              return `<div style="font-size:7px;color:var(--muted);white-space:nowrap;overflow:hidden">${mo !== prev ? moN[mo] : ""}</div>`;
+            },
+          ).join("")}</div>`;
         })();
-        const heatHtml=`<div style="font-size:9px;color:var(--muted);margin-bottom:4px">Match activity — last 112 days</div>${hmMonthLabels}<div class="hm-grid">${hCells.map(c=>{const a=c.c===0?0:Math.max(0.2,c.c/maxH);const bg=c.c===0?'rgba(255,255,255,0.04)':`rgba(var(--theme-rgb),${a.toFixed(2)})`;return `<div class="hm-cell" style="background:${bg}" title="${c.ds}${c.c?': '+c.c+' match'+(c.c>1?'es':''):''}"></div>`;}).join('')}</div><div style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:9px;color:var(--muted)"><span>Less</span><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.04)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.3)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.7)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),1)"></div><span>More</span></div>`;
+        const heatHtml = `<div style="font-size:9px;color:var(--muted);margin-bottom:4px">Match activity — last 112 days</div>${hmMonthLabels}<div class="hm-grid">${hCells
+          .map((c) => {
+            const a = c.c === 0 ? 0 : Math.max(0.2, c.c / maxH);
+            const bg =
+              c.c === 0
+                ? "rgba(255,255,255,0.04)"
+                : `rgba(var(--theme-rgb),${a.toFixed(2)})`;
+            return `<div class="hm-cell" style="background:${bg}" title="${c.ds}${c.c ? ": " + c.c + " match" + (c.c > 1 ? "es" : "") : ""}"></div>`;
+          })
+          .join(
+            "",
+          )}</div><div style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:9px;color:var(--muted)"><span>Less</span><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.04)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.3)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.7)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),1)"></div><span>More</span></div>`;
 
         // ── SCORE DISTRIBUTION ─────────────────────────────────
-        const sdHtml=scoreDistSorted.map(([s,c])=>`<div class="sdist-row"><div class="sdist-lbl">${s}</div><div class="sdist-bar-wrap"><div class="sdist-bar" style="width:${(c/maxSD*100).toFixed(0)}%"></div></div><div class="sdist-count">${c}</div></div>`).join('');
+        const sdHtml = scoreDistSorted
+          .map(
+            ([s, c]) =>
+              `<div class="sdist-row"><div class="sdist-lbl">${s}</div><div class="sdist-bar-wrap"><div class="sdist-bar" style="width:${((c / maxSD) * 100).toFixed(0)}%"></div></div><div class="sdist-count">${c}</div></div>`,
+          )
+          .join("");
 
         // ── FORM TABLE ─────────────────────────────────────────
-        const ftHtml=formTable.map((p,i)=>{const pc=p.pct>=60?'var(--green)':p.pct<=40?'var(--red)':'var(--text)';return `<div class="ftable-row"><div class="ftable-rank">${i+1}</div><div class="ftable-name">${p.name}</div><div class="ftable-dots">${fdots(p.dots)}</div><div class="ftable-pct" style="color:${pc}">${p.pct}%</div></div>`;}).join('')||'<div class="sub" style="padding:8px">Not enough data.</div>';
+        const ftHtml =
+          formTable
+            .map((p, i) => {
+              const pc =
+                p.pct >= 60
+                  ? "var(--green)"
+                  : p.pct <= 40
+                    ? "var(--red)"
+                    : "var(--text)";
+              return `<div class="ftable-row"><div class="ftable-rank">${i + 1}</div><div class="ftable-name">${p.name}</div><div class="ftable-dots">${fdots(p.dots)}</div><div class="ftable-pct" style="color:${pc}">${p.pct}%</div></div>`;
+            })
+            .join("") ||
+          '<div class="sub" style="padding:8px">Not enough data.</div>';
 
         // ── LEADERBOARD RACE ───────────────────────────────────
-        const lrHtml=rankRace.map(p=>{
-          const arrow=p.delta>0?`<span style="color:var(--green)">▲${p.delta}</span>`:p.delta<0?`<span style="color:var(--red)">▼${Math.abs(p.delta)}</span>`:`<span style="color:var(--muted)">—</span>`;
-          return `<div class="lrace-row"><div class="lrace-rank">#${p.rAll}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${typeof p.r1mo==='number'?`#${p.r1mo}`:'—'}</div><div class="lrace-delta">${arrow}</div></div>`;
-        }).join('');
+        const lrHtml = rankRace
+          .map((p) => {
+            const arrow =
+              p.delta > 0
+                ? `<span style="color:var(--green)">▲${p.delta}</span>`
+                : p.delta < 0
+                  ? `<span style="color:var(--red)">▼${Math.abs(p.delta)}</span>`
+                  : `<span style="color:var(--muted)">—</span>`;
+            return `<div class="lrace-row"><div class="lrace-rank">#${p.rAll}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${typeof p.r1mo === "number" ? `#${p.r1mo}` : "—"}</div><div class="lrace-delta">${arrow}</div></div>`;
+          })
+          .join("");
 
         // ── AWARDS ─────────────────────────────────────────────
-        const awards=[
-          {i:'🏋️',t:'Iron Man',n:mostActive?.name,s:`${mostActive?.matches||0} matches played`},
-          {i:'🎯',t:'Sharpshooter',n:topWinRate?.name,s:`${topWinRate?Math.round(topWinRate.wins/topWinRate.matches*100):0}% win rate`},
-          {i:'🔥',t:'On Fire',n:topStreak?.name,s:`${topStreak?.bestStreak||0} win streak`},
-          {i:'👑',t:'Dominator',n:destroyer?.name,s:`+${destroyer?.avgMargin?.toFixed(1)||0} avg margin`},
-          {i:'🎲',t:'Clutch',n:clutchP||'—',s:clutchP?`${Math.round((closeWins[clutchP]||0)/closePlayed[clutchP]*100)}% in close matches`:'Needs 3+ close matches'},
-          {i:'🤝',t:'Dynamic Duo',n:bestPartnership?.players?.join(' & ')||'—',s:`${bestPartnership?Math.round(bestPartnership.wins/bestPartnership.played*100):0}% win rate together`},
-          {i:'🛡️',t:'The Wall',n:mostShutoutWinsEntry?.[0]||'—',s:`${mostShutoutWinsEntry?.[1]||0} shutout wins`},
-          {i:'💔',t:'Glass Jaw',n:mostShutoutLosses[0]||'—',s:`${maxLosses} shutout losses`},
+        const awards = [
+          {
+            i: "🏋️",
+            t: "Iron Man",
+            n: mostActive?.name,
+            s: `${mostActive?.matches || 0} matches played`,
+          },
+          {
+            i: "🎯",
+            t: "Sharpshooter",
+            n: topWinRate?.name,
+            s: `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% win rate`,
+          },
+          {
+            i: "🔥",
+            t: "On Fire",
+            n: topStreak?.name,
+            s: `${topStreak?.bestStreak || 0} win streak`,
+          },
+          {
+            i: "👑",
+            t: "Dominator",
+            n: destroyer?.name,
+            s: `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`,
+          },
+          {
+            i: "🎲",
+            t: "Clutch",
+            n: clutchP || "—",
+            s: clutchP
+              ? `${Math.round(((closeWins[clutchP] || 0) / closePlayed[clutchP]) * 100)}% in close matches`
+              : "Needs 3+ close matches",
+          },
+          {
+            i: "🤝",
+            t: "Dynamic Duo",
+            n: bestPartnership?.players?.join(" & ") || "—",
+            s: `${bestPartnership ? Math.round((bestPartnership.wins / bestPartnership.played) * 100) : 0}% win rate together`,
+          },
+          {
+            i: "🛡️",
+            t: "The Wall",
+            n: mostShutoutWinsEntry?.[0] || "—",
+            s: `${mostShutoutWinsEntry?.[1] || 0} shutout wins`,
+          },
+          {
+            i: "💔",
+            t: "Glass Jaw",
+            n: mostShutoutLosses[0] || "—",
+            s: `${maxLosses} shutout losses`,
+          },
         ];
-        const awardsHtml=awards.map(a=>`<div class="award-card"><div class="award-icon">${a.i}</div><div class="award-title">${a.t}</div><div class="award-name">${a.n||'—'}</div><div class="award-sub">${a.s}</div></div>`).join('');
+        const awardsHtml = awards
+          .map(
+            (a) =>
+              `<div class="award-card"><div class="award-icon">${a.i}</div><div class="award-title">${a.t}</div><div class="award-name">${a.n || "—"}</div><div class="award-sub">${a.s}</div></div>`,
+          )
+          .join("");
 
         // ── CLOSEST MATCHES ────────────────────────────────────
-        const cmHtml=closeMatches.length
-          ?closeMatches.map(m=>`<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700">${m.teamA.join(' & ')} vs ${m.teamB.join(' & ')}</div><div class="sub">${fmtDate(m.date)}</div></div><div style="font-size:16px;font-weight:800;color:var(--theme)">${m.scoreA}–${m.scoreB}</div></div>`).join('')
-          :'<div class="ana-card"><div class="sub">No close matches yet.</div></div>';
+        const cmHtml = closeMatches.length
+          ? closeMatches
+              .map(
+                (m) =>
+                  `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700">${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</div><div class="sub">${fmtDate(m.date)}</div></div><div style="font-size:16px;font-weight:800;color:var(--theme)">${m.scoreA}–${m.scoreB}</div></div>`,
+              )
+              .join("")
+          : '<div class="ana-card"><div class="sub">No close matches yet.</div></div>';
 
         // ── BIGGEST UPSETS ─────────────────────────────────────
-        const upHtml=upsets.length
-          ?upsets.map(u=>`<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700">${u.wTeam.join(' & ')} <span style="color:var(--green)">won</span></div><div class="sub">vs ${u.lTeam.join(' & ')} · ${fmtDate(u.m.date)}</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:800;color:var(--text)">${u.m.scoreA}–${u.m.scoreB}</div><div style="font-size:9px;color:var(--red);font-weight:700">+${(u.gap*100).toFixed(0)}% gap</div></div></div>`).join('')
-          :'<div class="ana-card"><div class="sub">No clear upsets found.</div></div>';
+        const upHtml = upsets.length
+          ? upsets
+              .map(
+                (u) =>
+                  `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700">${u.wTeam.join(" & ")} <span style="color:var(--green)">won</span></div><div class="sub">vs ${u.lTeam.join(" & ")} · ${fmtDate(u.m.date)}</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:800;color:var(--text)">${u.m.scoreA}–${u.m.scoreB}</div><div style="font-size:9px;color:var(--red);font-weight:700">+${(u.gap * 100).toFixed(0)}% gap</div></div></div>`,
+              )
+              .join("")
+          : '<div class="ana-card"><div class="sub">No clear upsets found.</div></div>';
 
         // ── CHEMISTRY ─────────────────────────────────────────
-        const chemData=Object.entries(partnerships).filter(([,v])=>v.played>=2).sort((a,b)=>{const diff=b[1].wins/b[1].played-a[1].wins/a[1].played;return diff!==0?diff:b[1].played-a[1].played;}).slice(0,6);
-        const chemHtml=chemData.length
-          ?chemData.map(([,p])=>{const pc=Math.round(p.wins/p.played*100);const col=pc>=60?'var(--green)':pc<=40?'var(--red)':'var(--text)';return `<div class="chem-row"><div class="chem-names">${p.players.join(' & ')}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;}).join('')
-          :'<div class="sub" style="padding:8px">Need more doubles data.</div>';
+        const chemData = Object.entries(partnerships)
+          .filter(([, v]) => v.played >= 2)
+          .sort((a, b) => {
+            const diff = b[1].wins / b[1].played - a[1].wins / a[1].played;
+            return diff !== 0 ? diff : b[1].played - a[1].played;
+          })
+          .slice(0, 6);
+        const chemHtml = chemData.length
+          ? chemData
+              .map(([, p]) => {
+                const pc = Math.round((p.wins / p.played) * 100);
+                const col =
+                  pc >= 60
+                    ? "var(--green)"
+                    : pc <= 40
+                      ? "var(--red)"
+                      : "var(--text)";
+                return `<div class="chem-row"><div class="chem-names">${p.players.join(" & ")}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;
+              })
+              .join("")
+          : '<div class="sub" style="padding:8px">Need more doubles data.</div>';
 
-        const bpHtml=bestPairPerP.slice(0,8).map(p=>`<div class="bpair-row"><div class="bpair-player">${p.name}</div><div class="bpair-partner">🤝 ${p.partner.name.split(' ')[0]}</div><div class="bpair-pct">${p.partner.pct.toFixed(0)}%</div></div>`).join('')
-          ||'<div class="sub" style="padding:8px">Not enough data.</div>';
+        const bpHtml =
+          bestPairPerP
+            .slice(0, 8)
+            .map(
+              (p) =>
+                `<div class="bpair-row"><div class="bpair-player">${p.name}</div><div class="bpair-partner">🤝 ${p.partner.name.split(" ")[0]}</div><div class="bpair-pct">${p.partner.pct.toFixed(0)}%</div></div>`,
+            )
+            .join("") ||
+          '<div class="sub" style="padding:8px">Not enough data.</div>';
 
-        const pfHtml=pairFormData.length
-          ?pairFormData.map(p=>`<div class="pform-row"><div class="pform-name">${p.key}</div><div class="pform-dots">${fdots(p.form)}</div><div class="pform-stat">${p.winPct}% · ${p.played}g</div></div>`).join('')
-          :'<div class="sub" style="padding:8px">Need more pair data.</div>';
+        const pfHtml = pairFormData.length
+          ? pairFormData
+              .map(
+                (p) =>
+                  `<div class="pform-row"><div class="pform-name">${p.key}</div><div class="pform-dots">${fdots(p.form)}</div><div class="pform-stat">${p.winPct}% · ${p.played}g</div></div>`,
+              )
+              .join("")
+          : '<div class="sub" style="padding:8px">Need more pair data.</div>';
 
         // ── RIVALRY ────────────────────────────────────────────
-        let rivalHtml='<div class="sub" style="padding:8px">Not enough data.</div>';
+        let rivalHtml =
+          '<div class="sub" style="padding:8px">Not enough data.</div>';
         if (rivalry && rivalA && rivalB) {
-          const tot=rivalry.aWins+rivalry.bWins;
-          const recent=[...rivalry.matches].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-          rivalHtml=`<div class="rivalry-header"><div class="rivalry-player">${rivalA}</div><div class="rivalry-vs">VS</div><div class="rivalry-player">${rivalB}</div></div>
-          <div class="rivalry-record"><div class="rivalry-stat"><div class="rivalry-val p">${rivalry.aWins}</div><div class="rivalry-lbl">${Math.round(rivalry.aWins/tot*100)}%</div></div><div class="rivalry-stat"><div class="rivalry-val m">${tot}</div><div class="rivalry-lbl">Meetings</div></div><div class="rivalry-stat"><div class="rivalry-val n">${rivalry.bWins}</div><div class="rivalry-lbl">${Math.round(rivalry.bWins/tot*100)}%</div></div></div>
-          ${recent.map(m=>{const p1Won=(m.teamA.includes(rivalA)&&m.scoreA>m.scoreB)||(m.teamB.includes(rivalA)&&m.scoreB>m.scoreA);return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="font-size:12px;font-weight:700;color:var(--text)">${p1Won?rivalA:rivalB} won</span><span style="font-size:11px;color:var(--muted)">${m.scoreA}–${m.scoreB} · ${fmtDate(m.date)}</span></div>`;}).join('')}`;
+          const tot = rivalry.aWins + rivalry.bWins;
+          const recent = [...rivalry.matches]
+            .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+            .slice(0, 5);
+          rivalHtml = `<div class="rivalry-header"><div class="rivalry-player">${rivalA}</div><div class="rivalry-vs">VS</div><div class="rivalry-player">${rivalB}</div></div>
+          <div class="rivalry-record"><div class="rivalry-stat"><div class="rivalry-val p">${rivalry.aWins}</div><div class="rivalry-lbl">${Math.round((rivalry.aWins / tot) * 100)}%</div></div><div class="rivalry-stat"><div class="rivalry-val m">${tot}</div><div class="rivalry-lbl">Meetings</div></div><div class="rivalry-stat"><div class="rivalry-val n">${rivalry.bWins}</div><div class="rivalry-lbl">${Math.round((rivalry.bWins / tot) * 100)}%</div></div></div>
+          ${recent
+            .map((m) => {
+              const p1Won =
+                (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) ||
+                (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
+              return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="font-size:12px;font-weight:700;color:var(--text)">${p1Won ? rivalA : rivalB} won</span><span style="font-size:11px;color:var(--muted)">${m.scoreA}–${m.scoreB} · ${fmtDate(m.date)}</span></div>`;
+            })
+            .join("")}`;
         }
 
         // ── SESSIONS ───────────────────────────────────────────
-        const sessHtml=sessions.length
-          ?sessions.map(s=>`<div class="session-card"><div class="session-date">${fmtDate(s.date)}</div><div class="session-stats"><span>${s.matches.length} match${s.matches.length>1?'es':''}</span><span>${s.players.length} players</span></div>${s.mvp?`<div class="session-mvp">🏆 MVP: <strong>${s.mvp[0]}</strong> · ${s.mvp[1]}W</div>`:''}<div class="session-players">${s.players.map(p=>`<span class="session-chip">${p}</span>`).join('')}</div></div>`).join('')
-          :'<div class="sub" style="padding:8px">No sessions yet.</div>';
+        const sessHtml = sessions.length
+          ? sessions
+              .map(
+                (s) =>
+                  `<div class="session-card"><div class="session-date">${fmtDate(s.date)}</div><div class="session-stats"><span>${s.matches.length} match${s.matches.length > 1 ? "es" : ""}</span><span>${s.players.length} players</span></div>${s.mvp ? `<div class="session-mvp">🏆 MVP: <strong>${s.mvp[0]}</strong> · ${s.mvp[1]}W</div>` : ""}<div class="session-players">${s.players.map((p) => `<span class="session-chip">${p}</span>`).join("")}</div></div>`,
+              )
+              .join("")
+          : '<div class="sub" style="padding:8px">No sessions yet.</div>';
 
         // ── H2H DEEP DIVE ──────────────────────────────────────
-        const opts=playersByMatches.map(p=>`<option value="${p}">${p}</option>`).join('');
-        const h2hHtml=`<div class="h2h-form"><div class="h2h-selects"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${opts}</select></div><button class="btn-go" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
+        const opts = playersByMatches
+          .map((p) => `<option value="${p}">${p}</option>`)
+          .join("");
+        const h2hHtml = `<div class="h2h-form"><div class="h2h-selects"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${opts}</select></div><button class="btn-go" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
 
         // ── RENDER ─────────────────────────────────────────────
         container.innerHTML = `
@@ -10337,7 +11446,7 @@ Parthiv - Par"
             ${lrHtml}
           </div>
 
-          ${uniqueMonths.length>=2 ? `${section("📈 Win Rate Over Time")}<div class="ana-card">${winChartHtml}</div>` : ''}
+          ${uniqueMonths.length >= 2 ? `${section("📈 Win Rate Over Time")}<div class="ana-card">${winChartHtml}</div>` : ""}
 
           ${section("📅 Activity Heatmap")}
           <div class="ana-card">${heatHtml}</div>
@@ -10370,22 +11479,28 @@ Parthiv - Par"
 
           ${section("🎯 Shutout Records")}
           <div class="analytics-cards">
-            ${card("🚫 Most Shutout Wins", mostShutoutWinsEntry?.[0], `${mostShutoutWinsEntry?.[1]||0} games won X-0`)}
-            ${card("💔 Most Shutout Losses", mostShutoutLosses.length?mostShutoutLosses.join(" & "):null, `${maxLosses} games lost 0-X`)}
+            ${card("🚫 Most Shutout Wins", mostShutoutWinsEntry?.[0], `${mostShutoutWinsEntry?.[1] || 0} games won X-0`)}
+            ${card("💔 Most Shutout Losses", mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null, `${maxLosses} games lost 0-X`)}
           </div>
 
           ${section("Core Stats")}
           <div class="analytics-cards">
-            ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches||0} matches`)}
-            ${card("🏆 Best Win Rate", topWinRate?.name, `${topWinRate?Math.round(topWinRate.wins/topWinRate.matches*100):0}% (${topWinRate?.wins||0}W–${topWinRate?.losses||0}L)`)}
-            ${card("🔥 Longest Streak", topStreak?.name, `${topStreak?.bestStreak||0} consecutive wins`)}
+            ${card("🏃 Most Active", mostActive?.name, `${mostActive?.matches || 0} matches`)}
+            ${card("🏆 Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}
+            ${card("🔥 Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}
           </div>
 
           ${section("Pair Leaderboard")}
           <div class="analytics-cards">
-            ${pairLeaderboard.length
-              ? pairLeaderboard.map((p,i)=>`<div class="ana-card" style="display:flex;justify-content:space-between;gap:10px"><div><span class="badge">#${i+1}</span><div class="name" style="font-size:16px">${p.key}</div><div class="sub">${p.wins}-${p.losses} · ${p.played} together · ${p.diff>=0?'+':''}${p.diff} diff</div></div><div style="color:var(--accent);font-size:20px;font-weight:900;align-self:center">${p.winPct}%</div></div>`).join('')
-              : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
+            ${
+              pairLeaderboard.length
+                ? pairLeaderboard
+                    .map(
+                      (p, i) =>
+                        `<div class="ana-card" style="display:flex;justify-content:space-between;gap:10px"><div><span class="badge">#${i + 1}</span><div class="name" style="font-size:16px">${p.key}</div><div class="sub">${p.wins}-${p.losses} · ${p.played} together · ${p.diff >= 0 ? "+" : ""}${p.diff} diff</div></div><div style="color:var(--accent);font-size:20px;font-weight:900;align-self:center">${p.winPct}%</div></div>`,
+                    )
+                    .join("")
+                : '<div class="ana-card"><div class="sub">No doubles pairs yet.</div></div>'
             }
           </div>`;
       }
@@ -10455,11 +11570,11 @@ Parthiv - Par"
         onHomeFilterChange,
         prefillMatchTADate,
         renderH2HDeepDive,
+        setHistoryDateFilter,
       });
 
       function setHistoryDateFilter(value) {
-        window.histDateFilter = value || "all";
-        renderModernMatchHistory();
+        filterMatchTab(value || "all");
       }
 
       function isMatchWithinDateFilter(match, filterValue) {
