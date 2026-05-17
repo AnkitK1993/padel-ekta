@@ -2359,6 +2359,138 @@
         min-width: 0;
       }
 
+      /* ── HISTORY SUMMARY CARD ───────────────────── */
+      .hist-summary-card {
+        background: linear-gradient(135deg, rgba(54,212,126,0.07), rgba(54,212,126,0.02));
+        border: 1.5px solid rgba(54,212,126,0.28);
+        border-radius: 16px;
+        padding: 14px 14px 12px;
+        margin: 6px 0 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .hist-summary-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--green), rgba(54,212,126,0.2), var(--green));
+      }
+      .hsum-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .hsum-title {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--green);
+        background: rgba(54,212,126,0.1);
+        padding: 3px 9px;
+        border-radius: 20px;
+        border: 1px solid rgba(54,212,126,0.22);
+      }
+      .hsum-count { font-size: 10px; color: var(--muted); }
+      .hsum-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 5px;
+        margin-bottom: 12px;
+      }
+      .hsum-stat {
+        background: rgba(9,9,15,0.5);
+        border-radius: 8px;
+        padding: 7px 4px;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,0.05);
+      }
+      .hsum-val {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 20px;
+        color: var(--green);
+        line-height: 1;
+      }
+      .hsum-lbl {
+        font-size: 7px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-top: 2px;
+      }
+      .hsum-section-lbl {
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 10px 0 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .hsum-podium { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+      .hsum-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 8px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.04);
+      }
+      .hsum-medal { font-size: 14px; flex-shrink: 0; line-height: 1; }
+      .hsum-pname {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .hsum-rec { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+      .hsum-pct { font-size: 11px; font-weight: 800; flex-shrink: 0; min-width: 32px; text-align: right; }
+      .hsum-sr {
+        font-size: 10px;
+        color: var(--accent);
+        flex-shrink: 0;
+        min-width: 30px;
+        text-align: right;
+        font-weight: 700;
+      }
+      .hsum-highlights { display: flex; flex-direction: column; gap: 4px; }
+      .hsum-hl {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 8px;
+        background: rgba(255,255,255,0.025);
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.04);
+        min-width: 0;
+      }
+      .hsum-hl-icon { font-size: 13px; flex-shrink: 0; line-height: 1; }
+      .hsum-hl-label {
+        font-size: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        flex-shrink: 0;
+        min-width: 62px;
+      }
+      .hsum-hl-val {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+
       /* ── SCORE DISTRIBUTION ──────────────────────── */
       .sdist-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
       .sdist-lbl { font-size: 11px; font-weight: 700; color: var(--text); width: 34px; flex-shrink: 0; }
@@ -9004,6 +9136,68 @@ Parthiv - Par"
             </div>`;
       }
 
+      function buildHistorySummary(matches) {
+        if (matches.length < 3) return '';
+        const stats = computeStats(matches);
+        const playerSet = new Set();
+        let totalGames = 0, totalMargin = 0;
+        const scoreDist = {};
+        matches.forEach(m => {
+          [...m.teamA, ...m.teamB].forEach(p => playerSet.add(normPlayer(p)));
+          totalGames += m.scoreA + m.scoreB;
+          totalMargin += Math.abs(m.scoreA - m.scoreB);
+          const hi = Math.max(m.scoreA, m.scoreB), lo = Math.min(m.scoreA, m.scoreB);
+          const k = `${hi}-${lo}`;
+          scoreDist[k] = (scoreDist[k] || 0) + 1;
+        });
+        const avgMargin = (totalMargin / matches.length).toFixed(1);
+        const top3 = stats.slice(0, Math.min(3, stats.length));
+        const medals = ['🥇','🥈','🥉'];
+        const medalColors = ['var(--gold)','var(--silver)','var(--bronze)'];
+        const podiumHtml = top3.map((p, i) =>
+          `<div class="hsum-row">
+            <span class="hsum-medal">${medals[i]}</span>
+            <span class="hsum-pname">${p.name}</span>
+            <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
+            <span class="hsum-pct" style="color:${medalColors[i]}">${p.winPct.toFixed(0)}%</span>
+            <span class="hsum-sr">${p.sr.toFixed(1)} SR</span>
+          </div>`
+        ).join('');
+        const highlights = [];
+        const pairs = getPairStats(matches).filter(p => p.played >= 2);
+        if (pairs.length) {
+          const b = pairs[0];
+          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">🤝</span><span class="hsum-hl-label">Best Pair</span><span class="hsum-hl-val">${b.key} &nbsp;<span style="color:var(--green)">${b.winPct}% · ${b.played}g</span></span></div>`);
+        }
+        const bigWin = [...matches].sort((a,b) => Math.abs(b.scoreA-b.scoreB) - Math.abs(a.scoreA-a.scoreB))[0];
+        if (bigWin) {
+          const w = bigWin.scoreA > bigWin.scoreB ? bigWin.teamA : bigWin.teamB;
+          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">💀</span><span class="hsum-hl-label">Biggest Win</span><span class="hsum-hl-val">${bigWin.scoreA}–${bigWin.scoreB} &nbsp;${w.join(' & ')}</span></div>`);
+        }
+        const hottest = stats.filter(p => p.curStreak > 0 && p.curType === 'W').sort((a,b) => b.curStreak - a.curStreak)[0];
+        if (hottest) {
+          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label">On Fire</span><span class="hsum-hl-val">${hottest.name} &nbsp;<span style="color:var(--green)">${hottest.curStreak} win streak</span></span></div>`);
+        }
+        const topScore = Object.entries(scoreDist).sort((a,b) => b[1]-a[1])[0];
+        if (topScore && topScore[1] > 1) {
+          highlights.push(`<div class="hsum-hl"><span class="hsum-hl-icon">🎯</span><span class="hsum-hl-label">Top Scoreline</span><span class="hsum-hl-val">${topScore[0]} &nbsp;<span style="color:var(--muted)">${topScore[1]}× played</span></span></div>`);
+        }
+        return `<div class="hist-summary-card">
+          <div class="hsum-header">
+            <span class="hsum-title">📊 SUMMARY</span>
+            <span class="hsum-count">${matches.length} match${matches.length > 1 ? 'es' : ''}</span>
+          </div>
+          <div class="hsum-stats">
+            <div class="hsum-stat"><div class="hsum-val">${matches.length}</div><div class="hsum-lbl">Matches</div></div>
+            <div class="hsum-stat"><div class="hsum-val">${playerSet.size}</div><div class="hsum-lbl">Players</div></div>
+            <div class="hsum-stat"><div class="hsum-val">${totalGames}</div><div class="hsum-lbl">Games</div></div>
+            <div class="hsum-stat"><div class="hsum-val">±${avgMargin}</div><div class="hsum-lbl">Avg Margin</div></div>
+          </div>
+          ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ''}
+          ${highlights.length ? `<div class="hsum-section-lbl">Highlights</div><div class="hsum-highlights">${highlights.join('')}</div>` : ''}
+        </div>`;
+      }
+
       function renderModernMatches() {
         const query = (
           document.getElementById("modern-match-search")?.value || ""
@@ -9083,7 +9277,8 @@ Parthiv - Par"
           sessionSummaryHtml +
           motdHtml +
           summary +
-          buildMatchCards(matches, true);
+          buildMatchCards(matches, true) +
+          buildHistorySummary(matches);
         populateHistoryPlayerChips();
         populateHistoryAdvancedFilters();
       }
