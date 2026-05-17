@@ -1,3 +1,4 @@
+<!-- Cleaned and organized version: redundant comments/blank lines removed -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -79,7 +80,6 @@
         transform: translateX(0);
       }
 
-      /* ── TABBAR ── */
       .tabbar {
         flex-shrink: 0;
         display: flex;
@@ -120,7 +120,6 @@
         opacity: 0.7;
       }
 
-      /* ── TOP NAV ── */
       .nav {
         flex-shrink: 0;
         display: flex;
@@ -163,7 +162,6 @@
         white-space: nowrap;
       }
 
-      /* ── HISTORY PAGE HEADER (replaces generic nav) ── */
       .history-nav {
         flex-shrink: 0;
         display: flex;
@@ -271,7 +269,6 @@
         letter-spacing: 0.18em;
       }
 
-      /* ── HOME HEADER ── */
       .home-header {
         flex-shrink: 0;
         background: linear-gradient(160deg, #0d0c18, #0f0e1a, #09090f);
@@ -327,7 +324,6 @@
         text-transform: uppercase;
       }
 
-      /* ── FILTERS ── */
       .filter-wrap {
         flex-shrink: 0;
         background: var(--surface);
@@ -410,7 +406,6 @@
         font-family: "DM Sans", sans-serif;
       }
 
-      /* ── STATS ROW ── */
       .stats-row {
         flex-shrink: 0;
         display: flex;
@@ -439,7 +434,7 @@
         letter-spacing: 0.1em;
         margin-top: 1px;
       }
-      /* ── SCROLL / BOARD ── */
+
       .scroll {
         flex: 1;
         overflow-y: auto;
@@ -447,9 +442,6 @@
         padding: 9px 11px 10px;
       }
 
-      /* ── FULL-PAGE SCROLL WRAPPER ── */
-      /* Each main page: header/filters/nav scroll WITH content */
-      /* Tabbar stays fixed at bottom outside this wrapper */
       .page-body-scroll {
         flex: 1;
         overflow-y: auto;
@@ -458,26 +450,25 @@
         display: flex;
         flex-direction: column;
       }
-      /* Inside page-body-scroll, .scroll children are natural height */
+
       .page-body-scroll .scroll {
         flex: unset;
         overflow: visible;
         height: auto;
       }
-      /* cmp-body-scroll inside page-body-scroll: also natural */
+
       .page-body-scroll .cmp-body-scroll {
         flex: unset;
         overflow: visible;
         height: auto;
       }
-      /* Give match list bottom padding so last card clears the tabbar */
+
       .page-body-scroll #board,
       .page-body-scroll #modern-match-list,
       .page-body-scroll .cmp-matches {
         padding-bottom: 110px;
       }
 
-      /* ── PLAYER CARD ── */
       .pc {
         background: rgba(15, 15, 25, 0.82);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -712,8 +703,6 @@
         font-family: "DM Sans", sans-serif;
       }
 
-      /* ── HISTORY EXTRA FILTERS ── */
-      /* ── HISTORY FILTER PANEL ── */
       .history-filter-panel {
         flex-shrink: 0;
         background: linear-gradient(180deg, #08080f 0%, #0c0d1a 100%);
@@ -793,13 +782,11 @@
         flex-shrink: 0;
       }
 
-      /* compact panel wrapper */
       .compact-history-panel {
         gap: 10px;
         padding: 14px 14px 12px;
       }
 
-      /* base compact-row: no card chrome */
       .compact-row {
         display: flex;
         gap: 0;
@@ -810,7 +797,6 @@
         align-items: flex-end;
       }
 
-      /* TOP ROW — 2 columns × 2 rows grid */
       .top-filter-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -818,7 +804,6 @@
         gap: 8px;
       }
 
-      /* BOTTOM ROW — full-width stacked column */
       .bottom-filter-row {
         display: flex;
         flex-direction: column;
@@ -850,7 +835,6 @@
         width: 100%;
       }
 
-      /* shared select style — no arrow */
       .compact-select {
         width: 100%;
         height: 26px;
@@ -879,7 +863,6 @@
         background: rgba(245, 200, 66, 0.06);
       }
 
-      /* H2H section — Player A · vs · Player B on one line, Clear below */
       .compact-h2h {
         width: 100%;
         align-items: stretch;
@@ -902,7 +885,6 @@
         padding: 0 6px;
       }
 
-      /* hide the × clear buttons inside h2h selects */
       .h2h-clear {
         display: none;
       }
@@ -916,7 +898,6 @@
         text-transform: uppercase;
       }
 
-      /* Clear button — full width below H2H selects */
       .compact-clear-btn {
         width: 100%;
         height: 36px;
@@ -941,16 +922,12 @@
         color: var(--red);
       }
 
-      /* thin separator between filter sections */
       .compact-history-panel .top-filter-row + .bottom-filter-row {
         border-top: 1px solid rgba(255, 255, 255, 0.05);
         padding-top: 10px;
         margin-top: 0;
       }
 
-      /* ── COMPACT PAGE ── */
-
-      /* ── SUMMARY PAGE HEADER ── */
       .summary-nav {
         flex-shrink: 0;
         display: flex;
@@ -978,7 +955,6 @@
         );
       }
 
-      /* ── SUMMARY FILTER BAR ── */
       .summary-filter-bar {
         flex-shrink: 0;
         background: linear-gradient(180deg, #08080f 0%, #0c0d1a 100%);
@@ -1205,20 +1181,19 @@
         animation: pulse 2.4s ease-in-out infinite;
       }
 
-      /* Rank col: compact, left-pad */
       table.cmp thead th:nth-child(1),
       table.cmp tbody td:nth-child(1) {
         text-align: center;
         padding-left: 6px;
         width: 28px;
       }
-      /* Player col: center-aligned */
+
       table.cmp thead th:nth-child(2),
       table.cmp tbody td:nth-child(2) {
         text-align: center;
         padding-left: 4px;
       }
-      /* SR col */
+
       table.cmp thead th:nth-child(9),
       table.cmp tbody td:nth-child(9) {
         text-align: center;
@@ -1275,10 +1250,6 @@
         line-height: 1;
       }
 
-      /* ─────────────────────────────────────────
-         SPEEDOMETER V2 — FERRARI REV LIMITER
-      ───────────────────────────────────────── */
-
       .sr-ring {
         display: flex;
         flex-direction: column;
@@ -1296,7 +1267,6 @@
         filter: drop-shadow(0 0 8px rgba(245, 200, 66, 0.18));
       }
 
-      /* OUTER RPM ARC */
       .sr-ring .gauge::before {
         content: "";
         position: absolute;
@@ -1323,7 +1293,6 @@
         animation: gaugeGlow 3s linear infinite;
       }
 
-      /* INNER CORE */
       .sr-ring .gauge::after {
         content: "";
         position: absolute;
@@ -1347,7 +1316,6 @@
           0 0 10px rgba(0, 0, 0, 0.35);
       }
 
-      /* NEEDLE */
       .sr-ring .needle {
         position: absolute;
         bottom: 0;
@@ -1372,7 +1340,6 @@
           0 0 18px rgba(255, 255, 255, 0.2);
       }
 
-      /* NEEDLE TIP */
       .sr-ring .needle::before {
         content: "";
         position: absolute;
@@ -1389,7 +1356,6 @@
           0 0 20px rgba(255, 255, 255, 0.4);
       }
 
-      /* CENTER HUB */
       .sr-ring .needle::after {
         content: "";
         position: absolute;
@@ -1408,7 +1374,6 @@
           inset 0 0 5px rgba(0, 0, 0, 0.5);
       }
 
-      /* SR VALUE */
       .sr-ring .sr-val {
         position: relative;
         z-index: 10;
@@ -1422,7 +1387,6 @@
         text-shadow: 0 0 10px rgba(255, 255, 255, 0.08);
       }
 
-      /* GREEN ZONE */
       .sr-ring.sr-high .needle {
         background: linear-gradient(to top, #32d74b, #7dff9a);
 
@@ -1431,7 +1395,6 @@
           0 0 24px rgba(50, 215, 75, 0.45);
       }
 
-      /* MID ZONE */
       .sr-ring.sr-mid .needle {
         background: linear-gradient(to top, #ffd60a, #ffe66d);
 
@@ -1440,7 +1403,6 @@
           0 0 22px rgba(255, 214, 10, 0.35);
       }
 
-      /* RED ZONE */
       .sr-ring.sr-low .needle {
         background: linear-gradient(to top, #ff3b30, #ff756d);
 
@@ -1449,7 +1411,6 @@
           0 0 22px rgba(255, 59, 48, 0.45);
       }
 
-      /* REV LIMITER */
       .sr-ring.rev-limit {
         animation:
           limiterShake 0.08s linear 25,
@@ -1522,14 +1483,11 @@
         color: var(--muted);
       }
 
-      /* W-L values larger */
       table.cmp tbody td:nth-child(4) {
         font-size: 11px !important;
         font-weight: 700 !important;
       }
 
-      /* ── ADD PAGE ── */
-      /* Uniform inner tab row — all items are .itab */
       .itabs {
         flex-shrink: 0;
         display: flex;
@@ -1698,7 +1656,6 @@
         margin-top: 0;
       }
 
-      /* ── MATCH HISTORY ── */
       .match-history-wrap {
         padding: 0;
       }
@@ -1929,7 +1886,6 @@
         text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
       }
 
-      /* ── ABSENCE TRACKER ── */
       .absence-banner {
         flex-shrink: 0;
         background: linear-gradient(
@@ -1985,7 +1941,6 @@
         border-radius: 10px;
       }
 
-      /* ── FORM SPARKLINE ── */
       .spark-row {
         display: flex;
         align-items: center;
@@ -2006,7 +1961,6 @@
         width: 28px;
       }
 
-      /* ── ANALYTICS CARD ANIMATIONS ── */
       .session-summary-card,
       .motd-card,
       .pvp-wrap,
@@ -2052,7 +2006,6 @@
         }
       }
 
-      /* ── ANALYTICS PAGE ── */
       .ana-section-title {
         font-size: 11px;
         font-weight: 800;
@@ -2067,8 +2020,6 @@
         margin-top: 8px;
       }
 
-      /* Compact pvp table — fixed layout, no scroll */
-      /* ── P VS P MATRIX ── */
       .pvp-wrap {
         width: 100%;
         overflow: hidden;
@@ -2077,9 +2028,9 @@
         border-collapse: separate;
         border-spacing: 2px;
         width: 100%;
-        table-layout: fixed; /* equal columns, no overflow */
+        table-layout: fixed;
       }
-      /* Row header: narrow fixed column */
+
       .pvp-corner {
         width: 26px;
       }
@@ -2095,7 +2046,7 @@
         border-right: 1px solid rgba(255, 255, 255, 0.08);
         vertical-align: middle;
       }
-      /* Column headers: fill remaining width equally */
+
       .pvp-th {
         padding: 3px 1px 5px;
         text-align: center;
@@ -2108,7 +2059,7 @@
         white-space: nowrap;
         overflow: hidden;
       }
-      /* Data cells: fill column, no padding waste */
+
       .pvp-td {
         text-align: center;
         padding: 3px 1px;
@@ -2138,7 +2089,7 @@
         color: #f5c842;
         background: rgba(245, 200, 66, 0.14);
       }
-      /* Alias legend below the matrix */
+
       .pvp-legend {
         display: flex;
         flex-wrap: wrap;
@@ -2158,7 +2109,6 @@
         margin-right: 2px;
       }
 
-      /* ── COMPACT MATCH ROWS (Summary tab) ── */
       .cmp-match-rows {
         width: 100%;
         border-collapse: collapse;
@@ -2191,7 +2141,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        max-width: 0; /* forces ellipsis with table-layout:fixed */
+        max-width: 0;
         width: 30%;
       }
       .cmr-team-r {
@@ -2244,7 +2194,6 @@
         vertical-align: middle;
       }
 
-      /* ── SESSION SUMMARY CARD ── */
       .session-summary-card {
         background: linear-gradient(
           135deg,
@@ -2350,7 +2299,6 @@
         flex-shrink: 0;
       }
 
-      /* ── MATCH OF THE DAY ── */
       .motd-card {
         background: linear-gradient(
           135deg,
@@ -2473,7 +2421,6 @@
         font-style: italic;
       }
 
-      /* SUMMARY CONTINUITY FIX */
       .cmp-scroll table.cmp tbody {
         background: transparent;
       }
@@ -2543,7 +2490,7 @@
           opacity: 0.85;
         }
       }
-      /* ANIMATIONS */
+
       @keyframes limiterShake {
         0% {
           transform: translateX(0px);
@@ -2658,7 +2605,6 @@
         justify-content: center;
       }
 
-      /* ── MODAL SHEET ── */
       .modern-modal {
         position: fixed;
         inset: 0;
@@ -2717,7 +2663,6 @@
         font-family: "DM Sans", sans-serif;
       }
 
-      /* ── ANALYTICS MODAL ── */
       #analytics-modal,
       #player-detail-modal {
         position: fixed;
@@ -3054,9 +2999,6 @@
         box-shadow: 0 0 18px rgba(53, 183, 255, 0.15);
         transition: width 0.35s ease;
       }
-      /* ─────────────────────────────
-   ADVANCED MOBILE OPTIMIZATION
-───────────────────────────── */
 
       html,
       body {
@@ -3070,7 +3012,6 @@
         text-rendering: optimizeLegibility;
       }
 
-      /* Better scrolling */
       .scroll,
       .add-scroll,
       .cmp-scroll,
@@ -3078,7 +3019,6 @@
         -webkit-overflow-scrolling: touch;
       }
 
-      /* GPU acceleration */
       .pc,
       .match-card,
       .ana-card,
@@ -3091,7 +3031,6 @@
         will-change: transform;
       }
 
-      /* Better tap targets */
       .tbb,
       .filt,
       .hfilt,
@@ -3105,14 +3044,12 @@
         min-height: 44px;
       }
 
-      /* Prevent accidental zoom */
       input,
       textarea,
       select {
         font-size: 16px !important;
       }
 
-      /* Improve card rendering */
       .pc,
       .match-card,
       .ana-card {
@@ -3120,7 +3057,6 @@
         -webkit-backdrop-filter: blur(14px);
       }
 
-      /* Safe area support */
       .tabbar {
         padding-bottom: env(safe-area-inset-bottom);
       }
@@ -3129,7 +3065,6 @@
         bottom: calc(70px + env(safe-area-inset-bottom));
       }
 
-      /* ── TABLE FITS VIEWPORT — no horizontal scroll ── */
       .cmp-scroll {
         overflow-x: hidden;
       }
@@ -3137,7 +3072,6 @@
         min-width: unset;
       }
 
-      /* ── MOBILE LAYOUT ── */
       @media (max-width: 768px) {
         .home-header {
           padding: 12px 14px 10px;
@@ -3172,7 +3106,6 @@
           font-size: 18px;
         }
 
-        /* Player cards */
         .pc {
           border-radius: 18px;
           padding: 12px;
@@ -3199,7 +3132,6 @@
           font-size: 6px;
         }
 
-        /* Match cards */
         .match-card {
           padding: 14px;
           border-radius: 18px;
@@ -3213,7 +3145,6 @@
           font-size: 30px;
         }
 
-        /* Better filter scrolling */
         .filters,
         .hist-filter-row,
         .itabs {
@@ -3226,14 +3157,11 @@
           scroll-snap-align: start;
         }
 
-        /* Compact mode */
-
         .summary-nav,
         .summary-filter-bar {
           width: 100%;
         }
 
-        /* Modal optimization */
         .analytics-inner {
           width: 100%;
           max-width: 100%;
@@ -3247,7 +3175,6 @@
           padding-bottom: calc(28px + env(safe-area-inset-bottom));
         }
 
-        /* Better FAB */
         .fab-modern {
           width: 60px;
           height: 60px;
@@ -3255,12 +3182,10 @@
           right: 16px;
         }
 
-        /* Speedometer */
         .sr-ring {
           transform: scale(0.92);
         }
 
-        /* Stats */
         .stats-row {
           overflow-x: auto;
           scrollbar-width: none;
@@ -3275,7 +3200,6 @@
         }
       }
 
-      /* ── SMALL PHONES ── */
       @media (max-width: 480px) {
         .home-title {
           font-size: 24px;
@@ -3339,7 +3263,6 @@
         }
       }
 
-      /* Disable hover effects on touch devices */
       @media (hover: none) {
         .pc:hover,
         .match-card:hover {
@@ -3348,12 +3271,10 @@
         }
       }
 
-      /* Better momentum scrolling */
       * {
         -webkit-overflow-scrolling: touch;
       }
 
-      /* Reduce animation cost on low power devices */
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
@@ -3364,12 +3285,8 @@
           scroll-behavior: auto !important;
         }
       }
-      /* ─────────────────────────────
-   SUMMARY PAGE MOBILE FIX
-───────────────────────────── */
 
       @media (max-width: 768px) {
-        /* MAIN SUMMARY WRAPPER */
         .cmp-scroll,
         .cmp-matches,
         .summary-nav,
@@ -3382,7 +3299,6 @@
           overflow-x: hidden;
         }
 
-        /* TABLE — already fixed layout, just adjust font/padding */
         table.cmp thead th {
           font-size: 9px;
           padding: 7px 2px;
@@ -3403,7 +3319,6 @@
           font-size: 8px;
         }
 
-        /* Infobar */
         .cmp-infobar {
           padding: 4px 8px;
           gap: 6px;
@@ -3422,13 +3337,11 @@
           padding: 0 12px;
         }
 
-        /* Matches below table */
         .cmp-matches {
           padding: 0 0 100px;
         }
       }
 
-      /* EXTRA SMALL (≤480px) */
       @media (max-width: 480px) {
         table.cmp thead th {
           font-size: 8px;
@@ -3450,8 +3363,6 @@
           font-size: 7px;
         }
       }
-
-      /* ===== DETAILED PAGE PREMIUM UPGRADE ===== */
 
       .detailed-hero {
         position: relative;
@@ -3702,7 +3613,6 @@
         }
       }
 
-      /* ── SR PILL INDICATOR (Summary table) ── */
       .sr-pill {
         display: inline-flex;
         align-items: center;
@@ -3745,26 +3655,24 @@
         background: #f04f4f;
       }
 
-      /* ── MINI SPEEDOMETER (Detailed player card) ── */
-      /* ── CARD SPEEDOMETER: gauge + value side-by-side ── */
       .mini-gauge-wrap {
         display: flex;
         align-items: center;
         gap: 5px;
         flex-shrink: 0;
       }
-      /* Override sr-ring to horizontal layout */
+
       .mini-gauge-wrap .sr-ring {
         flex-direction: row;
         align-items: center;
         width: auto;
         gap: 5px;
       }
-      /* Scale gauge down so semicircle height ≈ pname height (25px) */
+
       .mini-gauge-wrap .sr-ring .gauge {
         width: 50px;
         height: 25px;
-        filter: none; /* no glow on card */
+        filter: none;
       }
       .mini-gauge-wrap .sr-ring .gauge::before {
         width: 50px;
@@ -3789,7 +3697,7 @@
         height: 8px;
         bottom: -3px;
       }
-      /* SR value: sits to the right, matches pname font size */
+
       .mini-gauge-wrap .sr-ring .sr-val {
         margin-top: 0;
         font-size: 25px;
@@ -3816,8 +3724,6 @@
           0 0 20px rgba(255, 69, 58, 0.45);
       }
 
-      /* ── DETAILED PAGE DATE FILTER BAR ── */
-      /* ── DETAILED PAGE DATE FILTER ── */
       .home-filter-bar {
         display: flex;
         align-items: center;
@@ -3952,7 +3858,6 @@
         }
       }
 
-      /* ── SUBTLE PREMIUM CARD EFFECTS ── */
       .pc {
         position: relative;
         overflow: hidden;
@@ -3962,7 +3867,6 @@
           border-color 0.22s ease;
       }
 
-      /* Left glow strip */
       .pc::before {
         content: "";
         position: absolute;
@@ -3985,7 +3889,6 @@
         opacity: 0.85;
       }
 
-      /* Hover pop */
       .pc:hover {
         transform: scale(1.018) translateY(-2px);
         border-color: rgba(245, 200, 66, 0.28);
@@ -3995,7 +3898,6 @@
           0 0 18px rgba(245, 200, 66, 0.08);
       }
 
-      /* Top 3 enhanced glow */
       .pc.r1::before {
         background: linear-gradient(
           180deg,
@@ -4023,7 +3925,6 @@
         );
       }
 
-      /* ── ULTRA COMPACT MOBILE DROPDOWNS ── */
       select.cmp-sel,
       .compact-select,
       .player-filter-select,
@@ -4060,7 +3961,6 @@
         padding: 8px 10px 8px !important;
       }
 
-      /* ── COMPACT RED CLEAR H2H BUTTON ── */
       .compact-clear-btn {
         height: 22px !important;
         min-height: 22px !important;
@@ -4091,7 +3991,6 @@
         transform: translateY(-1px);
       }
 
-      /* ── MODERN SUMMARY CARDS ── */
       .pc {
         background:
           radial-gradient(
@@ -4195,10 +4094,6 @@
         letter-spacing: 0.08em;
       }
 
-      /* ─────────────────────────────────────────
-   PREMIUM HISTORY + SUMMARY MATCH CARDS
-───────────────────────────────────────── */
-
       .match-card,
       #board .pc {
         position: relative !important;
@@ -4255,7 +4150,6 @@
           0 24px 52px rgba(0, 0, 0, 0.52) !important;
       }
 
-      /* GOLD FIRE MATCH */
       .match-card.fire-card {
         border-color: rgba(255, 190, 0, 0.65) !important;
 
@@ -4264,7 +4158,6 @@
           0 18px 46px rgba(0, 0, 0, 0.52) !important;
       }
 
-      /* PURPLE DOMINATION */
       .match-card.dominate-card {
         border-color: rgba(180, 90, 255, 0.62) !important;
 
@@ -4273,7 +4166,6 @@
           0 18px 46px rgba(0, 0, 0, 0.52) !important;
       }
 
-      /* TEAM NAMES */
       .team-name {
         display: flex !important;
         flex-direction: column !important;
@@ -4299,7 +4191,6 @@
         opacity: 0.5;
       }
 
-      /* SCORES */
       .team-score {
         font-family: "Bebas Neue", sans-serif !important;
         font-size: 64px !important;
@@ -4313,7 +4204,6 @@
         text-shadow: 0 0 22px rgba(0, 255, 157, 0.22);
       }
 
-      /* VS */
       .vs-text {
         font-size: 22px !important;
         font-weight: 800 !important;
@@ -4321,7 +4211,6 @@
         opacity: 0.7;
       }
 
-      /* MATCH BADGE */
       .event-badge,
       .match-badge {
         border-radius: 999px !important;
@@ -4347,7 +4236,6 @@
         color: #d78dff !important;
       }
 
-      /* DATE */
       .match-date {
         font-size: 13px !important;
         font-weight: 700;
@@ -4355,7 +4243,6 @@
         letter-spacing: 0.04em;
       }
 
-      /* GAP CHIP */
       .match-tag {
         border-radius: 999px !important;
 
@@ -4370,7 +4257,6 @@
         color: rgba(255, 255, 255, 0.75) !important;
       }
 
-      /* MOMENTUM BAR */
       .bar-track,
       .momentum-track {
         height: 10px !important;
@@ -4393,7 +4279,6 @@
         box-shadow: 0 0 18px rgba(0, 255, 255, 0.34) !important;
       }
 
-      /* HISTORY TITLE */
       .history-nav-title {
         font-size: 46px !important;
         letter-spacing: 0.08em !important;
@@ -4403,11 +4288,6 @@
         text-shadow: 0 0 24px rgba(255, 190, 0, 0.34) !important;
       }
 
-      /* ─────────────────────────────────────────
-   PREMIUM DETAILED TAB UI
-───────────────────────────────────────── */
-
-      /* TABLE SHELL */
       table.cmp {
         background:
           radial-gradient(
@@ -4426,7 +4306,6 @@
           0 20px 48px rgba(0, 0, 0, 0.46) !important;
       }
 
-      /* HEADER */
       table.cmp thead tr {
         background: linear-gradient(
           180deg,
@@ -4448,7 +4327,6 @@
         padding-bottom: 12px !important;
       }
 
-      /* ROWS */
       table.cmp tbody tr {
         transition:
           background 0.22s ease,
@@ -4463,7 +4341,6 @@
         transform: scale(1.003);
       }
 
-      /* SPECIAL ROWS */
       table.cmp tbody tr.rg {
         background: linear-gradient(
           90deg,
@@ -4492,7 +4369,6 @@
         ) !important;
       }
 
-      /* CELLS */
       table.cmp tbody td {
         padding-top: 13px !important;
         padding-bottom: 13px !important;
@@ -4501,7 +4377,6 @@
         color: rgba(255, 255, 255, 0.92) !important;
       }
 
-      /* PLAYER NAME */
       table.cmp tbody td:nth-child(2) {
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -4510,13 +4385,11 @@
         color: #ffffff !important;
       }
 
-      /* RANK */
       .rn {
         font-size: 17px !important;
         color: rgba(255, 255, 255, 0.55) !important;
       }
 
-      /* SPEEDOMETER CARD FEEL */
       .sr-ring .gauge {
         filter: drop-shadow(0 0 14px rgba(255, 190, 0, 0.14))
           drop-shadow(0 0 24px rgba(0, 200, 255, 0.12)) !important;
@@ -4527,7 +4400,6 @@
         letter-spacing: 0.08em !important;
       }
 
-      /* FILTER BAR */
       .summary-filter-bar {
         background: linear-gradient(
           180deg,
@@ -4542,7 +4414,6 @@
           0 10px 26px rgba(0, 0, 0, 0.28);
       }
 
-      /* DROPDOWN */
       select.cmp-sel {
         background: linear-gradient(
           180deg,
@@ -4567,7 +4438,6 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
       }
 
-      /* MATCHES HEADER */
       .cmp-matches-header {
         background: linear-gradient(
           180deg,
@@ -4584,7 +4454,6 @@
         letter-spacing: 0.12em !important;
       }
 
-      /* TAB BUTTONS */
       .tbb {
         transition:
           transform 0.18s ease,
@@ -4612,7 +4481,6 @@
    ULTRA FUTURISTIC PREMIUM APP OVERHAUL
 ════════════════════════════════════════ */
 
-      /* GLOBAL BG */
       body::before {
         content: "";
         position: fixed;
@@ -4664,7 +4532,6 @@
         );
       }
 
-      /* AMBIENT ANIMATION */
       @keyframes ambientShift {
         0% {
           filter: hue-rotate(0deg);
@@ -4676,7 +4543,6 @@
         }
       }
 
-      /* GLASS PANELS */
       .nav,
       .summary-nav,
       .history-nav,
@@ -4699,7 +4565,6 @@
           0 12px 36px rgba(0, 0, 0, 0.36);
       }
 
-      /* TITLES */
       .home-title,
       .history-nav-title,
       .detailed-header-title,
@@ -4709,7 +4574,6 @@
           0 0 42px rgba(0, 200, 255, 0.08);
       }
 
-      /* PREMIUM TABBAR */
       .tabbar {
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 
@@ -4749,7 +4613,6 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
       }
 
-      /* ALL BUTTONS */
       button,
       .btn-p,
       .btn-s,
@@ -4769,7 +4632,6 @@
         transform: translateY(-2px);
       }
 
-      /* PREMIUM INPUTS */
       textarea,
       input,
       select {
@@ -4780,7 +4642,6 @@
           0 0 16px rgba(0, 180, 255, 0.04);
       }
 
-      /* MODERN STAT CARDS */
       .st,
       .ss-stat,
       .manage-stat,
@@ -4801,7 +4662,6 @@
           0 12px 30px rgba(0, 0, 0, 0.26);
       }
 
-      /* GLOWING STATS */
       .stv,
       .ss-val,
       .skill-num {
@@ -4810,7 +4670,6 @@
           0 0 28px rgba(0, 200, 255, 0.08);
       }
 
-      /* PVP MATRIX */
       .pvp-wrap {
         background: linear-gradient(
           180deg,
@@ -4828,14 +4687,12 @@
           0 18px 40px rgba(0, 0, 0, 0.42);
       }
 
-      /* ANALYTICS SECTION */
       .ana-section-title {
         color: rgba(255, 255, 255, 0.72) !important;
 
         text-shadow: 0 0 18px rgba(255, 190, 0, 0.08);
       }
 
-      /* MODERN SCROLLBAR */
       ::-webkit-scrollbar {
         width: 8px;
       }
@@ -4854,12 +4711,10 @@
         border-radius: 999px;
       }
 
-      /* FLOATING DEPTH */
       .page {
         perspective: 1200px;
       }
 
-      /* FUTURISTIC CARD ANIMATION */
       @keyframes holoFloat {
         0% {
           transform: translateY(0px);
@@ -4882,7 +4737,6 @@
           detailedCardReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
       }
 
-      /* GLOW LINES */
       .history-nav::after,
       .summary-nav::after,
       .home-header::after {
@@ -4905,7 +4759,6 @@
         filter: blur(0.2px);
       }
 
-      /* PREMIUM EMPTY STATE */
       .empty {
         background: linear-gradient(
           180deg,
@@ -4920,10 +4773,6 @@
 
         box-shadow: 0 16px 40px rgba(0, 0, 0, 0.36);
       }
-
-      /* ─────────────────────────────────────────
-   PREMIUM HISTORY FILTERS UPGRADE
-───────────────────────────────────────── */
 
       .history-filter-panel {
         padding: 18px 18px 16px !important;
@@ -4941,7 +4790,6 @@
           0 16px 36px rgba(0, 0, 0, 0.34) !important;
       }
 
-      /* FILTER LABELS */
       .compact-filter-item .hist-filter-label,
       .hist-filter-label {
         font-size: 7.8px !important;
@@ -4952,7 +4800,6 @@
         text-shadow: 0 0 12px rgba(255, 190, 0, 0.08);
       }
 
-      /* PREMIUM SELECTS */
       .compact-select,
       .player-filter-select,
       .h2h-select,
@@ -4998,7 +4845,6 @@
         transform: translateY(-1px);
       }
 
-      /* VS TEXT */
       .h2h-vs {
         font-size: 10px !important;
         font-weight: 800 !important;
@@ -5007,7 +4853,6 @@
         color: rgba(255, 255, 255, 0.5) !important;
       }
 
-      /* CLEAR BUTTON */
       .compact-clear-btn {
         height: 30px !important;
 
@@ -5040,7 +4885,6 @@
           0 12px 22px rgba(0, 0, 0, 0.22) !important;
       }
 
-      /* MORE BREATHING SPACE */
       .top-filter-row {
         gap: 12px !important;
       }
@@ -5053,12 +4897,8 @@
         gap: 10px !important;
       }
 
-      /* ─────────────────────────────────────────
-   REDUCED MATCH HISTORY SCORE SIZE
-───────────────────────────────────────── */
-
       .team-score {
-        font-size: 44px !important; /* reduced ~30% from 64px */
+        font-size: 44px !important;
         line-height: 0.95 !important;
       }
 
@@ -5076,10 +4916,6 @@
         padding-top: 2px;
         padding-bottom: 2px;
       }
-
-      /* ─────────────────────────────────────────
-   CLEAN PREMIUM MATCH DATE
-───────────────────────────────────────── */
 
       .match-date {
         display: flex !important;
@@ -5102,18 +4938,12 @@
           0 8px 18px rgba(0, 0, 0, 0.18);
       }
 
-      /* ─────────────────────────────────────────
-   COMPACT MATCH HISTORY MODE (-30%)
-───────────────────────────────────────── */
-
-      /* CARD */
       .match-card {
         border-radius: 18px !important;
         padding: 10px 10px 9px !important;
         min-height: auto !important;
       }
 
-      /* TEAM NAMES */
       .match-card .team-name {
         font-size: 12px !important;
         gap: 1px !important;
@@ -5124,31 +4954,26 @@
         font-size: 8px !important;
       }
 
-      /* SCORES */
       .match-card .team-score {
         font-size: 31px !important;
         line-height: 0.92 !important;
       }
 
-      /* VS */
       .match-card .vs-text {
         font-size: 14px !important;
         letter-spacing: 0.08em !important;
       }
 
-      /* DATE */
       .match-card .match-date {
         font-size: 9px !important;
         padding: 3px 8px !important;
       }
 
-      /* GAP CHIP */
       .match-card .match-tag {
         font-size: 9px !important;
         padding: 4px 8px !important;
       }
 
-      /* BADGES */
       .match-card .event-badge,
       .match-card .match-badge {
         font-size: 9px !important;
@@ -5156,7 +4981,6 @@
         border-radius: 999px !important;
       }
 
-      /* MOMENTUM */
       .match-card .momentum-track,
       .match-card .bar-track {
         height: 6px !important;
@@ -5167,13 +4991,11 @@
         font-size: 10px !important;
       }
 
-      /* PERCENT */
       .match-card .momentum-pct,
       .match-card .win-pct {
         font-size: 10px !important;
       }
 
-      /* SPACING */
       .match-card .match-score-row {
         gap: 8px !important;
       }
@@ -5182,20 +5004,14 @@
         gap: 3px !important;
       }
 
-      /* HISTORY TITLE */
       .history-nav-title {
         font-size: 34px !important;
       }
 
-      /* HISTORY PAGE OVERALL */
       .history-list,
       .history-scroll {
         gap: 10px !important;
       }
-
-      /* ─────────────────────────────────────────
-   SUMMARY TABLE LOAD ANIMATION
-───────────────────────────────────────── */
 
       table.cmp tbody tr {
         opacity: 0;
@@ -5228,7 +5044,6 @@
         }
       }
 
-      /* subtle shimmer while loading */
       table.cmp tbody tr::after {
         content: "";
         position: absolute;
@@ -5255,7 +5070,6 @@
     </style>
 
     <style id="splash-screen-styles">
-      /* ── SPLASH / LOADING SCREEN ── */
       #app-splash {
         position: fixed;
         inset: 0;
@@ -5335,17 +5149,14 @@
         min-height: 16px;
         text-align: center;
       }
-      /* Pages are always visible — splash overlays them via z-index */
 
-      /* ── SMOOTH FIRST-LOAD: hold card animations until splash is gone ── */
-      /* Before splash dismisses, cards are invisible but not animating */
       body:not(.splash-done) #board .pc {
         animation: none !important;
         opacity: 0 !important;
         transform: translateY(24px) scale(0.985) !important;
         filter: none !important;
       }
-      /* Once splash is gone, let the entrance animation play once, cleanly */
+
       body.splash-done #board .pc {
         animation: detailedCardReveal 0.48s cubic-bezier(0.22, 1, 0.36, 1)
           forwards;
@@ -5354,9 +5165,6 @@
     </style>
 
     <style id="summary-table-spacing-fix">
-      /* SUMMARY TABLE SPACING FIX */
-
-      /* Reduce MP width */
       table.cmp thead th:nth-child(3),
       table.cmp tbody td:nth-child(3) {
         width: 34px !important;
@@ -5364,7 +5172,6 @@
         padding-right: 2px !important;
       }
 
-      /* Expand PLAYER column using freed SR spacing */
       table.cmp thead th:nth-child(2),
       table.cmp tbody td:nth-child(2) {
         width: 72px !important;
@@ -5372,7 +5179,6 @@
         padding-right: 2px !important;
       }
 
-      /* Reduce excess SR spacing */
       table.cmp thead th:nth-child(9),
       table.cmp tbody td:nth-child(9) {
         width: 58px !important;
@@ -5380,7 +5186,6 @@
         padding-right: 1px !important;
       }
 
-      /* Make long names fit better */
       table.cmp tbody td:nth-child(2) {
         overflow: visible !important;
         text-overflow: clip !important;
@@ -5388,7 +5193,6 @@
         letter-spacing: -0.01em !important;
       }
 
-      /* Prevent PLAYER / MP overlap */
       table.cmp thead th {
         font-size: 9px !important;
         white-space: nowrap !important;
@@ -5400,7 +5204,6 @@
     </style>
 
     <style id="wl-column-font-fix">
-      /* Increase W-L column value size */
       .rec-cell {
         font-size: 12px !important;
         font-weight: 700 !important;
@@ -5408,15 +5211,12 @@
     </style>
 
     <style id="uniform-summary-spacing">
-      /* UNIFORM SUMMARY TABLE SPACING */
-
       table.cmp {
         width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
       }
 
-      /* uniform cell spacing */
       table.cmp th,
       table.cmp td {
         padding-left: 4px !important;
@@ -5425,13 +5225,11 @@
         white-space: nowrap !important;
       }
 
-      /* rank */
       table.cmp th:nth-child(1),
       table.cmp td:nth-child(1) {
         width: 24px !important;
       }
 
-      /* player */
       table.cmp th:nth-child(2),
       table.cmp td:nth-child(2) {
         width: auto !important;
@@ -5443,44 +5241,37 @@
         white-space: nowrap !important;
       }
 
-      /* MP */
       table.cmp th:nth-child(3),
       table.cmp td:nth-child(3) {
         width: 38px !important;
       }
 
-      /* W-L */
       table.cmp th:nth-child(4),
       table.cmp td:nth-child(4) {
         width: 54px !important;
       }
 
-      /* W% */
       table.cmp th:nth-child(5),
       table.cmp td:nth-child(5) {
         width: 46px !important;
       }
 
-      /* GW */
       table.cmp th:nth-child(6),
       table.cmp td:nth-child(6) {
         width: 38px !important;
       }
 
-      /* GL */
       table.cmp th:nth-child(7),
       table.cmp td:nth-child(7) {
         width: 38px !important;
       }
 
-      /* G% */
       table.cmp th:nth-child(8),
       table.cmp td:nth-child(8) {
         width: 50px !important;
         padding-right: 6px !important;
       }
 
-      /* SR */
       table.cmp th:nth-child(9),
       table.cmp td:nth-child(9) {
         width: 72px !important;
@@ -5499,12 +5290,10 @@
         padding-right: 5px !important;
       }
 
-      /* Better visual alignment */
       table.cmp tbody td {
         font-size: 12px !important;
       }
 
-      /* W-L styling */
       .rec-cell {
         font-size: 12px !important;
         letter-spacing: -0.01em !important;
@@ -5512,9 +5301,6 @@
     </style>
 
     <style id="player-mp-spacing-fix">
-      /* FIX PLAYER ↔ MP SPACING WITHOUT PUSHING SR */
-
-      /* keep SR inside viewport */
       table.cmp th:nth-child(9),
       table.cmp td:nth-child(9) {
         width: 44px !important;
@@ -5522,7 +5308,6 @@
         padding-right: 2px !important;
       }
 
-      /* reduce PLAYER width slightly */
       table.cmp th:nth-child(2),
       table.cmp td:nth-child(2) {
         width: 96px !important;
@@ -5530,14 +5315,12 @@
         padding-right: 10px !important;
       }
 
-      /* add breathing room before MP */
       table.cmp th:nth-child(3),
       table.cmp td:nth-child(3) {
         width: 38px !important;
         padding-left: 10px !important;
       }
 
-      /* tighten center columns */
       table.cmp th:nth-child(4),
       table.cmp td:nth-child(4),
       table.cmp th:nth-child(5),
@@ -5555,9 +5338,6 @@
     </style>
 
     <style id="mobile-performance-optimizations">
-      /* MOBILE PERFORMANCE OPTIMIZATIONS */
-
-      /* reduce expensive blur/shadow repaints */
       .analytics-premium-card,
       .match-card,
       .tbb,
@@ -5567,7 +5347,6 @@
         transform: translateZ(0);
       }
 
-      /* lighter shadows on mobile */
       @media (max-width: 768px) {
         .analytics-premium-card,
         .match-card {
@@ -5582,10 +5361,8 @@
 
     <script id="mobile-runtime-optimizer">
       (function () {
-        /* prevent repeated rendering loops */
         window.__analyticsRendered = false;
 
-        /* debounce utility */
         function debounce(fn, wait) {
           let t;
           return function () {
@@ -5594,7 +5371,6 @@
           };
         }
 
-        /* optimized analytics injection */
         function safeAnalyticsRender() {
           if (window.__analyticsRendered) return;
 
@@ -5612,7 +5388,6 @@
           window.__analyticsRendered = true;
         }
 
-        /* optimized tab switching */
         function optimizeTabs() {
           const tabs = document.querySelectorAll(
             ".tbb,.bottom-nav-item,.tab-item",
@@ -5640,7 +5415,6 @@
           });
         }
 
-        /* pause expensive animations while hidden */
         document.addEventListener(
           "visibilitychange",
           () => {
@@ -5653,7 +5427,6 @@
           { passive: true },
         );
 
-        /* disable heavy transitions during rapid switches */
         const perfStyle = document.createElement("style");
         perfStyle.innerHTML = `
 body.tab-switching *{
@@ -5668,7 +5441,6 @@ body.paused-animations *{
 
         document.head.appendChild(perfStyle);
 
-        /* run once */
         window.addEventListener(
           "load",
           () => {
@@ -5690,8 +5462,6 @@ body.paused-animations *{
     </script>
 
     <style id="visible-nextgen-features">
-      /* ===== VISIBLE NEXT-GEN FEATURES ===== */
-
       .nextgen-live-banner {
         margin: 12px;
         padding: 12px 14px;
@@ -8136,18 +7906,15 @@ Parthiv - Par"
 
               needle.animate(
                 [
-                  /* START AT 0 */
                   {
                     transform: "translateX(-50%) rotate(-90deg)",
                   },
 
-                  /* GO FULL 100 / MAX REV */
                   {
                     transform: "translateX(-50%) rotate(90deg)",
                     offset: 0.62,
                   },
 
-                  /* SETTLE TO ACTUAL VALUE */
                   {
                     transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))`,
                   },
@@ -8245,7 +8012,7 @@ Parthiv - Par"
             } else if (normalizedSR >= 4) {
               ratingClass = "sr-mid";
             }
-            /* REV LIMITER */
+
             if (normalizedSR >= 7.0) {
               ratingClass += " rev-limit";
             }
