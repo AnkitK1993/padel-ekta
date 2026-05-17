@@ -3156,6 +3156,7 @@
         text-align: left;
         white-space: nowrap;
         overflow: hidden;
+        text-transform: uppercase;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
         vertical-align: middle;
       }
@@ -3238,16 +3239,18 @@
         background: rgba(255, 255, 255, 0.012);
       }
       .cmr-date {
-        width: 34px;
-        padding: 8px 2px 8px 4px;
+        width: 48px;
+        padding: 8px 10px 8px 4px;
         font-size: 10px;
         color: var(--muted);
         white-space: nowrap;
+        overflow: hidden;
         font-weight: 600;
         letter-spacing: 0.02em;
+        flex-shrink: 0;
       }
       .cmr-team {
-        padding: 8px 3px;
+        padding: 8px 2px;
         font-size: 11px;
         font-weight: 600;
         color: var(--muted);
@@ -3255,10 +3258,11 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         max-width: 0;
-        width: 30%;
+        width: 34%;
       }
       .cmr-team-r {
-        text-align: right;
+        text-align: left;
+        padding-left: 8px;
       }
       .cmr-team.cmr-win {
         color: var(--green);
@@ -3266,33 +3270,28 @@
       .cmr-team.cmr-loss {
         color: var(--muted);
       }
-      .cmr-score {
-        width: 18px;
+      .cmr-sc {
+        width: 38px;
         padding: 8px 2px;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      .cmr-sv {
         font-size: 14px;
         font-weight: 900;
-        text-align: center;
-        color: var(--muted);
-        white-space: nowrap;
       }
-      .cmr-score.cmr-win {
-        color: var(--green);
-      }
-      .cmr-score.cmr-loss {
-        color: var(--red);
-        opacity: 0.7;
-      }
-      .cmr-vs {
-        width: 10px;
-        padding: 8px 1px;
-        text-align: center;
+      .cmr-sv.cmr-win { color: var(--green); }
+      .cmr-sv.cmr-loss { color: var(--red); opacity: 0.75; }
+      .cmr-dash {
         font-size: 10px;
         color: var(--muted);
-        opacity: 0.4;
+        opacity: 0.45;
+        margin: 0 2px;
       }
       .cmr-meta {
-        width: 42px;
-        padding: 8px 4px 8px 2px;
+        width: 18px;
+        padding: 8px 0 8px 0;
         text-align: right;
         white-space: nowrap;
       }
@@ -6790,3 +6789,25 @@ table.cmp th:nth-child(9),
       .nextgen-heat.cold {
         background: linear-gradient(180deg, #485a74, #293244);
       }
+
+      /* ── CAPITALISE ALL PLAYER / TEAM DATA ── */
+      .pname,
+      .team-name,
+      .motd-name,
+      .ftable-name,
+      .lrace-name,
+      .chem-names,
+      .award-name,
+      .bpair-player,
+      .bpair-partner,
+      .rivalry-player,
+      .ana-card .name,
+      .psc-name,
+      .ov-header,
+      .cmr-team,
+      .det-conn-name,
+      .rec-cell,
+      .hsum-pname,
+      .analytics-title,
+      select.hist-select option,
+      select.cmp-sel option { text-transform: uppercase; }
