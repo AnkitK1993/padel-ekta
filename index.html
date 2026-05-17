@@ -480,9 +480,9 @@
         overflow: hidden;
         opacity: 0;
         transform: translateY(24px) scale(0.985);
+        cursor: pointer;
         animation: detailedCardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1)
           forwards;
-        animation-delay: calc(var(--card-index, 0) * 0.055s);
         transition:
           transform 0.18s ease,
           box-shadow 0.18s ease,
@@ -500,6 +500,20 @@
       .pc.r2:hover,
       .pc.r3:hover {
         transform: translateY(-8px);
+      }
+      @keyframes rowReveal {
+        from {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .row-reveal-anim {
+        opacity: 0;
+        animation: rowReveal 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
       @keyframes detailedCardReveal {
         0% {
@@ -975,10 +989,6 @@
           rgba(245, 200, 66, 0.15),
           transparent
         );
-      }
-
-      .cmp-brand {
-        display: none;
       }
 
       .summary-filter-row {
@@ -2841,9 +2851,6 @@
       .preview-warn {
         color: var(--accent);
       }
-      .pc {
-        cursor: pointer;
-      }
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
       }
@@ -3328,9 +3335,6 @@
           font-size: 8px;
         }
 
-        .cmp-brand .t1 {
-          display: none;
-        }
 
         select.cmp-sel {
           font-size: 12px;
@@ -5157,11 +5161,6 @@
         filter: none !important;
       }
 
-      body.splash-done #board .pc {
-        animation: detailedCardReveal 0.48s cubic-bezier(0.22, 1, 0.36, 1)
-          forwards;
-        animation-delay: calc(var(--card-index, 0) * 0.05s);
-      }
     </style>
 
     <style id="summary-table-spacing-fix">
@@ -5714,8 +5713,8 @@ body.paused-animations *{
           splash.style.opacity = "0";
           setTimeout(function () {
             splash.style.display = "none";
-            // Once splash is gone, trigger card entrance animations cleanly
             document.body.classList.add("splash-done");
+            if (typeof renderHome === "function") renderHome();
           }, 320);
         };
 
@@ -5733,7 +5732,7 @@ body.paused-animations *{
     <div id="app-splash">
       <div>
         <div class="splash-logo">EKTA <span>PADEL</span></div>
-        <div class="splash-sub">Statistics</div>
+        <div class="splash-sub"></div>
       </div>
       <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
       <div class="splash-status" id="splash-status">Loading…</div>
@@ -7826,6 +7825,12 @@ Parthiv - Par"
             </svg>`;
       }
 
+      function getSRRatingClass(normalizedSR) {
+        let c = normalizedSR >= 6 ? "sr-high" : normalizedSR >= 4 ? "sr-mid" : "sr-low";
+        if (normalizedSR >= 7.0) c += " rev-limit";
+        return c;
+      }
+
       function renderHome() {
         renderAbsenceBanner();
         const filtered = filterMatches(homeFilter, homeFrom, homeTo);
@@ -7842,20 +7847,13 @@ Parthiv - Par"
           return;
         }
         const maxSR = stats[0].sr || 1;
-        board.innerHTML = stats
-          .map((p, i) => {
+        const cardHtmls = stats.map((p, i) => {
             const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
             const ri = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1;
             const bw = ((p.sr / maxSR) * 100).toFixed(1);
-            const ratingPct = Math.min(
-              100,
-              Math.max(0, Math.round((p.sr / 10) * 100)),
-            );
-            /* Ferrari-style RPM sweep LOW SR -> left red zone MID SR -> yellow HIGH SR -> full green/right side */
             const normalizedSR = Math.max(0, Math.min(8, p.sr));
-            const speedAngle = (normalizedSR / 8) * 180;
-            const ratingClass =
-              p.sr >= 6 ? "sr-high rev-limit" : p.sr >= 4 ? "sr-mid" : "sr-low";
+            const cardAngle = Math.round((normalizedSR / 8) * 180);
+            const cardRatingClass = getSRRatingClass(normalizedSR);
             const ds = p.diff > 0 ? `+${p.diff}` : `${p.diff}`;
             const dc = p.diff > 0 ? "p" : p.diff < 0 ? "n" : "m";
             const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
@@ -7864,27 +7862,27 @@ Parthiv - Par"
             const sparklineHtml = sparklineSvg
               ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg}</div>`
               : "";
-            const cardAngle = Math.round(
-              (Math.max(0, Math.min(8, p.sr)) / 8) * 180,
-            );
-            let cardRatingClass =
-              normalizedSR >= 6
-                ? "sr-high"
-                : normalizedSR >= 4
-                  ? "sr-mid"
-                  : "sr-low";
-            if (normalizedSR >= 7.0) cardRatingClass += " rev-limit";
-            return `<div class="pc ${rc}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div>${sparklineHtml}</div>`;
-          })
-          .join("");
-        runSpeedometerSweep();
-        setTimeout(() => {
-          document.querySelectorAll("#board .pc").forEach((card, index) => {
-            card.style.setProperty("--card-index", index);
+            return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div></div><div class="row4"><div class="cs"><div class="cv p">${p.gw}</div><div class="cl">G Won</div></div><div class="cs"><div class="cv n">${p.gl}</div><div class="cl">G Lost</div></div><div class="cs"><div class="cv ${dc}">${ds}</div><div class="cl">G Diff</div></div><div class="cs"><div class="cv">${p.gamePct.toFixed(0)}%</div><div class="cl">Game %</div></div></div>${sparklineHtml}</div>`;
           });
-        }, 0);
 
-        setTimeout(animateGauges, 50);
+        if (document.body.classList.contains("splash-done")) {
+          board.innerHTML = "";
+          cardHtmls.forEach((html, i) => {
+            setTimeout(() => {
+              const tmp = document.createElement("div");
+              tmp.innerHTML = html;
+              board.appendChild(tmp.firstChild);
+              if (i === cardHtmls.length - 1) {
+                runSpeedometerSweep();
+                setTimeout(animateGauges, 50);
+              }
+            }, i * 200);
+          });
+        } else {
+          board.innerHTML = cardHtmls.join("");
+          runSpeedometerSweep();
+          setTimeout(animateGauges, 50);
+        }
       }
 
       // ── RENDER COMPACT ─────────────────────────────────────────
@@ -7893,39 +7891,17 @@ Parthiv - Par"
           document.querySelectorAll(".needle").forEach((needle) => {
             const ring = needle.closest(".sr-ring");
             if (!ring) return;
-            const angle =
-              getComputedStyle(ring).getPropertyValue("--speed-angle");
-            document.querySelectorAll(".needle").forEach((needle) => {
-              const ring = needle.closest(".sr-ring");
-
-              if (!ring) return;
-
-              const targetAngle = getComputedStyle(ring)
-                .getPropertyValue("--speed-angle")
-                .trim();
-
-              needle.animate(
-                [
-                  {
-                    transform: "translateX(-50%) rotate(-90deg)",
-                  },
-
-                  {
-                    transform: "translateX(-50%) rotate(90deg)",
-                    offset: 0.62,
-                  },
-
-                  {
-                    transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))`,
-                  },
-                ],
-                {
-                  duration: 2200,
-                  easing: "cubic-bezier(0.22,1.15,0.36,1)",
-                  fill: "forwards",
-                },
-              );
-            });
+            const targetAngle = getComputedStyle(ring)
+              .getPropertyValue("--speed-angle")
+              .trim();
+            needle.animate(
+              [
+                { transform: "translateX(-50%) rotate(-90deg)" },
+                { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
+                { transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))` },
+              ],
+              { duration: 2200, easing: "cubic-bezier(0.22,1.15,0.36,1)", fill: "forwards" },
+            );
           });
         });
       }
@@ -7974,20 +7950,15 @@ Parthiv - Par"
         const tbody = document.getElementById("cmpBody");
         if (!sorted.length) {
           tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
-          runSpeedometerSweep();
-          setTimeout(() => {
-            document.querySelectorAll("#board .pc").forEach((card, index) => {
-              card.style.setProperty("--card-index", index);
-            });
-          }, 0);
-
-          setTimeout(animateGauges, 50);
+          document.getElementById("cmpMatches").innerHTML = buildCompactMatchRows(filtered);
           updateSortArrows(sorted);
           return;
         }
         updateSortArrows();
-        tbody.innerHTML = sorted
-          .map((p, i) => {
+
+        const splashDone = document.body.classList.contains("splash-done");
+
+        const leaderRowHtmls = sorted.map((p, i) => {
             const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
             const ri =
               i === 0
@@ -7997,33 +7968,62 @@ Parthiv - Par"
                   : i === 2
                     ? "🥉"
                     : `<span class="rn">${i + 1}</span>`;
-            runSpeedometerSweep();
             const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
             const gc = p.gamePct >= 50 ? "tp" : "tn";
-            const ratingPct = Math.min(
-              100,
-              Math.max(0, Math.round((p.sr / 10) * 100)),
-            );
             const normalizedSR = Math.max(0, Math.min(8, p.sr));
-            const speedAngle = (normalizedSR / 8) * 180;
-            let ratingClass = "sr-low";
-            if (normalizedSR >= 6) {
-              ratingClass = "sr-high";
-            } else if (normalizedSR >= 4) {
-              ratingClass = "sr-mid";
-            }
-
-            if (normalizedSR >= 7.0) {
-              ratingClass += " rev-limit";
-            }
-            const trend = "";
+            const ratingClass = getSRRatingClass(normalizedSR);
             const momentumBadge = getMomentumBadge(p.name);
             const pillW = Math.round((normalizedSR / 8) * 100);
-            return `<tr class="${rc}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
-          })
-          .join("");
-        document.getElementById("cmpMatches").innerHTML =
-          buildCompactMatchRows(filtered);
+            const animClass = splashDone ? " row-reveal-anim" : "";
+            return `<tr class="${rc}${animClass}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
+          });
+
+        const matchAnimClass = splashDone ? " row-reveal-anim" : "";
+        const matchRowHtmls = [...filtered].reverse().map((m) => buildMatchRowHtml(m, matchAnimClass));
+
+        const cmpMatchesEl = document.getElementById("cmpMatches");
+        const matchesHeader = cmpMatchesEl.previousElementSibling;
+
+        if (splashDone) {
+          tbody.innerHTML = "";
+          cmpMatchesEl.innerHTML = "";
+          matchesHeader.style.opacity = "0";
+          matchesHeader.style.transform = "translateY(14px)";
+          matchesHeader.style.transition = "opacity 0.38s cubic-bezier(0.22,1,0.36,1), transform 0.38s cubic-bezier(0.22,1,0.36,1)";
+
+          leaderRowHtmls.forEach((html, i) => {
+            setTimeout(() => {
+              tbody.insertAdjacentHTML("beforeend", html);
+            }, i * 200);
+          });
+
+          const matchStartDelay = leaderRowHtmls.length * 200;
+          setTimeout(() => {
+            matchesHeader.style.opacity = "1";
+            matchesHeader.style.transform = "translateY(0)";
+          }, matchStartDelay);
+
+          if (matchRowHtmls.length) {
+            const table = document.createElement("table");
+            table.className = "cmp-match-rows";
+            const matchTbody = document.createElement("tbody");
+            table.appendChild(matchTbody);
+            setTimeout(() => cmpMatchesEl.appendChild(table), matchStartDelay);
+            matchRowHtmls.forEach((html, i) => {
+              setTimeout(() => {
+                matchTbody.insertAdjacentHTML("beforeend", html);
+              }, matchStartDelay + i * 80);
+            });
+          } else {
+            setTimeout(() => {
+              cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+            }, matchStartDelay);
+          }
+        } else {
+          matchesHeader.style.cssText = "";
+          tbody.innerHTML = leaderRowHtmls.join("");
+          cmpMatchesEl.innerHTML = buildCompactMatchRows(filtered);
+        }
       }
 
       function updateSortArrows() {
@@ -8087,45 +8087,35 @@ Parthiv - Par"
         return Number(m.scoreA) === 0 || Number(m.scoreB) === 0;
       }
 
+      function buildMatchRowHtml(m, extraClass = "") {
+        const aWon = m.scoreA > m.scoreB;
+        const winA = aWon ? "cmr-win" : "cmr-loss";
+        const winB = !aWon ? "cmr-win" : "cmr-loss";
+        const teamA = (m.teamA || []).join(" & ");
+        const teamB = (m.teamB || []).join(" & ");
+        const diff = Math.abs(m.scoreA - m.scoreB);
+        const badge = isFireMatch(m)
+          ? `<span class="cmr-badge cmr-fire">🔥</span>`
+          : isDominatingMatch(m)
+            ? `<span class="cmr-badge cmr-dom">💀</span>`
+            : isZeroMatch(m)
+              ? `<span class="cmr-badge cmr-zero">😂</span>`
+              : "";
+        return `<tr class="cmr-row${extraClass}">
+          <td class="cmr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</td>
+          <td class="cmr-team ${winA}">${aWon ? "👑 " : ""}${teamA}</td>
+          <td class="cmr-score ${winA}">${m.scoreA}</td>
+          <td class="cmr-vs">–</td>
+          <td class="cmr-score ${winB}">${m.scoreB}</td>
+          <td class="cmr-team cmr-team-r ${winB}">${!aWon ? "👑 " : ""}${teamB}</td>
+          <td class="cmr-meta">${badge}</td>
+        </tr>`;
+      }
+
       function buildCompactMatchRows(matches) {
         if (!matches.length)
           return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
-        return `<table class="cmp-match-rows">
-          <tbody>
-            ${[...matches]
-              .reverse()
-              .map((m) => {
-                const aWon = m.scoreA > m.scoreB;
-                const winA = aWon ? "cmr-win" : "cmr-loss";
-                const winB = !aWon ? "cmr-win" : "cmr-loss";
-                const teamA = (m.teamA || []).join(" & ");
-                const teamB = (m.teamB || []).join(" & ");
-                const diff = Math.abs(m.scoreA - m.scoreB);
-                const isFire = isFireMatch(m);
-                const isDom = isDominatingMatch(m);
-                const isZero = isZeroMatch(m);
-                const badge = isFire
-                  ? `<span class="cmr-badge cmr-fire">🔥</span>`
-                  : isDom
-                    ? `<span class="cmr-badge cmr-dom">💀</span>`
-                    : isZero
-                      ? `<span class="cmr-badge cmr-zero">😂</span>`
-                      : "";
-                return `<tr class="cmr-row">
-                <td class="cmr-date">${fmtDate(m.date)
-                  .replace(/\s+\d{4}$/, "")
-                  .toUpperCase()}</td>
-                <td class="cmr-team ${winA}">${aWon ? "👑 " : ""}${teamA}</td>
-                <td class="cmr-score ${winA}">${m.scoreA}</td>
-                <td class="cmr-vs">–</td>
-                <td class="cmr-score ${winB}">${m.scoreB}</td>
-                <td class="cmr-team cmr-team-r ${winB}">${!aWon ? "👑 " : ""}${teamB}</td>
-                <td class="cmr-meta">${badge}<span class="cmr-gap">${diff} game${diff === 1 ? "" : "s"}</span></td>
-              </tr>`;
-              })
-              .join("")}
-          </tbody>
-        </table>`;
+        return `<table class="cmp-match-rows"><tbody>${[...matches].reverse().map((m) => buildMatchRowHtml(m)).join("")}</tbody></table>`;
       }
 
       function buildMatchCards(matches, showAdmin) {
