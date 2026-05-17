@@ -2075,44 +2075,48 @@
       }
       .pvp-table {
         border-collapse: separate;
-        border-spacing: 3px;
+        border-spacing: 2px;
         width: 100%;
-        table-layout: auto; /* browser sizes cols to content */
+        table-layout: fixed; /* equal columns, no overflow */
       }
+      /* Row header: narrow fixed column */
       .pvp-corner {
-        /* empty top-left cell */
+        width: 26px;
       }
-      /* Row header: alias (2-3 chars), auto-width, no fixed % */
       .pvp-row-hdr {
-        font-size: 9px;
+        width: 26px;
+        font-size: 8px;
         font-weight: 800;
         color: var(--muted);
-        padding: 4px 6px 4px 2px;
+        padding: 3px 3px 3px 0;
         text-align: left;
         white-space: nowrap;
+        overflow: hidden;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
         vertical-align: middle;
       }
-      /* Column headers: same alias, uniform */
+      /* Column headers: fill remaining width equally */
       .pvp-th {
-        padding: 4px 4px 6px;
+        padding: 3px 1px 5px;
         text-align: center;
-        font-size: 9px;
+        font-size: 8px;
         font-weight: 800;
         color: var(--muted);
         text-transform: uppercase;
-        letter-spacing: 0.02em;
+        letter-spacing: 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         white-space: nowrap;
+        overflow: hidden;
       }
-      /* Data cells: uniform padding, percentage fits naturally */
+      /* Data cells: fill column, no padding waste */
       .pvp-td {
         text-align: center;
-        padding: 4px 3px;
-        font-size: 9px;
+        padding: 3px 1px;
+        font-size: 8px;
         font-weight: 700;
-        border-radius: 4px;
+        border-radius: 3px;
         white-space: nowrap;
+        overflow: hidden;
         vertical-align: middle;
       }
       .pvp-self {
@@ -4785,7 +4789,7 @@
         border: 1px solid rgba(255, 255, 255, 0.06) !important;
         border-radius: 22px !important;
 
-        padding: 12px !important;
+        padding: 10px 8px !important;
 
         box-shadow:
           0 0 26px rgba(0, 180, 255, 0.08),
@@ -5215,6 +5219,105 @@
         to {
           transform: translateX(120%);
         }
+      }
+    </style>
+
+    <style id="splash-screen-styles">
+      /* ── SPLASH / LOADING SCREEN ── */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #07070f;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+      }
+      #app-splash.hiding {
+        opacity: 0;
+        transform: scale(1.04);
+        pointer-events: none;
+      }
+      #app-splash.hidden {
+        display: none;
+      }
+      .splash-logo {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 42px;
+        letter-spacing: 0.14em;
+        color: var(--text);
+        text-align: center;
+        line-height: 1;
+      }
+      .splash-logo span {
+        color: var(--accent);
+      }
+      .splash-sub {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: -18px;
+      }
+      .splash-bar-wrap {
+        width: 160px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .splash-bar {
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent2), var(--accent));
+        animation: splashBarFill 1.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+      @keyframes splashBarFill {
+        0% {
+          width: 0%;
+        }
+        40% {
+          width: 55%;
+        }
+        70% {
+          width: 78%;
+        }
+        90% {
+          width: 92%;
+        }
+        100% {
+          width: 100%;
+        }
+      }
+      .splash-status {
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.06em;
+        min-height: 16px;
+        text-align: center;
+      }
+      /* Pages are always visible — splash overlays them via z-index */
+
+      /* ── SMOOTH FIRST-LOAD: hold card animations until splash is gone ── */
+      /* Before splash dismisses, cards are invisible but not animating */
+      body:not(.splash-done) #board .pc {
+        animation: none !important;
+        opacity: 0 !important;
+        transform: translateY(24px) scale(0.985) !important;
+        filter: none !important;
+      }
+      /* Once splash is gone, let the entrance animation play once, cleanly */
+      body.splash-done #board .pc {
+        animation: detailedCardReveal 0.48s cubic-bezier(0.22, 1, 0.36, 1)
+          forwards;
+        animation-delay: calc(var(--card-index, 0) * 0.05s);
       }
     </style>
 
@@ -5752,9 +5855,87 @@ body.paused-animations *{
         setTimeout(injectVisibleFeatures, 2000);
       })();
     </script>
+    <!-- Cache layer: must load before module script -->
+    <script id="app-cache">
+      (function () {
+        const CACHE_KEY = "padel_cache_v4";
+        const CACHE_TTL = 1000 * 60 * 60 * 24;
+        const mem = {};
+        window.appCache = {
+          save: function (matches, aliasMap, nameMap) {
+            try {
+              var p = {
+                ts: Date.now(),
+                matches: matches,
+                aliasMap: aliasMap,
+                nameMap: nameMap,
+              };
+              localStorage.setItem(CACHE_KEY, JSON.stringify(p));
+              mem.data = p;
+            } catch (e) {}
+          },
+          load: function () {
+            if (mem.data) return mem.data;
+            try {
+              var raw = localStorage.getItem(CACHE_KEY);
+              if (!raw) return null;
+              var p = JSON.parse(raw);
+              if (Date.now() - p.ts > CACHE_TTL) {
+                localStorage.removeItem(CACHE_KEY);
+                return null;
+              }
+              mem.data = p;
+              return p;
+            } catch (e) {
+              return null;
+            }
+          },
+        };
+      })();
+    </script>
+
+    <!-- Bulletproof splash: plain script, no dependencies, always fires -->
+    <script>
+      (function () {
+        // dismissSplash can be called from anywhere, multiple times safely
+        window._splashDismissed = false;
+        window.dismissSplash = function (status) {
+          if (window._splashDismissed) return;
+          window._splashDismissed = true;
+          var splash = document.getElementById("app-splash");
+          if (!splash) return;
+          if (status) {
+            var el = document.getElementById("splash-status");
+            if (el) el.textContent = status;
+          }
+          splash.style.transition = "opacity 0.3s ease";
+          splash.style.opacity = "0";
+          setTimeout(function () {
+            splash.style.display = "none";
+            // Once splash is gone, trigger card entrance animations cleanly
+            document.body.classList.add("splash-done");
+          }, 320);
+        };
+
+        // Hard fallback: ALWAYS dismiss after 4 seconds no matter what
+        document.addEventListener("DOMContentLoaded", function () {
+          setTimeout(function () {
+            window.dismissSplash("Ready");
+          }, 4000);
+        });
+      })();
+    </script>
   </head>
   <body>
-    <!-- ══════════ HOME PAGE ══════════ -->
+    <!-- ══════════ SPLASH SCREEN ══════════ -->
+    <div id="app-splash">
+      <div>
+        <div class="splash-logo">EKTA <span>PADEL</span></div>
+        <div class="splash-sub">Statistics</div>
+      </div>
+      <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
+      <div class="splash-status" id="splash-status">Loading…</div>
+    </div>
     <div class="page active" id="pg-home">
       <div class="page-body-scroll">
         <div class="nav">
@@ -6242,7 +6423,7 @@ Ank RaM vs Nil Tej 4-2"
               class="btn-s"
               onclick="
                 document.getElementById('matchTA').value = '';
-                previewMatchImport();
+                prefillMatchTADate();
               "
             >
               Clear
@@ -6512,9 +6693,17 @@ Parthiv - Par"
       let lastMatchSnapshot = null;
       window.isAdmin = false;
 
-      // ── CLOUD SAVE (Firestore + localStorage fallback) ─────────
+      // ── SPLASH HELPERS ─────────────────────────────────────────
+      function setSplashStatus(msg) {
+        var el = document.getElementById("splash-status");
+        if (el) el.textContent = msg;
+      }
+
+      // ── SAVE HELPER — writes to Firestore AND updates cache ─────
       async function saveCloudData() {
         const payload = { matches: allMatches, aliasMap, nameMap };
+        if (window.appCache)
+          window.appCache.save(allMatches, aliasMap, nameMap);
         try {
           if (auth.currentUser && window.isAdmin) {
             await setDoc(doc(db, "padel", "main"), payload);
@@ -6527,17 +6716,107 @@ Parthiv - Par"
         } catch (e) {}
       }
 
+      // ── DATA LOADER ────────────────────────────────────────────
       function loadCloudData() {
-        onSnapshot(doc(db, "padel", "main"), (snap) => {
-          if (!snap.exists()) return;
-          const data = snap.data();
-          allMatches = data.matches || [];
-          aliasMap = data.aliasMap || {};
-          nameMap = data.nameMap || {};
-          renderHome();
-          renderCompact();
-          refreshManage();
-        });
+        let fired = false;
+        let lastDataFingerprint = null;
+
+        function dataFingerprint(matches) {
+          if (!matches || !matches.length) return "empty";
+          try {
+            const last = matches[matches.length - 1];
+            return (
+              matches.length +
+              "|" +
+              (last && last.date ? last.date : "") +
+              "|" +
+              (last && last.scoreA !== undefined ? last.scoreA : "")
+            );
+          } catch (e) {
+            return String(matches.length);
+          }
+        }
+
+        function onData(matches, aMap, nMap) {
+          const fp = dataFingerprint(matches);
+          const isFirstLoad = !fired;
+
+          // If this is a Firestore update that matches the cache we already rendered, skip re-render
+          if (!isFirstLoad && fp === lastDataFingerprint) {
+            return;
+          }
+          lastDataFingerprint = fp;
+
+          allMatches = matches;
+          aliasMap = aMap;
+          nameMap = nMap;
+          if (window.appCache)
+            window.appCache.save(allMatches, aliasMap, nameMap);
+
+          if (isFirstLoad) {
+            // First render: paint data, then dismiss splash so user sees cards animate in cleanly once
+            renderHome();
+            renderCompact();
+            refreshManage();
+            fired = true;
+            window.dismissSplash("Ready ✓");
+          } else {
+            // Genuine new data from Firestore: fade board out, re-render, fade back in — no blur flash
+            const board = document.getElementById("board");
+            if (board) {
+              board.style.transition = "opacity 0.15s ease";
+              board.style.opacity = "0";
+            }
+            setTimeout(function () {
+              renderHome();
+              renderCompact();
+              refreshManage();
+              if (board) {
+                // Suppress the per-card keyframe animation for live updates
+                board.querySelectorAll(".pc").forEach(function (c) {
+                  c.style.animation = "none";
+                  c.style.opacity = "1";
+                  c.style.transform = "none";
+                });
+                board.style.opacity = "1";
+              }
+            }, 160);
+          }
+        }
+
+        // Step 1 — try cache instantly
+        try {
+          const cached = window.appCache && window.appCache.load();
+          if (
+            cached &&
+            Array.isArray(cached.matches) &&
+            cached.matches.length
+          ) {
+            onData(cached.matches, cached.aliasMap || {}, cached.nameMap || {});
+          }
+        } catch (e) {}
+
+        // Step 2 — Firestore live subscription
+        try {
+          onSnapshot(
+            doc(db, "padel", "main"),
+            function (snap) {
+              if (!snap.exists()) {
+                window.dismissSplash("Ready");
+                return;
+              }
+              const d = snap.data();
+              onData(d.matches || [], d.aliasMap || {}, d.nameMap || {});
+            },
+            function (err) {
+              console.error("Firestore error:", err);
+              window.dismissSplash("Offline");
+            },
+          );
+        } catch (e) {
+          console.error("onSnapshot failed:", e);
+          window.dismissSplash("Offline");
+        }
       }
 
       function animateGauges() {
@@ -6576,11 +6855,22 @@ Parthiv - Par"
         })
         .catch(console.error);
 
+      let _authInitialFired = false;
       onAuthStateChanged(auth, (user) => {
+        const wasAdmin = window.isAdmin;
         window.isAdmin = !!user && user.email === ADMIN_EMAIL;
         updateAdminUI(user);
-        renderHome();
-        renderCompact();
+        // Skip re-render on the initial auth state resolution at startup —
+        // loadCloudData() already handles the first render. Only re-render
+        // when auth genuinely changes (user logs in or out mid-session).
+        if (!_authInitialFired) {
+          _authInitialFired = true;
+          return;
+        }
+        if (allMatches.length) {
+          renderHome();
+          renderCompact();
+        }
       });
 
       function updateAdminUI(user) {
@@ -6610,6 +6900,10 @@ Parthiv - Par"
             tab.style.display = "";
           }
         });
+        // Prefill date for admin whenever auth state resolves
+        if (window.isAdmin) {
+          prefillMatchTADate();
+        }
       }
 
       // ── NAVIGATION ─────────────────────────────────────────────
@@ -6644,6 +6938,22 @@ Parthiv - Par"
           alert("Only admin can access this");
           return;
         }
+
+        // ── Sync date filter between Detailed (home) and Summary (compact) ──
+        const homeSelEl = document.getElementById("homeFilterSel");
+        const cmpSelEl = document.getElementById("cmpSel");
+        if (homeSelEl && cmpSelEl) {
+          if (id === "compact" && homeFilter !== "all") {
+            // Going to Summary: carry Detailed filter over
+            cmpFilter = homeFilter;
+            cmpSelEl.value = cmpFilter;
+          } else if (id === "home" && cmpFilter !== "all") {
+            // Going to Detailed: carry Summary filter over
+            homeFilter = cmpFilter;
+            homeSelEl.value = homeFilter;
+          }
+        }
+
         // Update all tabbars
         document
           .querySelectorAll(".tabbar .tbb")
@@ -6669,32 +6979,109 @@ Parthiv - Par"
         if (id === "add") {
           refreshManage();
           renderAddMatches();
+          prefillMatchTADate();
         }
       }
 
       let touchStartX = 0,
-        touchStartY = 0;
+        touchStartY = 0,
+        touchStartTarget = null,
+        swipeInProgress = false;
       const mainTabOrder = ["home", "compact", "history", "analytics"];
+
+      function isScrollable(el) {
+        // Walk up DOM to see if the touch started inside a horizontally/vertically scrollable element
+        while (el && el !== document.body) {
+          const style = window.getComputedStyle(el);
+          const overflow = style.overflow + style.overflowX + style.overflowY;
+          if (/auto|scroll/.test(overflow)) {
+            if (
+              el.scrollWidth > el.clientWidth ||
+              el.scrollHeight > el.clientHeight
+            ) {
+              return true;
+            }
+          }
+          el = el.parentElement;
+        }
+        return false;
+      }
+
       function onTouchStart(e) {
+        if (!e.touches || e.touches.length !== 1) {
+          touchStartTarget = null;
+          return;
+        }
         const t = e.touches[0];
         touchStartX = t.clientX;
         touchStartY = t.clientY;
+        touchStartTarget = e.target;
       }
+
       function onTouchEnd(e) {
+        if (swipeInProgress || !touchStartTarget) return;
+        if (!e.changedTouches || e.changedTouches.length === 0) return;
+
         const t = e.changedTouches[0];
         const dx = t.clientX - touchStartX;
         const dy = t.clientY - touchStartY;
-        if (Math.abs(dx) < 80 || Math.abs(dy) > 50) return;
-        const current = document
-          .querySelector(".page.active")
-          ?.id.replace("pg-", "");
-        const index = mainTabOrder.indexOf(current || "home");
-        if (dx > 0 && index > 0) switchMainTab(mainTabOrder[index - 1]);
-        if (dx < 0 && index < mainTabOrder.length - 1)
-          switchMainTab(mainTabOrder[index + 1]);
+
+        // Require clearly horizontal gesture and not too vertical
+        if (Math.abs(dx) < 80 || Math.abs(dy) > 60) return;
+
+        // Don't swipe tabs if the touch started inside a scrollable child
+        if (isScrollable(touchStartTarget)) return;
+
+        const activePage = document.querySelector(".page.active");
+        if (!activePage) return;
+        const current = activePage.id.replace("pg-", "");
+        const index = mainTabOrder.indexOf(current);
+        if (index === -1) return; // current tab not in swipe order (e.g. "add")
+
+        const nextTab =
+          dx > 0 && index > 0
+            ? mainTabOrder[index - 1]
+            : dx < 0 && index < mainTabOrder.length - 1
+              ? mainTabOrder[index + 1]
+              : null;
+
+        if (!nextTab) return;
+
+        swipeInProgress = true;
+        try {
+          switchMainTab(nextTab);
+        } catch (err) {
+          console.error("swipe tab switch error:", err);
+        }
+        // Debounce: prevent another swipe for 350 ms
+        setTimeout(() => {
+          swipeInProgress = false;
+        }, 350);
       }
+
       document.addEventListener("touchstart", onTouchStart, { passive: true });
       document.addEventListener("touchend", onTouchEnd, { passive: true });
+
+      // Format today as D/M/YY (the expected date header format)
+      function todayDMYY() {
+        const now = new Date();
+        const d = now.getDate();
+        const m = now.getMonth() + 1;
+        const yy = String(now.getFullYear()).slice(-2);
+        return `${d}/${m}/${yy}`;
+      }
+
+      function prefillMatchTADate() {
+        const ta = document.getElementById("matchTA");
+        if (!ta) return;
+        // Only prefill if the textarea is completely empty
+        if (ta.value.trim() === "") {
+          ta.value = todayDMYY() + "\n";
+          // Place cursor at end so admin can type right away
+          ta.selectionStart = ta.selectionEnd = ta.value.length;
+          previewMatchImport();
+        }
+      }
 
       function switchITab(id) {
         const keys = ["matches", "names", "manage"];
@@ -6710,6 +7097,7 @@ Parthiv - Par"
           id !== "manage" && window.isAdmin ? "flex" : "none";
         if (id === "manage") refreshManage();
         if (id === "names") renderNamesTable();
+        if (id === "matches") prefillMatchTADate();
       }
 
       function refreshManage() {
@@ -6806,7 +7194,11 @@ Parthiv - Par"
       function filterMatches(f, from, to) {
         const t = todayISO(),
           sw = weekISO(),
-          swe = weekEndISO(),
+          // Cap "this week" end at today so that if today is Sunday with no
+          // data, we never include last Sunday (6 days ago from next Mon).
+          // weekISO() always returns this week's Monday; swe = today keeps
+          // the window strictly Mon → today regardless of day-of-week.
+          swe = t,
           sm = monthISO(),
           wr = weekendRange();
         return allMatches.filter((m) => {
@@ -7203,7 +7595,7 @@ Parthiv - Par"
           allMatches.push(...parsed);
           saveCloudData();
           document.getElementById("matchTA").value = "";
-          previewMatchImport();
+          prefillMatchTADate();
           oEl.textContent = `Added ${parsed.length} match${parsed.length > 1 ? "es" : ""}.`;
           oEl.classList.add("show");
           document.getElementById("undoAddBtn").style.display = "block";
@@ -9065,10 +9457,10 @@ Parthiv - Par"
       }
 
       // ── INIT ───────────────────────────────────────────────────
-      loadCloudData();
-      renderHome();
-      renderCompact();
+      // loadCloudData() orchestrates: cache-first render → Firestore refresh.
+      // renderHome/renderCompact are called inside it after data is ready.
       renderNamesTable();
+      loadCloudData();
 
       // Expose globals
       Object.assign(window, {
@@ -9122,6 +9514,7 @@ Parthiv - Par"
         undoLastAdd,
         openPlayerDetail,
         onHomeFilterChange,
+        prefillMatchTADate,
       });
 
       function setHistoryDateFilter(value) {
@@ -9449,182 +9842,6 @@ Parthiv - Par"
 
         setTimeout(cleanupExtremeAndPairPower, 300);
         setTimeout(cleanupExtremeAndPairPower, 1200);
-      })();
-    </script>
-
-    <script id="read-heavy-cache-optimizer">
-      /* ════════════════════════════════════════
-   READ-HEAVY CACHE OPTIMIZATION LAYER
-════════════════════════════════════════ */
-
-      (function () {
-        const CACHE_VERSION = "v3";
-        const CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
-
-        const memoryCache = new Map();
-
-        /* FAST MEMORY CACHE */
-        window.fastCache = {
-          get(key) {
-            // memory first
-            if (memoryCache.has(key)) {
-              return memoryCache.get(key);
-            }
-
-            try {
-              const raw = localStorage.getItem(key);
-
-              if (!raw) return null;
-
-              const parsed = JSON.parse(raw);
-
-              if (Date.now() - parsed.ts > CACHE_TTL) {
-                localStorage.removeItem(key);
-                return null;
-              }
-
-              memoryCache.set(key, parsed.data);
-
-              return parsed.data;
-            } catch (e) {
-              return null;
-            }
-          },
-
-          set(key, value) {
-            try {
-              memoryCache.set(key, value);
-
-              localStorage.setItem(
-                key,
-                JSON.stringify({
-                  ts: Date.now(),
-                  version: CACHE_VERSION,
-                  data: value,
-                }),
-              );
-            } catch (e) {}
-          },
-        };
-
-        /* CACHE LARGE DATASETS */
-        function cacheAppData() {
-          try {
-            const datasets = {
-              matches: window.matches,
-              players: window.players,
-              leaderboard: window.leaderboardData,
-              analytics: window.analyticsData,
-            };
-
-            Object.entries(datasets).forEach(([k, v]) => {
-              if (v && Array.isArray(v) && v.length) {
-                fastCache.set("cache_" + k, v);
-              }
-            });
-          } catch (e) {}
-        }
-
-        /* RESTORE CACHE INSTANTLY BEFORE NETWORK */
-        function restoreCachedData() {
-          try {
-            const matches = fastCache.get("cache_matches");
-            const players = fastCache.get("cache_players");
-            const leaderboard = fastCache.get("cache_leaderboard");
-            const analytics = fastCache.get("cache_analytics");
-
-            if (matches && !window.matches) {
-              window.matches = matches;
-            }
-
-            if (players && !window.players) {
-              window.players = players;
-            }
-
-            if (leaderboard && !window.leaderboardData) {
-              window.leaderboardData = leaderboard;
-            }
-
-            if (analytics && !window.analyticsData) {
-              window.analyticsData = analytics;
-            }
-          } catch (e) {}
-        }
-
-        /* PRECOMPUTED STATS CACHE */
-        window.statsCache = {
-          getOrCompute(key, computeFn) {
-            const cached = fastCache.get("stats_" + key);
-
-            if (cached) return cached;
-
-            const result = computeFn();
-
-            fastCache.set("stats_" + key, result);
-
-            return result;
-          },
-        };
-
-        /* IDLE-TIME CACHE SAVE */
-        function scheduleCacheSave() {
-          if ("requestIdleCallback" in window) {
-            requestIdleCallback(cacheAppData, {
-              timeout: 2000,
-            });
-          } else {
-            setTimeout(cacheAppData, 1200);
-          }
-        }
-
-        /* LIGHTWEIGHT TAB MEMORY */
-        const pageCache = {};
-
-        window.cachePageState = function (tab, state) {
-          pageCache[tab] = state;
-        };
-
-        window.getCachedPageState = function (tab) {
-          return pageCache[tab];
-        };
-
-        /* REDUCE DOM REPAINTS */
-        window.batchDOMUpdates = function (callback) {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(callback);
-          });
-        };
-
-        /* STARTUP */
-        restoreCachedData();
-
-        window.addEventListener(
-          "load",
-          () => {
-            scheduleCacheSave();
-          },
-          { passive: true },
-        );
-
-        document.addEventListener(
-          "visibilitychange",
-          () => {
-            if (document.hidden) {
-              scheduleCacheSave();
-            }
-          },
-          { passive: true },
-        );
-
-        /* PERIODIC SAFE SAVE */
-        setInterval(
-          () => {
-            if (!document.hidden) {
-              scheduleCacheSave();
-            }
-          },
-          1000 * 60 * 10,
-        ); // every 10 mins
       })();
     </script>
   </body>
