@@ -9327,7 +9327,7 @@ Parthiv - Par"
           const momentumBadge = getMomentumBadge(p.name);
           const pillW = Math.round((normalizedSR / 8) * 100);
           const animClass = splashDone ? " row-reveal-anim" : "";
-          return `<tr class="${rc}${animClass}"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
+          return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(1)}</span></div></td></tr>`;
         });
 
         const matchAnimClass = splashDone ? " row-reveal-anim" : "";
@@ -10510,12 +10510,12 @@ Parthiv - Par"
                     <div class="det-streak-div"></div>
                     <div class="det-streak-cell">
                       <div class="det-streak-val" style="color:var(--green)">${s.bestWinStreak}W</div>
-                      <div class="sub">Best Win</div>
+                      <div class="sub">Win</div>
                     </div>
                     <div class="det-streak-div"></div>
                     <div class="det-streak-cell">
                       <div class="det-streak-val" style="color:var(--red)">${detail.maxLossStreak}L</div>
-                      <div class="sub">Best Loss</div>
+                      <div class="sub">Loss</div>
                     </div>
                   </div>
                   <div class="det-form-row">
