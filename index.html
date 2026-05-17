@@ -9929,8 +9929,17 @@ Parthiv - Par"
           const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, matches);
           summary = `<div class="ana-card" style="margin-bottom:10px"><span class="badge">Head-to-Head</span><div class="name" style="font-size:18px">${h2hFilterA} ${h2h.aWins}-${h2h.bWins} ${h2hFilterB}</div><div class="sub">${h2h.matches.length} match(es) · ${h2hFilterA} diff ${h2h.diff >= 0 ? "+" : ""}${h2h.diff}</div></div>`;
         }
-        const motdHtml = buildMatchOfTheDay();
-        const sessionSummaryHtml = buildSessionSummary();
+        const isFiltered =
+          histPlayerFilter ||
+          histPairFilter ||
+          histOutcomeFilter !== "all" ||
+          histMarginFilter !== "all" ||
+          histScorelineFilter ||
+          histSeasonFilter ||
+          h2hFilterA ||
+          h2hFilterB;
+        const motdHtml = isFiltered ? "" : buildMatchOfTheDay();
+        const sessionSummaryHtml = isFiltered ? "" : buildSessionSummary();
         document.getElementById("modern-match-list").innerHTML =
           sessionSummaryHtml +
           motdHtml +
