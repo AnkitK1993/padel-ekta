@@ -1028,8 +1028,8 @@
       }
       .row3 {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 4px;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 3px;
       }
       .row4 {
         display: grid;
@@ -1040,11 +1040,11 @@
       .cs {
         background: var(--surface2);
         border-radius: 6px;
-        padding: 6px 3px 5px;
+        padding: 5px 2px 4px;
         text-align: center;
       }
       .cv {
-        font-size: 12.5px;
+        font-size: 11px;
         font-weight: 600;
         color: var(--text);
         line-height: 1;
@@ -6878,3 +6878,82 @@ table.cmp th:nth-child(9),
       .analytics-title,
       select.hist-select option,
       select.cmp-sel option { text-transform: uppercase; }
+/* ── FEATURE CSS: ELO, BADGES, CLUTCH, MOTM, PAIR MATRIX, PERSONAL BESTS ── */
+.elo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.elo-row:last-child { border-bottom: none; }
+.elo-rank { width: 24px; font-size: 11px; color: var(--muted); font-weight: 700; flex-shrink: 0; }
+.elo-name { flex: 1; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.elo-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.elo-bar { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.elo-val { width: 36px; text-align: right; font-size: 12px; font-weight: 800; color: var(--text); }
+.elo-change { width: 36px; text-align: right; font-size: 11px; font-weight: 700; }
+
+.card-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 12px 10px;
+}
+.card-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.12);
+  white-space: nowrap;
+}
+
+.badge-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  cursor: default;
+}
+.badge-chip-lbl { color: var(--text); }
+
+.ss-motm {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  margin: 0 14px 10px;
+}
+.ss-motm strong { color: var(--theme); }
+
+.pb-header, .pb-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.pb-row:last-child { border-bottom: none; }
+.pb-header { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; padding-bottom: 6px; }
+.pb-name { flex: 1; font-size: 11px; font-weight: 700; text-transform: uppercase; min-width: 60px; }
+.pb-stat { flex: 1; font-size: 11px; font-weight: 700; text-align: center; color: var(--text); }
+.pb-header .pb-name, .pb-header .pb-stat { color: var(--muted); font-size: 9px; }
