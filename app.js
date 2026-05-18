@@ -2356,6 +2356,18 @@ function buildHistorySummary(matches) {
       `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🎯</span><span class="hsum-hl-label">Top Scoreline</span><span class="hsum-hl-val">${topScore[0]} &nbsp;<span style="color:var(--muted)">${topScore[1]}× played</span></span></div>`,
     );
   }
+  // Hot / Cold board
+  const hotPlayers = stats.filter((p) => p.curType === "W" && p.curStreak >= 2).sort((a, b) => b.curStreak - a.curStreak).slice(0, 2);
+  const coldPlayers = stats.filter((p) => p.curType === "L" && p.curStreak >= 2).sort((a, b) => b.curStreak - a.curStreak).slice(0, 2);
+  let hotColdHtml = "";
+  if (hotPlayers.length || coldPlayers.length) {
+    const rows = [
+      ...hotPlayers.map((p) => `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label" style="color:var(--green)">${p.name}</span><span class="hsum-hl-val" style="color:var(--green)">${p.curStreak}W streak</span></div>`),
+      ...coldPlayers.map((p) => `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">❄️</span><span class="hsum-hl-label" style="color:var(--red)">${p.name}</span><span class="hsum-hl-val" style="color:var(--red)">${p.curStreak}L streak</span></div>`),
+    ];
+    hotColdHtml = `<div class="hsum-section-lbl">HOT &amp; COLD</div><div class="hsum-highlights">${rows.join("")}</div>`;
+  }
+
   // Session recap — always based on latest session in allMatches
   let sessionRecapHtml = "";
   if (allMatches.length) {
@@ -2398,6 +2410,7 @@ function buildHistorySummary(matches) {
           </div>
           ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
           ${highlights.length ? `<div class="hsum-section-lbl">AWARDS</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
+          ${hotColdHtml}
           ${sessionRecapHtml}
         </div>`;
 }
