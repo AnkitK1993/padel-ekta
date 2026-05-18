@@ -2268,6 +2268,115 @@ textarea:focus {
 }
 .swipe-delete-reveal span { font-size: 9px; letter-spacing: 0.06em; }
 .match-card.swipe-revealed .swipe-delete-reveal { opacity: 1; }
+
+/* ── Inline match edit card ─────────────────────────── */
+.match-edit-inline {
+  background: var(--surface2);
+  border: 1px solid rgba(var(--theme-rgb), 0.35);
+  border-radius: 16px;
+  margin: -6px 0 10px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  padding: 0 14px;
+  transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease, padding 0.25s ease;
+}
+.match-edit-inline.open {
+  max-height: 520px;
+  opacity: 1;
+  padding: 14px;
+}
+.match-card.edit-active {
+  border-color: rgba(var(--theme-rgb), 0.5);
+  border-bottom-left-radius: 6px !important;
+  border-bottom-right-radius: 6px !important;
+}
+.mei-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.mei-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+.mei-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.mei-section-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 5px;
+}
+.mei-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.mei-sel, .mei-input {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  outline: none;
+  box-sizing: border-box;
+}
+.mei-sel:focus, .mei-input:focus {
+  border-color: rgba(var(--theme-rgb), 0.6);
+}
+.mei-score {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 900;
+  padding: 6px 4px;
+}
+.mei-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.mei-cancel {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+}
+.mei-save {
+  flex: 2;
+  padding: 10px;
+  background: rgba(var(--theme-rgb), 0.15);
+  border: 1px solid rgba(var(--theme-rgb), 0.4);
+  border-radius: 12px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+}
+.mei-save:active { background: rgba(var(--theme-rgb), 0.28); }
+
 .match-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);

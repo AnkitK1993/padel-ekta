@@ -3172,48 +3172,68 @@ function deleteMatchByIndex(i) {
   renderHome();
   renderCompact();
 }
+function closeMatchEdit() {
+  document.querySelectorAll(".match-edit-inline").forEach(el => {
+    const idx = el.dataset.editIdx;
+    el.classList.remove("open");
+    const src = document.querySelector(`.match-card[data-match-idx="${idx}"]`);
+    if (src) src.classList.remove("edit-active");
+    setTimeout(() => el.remove(), 260);
+  });
+}
+
 function editMatchByIndex(i) {
   const m = allMatches[i];
   if (!m) return;
-  document.getElementById("match-edit-modal")?.remove();
+  // If clicking the same card again, toggle closed
+  const existing = document.querySelector(`.match-edit-inline[data-edit-idx="${i}"]`);
+  if (existing) { closeMatchEdit(); return; }
+  closeMatchEdit();
   const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b));
   const opts = (val) => players.map(p => `<option value="${p}"${p === val ? " selected" : ""}>${p}</option>`).join("");
-  const modal = document.createElement("div");
-  modal.id = "match-edit-modal";
-  modal.className = "modern-add-modal show";
-  modal.innerHTML = `
-    <div class="modern-modal-overlay" onclick="document.getElementById('match-edit-modal').remove()"></div>
-    <div class="modern-modal-card" style="max-width:340px">
-      <div class="modern-modal-header">
-        <span class="modern-modal-title">Edit Match</span>
-        <button class="modern-modal-close" onclick="document.getElementById('match-edit-modal').remove()">✕</button>
-      </div>
-      <div class="modern-modal-body">
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">DATE</div>
-        <input id="edit-match-date" type="date" class="modern-select" style="margin-bottom:14px" value="${m.date || todayISO()}">
-        <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM A</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <select id="edit-a1" class="modern-select" style="flex:1"><option value="">P1</option>${opts(m.teamA[0])}</select>
-          <select id="edit-a2" class="modern-select" style="flex:1"><option value="">P2</option>${opts(m.teamA[1])}</select>
-        </div>
-        <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM B</div>
-        <div style="display:flex;gap:8px;margin-bottom:14px">
-          <select id="edit-b1" class="modern-select" style="flex:1"><option value="">P1</option>${opts(m.teamB[0])}</select>
-          <select id="edit-b2" class="modern-select" style="flex:1"><option value="">P2</option>${opts(m.teamB[1])}</select>
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">SCORE</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          <input id="edit-sa" type="number" min="0" max="20" class="modern-select" style="flex:1;text-align:center;font-size:22px;font-weight:900" value="${m.scoreA}">
-          <span style="color:var(--muted);font-weight:800">–</span>
-          <input id="edit-sb" type="number" min="0" max="20" class="modern-select" style="flex:1;text-align:center;font-size:22px;font-weight:900" value="${m.scoreB}">
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">NOTE (optional)</div>
-        <input id="edit-note" type="text" class="modern-select" style="margin-bottom:16px" placeholder="e.g. rainy day, semifinals…" value="${m.note || ""}">
-        <div id="edit-match-err" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>
-        <button class="modern-save-btn" onclick="saveMatchEdit(${i})">Save Changes</button>
-      </div>
+  const el = document.createElement("div");
+  el.className = "match-edit-inline";
+  el.dataset.editIdx = i;
+  el.innerHTML = `
+    <div class="mei-header">
+      <span class="mei-title">✏ EDIT MATCH</span>
+      <button class="mei-close" onclick="closeMatchEdit()">✕</button>
+    </div>
+    <div class="mei-section-lbl">DATE</div>
+    <input id="edit-match-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${m.date || todayISO()}">
+    <div class="mei-section-lbl" style="color:var(--green)">TEAM A</div>
+    <div class="mei-row">
+      <select id="edit-a1" class="mei-sel"><option value="">P1</option>${opts(m.teamA[0])}</select>
+      <select id="edit-a2" class="mei-sel"><option value="">P2</option>${opts(m.teamA[1])}</select>
+    </div>
+    <div class="mei-section-lbl" style="color:var(--red)">TEAM B</div>
+    <div class="mei-row">
+      <select id="edit-b1" class="mei-sel"><option value="">P1</option>${opts(m.teamB[0])}</select>
+      <select id="edit-b2" class="mei-sel"><option value="">P2</option>${opts(m.teamB[1])}</select>
+    </div>
+    <div class="mei-section-lbl">SCORE</div>
+    <div class="mei-row" style="align-items:center;margin-bottom:10px">
+      <input id="edit-sa" type="number" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
+      <span style="color:var(--muted);font-weight:900;font-size:18px;padding:0 4px">–</span>
+      <input id="edit-sb" type="number" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
+    </div>
+    <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+    <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${m.note || ""}">
+    <div id="edit-match-err" style="color:var(--red);font-size:12px;margin-bottom:6px;display:none"></div>
+    <div class="mei-actions">
+      <button class="mei-cancel" onclick="closeMatchEdit()">Cancel</button>
+      <button class="mei-save" onclick="saveMatchEdit(${i})">Save Changes</button>
     </div>`;
-  document.body.appendChild(modal);
+  const srcCard = document.querySelector(`.match-card[data-match-idx="${i}"]`);
+  if (srcCard) {
+    srcCard.insertAdjacentElement("afterend", el);
+    srcCard.classList.add("edit-active");
+  } else {
+    const list = document.getElementById("modern-match-list");
+    if (list) list.prepend(el);
+  }
+  requestAnimationFrame(() => { requestAnimationFrame(() => el.classList.add("open")); });
+  setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }), 60);
 }
 
 function saveMatchEdit(i) {
@@ -3242,7 +3262,7 @@ function saveMatchEdit(i) {
   m.scoreB = sb;
   if (note) m.note = note; else delete m.note;
   saveCloudData();
-  document.getElementById("match-edit-modal")?.remove();
+  closeMatchEdit();
   renderModernMatches();
   renderAddMatches();
   renderHome();
@@ -3307,6 +3327,8 @@ function quickRematch(idx) {
 }
 function closeModernAddModal() {
   document.getElementById("modern-add-modal").classList.remove("show");
+  const noteEl = document.getElementById("modern-note");
+  if (noteEl) noteEl.value = "";
 }
 document.getElementById("modern-add-modal").addEventListener("click", (e) => {
   if (e.target.id === "modern-add-modal") closeModernAddModal();
@@ -3362,6 +3384,7 @@ function saveModernMatch() {
   const sA = parseInt(document.getElementById("modern-score-a").value);
   const sB = parseInt(document.getElementById("modern-score-b").value);
   const date = document.getElementById("modern-date").value || todayISO();
+  const note = document.getElementById("modern-note")?.value.trim() || "";
   if (!p1a || !p2a || !p1b || !p2b || isNaN(sA) || isNaN(sB) || sA === sB) {
     alert("Invalid match data");
     return;
@@ -3370,7 +3393,9 @@ function saveModernMatch() {
   const teamB = [p1b, p2b];
   const prevSnapshot = [...allMatches];
   lastMatchSnapshot = prevSnapshot;
-  allMatches.push({ teamA, teamB, scoreA: sA, scoreB: sB, date });
+  const match = { teamA, teamB, scoreA: sA, scoreB: sB, date };
+  if (note) match.note = note;
+  allMatches.push(match);
   checkMilestones(prevSnapshot, allMatches);
   saveCloudData();
   closeModernAddModal();
@@ -6125,6 +6150,7 @@ Object.assign(window, {
   deleteMatchByIndex,
   editMatchByIndex,
   saveMatchEdit,
+  closeMatchEdit,
   openModernAddModal,
   closeModernAddModal,
   saveModernMatch,

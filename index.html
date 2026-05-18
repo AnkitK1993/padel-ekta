@@ -647,6 +647,12 @@ Parthiv - Par"
           placeholder="Score B"
         />
         <input id="modern-date" class="input-modern" type="date" />
+        <input
+          id="modern-note"
+          class="input-modern"
+          type="text"
+          placeholder="Note (optional) — e.g. rainy day, semifinals…"
+        />
         <button class="save-modern-btn" onclick="saveModernMatch()">
           Save Match
         </button>
@@ -713,6 +719,10 @@ Parthiv - Par"
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+        // When SW detects a new build, reload once to get fresh files
+        navigator.serviceWorker.addEventListener("message", e => {
+          if (e.data?.type === "NEW_BUILD") window.location.reload();
         });
       }
 

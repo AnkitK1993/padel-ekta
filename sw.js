@@ -1,4 +1,5 @@
-const CACHE = "ekta-padel-v1";
+const CACHE = "ekta-padel";
+const BUILD_KEY = "/__buildv__";
 const STATIC = [
   "/",
   "/index.html",
@@ -10,39 +11,74 @@ const STATIC = [
 
 self.addEventListener("install", e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(STATIC)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then(c => c.addAll(STATIC))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  e.waitUntil(self.clients.claim());
 });
+
+// Fetch buildinfo.json from network, compare to stored version.
+// If changed: wipe and re-cache all static files, return true.
+async function checkForUpdates() {
+  try {
+    const res = await fetch("/buildinfo.json", { cache: "no-store" });
+    const { v } = await res.json();
+    const c = await caches.open(CACHE);
+    const stored = await c.match(BUILD_KEY);
+    const storedV = stored ? await stored.text() : null;
+    if (storedV === String(v)) return false;
+    // New build detected — replace entire cache
+    await caches.delete(CACHE);
+    const fresh = await caches.open(CACHE);
+    await fresh.addAll(STATIC);
+    await fresh.put(BUILD_KEY, new Response(String(v)));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
 
-  // Always go network-first for Firebase/Firestore calls
+  // Network-first for Firebase / Firestore
   if (
     url.hostname.includes("firestore.googleapis.com") ||
     url.hostname.includes("firebase") ||
-    url.hostname.includes("google.com")
+    url.hostname.includes("identitytoolkit.googleapis.com")
   ) {
     e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
     return;
   }
 
-  // Cache-first for static assets
+  // On page navigation: serve cache immediately, check for updates in background
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        checkForUpdates().then(updated => {
+          if (updated) {
+            self.clients.matchAll().then(clients =>
+              clients.forEach(c => c.postMessage({ type: "NEW_BUILD" }))
+            );
+          }
+        });
+        return cached || fetch(e.request);
+      })
+    );
+    return;
+  }
+
+  // Cache-first for all other static assets
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(res => {
         if (res && res.status === 200 && e.request.method === "GET") {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
         }
         return res;
       });
