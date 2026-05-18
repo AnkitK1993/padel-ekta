@@ -61,6 +61,71 @@ function fmtDate(raw) {
   return s;
 }
 
+// ── HAMBURGER MENU ─────────────────────────────────────────
+function toggleHamburgerMenu() {
+  const menu = document.getElementById("hamburger-menu");
+  const btn  = document.getElementById("hamburgerBtn");
+  if (!menu) return;
+  const open = menu.classList.toggle("open");
+  btn.classList.toggle("active", open);
+  if (open) {
+    const close = (e) => {
+      if (!menu.contains(e.target) && e.target !== btn) {
+        menu.classList.remove("open");
+        btn.classList.remove("active");
+        document.removeEventListener("click", close, true);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", close, true), 0);
+  }
+}
+
+
+// ── TOAST ──────────────────────────────────────────────────
+function showToast(msg, emoji = "🎉", duration = 4000) {
+  const el = document.createElement("div");
+  el.className = "milestone-toast";
+  el.innerHTML = `<span class="toast-icon">${emoji}</span><span>${msg}</span>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("toast-show"));
+  setTimeout(() => {
+    el.classList.remove("toast-show");
+    setTimeout(() => el.remove(), 400);
+  }, duration);
+}
+
+function checkMilestones(prevMatches, newMatches) {
+  const milestones = [10, 25, 50, 100, 200];
+  const allPlayers = new Set();
+  newMatches.forEach((m) => [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => allPlayers.add(p)));
+  allPlayers.forEach((player) => {
+    const prevCount = prevMatches.filter((m) => (m.teamA || []).includes(player) || (m.teamB || []).includes(player)).length;
+    const newCount = newMatches.filter((m) => (m.teamA || []).includes(player) || (m.teamB || []).includes(player)).length;
+    milestones.forEach((n) => {
+      if (prevCount < n && newCount >= n) showToast(`${player} hit ${n} matches!`, "🏅");
+    });
+  });
+  // Check for win streaks hitting milestones
+  const streakMilestones = [3, 5, 10];
+  allPlayers.forEach((player) => {
+    const prevStats = computeStats(prevMatches);
+    const newStats = computeStats(newMatches);
+    const prev = prevStats.find((s) => s.name === player);
+    const cur = newStats.find((s) => s.name === player);
+    if (!prev || !cur) return;
+    streakMilestones.forEach((n) => {
+      if ((prev.curStreak || 0) < n && (cur.curStreak || 0) >= n && cur.curType === "W") {
+        showToast(`${player} is on a ${n}-match win streak!`, "🔥");
+      }
+    });
+    // Rank change (top 3)
+    const prevRank = prevStats.findIndex((s) => s.name === player) + 1;
+    const newRank = newStats.findIndex((s) => s.name === player) + 1;
+    if (prevRank > 1 && newRank === 1) showToast(`${player} is now #1!`, "👑");
+    else if (prevRank > 3 && newRank <= 3) showToast(`${player} entered the Top 3!`, "🥉");
+  });
+}
+
 // ── STATE ──────────────────────────────────────────────────
 let allMatches = [];
 let nameMap = {};
@@ -262,6 +327,8 @@ onAuthStateChanged(auth, (user) => {
 });
 
 function updateAdminUI(user) {
+  const absInp = document.getElementById("absenceThresholdInput");
+  if (absInp) absInp.value = localStorage.getItem("absence_threshold") || "7";
   const fab = document.getElementById("fab");
   // Show/hide admin tabs in all tabbars
   document.querySelectorAll(".admin-tab").forEach((tab) => {
@@ -353,6 +420,14 @@ function switchMainTab(id) {
   if (id === "history") {
     renderModernMatches();
     populateHistoryPlayerChips();
+    const hdf = document.getElementById("histDateFilter");
+    if (hdf) hdf.value = matchTabFilter;
+    const hof = document.getElementById("histOutcomeFilter");
+    if (hof) hof.value = histOutcomeFilter;
+    const hmf = document.getElementById("histMarginFilter");
+    if (hmf) hmf.value = histMarginFilter;
+    const hsf = document.getElementById("histScorelineFilter");
+    if (hsf) hsf.value = histScorelineFilter;
   }
   if (id === "analytics") renderAnalyticsPage();
   setTimeout(applyAnalyticsAnimations, 0);
@@ -791,6 +866,17 @@ function computeStats(matches, eloMap = {}) {
           ? p.results.reduce((s, r) => s + r.margin, 0) / p.results.length
           : 0;
 
+      // Consistency: lower std dev = more consistent
+      const consistency =
+        p.results.length >= 3
+          ? parseFloat(
+              Math.sqrt(
+                p.results.reduce((s, r) => s + Math.pow(r.margin - avgMargin, 2), 0) /
+                  p.results.length
+              ).toFixed(1)
+            )
+          : null;
+
       return {
         ...p,
         ml,
@@ -810,6 +896,7 @@ function computeStats(matches, eloMap = {}) {
         nemesis,
         form,
         avgMargin,
+        consistency,
       };
     })
     .sort((a, b) => b.sr - a.sr);
@@ -1126,8 +1213,10 @@ function addMatches() {
     eEl.classList.add("show");
   }
   if (parsed.length) {
-    lastMatchSnapshot = [...allMatches];
+    const prevSnapshot = [...allMatches];
+    lastMatchSnapshot = prevSnapshot;
     allMatches.push(...parsed);
+    checkMilestones(prevSnapshot, allMatches);
     saveCloudData();
     document.getElementById("matchTA").value = "";
     prefillMatchTADate();
@@ -1292,6 +1381,13 @@ function renderNamesTable() {
   table.innerHTML = html;
 }
 
+function setAbsenceThreshold(val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n < 1) return;
+  localStorage.setItem("absence_threshold", n);
+  renderHome();
+}
+
 function clearMatches() {
   if (!confirm("Clear all match data?")) return;
   allMatches = [];
@@ -1320,6 +1416,24 @@ function exportData() {
     })
     .catch(() => alert("Copy failed"));
 }
+function exportCSV() {
+  const rows = [["Date", "Team A P1", "Team A P2", "Score A", "Score B", "Team B P1", "Team B P2"]];
+  allMatches.forEach((m) => {
+    rows.push([
+      m.date || "",
+      m.teamA[0] || "", m.teamA[1] || "",
+      m.scoreA, m.scoreB,
+      m.teamB[0] || "", m.teamB[1] || "",
+    ]);
+  });
+  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "padel_matches.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function importData() {
   const raw = prompt(
     "Paste JSON export data to import (matches + names + aliases):",
@@ -1417,7 +1531,7 @@ function renderAbsenceBanner() {
     });
   });
 
-  const THRESHOLD = 7; // days
+  const THRESHOLD = parseInt(localStorage.getItem("absence_threshold") || "7", 10);
   const absent = Object.entries(lastSeen)
     .filter(([p]) => matchCounts[p] >= 3)
     .map(([p, lastDate]) => {
@@ -2207,7 +2321,7 @@ function buildHistorySummary(matches) {
             <span class="hsum-pname">${p.name}</span>
             <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
             <span class="hsum-pct" style="color:${medalColors[i]}">${p.winPct.toFixed(0)}%</span>
-            <span class="hsum-sr">${p.sr.toFixed(2)}/10 SR</span>
+            <span class="hsum-sr">${p.sr.toFixed(2)} SR</span>
           </div>`,
     )
     .join("");
@@ -2862,8 +2976,10 @@ function saveModernMatch() {
   }
   const teamA = [p1a, p2a];
   const teamB = [p1b, p2b];
-  lastMatchSnapshot = [...allMatches];
+  const prevSnapshot = [...allMatches];
+  lastMatchSnapshot = prevSnapshot;
   allMatches.push({ teamA, teamB, scoreA: sA, scoreB: sB, date });
+  checkMilestones(prevSnapshot, allMatches);
   saveCloudData();
   closeModernAddModal();
   renderModernMatches();
@@ -3122,6 +3238,11 @@ function openPlayerDetail(name) {
                     <div class="det-streak-cell">
                       <div class="det-streak-val" style="color:${marginColor}">${marginVal}</div>
                       <div class="sub">Avg Margin</div>
+                    </div>
+                    <div class="det-streak-div"></div>
+                    <div class="det-streak-cell">
+                      <div class="det-streak-val" style="color:${s.consistency !== null ? (s.consistency <= 2 ? "var(--green)" : s.consistency <= 4 ? "var(--gold)" : "var(--red)") : "var(--muted)"}">${s.consistency !== null ? s.consistency : "—"}</div>
+                      <div class="sub">Consistency</div>
                     </div>
                     <div class="det-streak-div"></div>
                     <div class="det-streak-cell">
@@ -3673,6 +3794,136 @@ function buildH2HMatrix(players) {
             </table>`;
 }
 
+// ── PLAYER COMPARISON ─────────────────────────────────────
+const CMP_DATE_OPTS = [
+  { v: "all", l: "ALL TIME" },
+  { v: "today", l: "TODAY" },
+  { v: "week", l: "THIS WEEK" },
+  { v: "lastweek", l: "LAST WEEK" },
+  { v: "weekend", l: "WEEKEND" },
+  { v: "month", l: "THIS MONTH" },
+];
+
+function cmpDateOptsHtml(selected = "all") {
+  return CMP_DATE_OPTS.map((o) => `<option value="${o.v}"${o.v === selected ? " selected" : ""}>${o.l}</option>`).join("");
+}
+
+function triggerCompare() {
+  const a = document.getElementById("cmpSelA")?.value;
+  const b = document.getElementById("cmpSelB")?.value;
+  const dateF = document.getElementById("cmpDateSel")?.value || "all";
+  if (!a || !b || a === b) { showToast("Select two different players", "⚠️", 2000); return; }
+  openPlayerCompare(a, b, dateF);
+}
+
+function openPlayerCompare(nameA, nameB, dateFilter = "all") {
+  const card = document.getElementById("compare-card");
+  if (!card) return;
+  const filtered = filterMatches(dateFilter);
+  const eloMap = computeElo(filtered);
+  const stats = computeStats(filtered, eloMap);
+  const sA = stats.find((s) => s.name === nameA);
+  const sB = stats.find((s) => s.name === nameB);
+  if (!sA || !sB) return;
+
+  const row = (label, valA, valB, higherIsBetter = true) => {
+    const a = parseFloat(valA);
+    const b = parseFloat(valB);
+    const aCol = isNaN(a) || isNaN(b) ? "var(--text)"
+      : higherIsBetter ? (a > b ? "var(--green)" : a < b ? "var(--red)" : "var(--text)")
+      : (a < b ? "var(--green)" : a > b ? "var(--red)" : "var(--text)");
+    const bCol = isNaN(a) || isNaN(b) ? "var(--text)"
+      : higherIsBetter ? (b > a ? "var(--green)" : b < a ? "var(--red)" : "var(--text)")
+      : (b < a ? "var(--green)" : b > a ? "var(--red)" : "var(--text)");
+    return `<div class="cmp-row">
+      <div class="cmp-val" style="color:${aCol}">${valA}</div>
+      <div class="cmp-lbl">${label}</div>
+      <div class="cmp-val" style="color:${bCol}">${valB}</div>
+    </div>`;
+  };
+
+  const formA = (sA.form || []).map((r) => `<span class="form-dot ${r === "W" ? "w" : "l"}">${r}</span>`).join("");
+  const formB = (sB.form || []).map((r) => `<span class="form-dot ${r === "W" ? "w" : "l"}">${r}</span>`).join("");
+
+  // Use all-matches player list for dropdowns so they're never empty
+  const allPlayers = computeStats(allMatches).map((s) => s.name);
+  const opts  = allPlayers.map((p) => `<option value="${p}"${p === nameA ? " selected" : ""}>${p}</option>`).join("");
+  const optsB = allPlayers.map((p) => `<option value="${p}"${p === nameB ? " selected" : ""}>${p}</option>`).join("");
+  const noData = (n) => `<span style="color:var(--muted);font-size:11px">${n} — no data for this period</span>`;
+
+  card.dataset.mode = "result";
+  card.style.display = "block";
+  card.innerHTML = `
+    <div class="cmp-inline-card">
+      <div class="cmp-inline-header">
+        <span class="cmp-inline-title">⚡ Compare Players</span>
+        <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
+      </div>
+      <div class="cmp-inline-selectors">
+        <select id="cmpSelA" class="cmp-ctrl cmp-player">${opts}</select>
+        <span class="cmp-inline-vs">VS</span>
+        <select id="cmpSelB" class="cmp-ctrl cmp-player">${optsB}</select>
+      </div>
+      <select id="cmpDateSel" class="cmp-ctrl cmp-full">${cmpDateOptsHtml(dateFilter)}</select>
+      <button class="cmp-ctrl cmp-full" onclick="triggerCompare()">COMPARE</button>
+      ${!sA || !sB ? `<div style="padding:12px 0;color:var(--muted);font-size:12px;text-align:center">${!sA ? noData(nameA) : ""}${!sB ? noData(nameB) : ""}</div>` : `
+      <div class="cmp-result-block">
+        <div class="cmp-names-bar">
+          <div class="cmp-name">${nameA.split(" ")[0]}</div>
+          <div class="cmp-vs-tag">${CMP_DATE_OPTS.find((o) => o.v === dateFilter)?.l || "ALL TIME"}</div>
+          <div class="cmp-name">${nameB.split(" ")[0]}</div>
+        </div>
+        <div class="cmp-rows">
+          ${row("Matches", sA.mp, sB.mp)}
+          ${row("Win %", sA.winPct.toFixed(0) + "%", sB.winPct.toFixed(0) + "%")}
+          ${row("Skill Rating", sA.sr.toFixed(2), sB.sr.toFixed(2))}
+          ${row("ELO", eloMap[nameA] || 1000, eloMap[nameB] || 1000)}
+          ${row("Game %", sA.gamePct.toFixed(0) + "%", sB.gamePct.toFixed(0) + "%")}
+          ${row("Best Streak", sA.bestWinStreak + "W", sB.bestWinStreak + "W")}
+          ${row("Avg Margin", (sA.avgMargin >= 0 ? "+" : "") + sA.avgMargin.toFixed(1), (sB.avgMargin >= 0 ? "+" : "") + sB.avgMargin.toFixed(1))}
+          ${sA.consistency !== null && sB.consistency !== null ? row("Consistency ±", sA.consistency, sB.consistency, false) : ""}
+          <div class="cmp-row" style="align-items:flex-start;padding-top:8px">
+            <div class="cmp-form">${formA}</div>
+            <div class="cmp-lbl">Form</div>
+            <div class="cmp-form" style="justify-content:flex-end">${formB}</div>
+          </div>
+        </div>
+      </div>`}
+    </div>`;
+}
+
+function renderCompareSelector() {
+  const card = document.getElementById("compare-card");
+  if (!card) return;
+  // Toggle: collapse if selector already open
+  if (card.style.display !== "none" && card.dataset.mode === "selector") {
+    card.style.display = "none";
+    card.innerHTML = "";
+    return;
+  }
+  const players = computeStats(allMatches).map((s) => s.name);
+  const opts = players.map((p) => `<option value="${p}">${p}</option>`).join("");
+  card.dataset.mode = "selector";
+  card.style.display = "block";
+  card.innerHTML = `
+    <div class="cmp-inline-card">
+      <div class="cmp-inline-header">
+        <span class="cmp-inline-title">⚡ Compare Players</span>
+        <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
+      </div>
+      <div class="cmp-inline-selectors">
+        <select id="cmpSelA" class="cmp-ctrl cmp-player">${opts}</select>
+        <span class="cmp-inline-vs">VS</span>
+        <select id="cmpSelB" class="cmp-ctrl cmp-player">${opts}</select>
+      </div>
+      <select id="cmpDateSel" class="cmp-ctrl cmp-full">${cmpDateOptsHtml()}</select>
+      <button class="cmp-ctrl cmp-full" onclick="triggerCompare()">COMPARE</button>
+    </div>`;
+  // Default second player to someone different
+  const selB = document.getElementById("cmpSelB");
+  if (selB && selB.options.length > 1) selB.selectedIndex = 1;
+}
+
 // ── ANALYTICS ──────────────────────────────────────────────
 function renderH2HDeepDive() {
   const p1 = document.getElementById("h2hP1")?.value;
@@ -3930,7 +4181,8 @@ function renderAnalyticsPage() {
     shutoutWins = {},
     shutoutLosses = {};
   const highestMargins = [],
-    partnerships = {};
+    partnerships = {},
+    teamMatchups = {};
   const monthlyStats = {},
     dateCounts = {},
     scoreDist = {},
@@ -4013,6 +4265,13 @@ function renderAnalyticsPage() {
       };
       addP(m.teamA, aWon, m.scoreA, m.scoreB);
       addP(m.teamB, !aWon, m.scoreB, m.scoreA);
+      // Team vs Team matchup tracking
+      const tkA = [...m.teamA].sort().join(" & ");
+      const tkB = [...m.teamB].sort().join(" & ");
+      const mk = [tkA, tkB].sort().join(" vs ");
+      if (!teamMatchups[mk]) teamMatchups[mk] = { teamA: [...m.teamA].sort(), teamB: [...m.teamB].sort(), wins: { [tkA]: 0, [tkB]: 0 }, played: 0 };
+      teamMatchups[mk].played++;
+      teamMatchups[mk].wins[aWon ? tkA : tkB]++;
     }
     if (m.teamA.length === 2) {
       const [a, b] = m.teamA;
@@ -4103,6 +4362,67 @@ function renderAnalyticsPage() {
         (closeWins[b] || 0) / closePlayed[b] -
         (closeWins[a] || 0) / closePlayed[a],
     )[0];
+  const clutchRankedAll = Object.keys(closePlayed)
+    .filter((p) => closePlayed[p] >= 3)
+    .map((p) => ({ name: p, wins: closeWins[p] || 0, played: closePlayed[p], pct: Math.round(((closeWins[p] || 0) / closePlayed[p]) * 100) }))
+    .sort((a, b) => b.pct - a.pct || b.played - a.played);
+  // grid: Rank | Player | Close W-L | Clutch%
+  const clutchGrid = "grid-template-columns:40px 1fr 62px 72px";
+  const clutchRankHtml = clutchRankedAll.length
+    ? `<div class="lrace-header" style="${clutchGrid}"><span>Rank</span><span>Player</span><span>Close W-L</span><span>Clutch%</span></div>` +
+      clutchRankedAll.map((p, i) => {
+        const col = p.pct > 60 ? "var(--green)" : p.pct < 40 ? "var(--red)" : "var(--muted)";
+        const lbl = p.pct > 60 ? "CLUTCH" : p.pct < 40 ? "CHOKER" : "NEUTRAL";
+        return `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:${col}">${p.pct}% <span style="font-size:9px">${lbl}</span></div></div>`;
+      }).join("")
+    : '<div class="sub" style="padding:8px">Need 3+ close matches per player.</div>';
+
+  // ── CONSISTENCY RANKINGS ─────────────────────────────────
+  // grid: Rank | Player | Matches | Consistency
+  const conGrid = "grid-template-columns:40px 1fr 56px 86px";
+  const consistencyStats = compList
+    .filter((p) => p.mp >= 3 && p.consistency !== null)
+    .sort((a, b) => a.consistency - b.consistency);
+  const consistencyRankHtml = consistencyStats.length
+    ? `<div style="font-size:9px;color:var(--muted);margin-bottom:8px">Lower = more consistent (std dev of score margins)</div>` +
+      `<div class="lrace-header" style="${conGrid}"><span>Rank</span><span>Player</span><span>Matches</span><span>Consistency</span></div>` +
+      consistencyStats.map((p, i) => {
+        const col = p.consistency <= 2 ? "var(--green)" : p.consistency <= 4 ? "var(--gold)" : "var(--red)";
+        const lbl = p.consistency <= 2 ? "SOLID" : p.consistency <= 4 ? "STEADY" : "ERRATIC";
+        return `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:${col}">±${p.consistency} <span style="font-size:9px">${lbl}</span></div></div>`;
+      }).join("")
+    : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
+
+  // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
+  const eloMapFull = computeElo(allMatches);
+  const qualityWins = {};
+  allMatches.forEach((m) => {
+    const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
+    const losers = m.scoreA > m.scoreB ? m.teamB : m.teamA;
+    const loserAvgElo = losers.reduce((s, p) => s + (eloMapFull[p] || 1000), 0) / (losers.length || 1);
+    const qualityScore = loserAvgElo / 1000;
+    winners.forEach((p) => {
+      if (!qualityWins[p]) qualityWins[p] = { total: 0, count: 0 };
+      qualityWins[p].total += qualityScore;
+      qualityWins[p].count++;
+    });
+  });
+  const qualityRanked = Object.entries(qualityWins)
+    .filter(([, v]) => v.count >= 3)
+    .map(([name, v]) => ({ name, score: parseFloat((v.total / v.count).toFixed(3)), wins: v.count }))
+    .sort((a, b) => b.score - a.score);
+  // grid: Rank | Player | Wins | Quality
+  const qualGrid = "grid-template-columns:40px 1fr 44px 72px";
+  const qualityRankHtml = qualityRanked.length
+    ? `<div style="font-size:9px;color:var(--muted);margin-bottom:8px">Avg ELO of defeated opponents (normalized to 1000 baseline)</div>` +
+      `<div class="lrace-header" style="${qualGrid}"><span>Rank</span><span>Player</span><span>Wins</span><span>Quality</span></div>` +
+      qualityRanked.map((p, i) => {
+        const col = p.score > 1.05 ? "var(--green)" : p.score < 0.95 ? "var(--red)" : "var(--muted)";
+        const lbl = p.score > 1.05 ? "ELITE" : p.score < 0.95 ? "EASY" : "MID";
+        return `<div class="lrace-row" style="${qualGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}</div><div class="lrace-delta" style="color:${col}">${p.score.toFixed(2)}x <span style="font-size:9px">${lbl}</span></div></div>`;
+      }).join("")
+    : '<div class="sub" style="padding:8px">Need 3+ wins per player.</div>';
+
   const destroyer = compList
     .filter((p) => p.mp >= 3)
     .sort((a, b) => b.avgMargin - a.avgMargin)[0];
@@ -4501,6 +4821,54 @@ function renderAnalyticsPage() {
       .join("") ||
     '<div class="sub" style="padding:8px">Not enough data.</div>';
 
+  // ── PAIR SYNERGY DELTA ────────────────────────────────────
+  // For each player, show how much better/worse they perform with each partner vs their baseline
+  const overallWinRate = {};
+  compList.forEach((p) => { overallWinRate[p.name] = p.winPct; });
+  const synergyRows = [];
+  Object.entries(partnerships).forEach(([key, pd]) => {
+    if (pd.played < 2) return;
+    const [pA, pB] = pd.players;
+    const pairPct = (pd.wins / pd.played) * 100;
+    if (overallWinRate[pA] !== undefined) {
+      synergyRows.push({ player: pA, partner: pB, pairPct, delta: pairPct - overallWinRate[pA], played: pd.played });
+    }
+    if (overallWinRate[pB] !== undefined) {
+      synergyRows.push({ player: pB, partner: pA, pairPct, delta: pairPct - overallWinRate[pB], played: pd.played });
+    }
+  });
+  synergyRows.sort((a, b) => b.delta - a.delta);
+  const synergyHtml = synergyRows.length
+    ? synergyRows.map((r) => {
+        const col = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
+        const sign = r.delta >= 0 ? "+" : "";
+        return `<div class="bpair-row"><div class="bpair-player">${r.player}</div><div class="bpair-partner">+ ${r.partner.split(" ")[0]}</div><div class="bpair-pct" style="color:${col}">${sign}${r.delta.toFixed(0)}%</div></div>`;
+      }).join("")
+    : '<div class="sub" style="padding:8px">Not enough data.</div>';
+
+  // ── PAIRED H2H ────────────────────────────────────────────
+  const pairedH2HRows = Object.entries(teamMatchups)
+    .filter(([, v]) => v.played >= 2)
+    .sort((a, b) => b[1].played - a[1].played);
+  const pairedH2HHtml = pairedH2HRows.length
+    ? pairedH2HRows.map(([, v]) => {
+        const tkA = v.teamA.join(" & ");
+        const tkB = v.teamB.join(" & ");
+        const wA = v.wins[tkA] || 0;
+        const wB = v.wins[tkB] || 0;
+        const colA = wA > wB ? "var(--green)" : wA < wB ? "var(--red)" : "var(--muted)";
+        const colB = wB > wA ? "var(--green)" : wB < wA ? "var(--red)" : "var(--muted)";
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;margin-bottom:4px">${v.teamA.map(p=>p.split(" ")[0]).join(" & ")} <span style="color:var(--muted)">vs</span> ${v.teamB.map(p=>p.split(" ")[0]).join(" & ")}</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:16px;font-weight:900;color:${colA}">${wA}</span>
+            <span style="font-size:10px;color:var(--muted)">${v.played}g</span>
+            <span style="font-size:16px;font-weight:900;color:${colB}">${wB}</span>
+          </div>
+        </div>`;
+      }).join("")
+    : '<div class="sub" style="padding:8px">Need 2+ head-to-head matches between same pairs.</div>';
+
   const allPairsRanked = Object.entries(partnerships).sort((a, b) => {
     const diff = b[1].wins / b[1].played - a[1].wins / a[1].played;
     return diff !== 0 ? diff : b[1].played - a[1].played;
@@ -4693,15 +5061,19 @@ function renderAnalyticsPage() {
     { key: "awards", title: "🏅 Awards Board", body: `<div class="awards-grid">${scard("🏃","Most Active",mostActive?.name,`${mostActive?.matches||0} matches played`)}${awardsHtml}${scard("🏆","Best Win Rate",topWinRate?.name,`${topWinRate?Math.round((topWinRate.wins/topWinRate.matches)*100):0}% (${topWinRate?.wins||0}W–${topWinRate?.losses||0}L)`)}${scard("🔥","Longest Streak",topStreak?.name,`${topStreak?.bestStreak||0} consecutive wins`)}${scard("⚔️","Most Dominant",destroyer?.name,`+${destroyer?.avgMargin?.toFixed(1)||0} avg margin`)}</div>` },
     { key: "form", title: "⚡ Current Form", body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>${ftHtml}</div>` },
     { key: "lrace", title: "🏎️ Leaderboard Race", body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>` },
+    { key: "clutchrank", title: "🎯 Clutch Rankings", body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}</div>` },
+    { key: "consistency", title: "📐 Consistency Rankings", body: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>` },
+    { key: "qualitywins", title: "💎 Quality Wins", body: `<div class="ana-card" style="padding:8px 12px">${qualityRankHtml}</div>` },
     ...(uniqueMonths.length >= 2 ? [{ key: "winrate", title: "📈 Win Rate Over Time", body: `<div class="ana-card">${winChartHtml}</div>` }] : []),
     { key: "heatmap", title: "📅 Activity Heatmap", body: `<div class="ana-card">${heatHtml}</div>` },
     { key: "score", title: "📊 Score Distribution", body: `<div class="ana-card">${sdHtml}</div>` },
     { key: "insights", title: "🎯 Match Insights", body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CLOSEST MATCHES</div>${cmHtml}<div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BIGGEST UPSETS</div>${upHtml}` },
-    { key: "partnership", title: "🤝 Partnership Analytics", body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div><div class="ana-card" style="padding:10px 12px">${chemHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div><div class="ana-card" style="padding:10px 12px">${bpHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div><div class="ana-card" style="padding:10px 12px">${pfHtml}</div>` },
+    { key: "partnership", title: "🤝 Partnership Analytics", body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div><div class="ana-card" style="padding:10px 12px">${chemHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div><div class="ana-card" style="padding:10px 12px">${bpHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div><div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div><div class="ana-card" style="padding:10px 12px">${pfHtml}</div>` },
     { key: "rivalry", title: "🔥 Rivalry Spotlight", body: `<div class="ana-card">${rivalHtml}</div>` },
     { key: "session", title: "📋 Session Stats", body: sessHtml },
     { key: "shutout", title: "🎯 Shutout Records", body: `<div class="awards-grid">${scard("🚫","Most Shutout Wins",mostShutoutWinsEntry?.[0],`${mostShutoutWinsEntry?.[1]||0} games won X-0`)}${scard("💔","Most Shutout Losses",mostShutoutLosses.length?mostShutoutLosses.join(" & "):null,`${maxLosses} games lost 0-X`)}</div>` },
     { key: "pairs", title: "🤝 All Pairs", body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>` },
+    { key: "pairedh2h", title: "⚔️ Paired H2H Records", body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>` },
     { key: "elo", title: "⚡ ELO Rankings", body: eloHtml },
     { key: "pairmatrix", title: "🧪 Pair Chemistry Matrix", body: pairMatrixHtml },
     { key: "monthlyawards", title: "🏆 Monthly Awards", body: monthlyAwardsHtml },
@@ -4780,6 +5152,8 @@ Object.assign(window, {
   clearMatches,
   clearNames,
   exportData,
+  exportCSV,
+  setAbsenceThreshold,
   renderHome,
   renderCompact,
   setCmpSort,
@@ -4826,6 +5200,11 @@ Object.assign(window, {
   prefillMatchTADate,
   renderH2HDeepDive,
   setHistoryDateFilter,
+  openPlayerCompare,
+  renderCompareSelector,
+  triggerCompare,
+  showToast,
+  toggleHamburgerMenu,
 });
 
 function setHistoryDateFilter(value) {
