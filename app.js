@@ -769,7 +769,15 @@ function switchITab(id) {
   // FAB hidden only on Manage sub-tab
   document.getElementById("fab").style.display =
     id !== "manage" && window.isAdmin ? "flex" : "none";
-  if (id === "manage") refreshManage();
+  if (id === "manage") {
+    refreshManage();
+    document.querySelectorAll("#ip-manage .mng-card, #ip-manage .mng-danger-card").forEach((el, i) => {
+      el.style.setProperty("--analytics-index", i);
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.animation = "";
+    });
+  }
   if (id === "names") renderNamesTable();
   if (id === "matches") prefillMatchTADate();
 }
@@ -778,6 +786,7 @@ function refreshManage() {
   const days = new Set(allMatches.map((m) => m.date)).size;
   document.getElementById("manageInfo").innerHTML =
     `Matches: <strong>${allMatches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(aliasMap).length}</strong>`;
+  populateEmailInputs();
 }
 
 // ── DATE HELPERS ───────────────────────────────────────────
@@ -6115,12 +6124,117 @@ function showAnalytics() {
   switchMainTab("analytics");
 }
 
+// ── EMAIL BACKUP ───────────────────────────────────────────
+let emailConfig = { recipientEmail: "", serviceId: "", templateId: "", publicKey: "" };
+let _emailTimer = null;
+
+function loadEmailConfig() {
+  try {
+    const s = localStorage.getItem("padel_email_cfg");
+    if (s) emailConfig = { ...emailConfig, ...JSON.parse(s) };
+  } catch {}
+}
+
+function saveEmailConfig() {
+  emailConfig.recipientEmail = document.getElementById("email-recipient")?.value.trim() || "";
+  emailConfig.serviceId      = document.getElementById("email-service-id")?.value.trim() || "";
+  emailConfig.templateId     = document.getElementById("email-template-id")?.value.trim() || "";
+  emailConfig.publicKey      = document.getElementById("email-public-key")?.value.trim() || "";
+  localStorage.setItem("padel_email_cfg", JSON.stringify(emailConfig));
+  showToast("Email config saved", "✅");
+  renderEmailStatus();
+  scheduleAutoEmail();
+}
+
+function renderEmailStatus() {
+  const el = document.getElementById("email-status");
+  if (!el) return;
+  const last  = localStorage.getItem("padel_last_email");
+  const today = new Date().toISOString().split("T")[0];
+  if (!emailConfig.serviceId || !emailConfig.recipientEmail) {
+    el.innerHTML = "Not configured &nbsp;·&nbsp; Auto-send disabled";
+    return;
+  }
+  const sentText = last === today ? "✅ Sent today"
+    : last ? `Last sent: ${last}` : "Never sent";
+  el.innerHTML = `${sentText} &nbsp;·&nbsp; Auto-sends daily at 1 pm`;
+}
+
+function populateEmailInputs() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
+  set("email-recipient",   emailConfig.recipientEmail);
+  set("email-service-id",  emailConfig.serviceId);
+  set("email-template-id", emailConfig.templateId);
+  set("email-public-key",  emailConfig.publicKey);
+  renderEmailStatus();
+}
+
+async function sendBackupEmail(isAuto = false) {
+  if (typeof emailjs === "undefined") {
+    if (!isAuto) showToast("EmailJS not loaded", "❌");
+    return false;
+  }
+  const { serviceId, templateId, publicKey, recipientEmail } = emailConfig;
+  if (!serviceId || !templateId || !publicKey || !recipientEmail) {
+    if (!isAuto) showToast("Complete email config first", "⚠️");
+    return false;
+  }
+  try {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const jsonData = JSON.stringify({ allMatches, aliasMap, nameMap }, null, 2);
+
+    await emailjs.send(serviceId, templateId, {
+      to_email:    recipientEmail,
+      from_name:   "Ekta Padel",
+      subject:     `Padel Backup — ${todayStr}`,
+      send_type:   isAuto ? "🤖 Automatic daily backup" : "📤 Manual backup",
+      match_count: allMatches.length,
+      backup_date: todayStr,
+      json_data:   jsonData,
+    }, publicKey);
+
+    localStorage.setItem("padel_last_email", todayStr);
+    renderEmailStatus();
+    if (!isAuto) showToast("Backup email sent!", "📧");
+    return true;
+  } catch (err) {
+    console.error("Backup email error:", err);
+    if (!isAuto) showToast("Email failed — check config", "❌");
+    return false;
+  }
+}
+
+function scheduleAutoEmail() {
+  if (_emailTimer) { clearTimeout(_emailTimer); _emailTimer = null; }
+  if (!emailConfig.serviceId || !emailConfig.recipientEmail) return;
+
+  const now    = new Date();
+  const today  = now.toISOString().split("T")[0];
+  const target = new Date(now);
+  target.setHours(13, 0, 0, 0);
+
+  if (localStorage.getItem("padel_last_email") !== today && now >= target) {
+    sendBackupEmail(true).then(() => scheduleAutoEmail());
+    return;
+  }
+
+  if (localStorage.getItem("padel_last_email") === today) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  _emailTimer = setTimeout(() => {
+    sendBackupEmail(true).then(() => scheduleAutoEmail());
+  }, target - now);
+}
+
 // ── INIT ───────────────────────────────────────────────────
 // loadCloudData() orchestrates: cache-first render → Firestore refresh.
 // renderHome/renderCompact are called inside it after data is ready.
+loadEmailConfig();
 renderNamesTable();
 loadCloudData();
 loadScheduledMatches();
+scheduleAutoEmail();
 
 // Expose globals
 Object.assign(window, {
@@ -6136,6 +6250,8 @@ Object.assign(window, {
   loadNames,
   clearMatches,
   clearNames,
+  saveEmailConfig,
+  sendBackupEmail,
   exportData,
   exportCSV,
   setAbsenceThreshold,

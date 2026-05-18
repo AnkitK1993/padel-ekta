@@ -20,6 +20,7 @@
     />
     <link rel="stylesheet" href="styles.css" />
     <script src="utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   </head>
   <body>
     <!-- ══════════ SPLASH SCREEN ══════════ -->
@@ -538,40 +539,84 @@ Parthiv - Par"
           <div id="names-table" style="margin-top: 10px"></div>
         </div>
         <div class="panel" id="ip-manage">
-          <div class="slbl">Storage Info</div>
-          <div class="manage-stat" id="manageInfo">Loading...</div>
-          <div class="slbl">Settings</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <span style="font-size:12px;color:var(--muted);flex:1">Absence alert after (days)</span>
-            <input type="number" min="1" max="365" id="absenceThresholdInput"
-              style="width:56px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;font-size:13px;text-align:center"
-              oninput="setAbsenceThreshold(this.value)"
-              value="7">
+
+          <!-- Storage Info -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">📊</span>
+              <span class="mng-card-title">Storage</span>
+            </div>
+            <div class="manage-stat" id="manageInfo">Loading...</div>
           </div>
-          <div class="slbl">Upcoming Sessions</div>
-          <div id="scheduled-admin-list" style="margin-bottom:8px"></div>
-          <button class="btn-p" id="schedule-session-btn" onclick="openScheduleModal()" style="width:100%;margin-bottom:8px">📅 Schedule Session</button>
-          <div class="slbl">Actions</div>
-          <button class="btn-p" onclick="exportData()" style="width: 100%">
-            📤 Export All Data (JSON)
-          </button>
-          <button class="btn-p" onclick="exportCSV()" style="width: 100%; margin-top: 8px">
-            📊 Export Matches (CSV)
-          </button>
-          <button
-            class="btn-p"
-            onclick="importData()"
-            style="width: 100%; margin-top: 8px"
-          >
-            📥 Import JSON
-          </button>
-          <div class="msg ok" id="expOk"></div>
-          <button class="btn-danger" onclick="clearMatches()">
-            🗑 Clear All Match Data
-          </button>
-          <button class="btn-danger" onclick="clearNames()">
-            🗑 Clear Name Aliases
-          </button>
+
+          <!-- Settings -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">⚙️</span>
+              <span class="mng-card-title">Settings</span>
+            </div>
+            <div class="mng-setting-row">
+              <span class="mng-setting-label">Absence alert after (days)</span>
+              <input type="number" min="1" max="365" id="absenceThresholdInput"
+                class="mng-setting-input"
+                oninput="setAbsenceThreshold(this.value)"
+                value="7">
+            </div>
+          </div>
+
+          <!-- Sessions -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">📅</span>
+              <span class="mng-card-title">Upcoming Sessions</span>
+            </div>
+            <div id="scheduled-admin-list"></div>
+            <button class="btn-p" id="schedule-session-btn" onclick="openScheduleModal()" style="width:100%;margin-top:4px">📅 Schedule Session</button>
+          </div>
+
+          <!-- Email Backup -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">📧</span>
+              <span class="mng-card-title">Email Backup</span>
+            </div>
+            <div class="mng-input-stack">
+              <input id="email-recipient" type="email" placeholder="Recipient email" class="mng-input">
+              <input id="email-service-id" type="text" placeholder="EmailJS Service ID" class="mng-input">
+              <input id="email-template-id" type="text" placeholder="EmailJS Template ID" class="mng-input">
+              <input id="email-public-key" type="text" placeholder="EmailJS Public Key" class="mng-input">
+            </div>
+            <button class="btn-s" onclick="saveEmailConfig()" style="width:100%;margin-top:2px">💾 Save Config</button>
+            <div id="email-status" class="mng-email-status"></div>
+            <button class="btn-p" onclick="sendBackupEmail(false)" style="width:100%;margin-top:8px">📧 Send Backup Now</button>
+          </div>
+
+          <!-- Data Actions -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">💾</span>
+              <span class="mng-card-title">Data</span>
+            </div>
+            <div class="mng-actions-grid">
+              <button class="btn-p" onclick="exportData()">📤 Export JSON</button>
+              <button class="btn-p" onclick="exportCSV()">📊 Export CSV</button>
+            </div>
+            <button class="btn-p" onclick="importData()" style="width:100%;margin-top:8px">📥 Import JSON</button>
+            <div class="msg ok" id="expOk"></div>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="mng-danger-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">⚠️</span>
+              <span class="mng-card-title mng-danger-title">Danger Zone</span>
+            </div>
+            <div class="mng-actions-grid">
+              <button class="btn-danger" onclick="clearMatches()">🗑 Clear Matches</button>
+              <button class="btn-danger" onclick="clearNames()">🗑 Clear Aliases</button>
+            </div>
+          </div>
+
         </div>
       </div>
       <div class="tabbar">
