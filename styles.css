@@ -8096,3 +8096,13 @@ select.cmp-sel option {
   font-weight: 700;
   cursor: pointer;
 }
+
+/* ── Quick Rematch ──────────────────────────────── */
+.rematch-btn {
+  background: rgba(245, 200, 66, 0.1);
+  color: var(--gold);
+  border-color: rgba(245, 200, 66, 0.35);
+}
+.rematch-btn:active {
+  background: rgba(245, 200, 66, 0.22);
+}

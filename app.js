@@ -2098,6 +2098,7 @@ function buildMatchCards(matches, showAdmin) {
                       ? `<div class="match-actions">
                     <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx})">✏ Edit</button>
                     <button class="action-btn delete-btn" onclick="deleteMatchByIndex(${realIdx})">🗑 Del</button>
+                    <button class="action-btn rematch-btn" onclick="quickRematch(${realIdx})">⚡ Rematch</button>
                   </div>`
                       : `<div></div>`
                   }
@@ -3029,6 +3030,27 @@ function openModernAddModal() {
   document.getElementById("modern-add-modal").classList.add("show");
   document.getElementById("modern-date").value = todayISO();
   populatePlayerDropdowns();
+}
+
+function quickRematch(idx) {
+  const m = allMatches[idx];
+  if (!m) return;
+  // Swap teams: winners become team B, losers become team A
+  const newA = (m.teamB || []).map(p => nameMap[p] || p);
+  const newB = (m.teamA || []).map(p => nameMap[p] || p);
+  openModernAddModal();
+  requestAnimationFrame(() => {
+    const sel = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    sel("modern-team-a-p1", newA[0] || "");
+    sel("modern-team-a-p2", newA[1] || "");
+    sel("modern-team-b-p1", newB[0] || "");
+    sel("modern-team-b-p2", newB[1] || "");
+    // Clear scores so user enters fresh result
+    const sa = document.getElementById("modern-score-a");
+    const sb = document.getElementById("modern-score-b");
+    if (sa) sa.value = "";
+    if (sb) sb.value = "";
+  });
 }
 function closeModernAddModal() {
   document.getElementById("modern-add-modal").classList.remove("show");
@@ -5646,6 +5668,7 @@ Object.assign(window, {
   playerColor,
   playerInitials,
   openShareCard,
+  quickRematch,
   runMatchSimulator,
   toggleMatchCalendar,
   calNav,
