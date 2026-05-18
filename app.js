@@ -2356,6 +2356,35 @@ function buildHistorySummary(matches) {
       `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🎯</span><span class="hsum-hl-label">Top Scoreline</span><span class="hsum-hl-val">${topScore[0]} &nbsp;<span style="color:var(--muted)">${topScore[1]}× played</span></span></div>`,
     );
   }
+  // Session recap — always based on latest session in allMatches
+  let sessionRecapHtml = "";
+  if (allMatches.length) {
+    const byDate = {};
+    allMatches.forEach((m) => { const dd = m.date || "1970-01-01"; if (!byDate[dd]) byDate[dd] = []; byDate[dd].push(m); });
+    const lastDate = Object.keys(byDate).sort().pop();
+    const sessionMatches = byDate[lastDate];
+    if (sessionMatches.length >= 2) {
+      const beforeMatches = allMatches.filter((m) => (m.date || "1970-01-01") < lastDate);
+      const eloAfter = computeElo(allMatches);
+      const eloBefore = computeElo(beforeMatches);
+      const sessionPlayers = new Set();
+      sessionMatches.forEach((m) => [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => sessionPlayers.add(normPlayer(p))));
+      const deltas = [...sessionPlayers]
+        .map((p) => ({ name: p, delta: Math.round((eloAfter[p] || 1000) - (eloBefore[p] || 1000)) }))
+        .sort((a, b) => b.delta - a.delta);
+      const gainers = deltas.filter((g) => g.delta > 0).slice(0, 3);
+      const losers = [...deltas].filter((l) => l.delta < 0).reverse().slice(0, 3);
+      const mvp = gainers[0];
+      sessionRecapHtml = `
+        <div class="hsum-section-lbl">ELO CHANGES</div>
+        <div class="hsum-highlights">
+          ${mvp ? `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🏆</span><span class="hsum-hl-label">MVP</span><span class="hsum-hl-val">${mvp.name}&nbsp;<span style="color:var(--green)">+${mvp.delta} ELO</span></span></div>` : ""}
+          ${gainers.length ? `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">📈</span><span class="hsum-hl-label">Gained</span><span class="hsum-hl-val">${gainers.map((g) => `<span class="sr-chip sr-chip-g">▲ ${g.name} +${g.delta}</span>`).join("")}</span></div>` : ""}
+          ${losers.length ? `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">📉</span><span class="hsum-hl-label">Lost</span><span class="hsum-hl-val">${losers.map((l) => `<span class="sr-chip sr-chip-l">▼ ${l.name} ${l.delta}</span>`).join("")}</span></div>` : ""}
+        </div>`;
+    }
+  }
+
   return `<div class="hist-summary-card hsum-card-anim">
           <div class="hsum-header">
             <span class="hsum-title">📊 HIGHLIGHTS</span>
@@ -2369,6 +2398,7 @@ function buildHistorySummary(matches) {
           </div>
           ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
           ${highlights.length ? `<div class="hsum-section-lbl">AWARDS</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
+          ${sessionRecapHtml}
         </div>`;
 }
 
@@ -3029,6 +3059,55 @@ function openPlayerDetail(name) {
         ? "var(--red)"
         : "var(--muted)";
 
+  // Form graph — rolling 5-match win rate sparkline
+  const graphMatches = [...detail.matches]
+    .sort((a, b) => new Date(a.date || "1970-01-01") - new Date(b.date || "1970-01-01"))
+    .slice(-15);
+  const formGraphHtml = (() => {
+    if (graphMatches.length < 3) return "";
+    const WINDOW = 5, W = 260, H = 56, PAD = 8;
+    const wins = graphMatches.map((m) => {
+      const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
+      const own = inA ? Number(m.scoreA) : Number(m.scoreB);
+      const opp = inA ? Number(m.scoreB) : Number(m.scoreA);
+      return own > opp ? 1 : 0;
+    });
+    const rates = wins.map((_, i) => {
+      const sl = wins.slice(Math.max(0, i - WINDOW + 1), i + 1);
+      return sl.reduce((s, v) => s + v, 0) / sl.length;
+    });
+    const n = rates.length;
+    const xs = rates.map((_, i) => PAD + (i / (n - 1)) * (W - PAD * 2));
+    const ys = rates.map((r) => H - PAD - r * (H - PAD * 2));
+    const pathD = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
+    const areaD = pathD + ` L${xs[n - 1].toFixed(1)},${(H - PAD).toFixed(1)} L${xs[0].toFixed(1)},${(H - PAD).toFixed(1)} Z`;
+    const last = rates[n - 1];
+    const lineColor = last >= 0.6 ? "#36d47e" : last <= 0.4 ? "#f04f4f" : "#f5c842";
+    const gId = `fg_${name.replace(/\W+/g, "_")}`;
+    const dots = xs.map((x, i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.5" fill="${wins[i] ? "#36d47e" : "#f04f4f"}"/>`).join("");
+    return `<div class="ana-card">
+      <span class="badge">Form Graph</span>
+      <div style="margin-top:10px">
+        <svg width="100%" height="56" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;overflow:visible">
+          <defs>
+            <linearGradient id="${gId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="${PAD}" y1="${(H / 2).toFixed(1)}" x2="${(W - PAD).toFixed(1)}" y2="${(H / 2).toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4,4"/>
+          <path d="${areaD}" fill="url(#${gId})"/>
+          <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          ${dots}
+        </svg>
+        <div style="display:flex;justify-content:space-between;margin-top:5px">
+          <span class="sub">rolling 5-match win rate · last ${n}</span>
+          <span style="font-size:11px;font-weight:800;color:${lineColor}">${(last * 100).toFixed(0)}%</span>
+        </div>
+      </div>
+    </div>`;
+  })();
+
   // Feature 2: best / worst partner
   const bestPartnerHtml = s.bestPartner
     ? `
@@ -3252,6 +3331,8 @@ function openPlayerDetail(name) {
                     <div class="det-form-dots">${formDotsHtml}</div>
                   </div>
                 </div>
+
+                ${formGraphHtml}
 
                 <div class="ana-card">
                   <span class="badge">Score Dominance</span>

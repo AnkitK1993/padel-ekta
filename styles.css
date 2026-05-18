@@ -2362,6 +2362,94 @@ textarea:focus {
   text-shadow: 0 0 8px rgba(255, 79, 79, 0.4);
 }
 
+/* ── SESSION RECAP ──────────────────────── */
+.session-recap-card {
+  margin: 12px 11px 16px;
+  background: linear-gradient(135deg, rgba(var(--theme-rgb), 0.07), rgba(var(--theme-rgb), 0.02));
+  border: 1px solid rgba(var(--theme-rgb), 0.2);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.sr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sr-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.sr-meta {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.sr-mvp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(var(--theme-rgb), 0.08);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+.sr-mvp-icon { font-size: 14px; }
+.sr-mvp-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  flex: 1;
+}
+.sr-mvp-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.sr-mvp-delta {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--green);
+}
+.sr-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.sr-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  min-width: 54px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.sr-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.sr-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+.sr-chip-g { background: rgba(54, 212, 126, 0.15); color: var(--green); }
+.sr-chip-l { background: rgba(240, 79, 79, 0.15); color: var(--red); }
+
 .absence-banner {
   flex-shrink: 0;
   background: linear-gradient(
