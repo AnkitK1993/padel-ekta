@@ -796,20 +796,71 @@ const PLAYER_AVATAR_PRESETS = [
 ];
 
 const _AVATAR_STORE = "padel_player_avatars";
-function _getAvatarStore() {
-  try { return JSON.parse(localStorage.getItem(_AVATAR_STORE)) || {}; } catch { return {}; }
+const _UPLOAD_STORE = "padel_player_avatar_imgs";
+function _getAvatarStore() { try { return JSON.parse(localStorage.getItem(_AVATAR_STORE)) || {}; } catch { return {}; } }
+function _getUploadStore() { try { return JSON.parse(localStorage.getItem(_UPLOAD_STORE)) || {}; } catch { return {}; } }
+
+// In-memory cloud state (populated by Firestore subscription)
+let _avatarCloud = { keys: {}, imgs: {} };
+// Tracks which player's detail modal is open so live updates can refresh it
+let _currentDetailPlayer = null;
+
+function getPlayerAvatar(name) {
+  return _avatarCloud.keys[name] || _getAvatarStore()[name] || "initials";
 }
-function getPlayerAvatar(name) { return _getAvatarStore()[name] || "initials"; }
+function getPlayerAvatarImg(name) {
+  return _avatarCloud.imgs[name] || _getUploadStore()[name] || null;
+}
 function setPlayerAvatar(name, key) {
+  _avatarCloud.keys[name] = key;
   const s = _getAvatarStore(); s[name] = key;
   localStorage.setItem(_AVATAR_STORE, JSON.stringify(s));
+  _saveAvatarCloud();
 }
-const _UPLOAD_STORE = "padel_player_avatar_imgs";
-function _getUploadStore() { try { return JSON.parse(localStorage.getItem(_UPLOAD_STORE)) || {}; } catch { return {}; } }
-function getPlayerAvatarImg(name) { return _getUploadStore()[name] || null; }
 function setPlayerAvatarImg(name, dataUrl) {
+  _avatarCloud.imgs[name] = dataUrl;
   const s = _getUploadStore(); s[name] = dataUrl;
   localStorage.setItem(_UPLOAD_STORE, JSON.stringify(s));
+  _saveAvatarCloud();
+}
+
+async function _saveAvatarCloud() {
+  if (!window.isAdmin || !auth.currentUser) return;
+  try {
+    await setDoc(doc(db, "padel", "avatars"), _avatarCloud, { merge: true });
+  } catch (e) {
+    console.error("Avatar cloud save failed:", e);
+  }
+}
+
+function loadAvatarData() {
+  // Seed from localStorage so avatars appear instantly before Firestore responds
+  try {
+    const cachedKeys = _getAvatarStore();
+    const cachedImgs = _getUploadStore();
+    if (Object.keys(cachedKeys).length) _avatarCloud.keys = { ..._avatarCloud.keys, ...cachedKeys };
+    if (Object.keys(cachedImgs).length) _avatarCloud.imgs = { ..._avatarCloud.imgs, ...cachedImgs };
+  } catch (e) {}
+
+  try {
+    onSnapshot(doc(db, "padel", "avatars"), snap => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      _avatarCloud = { keys: d.keys || {}, imgs: d.imgs || {} };
+      // Keep localStorage in sync as offline fallback
+      try {
+        localStorage.setItem(_AVATAR_STORE, JSON.stringify(_avatarCloud.keys));
+        localStorage.setItem(_UPLOAD_STORE, JSON.stringify(_avatarCloud.imgs));
+      } catch (e) {}
+      // Refresh avatar in the currently open player detail modal
+      if (_currentDetailPlayer) {
+        const hint = document.querySelector("#player-detail-modal .av-tap-hint");
+        if (hint) hint.innerHTML = playerAvatar(_currentDetailPlayer, 64);
+      }
+    });
+  } catch (e) {
+    console.error("Avatar cloud snapshot failed:", e);
+  }
 }
 
 function playerColor(name) {
@@ -3323,6 +3374,7 @@ function saveModernMatch() {
 }
 
 function openPlayerDetail(name) {
+  _currentDetailPlayer = name;
   document.getElementById("player-detail-modal")?.remove();
   const detail = getPlayerDetail(name);
   if (!detail.stats) {
@@ -5791,6 +5843,7 @@ function showAnalytics() {
 // renderHome/renderCompact are called inside it after data is ready.
 renderNamesTable();
 loadCloudData();
+loadAvatarData();
 
 // Expose globals
 Object.assign(window, {
