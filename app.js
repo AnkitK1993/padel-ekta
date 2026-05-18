@@ -4892,57 +4892,79 @@ function renderAnalyticsPage() {
     winChartHtml = `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">${yL}${lines}${xL}</svg></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">${legend}</div>`;
   }
 
-  // ── HEATMAP ────────────────────────────────────────────
-  const hCells = [];
-  for (let i = 111; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const ds = d.toISOString().substring(0, 10);
-    hCells.push({ ds, c: dateCounts[ds] || 0 });
-  }
-  const maxH = Math.max(...hCells.map((c) => c.c), 1);
-  const hmMonthLabels = (() => {
-    const moN = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    // With column-major flow, column k = cells k*7 … k*7+6 (one week per column)
-    return `<div style="display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin-bottom:3px">${Array.from(
-      { length: 16 },
-      (_, col) => {
-        const first = hCells[col * 7];
-        if (!first) return "<div></div>";
-        const mo = parseInt(first.ds.substring(5, 7)) - 1;
-        const prev =
-          col > 0
-            ? parseInt(hCells[(col - 1) * 7]?.ds.substring(5, 7) || "0") - 1
-            : -1;
-        return `<div style="font-size:7px;color:var(--muted);white-space:nowrap;overflow:hidden">${mo !== prev ? moN[mo] : ""}</div>`;
-      },
-    ).join("")}</div>`;
+  // ── HEATMAP (all-time, clickable) ─────────────────────
+  const heatHtml = (() => {
+    const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const DOW = ["M","T","W","T","F","S","S"];
+
+    // Start from Monday of the week containing the first ever match
+    const allDs = Object.keys(dateCounts).sort();
+    const refDate = allDs.length ? new Date(allDs[0]) : new Date();
+    const startDow = (refDate.getDay() + 6) % 7;
+    refDate.setDate(refDate.getDate() - startDow);
+
+    const todayD = new Date();
+    const hCells = [];
+    const cur = new Date(refDate);
+    while (cur <= todayD) {
+      const ds = cur.toISOString().substring(0, 10);
+      hCells.push({ ds, c: dateCounts[ds] || 0 });
+      cur.setDate(cur.getDate() + 1);
+    }
+    while (hCells.length % 7 !== 0) hCells.push({ ds: "", c: 0, pad: true });
+
+    const numWeeks = hCells.length / 7;
+    const maxH = Math.max(...hCells.map(c => c.c), 1);
+    const todayStr = todayISO();
+
+    // Month labels (one per column, show when month changes)
+    const monthRow = Array.from({ length: numWeeks }, (_, col) => {
+      const cell = hCells[col * 7];
+      if (!cell?.ds) return `<div></div>`;
+      const mo = parseInt(cell.ds.substring(5, 7)) - 1;
+      const prev = col > 0 ? parseInt(hCells[(col-1)*7]?.ds?.substring(5,7) || "0") - 1 : -1;
+      return `<div class="hm-mo-lbl">${mo !== prev ? MON[mo] : ""}</div>`;
+    }).join("");
+
+    // Grid cells
+    const cells = hCells.map(c => {
+      if (c.pad) return `<div class="hm-cell hm-pad"></div>`;
+      const a = c.c === 0 ? 0 : Math.max(0.18, c.c / maxH);
+      const bg = c.c === 0 ? "rgba(255,255,255,0.05)" : `rgba(var(--theme-rgb),${a.toFixed(2)})`;
+      const isToday = c.ds === todayStr;
+      const clickable = c.c > 0 ? `onclick="calDayClick('${c.ds}')" style="background:${bg};cursor:pointer${isToday ? ";outline:1.5px solid rgba(var(--theme-rgb),0.8);outline-offset:-1px" : ""}"` : `style="background:${bg}${isToday ? ";outline:1.5px solid rgba(var(--theme-rgb),0.5);outline-offset:-1px" : ""}"`;
+      const tip = c.ds + (c.c ? `: ${c.c} match${c.c > 1 ? "es" : ""}` : "");
+      return `<div class="hm-cell" ${clickable} title="${tip}"></div>`;
+    }).join("");
+
+    // Stats bar
+    const totalSessions = allDs.length;
+    const busiestDay = allDs.reduce((a, b) => (dateCounts[b] > dateCounts[a] ? b : a), allDs[0] || "");
+    const monthCounts = {};
+    allDs.forEach(ds => { const k = ds.substring(0, 7); monthCounts[k] = (monthCounts[k] || 0) + dateCounts[ds]; });
+    const busiestMonth = Object.keys(monthCounts).reduce((a, b) => (monthCounts[b] > monthCounts[a] ? b : a), Object.keys(monthCounts)[0] || "");
+    const busiestMonthLabel = busiestMonth ? MON[parseInt(busiestMonth.substring(5, 7)) - 1] + " " + busiestMonth.substring(0, 4) : "—";
+    const statsBar = `<div class="hm-stats-row">
+      <div class="hm-stat"><div class="hm-stat-val">${totalSessions}</div><div class="hm-stat-lbl">Session Days</div></div>
+      <div class="hm-stat-div"></div>
+      <div class="hm-stat"><div class="hm-stat-val">${allMatches.length}</div><div class="hm-stat-lbl">Total Matches</div></div>
+      <div class="hm-stat-div"></div>
+      <div class="hm-stat"><div class="hm-stat-val">${busiestMonthLabel}</div><div class="hm-stat-lbl">Busiest Month</div></div>
+      <div class="hm-stat-div"></div>
+      <div class="hm-stat"><div class="hm-stat-val">${busiestDay ? fmtDate(busiestDay) : "—"}</div><div class="hm-stat-lbl">Peak Day (${dateCounts[busiestDay] || 0}m)</div></div>
+    </div>`;
+
+    return `<div class="hm-outer">
+      <div class="hm-scroll">
+        <div class="hm-dow-col">${DOW.map(d => `<div class="hm-dow">${d}</div>`).join("")}</div>
+        <div style="flex:1;min-width:0">
+          <div class="hm-mo-row" style="grid-template-columns:repeat(${numWeeks},var(--hm-sz))">${monthRow}</div>
+          <div class="hm-grid" style="grid-template-columns:repeat(${numWeeks},var(--hm-sz))">${cells}</div>
+        </div>
+      </div>
+      <div class="hm-legend"><span>Less</span><div class="hm-leg-cell" style="background:rgba(255,255,255,0.05)"></div><div class="hm-leg-cell" style="background:rgba(var(--theme-rgb),0.25)"></div><div class="hm-leg-cell" style="background:rgba(var(--theme-rgb),0.6)"></div><div class="hm-leg-cell" style="background:rgba(var(--theme-rgb),1)"></div><span>More</span></div>
+    </div>${statsBar}`;
   })();
-  const heatHtml = `<div style="font-size:9px;color:var(--muted);margin-bottom:4px">Match activity — last 112 days</div>${hmMonthLabels}<div class="hm-grid">${hCells
-    .map((c) => {
-      const a = c.c === 0 ? 0 : Math.max(0.2, c.c / maxH);
-      const bg =
-        c.c === 0
-          ? "rgba(255,255,255,0.04)"
-          : `rgba(var(--theme-rgb),${a.toFixed(2)})`;
-      return `<div class="hm-cell" style="background:${bg}" title="${c.ds}${c.c ? ": " + c.c + " match" + (c.c > 1 ? "es" : "") : ""}"></div>`;
-    })
-    .join(
-      "",
-    )}</div><div style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:9px;color:var(--muted)"><span>Less</span><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.04)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.3)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),0.7)"></div><div style="width:10px;height:10px;border-radius:2px;background:rgba(var(--theme-rgb),1)"></div><span>More</span></div>`;
 
   // ── SCORE DISTRIBUTION ─────────────────────────────────
   const sdHtml = scoreDistSorted
