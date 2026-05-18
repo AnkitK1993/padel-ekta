@@ -550,7 +550,7 @@ Parthiv - Par"
           </div>
           <div class="slbl">Upcoming Sessions</div>
           <div id="scheduled-admin-list" style="margin-bottom:8px"></div>
-          <button class="btn-p" onclick="openScheduleModal()" style="width:100%;margin-bottom:14px">📅 Schedule Session</button>
+          <button class="btn-p" id="schedule-session-btn" onclick="openScheduleModal()" style="width:100%;margin-bottom:8px">📅 Schedule Session</button>
           <div class="slbl">Actions</div>
           <button class="btn-p" onclick="exportData()" style="width: 100%">
             📤 Export All Data (JSON)
@@ -563,7 +563,7 @@ Parthiv - Par"
             onclick="importData()"
             style="width: 100%; margin-top: 8px"
           >
-            📥 Import Data
+            📥 Import JSON
           </button>
           <div class="msg ok" id="expOk"></div>
           <button class="btn-danger" onclick="clearMatches()">

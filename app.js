@@ -277,39 +277,47 @@ function renderScheduledAdmin() {
   }).join("");
 }
 
+function closeScheduleModal() {
+  const el = document.getElementById("schedule-inline");
+  if (!el) return;
+  el.classList.remove("open");
+  setTimeout(() => el.remove(), 260);
+}
+
 function openScheduleModal() {
-  document.getElementById("schedule-modal")?.remove();
+  if (document.getElementById("schedule-inline")) { closeScheduleModal(); return; }
   const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b));
   const opts = players.map(p => `<option value="${p}">${p}</option>`).join("");
-  const modal = document.createElement("div");
-  modal.id = "schedule-modal";
-  modal.className = "modern-add-modal show";
-  modal.innerHTML = `
-    <div class="modern-modal-overlay" onclick="document.getElementById('schedule-modal').remove()"></div>
-    <div class="modern-modal-card" style="max-width:320px">
-      <div class="modern-modal-header">
-        <span class="modern-modal-title">Schedule Session</span>
-        <button class="modern-modal-close" onclick="document.getElementById('schedule-modal').remove()">✕</button>
-      </div>
-      <div class="modern-modal-body">
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">DATE</div>
-        <input id="sched-date" type="date" class="modern-select" style="margin-bottom:14px" value="${todayISO()}">
-        <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM A (optional)</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <select id="sched-a1" class="modern-select" style="flex:1"><option value="">P1</option>${opts}</select>
-          <select id="sched-a2" class="modern-select" style="flex:1"><option value="">P2</option>${opts}</select>
-        </div>
-        <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM B (optional)</div>
-        <div style="display:flex;gap:8px;margin-bottom:14px">
-          <select id="sched-b1" class="modern-select" style="flex:1"><option value="">P1</option>${opts}</select>
-          <select id="sched-b2" class="modern-select" style="flex:1"><option value="">P2</option>${opts}</select>
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">NOTE (optional)</div>
-        <input id="sched-note" type="text" class="modern-select" style="margin-bottom:16px" placeholder="e.g. court 3, bring balls…">
-        <button class="modern-save-btn" onclick="saveScheduled()">Schedule</button>
-      </div>
+  const el = document.createElement("div");
+  el.id = "schedule-inline";
+  el.className = "match-edit-inline";
+  el.innerHTML = `
+    <div class="mei-header">
+      <span class="mei-title">📅 SCHEDULE SESSION</span>
+      <button class="mei-close" onclick="closeScheduleModal()">✕</button>
+    </div>
+    <div class="mei-section-lbl">DATE</div>
+    <input id="sched-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${todayISO()}">
+    <div class="mei-section-lbl" style="color:var(--green)">TEAM A <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+    <div class="mei-row">
+      <select id="sched-a1" class="mei-sel"><option value="">P1</option>${opts}</select>
+      <select id="sched-a2" class="mei-sel"><option value="">P2</option>${opts}</select>
+    </div>
+    <div class="mei-section-lbl" style="color:var(--red)">TEAM B <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+    <div class="mei-row">
+      <select id="sched-b1" class="mei-sel"><option value="">P1</option>${opts}</select>
+      <select id="sched-b2" class="mei-sel"><option value="">P2</option>${opts}</select>
+    </div>
+    <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+    <input id="sched-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. court 3, bring balls…">
+    <div class="mei-actions">
+      <button class="mei-cancel" onclick="closeScheduleModal()">Cancel</button>
+      <button class="mei-save" onclick="saveScheduled()">Schedule</button>
     </div>`;
-  document.body.appendChild(modal);
+  const btn = document.getElementById("schedule-session-btn");
+  if (btn) btn.insertAdjacentElement("afterend", el);
+  requestAnimationFrame(() => { requestAnimationFrame(() => el.classList.add("open")); });
+  setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }), 60);
 }
 
 function saveScheduled() {
@@ -328,7 +336,7 @@ function saveScheduled() {
   if (note) entry.note = note;
   scheduledMatches.push(entry);
   saveScheduledMatches();
-  document.getElementById("schedule-modal")?.remove();
+  closeScheduleModal();
   renderScheduledBanner();
   renderScheduledAdmin();
   showToast("Session scheduled!", "📅");
@@ -1652,13 +1660,14 @@ function exportData() {
     .catch(() => alert("Copy failed"));
 }
 function exportCSV() {
-  const rows = [["Date", "Team A P1", "Team A P2", "Score A", "Score B", "Team B P1", "Team B P2"]];
+  const rows = [["Date", "Team A P1", "Team A P2", "Score A", "Score B", "Team B P1", "Team B P2", "Note"]];
   allMatches.forEach((m) => {
     rows.push([
       m.date || "",
       m.teamA[0] || "", m.teamA[1] || "",
       m.scoreA, m.scoreB,
       m.teamB[0] || "", m.teamB[1] || "",
+      m.note || "",
     ]);
   });
   const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -1668,6 +1677,7 @@ function exportCSV() {
   a.href = url; a.download = "padel_matches.csv"; a.click();
   URL.revokeObjectURL(url);
 }
+
 
 function importData() {
   const raw = prompt(
@@ -6186,6 +6196,7 @@ Object.assign(window, {
   openShareCard,
   openWeeklyDigest,
   openScheduleModal,
+  closeScheduleModal,
   saveScheduled,
   deleteScheduled,
   quickRematch,
