@@ -4270,6 +4270,70 @@ function computeBadges(name, stats, eloMap, allMatchesArr) {
   return badges;
 }
 
+function runMatchSimulator() {
+  const a1 = document.getElementById("simA1")?.value;
+  const a2 = document.getElementById("simA2")?.value;
+  const b1 = document.getElementById("simB1")?.value;
+  const b2 = document.getElementById("simB2")?.value;
+  const result = document.getElementById("sim-result");
+  if (!result) return;
+
+  if (!a1 || !a2 || !b1 || !b2) {
+    result.innerHTML = '<div class="sub" style="color:var(--red);padding:8px 0">Select all 4 players.</div>';
+    return;
+  }
+  if (new Set([a1, a2, b1, b2]).size < 4) {
+    result.innerHTML = '<div class="sub" style="color:var(--red);padding:8px 0">All 4 players must be different.</div>';
+    return;
+  }
+
+  const eloMap = computeElo(allMatches);
+  const e = (p) => eloMap[p] || 1000;
+  const avgA = (e(a1) + e(a2)) / 2;
+  const avgB = (e(b1) + e(b2)) / 2;
+  const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+  const expB = 1 - expA;
+  const winPctA = Math.round(expA * 100);
+  const winPctB = 100 - winPctA;
+
+  const dAwin  = Math.round(32 * (1 - expA));
+  const dBlose = Math.round(32 * (0 - expB));
+  const dAlose = Math.round(32 * (0 - expA));
+  const dBwin  = Math.round(32 * (1 - expB));
+
+  const fmt = (n) => n > 0 ? `+${n}` : `${n}`;
+  const col = (n) => n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
+
+  result.innerHTML = `
+    <div class="sim-result-inner">
+      <div class="sim-prob-row">
+        <span class="sim-prob-val" style="color:var(--green)">${winPctA}%</span>
+        <div class="sim-prob-track">
+          <div class="sim-prob-fill-a" style="width:${winPctA}%"></div>
+          <div class="sim-prob-fill-b" style="width:${winPctB}%"></div>
+        </div>
+        <span class="sim-prob-val" style="color:var(--red)">${winPctB}%</span>
+      </div>
+      <div class="sim-outcomes">
+        <div class="sim-outcome">
+          <div class="sim-outcome-title" style="color:var(--green)">If A wins</div>
+          <div class="sim-p-row"><span>${a1}</span><span style="color:${col(dAwin)};font-weight:800">${fmt(dAwin)}</span></div>
+          <div class="sim-p-row"><span>${a2}</span><span style="color:${col(dAwin)};font-weight:800">${fmt(dAwin)}</span></div>
+          <div class="sim-p-row"><span>${b1}</span><span style="color:${col(dBlose)};font-weight:800">${fmt(dBlose)}</span></div>
+          <div class="sim-p-row"><span>${b2}</span><span style="color:${col(dBlose)};font-weight:800">${fmt(dBlose)}</span></div>
+        </div>
+        <div class="sim-outcome-div"></div>
+        <div class="sim-outcome">
+          <div class="sim-outcome-title" style="color:var(--red)">If B wins</div>
+          <div class="sim-p-row"><span>${a1}</span><span style="color:${col(dAlose)};font-weight:800">${fmt(dAlose)}</span></div>
+          <div class="sim-p-row"><span>${a2}</span><span style="color:${col(dAlose)};font-weight:800">${fmt(dAlose)}</span></div>
+          <div class="sim-p-row"><span>${b1}</span><span style="color:${col(dBwin)};font-weight:800">${fmt(dBwin)}</span></div>
+          <div class="sim-p-row"><span>${b2}</span><span style="color:${col(dBwin)};font-weight:800">${fmt(dBwin)}</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
@@ -5145,6 +5209,28 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:10px 12px"><div class="pb-header"><div class="pb-name">Player</div><div class="pb-stat">Best Streak</div><div class="pb-stat">Best Win</div><div class="pb-stat">Best Day</div><div class="pb-stat">Most/Day</div></div>${rows.join("")}</div>`;
   })();
 
+  // ── MATCH SIMULATOR ────────────────────────────────────
+  const simPlayers = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const simOpts = (ph) => `<option value="">${ph}</option>` + simPlayers.map((p) => `<option value="${p}">${p}</option>`).join("");
+  const simulatorHtml = `
+    <div class="ana-card sim-card">
+      <div class="sim-teams">
+        <div class="sim-team">
+          <div class="sim-team-label" style="color:var(--green)">TEAM A</div>
+          <select id="simA1" class="sim-sel">${simOpts("Player 1")}</select>
+          <select id="simA2" class="sim-sel">${simOpts("Player 2")}</select>
+        </div>
+        <div class="sim-vs">VS</div>
+        <div class="sim-team">
+          <div class="sim-team-label" style="color:var(--red)">TEAM B</div>
+          <select id="simB1" class="sim-sel">${simOpts("Player 1")}</select>
+          <select id="simB2" class="sim-sel">${simOpts("Player 2")}</select>
+        </div>
+      </div>
+      <button class="sim-btn" onclick="runMatchSimulator()">SIMULATE</button>
+      <div id="sim-result"></div>
+    </div>`;
+
   // ── RENDER ─────────────────────────────────────────────
   const makeSec = (key, title, body, col) => {
     return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}">
@@ -5160,6 +5246,7 @@ function renderAnalyticsPage() {
   };
 
   const allSecs = [
+    { key: "simulator", title: "🎮 Match Simulator", body: simulatorHtml },
     { key: "pvp", title: "⚔️ Player vs Player Matrix", body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>` },
     { key: "awards", title: "🏅 Awards Board", body: `<div class="awards-grid">${scard("🏃","Most Active",mostActive?.name,`${mostActive?.matches||0} matches played`)}${awardsHtml}${scard("🏆","Best Win Rate",topWinRate?.name,`${topWinRate?Math.round((topWinRate.wins/topWinRate.matches)*100):0}% (${topWinRate?.wins||0}W–${topWinRate?.losses||0}L)`)}${scard("🔥","Longest Streak",topStreak?.name,`${topStreak?.bestStreak||0} consecutive wins`)}${scard("⚔️","Most Dominant",destroyer?.name,`+${destroyer?.avgMargin?.toFixed(1)||0} avg margin`)}</div>` },
     { key: "form", title: "⚡ Current Form", body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>${ftHtml}</div>` },
@@ -5306,6 +5393,7 @@ Object.assign(window, {
   openPlayerCompare,
   renderCompareSelector,
   triggerCompare,
+  runMatchSimulator,
   showToast,
   toggleHamburgerMenu,
 });

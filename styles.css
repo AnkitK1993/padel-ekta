@@ -7460,3 +7460,117 @@ select.cmp-sel option {
     box-shadow: 0 0 80px rgba(0, 0, 0, 0.7);
   }
 }
+
+/* ── MATCH SIMULATOR ──────────────────── */
+.sim-card { display: flex; flex-direction: column; gap: 12px; }
+.sim-teams {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sim-team {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sim-team-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-align: center;
+}
+.sim-sel {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  background: rgba(24, 24, 36, 0.98);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.sim-vs {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.sim-btn {
+  width: 100%;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--theme-rgb), 0.4);
+  background: rgba(var(--theme-rgb), 0.12);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.sim-result-inner { display: flex; flex-direction: column; gap: 10px; }
+.sim-prob-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sim-prob-val {
+  font-size: 13px;
+  font-weight: 900;
+  min-width: 36px;
+  text-align: center;
+}
+.sim-prob-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+}
+.sim-prob-fill-a {
+  height: 100%;
+  background: var(--green);
+  border-radius: 4px 0 0 4px;
+  transition: width 0.4s ease;
+}
+.sim-prob-fill-b {
+  height: 100%;
+  background: var(--red);
+  border-radius: 0 4px 4px 0;
+  transition: width 0.4s ease;
+}
+.sim-outcomes {
+  display: flex;
+  gap: 0;
+}
+.sim-outcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sim-outcome-div {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+.sim-outcome-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.sim-p-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text);
+  font-weight: 600;
+}
