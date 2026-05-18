@@ -7920,3 +7920,21 @@ select.cmp-sel option {
   background: var(--accent);
   flex-shrink: 0;
 }
+
+/* ── Player Avatars ─────────────────────────────── */
+.p-av {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.team-avatars {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-bottom: 4px;
+}

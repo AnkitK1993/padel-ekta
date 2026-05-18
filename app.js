@@ -716,6 +716,26 @@ function parseBlock(raw) {
   return { parsed, errors };
 }
 
+// ── PLAYER AVATARS ─────────────────────────────────────────
+const _AV_COLORS = [
+  "#18d7ff","#36d47e","#f5c842","#f04f4f","#b06dff",
+  "#ff7a3d","#62b6ff","#ff5fa0","#4ec9b0","#c8a96e",
+];
+function playerColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return _AV_COLORS[h % _AV_COLORS.length];
+}
+function playerInitials(name) {
+  const p = name.trim().split(/\s+/);
+  return (p.length >= 2 ? p[0][0] + p[p.length - 1][0] : name.slice(0, 2)).toUpperCase();
+}
+function playerAvatar(name, size = 26) {
+  const col = playerColor(name);
+  const fs = Math.round(size * 0.38);
+  return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
+}
+
 // ── FILTER ─────────────────────────────────────────────────
 function filterMatches(f, from, to) {
   const t = todayISO(),
@@ -3338,7 +3358,7 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title">${name}</div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px">${playerAvatar(name, 36)}${name}</div>
                 <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
               </div>
               <div class="analytics-cards">
@@ -5520,6 +5540,9 @@ Object.assign(window, {
   openPlayerCompare,
   renderCompareSelector,
   triggerCompare,
+  playerAvatar,
+  playerColor,
+  playerInitials,
   runMatchSimulator,
   toggleMatchCalendar,
   calNav,
