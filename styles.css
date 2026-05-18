@@ -55,6 +55,8 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
   will-change: opacity, transform;
 }
 .page.active {
@@ -109,8 +111,8 @@ body {
   align-items: center;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 0 4px;
-  height: 46px;
+  padding: env(safe-area-inset-top) 4px 0;
+  height: calc(46px + env(safe-area-inset-top));
   position: relative;
 }
 .nav-title {
@@ -7315,4 +7317,20 @@ select.cmp-sel option {
 .pb-header .pb-stat {
   color: var(--muted);
   font-size: 9px;
+}
+
+@media (min-width: 600px) {
+  html {
+    background: #03030a;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100%;
+  }
+  body {
+    max-width: 480px;
+    width: 100%;
+    flex-shrink: 0;
+    box-shadow: 0 0 80px rgba(0, 0, 0, 0.7);
+  }
 }
