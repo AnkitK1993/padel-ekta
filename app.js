@@ -94,6 +94,17 @@ function showToast(msg, emoji = "🎉", duration = 4000) {
   }, duration);
 }
 
+const MILESTONE_LOG_KEY = "padel_milestone_log";
+function getMilestoneLog() {
+  try { return JSON.parse(localStorage.getItem(MILESTONE_LOG_KEY)) || []; } catch (e) { return []; }
+}
+function saveMilestoneEntry(msg, emoji) {
+  const log = getMilestoneLog();
+  log.unshift({ msg, emoji, date: todayISO() });
+  if (log.length > 100) log.length = 100;
+  try { localStorage.setItem(MILESTONE_LOG_KEY, JSON.stringify(log)); } catch (e) {}
+}
+
 function checkMilestones(prevMatches, newMatches) {
   const milestones = [10, 25, 50, 100, 200];
   const allPlayers = new Set();
@@ -102,7 +113,10 @@ function checkMilestones(prevMatches, newMatches) {
     const prevCount = prevMatches.filter((m) => (m.teamA || []).includes(player) || (m.teamB || []).includes(player)).length;
     const newCount = newMatches.filter((m) => (m.teamA || []).includes(player) || (m.teamB || []).includes(player)).length;
     milestones.forEach((n) => {
-      if (prevCount < n && newCount >= n) showToast(`${player} hit ${n} matches!`, "🏅");
+      if (prevCount < n && newCount >= n) {
+        showToast(`${player} hit ${n} matches!`, "🏅");
+        saveMilestoneEntry(`${player} hit ${n} matches!`, "🏅");
+      }
     });
   });
   // Check for win streaks hitting milestones
@@ -116,13 +130,19 @@ function checkMilestones(prevMatches, newMatches) {
     streakMilestones.forEach((n) => {
       if ((prev.curStreak || 0) < n && (cur.curStreak || 0) >= n && cur.curType === "W") {
         showToast(`${player} is on a ${n}-match win streak!`, "🔥");
+        saveMilestoneEntry(`${player} is on a ${n}-match win streak!`, "🔥");
       }
     });
     // Rank change (top 3)
     const prevRank = prevStats.findIndex((s) => s.name === player) + 1;
     const newRank = newStats.findIndex((s) => s.name === player) + 1;
-    if (prevRank > 1 && newRank === 1) showToast(`${player} is now #1!`, "👑");
-    else if (prevRank > 3 && newRank <= 3) showToast(`${player} entered the Top 3!`, "🥉");
+    if (prevRank > 1 && newRank === 1) {
+      showToast(`${player} is now #1!`, "👑");
+      saveMilestoneEntry(`${player} is now #1!`, "👑");
+    } else if (prevRank > 3 && newRank <= 3) {
+      showToast(`${player} entered the Top 3!`, "🥉");
+      saveMilestoneEntry(`${player} entered the Top 3!`, "🥉");
+    }
   });
 }
 
@@ -130,6 +150,7 @@ function checkMilestones(prevMatches, newMatches) {
 let allMatches = [];
 let nameMap = {};
 let aliasMap = {};
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 let matchTabFilter = "today",
   histPlayerFilter = "",
   histOutcomeFilter = "all",
@@ -711,8 +732,10 @@ function filterMatches(f, from, to) {
     if (f === "month") return m.date >= sm && m.date <= t;
     if (f === "lastweek") return m.date >= lwr.from && m.date <= lwr.to;
     if (f === "range") {
-      if (from && m.date < from) return false;
-      if (to && m.date > to) return false;
+      const d = m.date || "";
+      if (!d) return false;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
       return true;
     }
     return true;
@@ -2072,8 +2095,18 @@ function filterMatchTab(f) {
   const active = document.querySelector(`[data-mf="${f}"]`);
   if (active) active.classList.add("on");
   const dr = document.getElementById("matchDr");
-  if (f === "range") dr.classList.add("show");
-  else dr.classList.remove("show");
+  if (dr) {
+    dr.style.display = "";  // always clear inline override first
+    if (f === "range") {
+      dr.classList.add("show");
+    } else {
+      dr.classList.remove("show");
+      const mf = document.getElementById("matchFrom");
+      const mt = document.getElementById("matchTo");
+      if (mf) mf.value = "";
+      if (mt) mt.value = "";
+    }
+  }
   renderModernMatches();
 }
 
@@ -2204,92 +2237,6 @@ function buildMatchOfTheDay() {
   return motdHtml + upsetHtml;
 }
 
-// ── SESSION SUMMARY CARD ───────────────────────────────────
-function buildSessionSummary() {
-  if (!allMatches.length) return "";
-  const latestDate = allMatches.reduce(
-    (max, m) => (m.date > max ? m.date : max),
-    "",
-  );
-  const sessionMatches = allMatches.filter((m) => m.date === latestDate);
-  if (!sessionMatches.length) return "";
-
-  const playerSet = new Set();
-  sessionMatches.forEach((m) => {
-    [...m.teamA, ...m.teamB].forEach((p) => playerSet.add(p));
-  });
-  const totalGames = sessionMatches.reduce(
-    (s, m) => s + m.scoreA + m.scoreB,
-    0,
-  );
-
-  // Top performer: best win rate in session, tie-break by game diff
-  const sessionStats = computeStats(sessionMatches);
-  const top = sessionStats[0];
-
-  // Man of the Match: most wins in session; tie-break by game diff
-  const motmWins = {}, motmDiff = {};
-  sessionMatches.forEach((m) => {
-    const aWon = m.scoreA > m.scoreB;
-    const margin = m.scoreA - m.scoreB;
-    [...(m.teamA || [])].forEach((p) => {
-      motmWins[p] = (motmWins[p] || 0) + (aWon ? 1 : 0);
-      motmDiff[p] = (motmDiff[p] || 0) + margin;
-    });
-    [...(m.teamB || [])].forEach((p) => {
-      motmWins[p] = (motmWins[p] || 0) + (aWon ? 0 : 1);
-      motmDiff[p] = (motmDiff[p] || 0) - margin;
-    });
-  });
-  const motmPlayer = Object.keys(motmWins).sort((a, b) => (motmWins[b] - motmWins[a]) || (motmDiff[b] - motmDiff[a]))[0];
-  const motmHtml = motmPlayer
-    ? `<div class="ss-motm">🏅 MOTM: <strong>${motmPlayer}</strong> (${motmWins[motmPlayer]}w ${motmDiff[motmPlayer] >= 0 ? "+" : ""}${motmDiff[motmPlayer]}d)</div>`
-    : "";
-
-  // Closest game
-  const closest = [...sessionMatches].sort(
-    (a, b) => Math.abs(a.scoreA - a.scoreB) - Math.abs(b.scoreA - b.scoreB),
-  )[0];
-  const closestScore = `${Math.max(closest.scoreA, closest.scoreB)}-${Math.min(closest.scoreA, closest.scoreB)}`;
-
-  // Format date nicely
-  const dateLabel = fmtDate(latestDate);
-
-  return `<div class="session-summary-card">
-              <div class="ss-header">
-                <span class="ss-label">📋 SESSION RECAP</span>
-                <span class="ss-date">${dateLabel}</span>
-              </div>
-              <div class="ss-stats">
-                <div class="ss-stat">
-                  <div class="ss-val">${sessionMatches.length}</div>
-                  <div class="ss-lbl">Matches</div>
-                </div>
-                <div class="ss-stat">
-                  <div class="ss-val">${playerSet.size}</div>
-                  <div class="ss-lbl">Players</div>
-                </div>
-                <div class="ss-stat">
-                  <div class="ss-val">${totalGames}</div>
-                  <div class="ss-lbl">Total Games</div>
-                </div>
-                <div class="ss-stat">
-                  <div class="ss-val">${closestScore}</div>
-                  <div class="ss-lbl">Closest Score</div>
-                </div>
-              </div>
-              ${motmHtml}
-              ${
-                top
-                  ? `<div class="ss-top">
-                <span class="ss-top-label">⭐ Top Performer</span>
-                <span class="ss-top-name">${top.name}</span>
-                <span class="ss-top-rec">${top.mw}W–${top.ml}L &nbsp;·&nbsp; ${top.winPct.toFixed(0)}% win rate</span>
-              </div>`
-                  : ""
-              }
-            </div>`;
-}
 
 function buildHistorySummary(matches) {
   if (matches.length < 3) return "";
@@ -2368,6 +2315,32 @@ function buildHistorySummary(matches) {
     hotColdHtml = `<div class="hsum-section-lbl">HOT &amp; COLD</div><div class="hsum-highlights">${rows.join("")}</div>`;
   }
 
+  // Player of the Week — highest ELO gain this calendar week (Mon–today)
+  let potwHtml = "";
+  const wkFrom = weekISO(), wkTo = todayISO();
+  const weekMatches = allMatches.filter((m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo);
+  if (weekMatches.length >= 2) {
+    const preWeekElo = computeElo(allMatches.filter((m) => (m.date || "") < wkFrom));
+    const fullElo = computeElo(allMatches);
+    const weekPlayers = new Set();
+    weekMatches.forEach((m) => [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => weekPlayers.add(normPlayer(p))));
+    const potwDeltas = [...weekPlayers]
+      .map((p) => ({ name: p, delta: Math.round((fullElo[p] || 1000) - (preWeekElo[p] || 1000)), mp: weekMatches.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p)).length }))
+      .filter((p) => p.delta > 0 && p.mp >= 2)
+      .sort((a, b) => b.delta - a.delta);
+    const potw = potwDeltas[0];
+    if (potw) {
+      potwHtml = `<div class="potw-card hsum-cascade" style="animation-delay:${d()}ms">
+        <div class="potw-crown">⭐</div>
+        <div class="potw-body">
+          <div class="potw-label">PLAYER OF THE WEEK</div>
+          <div class="potw-name">${potw.name}</div>
+          <div class="potw-meta"><span style="color:var(--green);font-weight:800">+${potw.delta} ELO</span> · ${potw.mp} matches this week</div>
+        </div>
+      </div>`;
+    }
+  }
+
   // Session recap — always based on latest session in allMatches
   let sessionRecapHtml = "";
   if (allMatches.length) {
@@ -2408,11 +2381,93 @@ function buildHistorySummary(matches) {
             <div class="hsum-stat hsum-cascade" style="animation-delay:130ms"><div class="hsum-val">${totalGames}</div><div class="hsum-lbl">Games</div></div>
             <div class="hsum-stat hsum-cascade" style="animation-delay:195ms"><div class="hsum-val">±${avgMargin}</div><div class="hsum-lbl">Avg Margin</div></div>
           </div>
+          ${potwHtml}
           ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
           ${highlights.length ? `<div class="hsum-section-lbl">AWARDS</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
           ${hotColdHtml}
           ${sessionRecapHtml}
         </div>`;
+}
+
+function toggleMatchCalendar() {
+  const cal = document.getElementById("match-calendar");
+  const btn = document.getElementById("calToggleBtn");
+  if (!cal) return;
+  const open = cal.style.display === "none";
+  cal.style.display = open ? "block" : "none";
+  if (btn) btn.classList.toggle("cal-toggle-active", open);
+  if (open) renderMatchCalendar();
+}
+
+function renderMatchCalendar() {
+  const cal = document.getElementById("match-calendar");
+  if (!cal) return;
+
+  const matchDates = new Set(allMatches.map((m) => m.date).filter(Boolean));
+  const matchCountByDate = {};
+  allMatches.forEach((m) => { if (m.date) matchCountByDate[m.date] = (matchCountByDate[m.date] || 0) + 1; });
+
+  const todayStr = todayISO();
+  const year = calYear, month = calMonth;
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDow = (firstDay.getDay() + 6) % 7; // Mon=0
+  const totalDays = lastDay.getDate();
+  const monthName = firstDay.toLocaleString("default", { month: "long", year: "numeric" });
+
+  let cells = "";
+  // Empty cells before first day
+  for (let i = 0; i < startDow; i++) cells += `<div class="cal-cell cal-empty"></div>`;
+  for (let d = 1; d <= totalDays; d++) {
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const count = matchCountByDate[iso] || 0;
+    const isToday = iso === todayStr;
+    const hasMatch = count > 0;
+    cells += `<div class="cal-cell${isToday ? " cal-today" : ""}${hasMatch ? " cal-has-match" : ""}" onclick="calDayClick('${iso}')">
+      <span class="cal-day-num">${d}</span>
+      ${hasMatch ? `<span class="cal-dot" title="${count} match${count > 1 ? "es" : ""}"></span>` : ""}
+    </div>`;
+  }
+
+  cal.innerHTML = `
+    <div class="cal-header">
+      <button class="cal-nav" onclick="calNav(-1)">‹</button>
+      <span class="cal-month-lbl">${monthName}</span>
+      <button class="cal-nav" onclick="calNav(1)">›</button>
+    </div>
+    <div class="cal-dow-row">
+      ${["M","T","W","T","F","S","S"].map((d) => `<div class="cal-dow">${d}</div>`).join("")}
+    </div>
+    <div class="cal-grid">${cells}</div>`;
+}
+
+function calNav(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderMatchCalendar();
+}
+
+function calDayClick(iso) {
+  // Highlight selected day
+  document.querySelectorAll(".cal-cell.cal-selected").forEach((el) => el.classList.remove("cal-selected"));
+  document.querySelectorAll(".cal-cell").forEach((el) => {
+    const d = parseInt(iso.slice(8));
+    const y = parseInt(iso.slice(0, 4));
+    const mo = parseInt(iso.slice(5, 7)) - 1;
+    if (y === calYear && mo === calMonth && el.querySelector(".cal-day-num")?.textContent === String(d))
+      el.classList.add("cal-selected");
+  });
+  // Set state before navigating so switchMainTab picks it up
+  matchTabFilter = "range";
+  const mf = document.getElementById("matchFrom");
+  const mt = document.getElementById("matchTo");
+  if (mf) mf.value = iso;
+  if (mt) mt.value = iso;
+  const dr = document.getElementById("matchDr");
+  if (dr) { dr.style.display = ""; dr.classList.add("show"); }
+  // Navigate — switchMainTab calls renderModernMatches() which reads the state above
+  switchMainTab("history");
 }
 
 function renderModernMatches() {
@@ -2578,6 +2633,7 @@ function renderModernMatches() {
     }
   }
   const isFiltered =
+    matchTabFilter !== "today" ||
     histPlayerFilter ||
     histPairFilter ||
     histOutcomeFilter !== "all" ||
@@ -2587,19 +2643,17 @@ function renderModernMatches() {
     h2hFilterA ||
     h2hFilterB;
   const motdHtml = isFiltered ? "" : buildMatchOfTheDay();
-  const sessionSummaryHtml = isFiltered ? "" : buildSessionSummary();
   const histList = document.getElementById("modern-match-list");
   histList.innerHTML = "";
 
   // Parse all content into a temp container
   const tmpAll = document.createElement("div");
-  tmpAll.innerHTML =
-    sessionSummaryHtml + motdHtml + summary + buildMatchCards(matches, true);
+  tmpAll.innerHTML = motdHtml + summary + buildMatchCards(matches, true);
 
   // Collect feature cards first, then match cards
   const featureCards = Array.from(
     tmpAll.querySelectorAll(
-      ".session-summary-card, .motd-card, .upset-card, .thriller-card, .pair-stats-card",
+      ".motd-card, .upset-card, .thriller-card, .pair-stats-card",
     ),
   );
   const matchCards = Array.from(tmpAll.querySelectorAll(".match-card"));
@@ -4100,6 +4154,7 @@ function toggleAnaSection(key) {
   const col = getAnaCollapsed();
   el.classList.contains("collapsed") ? col.add(key) : col.delete(key);
   saveAnaCollapsed(col);
+  if (key === "calendar" && !el.classList.contains("collapsed")) renderMatchCalendar();
 }
 
 let _anaDragKey = null;
@@ -5285,6 +5340,20 @@ function renderAnalyticsPage() {
       <div id="sim-result"></div>
     </div>`;
 
+  // ── MILESTONE HISTORY ──────────────────────────────────
+  const milestoneLog = getMilestoneLog();
+  const milestoneHtml = (() => {
+    if (!milestoneLog.length) return '<div class="sub" style="padding:10px 8px">No milestones recorded yet.</div>';
+    const rows = milestoneLog.map((entry) =>
+      `<div class="mlog-row">
+        <span class="mlog-icon">${entry.emoji}</span>
+        <span class="mlog-msg">${entry.msg}</span>
+        <span class="mlog-date">${fmtDate(entry.date)}</span>
+      </div>`
+    ).join("");
+    return `<div class="ana-card mlog-card">${rows}</div>`;
+  })();
+
   // ── RENDER ─────────────────────────────────────────────
   const makeSec = (key, title, body, col) => {
     return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}">
@@ -5322,6 +5391,8 @@ function renderAnalyticsPage() {
     { key: "pairmatrix", title: "🧪 Pair Chemistry Matrix", body: pairMatrixHtml },
     { key: "monthlyawards", title: "🏆 Monthly Awards", body: monthlyAwardsHtml },
     { key: "personalbests", title: "🏅 Personal Bests", body: personalBestsHtml },
+    { key: "milestones", title: "🎖️ Milestone History", body: milestoneHtml },
+    { key: "calendar", title: "📅 Match Calendar", body: `<div id="match-calendar" class="match-calendar"></div>` },
   ];
 
   const storedOrder = getAnaOrder();
@@ -5339,6 +5410,8 @@ function renderAnalyticsPage() {
       return makeSec(key, def.title, def.body, collapsed.has(key));
     })
     .join("");
+
+  if (!collapsed.has("calendar")) requestAnimationFrame(() => renderMatchCalendar());
 
   // Animate cards and section titles as they scroll into view
   const anaObserver = new IntersectionObserver(
@@ -5448,6 +5521,9 @@ Object.assign(window, {
   renderCompareSelector,
   triggerCompare,
   runMatchSimulator,
+  toggleMatchCalendar,
+  calNav,
+  calDayClick,
   showToast,
   toggleHamburgerMenu,
 });
