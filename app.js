@@ -3081,11 +3081,33 @@ function openPlayerDetail(name) {
           </div>`
       : "";
 
+  const mostCommonPartnerHtml = detail.topMate
+    ? `<div class="det-conn">
+            <div class="det-conn-icon">👥</div>
+            <div class="det-conn-body">
+              <div class="det-conn-name">${detail.topMate[0]}</div>
+              <div class="det-conn-meta">${detail.topMate[1]} matches together</div>
+            </div>
+            <div class="det-conn-tag">Most Common Partner</div>
+          </div>`
+    : "";
+
+  const mostCommonOppHtml = detail.toughOpp
+    ? `<div class="det-conn">
+            <div class="det-conn-icon">🎯</div>
+            <div class="det-conn-body">
+              <div class="det-conn-name">${detail.toughOpp[0]}</div>
+              <div class="det-conn-meta">${detail.toughOpp[1]} matches faced</div>
+            </div>
+            <div class="det-conn-tag">Most Common Opponent</div>
+          </div>`
+    : "";
+
   const connectionsHtml =
-    bestPartnerHtml || worstPartnerHtml || nemesisHtml || favOppHtml
+    bestPartnerHtml || worstPartnerHtml || nemesisHtml || favOppHtml || mostCommonPartnerHtml || mostCommonOppHtml
       ? `<div class="ana-card">
               <span class="badge">Connections</span>
-              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}</div>
+              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}</div>
             </div>`
       : "";
 
@@ -3099,7 +3121,7 @@ function openPlayerDetail(name) {
   // Badges
   const badges = computeBadges(name, s, eloMap, allMatches);
   const badgesHtml = badges.length
-    ? `<div class="ana-card"><span class="badge">Achievements</span><div class="badge-chips">${badges.map((b) => `<div class="badge-chip" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span></div>`).join("")}</div></div>`
+    ? `<div class="ana-card"><span class="badge">Award Badges</span><div class="badge-chips" style="margin-top:10px">${badges.map((b) => `<div class="badge-chip" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span></div>`).join("")}</div></div>`
     : "";
 
   // Clutch stats
@@ -3205,7 +3227,6 @@ function openPlayerDetail(name) {
                       <div class="ov-lbl">Game %</div>
                     </div>
                   </div>
-                  ${badges.length ? `<div class="badge-chips" style="margin-top:12px">${badges.map((b) => `<div class="badge-chip" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span></div>`).join("")}</div>` : ""}
                 </div>
 
                 <div class="ana-card">
@@ -3244,7 +3265,8 @@ function openPlayerDetail(name) {
                       <div class="det-streak-val" style="color:${s.consistency !== null ? (s.consistency <= 2 ? "var(--green)" : s.consistency <= 4 ? "var(--gold)" : "var(--red)") : "var(--muted)"}">${s.consistency !== null ? s.consistency : "—"}</div>
                       <div class="sub">Consistency</div>
                     </div>
-                    <div class="det-streak-div"></div>
+                  </div>
+                  <div class="det-streak-row" style="margin-top:12px">
                     <div class="det-streak-cell">
                       <div class="det-streak-val" style="color:var(--green)">${detail.shutoutWins}</div>
                       <div class="sub">Shutout Wins</div>
@@ -3262,6 +3284,8 @@ function openPlayerDetail(name) {
                 ${connectionsHtml}
 
                 ${clutchHtml}
+
+                ${badgesHtml}
 
               </div>
               <div style="margin-top:20px;font-size:13px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Matches</div>
@@ -3901,8 +3925,9 @@ function renderCompareSelector() {
     card.innerHTML = "";
     return;
   }
-  const players = computeStats(allMatches).map((s) => s.name);
-  const opts = players.map((p) => `<option value="${p}">${p}</option>`).join("");
+  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const opts = `<option value="">P1</option>` + players.map((p) => `<option value="${p}">${p}</option>`).join("");
+  const optsB = `<option value="">P2</option>` + players.map((p) => `<option value="${p}">${p}</option>`).join("");
   card.dataset.mode = "selector";
   card.style.display = "block";
   card.innerHTML = `
@@ -3914,14 +3939,11 @@ function renderCompareSelector() {
       <div class="cmp-inline-selectors">
         <select id="cmpSelA" class="cmp-ctrl cmp-player">${opts}</select>
         <span class="cmp-inline-vs">VS</span>
-        <select id="cmpSelB" class="cmp-ctrl cmp-player">${opts}</select>
+        <select id="cmpSelB" class="cmp-ctrl cmp-player">${optsB}</select>
       </div>
       <select id="cmpDateSel" class="cmp-ctrl cmp-full">${cmpDateOptsHtml()}</select>
       <button class="cmp-ctrl cmp-full" onclick="triggerCompare()">COMPARE</button>
     </div>`;
-  // Default second player to someone different
-  const selB = document.getElementById("cmpSelB");
-  if (selB && selB.options.length > 1) selB.selectedIndex = 1;
 }
 
 // ── ANALYTICS ──────────────────────────────────────────────
