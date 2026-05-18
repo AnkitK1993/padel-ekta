@@ -3359,7 +3359,10 @@ function openPlayerDetail(name) {
             <div class="analytics-inner">
               <div class="analytics-header">
                 <div class="analytics-title" style="display:flex;align-items:center;gap:10px">${playerAvatar(name, 36)}${name}</div>
-                <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <button class="share-card-btn" onclick="openShareCard('${name.replace(/'/g, "\\'")}')">⬆ Share</button>
+                  <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
+                </div>
               </div>
               <div class="analytics-cards">
 
@@ -3580,6 +3583,83 @@ function openH2HDetail(a, b) {
           </div>
         </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
+}
+
+function openShareCard(name) {
+  document.getElementById("share-card-overlay")?.remove();
+  const detail = getPlayerDetail(name);
+  if (!detail.stats) return;
+  const s = detail.stats;
+  const eloMap = computeElo(allMatches);
+  const elo = Math.round(eloMap[name] || 1000);
+  const col = playerColor(name);
+  const initials = playerInitials(name);
+
+  const streakIcon = s.curStreak > 0 ? (s.curType === "W" ? "🔥" : "❄️") : "";
+  const streakStr = s.curStreak > 0 ? `${streakIcon} ${s.curStreak}${s.curType}` : "—";
+  const marginStr = s.avgMargin >= 0 ? `+${s.avgMargin.toFixed(1)}` : s.avgMargin.toFixed(1);
+  const marginColor = s.avgMargin > 0 ? "#36d47e" : s.avgMargin < 0 ? "#f04f4f" : "#60607a";
+
+  const formDots = s.form.slice(-10).map(r =>
+    `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:800;background:${r==="W"?"rgba(54,212,126,0.18)":"rgba(240,79,79,0.18)"};color:${r==="W"?"#36d47e":"#f04f4f"}">${r}</span>`
+  ).join("");
+
+  const allRanked = computeStats(allMatches, eloMap);
+  const rank = allRanked.findIndex(p => p.name === name) + 1;
+
+  const statBox = (val, lbl, color = "var(--text)") =>
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
+      <div style="font-size:20px;font-weight:900;color:${color}">${val}</div>
+      <div style="font-size:9px;font-weight:700;color:#60607a;text-transform:uppercase;letter-spacing:0.07em;text-align:center">${lbl}</div>
+    </div>`;
+  const divider = `<div style="width:1px;height:36px;background:rgba(255,255,255,0.08)"></div>`;
+
+  const card = `
+    <div style="background:linear-gradient(145deg,#0e0e1c,#131320);border-radius:20px;border:1px solid rgba(255,255,255,0.1);padding:28px 24px 24px;width:100%;max-width:340px;box-shadow:0 0 60px rgba(0,0,0,0.6);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 0%,${col}18 0%,transparent 60%);pointer-events:none"></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
+        <div style="width:52px;height:52px;min-width:52px;border-radius:50%;background:${col}22;border:2px solid ${col};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:${col}">${initials}</div>
+        <div>
+          <div style="font-size:18px;font-weight:900;color:#eeeae4;letter-spacing:0.01em">${name}</div>
+          <div style="font-size:11px;color:#60607a;font-weight:600;margin-top:2px">Rank #${rank} · ELO ${elo}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 8px">
+        ${statBox(`${s.mw}W–${s.ml}L`, "Record")}
+        ${divider}
+        ${statBox(`${s.winPct.toFixed(0)}%`, "Win Rate", s.winPct >= 50 ? "#36d47e" : "#f04f4f")}
+        ${divider}
+        ${statBox(s.sr.toFixed(2), "Skill Rating", col)}
+        ${divider}
+        ${statBox(marginStr, "Avg Margin", marginColor)}
+      </div>
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 8px">
+        ${statBox(s.mp, "Matches")}
+        ${divider}
+        ${statBox(detail.maxWinStreak || 0, "Best Streak 🔥")}
+        ${divider}
+        ${statBox(streakStr, "Current")}
+        ${divider}
+        ${statBox(`${s.consistency?.toFixed(0) ?? "—"}%`, "Consistency")}
+      </div>
+      ${s.form.length ? `<div style="margin-bottom:18px"><div style="font-size:9px;font-weight:700;color:#60607a;letter-spacing:0.08em;margin-bottom:8px">RECENT FORM</div><div style="display:flex;gap:4px;flex-wrap:wrap">${formDots}</div></div>` : ""}
+      <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;color:${col}">PADEL EKTA</div>
+        <div style="font-size:9px;color:#60607a">${todayISO()}</div>
+      </div>
+    </div>`;
+
+  const overlay = document.createElement("div");
+  overlay.id = "share-card-overlay";
+  overlay.className = "share-overlay";
+  overlay.innerHTML = `
+    <div class="share-overlay-bg" onclick="document.getElementById('share-card-overlay').remove()"></div>
+    <div class="share-overlay-inner">
+      <div class="share-overlay-hint">Screenshot to share</div>
+      ${card}
+      <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 function openPairDetail(key) {
@@ -5565,6 +5645,7 @@ Object.assign(window, {
   playerAvatar,
   playerColor,
   playerInitials,
+  openShareCard,
   runMatchSimulator,
   toggleMatchCalendar,
   calNav,
