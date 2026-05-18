@@ -5078,19 +5078,60 @@ function renderAnalyticsPage() {
   let rivalHtml = '<div class="sub" style="padding:8px">Not enough data.</div>';
   if (rivalry && rivalA && rivalB) {
     const tot = rivalry.aWins + rivalry.bWins;
-    const recent = [...rivalry.matches]
-      .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-      .slice(0, 5);
-    rivalHtml = `<div class="rivalry-header"><div class="rivalry-player">${rivalA}</div><div class="rivalry-vs">VS</div><div class="rivalry-player">${rivalB}</div></div>
-          <div class="rivalry-record"><div class="rivalry-stat"><div class="rivalry-val p">${rivalry.aWins}</div><div class="rivalry-lbl">${Math.round((rivalry.aWins / tot) * 100)}%</div></div><div class="rivalry-stat"><div class="rivalry-val m">${tot}</div><div class="rivalry-lbl">Meetings</div></div><div class="rivalry-stat"><div class="rivalry-val n">${rivalry.bWins}</div><div class="rivalry-lbl">${Math.round((rivalry.bWins / tot) * 100)}%</div></div></div>
-          ${recent
-            .map((m) => {
-              const p1Won =
-                (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) ||
-                (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
-              return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="font-size:12px;font-weight:700;color:var(--text)">${p1Won ? rivalA : rivalB} won</span><span style="font-size:11px;color:var(--muted)">${m.scoreA}–${m.scoreB} · ${fmtDate(m.date)}</span></div>`;
-            })
-            .join("")}`;
+    const aPct = Math.round((rivalry.aWins / tot) * 100);
+    const bPct = 100 - aPct;
+
+    // Series leader
+    const leader = rivalry.aWins > rivalry.bWins ? rivalA : rivalry.bWins > rivalry.aWins ? rivalB : null;
+    const leaderWins = leader ? Math.max(rivalry.aWins, rivalry.bWins) : null;
+    const leaderHtml = leader
+      ? `<div class="rival-leader"><span class="rival-leader-name">${leader}</span><span class="rival-leader-lbl">leads ${leaderWins}–${tot - leaderWins}</span></div>`
+      : `<div class="rival-leader"><span class="rival-leader-lbl" style="color:var(--muted)">Series tied ${rivalry.aWins}–${rivalry.bWins}</span></div>`;
+
+    // Current run within rivalry
+    const chronoMeetings = [...rivalry.matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    let runCount = 0, runWinner = null;
+    for (let i = chronoMeetings.length - 1; i >= 0; i--) {
+      const m = chronoMeetings[i];
+      const aWon = (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) || (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
+      const w = aWon ? rivalA : rivalB;
+      if (runWinner === null) { runWinner = w; runCount = 1; }
+      else if (w === runWinner) runCount++;
+      else break;
+    }
+    const runHtml = runCount >= 2
+      ? `<div class="rival-run">🔥 <strong>${runWinner}</strong> has won the last <strong>${runCount}</strong> in this rivalry</div>`
+      : "";
+
+    // W/L dots (last 10, chronological left→right, from rivalA's perspective)
+    const dotMeetings = chronoMeetings.slice(-10);
+    const dots = dotMeetings.map((m) => {
+      const aWon = (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) || (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
+      return `<span class="rival-dot ${aWon ? "rival-dot-w" : "rival-dot-l"}" title="${aWon ? rivalA : rivalB} won ${m.scoreA}-${m.scoreB}"></span>`;
+    }).join("");
+    const dotsHtml = `<div class="rival-dots-row"><span class="rival-dots-name">${rivalA}</span><div class="rival-dots">${dots}</div><span class="rival-dots-name">${rivalB}</span></div>`;
+
+    // Recent 5 matches
+    const recent = [...rivalry.matches].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 5);
+    const recentRows = recent.map((m) => {
+      const aWon = (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) || (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
+      const winScore = Math.max(m.scoreA, m.scoreB);
+      const loseScore = Math.min(m.scoreA, m.scoreB);
+      return `<div class="rival-match-row"><span class="rival-match-winner" style="color:${aWon ? "var(--green)" : "var(--red)"}">${aWon ? rivalA : rivalB} won</span><span class="rival-match-score">${winScore}–${loseScore} · ${fmtDate(m.date)}</span></div>`;
+    }).join("");
+
+    rivalHtml = `
+      <div class="rivalry-header"><div class="rivalry-player">${rivalA}</div><div class="rivalry-vs">VS</div><div class="rivalry-player">${rivalB}</div></div>
+      <div class="rivalry-record">
+        <div class="rivalry-stat"><div class="rivalry-val p">${rivalry.aWins}</div><div class="rivalry-lbl">${aPct}%</div></div>
+        <div class="rivalry-stat"><div class="rivalry-val m">${tot}</div><div class="rivalry-lbl">Meetings</div></div>
+        <div class="rivalry-stat"><div class="rivalry-val n">${rivalry.bWins}</div><div class="rivalry-lbl">${bPct}%</div></div>
+      </div>
+      ${leaderHtml}
+      ${dotsHtml}
+      ${runHtml}
+      <div class="rival-recent-title">Recent Meetings</div>
+      ${recentRows}`;
   }
 
   // ── SESSIONS ───────────────────────────────────────────

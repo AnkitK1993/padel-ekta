@@ -3302,6 +3302,82 @@ textarea:focus {
   color: var(--muted);
 }
 
+/* rivalry enhancements */
+.rival-leader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.rival-leader-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gold);
+}
+.rival-leader-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.rival-dots-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.rival-dots-name {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.rival-dots {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.rival-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.rival-dot-w { background: var(--green); }
+.rival-dot-l { background: rgba(240, 79, 79, 0.5); border: 1px solid var(--red); }
+.rival-run {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+.rival-run strong { color: var(--text); }
+.rival-recent-title {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.rival-match-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.rival-match-winner { font-size: 12px; font-weight: 700; }
+.rival-match-score { font-size: 11px; color: var(--muted); }
+
 /* ── SESSION CARDS ───────────────────────────── */
 .session-card {
   background: rgba(14, 14, 24, 0.82);
