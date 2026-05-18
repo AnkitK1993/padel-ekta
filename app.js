@@ -65,7 +65,7 @@ function fmtDate(raw) {
 let allMatches = [];
 let nameMap = {};
 let aliasMap = {};
-let matchTabFilter = "all",
+let matchTabFilter = "today",
   histPlayerFilter = "",
   histOutcomeFilter = "all",
   histMarginFilter = "all",
@@ -76,10 +76,10 @@ let matchTabFilter = "all",
   h2hFilterB = "",
   matchFrom = null,
   matchTo = null;
-let homeFilter = "all",
+let homeFilter = "today",
   homeFrom = null,
   homeTo = null;
-let cmpFilter = "all",
+let cmpFilter = "today",
   cmpFrom = null,
   cmpTo = null;
 let cmpSortKey = "sr";
@@ -523,6 +523,20 @@ function monthISO() {
   d.setDate(1);
   return d.toISOString().slice(0, 10);
 }
+function lastWeekRange() {
+  const d = new Date(), day = d.getDay();
+  const daysToMonday = day === 0 ? 6 : day - 1;
+  const thisMonday = new Date(d);
+  thisMonday.setDate(d.getDate() - daysToMonday);
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+  const lastSunday = new Date(thisMonday);
+  lastSunday.setDate(thisMonday.getDate() - 1);
+  return {
+    from: lastMonday.toISOString().slice(0, 10),
+    to: lastSunday.toISOString().slice(0, 10),
+  };
+}
 
 function parseDateHdr(s) {
   const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
@@ -614,19 +628,17 @@ function parseBlock(raw) {
 function filterMatches(f, from, to) {
   const t = todayISO(),
     sw = weekISO(),
-    // Cap "this week" end at today so that if today is Sunday with no
-    // data, we never include last Sunday (6 days ago from next Mon).
-    // weekISO() always returns this week's Monday; swe = today keeps
-    // the window strictly Mon → today regardless of day-of-week.
     swe = t,
     sm = monthISO(),
-    wr = weekendRange();
+    wr = weekendRange(),
+    lwr = lastWeekRange();
   return allMatches.filter((m) => {
     if (f === "all") return true;
     if (f === "today") return m.date === t;
     if (f === "week") return m.date >= sw && m.date <= swe;
     if (f === "weekend") return m.date >= wr.from && m.date <= wr.to;
     if (f === "month") return m.date >= sm && m.date <= t;
+    if (f === "lastweek") return m.date >= lwr.from && m.date <= lwr.to;
     if (f === "range") {
       if (from && m.date < from) return false;
       if (to && m.date > to) return false;
@@ -2155,10 +2167,12 @@ function buildHistorySummary(matches) {
   const top3 = stats.slice(0, Math.min(3, stats.length));
   const medals = ["🥇", "🥈", "🥉"];
   const medalColors = ["var(--gold)", "var(--silver)", "var(--bronze)"];
+  let delay = 60;
+  const d = () => { const v = delay; delay += 65; return v; };
   const podiumHtml = top3
     .map(
       (p, i) =>
-        `<div class="hsum-row">
+        `<div class="hsum-row hsum-cascade" style="animation-delay:${d()}ms">
             <span class="hsum-medal">${medals[i]}</span>
             <span class="hsum-pname">${p.name}</span>
             <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
@@ -2172,7 +2186,7 @@ function buildHistorySummary(matches) {
   if (pairs.length) {
     const b = pairs[0];
     highlights.push(
-      `<div class="hsum-hl"><span class="hsum-hl-icon">🤝</span><span class="hsum-hl-label">Best Pair</span><span class="hsum-hl-val">${b.key} &nbsp;<span style="color:var(--green)">${b.winPct}% · ${b.played}g</span></span></div>`,
+      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🤝</span><span class="hsum-hl-label">Best Pair</span><span class="hsum-hl-val">${b.key} &nbsp;<span style="color:var(--green)">${b.winPct}% · ${b.played}g</span></span></div>`,
     );
   }
   const bigWin = [...matches].sort(
@@ -2181,7 +2195,7 @@ function buildHistorySummary(matches) {
   if (bigWin) {
     const w = bigWin.scoreA > bigWin.scoreB ? bigWin.teamA : bigWin.teamB;
     highlights.push(
-      `<div class="hsum-hl"><span class="hsum-hl-icon">💀</span><span class="hsum-hl-label">Biggest Win</span><span class="hsum-hl-val">${bigWin.scoreA}–${bigWin.scoreB} &nbsp;${w.join(" & ")}</span></div>`,
+      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">💀</span><span class="hsum-hl-label">Biggest Win</span><span class="hsum-hl-val">${bigWin.scoreA}–${bigWin.scoreB} &nbsp;${w.join(" & ")}</span></div>`,
     );
   }
   const hottest = stats
@@ -2189,28 +2203,28 @@ function buildHistorySummary(matches) {
     .sort((a, b) => b.curStreak - a.curStreak)[0];
   if (hottest) {
     highlights.push(
-      `<div class="hsum-hl"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label">On Fire</span><span class="hsum-hl-val">${hottest.name} &nbsp;<span style="color:var(--green)">${hottest.curStreak} win streak</span></span></div>`,
+      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label">On Fire</span><span class="hsum-hl-val">${hottest.name} &nbsp;<span style="color:var(--green)">${hottest.curStreak} win streak</span></span></div>`,
     );
   }
   const topScore = Object.entries(scoreDist).sort((a, b) => b[1] - a[1])[0];
   if (topScore && topScore[1] > 1) {
     highlights.push(
-      `<div class="hsum-hl"><span class="hsum-hl-icon">🎯</span><span class="hsum-hl-label">Top Scoreline</span><span class="hsum-hl-val">${topScore[0]} &nbsp;<span style="color:var(--muted)">${topScore[1]}× played</span></span></div>`,
+      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🎯</span><span class="hsum-hl-label">Top Scoreline</span><span class="hsum-hl-val">${topScore[0]} &nbsp;<span style="color:var(--muted)">${topScore[1]}× played</span></span></div>`,
     );
   }
-  return `<div class="hist-summary-card">
+  return `<div class="hist-summary-card hsum-card-anim">
           <div class="hsum-header">
-            <span class="hsum-title">📊 SUMMARY</span>
+            <span class="hsum-title">📊 HIGHLIGHTS</span>
             <span class="hsum-count">${matches.length} match${matches.length > 1 ? "es" : ""}</span>
           </div>
           <div class="hsum-stats">
-            <div class="hsum-stat"><div class="hsum-val">${matches.length}</div><div class="hsum-lbl">Matches</div></div>
-            <div class="hsum-stat"><div class="hsum-val">${playerSet.size}</div><div class="hsum-lbl">Players</div></div>
-            <div class="hsum-stat"><div class="hsum-val">${totalGames}</div><div class="hsum-lbl">Games</div></div>
-            <div class="hsum-stat"><div class="hsum-val">±${avgMargin}</div><div class="hsum-lbl">Avg Margin</div></div>
+            <div class="hsum-stat hsum-cascade" style="animation-delay:0ms"><div class="hsum-val">${matches.length}</div><div class="hsum-lbl">Matches</div></div>
+            <div class="hsum-stat hsum-cascade" style="animation-delay:65ms"><div class="hsum-val">${playerSet.size}</div><div class="hsum-lbl">Players</div></div>
+            <div class="hsum-stat hsum-cascade" style="animation-delay:130ms"><div class="hsum-val">${totalGames}</div><div class="hsum-lbl">Games</div></div>
+            <div class="hsum-stat hsum-cascade" style="animation-delay:195ms"><div class="hsum-val">±${avgMargin}</div><div class="hsum-lbl">Avg Margin</div></div>
           </div>
           ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
-          ${highlights.length ? `<div class="hsum-section-lbl">Highlights</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
+          ${highlights.length ? `<div class="hsum-section-lbl">AWARDS</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
         </div>`;
 }
 
@@ -2722,28 +2736,22 @@ function editMatchByIndex(i) {
 
 // ── FAB MODAL ──────────────────────────────────────────────
 function populatePlayerDropdowns() {
-  const names = new Set();
-  Object.entries(aliasMap).forEach(([display, aliases]) => {
-    names.add(display);
-    aliases.forEach((alias) => names.add(alias));
-  });
-  allMatches.forEach((m) => {
-    (m.teamA || []).forEach((p) => names.add(p));
-    (m.teamB || []).forEach((p) => names.add(p));
-  });
-  const data = document.getElementById("player-suggestions");
-  data.innerHTML = [...names]
-    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-    .map((player) => `<option value="${player}">`)
-    .join("");
-  [
-    "modern-team-a-p1",
-    "modern-team-a-p2",
-    "modern-team-b-p1",
-    "modern-team-b-p2",
-  ].forEach((id) => {
-    const input = document.getElementById(id);
-    if (input) input.value = "";
+  const displayNames = Object.keys(aliasMap).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+  const placeholders = {
+    "modern-team-a-p1": "Team A — P1",
+    "modern-team-a-p2": "Team A — P2",
+    "modern-team-b-p1": "Team B — P1",
+    "modern-team-b-p2": "Team B — P2",
+  };
+  Object.entries(placeholders).forEach(([id, label]) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML =
+      `<option value="">${label}</option>` +
+      displayNames.map((n) => `<option value="${n}">${n}</option>`).join("");
+    sel.value = "";
   });
 }
 
@@ -2935,6 +2943,37 @@ function openPlayerDetail(name) {
             </div>`
       : "";
 
+  // Leaderboard Race stats for this player
+  const { from: wkFrom, to: wkTo } = lastWeekRange();
+  const allRanked = computeStats(allMatches);
+  const preWkRanked = computeStats(allMatches.filter((m) => (m.date || "") < wkFrom));
+  const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
+  const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
+  const raceDelta = rPre && rAll ? rPre - rAll : null;
+  const raceDeltaStr = raceDelta === null ? "—" : raceDelta > 0 ? `▲${raceDelta}` : raceDelta < 0 ? `▼${Math.abs(raceDelta)}` : "—";
+  const raceDeltaColor = raceDelta > 0 ? "var(--green)" : raceDelta < 0 ? "var(--red)" : "var(--muted)";
+  const wkLabel = `${fmtDate(wkFrom).replace(/\s\d{4}$/, "")} – ${fmtDate(wkTo).replace(/\s\d{4}$/, "")}`;
+  const raceHtml = `
+    <div class="ana-card">
+      <span class="badge">Leaderboard Race</span>
+      <div class="det-streak-row">
+        <div class="det-streak-cell">
+          <div class="det-streak-val">${rAll ? `#${rAll}` : "—"}</div>
+          <div class="sub">Current Rank</div>
+        </div>
+        <div class="det-streak-div"></div>
+        <div class="det-streak-cell">
+          <div class="det-streak-val">${rPre ? `#${rPre}` : "—"}</div>
+          <div class="sub">Last Wk. Rank</div>
+        </div>
+        <div class="det-streak-div"></div>
+        <div class="det-streak-cell">
+          <div class="det-streak-val" style="color:${raceDeltaColor}">${raceDeltaStr}</div>
+          <div class="sub">Movement</div>
+        </div>
+      </div>
+    </div>`;
+
   const recentCards = detail.recent
     .slice()
     .reverse()
@@ -3036,6 +3075,8 @@ function openPlayerDetail(name) {
                     </div>
                   </div>
                 </div>
+
+                ${raceHtml}
 
                 ${connectionsHtml}
 
@@ -3615,6 +3656,106 @@ function renderH2HDeepDive() {
             .join("")}`;
 }
 
+// ── ANALYTICS SECTION STATE ────────────────────────────────
+const ANA_ORDER_KEY = "ekta_ana_order";
+const ANA_COL_KEY = "ekta_ana_col";
+function getAnaOrder() { try { return JSON.parse(localStorage.getItem(ANA_ORDER_KEY)) || []; } catch(e) { return []; } }
+function saveAnaOrder(a) { localStorage.setItem(ANA_ORDER_KEY, JSON.stringify(a)); }
+function getAnaCollapsed() { try { return new Set(JSON.parse(localStorage.getItem(ANA_COL_KEY)) || []); } catch(e) { return new Set(); } }
+function saveAnaCollapsed(s) { localStorage.setItem(ANA_COL_KEY, JSON.stringify([...s])); }
+
+function toggleAnaSection(key) {
+  const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
+  if (!el) return;
+  el.classList.toggle("collapsed");
+  const col = getAnaCollapsed();
+  el.classList.contains("collapsed") ? col.add(key) : col.delete(key);
+  saveAnaCollapsed(col);
+}
+
+let _anaDragKey = null;
+let _anaClone = null;
+let _anaDragOffsetY = 0;
+
+function _reRenderAnalytics() {
+  const sc = document.querySelector("#pg-analytics .page-body-scroll");
+  const top = sc?.scrollTop || 0;
+  renderAnalyticsPage();
+  requestAnimationFrame(() => { if (sc) sc.scrollTop = top; });
+}
+
+function anaHandlePointerDown(e, key) {
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  _anaDragKey = key;
+
+  const sec = document.querySelector(`.ana-sec[data-key="${key}"]`);
+  if (!sec) return;
+  const rect = sec.getBoundingClientRect();
+  _anaDragOffsetY = e.clientY - rect.top;
+
+  // Floating clone
+  _anaClone = sec.cloneNode(true);
+  Object.assign(_anaClone.style, {
+    position: "fixed", top: rect.top + "px", left: rect.left + "px",
+    width: rect.width + "px", zIndex: 9999, opacity: "0.85",
+    pointerEvents: "none", boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+    borderRadius: "8px", background: "var(--surface2)",
+  });
+  document.body.appendChild(_anaClone);
+  sec.classList.add("ana-sec-dragging");
+
+  document.addEventListener("pointermove", _anaOnMove);
+  document.addEventListener("pointerup", _anaOnUp);
+}
+
+function _anaOnMove(e) {
+  if (!_anaClone) return;
+  _anaClone.style.top = (e.clientY - _anaDragOffsetY) + "px";
+
+  document.querySelectorAll(".ana-sec-drop-above, .ana-sec-drop-below")
+    .forEach((el) => el.classList.remove("ana-sec-drop-above", "ana-sec-drop-below"));
+
+  const container = document.getElementById("analytics-page-content");
+  if (!container) return;
+  for (const sec of container.querySelectorAll(".ana-sec")) {
+    if (sec.dataset.key === _anaDragKey) continue;
+    const r = sec.getBoundingClientRect();
+    if (e.clientY >= r.top && e.clientY <= r.bottom) {
+      sec.classList.add(e.clientY < r.top + r.height / 2 ? "ana-sec-drop-above" : "ana-sec-drop-below");
+      break;
+    }
+  }
+}
+
+function _anaOnUp(e) {
+  document.removeEventListener("pointermove", _anaOnMove);
+  document.removeEventListener("pointerup", _anaOnUp);
+  if (_anaClone) { _anaClone.remove(); _anaClone = null; }
+
+  const dragged = document.querySelector(`.ana-sec[data-key="${_anaDragKey}"]`);
+  if (dragged) dragged.classList.remove("ana-sec-dragging");
+
+  const above = document.querySelector(".ana-sec-drop-above");
+  const below = document.querySelector(".ana-sec-drop-below");
+  const target = above || below;
+  document.querySelectorAll(".ana-sec-drop-above, .ana-sec-drop-below")
+    .forEach((el) => el.classList.remove("ana-sec-drop-above", "ana-sec-drop-below"));
+
+  if (target && _anaDragKey) {
+    const container = document.getElementById("analytics-page-content");
+    const secs = [...container.querySelectorAll(".ana-sec")].map((el) => el.dataset.key);
+    const from = secs.indexOf(_anaDragKey);
+    secs.splice(from, 1);
+    const to = secs.indexOf(target.dataset.key);
+    secs.splice(above ? to : to + 1, 0, _anaDragKey);
+    saveAnaOrder(secs);
+    _reRenderAnalytics();
+  }
+  _anaDragKey = null;
+}
+
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
@@ -3691,7 +3832,7 @@ function renderAnalyticsPage() {
     );
 
     if (m.teamA.length === 2 && m.teamB.length === 2) {
-      const addP = (t, won) => {
+      const addP = (t, won, ownScore, oppScore) => {
         const key = [...t].sort().join(" & ");
         if (!partnerships[key])
           partnerships[key] = {
@@ -3699,15 +3840,19 @@ function renderAnalyticsPage() {
             wins: 0,
             played: 0,
             diff: 0,
+            gw: 0,
+            gt: 0,
           };
         partnerships[key].played++;
+        partnerships[key].gw += ownScore;
+        partnerships[key].gt += ownScore + oppScore;
         if (won) {
           partnerships[key].wins++;
           partnerships[key].diff += margin;
         } else partnerships[key].diff -= margin;
       };
-      addP(m.teamA, aWon);
-      addP(m.teamB, !aWon);
+      addP(m.teamA, aWon, m.scoreA, m.scoreB);
+      addP(m.teamB, !aWon, m.scoreB, m.scoreA);
     }
     if (m.teamA.length === 2) {
       const [a, b] = m.teamA;
@@ -3776,7 +3921,13 @@ function renderAnalyticsPage() {
   const biggestWin = [...highestMargins].sort((a, b) => b.margin - a.margin)[0];
   const bestPartnership = Object.values(partnerships)
     .filter((p) => p.played >= 2)
-    .sort((a, b) => b.wins / b.played - a.wins / a.played)[0];
+    .sort((a, b) => {
+      const winPctDiff = b.wins / b.played - a.wins / a.played;
+      if (Math.abs(winPctDiff) > 1e-9) return winPctDiff;
+      const playedDiff = b.played - a.played;
+      if (playedDiff !== 0) return playedDiff;
+      return b.gw / b.gt - a.gw / a.gt;
+    })[0];
   const pairLeaderboard = getPairStats().slice(0, 8);
   const playersByMatches = getAllPlayerNamesFromMatches();
   const matrixHtml = buildH2HMatrixCompact(playersByMatches);
@@ -3835,23 +3986,10 @@ function renderAnalyticsPage() {
     .sort((a, b) => b.gap - a.gap)
     .slice(0, 3);
 
-  const nowD = new Date();
-  nowD.setHours(0, 0, 0, 0);
-  // Last full week: Mon–Sun before this week's Monday
-  const dow = nowD.getDay(); // 0=Sun
-  const thisMonday = new Date(nowD);
-  thisMonday.setDate(nowD.getDate() - (dow === 0 ? 6 : dow - 1));
-  const prevMonday = new Date(thisMonday);
-  prevMonday.setDate(thisMonday.getDate() - 7);
-  const prevSunday = new Date(thisMonday);
-  prevSunday.setDate(thisMonday.getDate() - 1);
-  const wkFrom = prevMonday.toISOString().substring(0, 10);
-  const wkTo = prevSunday.toISOString().substring(0, 10);
+  const { from: wkFrom, to: wkTo } = lastWeekRange();
   const rankAll = compList.reduce((o, p, i) => ({ ...o, [p.name]: i + 1 }), {});
   const rank1wk = computeStats(
-    allMatches.filter(
-      (m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo,
-    ),
+    allMatches.filter((m) => (m.date || "") < wkFrom),
   ).reduce((o, p, i) => ({ ...o, [p.name]: i + 1 }), {});
   const rankRace = compList.slice(0, 10).map((p) => ({
     name: p.name,
@@ -3859,7 +3997,7 @@ function renderAnalyticsPage() {
     r1mo: rank1wk[p.name] || "—",
     delta:
       typeof rank1wk[p.name] === "number" && typeof rankAll[p.name] === "number"
-        ? rankAll[p.name] - rank1wk[p.name]
+        ? rank1wk[p.name] - rankAll[p.name]
         : null,
   }));
 
@@ -4275,72 +4413,51 @@ function renderAnalyticsPage() {
   const h2hHtml = `<div class="h2h-form"><div class="h2h-selects"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${opts}</select></div><button class="btn-go" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
 
   // ── RENDER ─────────────────────────────────────────────
-  container.innerHTML = `
-          ${section("⚔️ Player vs Player Matrix")}
-          <div class="ana-card" style="padding:10px 8px">
-            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>
-            ${matrixHtml}
-          </div>
+  const makeSec = (key, title, body, col) => {
+    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}">
+      <div class="ana-section-title ana-sec-hdr" onclick="toggleAnaSection('${key}')">
+        <span class="ana-sec-drag-handle"
+          onpointerdown="anaHandlePointerDown(event,'${key}')"
+          onclick="event.stopPropagation()">⠿</span>
+        <span class="ana-sec-chev"></span>
+        <span class="ana-sec-title-txt">${title}</span>
+      </div>
+      <div class="ana-sec-body">${body}</div>
+    </div>`;
+  };
 
-          ${section("🏅 Awards Board")}
-          <div class="awards-grid">${awardsHtml}</div>
+  const allSecs = [
+    { key: "pvp", title: "⚔️ Player vs Player Matrix", body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>` },
+    { key: "awards", title: "🏅 Awards Board", body: `<div class="awards-grid">${awardsHtml}</div>` },
+    { key: "form", title: "⚡ Current Form", body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>${ftHtml}</div>` },
+    { key: "lrace", title: "🏎️ Leaderboard Race", body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>` },
+    ...(uniqueMonths.length >= 2 ? [{ key: "winrate", title: "📈 Win Rate Over Time", body: `<div class="ana-card">${winChartHtml}</div>` }] : []),
+    { key: "heatmap", title: "📅 Activity Heatmap", body: `<div class="ana-card">${heatHtml}</div>` },
+    { key: "score", title: "📊 Score Distribution", body: `<div class="ana-card">${sdHtml}</div>` },
+    { key: "insights", title: "🎯 Match Insights", body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CLOSEST MATCHES</div>${cmHtml}<div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BIGGEST UPSETS</div>${upHtml}` },
+    { key: "partnership", title: "🤝 Partnership Analytics", body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div><div class="ana-card" style="padding:10px 12px">${chemHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div><div class="ana-card" style="padding:10px 12px">${bpHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div><div class="ana-card" style="padding:10px 12px">${pfHtml}</div>` },
+    { key: "rivalry", title: "🔥 Rivalry Spotlight", body: `<div class="ana-card">${rivalHtml}</div>` },
+    { key: "session", title: "📋 Session Stats", body: sessHtml },
+    { key: "shutout", title: "🎯 Shutout Records", body: `<div class="awards-grid">${scard("🚫","Most Shutout Wins",mostShutoutWinsEntry?.[0],`${mostShutoutWinsEntry?.[1]||0} games won X-0`)}${scard("💔","Most Shutout Losses",mostShutoutLosses.length?mostShutoutLosses.join(" & "):null,`${maxLosses} games lost 0-X`)}</div>` },
+    { key: "core", title: "🏃 Core Stats", body: `<div class="awards-grid">${scard("🏃","Most Active",mostActive?.name,`${mostActive?.matches||0} matches played`)}${scard("🏆","Best Win Rate",topWinRate?.name,`${topWinRate?Math.round((topWinRate.wins/topWinRate.matches)*100):0}% (${topWinRate?.wins||0}W–${topWinRate?.losses||0}L)`)}${scard("🔥","Longest Streak",topStreak?.name,`${topStreak?.bestStreak||0} consecutive wins`)}${scard("⚔️","Most Dominant",destroyer?.name,`+${destroyer?.avgMargin?.toFixed(1)||0} avg margin`)}</div>` },
+    { key: "pairs", title: "🤝 All Pairs", body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>` },
+  ];
 
-          ${section("⚡ Current Form")}
-          <div class="ana-card" style="padding:8px 12px">
-            <div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>
-            ${ftHtml}
-          </div>
+  const storedOrder = getAnaOrder();
+  const validKeys = allSecs.map((s) => s.key);
+  const orderedKeys = [
+    ...storedOrder.filter((k) => validKeys.includes(k)),
+    ...validKeys.filter((k) => !storedOrder.includes(k)),
+  ];
+  const collapsed = getAnaCollapsed();
 
-          ${section("🏎️ Leaderboard Race")}
-          <div class="ana-card" style="padding:8px 12px">
-            <div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>
-            ${lrHtml}
-          </div>
-
-          ${uniqueMonths.length >= 2 ? `${section("📈 Win Rate Over Time")}<div class="ana-card">${winChartHtml}</div>` : ""}
-
-          ${section("📅 Activity Heatmap")}
-          <div class="ana-card">${heatHtml}</div>
-
-          ${section("📊 Score Distribution")}
-          <div class="ana-card">${sdHtml}</div>
-
-          ${section("🎯 Match Insights")}
-          <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CLOSEST MATCHES</div>
-          ${cmHtml}
-          <div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BIGGEST UPSETS</div>
-          ${upHtml}
-
-          ${section("🤝 Partnership Analytics")}
-          <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div>
-          <div class="ana-card" style="padding:10px 12px">${chemHtml}</div>
-          <div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div>
-          <div class="ana-card" style="padding:10px 12px">${bpHtml}</div>
-          <div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div>
-          <div class="ana-card" style="padding:10px 12px">${pfHtml}</div>
-
-          ${section("🔥 Rivalry Spotlight")}
-          <div class="ana-card">${rivalHtml}</div>
-
-          ${section("📋 Session Stats")}
-          ${sessHtml}
-
-          ${section("🎯 Shutout Records")}
-          <div class="awards-grid">
-            ${scard("🚫", "Most Shutout Wins", mostShutoutWinsEntry?.[0], `${mostShutoutWinsEntry?.[1] || 0} games won X-0`)}
-            ${scard("💔", "Most Shutout Losses", mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null, `${maxLosses} games lost 0-X`)}
-          </div>
-
-          ${section("Core Stats")}
-          <div class="awards-grid">
-            ${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}
-            ${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}
-            ${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}
-            ${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}
-          </div>
-
-          ${section("🤝 All Pairs")}
-          <div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`;
+  container.innerHTML = orderedKeys
+    .map((key) => {
+      const def = allSecs.find((s) => s.key === key);
+      if (!def) return "";
+      return makeSec(key, def.title, def.body, collapsed.has(key));
+    })
+    .join("");
 
   // Animate cards and section titles as they scroll into view
   const anaObserver = new IntersectionObserver(
@@ -4423,6 +4540,8 @@ Object.assign(window, {
   saveModernMatch,
   showAnalytics,
   renderAnalyticsPage,
+  toggleAnaSection,
+  anaHandlePointerDown,
   populatePlayerDropdowns,
   renderNamesTable,
   editNameEntry,
@@ -4478,6 +4597,11 @@ function isMatchWithinDateFilter(match, filterValue) {
       matchDate.getMonth() === now.getMonth() &&
       matchDate.getFullYear() === now.getFullYear()
     );
+  }
+
+  if (filterValue === "lastweek") {
+    const lwr = lastWeekRange();
+    return match.date >= lwr.from && match.date <= lwr.to;
   }
 
   return true;

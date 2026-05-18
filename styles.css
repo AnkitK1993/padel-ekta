@@ -2547,8 +2547,58 @@
         padding-bottom: 6px;
         border-bottom: 1px solid var(--border);
       }
-      .ana-section-title:first-child {
-        margin-top: 8px;
+      .ana-section-title:first-child { margin-top: 8px; }
+
+      /* ── COLLAPSIBLE SECTION WRAPPERS ─────────────── */
+      .ana-sec-hdr {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .ana-sec-title-txt { flex: 1; }
+      .ana-sec-chev {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+        border-right: 2px solid var(--muted);
+        border-bottom: 2px solid var(--muted);
+        transform: rotate(45deg);
+        transition: transform 0.22s cubic-bezier(0.22,1,0.36,1);
+        margin-bottom: 2px;
+      }
+      .ana-sec.collapsed .ana-sec-chev {
+        transform: rotate(-45deg);
+        margin-bottom: 0;
+        margin-top: 2px;
+      }
+      .ana-sec-body { overflow: hidden; }
+      .ana-sec.collapsed .ana-sec-body { display: none; }
+      .ana-sec-drag-handle {
+        font-size: 16px;
+        color: var(--muted);
+        cursor: grab;
+        flex-shrink: 0;
+        padding: 0 6px 0 0;
+        line-height: 1;
+        opacity: 0.5;
+        transition: opacity 0.15s;
+        user-select: none;
+        touch-action: none;
+      }
+      .ana-sec-hdr:hover .ana-sec-drag-handle { opacity: 1; }
+      .ana-sec-drag-handle:active { cursor: grabbing; }
+      .ana-sec.ana-sec-dragging {
+        opacity: 0.35;
+      }
+      .ana-sec.ana-sec-drop-above {
+        border-top: 2px solid var(--accent);
+        margin-top: -2px;
+      }
+      .ana-sec.ana-sec-drop-below {
+        border-bottom: 2px solid var(--accent);
       }
 
       /* ── AWARDS GRID ─────────────────────────────── */
@@ -2604,6 +2654,15 @@
         aspect-ratio: 1;
         border-radius: 3px;
         min-width: 0;
+      }
+
+      /* ── HIGHLIGHTS CARD ANIMATIONS ─────────────── */
+      .hsum-card-anim {
+        animation: cardSlideUp 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      .hsum-cascade {
+        opacity: 0;
+        animation: rowReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
 
       /* ── HISTORY SUMMARY CARD ───────────────────── */
@@ -3759,6 +3818,14 @@
         border-color: var(--accent);
       }
       .input-modern::placeholder {
+        color: var(--muted);
+      }
+      select.input-modern {
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+      }
+      select.input-modern option[value=""] {
         color: var(--muted);
       }
       .save-modern-btn {

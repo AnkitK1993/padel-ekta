@@ -58,8 +58,9 @@
               onchange="onHomeFilterChange(this.value)"
             >
               <option value="all">ALL TIME</option>
-              <option value="today">TODAY</option>
+              <option value="today" selected>TODAY</option>
               <option value="week">THIS WEEK</option>
+              <option value="lastweek">LAST WEEK</option>
               <option value="weekend">WEEKEND</option>
               <option value="month">THIS MONTH</option>
               <option value="range">DATE RANGE</option>
@@ -117,15 +118,16 @@
       <div class="page-body-scroll">
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
-          <div class="history-nav-title">PLAYER <span>SUMMARY</span></div>
+          <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
         </div>
         <!-- Filter bar — separated by partition -->
         <div class="summary-filter-bar">
           <div class="cmp-sel-wrap">
             <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
               <option value="all">ALL TIME</option>
-              <option value="today">TODAY</option>
+              <option value="today" selected>TODAY</option>
               <option value="week">THIS WEEK</option>
+              <option value="lastweek">LAST WEEK</option>
               <option value="weekend">WEEKEND</option>
               <option value="month">THIS MONTH</option>
               <option value="range">DATE RANGE</option>
@@ -177,7 +179,7 @@
             </table>
           </div>
           <div class="cmp-matches-header">
-            <div class="t1">MATCHES <span>HISTORY</span></div>
+            <div class="t1">MATCHES <span>PLAYED</span></div>
           </div>
           <div class="cmp-matches" id="cmpMatches"></div>
         </div>
@@ -192,7 +194,7 @@
           data-tab="compact"
           onclick="switchMainTab('compact')"
         >
-          <span class="ico">📋</span>Summary
+          <span class="ico">📋</span>SUMMARY
         </button>
         <button
           class="tbb"
@@ -245,8 +247,9 @@
                 onchange="setHistoryDateFilter(this.value)"
               >
                 <option value="all">ALL TIME</option>
-                <option value="today">TODAY</option>
-                <option value="week">WEEK</option>
+                <option value="today" selected>TODAY</option>
+                <option value="week">THIS WEEK</option>
+                <option value="lastweek">LAST WEEK</option>
                 <option value="weekend">WEEKEND</option>
                 <option value="month">MONTH</option>
                 <option value="range">RANGE</option>
@@ -579,20 +582,12 @@ Parthiv - Par"
       <div class="modern-sheet">
         <div class="sheet-title">Quick Add Match</div>
         <div style="display: flex; gap: 8px; margin-bottom: 12px">
-          <input
-            id="modern-team-a-p1"
-            class="input-modern"
-            list="player-suggestions"
-            placeholder="Player 1 (Team A)"
-            style="flex: 1"
-          />
-          <input
-            id="modern-team-a-p2"
-            class="input-modern"
-            list="player-suggestions"
-            placeholder="Player 2 (Team A)"
-            style="flex: 1"
-          />
+          <select id="modern-team-a-p1" class="input-modern" style="flex: 1">
+            <option value="">Team A — P1</option>
+          </select>
+          <select id="modern-team-a-p2" class="input-modern" style="flex: 1">
+            <option value="">Team A — P2</option>
+          </select>
         </div>
         <input
           id="modern-score-a"
@@ -601,20 +596,12 @@ Parthiv - Par"
           placeholder="Score A"
         />
         <div style="display: flex; gap: 8px; margin-bottom: 12px">
-          <input
-            id="modern-team-b-p1"
-            class="input-modern"
-            list="player-suggestions"
-            placeholder="Player 1 (Team B)"
-            style="flex: 1"
-          />
-          <input
-            id="modern-team-b-p2"
-            class="input-modern"
-            list="player-suggestions"
-            placeholder="Player 2 (Team B)"
-            style="flex: 1"
-          />
+          <select id="modern-team-b-p1" class="input-modern" style="flex: 1">
+            <option value="">Team B — P1</option>
+          </select>
+          <select id="modern-team-b-p2" class="input-modern" style="flex: 1">
+            <option value="">Team B — P2</option>
+          </select>
         </div>
         <datalist id="player-suggestions"></datalist>
         <input
