@@ -721,6 +721,97 @@ const _AV_COLORS = [
   "#18d7ff","#36d47e","#f5c842","#f04f4f","#b06dff",
   "#ff7a3d","#62b6ff","#ff5fa0","#4ec9b0","#c8a96e",
 ];
+
+// SVG avatar building blocks (32×32 viewBox, skin #FDBF8A, hair/beard #111)
+const _sk = "#FDBF8A", _hc = "#111", _ec = "#333";
+const _SW = c => `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">${c}</svg>`;
+const _FB = `<rect x="13" y="27" width="6" height="5" fill="${_sk}"/><circle cx="16" cy="18" r="10" fill="${_sk}"/>`;
+const _HD = `<path d="M6 16 Q6 7 16 7 Q26 7 26 16 Z" fill="${_hc}"/>`;
+const _EY = `<circle cx="13" cy="18" r="1.3" fill="${_ec}"/><circle cx="19" cy="18" r="1.3" fill="${_ec}"/>`;
+const _SM = `<path d="M13 23 Q16 25.5 19 23" stroke="${_ec}" stroke-width="1" fill="none" stroke-linecap="round"/>`;
+const _NO = `<ellipse cx="16" cy="21" rx="1" ry="0.6" fill="#d49b72"/>`;
+
+const PLAYER_AVATAR_PRESETS = [
+  { key: "initials", svg: null, label: "Initials" },
+  { key: "doctor", label: "Doctor", emoji: "👨‍⚕️" },
+  { key: "kid", label: "Kid", svg: _SW(
+    `<rect x="13" y="27" width="6" height="5" fill="${_sk}"/>` +
+    `<circle cx="16" cy="18" r="10" fill="${_sk}"/>` +
+    `<ellipse cx="10" cy="9" rx="3.5" ry="4" fill="${_hc}"/>` +
+    `<ellipse cx="16" cy="7" rx="3.5" ry="4" fill="${_hc}"/>` +
+    `<ellipse cx="22" cy="9" rx="3.5" ry="4" fill="${_hc}"/>` +
+    `<circle cx="13" cy="18" r="1.6" fill="${_ec}"/>` +
+    `<circle cx="19" cy="18" r="1.6" fill="${_ec}"/>` +
+    `<circle cx="11" cy="21" r="2" fill="#ffb3b3" opacity="0.6"/>` +
+    `<circle cx="21" cy="21" r="2" fill="#ffb3b3" opacity="0.6"/>` +
+    `<path d="M13 23 Q16 26 19 23" stroke="${_ec}" stroke-width="1.2" fill="none" stroke-linecap="round"/>`
+  ) },
+  { key: "pilot", label: "Pilot", emoji: "👨‍✈️" },
+  { key: "beard", label: "Bearded", emoji: "🧔" },
+  { key: "curlyspec", label: "Curly+Specs", svg: _SW(
+    `${_FB}` +
+    `<ellipse cx="10" cy="9" rx="3.5" ry="3.5" fill="${_hc}"/>` +
+    `<ellipse cx="16" cy="8" rx="3.5" ry="3.5" fill="${_hc}"/>` +
+    `<ellipse cx="22" cy="9" rx="3.5" ry="3.5" fill="${_hc}"/>` +
+    `<ellipse cx="13" cy="12" rx="2.5" ry="2" fill="${_hc}"/>` +
+    `<ellipse cx="19" cy="12" rx="2.5" ry="2" fill="${_hc}"/>` +
+    `${_EY}` +
+    `<rect x="9" y="16" width="6.5" height="3.5" rx="1.5" fill="none" stroke="${_ec}" stroke-width="1.2"/>` +
+    `<rect x="16.5" y="16" width="6.5" height="3.5" rx="1.5" fill="none" stroke="${_ec}" stroke-width="1.2"/>` +
+    `<line x1="15.5" y1="17.8" x2="16.5" y2="17.8" stroke="${_ec}" stroke-width="1.2"/>` +
+    `${_NO}${_SM}`
+  ) },
+  { key: "doccap", label: "Doc+Cap", svg: _SW(
+    `${_FB}` +
+    `<path d="M6 14 Q6 7 16 7 Q26 7 26 14 Z" fill="#5b9bd5"/>` +
+    `<rect x="6" y="13.5" width="20" height="2.5" fill="#3d7ab5" rx="0.5"/>` +
+    `<rect x="6" y="14" width="3" height="4" fill="${_sk}"/>` +
+    `<rect x="23" y="14" width="3" height="4" fill="${_sk}"/>` +
+    `${_EY}${_NO}${_SM}` +
+    `<path d="M6 32 L9 26 Q16 24 23 26 L26 32 Z" fill="white"/>` +
+    `<path d="M13 26 L16 23 L19 26" stroke="#ccc" stroke-width="1.5" fill="none"/>`
+  ) },
+  { key: "classic", label: "Classic", emoji: "👨" },
+  { key: "specs", label: "Specs", svg: _SW(
+    `${_FB}${_HD}${_EY}${_NO}${_SM}` +
+    `<rect x="9" y="16" width="6" height="4" rx="1" fill="none" stroke="${_ec}" stroke-width="1.3"/>` +
+    `<rect x="17" y="16" width="6" height="4" rx="1" fill="none" stroke="${_ec}" stroke-width="1.3"/>` +
+    `<line x1="15" y1="18" x2="17" y2="18" stroke="${_ec}" stroke-width="1.3"/>` +
+    `<line x1="9" y1="18" x2="7" y2="18" stroke="${_ec}" stroke-width="1.3"/>` +
+    `<line x1="23" y1="18" x2="25" y2="18" stroke="${_ec}" stroke-width="1.3"/>`
+  ) },
+  { key: "cool", label: "Cool", svg: _SW(
+    `${_FB}${_HD}${_NO}${_SM}` +
+    `<rect x="8" y="15" width="7" height="5" rx="2.5" fill="${_hc}"/>` +
+    `<rect x="17" y="15" width="7" height="5" rx="2.5" fill="${_hc}"/>` +
+    `<line x1="15" y1="17.5" x2="17" y2="17.5" stroke="#555" stroke-width="1"/>` +
+    `<line x1="8" y1="17.5" x2="6" y2="17.5" stroke="#555" stroke-width="1"/>` +
+    `<line x1="24" y1="17.5" x2="26" y2="17.5" stroke="#555" stroke-width="1"/>`
+  ) },
+  { key: "ninja", label: "Ninja", emoji: "🥷" },
+  { key: "suit", label: "Suited", emoji: "🤵" },
+  { key: "chef", label: "Chef", emoji: "👨‍🍳" },
+  { key: "foodie", label: "Foodie", emoji: "😋" },
+  { key: "gym", label: "Gym Freak", emoji: "🏋️" },
+];
+
+const _AVATAR_STORE = "padel_player_avatars";
+function _getAvatarStore() {
+  try { return JSON.parse(localStorage.getItem(_AVATAR_STORE)) || {}; } catch { return {}; }
+}
+function getPlayerAvatar(name) { return _getAvatarStore()[name] || "initials"; }
+function setPlayerAvatar(name, key) {
+  const s = _getAvatarStore(); s[name] = key;
+  localStorage.setItem(_AVATAR_STORE, JSON.stringify(s));
+}
+const _UPLOAD_STORE = "padel_player_avatar_imgs";
+function _getUploadStore() { try { return JSON.parse(localStorage.getItem(_UPLOAD_STORE)) || {}; } catch { return {}; } }
+function getPlayerAvatarImg(name) { return _getUploadStore()[name] || null; }
+function setPlayerAvatarImg(name, dataUrl) {
+  const s = _getUploadStore(); s[name] = dataUrl;
+  localStorage.setItem(_UPLOAD_STORE, JSON.stringify(s));
+}
+
 function playerColor(name) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
@@ -732,8 +823,112 @@ function playerInitials(name) {
 }
 function playerAvatar(name, size = 26) {
   const col = playerColor(name);
+  const key = getPlayerAvatar(name);
+  if (key === "upload") {
+    const img = getPlayerAvatarImg(name);
+    if (img) {
+      return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;background:${col}22;border:1.5px solid ${col};overflow:hidden;padding:0;box-sizing:border-box"><img src="${img}" style="width:100%;height:100%;object-fit:cover"/></span>`;
+    }
+  }
+  const preset = PLAYER_AVATAR_PRESETS.find(a => a.key === key);
+  if (preset?.svg) {
+    return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;background:${col}22;border:1.5px solid ${col};overflow:hidden;padding:2px;box-sizing:border-box">${preset.svg}</span>`;
+  }
+  if (preset?.emoji) {
+    const fs = Math.round(size * 0.62);
+    return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col}">${preset.emoji}</span>`;
+  }
   const fs = Math.round(size * 0.38);
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
+}
+
+function openAvatarPicker(name) {
+  document.getElementById("av-picker")?.remove();
+  const col = playerColor(name);
+  const current = getPlayerAvatar(name);
+
+  const opts = PLAYER_AVATAR_PRESETS.map(a => {
+    const icon = a.svg
+      ? `<div style="width:32px;height:32px;overflow:hidden;border-radius:50%;background:${col}22;border:1.5px solid ${col};padding:2px;box-sizing:border-box">${a.svg}</div>`
+      : a.emoji
+        ? `<span style="font-size:24px;line-height:32px;display:block;text-align:center">${a.emoji}</span>`
+        : `<span class="p-av" style="width:32px;height:32px;min-width:32px;font-size:12px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
+    const sel = a.key === current;
+    return `<div class="av-opt${sel ? " av-opt-sel" : ""}" onclick="selectAvatar('${name.replace(/'/g,"\\'")}','${a.key}')">
+      <div class="av-opt-icon">${icon}</div>
+      <div class="av-opt-lbl">${a.label}</div>
+    </div>`;
+  }).join("");
+
+  const uploadImg = getPlayerAvatarImg(name);
+  const camSvg = _SW(
+    `<rect x="4" y="9" width="24" height="17" rx="2" fill="none" stroke="#888" stroke-width="2"/>` +
+    `<circle cx="16" cy="17" r="5" fill="none" stroke="#888" stroke-width="2"/>` +
+    `<path d="M12 6 L14 9 L18 9 L20 6 Z" fill="#888"/>`
+  );
+  const uploadIcon = uploadImg
+    ? `<div style="width:32px;height:32px;overflow:hidden;border-radius:50%;border:1.5px solid ${col}"><img src="${uploadImg}" style="width:100%;height:100%;object-fit:cover"/></div>`
+    : `<div style="width:32px;height:32px;overflow:hidden;border-radius:50%;background:${col}22;border:1.5px solid ${col};padding:2px;box-sizing:border-box">${camSvg}</div>`;
+  const uploadOpt = `<div class="av-opt${current === "upload" ? " av-opt-sel" : ""}" onclick="uploadPlayerAvatar('${name.replace(/'/g,"\\'")}')">
+    <div class="av-opt-icon">${uploadIcon}</div>
+    <div class="av-opt-lbl">Upload</div>
+  </div>`;
+
+  const el = document.createElement("div");
+  el.id = "av-picker";
+  el.innerHTML = `
+    <div class="av-overlay" onclick="document.getElementById('av-picker').remove()"></div>
+    <div class="av-sheet">
+      <div class="av-sheet-title">Choose Avatar · <span style="color:var(--accent)">${name}</span></div>
+      <div class="av-grid">${opts}${uploadOpt}</div>
+      <button class="av-done-btn" onclick="document.getElementById('av-picker').remove()">Done</button>
+    </div>`;
+  document.body.appendChild(el);
+}
+
+function selectAvatar(name, key) {
+  setPlayerAvatar(name, key);
+  document.getElementById("av-picker")?.remove();
+  document.getElementById("player-detail-modal")?.remove();
+  openPlayerDetail(name);
+}
+
+function uploadPlayerAvatar(name) {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = "image/*";
+  inp.style.cssText = "position:fixed;top:-200px;opacity:0;pointer-events:none";
+  inp.onchange = () => {
+    const file = inp.files[0];
+    if (!file) { inp.remove(); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const SZ = 256;
+        const canvas = document.createElement("canvas");
+        canvas.width = SZ; canvas.height = SZ;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, SZ, SZ);
+        // cover: scale so shortest side fills SZ, then center-crop
+        const scale = Math.max(SZ / img.width, SZ / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (SZ - w) / 2, (SZ - h) / 2, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        setPlayerAvatarImg(name, dataUrl);
+        setPlayerAvatar(name, "upload");
+        inp.remove();
+        document.getElementById("av-picker")?.remove();
+        document.getElementById("player-detail-modal")?.remove();
+        openPlayerDetail(name);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  document.body.appendChild(inp);
+  inp.click();
 }
 
 // ── FILTER ─────────────────────────────────────────────────
@@ -3380,7 +3575,7 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="display:flex;align-items:center;gap:10px">${playerAvatar(name, 36)}${name}</div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><span onclick="openAvatarPicker('${name.replace(/'/g,"\\'")}')" class="av-tap-hint" title="Tap to change avatar">${playerAvatar(name, 64)}</span>${name}</div>
                 <div style="display:flex;align-items:center;gap:8px">
                   <button class="share-card-btn" onclick="openShareCard('${name.replace(/'/g, "\\'")}')">⬆ Share</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
@@ -3615,7 +3810,6 @@ function openShareCard(name) {
   const eloMap = computeElo(allMatches);
   const elo = Math.round(eloMap[name] || 1000);
   const col = playerColor(name);
-  const initials = playerInitials(name);
 
   const streakIcon = s.curStreak > 0 ? (s.curType === "W" ? "🔥" : "❄️") : "";
   const streakStr = s.curStreak > 0 ? `${streakIcon} ${s.curStreak}${s.curType}` : "—";
@@ -3640,7 +3834,7 @@ function openShareCard(name) {
     <div style="background:linear-gradient(145deg,#0e0e1c,#131320);border-radius:20px;border:1px solid rgba(255,255,255,0.1);padding:28px 24px 24px;width:100%;max-width:340px;box-shadow:0 0 60px rgba(0,0,0,0.6);position:relative;overflow:hidden">
       <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 0%,${col}18 0%,transparent 60%);pointer-events:none"></div>
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
-        <div style="width:52px;height:52px;min-width:52px;border-radius:50%;background:${col}22;border:2px solid ${col};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:${col}">${initials}</div>
+        ${playerAvatar(name, 72)}
         <div>
           <div style="font-size:18px;font-weight:900;color:#eeeae4;letter-spacing:0.01em">${name}</div>
           <div style="font-size:11px;color:#60607a;font-weight:600;margin-top:2px">Rank #${rank} · ELO ${elo}</div>
@@ -5669,6 +5863,9 @@ Object.assign(window, {
   playerInitials,
   openShareCard,
   quickRematch,
+  openAvatarPicker,
+  selectAvatar,
+  uploadPlayerAvatar,
   runMatchSimulator,
   toggleMatchCalendar,
   calNav,
