@@ -2935,6 +2935,7 @@
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--muted);
+        text-align: center;
       }
       .lrace-row {
         display: grid;
@@ -2943,11 +2944,13 @@
         align-items: center;
         padding: 7px 4px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        text-align: center;
       }
       .lrace-rank {
         font-size: 12px;
         font-weight: 800;
         color: var(--accent);
+        text-align: center;
       }
       .lrace-name {
         font-size: 12px;
@@ -2956,6 +2959,7 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        text-align: center;
       }
       .lrace-1mo {
         font-size: 11px;
@@ -2966,7 +2970,7 @@
       .lrace-delta {
         font-size: 11px;
         font-weight: 800;
-        text-align: right;
+        text-align: center;
       }
 
       /* ── CHEMISTRY / PAIR ROWS ───────────────────── */

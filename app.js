@@ -753,11 +753,11 @@ function computeStats(matches, eloMap = {}) {
         const played = p.partnerPlayed[partner];
         if (played < MIN_G) return;
         const pct = ((p.partnerWins[partner] || 0) / played) * 100;
-        if (pct > bestPPct) {
+        if (pct > bestPPct || (pct === bestPPct && played > (bestPartner?.played ?? 0))) {
           bestPPct = pct;
           bestPartner = { name: partner, pct, played };
         }
-        if (pct < worstPPct) {
+        if (pct < worstPPct || (pct === worstPPct && played > (worstPartner?.played ?? 0))) {
           worstPPct = pct;
           worstPartner = { name: partner, pct, played };
         }
@@ -4408,22 +4408,22 @@ function renderAnalyticsPage() {
   // ── AWARDS ─────────────────────────────────────────────
   const awards = [
     {
-      i: "🏋️",
-      t: "Iron Man",
-      n: mostActive?.name,
-      s: `${mostActive?.matches || 0} matches played`,
-    },
-    {
       i: "🎯",
       t: "Sharpshooter",
       n: topWinRate?.name,
       s: `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% win rate`,
     },
     {
-      i: "🔥",
-      t: "On Fire",
-      n: topStreak?.name,
-      s: `${topStreak?.bestStreak || 0} win streak`,
+      i: "🛡️",
+      t: "The Wall",
+      n: mostShutoutWinsEntry?.[0] || "—",
+      s: `${mostShutoutWinsEntry?.[1] || 0} shutout wins`,
+    },
+    {
+      i: "💔",
+      t: "Glass Jaw",
+      n: mostShutoutLosses[0] || "—",
+      s: `${maxLosses} shutout losses`,
     },
     {
       i: "👑",
@@ -4444,18 +4444,6 @@ function renderAnalyticsPage() {
       t: "Dynamic Duo",
       n: bestPartnership?.players?.join(" & ") || "—",
       s: `${bestPartnership ? Math.round((bestPartnership.wins / bestPartnership.played) * 100) : 0}% win rate together`,
-    },
-    {
-      i: "🛡️",
-      t: "The Wall",
-      n: mostShutoutWinsEntry?.[0] || "—",
-      s: `${mostShutoutWinsEntry?.[1] || 0} shutout wins`,
-    },
-    {
-      i: "💔",
-      t: "Glass Jaw",
-      n: mostShutoutLosses[0] || "—",
-      s: `${maxLosses} shutout losses`,
     },
   ];
   const awardsHtml = awards
@@ -4506,7 +4494,6 @@ function renderAnalyticsPage() {
 
   const bpHtml =
     bestPairPerP
-      .slice(0, 8)
       .map(
         (p) =>
           `<div class="bpair-row"><div class="bpair-player">${p.name}</div><div class="bpair-partner">🤝 ${p.partner.name.split(" ")[0]}</div><div class="bpair-pct">${p.partner.pct.toFixed(0)}%</div></div>`,
@@ -4703,7 +4690,7 @@ function renderAnalyticsPage() {
 
   const allSecs = [
     { key: "pvp", title: "⚔️ Player vs Player Matrix", body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>` },
-    { key: "awards", title: "🏅 Awards Board", body: `<div class="awards-grid">${awardsHtml}</div>` },
+    { key: "awards", title: "🏅 Awards Board", body: `<div class="awards-grid">${scard("🏃","Most Active",mostActive?.name,`${mostActive?.matches||0} matches played`)}${awardsHtml}${scard("🏆","Best Win Rate",topWinRate?.name,`${topWinRate?Math.round((topWinRate.wins/topWinRate.matches)*100):0}% (${topWinRate?.wins||0}W–${topWinRate?.losses||0}L)`)}${scard("🔥","Longest Streak",topStreak?.name,`${topStreak?.bestStreak||0} consecutive wins`)}${scard("⚔️","Most Dominant",destroyer?.name,`+${destroyer?.avgMargin?.toFixed(1)||0} avg margin`)}</div>` },
     { key: "form", title: "⚡ Current Form", body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>${ftHtml}</div>` },
     { key: "lrace", title: "🏎️ Leaderboard Race", body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>` },
     ...(uniqueMonths.length >= 2 ? [{ key: "winrate", title: "📈 Win Rate Over Time", body: `<div class="ana-card">${winChartHtml}</div>` }] : []),
@@ -4714,7 +4701,6 @@ function renderAnalyticsPage() {
     { key: "rivalry", title: "🔥 Rivalry Spotlight", body: `<div class="ana-card">${rivalHtml}</div>` },
     { key: "session", title: "📋 Session Stats", body: sessHtml },
     { key: "shutout", title: "🎯 Shutout Records", body: `<div class="awards-grid">${scard("🚫","Most Shutout Wins",mostShutoutWinsEntry?.[0],`${mostShutoutWinsEntry?.[1]||0} games won X-0`)}${scard("💔","Most Shutout Losses",mostShutoutLosses.length?mostShutoutLosses.join(" & "):null,`${maxLosses} games lost 0-X`)}</div>` },
-    { key: "core", title: "🏃 Core Stats", body: `<div class="awards-grid">${scard("🏃","Most Active",mostActive?.name,`${mostActive?.matches||0} matches played`)}${scard("🏆","Best Win Rate",topWinRate?.name,`${topWinRate?Math.round((topWinRate.wins/topWinRate.matches)*100):0}% (${topWinRate?.wins||0}W–${topWinRate?.losses||0}L)`)}${scard("🔥","Longest Streak",topStreak?.name,`${topStreak?.bestStreak||0} consecutive wins`)}${scard("⚔️","Most Dominant",destroyer?.name,`+${destroyer?.avgMargin?.toFixed(1)||0} avg margin`)}</div>` },
     { key: "pairs", title: "🤝 All Pairs", body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>` },
     { key: "elo", title: "⚡ ELO Rankings", body: eloHtml },
     { key: "pairmatrix", title: "🧪 Pair Chemistry Matrix", body: pairMatrixHtml },
