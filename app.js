@@ -1518,7 +1518,7 @@ function getFormSparkline(playerName, width = 80, height = 28) {
 function getSRRatingClass(normalizedSR) {
   let c =
     normalizedSR >= 7 ? "sr-high" : normalizedSR >= 4 ? "sr-mid" : "sr-low";
-  if (normalizedSR >= 9) c += " rev-limit";
+  if (normalizedSR > 7) c += " rev-limit";
   return c;
 }
 
@@ -1596,7 +1596,7 @@ function runSpeedometerSweep() {
       const targetAngle = getComputedStyle(ring)
         .getPropertyValue("--speed-angle")
         .trim();
-      needle.animate(
+      const sweepAnim = needle.animate(
         [
           { transform: "translateX(-50%) rotate(-90deg)" },
           { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
@@ -1610,6 +1610,9 @@ function runSpeedometerSweep() {
           fill: "forwards",
         },
       );
+      if (ring.classList.contains("rev-limit")) {
+        sweepAnim.onfinish = () => sweepAnim.cancel();
+      }
     });
   });
 }
