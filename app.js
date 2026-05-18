@@ -174,6 +174,7 @@ let cmpRecordSortMode = "wins";
 let prevPage = "home";
 let lastMatchSnapshot = null;
 window.isAdmin = false;
+let scheduledMatches = [];
 
 // ── SPLASH HELPERS ─────────────────────────────────────────
 function setSplashStatus(msg) {
@@ -195,6 +196,149 @@ async function saveCloudData() {
   try {
     localStorage.setItem("padel_matches", JSON.stringify(allMatches));
   } catch (e) {}
+}
+
+// ── SCHEDULED MATCHES ──────────────────────────────────────
+async function saveScheduledMatches() {
+  try {
+    localStorage.setItem("padel_scheduled", JSON.stringify(scheduledMatches));
+    if (auth.currentUser && window.isAdmin) {
+      await setDoc(doc(db, "padel", "scheduled"), { items: scheduledMatches }, { merge: false });
+    }
+  } catch (e) { console.error("Schedule save failed:", e); }
+}
+
+function loadScheduledMatches() {
+  try {
+    const cached = JSON.parse(localStorage.getItem("padel_scheduled") || "[]");
+    if (Array.isArray(cached)) scheduledMatches = cached;
+  } catch (e) {}
+  try {
+    onSnapshot(doc(db, "padel", "scheduled"), snap => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      if (Array.isArray(d.items)) {
+        scheduledMatches = d.items;
+        try { localStorage.setItem("padel_scheduled", JSON.stringify(scheduledMatches)); } catch (e) {}
+      }
+      renderScheduledBanner();
+      renderScheduledAdmin();
+    });
+  } catch (e) {}
+  renderScheduledBanner();
+}
+
+function renderScheduledBanner() {
+  const el = document.getElementById("scheduled-banner");
+  if (!el) return;
+  const today = todayISO();
+  const upcoming = scheduledMatches
+    .filter(s => s.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!upcoming.length) { el.innerHTML = ""; el.style.display = "none"; return; }
+  const next = upcoming[0];
+  const isToday = next.date === today;
+  const dateLabel = isToday ? "TODAY" : fmtDate(next.date).toUpperCase();
+  const teamLabel = next.teamA && next.teamB
+    ? `${next.teamA.join(" & ")} vs ${next.teamB.join(" & ")}`
+    : next.note || "Session scheduled";
+  el.style.display = "block";
+  el.innerHTML = `
+    <div class="sched-banner">
+      <div class="sched-banner-left">
+        <span class="sched-banner-icon">${isToday ? "🏓" : "📅"}</span>
+        <div>
+          <div class="sched-banner-date">${isToday ? "🔔 NEXT SESSION — TODAY" : `NEXT SESSION · ${dateLabel}`}</div>
+          <div class="sched-banner-team">${teamLabel}</div>
+          ${next.note && (next.teamA || next.teamB) ? `<div class="sched-banner-note">${next.note}</div>` : ""}
+        </div>
+      </div>
+      ${upcoming.length > 1 ? `<div class="sched-banner-more">+${upcoming.length - 1} more</div>` : ""}
+    </div>`;
+}
+
+function renderScheduledAdmin() {
+  const el = document.getElementById("scheduled-admin-list");
+  if (!el) return;
+  const today = todayISO();
+  const sorted = [...scheduledMatches].sort((a, b) => a.date.localeCompare(b.date));
+  if (!sorted.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No upcoming sessions scheduled.</div>'; return; }
+  el.innerHTML = sorted.map((s, i) => {
+    const isPast = s.date < today;
+    const teamLabel = s.teamA && s.teamB ? `${s.teamA.join(" & ")} vs ${s.teamB.join(" & ")}` : "Open session";
+    return `<div class="sched-item${isPast ? " sched-past" : ""}">
+      <div class="sched-item-body">
+        <div class="sched-item-date">${fmtDate(s.date)}${isPast ? " · past" : ""}</div>
+        <div class="sched-item-team">${teamLabel}</div>
+        ${s.note ? `<div class="sched-item-note">${s.note}</div>` : ""}
+      </div>
+      <button class="sched-del-btn" onclick="deleteScheduled(${i})">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function openScheduleModal() {
+  document.getElementById("schedule-modal")?.remove();
+  const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b));
+  const opts = players.map(p => `<option value="${p}">${p}</option>`).join("");
+  const modal = document.createElement("div");
+  modal.id = "schedule-modal";
+  modal.className = "modern-add-modal show";
+  modal.innerHTML = `
+    <div class="modern-modal-overlay" onclick="document.getElementById('schedule-modal').remove()"></div>
+    <div class="modern-modal-card" style="max-width:320px">
+      <div class="modern-modal-header">
+        <span class="modern-modal-title">Schedule Session</span>
+        <button class="modern-modal-close" onclick="document.getElementById('schedule-modal').remove()">✕</button>
+      </div>
+      <div class="modern-modal-body">
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">DATE</div>
+        <input id="sched-date" type="date" class="modern-select" style="margin-bottom:14px" value="${todayISO()}">
+        <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM A (optional)</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <select id="sched-a1" class="modern-select" style="flex:1"><option value="">P1</option>${opts}</select>
+          <select id="sched-a2" class="modern-select" style="flex:1"><option value="">P2</option>${opts}</select>
+        </div>
+        <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM B (optional)</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <select id="sched-b1" class="modern-select" style="flex:1"><option value="">P1</option>${opts}</select>
+          <select id="sched-b2" class="modern-select" style="flex:1"><option value="">P2</option>${opts}</select>
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">NOTE (optional)</div>
+        <input id="sched-note" type="text" class="modern-select" style="margin-bottom:16px" placeholder="e.g. court 3, bring balls…">
+        <button class="modern-save-btn" onclick="saveScheduled()">Schedule</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function saveScheduled() {
+  const date = document.getElementById("sched-date")?.value;
+  if (!date) return;
+  const a1 = document.getElementById("sched-a1")?.value;
+  const a2 = document.getElementById("sched-a2")?.value;
+  const b1 = document.getElementById("sched-b1")?.value;
+  const b2 = document.getElementById("sched-b2")?.value;
+  const note = document.getElementById("sched-note")?.value.trim();
+  const entry = { date, id: Date.now() };
+  const teamA = [a1, a2].filter(Boolean);
+  const teamB = [b1, b2].filter(Boolean);
+  if (teamA.length) entry.teamA = teamA;
+  if (teamB.length) entry.teamB = teamB;
+  if (note) entry.note = note;
+  scheduledMatches.push(entry);
+  saveScheduledMatches();
+  document.getElementById("schedule-modal")?.remove();
+  renderScheduledBanner();
+  renderScheduledAdmin();
+  showToast("Session scheduled!", "📅");
+}
+
+function deleteScheduled(i) {
+  scheduledMatches.splice(i, 1);
+  saveScheduledMatches();
+  renderScheduledBanner();
+  renderScheduledAdmin();
 }
 
 // ── DATA LOADER ────────────────────────────────────────────
@@ -538,6 +682,52 @@ function onTouchEnd(e) {
 document.addEventListener("touchstart", onTouchStart, { passive: true });
 document.addEventListener("touchend", onTouchEnd, { passive: true });
 
+// ── SWIPE-TO-DELETE ────────────────────────────────────────
+let _swipeTouchStartX = 0, _swipeTouchStartY = 0, _swipeCard = null, _swipeActive = false;
+document.addEventListener("touchstart", e => {
+  if (!window.isAdmin || e.touches.length !== 1) return;
+  const card = e.target.closest(".match-card");
+  if (!card) return;
+  _swipeTouchStartX = e.touches[0].clientX;
+  _swipeTouchStartY = e.touches[0].clientY;
+  _swipeCard = card;
+  _swipeActive = false;
+}, { passive: true });
+
+document.addEventListener("touchmove", e => {
+  if (!_swipeCard) return;
+  const dx = e.touches[0].clientX - _swipeTouchStartX;
+  const dy = e.touches[0].clientY - _swipeTouchStartY;
+  if (!_swipeActive && Math.abs(dy) > Math.abs(dx)) { _swipeCard = null; return; }
+  if (!_swipeActive && Math.abs(dx) > 8) _swipeActive = true;
+  if (!_swipeActive) return;
+  if (dx < 0) {
+    const reveal = Math.min(72, Math.abs(dx));
+    const inner = _swipeCard.querySelector(".match-card-inner");
+    if (inner) { inner.style.transform = `translateX(${-reveal}px)`; _swipeCard.classList.add("swiping"); }
+    if (reveal >= 52) _swipeCard.classList.add("swipe-revealed");
+    else _swipeCard.classList.remove("swipe-revealed");
+  } else {
+    const inner = _swipeCard.querySelector(".match-card-inner");
+    if (inner) inner.style.transform = "";
+    _swipeCard.classList.remove("swipe-revealed", "swiping");
+  }
+}, { passive: true });
+
+document.addEventListener("touchend", e => {
+  if (!_swipeCard) return;
+  const card = _swipeCard;
+  _swipeCard = null;
+  _swipeActive = false;
+  const inner = card.querySelector(".match-card-inner");
+  if (card.classList.contains("swipe-revealed")) {
+    if (inner) { inner.style.transition = "transform 0.25s ease"; inner.style.transform = "translateX(-72px)"; }
+  } else {
+    card.classList.remove("swipe-revealed", "swiping");
+    if (inner) { inner.style.transition = "transform 0.25s ease"; inner.style.transform = ""; setTimeout(() => { inner.style.transition = ""; }, 260); }
+  }
+}, { passive: true });
+
 // Format today as D/M/YY (the expected date header format)
 function todayDMYY() {
   const now = new Date();
@@ -722,146 +912,6 @@ const _AV_COLORS = [
   "#ff7a3d","#62b6ff","#ff5fa0","#4ec9b0","#c8a96e",
 ];
 
-// SVG avatar building blocks (32×32 viewBox, skin #FDBF8A, hair/beard #111)
-const _sk = "#FDBF8A", _hc = "#111", _ec = "#333";
-const _SW = c => `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">${c}</svg>`;
-const _FB = `<rect x="13" y="27" width="6" height="5" fill="${_sk}"/><circle cx="16" cy="18" r="10" fill="${_sk}"/>`;
-const _HD = `<path d="M6 16 Q6 7 16 7 Q26 7 26 16 Z" fill="${_hc}"/>`;
-const _EY = `<circle cx="13" cy="18" r="1.3" fill="${_ec}"/><circle cx="19" cy="18" r="1.3" fill="${_ec}"/>`;
-const _SM = `<path d="M13 23 Q16 25.5 19 23" stroke="${_ec}" stroke-width="1" fill="none" stroke-linecap="round"/>`;
-const _NO = `<ellipse cx="16" cy="21" rx="1" ry="0.6" fill="#d49b72"/>`;
-
-const PLAYER_AVATAR_PRESETS = [
-  { key: "initials", svg: null, label: "Initials" },
-  { key: "doctor", label: "Doctor", emoji: "👨‍⚕️" },
-  { key: "kid", label: "Kid", svg: _SW(
-    `<rect x="13" y="27" width="6" height="5" fill="${_sk}"/>` +
-    `<circle cx="16" cy="18" r="10" fill="${_sk}"/>` +
-    `<ellipse cx="10" cy="9" rx="3.5" ry="4" fill="${_hc}"/>` +
-    `<ellipse cx="16" cy="7" rx="3.5" ry="4" fill="${_hc}"/>` +
-    `<ellipse cx="22" cy="9" rx="3.5" ry="4" fill="${_hc}"/>` +
-    `<circle cx="13" cy="18" r="1.6" fill="${_ec}"/>` +
-    `<circle cx="19" cy="18" r="1.6" fill="${_ec}"/>` +
-    `<circle cx="11" cy="21" r="2" fill="#ffb3b3" opacity="0.6"/>` +
-    `<circle cx="21" cy="21" r="2" fill="#ffb3b3" opacity="0.6"/>` +
-    `<path d="M13 23 Q16 26 19 23" stroke="${_ec}" stroke-width="1.2" fill="none" stroke-linecap="round"/>`
-  ) },
-  { key: "pilot", label: "Pilot", emoji: "👨‍✈️" },
-  { key: "beard", label: "Bearded", emoji: "🧔" },
-  { key: "curlyspec", label: "Curly+Specs", svg: _SW(
-    `${_FB}` +
-    `<ellipse cx="10" cy="9" rx="3.5" ry="3.5" fill="${_hc}"/>` +
-    `<ellipse cx="16" cy="8" rx="3.5" ry="3.5" fill="${_hc}"/>` +
-    `<ellipse cx="22" cy="9" rx="3.5" ry="3.5" fill="${_hc}"/>` +
-    `<ellipse cx="13" cy="12" rx="2.5" ry="2" fill="${_hc}"/>` +
-    `<ellipse cx="19" cy="12" rx="2.5" ry="2" fill="${_hc}"/>` +
-    `${_EY}` +
-    `<rect x="9" y="16" width="6.5" height="3.5" rx="1.5" fill="none" stroke="${_ec}" stroke-width="1.2"/>` +
-    `<rect x="16.5" y="16" width="6.5" height="3.5" rx="1.5" fill="none" stroke="${_ec}" stroke-width="1.2"/>` +
-    `<line x1="15.5" y1="17.8" x2="16.5" y2="17.8" stroke="${_ec}" stroke-width="1.2"/>` +
-    `${_NO}${_SM}`
-  ) },
-  { key: "doccap", label: "Doc+Cap", svg: _SW(
-    `${_FB}` +
-    `<path d="M6 14 Q6 7 16 7 Q26 7 26 14 Z" fill="#5b9bd5"/>` +
-    `<rect x="6" y="13.5" width="20" height="2.5" fill="#3d7ab5" rx="0.5"/>` +
-    `<rect x="6" y="14" width="3" height="4" fill="${_sk}"/>` +
-    `<rect x="23" y="14" width="3" height="4" fill="${_sk}"/>` +
-    `${_EY}${_NO}${_SM}` +
-    `<path d="M6 32 L9 26 Q16 24 23 26 L26 32 Z" fill="white"/>` +
-    `<path d="M13 26 L16 23 L19 26" stroke="#ccc" stroke-width="1.5" fill="none"/>`
-  ) },
-  { key: "classic", label: "Classic", emoji: "👨" },
-  { key: "specs", label: "Specs", svg: _SW(
-    `${_FB}${_HD}${_EY}${_NO}${_SM}` +
-    `<rect x="9" y="16" width="6" height="4" rx="1" fill="none" stroke="${_ec}" stroke-width="1.3"/>` +
-    `<rect x="17" y="16" width="6" height="4" rx="1" fill="none" stroke="${_ec}" stroke-width="1.3"/>` +
-    `<line x1="15" y1="18" x2="17" y2="18" stroke="${_ec}" stroke-width="1.3"/>` +
-    `<line x1="9" y1="18" x2="7" y2="18" stroke="${_ec}" stroke-width="1.3"/>` +
-    `<line x1="23" y1="18" x2="25" y2="18" stroke="${_ec}" stroke-width="1.3"/>`
-  ) },
-  { key: "cool", label: "Cool", svg: _SW(
-    `${_FB}${_HD}${_NO}${_SM}` +
-    `<rect x="8" y="15" width="7" height="5" rx="2.5" fill="${_hc}"/>` +
-    `<rect x="17" y="15" width="7" height="5" rx="2.5" fill="${_hc}"/>` +
-    `<line x1="15" y1="17.5" x2="17" y2="17.5" stroke="#555" stroke-width="1"/>` +
-    `<line x1="8" y1="17.5" x2="6" y2="17.5" stroke="#555" stroke-width="1"/>` +
-    `<line x1="24" y1="17.5" x2="26" y2="17.5" stroke="#555" stroke-width="1"/>`
-  ) },
-  { key: "ninja", label: "Ninja", emoji: "🥷" },
-  { key: "suit", label: "Suited", emoji: "🤵" },
-  { key: "chef", label: "Chef", emoji: "👨‍🍳" },
-  { key: "foodie", label: "Foodie", emoji: "😋" },
-  { key: "gym", label: "Gym Freak", emoji: "🏋️" },
-];
-
-const _AVATAR_STORE = "padel_player_avatars";
-const _UPLOAD_STORE = "padel_player_avatar_imgs";
-function _getAvatarStore() { try { return JSON.parse(localStorage.getItem(_AVATAR_STORE)) || {}; } catch { return {}; } }
-function _getUploadStore() { try { return JSON.parse(localStorage.getItem(_UPLOAD_STORE)) || {}; } catch { return {}; } }
-
-// In-memory cloud state (populated by Firestore subscription)
-let _avatarCloud = { keys: {}, imgs: {} };
-// Tracks which player's detail modal is open so live updates can refresh it
-let _currentDetailPlayer = null;
-
-function getPlayerAvatar(name) {
-  return _avatarCloud.keys[name] || _getAvatarStore()[name] || "initials";
-}
-function getPlayerAvatarImg(name) {
-  return _avatarCloud.imgs[name] || _getUploadStore()[name] || null;
-}
-function setPlayerAvatar(name, key) {
-  _avatarCloud.keys[name] = key;
-  const s = _getAvatarStore(); s[name] = key;
-  localStorage.setItem(_AVATAR_STORE, JSON.stringify(s));
-  _saveAvatarCloud();
-}
-function setPlayerAvatarImg(name, dataUrl) {
-  _avatarCloud.imgs[name] = dataUrl;
-  const s = _getUploadStore(); s[name] = dataUrl;
-  localStorage.setItem(_UPLOAD_STORE, JSON.stringify(s));
-  _saveAvatarCloud();
-}
-
-async function _saveAvatarCloud() {
-  if (!window.isAdmin || !auth.currentUser) return;
-  try {
-    await setDoc(doc(db, "padel", "avatars"), _avatarCloud, { merge: true });
-  } catch (e) {
-    console.error("Avatar cloud save failed:", e);
-  }
-}
-
-function loadAvatarData() {
-  // Seed from localStorage so avatars appear instantly before Firestore responds
-  try {
-    const cachedKeys = _getAvatarStore();
-    const cachedImgs = _getUploadStore();
-    if (Object.keys(cachedKeys).length) _avatarCloud.keys = { ..._avatarCloud.keys, ...cachedKeys };
-    if (Object.keys(cachedImgs).length) _avatarCloud.imgs = { ..._avatarCloud.imgs, ...cachedImgs };
-  } catch (e) {}
-
-  try {
-    onSnapshot(doc(db, "padel", "avatars"), snap => {
-      if (!snap.exists()) return;
-      const d = snap.data();
-      _avatarCloud = { keys: d.keys || {}, imgs: d.imgs || {} };
-      // Keep localStorage in sync as offline fallback
-      try {
-        localStorage.setItem(_AVATAR_STORE, JSON.stringify(_avatarCloud.keys));
-        localStorage.setItem(_UPLOAD_STORE, JSON.stringify(_avatarCloud.imgs));
-      } catch (e) {}
-      // Refresh avatar in the currently open player detail modal
-      if (_currentDetailPlayer) {
-        const hint = document.querySelector("#player-detail-modal .av-tap-hint");
-        if (hint) hint.innerHTML = playerAvatar(_currentDetailPlayer, 64);
-      }
-    });
-  } catch (e) {
-    console.error("Avatar cloud snapshot failed:", e);
-  }
-}
 
 function playerColor(name) {
   let h = 0;
@@ -874,112 +924,8 @@ function playerInitials(name) {
 }
 function playerAvatar(name, size = 26) {
   const col = playerColor(name);
-  const key = getPlayerAvatar(name);
-  if (key === "upload") {
-    const img = getPlayerAvatarImg(name);
-    if (img) {
-      return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;background:${col}22;border:1.5px solid ${col};overflow:hidden;padding:0;box-sizing:border-box"><img src="${img}" style="width:100%;height:100%;object-fit:cover"/></span>`;
-    }
-  }
-  const preset = PLAYER_AVATAR_PRESETS.find(a => a.key === key);
-  if (preset?.svg) {
-    return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;background:${col}22;border:1.5px solid ${col};overflow:hidden;padding:2px;box-sizing:border-box">${preset.svg}</span>`;
-  }
-  if (preset?.emoji) {
-    const fs = Math.round(size * 0.62);
-    return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col}">${preset.emoji}</span>`;
-  }
   const fs = Math.round(size * 0.38);
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
-}
-
-function openAvatarPicker(name) {
-  document.getElementById("av-picker")?.remove();
-  const col = playerColor(name);
-  const current = getPlayerAvatar(name);
-
-  const opts = PLAYER_AVATAR_PRESETS.map(a => {
-    const icon = a.svg
-      ? `<div style="width:32px;height:32px;overflow:hidden;border-radius:50%;background:${col}22;border:1.5px solid ${col};padding:2px;box-sizing:border-box">${a.svg}</div>`
-      : a.emoji
-        ? `<span style="font-size:24px;line-height:32px;display:block;text-align:center">${a.emoji}</span>`
-        : `<span class="p-av" style="width:32px;height:32px;min-width:32px;font-size:12px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
-    const sel = a.key === current;
-    return `<div class="av-opt${sel ? " av-opt-sel" : ""}" onclick="selectAvatar('${name.replace(/'/g,"\\'")}','${a.key}')">
-      <div class="av-opt-icon">${icon}</div>
-      <div class="av-opt-lbl">${a.label}</div>
-    </div>`;
-  }).join("");
-
-  const uploadImg = getPlayerAvatarImg(name);
-  const camSvg = _SW(
-    `<rect x="4" y="9" width="24" height="17" rx="2" fill="none" stroke="#888" stroke-width="2"/>` +
-    `<circle cx="16" cy="17" r="5" fill="none" stroke="#888" stroke-width="2"/>` +
-    `<path d="M12 6 L14 9 L18 9 L20 6 Z" fill="#888"/>`
-  );
-  const uploadIcon = uploadImg
-    ? `<div style="width:32px;height:32px;overflow:hidden;border-radius:50%;border:1.5px solid ${col}"><img src="${uploadImg}" style="width:100%;height:100%;object-fit:cover"/></div>`
-    : `<div style="width:32px;height:32px;overflow:hidden;border-radius:50%;background:${col}22;border:1.5px solid ${col};padding:2px;box-sizing:border-box">${camSvg}</div>`;
-  const uploadOpt = `<div class="av-opt${current === "upload" ? " av-opt-sel" : ""}" onclick="uploadPlayerAvatar('${name.replace(/'/g,"\\'")}')">
-    <div class="av-opt-icon">${uploadIcon}</div>
-    <div class="av-opt-lbl">Upload</div>
-  </div>`;
-
-  const el = document.createElement("div");
-  el.id = "av-picker";
-  el.innerHTML = `
-    <div class="av-overlay" onclick="document.getElementById('av-picker').remove()"></div>
-    <div class="av-sheet">
-      <div class="av-sheet-title">Choose Avatar · <span style="color:var(--accent)">${name}</span></div>
-      <div class="av-grid">${opts}${uploadOpt}</div>
-      <button class="av-done-btn" onclick="document.getElementById('av-picker').remove()">Done</button>
-    </div>`;
-  document.body.appendChild(el);
-}
-
-function selectAvatar(name, key) {
-  setPlayerAvatar(name, key);
-  document.getElementById("av-picker")?.remove();
-  document.getElementById("player-detail-modal")?.remove();
-  openPlayerDetail(name);
-}
-
-function uploadPlayerAvatar(name) {
-  const inp = document.createElement("input");
-  inp.type = "file";
-  inp.accept = "image/*";
-  inp.style.cssText = "position:fixed;top:-200px;opacity:0;pointer-events:none";
-  inp.onchange = () => {
-    const file = inp.files[0];
-    if (!file) { inp.remove(); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        const SZ = 256;
-        const canvas = document.createElement("canvas");
-        canvas.width = SZ; canvas.height = SZ;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, SZ, SZ);
-        // cover: scale so shortest side fills SZ, then center-crop
-        const scale = Math.max(SZ / img.width, SZ / img.height);
-        const w = img.width * scale, h = img.height * scale;
-        ctx.drawImage(img, (SZ - w) / 2, (SZ - h) / 2, w, h);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-        setPlayerAvatarImg(name, dataUrl);
-        setPlayerAvatar(name, "upload");
-        inp.remove();
-        document.getElementById("av-picker")?.remove();
-        document.getElementById("player-detail-modal")?.remove();
-        openPlayerDetail(name);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-  document.body.appendChild(inp);
-  inp.click();
 }
 
 // ── FILTER ─────────────────────────────────────────────────
@@ -2316,8 +2262,10 @@ function buildMatchCards(matches, showAdmin) {
       const momentumPct = Math.round((winnerScore / total) * 100);
       const momentumSide = aWon ? teamALabel : teamBLabel;
 
+      const noteHtml = m.note ? `<div class="match-note">📝 ${m.note}</div>` : "";
       return `
-              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;">
+              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}">
+                <div class="match-card-inner">
                 <div class="match-top">
                   <span class="match-date">📅 ${fmtDate(m.date)}</span>
                   <span class="match-tag">${diff} game${diff === 1 ? "" : "s"} gap</span>
@@ -2334,6 +2282,7 @@ function buildMatchCards(matches, showAdmin) {
                   </div>
                 </div>
                 ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
+                ${noteHtml}
                 <div class="match-card-momentum">
                   <div class="momentum-label"><span>${momentumSide.toUpperCase()} Momentum</span><span>${momentumPct}%</span></div>
                   <div class="momentum-bar"><div class="momentum-fill" style="width:${momentumPct}%"></div></div>
@@ -2349,6 +2298,8 @@ function buildMatchCards(matches, showAdmin) {
                       : `<div></div>`
                   }
                 </div>
+                </div>
+                ${window.isAdmin ? `<div class="swipe-delete-reveal" onclick="deleteMatchByIndex(${realIdx})">🗑<br><span>Delete</span></div>` : ""}
               </div>`;
     })
     .join("");
@@ -3223,19 +3174,75 @@ function deleteMatchByIndex(i) {
 }
 function editMatchByIndex(i) {
   const m = allMatches[i];
-  const a = prompt("Team A score", m.scoreA);
-  if (a === null) return;
-  const b = prompt("Team B score", m.scoreB);
-  if (b === null) return;
-  const sa = parseInt(a),
-    sb = parseInt(b);
-  if (isNaN(sa) || isNaN(sb) || sa === sb) {
-    alert("Invalid scores");
-    return;
-  }
+  if (!m) return;
+  document.getElementById("match-edit-modal")?.remove();
+  const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b));
+  const opts = (val) => players.map(p => `<option value="${p}"${p === val ? " selected" : ""}>${p}</option>`).join("");
+  const modal = document.createElement("div");
+  modal.id = "match-edit-modal";
+  modal.className = "modern-add-modal show";
+  modal.innerHTML = `
+    <div class="modern-modal-overlay" onclick="document.getElementById('match-edit-modal').remove()"></div>
+    <div class="modern-modal-card" style="max-width:340px">
+      <div class="modern-modal-header">
+        <span class="modern-modal-title">Edit Match</span>
+        <button class="modern-modal-close" onclick="document.getElementById('match-edit-modal').remove()">✕</button>
+      </div>
+      <div class="modern-modal-body">
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">DATE</div>
+        <input id="edit-match-date" type="date" class="modern-select" style="margin-bottom:14px" value="${m.date || todayISO()}">
+        <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM A</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <select id="edit-a1" class="modern-select" style="flex:1"><option value="">P1</option>${opts(m.teamA[0])}</select>
+          <select id="edit-a2" class="modern-select" style="flex:1"><option value="">P2</option>${opts(m.teamA[1])}</select>
+        </div>
+        <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">TEAM B</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <select id="edit-b1" class="modern-select" style="flex:1"><option value="">P1</option>${opts(m.teamB[0])}</select>
+          <select id="edit-b2" class="modern-select" style="flex:1"><option value="">P2</option>${opts(m.teamB[1])}</select>
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">SCORE</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <input id="edit-sa" type="number" min="0" max="20" class="modern-select" style="flex:1;text-align:center;font-size:22px;font-weight:900" value="${m.scoreA}">
+          <span style="color:var(--muted);font-weight:800">–</span>
+          <input id="edit-sb" type="number" min="0" max="20" class="modern-select" style="flex:1;text-align:center;font-size:22px;font-weight:900" value="${m.scoreB}">
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.08em;margin-bottom:6px">NOTE (optional)</div>
+        <input id="edit-note" type="text" class="modern-select" style="margin-bottom:16px" placeholder="e.g. rainy day, semifinals…" value="${m.note || ""}">
+        <div id="edit-match-err" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>
+        <button class="modern-save-btn" onclick="saveMatchEdit(${i})">Save Changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function saveMatchEdit(i) {
+  const m = allMatches[i];
+  if (!m) return;
+  const date = document.getElementById("edit-match-date")?.value;
+  const a1 = document.getElementById("edit-a1")?.value;
+  const a2 = document.getElementById("edit-a2")?.value;
+  const b1 = document.getElementById("edit-b1")?.value;
+  const b2 = document.getElementById("edit-b2")?.value;
+  const sa = parseInt(document.getElementById("edit-sa")?.value);
+  const sb = parseInt(document.getElementById("edit-sb")?.value);
+  const note = document.getElementById("edit-note")?.value.trim();
+  const errEl = document.getElementById("edit-match-err");
+  const show = (msg) => { errEl.textContent = msg; errEl.style.display = "block"; };
+  if (!a1 || !b1) return show("Select at least P1 for each team.");
+  if (isNaN(sa) || isNaN(sb)) return show("Enter valid scores.");
+  if (sa === sb) return show("Scores cannot be equal.");
+  const teamA = [a1, a2].filter(Boolean);
+  const teamB = [b1, b2].filter(Boolean);
+  if (teamA.length !== teamB.length) return show("Both teams must have the same size.");
+  m.date = date || m.date;
+  m.teamA = teamA;
+  m.teamB = teamB;
   m.scoreA = sa;
   m.scoreB = sb;
+  if (note) m.note = note; else delete m.note;
   saveCloudData();
+  document.getElementById("match-edit-modal")?.remove();
   renderModernMatches();
   renderAddMatches();
   renderHome();
@@ -3374,7 +3381,6 @@ function saveModernMatch() {
 }
 
 function openPlayerDetail(name) {
-  _currentDetailPlayer = name;
   document.getElementById("player-detail-modal")?.remove();
   const detail = getPlayerDetail(name);
   if (!detail.stats) {
@@ -3608,6 +3614,63 @@ function openPlayerDetail(name) {
       </div>
     </div>`;
 
+  // ── ELO TIMELINE CHART ─────────────────────────────────
+  const eloTimelineHtml = (() => {
+    const sorted = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const playerMs = sorted.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+    if (playerMs.length < 3) return "";
+    const elo = {};
+    const pts = [];
+    sorted.forEach(m => {
+      const allP = [...(m.teamA || []), ...(m.teamB || [])];
+      allP.forEach(p => { if (!(p in elo)) elo[p] = 1000; });
+      const aWon = m.scoreA > m.scoreB;
+      const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      m.teamA.forEach(p => { elo[p] = (elo[p] || 1000) + dA; });
+      m.teamB.forEach(p => { elo[p] = (elo[p] || 1000) + dB; });
+      if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
+        const inA = (m.teamA || []).includes(name);
+        pts.push({ elo: elo[name], date: m.date, won: inA ? aWon : !aWon });
+      }
+    });
+    if (pts.length < 3) return "";
+    const W = 300, H = 90, pl = 36, pr = 8, pt = 8, pb = 18, cW = W - pl - pr, cH = H - pt - pb;
+    const minE = Math.min(...pts.map(p => p.elo)) - 20;
+    const maxE = Math.max(...pts.map(p => p.elo)) + 20;
+    const eRange = Math.max(1, maxE - minE);
+    const toX = i => pl + (i / (pts.length - 1 || 1)) * cW;
+    const toY = e => pt + (1 - (e - minE) / eRange) * cH;
+    const yLines = [minE + eRange * 0.25, minE + eRange * 0.5, minE + eRange * 0.75]
+      .map(ev => { const y = toY(ev); return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${Math.round(ev)}</text>`; }).join("");
+    const polyline = pts.map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ");
+    const area = `M${toX(0).toFixed(1)},${(H - pb).toFixed(1)} ` + pts.map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ") + ` L${toX(pts.length - 1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
+    const col = playerColor(name);
+    const circles = pts.map((p, i) => `<circle cx="${toX(i).toFixed(1)}" cy="${toY(p.elo).toFixed(1)}" r="2.5" fill="${p.won ? "var(--green)" : "var(--red)"}" stroke="rgba(0,0,0,0.4)" stroke-width="0.5"><title>${p.date}: ELO ${p.elo} (${p.won ? "W" : "L"})</title></circle>`).join("");
+    const lastElo = pts[pts.length - 1].elo;
+    const firstElo = pts[0].elo;
+    const netChange = lastElo - firstElo;
+    const netStr = netChange > 0 ? `+${netChange}` : `${netChange}`;
+    const netCol = netChange > 0 ? "var(--green)" : netChange < 0 ? "var(--red)" : "var(--muted)";
+    return `<div class="ana-card"><span class="badge">ELO Timeline</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 8px">
+        <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
+        <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO total</div>
+      </div>
+      <div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
+        ${yLines}
+        <defs><linearGradient id="etg_${name.replace(/\s/g,'')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.25"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+        <path d="${area}" fill="url(#etg_${name.replace(/\s/g,'')})" />
+        <polyline points="${polyline}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${circles}
+        <text x="${toX(pts.length-1).toFixed(1)}" y="${(toY(lastElo)-5).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="800" fill="${col}">${lastElo}</text>
+      </svg></div>
+    </div>`;
+  })();
+
   const recentCards = detail.recent
     .slice()
     .reverse()
@@ -3627,7 +3690,7 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><span onclick="openAvatarPicker('${name.replace(/'/g,"\\'")}')" class="av-tap-hint" title="Tap to change avatar">${playerAvatar(name, 64)}</span>${name}</div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px">${playerAvatar(name, 64)}${name}</div>
                 <div style="display:flex;align-items:center;gap:8px">
                   <button class="share-card-btn" onclick="openShareCard('${name.replace(/'/g, "\\'")}')">⬆ Share</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
@@ -3720,6 +3783,8 @@ function openPlayerDetail(name) {
                 </div>
 
                 ${raceHtml}
+
+                ${eloTimelineHtml}
 
                 ${connectionsHtml}
 
@@ -3869,51 +3934,77 @@ function openShareCard(name) {
   const marginColor = s.avgMargin > 0 ? "#36d47e" : s.avgMargin < 0 ? "#f04f4f" : "#60607a";
 
   const formDots = s.form.slice(-10).map(r =>
-    `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:800;background:${r==="W"?"rgba(54,212,126,0.18)":"rgba(240,79,79,0.18)"};color:${r==="W"?"#36d47e":"#f04f4f"}">${r}</span>`
+    `<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:10px;font-weight:900;background:${r==="W"?"rgba(54,212,126,0.15)":"rgba(240,79,79,0.15)"};border:1px solid ${r==="W"?"rgba(54,212,126,0.35)":"rgba(240,79,79,0.35)"};color:${r==="W"?"#36d47e":"#f04f4f"}">${r}</span>`
   ).join("");
 
   const allRanked = computeStats(allMatches, eloMap);
   const rank = allRanked.findIndex(p => p.name === name) + 1;
 
-  const statBox = (val, lbl, color = "var(--text)") =>
-    `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
-      <div style="font-size:20px;font-weight:900;color:${color}">${val}</div>
-      <div style="font-size:9px;font-weight:700;color:#60607a;text-transform:uppercase;letter-spacing:0.07em;text-align:center">${lbl}</div>
+  const bigStat = (val, lbl, color = "#eeeae4") =>
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;padding:14px 6px">
+      <div style="font-size:26px;font-weight:900;color:${color};letter-spacing:-0.02em;line-height:1">${val}</div>
+      <div style="font-size:9px;font-weight:700;color:#4a4a6a;text-transform:uppercase;letter-spacing:0.1em">${lbl}</div>
     </div>`;
-  const divider = `<div style="width:1px;height:36px;background:rgba(255,255,255,0.08)"></div>`;
+  const miniStat = (val, lbl, color = "#ccc8e8") =>
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;padding:10px 4px">
+      <div style="font-size:16px;font-weight:800;color:${color};line-height:1">${val}</div>
+      <div style="font-size:8px;font-weight:700;color:#4a4a6a;text-transform:uppercase;letter-spacing:0.08em;text-align:center">${lbl}</div>
+    </div>`;
+  const vDiv = (h = 32) => `<div style="width:1px;height:${h}px;background:rgba(255,255,255,0.07);align-self:center"></div>`;
 
   const card = `
-    <div style="background:linear-gradient(145deg,#0e0e1c,#131320);border-radius:20px;border:1px solid rgba(255,255,255,0.1);padding:28px 24px 24px;width:100%;max-width:340px;box-shadow:0 0 60px rgba(0,0,0,0.6);position:relative;overflow:hidden">
-      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 0%,${col}18 0%,transparent 60%);pointer-events:none"></div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
-        ${playerAvatar(name, 72)}
-        <div>
-          <div style="font-size:18px;font-weight:900;color:#eeeae4;letter-spacing:0.01em">${name}</div>
-          <div style="font-size:11px;color:#60607a;font-weight:600;margin-top:2px">Rank #${rank} · ELO ${elo}</div>
+    <div style="background:linear-gradient(160deg,#0d0d1a 0%,#11111f 60%,#0a0a15 100%);border-radius:24px;border:1px solid rgba(255,255,255,0.08);padding:0;width:100%;max-width:340px;box-shadow:0 8px 60px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.04);position:relative;overflow:hidden">
+
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 15% 10%,${col}22 0%,transparent 55%);pointer-events:none"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${col},transparent)"></div>
+
+      <div style="padding:24px 22px 18px;display:flex;align-items:center;gap:16px">
+        <div style="position:relative;flex-shrink:0">
+          <div style="width:68px;height:68px;border-radius:50%;background:${col}22;border:2px solid ${col}55;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:${col};letter-spacing:-0.02em">${playerInitials(name)}</div>
+          <div style="position:absolute;inset:-3px;border-radius:50%;border:1.5px solid ${col}33;pointer-events:none"></div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:22px;font-weight:900;color:#f0ecff;letter-spacing:-0.01em;line-height:1.1">${name}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="background:${col}22;color:${col};font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;border:1px solid ${col}44;letter-spacing:0.04em">#${rank} RANK</span>
+            <span style="color:#4a4a6a;font-size:10px;font-weight:600">${elo} ELO</span>
+          </div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 8px">
-        ${statBox(`${s.mw}W–${s.ml}L`, "Record")}
-        ${divider}
-        ${statBox(`${s.winPct.toFixed(0)}%`, "Win Rate", s.winPct >= 50 ? "#36d47e" : "#f04f4f")}
-        ${divider}
-        ${statBox(s.sr.toFixed(2), "Skill Rating", col)}
-        ${divider}
-        ${statBox(marginStr, "Avg Margin", marginColor)}
+
+      <div style="margin:0 16px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;display:flex;align-items:stretch">
+        ${bigStat(`${s.mw}W–${s.ml}L`, "Record")}
+        ${vDiv(40)}
+        ${bigStat(`${s.winPct.toFixed(0)}%`, "Win Rate", s.winPct >= 50 ? "#36d47e" : "#f04f4f")}
+        ${vDiv(40)}
+        ${bigStat(s.sr.toFixed(2), "Skill Rating", col)}
       </div>
-      <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 8px">
-        ${statBox(s.mp, "Matches")}
-        ${divider}
-        ${statBox(detail.maxWinStreak || 0, "Best Streak 🔥")}
-        ${divider}
-        ${statBox(streakStr, "Current")}
-        ${divider}
-        ${statBox(`${s.consistency?.toFixed(0) ?? "—"}%`, "Consistency")}
+
+      <div style="margin:0 16px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;display:flex;align-items:stretch">
+        ${miniStat(s.mp, "Matches")}
+        ${vDiv(24)}
+        ${miniStat(detail.maxWinStreak || 0, "Best Streak")}
+        ${vDiv(24)}
+        ${miniStat(streakStr, "Current")}
+        ${vDiv(24)}
+        ${miniStat(marginStr, "Avg Margin", marginColor)}
+        ${vDiv(24)}
+        ${miniStat(`${s.consistency?.toFixed(0) ?? "—"}%`, "Consist.")}
       </div>
-      ${s.form.length ? `<div style="margin-bottom:18px"><div style="font-size:9px;font-weight:700;color:#60607a;letter-spacing:0.08em;margin-bottom:8px">RECENT FORM</div><div style="display:flex;gap:4px;flex-wrap:wrap">${formDots}</div></div>` : ""}
-      <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;color:${col}">PADEL EKTA</div>
-        <div style="font-size:9px;color:#60607a">${todayISO()}</div>
+
+      ${s.form.length ? `
+      <div style="margin:0 16px 18px">
+        <div style="font-size:8px;font-weight:800;color:#4a4a6a;letter-spacing:0.12em;margin-bottom:8px;text-transform:uppercase">Recent Form</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${formDots}</div>
+      </div>` : ""}
+
+      <div style="margin:0 16px 20px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)"></div>
+      <div style="padding:0 22px 20px;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:18px;height:18px;border-radius:5px;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#000">P</div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;color:${col}">PADEL EKTA</div>
+        </div>
+        <div style="font-size:9px;color:#3a3a5a;font-weight:600;letter-spacing:0.04em">${todayISO()}</div>
       </div>
     </div>`;
 
@@ -3923,7 +4014,100 @@ function openShareCard(name) {
   overlay.innerHTML = `
     <div class="share-overlay-bg" onclick="document.getElementById('share-card-overlay').remove()"></div>
     <div class="share-overlay-inner">
-      <div class="share-overlay-hint">Screenshot to share</div>
+      <div class="share-overlay-hint">📸 Screenshot to share</div>
+      ${card}
+      <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function openWeeklyDigest() {
+  document.getElementById("share-card-overlay")?.remove();
+  const { from: wkFrom, to: wkTo } = lastWeekRange();
+  const wkMatches = allMatches.filter(m => (m.date || "") >= wkFrom && (m.date || "") <= wkTo);
+  const thisWkMatches = allMatches.filter(m => (m.date || "") >= weekISO() && (m.date || "") <= todayISO());
+  const useMatches = thisWkMatches.length >= 3 ? thisWkMatches : wkMatches;
+  const label = thisWkMatches.length >= 3 ? "This Week" : "Last Week";
+  if (useMatches.length < 2) { showToast("Not enough matches this week yet", "📋"); return; }
+
+  const eloNow = computeElo(allMatches);
+  const eloPre = computeElo(allMatches.filter(m => (m.date || "") < (thisWkMatches.length >= 3 ? weekISO() : wkFrom)));
+  const stats = computeStats(useMatches, computeElo(useMatches));
+
+  // Most wins
+  const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
+  // Biggest ELO mover
+  const mover = Object.keys(eloNow).map(p => ({ name: p, gain: (eloNow[p] || 1000) - (eloPre[p] || 1000) }))
+    .filter(p => useMatches.some(m => [...(m.teamA||[]),...(m.teamB||[])].includes(p.name)))
+    .sort((a, b) => b.gain - a.gain)[0];
+  // Biggest upset
+  const runElo2 = {};
+  let biggestUpset = null;
+  [...allMatches].sort((a, b) => (a.date||"").localeCompare(b.date||""
+  )).forEach(m => {
+    [...(m.teamA||[]),...(m.teamB||[])].forEach(p => { if (!(p in runElo2)) runElo2[p] = 1000; });
+    const avgA = m.teamA.reduce((s,p) => s + runElo2[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s,p) => s + runElo2[p], 0) / Math.max(m.teamB.length, 1);
+    const aWon = m.scoreA > m.scoreB;
+    const gap = aWon ? avgB - avgA : avgA - avgB;
+    if (useMatches.includes(m) && gap > 30 && (!biggestUpset || gap > biggestUpset.gap)) {
+      biggestUpset = { m, gap: Math.round(gap), winner: aWon ? m.teamA : m.teamB, loser: aWon ? m.teamB : m.teamA };
+    }
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    m.teamA.forEach(p => { runElo2[p] = (runElo2[p]||1000) + dA; });
+    m.teamB.forEach(p => { runElo2[p] = (runElo2[p]||1000) + dB; });
+  });
+  // Best pair
+  const wkPairs = getPairStats(useMatches).filter(p => p.played >= 2)[0];
+  // Hot streak player
+  const hotPlayer = stats.filter(p => p.curType === "W" && p.curStreak >= 2).sort((a,b) => b.curStreak - a.curStreak)[0];
+
+  const accentCol = "#18d7ff";
+  const statRow = (icon, label2, val, sub) =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <div style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;color:#4a4a6a;letter-spacing:0.06em;text-transform:uppercase">${label2}</div>
+        <div style="font-size:13px;font-weight:900;color:#eeeae4;margin-top:1px">${val}</div>
+      </div>
+      <div style="font-size:10px;color:#4a4a6a;text-align:right;flex-shrink:0">${sub}</div>
+    </div>`;
+
+  const card = `
+    <div style="background:linear-gradient(160deg,#0d0d1a,#11111f,#0a0a15);border-radius:24px;border:1px solid rgba(255,255,255,0.08);width:100%;max-width:340px;box-shadow:0 8px 60px rgba(0,0,0,0.7);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 0%,${accentCol}18 0%,transparent 55%);pointer-events:none"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${accentCol},transparent)"></div>
+      <div style="padding:20px 22px 16px">
+        <div style="font-size:10px;font-weight:800;color:${accentCol};letter-spacing:0.14em;margin-bottom:4px">WEEKLY DIGEST</div>
+        <div style="font-size:20px;font-weight:900;color:#f0ecff;line-height:1.1">${label}</div>
+        <div style="font-size:11px;color:#4a4a6a;margin-top:4px">${useMatches.length} matches · ${[...new Set(useMatches.flatMap(m=>[...m.teamA,...m.teamB]))].length} players</div>
+      </div>
+      <div style="margin:0 16px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px 12px">
+        ${topWinner ? statRow("🏆", "Top Winner", topWinner.name, `${topWinner.mw}W–${topWinner.ml}L`) : ""}
+        ${mover && mover.gain > 0 ? statRow("📈", "Biggest Mover", mover.name, `+${mover.gain} ELO`) : ""}
+        ${hotPlayer ? statRow("🔥", "On Fire", hotPlayer.name, `${hotPlayer.curStreak}-match win streak`) : ""}
+        ${wkPairs ? statRow("🤝", "Best Duo", wkPairs.key, `${wkPairs.winPct}% · ${wkPairs.played}g`) : ""}
+        ${biggestUpset ? statRow("⚡", "Biggest Upset", biggestUpset.winner.map(p=>p.split(" ")[0]).join(" & ") + " won", `+${biggestUpset.gap} ELO gap`) : ""}
+      </div>
+      <div style="margin:0 16px 20px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)"></div>
+      <div style="padding:0 22px 20px;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:18px;height:18px;border-radius:5px;background:${accentCol};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#000">P</div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;color:${accentCol}">PADEL EKTA</div>
+        </div>
+        <div style="font-size:9px;color:#3a3a5a;font-weight:600">${todayISO()}</div>
+      </div>
+    </div>`;
+
+  const overlay = document.createElement("div");
+  overlay.id = "share-card-overlay";
+  overlay.className = "share-overlay";
+  overlay.innerHTML = `
+    <div class="share-overlay-bg" onclick="document.getElementById('share-card-overlay').remove()"></div>
+    <div class="share-overlay-inner">
+      <div class="share-overlay-hint">📸 Screenshot to share</div>
       ${card}
       <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
     </div>`;
@@ -5708,6 +5892,63 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:10px 12px"><div class="pb-header"><div class="pb-name">Player</div><div class="pb-stat">Best Streak</div><div class="pb-stat">Best Win</div><div class="pb-stat">Best Day</div><div class="pb-stat">Most/Day</div></div>${rows.join("")}</div>`;
   })();
 
+  // ── SCORE PREDICTION ACCURACY ─────────────────────────
+  const predAccHtml = (() => {
+    if (allMatches.length < 5) return '<div class="sub" style="padding:8px">Need more matches.</div>';
+    const sorted2 = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const runElo = {};
+    let correct = 0, total = 0, upsets = 0;
+    const byMonth = {};
+    sorted2.forEach(m => {
+      const allP = [...(m.teamA || []), ...(m.teamB || [])];
+      allP.forEach(p => { if (!(p in runElo)) runElo[p] = 1000; });
+      const avgA = m.teamA.reduce((s, p) => s + runElo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB = m.teamB.reduce((s, p) => s + runElo[p], 0) / Math.max(m.teamB.length, 1);
+      const aFav = avgA >= avgB;
+      const aWon = m.scoreA > m.scoreB;
+      const predicted = aFav ? aWon : !aWon;
+      if (predicted) correct++; else upsets++;
+      total++;
+      const mo = (m.date || "").slice(0, 7);
+      if (mo) {
+        if (!byMonth[mo]) byMonth[mo] = { c: 0, t: 0 };
+        byMonth[mo].t++;
+        if (predicted) byMonth[mo].c++;
+      }
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      m.teamA.forEach(p => { runElo[p] = (runElo[p] || 1000) + dA; });
+      m.teamB.forEach(p => { runElo[p] = (runElo[p] || 1000) + dB; });
+    });
+    const pct = Math.round((correct / total) * 100);
+    const label = pct >= 70 ? "PREDICTABLE" : pct >= 55 ? "MODERATE" : "CHAOTIC";
+    const col = pct >= 70 ? "var(--green)" : pct >= 55 ? "var(--gold)" : "var(--red)";
+    const moHtml = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6).map(([mo, d]) => {
+      const mp = Math.round((d.c / d.t) * 100);
+      const mc = mp >= 70 ? "var(--green)" : mp >= 55 ? "var(--gold)" : "var(--red)";
+      const moName = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(mo.slice(5))-1];
+      return `<div class="pred-mo-row"><span class="pred-mo-lbl">${moName} ${mo.slice(0,4)}</span><div class="pred-mo-bar-wrap"><div class="pred-mo-bar" style="width:${mp}%;background:${mc}"></div></div><span class="pred-mo-pct" style="color:${mc}">${mp}%</span></div>`;
+    }).join("");
+    return `<div class="ana-card" style="padding:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div style="font-size:28px;font-weight:900;color:${col};line-height:1">${pct}%</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:0.08em">${label}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--text);font-weight:700">${correct}/${total} predicted correctly</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${upsets} upsets occurred</div>
+        </div>
+      </div>
+      <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.07);margin-bottom:14px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${col};border-radius:4px;transition:width 0.6s ease"></div>
+      </div>
+      <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:8px">BY MONTH</div>
+      ${moHtml}
+    </div>`;
+  })();
+
   // ── MATCH SIMULATOR ────────────────────────────────────
   const simPlayers = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   const simOpts = (ph) => `<option value="">${ph}</option>` + simPlayers.map((p) => `<option value="${p}">${p}</option>`).join("");
@@ -5759,6 +6000,7 @@ function renderAnalyticsPage() {
   };
 
   const allSecs = [
+    { key: "predacc", title: "🔮 Prediction Accuracy", body: predAccHtml },
     { key: "simulator", title: "🎮 Match Simulator", body: simulatorHtml },
     { key: "pvp", title: "⚔️ Player vs Player Matrix", body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>` },
     { key: "awards", title: "🏅 Awards Board", body: `<div class="awards-grid">${scard("🏃","Most Active",mostActive?.name,`${mostActive?.matches||0} matches played`)}${awardsHtml}${scard("🏆","Best Win Rate",topWinRate?.name,`${topWinRate?Math.round((topWinRate.wins/topWinRate.matches)*100):0}% (${topWinRate?.wins||0}W–${topWinRate?.losses||0}L)`)}${scard("🔥","Longest Streak",topStreak?.name,`${topStreak?.bestStreak||0} consecutive wins`)}${scard("⚔️","Most Dominant",destroyer?.name,`+${destroyer?.avgMargin?.toFixed(1)||0} avg margin`)}</div>` },
@@ -5843,7 +6085,7 @@ function showAnalytics() {
 // renderHome/renderCompact are called inside it after data is ready.
 renderNamesTable();
 loadCloudData();
-loadAvatarData();
+loadScheduledMatches();
 
 // Expose globals
 Object.assign(window, {
@@ -5882,6 +6124,7 @@ Object.assign(window, {
   refreshManage,
   deleteMatchByIndex,
   editMatchByIndex,
+  saveMatchEdit,
   openModernAddModal,
   closeModernAddModal,
   saveModernMatch,
@@ -5915,10 +6158,11 @@ Object.assign(window, {
   playerColor,
   playerInitials,
   openShareCard,
+  openWeeklyDigest,
+  openScheduleModal,
+  saveScheduled,
+  deleteScheduled,
   quickRematch,
-  openAvatarPicker,
-  selectAvatar,
-  uploadPlayerAvatar,
   runMatchSimulator,
   toggleMatchCalendar,
   calNav,

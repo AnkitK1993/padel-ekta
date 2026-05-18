@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#09090f"/>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#09090f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- Padel racket shape -->
+  <ellipse cx="256" cy="210" rx="90" ry="108" fill="none" stroke="url(#accent)" stroke-width="18" stroke-linecap="round"/>
+  <!-- Grip handle -->
+  <rect x="242" y="310" width="28" height="90" rx="14" fill="url(#accent)"/>
+  <!-- Cross strings -->
+  <line x1="166" y1="190" x2="346" y2="190" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="166" y1="220" x2="346" y2="220" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="166" y1="250" x2="346" y2="250" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="226" y1="102" x2="226" y2="318" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="256" y1="102" x2="256" y2="318" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="286" y1="102" x2="286" y2="318" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <!-- EP text below -->
+  <text x="256" y="445" font-family="sans-serif" font-weight="900" font-size="52" fill="url(#accent)" text-anchor="middle" letter-spacing="6">EKTA</text>
+</svg>

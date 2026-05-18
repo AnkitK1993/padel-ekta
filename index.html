@@ -8,7 +8,11 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ekta Padel" />
     <meta name="theme-color" content="#09090f" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon.svg" />
     <title>Padel Leaderboard</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap"
@@ -53,6 +57,11 @@
             <button id="themeBtn" onclick="cycleTheme()" title="Change theme color" class="hmenu-theme-btn"></button>
           </div>
           <div class="hmenu-divider"></div>
+          <div class="hmenu-item" id="pwa-install-btn" style="display:none">
+            <span class="hmenu-label">Install App</span>
+            <button onclick="triggerInstall()" class="hmenu-action-btn">📲 Add</button>
+          </div>
+          <div class="hmenu-divider" id="pwa-install-divider" style="display:none"></div>
           <div class="hmenu-item">
             <span class="hmenu-label">Account</span>
             <button id="loginBtn" class="hmenu-action-btn">Login</button>
@@ -83,6 +92,7 @@
           <input type="date" id="drTo" placeholder="To" />
           <button class="btn-go" onclick="applyRange('home')">Go</button>
         </div>
+        <div id="scheduled-banner" style="display:none;padding:0 11px 4px"></div>
         <div id="absence-banner"></div>
         <div id="compare-card" style="display:none"></div>
         <div id="board" style="padding: 9px 11px 110px"></div>
@@ -404,8 +414,9 @@
     <!-- ══════════ ANALYTICS PAGE ══════════ -->
     <div class="page" id="pg-analytics">
       <div class="page-body-scroll">
-        <div class="nav">
+        <div class="nav" style="display:flex;align-items:center;justify-content:space-between;padding-right:12px">
           <div class="history-nav-title">STAT<span>ISTICS</span></div>
+          <button onclick="openWeeklyDigest()" style="height:28px;padding:0 12px;border-radius:20px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.1);color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">📋 Weekly</button>
         </div>
         <div id="analytics-page-content" style="padding: 0 11px 110px"></div>
       </div>
@@ -537,6 +548,9 @@ Parthiv - Par"
               oninput="setAbsenceThreshold(this.value)"
               value="7">
           </div>
+          <div class="slbl">Upcoming Sessions</div>
+          <div id="scheduled-admin-list" style="margin-bottom:8px"></div>
+          <button class="btn-p" onclick="openScheduleModal()" style="width:100%;margin-bottom:14px">📅 Schedule Session</button>
           <div class="slbl">Actions</div>
           <button class="btn-p" onclick="exportData()" style="width: 100%">
             📤 Export All Data (JSON)
@@ -695,5 +709,35 @@ Parthiv - Par"
       </div>
     </div>
     <script type="module" src="app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+
+      // In-app install prompt
+      let _deferredInstall = null;
+      window.addEventListener("beforeinstallprompt", e => {
+        e.preventDefault();
+        _deferredInstall = e;
+        const btn = document.getElementById("pwa-install-btn");
+        const div = document.getElementById("pwa-install-divider");
+        if (btn) btn.style.display = "flex";
+        if (div) div.style.display = "";
+      });
+      window.addEventListener("appinstalled", () => {
+        _deferredInstall = null;
+        const btn = document.getElementById("pwa-install-btn");
+        const div = document.getElementById("pwa-install-divider");
+        if (btn) btn.style.display = "none";
+        if (div) div.style.display = "none";
+      });
+      window.triggerInstall = () => {
+        if (!_deferredInstall) return;
+        _deferredInstall.prompt();
+        _deferredInstall.userChoice.then(() => { _deferredInstall = null; });
+      };
+    </script>
   </body>
 </html>

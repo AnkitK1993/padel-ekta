@@ -2216,7 +2216,6 @@ textarea:focus {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 16px;
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -2224,7 +2223,51 @@ textarea:focus {
   animation: slideInUp 0.5s ease-out forwards;
   opacity: 0;
   transform: translateY(20px);
+  touch-action: pan-y;
 }
+.match-card-inner {
+  padding: 16px;
+  position: relative;
+  transition: transform 0.25s ease;
+  background: var(--card);
+  border-radius: 16px;
+  z-index: 1;
+}
+.match-card.swiping .match-card-inner {
+  transition: none;
+}
+.match-note {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  margin: 6px 0 2px;
+  padding: 5px 8px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  border-left: 2px solid rgba(var(--theme-rgb),0.4);
+}
+.swipe-delete-reveal {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  background: var(--red);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: white;
+  font-weight: 700;
+  border-radius: 0 16px 16px 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 0;
+}
+.swipe-delete-reveal span { font-size: 9px; letter-spacing: 0.06em; }
+.match-card.swipe-revealed .swipe-delete-reveal { opacity: 1; }
 .match-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
@@ -8079,23 +8122,85 @@ select.cmp-sel option {
   max-width: 380px;
 }
 .share-overlay-hint {
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
 }
 .share-close-btn {
-  height: 36px;
-  padding: 0 28px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.6);
+  height: 40px;
+  padding: 0 36px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.45);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, color 0.15s;
 }
+.share-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Scheduled Matches ─────────────────────────── */
+.sched-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(var(--theme-rgb),0.12), rgba(var(--theme-rgb),0.06));
+  border: 1px solid rgba(var(--theme-rgb),0.3);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+.sched-banner-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.sched-banner-icon { font-size: 22px; flex-shrink: 0; }
+.sched-banner-date { font-size: 9px; font-weight: 800; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 2px; }
+.sched-banner-team { font-size: 13px; font-weight: 700; color: var(--text); }
+.sched-banner-note { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.sched-banner-more { font-size: 10px; color: var(--muted); font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.sched-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+.sched-item.sched-past { opacity: 0.45; }
+.sched-item-body { flex: 1; min-width: 0; }
+.sched-item-date { font-size: 10px; font-weight: 700; color: var(--accent); }
+.sched-item-team { font-size: 12px; font-weight: 600; color: var(--text); }
+.sched-item-note { font-size: 10px; color: var(--muted); }
+.sched-del-btn { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 4px; flex-shrink: 0; }
+.sched-del-btn:hover { color: var(--red); }
+
+/* ── Prediction Accuracy ───────────────────────── */
+.pred-mo-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.pred-mo-lbl { font-size: 10px; color: var(--muted); font-weight: 600; }
+.pred-mo-bar-wrap { height: 6px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+.pred-mo-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.pred-mo-pct { font-size: 10px; font-weight: 800; text-align: right; }
 
 /* ── Quick Rematch ──────────────────────────────── */
 .rematch-btn {
