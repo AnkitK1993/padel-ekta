@@ -2387,6 +2387,70 @@ function buildCompactMatchRows(matches) {
 function buildMatchCards(matches, showAdmin) {
   if (!matches.length)
     return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
+  // Single chronological walk: compute per-match ELO deltas AND pre-match pair ranks
+  const eloMatchMap = new Map();
+  const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
+  const _finalElo = {};
+  const _allPairsList = getPairStats(); // all pairs ever formed
+  {
+    const elo = _finalElo;
+    [...allMatches]
+      .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+      .forEach((m) => {
+        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in elo)) elo[p] = 1000; });
+        // Rank all pairs by their avg ELO right now (before this match)
+        matchPairRankMap.set(m, new Map(
+          _allPairsList
+            .map((p) => ({ key: p.key, avgElo: p.players.reduce((s, n) => s + (elo[n] || 1000), 0) / p.players.length }))
+            .sort((a, b) => b.avgElo - a.avgElo)
+            .map(({ key }, i) => [key, i + 1])
+        ));
+        const aWon = m.scoreA > m.scoreB;
+        const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+        const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+        const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+        const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+        const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+        const mData = {};
+        (m.teamA || []).forEach((p) => { const after = (elo[p] || 1000) + dA; mData[p] = { delta: dA, after }; elo[p] = after; });
+        (m.teamB || []).forEach((p) => { const after = (elo[p] || 1000) + dB; mData[p] = { delta: dB, after }; elo[p] = after; });
+        eloMatchMap.set(m, mData);
+      });
+  }
+  const mkEloPill = (p, eloData) => {
+    const d = eloData[p];
+    if (!d) return "";
+    const display = normPlayer(p);
+    const short = Object.keys(nameMap).find(k => nameMap[k] === display && k.length === 3) || display.slice(0, 3).toUpperCase();
+    const cls = d.delta >= 0 ? "elo-gain" : "elo-loss";
+    const arrow = d.delta >= 0 ? "↑" : "↓";
+    return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${short}</span><span class="elo-pval">${d.after}</span><span class="elo-parrow">${arrow}${Math.abs(d.delta)}</span></span>`;
+  };
+
+  const mkTeamBlock = (players, won, score, hasZeroEmoji, preMatchRankMap) => {
+    const winCls = won ? "winner" : "";
+    const scoreCls = won ? "win" : "";
+    const crown = won ? "👑 " : "";
+    const rank = preMatchRankMap?.get(getPairKey(players));
+    const rankHtml = rank ? `<div class="team-pair-rank">ELO #${rank}</div>` : "";
+    if (players.length >= 2) {
+      const p2Suffix = hasZeroEmoji ? " 😭" : "";
+      return `<div class="team-block team-block-split">
+        <span class="team-p1 ${winCls}">${crown}${players[0]}</span>
+        <span class="team-amp">&</span>
+        <span class="team-p2 ${winCls}">${players[1]}${p2Suffix}</span>
+        <div class="team-score ${scoreCls}">${score}</div>
+        ${rankHtml}
+      </div>`;
+    }
+    const label = (players[0] || "") + (hasZeroEmoji ? " 😭" : "");
+    return `<div class="team-block">
+      <div class="team-name ${winCls}">${crown}${label}</div>
+      <div class="team-score ${scoreCls}">${score}</div>
+      ${rankHtml}
+    </div>`;
+  };
+
   return [...matches]
     .reverse()
     .map((m, index) => {
@@ -2399,12 +2463,6 @@ function buildMatchCards(matches, showAdmin) {
       const isZero = isZeroMatch(m);
 
       const bWon = !aWon;
-      const teamARaw = (m.teamA || []).join(" & ");
-      const teamBRaw = (m.teamB || []).join(" & ");
-      // Add 😭 to whichever team lost with 0 games
-      const teamALabel = aZero && bWon ? teamARaw + " 😭" : teamARaw;
-      const teamBLabel = bZero && aWon ? teamBRaw + " 😭" : teamBRaw;
-
       const realIdx = allMatches.indexOf(m);
 
       // Event badges
@@ -2419,10 +2477,6 @@ function buildMatchCards(matches, showAdmin) {
         );
 
       const delay = Math.min(index * 0.1, 1); // Staggered delay up to 1s
-      const total = m.scoreA + m.scoreB || 1;
-      const winnerScore = Math.max(m.scoreA, m.scoreB);
-      const momentumPct = Math.round((winnerScore / total) * 100);
-      const momentumSide = aWon ? teamALabel : teamBLabel;
 
       const noteHtml = m.note
         ? `<div class="match-note">📝 ${m.note}</div>`
@@ -2435,22 +2489,18 @@ function buildMatchCards(matches, showAdmin) {
                   <span class="match-tag">${diff} game${diff === 1 ? "" : "s"} gap</span>
                 </div>
                 <div class="match-score-row" style="margin-top:10px">
-                  <div class="team-block">
-                    <div class="team-name ${aWon ? "winner" : ""}">${aWon ? "👑 " : ""}${teamALabel}</div>
-                    <div class="team-score ${aWon ? "win" : ""}">${m.scoreA}</div>
-                  </div>
+                  ${mkTeamBlock(m.teamA || [], aWon, m.scoreA, aZero && bWon, matchPairRankMap.get(m))}
                   <div class="vs-text">VS</div>
-                  <div class="team-block">
-                    <div class="team-name ${bWon ? "winner" : ""}">${bWon ? "👑 " : ""}${teamBLabel}</div>
-                    <div class="team-score ${bWon ? "win" : ""}">${m.scoreB}</div>
-                  </div>
+                  ${mkTeamBlock(m.teamB || [], bWon, m.scoreB, bZero && aWon, matchPairRankMap.get(m))}
                 </div>
+                ${(() => {
+                  const ed = eloMatchMap.get(m) || {};
+                  const aP = (m.teamA || []).map(p => mkEloPill(p, ed)).join("");
+                  const bP = (m.teamB || []).map(p => mkEloPill(p, ed)).join("");
+                  return `<div class="match-elo-row"><div class="match-elo-team">${aP}</div><div class="match-elo-vs-gap"></div><div class="match-elo-team">${bP}</div></div>`;
+                })()}
                 ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
                 ${noteHtml}
-                <div class="match-card-momentum">
-                  <div class="momentum-label"><span>${momentumSide.toUpperCase()} Momentum</span><span>${momentumPct}%</span></div>
-                  <div class="momentum-bar"><div class="momentum-fill" style="width:${momentumPct}%"></div></div>
-                </div>
                 <div class="match-footer" style="margin-top:10px">
                   ${
                     showAdmin && window.isAdmin
@@ -2552,68 +2602,80 @@ function buildMatchOfTheDay() {
               <div class="motd-sub">${motdSub}</div>
             </div>`;
 
-  // ── BIGGEST UPSET: lower-ranked pair beats higher-ranked pair ──
+  // ── BIGGEST UPSET: lower-ELO pair beats higher-ELO pair ──
   let upsetHtml = "";
-  const priorStats = computeStats(
-    allMatches.filter((m) => m.date < latestDate),
-  );
-  if (priorStats.length >= 2) {
-    const rankMap = {};
-    priorStats.forEach((p, i) => {
-      rankMap[p.name] = i + 1;
-    });
+  // Chronological ELO walk — capture pre-match pair rank for each session match
+  const _allPairsForUpset = getPairStats();
+  const upsetMatchRankMap = new Map(); // match → Map(pairKey → pre-match rank)
+  {
+    const elo = {};
+    [...allMatches]
+      .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+      .forEach((m) => {
+        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in elo)) elo[p] = 1000; });
+        if (sessionMatches.includes(m)) {
+          upsetMatchRankMap.set(m, new Map(
+            _allPairsForUpset
+              .map((p) => ({ key: p.key, avgElo: p.players.reduce((s, n) => s + (elo[n] || 1000), 0) / p.players.length }))
+              .sort((a, b) => b.avgElo - a.avgElo)
+              .map(({ key }, i) => [key, i + 1])
+          ));
+        }
+        const aWon = m.scoreA > m.scoreB;
+        const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+        const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+        const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+        const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+        const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+        m.teamA.forEach((p) => { elo[p] = (elo[p] || 1000) + dA; });
+        m.teamB.forEach((p) => { elo[p] = (elo[p] || 1000) + dB; });
+      });
+  }
+  const getPairEloRank = (m, team) =>
+    upsetMatchRankMap.get(m)?.get([...team].sort().join(" & ")) || "?";
 
-    let bestUpset = null,
-      bestGap = 0;
-    sessionMatches.forEach((m) => {
-      const winTeam = m.scoreA > m.scoreB ? m.teamA : m.teamB;
-      const loseTeam = m.scoreA > m.scoreB ? m.teamB : m.teamA;
-      const winRanks = winTeam.map((p) => rankMap[p]).filter((r) => r != null);
-      const loseRanks = loseTeam
-        .map((p) => rankMap[p])
-        .filter((r) => r != null);
-      if (!winRanks.length || !loseRanks.length) return;
-      const avgWin = winRanks.reduce((a, b) => a + b, 0) / winRanks.length;
-      const avgLose = loseRanks.reduce((a, b) => a + b, 0) / loseRanks.length;
-      // Upset = winner had a worse (higher number) rank than loser
-      const gap = avgWin - avgLose;
-      if (gap > 0 && gap > bestGap) {
-        bestGap = gap;
-        bestUpset = {
-          m,
-          winTeam,
-          loseTeam,
-          avgWin: Math.round(avgWin),
-          avgLose: Math.round(avgLose),
-        };
-      }
-    });
-
-    if (bestUpset) {
-      const { m: um, winTeam, loseTeam, avgWin, avgLose } = bestUpset;
-      const uWin = um.scoreA > um.scoreB ? um.scoreA : um.scoreB;
-      const uLose = um.scoreA > um.scoreB ? um.scoreB : um.scoreA;
-      upsetHtml = `<div class="motd-card upset-card">
-                  <div class="motd-header">
-                    <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
-                    <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
-                  </div>
-                  <div class="motd-teams">
-                    <div class="motd-team winner">
-                      <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
-                      <div class="motd-score win">${uWin}</div>
-                      <div class="upset-rank">Ranked #${avgWin}</div>
-                    </div>
-                    <div class="motd-vs">VS</div>
-                    <div class="motd-team">
-                      <div class="motd-name">${loseTeam.join(" & ")}</div>
-                      <div class="motd-score">${uLose}</div>
-                      <div class="upset-rank">#${avgLose} expected to win</div>
-                    </div>
-                  </div>
-                  <div class="motd-sub">Lower-ranked team pulled off a shock win 😤</div>
-                </div>`;
+  let bestUpset = null, bestGap = 0;
+  sessionMatches.forEach((m) => {
+    const winTeam = m.scoreA > m.scoreB ? m.teamA : m.teamB;
+    const loseTeam = m.scoreA > m.scoreB ? m.teamB : m.teamA;
+    const mRankMap = upsetMatchRankMap.get(m);
+    if (!mRankMap) return;
+    const winRank = mRankMap.get([...winTeam].sort().join(" & ")) || 999;
+    const loseRank = mRankMap.get([...loseTeam].sort().join(" & ")) || 999;
+    // Upset = winner had a worse (higher number) rank than loser
+    const gap = winRank - loseRank;
+    if (gap > 0 && gap > bestGap) {
+      bestGap = gap;
+      bestUpset = { m, winTeam, loseTeam };
     }
+  });
+
+  if (bestUpset) {
+    const { m: um, winTeam, loseTeam } = bestUpset;
+    const uWin = um.scoreA > um.scoreB ? um.scoreA : um.scoreB;
+    const uLose = um.scoreA > um.scoreB ? um.scoreB : um.scoreA;
+    const winEloRank = getPairEloRank(um, winTeam);
+    const loseEloRank = getPairEloRank(um, loseTeam);
+    upsetHtml = `<div class="motd-card upset-card">
+                <div class="motd-header">
+                  <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
+                  <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
+                </div>
+                <div class="motd-teams">
+                  <div class="motd-team winner">
+                    <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
+                    <div class="motd-score win">${uWin}</div>
+                    <div class="upset-rank">ELO #${winEloRank}</div>
+                  </div>
+                  <div class="motd-vs">VS</div>
+                  <div class="motd-team">
+                    <div class="motd-name">${loseTeam.join(" & ")}</div>
+                    <div class="motd-score">${uLose}</div>
+                    <div class="upset-rank">ELO #${loseEloRank} favored</div>
+                  </div>
+                </div>
+                <div class="motd-sub">Lower-ELO pair pulled off a shock win 😤</div>
+              </div>`;
   }
 
   return motdHtml + upsetHtml;
@@ -4210,115 +4272,202 @@ function openH2HDetail(a, b) {
   const total = h2h.aWins + h2h.bWins || 1;
   const aWinPct = Math.round((h2h.aWins / total) * 100);
   const bWinPct = 100 - aWinPct;
-  const aCol =
-    aWinPct > bWinPct
-      ? "var(--green)"
-      : aWinPct < bWinPct
-        ? "var(--red)"
-        : "var(--text)";
-  const bCol =
-    bWinPct > aWinPct
-      ? "var(--green)"
-      : bWinPct < aWinPct
-        ? "var(--red)"
-        : "var(--text)";
-  const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
 
   // Game-level stats
-  let aGW = 0,
-    bGW = 0,
-    aFire = 0,
-    bFire = 0,
-    aShut = 0,
-    bShut = 0;
-  let aStreak = 0,
-    bStreak = 0,
-    aCurStreak = 0,
-    bCurStreak = 0,
-    aCurType = null,
-    bCurType = null;
-  const sorted = [...h2h.matches].sort((x, y) =>
-    (x.date || "").localeCompare(y.date || ""),
-  );
+  let aGW = 0, bGW = 0, aShut = 0, bShut = 0;
+  let aStreak = 0, bStreak = 0, aCurStreak = 0, bCurStreak = 0, aCurType = null, bCurType = null;
+  const sorted = [...h2h.matches].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
   sorted.forEach((m) => {
     const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
     const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
     const aS = aInA ? m.scoreA : m.scoreB;
     const bS = aInA ? m.scoreB : m.scoreA;
-    aGW += aS;
-    bGW += bS;
-    if (aS >= 6) aFire++;
-    if (bS >= 6) bFire++;
+    aGW += aS; bGW += bS;
     if (bS === 0) aShut++;
     if (aS === 0) bShut++;
     if (aWon) {
       aCurType === "w" ? aCurStreak++ : ((aCurType = "w"), (aCurStreak = 1));
-      bCurStreak = 0;
-      bCurType = null;
+      bCurStreak = 0; bCurType = null;
     } else {
       bCurType === "w" ? bCurStreak++ : ((bCurType = "w"), (bCurStreak = 1));
-      aCurStreak = 0;
-      aCurType = null;
+      aCurStreak = 0; aCurType = null;
     }
     aStreak = Math.max(aStreak, aCurStreak);
     bStreak = Math.max(bStreak, bCurStreak);
   });
   const aGPct = Math.round((aGW / (aGW + bGW || 1)) * 100);
-  const recentRows = [...h2h.matches]
+
+  // ELO walk for per-match deltas
+  const h2hDeltaMap = new Map();
+  const _e = {};
+  [...allMatches]
+    .sort((x, y) => (x.date || "").localeCompare(y.date || ""))
+    .forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _e)) _e[p] = 1000; });
+      const mAWon = m.scoreA > m.scoreB;
+      const avgA = m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB = m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((mAWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((mAWon ? 0 : 1) - (1 - expA)));
+      m.teamA.forEach((p) => { _e[p] = (_e[p] || 1000) + dA; });
+      m.teamB.forEach((p) => { _e[p] = (_e[p] || 1000) + dB; });
+      const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
+      const aInB = (m.teamB || []).some((p) => normPlayer(p) === a);
+      const bInA = (m.teamA || []).some((p) => normPlayer(p) === b);
+      const bInB = (m.teamB || []).some((p) => normPlayer(p) === b);
+      if ((aInA && bInB) || (aInB && bInA))
+        h2hDeltaMap.set(m, { ad: aInA ? dA : dB, bd: bInA ? dA : dB });
+    });
+  let aEloTotal = 0, bEloTotal = 0;
+  h2hDeltaMap.forEach((v) => { aEloTotal += v.ad; bEloTotal += v.bd; });
+
+  const fmtD = (n) => n > 0 ? `+${n}` : String(n);
+  const dCol = (n) => n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
+  const eloBg = (n) => n > 0 ? "rgba(74,222,128,0.15)" : n < 0 ? "rgba(248,113,113,0.15)" : "rgba(255,255,255,0.06)";
+  const borderCol = (n) => n > 0 ? "#4ade80" : n < 0 ? "#f87171" : "rgba(255,255,255,0.1)";
+
+  const col1 = playerColor(a);
+  const col2 = playerColor(b);
+  const leader = h2h.aWins > h2h.bWins ? a : h2h.bWins > h2h.aWins ? b : null;
+  const leaderCol = leader === a ? col1 : col2;
+  const aN = a.split(" ")[0];
+  const bN = b.split(" ")[0];
+
+  const recentCards = [...h2h.matches]
     .sort((x, y) => (y.date || "").localeCompare(x.date || ""))
     .slice(0, 8)
     .map((m) => {
       const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
       const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const sa = aInA ? m.scoreA : m.scoreB,
-        sb = aInA ? m.scoreB : m.scoreA;
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-              <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:${aWon ? "var(--green)" : "var(--red)"}">
-                ${aWon ? a.split(" ")[0] : b.split(" ")[0]} won
-              </span>
-              <span style="font-size:12px;font-weight:800;color:var(--text)">${sa}–${sb}</span>
-              <span style="font-size:10px;color:var(--muted)">${fmtDate(m.date)}</span>
-            </div>`;
-    })
-    .join("");
-  const html = `<div id="h2h-detail-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;overflow:auto;padding:20px" onclick="if(event.target===this)this.remove()">
-          <div class="ov-card" style="max-width:480px;margin:0 auto">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-              <div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.1em">⚔️ H2H DEEP DIVE</div>
-              <button onclick="document.getElementById('h2h-detail-modal').remove()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">✕</button>
+      const sa = aInA ? m.scoreA : m.scoreB;
+      const sb = aInA ? m.scoreB : m.scoreA;
+      const deltas = h2hDeltaMap.get(m);
+      const ad = deltas?.ad ?? 0;
+      const bd = deltas?.bd ?? 0;
+      const winnerCol = aWon ? col1 : col2;
+      return `
+        <div class="h2h-match-card">
+          <div class="h2h-match-accent" style="background:${winnerCol}"></div>
+          <div class="h2h-match-body">
+            <div class="h2h-match-row1">
+              <span class="h2h-match-winner-name" style="color:${winnerCol}">${aWon ? aN : bN} won</span>
+              <span class="h2h-match-score">${sa}–${sb}</span>
+              <span class="h2h-match-date">${fmtDate(m.date)}</span>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-              <div style="font-size:18px;font-weight:900;text-transform:uppercase;color:${aCol}">${a}</div>
-              <div style="font-size:12px;color:var(--muted);font-weight:700">VS</div>
-              <div style="font-size:18px;font-weight:900;text-transform:uppercase;color:${bCol};text-align:right">${b}</div>
+            <div class="h2h-match-row2">
+              <span class="h2h-elo-pill" style="background:${eloBg(ad)};color:${dCol(ad)}">${aN} ${fmtD(ad)}</span>
+              <span class="h2h-elo-pill" style="background:${eloBg(bd)};color:${dCol(bd)}">${bN} ${fmtD(bd)}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-              <div style="font-size:36px;font-weight:900;color:${aCol}">${h2h.aWins}</div>
-              <div style="flex:1;height:8px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden;display:flex">
-                <div style="width:${aWinPct}%;background:${aCol}"></div>
-              </div>
-              <div style="font-size:36px;font-weight:900;color:${bCol};text-align:right">${h2h.bWins}</div>
-            </div>
-            <div class="ov-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
-              <div class="ov-cell"><div class="ov-val">${total}</div><div class="ov-lbl">Played</div></div>
-              <div class="ov-cell"><div class="ov-val" style="color:${aCol}">${aWinPct}%</div><div class="ov-lbl">${a.split(" ")[0]} Win%</div></div>
-              <div class="ov-cell"><div class="ov-val ${h2h.diff >= 0 ? "p" : "n"}">${diffStr}</div><div class="ov-lbl">Game Diff</div></div>
-              <div class="ov-cell"><div class="ov-val">${aGPct}%</div><div class="ov-lbl">Game%</div></div>
-            </div>
-            <div class="ov-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
-              <div class="ov-cell"><div class="ov-val p">${aGW}</div><div class="ov-lbl">${a.split(" ")[0]} GW</div></div>
-              <div class="ov-cell"><div class="ov-val n">${bGW}</div><div class="ov-lbl">${b.split(" ")[0]} GW</div></div>
-              <div class="ov-cell"><div class="ov-val" style="color:var(--green)">${aShut}</div><div class="ov-lbl">${a.split(" ")[0]} Shutout</div></div>
-              <div class="ov-cell"><div class="ov-val" style="color:var(--green)">${bShut}</div><div class="ov-lbl">${b.split(" ")[0]} Shutout</div></div>
-            </div>
-            <div class="ov-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:14px">
-              <div class="ov-cell"><div class="ov-val" style="color:var(--accent)">${aStreak}</div><div class="ov-lbl">${a.split(" ")[0]} Best Streak</div></div>
-              <div class="ov-cell"><div class="ov-val" style="color:var(--accent)">${bStreak}</div><div class="ov-lbl">${b.split(" ")[0]} Best Streak</div></div>
-            </div>
-            <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Recent Matches</div>
-            <div style="font-size:11px">${recentRows || '<div style="color:var(--muted);padding:8px">No matches yet.</div>'}</div>
           </div>
         </div>`;
+    })
+    .join("");
+
+  const html = `
+    <div id="h2h-detail-modal" class="h2h-modal-overlay" onclick="if(event.target===this)this.remove()">
+      <div class="h2h-modal-card">
+        <div class="h2h-modal-header">
+          <span class="h2h-modal-title">⚔️ H2H DEEP DIVE</span>
+          <button class="h2h-modal-close" onclick="document.getElementById('h2h-detail-modal').remove()">✕</button>
+        </div>
+        <div class="h2h-modern">
+          <div class="h2h-hero">
+            <div class="h2h-hero-side" style="background:linear-gradient(135deg,${col1}18 0%,transparent 70%)">
+              ${playerAvatar(a, 34)}
+              <div class="h2h-hero-name">${a}</div>
+              <div class="h2h-hero-wins" style="color:${col1}">${h2h.aWins}</div>
+              <div class="h2h-hero-sub">${aWinPct}% win rate</div>
+            </div>
+            <div class="h2h-hero-center">
+              <div class="h2h-vs-badge">VS</div>
+              <div class="h2h-total-badge">${total}<br><span style="font-size:8px;font-weight:600;opacity:0.6">played</span></div>
+            </div>
+            <div class="h2h-hero-side h2h-hero-right" style="background:linear-gradient(225deg,${col2}18 0%,transparent 70%)">
+              ${playerAvatar(b, 34)}
+              <div class="h2h-hero-name">${b}</div>
+              <div class="h2h-hero-wins" style="color:${col2}">${h2h.bWins}</div>
+              <div class="h2h-hero-sub">${bWinPct}% win rate</div>
+            </div>
+          </div>
+
+          <div class="h2h-split-wrap">
+            <span class="h2h-split-pct" style="color:${col1}">${aWinPct}%</span>
+            <div class="h2h-split-bar">
+              <div class="h2h-split-seg" style="width:${aWinPct}%;background:${col1}"></div>
+              <div class="h2h-split-seg" style="width:${bWinPct}%;background:${col2}"></div>
+            </div>
+            <span class="h2h-split-pct" style="color:${col2}">${bWinPct}%</span>
+          </div>
+
+          <div class="h2h-leader-badge">
+            ${leader
+              ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
+              : "⚖️ Perfectly balanced"}
+          </div>
+
+          <div class="h2h-stats-grid">
+            <div class="h2h-stat-cell">
+              <div class="h2h-stat-val ${h2h.diff >= 0 ? "" : "neg"}">${h2h.diff >= 0 ? "+" : ""}${h2h.diff}</div>
+              <div class="h2h-stat-lbl">GAME DIFF</div>
+            </div>
+            <div class="h2h-stat-cell">
+              <div class="h2h-stat-val">${aGPct}%</div>
+              <div class="h2h-stat-lbl">GAME%</div>
+            </div>
+            <div class="h2h-stat-cell">
+              <div class="h2h-stat-val" style="color:${col1}">${aGW}</div>
+              <div class="h2h-stat-lbl">${aN} GW</div>
+            </div>
+            <div class="h2h-stat-cell">
+              <div class="h2h-stat-val" style="color:${col2}">${bGW}</div>
+              <div class="h2h-stat-lbl">${bN} GW</div>
+            </div>
+            <div class="h2h-stat-cell">
+              <div class="h2h-stat-val" style="color:var(--green)">${aShut}</div>
+              <div class="h2h-stat-lbl">${aN} SHUTOUT</div>
+            </div>
+            <div class="h2h-stat-cell">
+              <div class="h2h-stat-val" style="color:var(--green)">${bShut}</div>
+              <div class="h2h-stat-lbl">${bN} SHUTOUT</div>
+            </div>
+          </div>
+
+          <div class="h2h-elo-row">
+            <div class="h2h-elo-card" style="border-top-color:${borderCol(aEloTotal)}">
+              <div class="h2h-elo-label">ELO IMPACT</div>
+              <div class="h2h-elo-player" style="color:${col1}">${a}</div>
+              <div class="h2h-elo-delta" style="color:${dCol(aEloTotal)}">${fmtD(aEloTotal)}</div>
+              <div class="h2h-elo-sub">from ${total} meetings</div>
+            </div>
+            <div class="h2h-elo-card" style="border-top-color:${borderCol(bEloTotal)}">
+              <div class="h2h-elo-label">ELO IMPACT</div>
+              <div class="h2h-elo-player" style="color:${col2}">${b}</div>
+              <div class="h2h-elo-delta" style="color:${dCol(bEloTotal)}">${fmtD(bEloTotal)}</div>
+              <div class="h2h-elo-sub">from ${total} meetings</div>
+            </div>
+          </div>
+
+          <div class="h2h-elo-row" style="margin-bottom:14px">
+            <div class="h2h-elo-card" style="border-top-color:var(--accent)">
+              <div class="h2h-elo-label">BEST WIN STREAK</div>
+              <div class="h2h-elo-player" style="color:${col1}">${a}</div>
+              <div class="h2h-elo-delta" style="color:var(--accent)">${aStreak}</div>
+            </div>
+            <div class="h2h-elo-card" style="border-top-color:var(--accent)">
+              <div class="h2h-elo-label">BEST WIN STREAK</div>
+              <div class="h2h-elo-player" style="color:${col2}">${b}</div>
+              <div class="h2h-elo-delta" style="color:var(--accent)">${bStreak}</div>
+            </div>
+          </div>
+
+          <div class="h2h-matches-title">RECENT MATCHES</div>
+          <div class="h2h-match-list">
+            ${recentCards || '<div style="color:var(--muted);padding:8px;font-size:11px">No matches yet.</div>'}
+          </div>
+        </div>
+      </div>
+    </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
 }
 
@@ -5248,10 +5397,11 @@ function renderH2HDeepDive() {
       m.teamA.forEach((p) => { _e[p] = (_e[p] || 1000) + dA; });
       m.teamB.forEach((p) => { _e[p] = (_e[p] || 1000) + dB; });
       const p1InA = (m.teamA || []).includes(p1);
+      const p1InB = (m.teamB || []).includes(p1);
       const p2InA = (m.teamA || []).includes(p2);
-      const p1In = p1InA || (m.teamB || []).includes(p1);
-      const p2In = p2InA || (m.teamB || []).includes(p2);
-      if (p1In && p2In) h2hDeltaMap.set(m, { p1d: p1InA ? dA : dB, p2d: p2InA ? dA : dB });
+      const p2InB = (m.teamB || []).includes(p2);
+      if ((p1InA && p2InB) || (p1InB && p2InA))
+        h2hDeltaMap.set(m, { p1d: p1InA ? dA : dB, p2d: p2InA ? dA : dB });
     });
   let p1Total = 0, p2Total = 0;
   h2hDeltaMap.forEach((v) => { p1Total += v.p1d; p2Total += v.p2d; });
@@ -5259,52 +5409,99 @@ function renderH2HDeepDive() {
   const dCol = (n) => n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
 
   const p1Pct = Math.round((h2h.aWins / total) * 100);
+  const p2Pct = 100 - p1Pct;
   const recent = [...h2h.matches]
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
     .slice(0, 5);
+  const col1 = playerColor(p1);
+  const col2 = playerColor(p2);
+  const leader = h2h.aWins > h2h.bWins ? p1 : h2h.bWins > h2h.aWins ? p2 : null;
+  const leaderCol = leader === p1 ? col1 : col2;
+  const eloBg = (n) => n > 0 ? "rgba(74,222,128,0.15)" : n < 0 ? "rgba(248,113,113,0.15)" : "rgba(255,255,255,0.06)";
+  const borderCol = (n) => n > 0 ? "#4ade80" : n < 0 ? "#f87171" : "rgba(255,255,255,0.1)";
   result.innerHTML = `
-          <div class="rivalry-header" style="margin-top:12px">
-            <div class="rivalry-player">${p1}</div>
-            <div class="rivalry-vs">VS</div>
-            <div class="rivalry-player">${p2}</div>
-          </div>
-          <div class="rivalry-record">
-            <div class="rivalry-stat"><div class="rivalry-val p">${h2h.aWins}</div><div class="rivalry-lbl">${p1Pct}%</div></div>
-            <div class="rivalry-stat"><div class="rivalry-val m">${total}</div><div class="rivalry-lbl">Meetings</div></div>
-            <div class="rivalry-stat"><div class="rivalry-val n">${h2h.bWins}</div><div class="rivalry-lbl">${100 - p1Pct}%</div></div>
-          </div>
-          <div style="display:flex;gap:8px;margin:10px 0">
-            <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;border-top:2px solid ${dCol(p1Total)}">
-              <div style="font-size:8px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:4px">ELO CHANGE · ${p1.toUpperCase()}</div>
-              <div style="font-size:22px;font-weight:900;color:${dCol(p1Total)}">${fmtD(p1Total)}</div>
-              <div style="font-size:9px;color:var(--muted);margin-top:2px">across ${total} meetings</div>
-            </div>
-            <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;border-top:2px solid ${dCol(p2Total)}">
-              <div style="font-size:8px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:4px">ELO CHANGE · ${p2.toUpperCase()}</div>
-              <div style="font-size:22px;font-weight:900;color:${dCol(p2Total)}">${fmtD(p2Total)}</div>
-              <div style="font-size:9px;color:var(--muted);margin-top:2px">across ${total} meetings</div>
-            </div>
-          </div>
-          <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin:8px 0 4px">RECENT MEETINGS</div>
-          ${recent
-            .map((m) => {
-              const p1InA = m.teamA.includes(p1);
-              const p1Won = p1InA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-              const deltas = h2hDeltaMap.get(m);
-              const p1d = deltas?.p1d ?? 0;
-              const p2d = deltas?.p2d ?? 0;
-              return `<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="font-size:12px;font-weight:700;color:${p1Won ? "var(--green)" : "var(--red)"}">${p1Won ? p1 : p2} won</span>
-                  <span style="font-size:11px;color:var(--muted)">${m.scoreA}–${m.scoreB} · ${fmtDate(m.date)}</span>
-                </div>
-                <div style="display:flex;gap:12px;margin-top:3px">
-                  <span style="font-size:10px;color:var(--muted)">${p1}: <strong style="color:${dCol(p1d)}">${fmtD(p1d)}</strong></span>
-                  <span style="font-size:10px;color:var(--muted)">${p2}: <strong style="color:${dCol(p2d)}">${fmtD(p2d)}</strong></span>
+    <div class="h2h-modern">
+      <div class="h2h-hero">
+        <div class="h2h-hero-side" style="background:linear-gradient(135deg,${col1}18 0%,transparent 70%)">
+          ${playerAvatar(p1, 34)}
+          <div class="h2h-hero-name">${p1}</div>
+          <div class="h2h-hero-wins" style="color:${col1}">${h2h.aWins}</div>
+          <div class="h2h-hero-sub">${p1Pct}% win rate</div>
+        </div>
+        <div class="h2h-hero-center">
+          <div class="h2h-vs-badge">VS</div>
+          <div class="h2h-total-badge">${total}<br><span style="font-size:8px;font-weight:600;opacity:0.6">played</span></div>
+        </div>
+        <div class="h2h-hero-side h2h-hero-right" style="background:linear-gradient(225deg,${col2}18 0%,transparent 70%)">
+          ${playerAvatar(p2, 34)}
+          <div class="h2h-hero-name">${p2}</div>
+          <div class="h2h-hero-wins" style="color:${col2}">${h2h.bWins}</div>
+          <div class="h2h-hero-sub">${p2Pct}% win rate</div>
+        </div>
+      </div>
+
+      <div class="h2h-split-wrap">
+        <span class="h2h-split-pct" style="color:${col1}">${p1Pct}%</span>
+        <div class="h2h-split-bar">
+          <div class="h2h-split-seg" style="width:${p1Pct}%;background:${col1}"></div>
+          <div class="h2h-split-seg" style="width:${p2Pct}%;background:${col2}"></div>
+        </div>
+        <span class="h2h-split-pct" style="color:${col2}">${p2Pct}%</span>
+      </div>
+
+      <div class="h2h-leader-badge">
+        ${leader
+          ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
+          : "⚖️ Perfectly balanced"}
+      </div>
+
+      <div class="h2h-elo-row">
+        <div class="h2h-elo-card" style="border-top-color:${borderCol(p1Total)}">
+          <div class="h2h-elo-label">ELO IMPACT</div>
+          <div class="h2h-elo-player" style="color:${col1}">${p1}</div>
+          <div class="h2h-elo-delta" style="color:${dCol(p1Total)}">${fmtD(p1Total)}</div>
+          <div class="h2h-elo-sub">from ${total} meetings</div>
+        </div>
+        <div class="h2h-elo-card" style="border-top-color:${borderCol(p2Total)}">
+          <div class="h2h-elo-label">ELO IMPACT</div>
+          <div class="h2h-elo-player" style="color:${col2}">${p2}</div>
+          <div class="h2h-elo-delta" style="color:${dCol(p2Total)}">${fmtD(p2Total)}</div>
+          <div class="h2h-elo-sub">from ${total} meetings</div>
+        </div>
+      </div>
+
+      <div class="h2h-matches-title">RECENT ENCOUNTERS</div>
+      <div class="h2h-match-list">
+        ${recent
+          .map((m) => {
+            const p1InA = m.teamA.includes(p1);
+            const p1Won = p1InA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+            const deltas = h2hDeltaMap.get(m);
+            const p1d = deltas?.p1d ?? 0;
+            const p2d = deltas?.p2d ?? 0;
+            const winnerCol = p1Won ? col1 : col2;
+            const winnerName = p1Won ? p1 : p2;
+            const scoreP1 = p1InA ? m.scoreA : m.scoreB;
+            const scoreP2 = p1InA ? m.scoreB : m.scoreA;
+            return `
+              <div class="h2h-match-card">
+                <div class="h2h-match-accent" style="background:${winnerCol}"></div>
+                <div class="h2h-match-body">
+                  <div class="h2h-match-row1">
+                    <span class="h2h-match-winner-name" style="color:${winnerCol}">${winnerName} won</span>
+                    <span class="h2h-match-score">${scoreP1}–${scoreP2}</span>
+                    <span class="h2h-match-date">${fmtDate(m.date)}</span>
+                  </div>
+                  <div class="h2h-match-row2">
+                    <span class="h2h-elo-pill" style="background:${eloBg(p1d)};color:${dCol(p1d)}">${p1} ${fmtD(p1d)}</span>
+                    <span class="h2h-elo-pill" style="background:${eloBg(p2d)};color:${dCol(p2d)}">${p2} ${fmtD(p2d)}</span>
+                  </div>
                 </div>
               </div>`;
-            })
-            .join("")}`;
+          })
+          .join("")}
+      </div>
+    </div>`;
 }
 
 // ── ANALYTICS SECTION STATE ────────────────────────────────
@@ -5340,6 +5537,14 @@ function toggleAnaSection(key) {
   saveAnaCollapsed(col);
   if (key === "calendar" && !el.classList.contains("collapsed"))
     renderMatchCalendar();
+  if (!el.classList.contains("collapsed")) {
+    el.querySelectorAll(".h2h-cascade-item").forEach((item, i) => {
+      item.classList.remove("card-anim");
+      void item.offsetWidth;
+      item.style.animationDelay = `${50 + i * 90}ms`;
+      item.classList.add("card-anim");
+    });
+  }
 }
 
 let _anaDragKey = null;
@@ -6846,14 +7051,38 @@ function renderAnalyticsPage() {
     const diff = b[1].wins / b[1].played - a[1].wins / a[1].played;
     return diff !== 0 ? diff : b[1].played - a[1].played;
   });
+
+  // Compute ELO rank for each pair (avg of the two players' current ELO)
+  const pairEloRankMap = new Map();
+  [...Object.entries(partnerships)]
+    .map(([key, p]) => ({
+      key,
+      avgElo: p.players.reduce((s, n) => s + (eloMap[n] || 1000), 0) / p.players.length,
+    }))
+    .sort((a, b) => b.avgElo - a.avgElo)
+    .forEach(({ key }, i) => pairEloRankMap.set(key, i + 1));
+
   const allPairsHtml = allPairsRanked.length
-    ? allPairsRanked
+    ? `<div class="chem-header">
+        <div class="chem-rank">RANK</div>
+        <div class="chem-elo-rank">ELO</div>
+        <div class="chem-names">PAIR</div>
+        <div class="chem-wl">W–L</div>
+        <div class="chem-bar-wrap"></div>
+        <div class="chem-pct">WIN%</div>
+        <div class="chem-played">GP</div>
+      </div>` +
+      allPairsRanked
         .map(([key, p], i) => {
           const pc = Math.round((p.wins / p.played) * 100);
           const col =
             pc >= 60 ? "var(--green)" : pc <= 40 ? "var(--red)" : "var(--text)";
           const escKey = key.replace(/'/g, "\\'");
-          return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i + 1}</div><div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;
+          const eloRank = pairEloRankMap.get(key);
+          const eloRankHtml = eloRank
+            ? `<div class="chem-elo-rank" style="color:${eloRank <= 3 ? "var(--accent)" : "var(--muted)"}">#${eloRank}</div>`
+            : `<div class="chem-elo-rank">—</div>`;
+          return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i + 1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;
         })
         .join("")
     : '<div class="sub" style="padding:8px">No pair data.</div>';
@@ -6964,7 +7193,8 @@ function renderAnalyticsPage() {
   const opts = playersByMatches
     .map((p) => `<option value="${p}">${p.toUpperCase()}</option>`)
     .join("");
-  const h2hHtml = `<div class="h2h-form"><div class="h2h-selects"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${opts}</select></div><button class="btn-go" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
+  const placeholder = `<option value="" disabled selected>Select player</option>`;
+  const h2hHtml = `<div class="h2h-form"><div class="h2h-selects h2h-cascade-item"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select></div><button class="btn-go h2h-cascade-item" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
 
   // ── ELO RANKINGS ───────────────────────────────────────
   const { from: wkFromElo } = lastWeekRange();
@@ -7451,6 +7681,7 @@ function renderAnalyticsPage() {
       title: "⚔️ Paired H2H Records",
       body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
     },
+    { key: "h2hDive", title: "⚔️ H2H Deep Dive", body: h2hHtml },
     { key: "elo", title: "⚡ ELO Rankings", body: eloHtml },
     { key: "eloTimeline", title: "📈 ELO History Chart", body: buildEloTimelineHtml("all") },
     { key: "eloWinProb", title: "🎯 ELO Win Probability", body: eloWinProbHtml },
@@ -7536,7 +7767,7 @@ function renderAnalyticsPage() {
 
   container
     .querySelectorAll(
-      ".ana-card, .award-card, .awards-grid, .ana-section-title, .pair-stats-card",
+      ".ana-card, .award-card, .awards-grid, .ana-section-title, .pair-stats-card, .h2h-cascade-item",
     )
     .forEach((el) => {
       el.style.opacity = "0";
@@ -7625,7 +7856,11 @@ function scheduleAutoEmail() {
   target.setHours(13, 0, 0, 0);
 
   if (localStorage.getItem("padel_last_email") !== today && now >= target) {
-    sendBackupEmail(true).then(() => scheduleAutoEmail());
+    localStorage.setItem("padel_last_email", today); // claim slot before async to prevent multi-tab race
+    sendBackupEmail(true).then((ok) => {
+      if (!ok) localStorage.removeItem("padel_last_email"); // release on failure so it can retry
+      scheduleAutoEmail();
+    });
     return;
   }
 
