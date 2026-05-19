@@ -2141,6 +2141,20 @@ function renderHome() {
   }
   const maxSR = stats[0].sr || 1;
   const homeEloMap = homeEloMapFull;
+
+  // ELO delta over each player's last 5 matches
+  const eloDeltaMap = {};
+  stats.forEach((p) => {
+    const playerMs = filtered
+      .filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))
+      .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const last5 = playerMs.slice(-5);
+    if (!last5.length) { eloDeltaMap[p.name] = null; return; }
+    const without5 = filtered.filter((m) => !last5.includes(m));
+    const prevElo = computeElo(without5)[p.name] || 1000;
+    eloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - prevElo);
+  });
+
   const cardHtmls = stats.map((p, i) => {
     const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
     const ri =
@@ -2161,8 +2175,15 @@ function renderHome() {
     const gc = p.gamePct >= 50 ? "tp" : "tn";
     const momentumBadge = getMomentumBadge(p.name);
     const sparklineSvg = getFormSparkline(p.name, 64, 20);
+    const last5DotsHtml = p.form.length
+      ? `<span class="spark-dots">${p.form.map((r) => `<span class="s5-dot ${r === "W" ? "s5-w" : "s5-l"}"></span>`).join("")}</span>`
+      : "";
+    const eld = eloDeltaMap[p.name];
+    const eldHtml = eld !== null && eld !== undefined
+      ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
+      : "";
     const sparklineHtml = sparklineSvg
-      ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg}<span class="spark-full">Full stats →</span></div>`
+      ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
       : "";
     const playerBadges = computeBadges(p.name, p, homeEloMap, filtered);
     const badgePillsHtml = playerBadges.length

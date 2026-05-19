@@ -2968,9 +2968,50 @@ textarea:focus {
   font-weight: 700;
   color: var(--muted);
   letter-spacing: 0.04em;
-  margin-left: auto;
   flex-shrink: 0;
   opacity: 0.65;
+}
+.spark-extras {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  justify-content: center;
+  padding-right: 2px;
+}
+.spark-dots {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.s5-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.s5-w {
+  background: var(--green);
+}
+.s5-l {
+  background: var(--red);
+}
+.s5-elo {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  padding-left: 56px;
+}
+.s5-pos {
+  color: var(--green);
+}
+.s5-neg {
+  color: var(--red);
+}
+.s5-neu {
+  color: var(--muted);
 }
 
 /* ── FEATURES 1-5 CARD ROWS ──────────────────── */
@@ -10157,7 +10198,11 @@ select.cmp-sel option {
 .b1 {
   width: 380px;
   height: 380px;
-  background: radial-gradient(circle, rgba(24, 215, 255, 0.13) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(24, 215, 255, 0.13) 0%,
+    transparent 70%
+  );
   top: -100px;
   left: -80px;
   animation: ambDrift1 20s ease-in-out infinite alternate;
@@ -10165,7 +10210,11 @@ select.cmp-sel option {
 .b2 {
   width: 320px;
   height: 320px;
-  background: radial-gradient(circle, rgba(100, 60, 255, 0.11) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(100, 60, 255, 0.11) 0%,
+    transparent 70%
+  );
   top: 15%;
   right: -60px;
   animation: ambDrift2 25s ease-in-out infinite alternate;
@@ -10173,7 +10222,11 @@ select.cmp-sel option {
 .b3 {
   width: 440px;
   height: 440px;
-  background: radial-gradient(circle, rgba(0, 80, 200, 0.09) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(0, 80, 200, 0.09) 0%,
+    transparent 70%
+  );
   bottom: -120px;
   left: 20%;
   animation: ambDrift3 28s ease-in-out infinite alternate;
@@ -10181,7 +10234,11 @@ select.cmp-sel option {
 .b4 {
   width: 260px;
   height: 260px;
-  background: radial-gradient(circle, rgba(24, 215, 255, 0.09) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(24, 215, 255, 0.09) 0%,
+    transparent 70%
+  );
   top: 45%;
   left: -40px;
   animation: ambDrift4 22s ease-in-out infinite alternate;
@@ -10189,30 +10246,54 @@ select.cmp-sel option {
 .b5 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, rgba(98, 182, 255, 0.1) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(98, 182, 255, 0.1) 0%,
+    transparent 70%
+  );
   bottom: 8%;
   right: -50px;
   animation: ambDrift5 18s ease-in-out infinite alternate;
 }
 @keyframes ambDrift1 {
-  from { transform: translate(0, 0) scale(1); }
-  to   { transform: translate(110px, 90px) scale(1.12); }
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(110px, 90px) scale(1.12);
+  }
 }
 @keyframes ambDrift2 {
-  from { transform: translate(0, 0) scale(1); }
-  to   { transform: translate(-90px, 130px) scale(1.08); }
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(-90px, 130px) scale(1.08);
+  }
 }
 @keyframes ambDrift3 {
-  from { transform: translate(0, 0) scale(1); }
-  to   { transform: translate(-80px, -70px) scale(1.15); }
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(-80px, -70px) scale(1.15);
+  }
 }
 @keyframes ambDrift4 {
-  from { transform: translate(0, 0) scale(1); }
-  to   { transform: translate(80px, 110px) scale(1.06); }
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(80px, 110px) scale(1.06);
+  }
 }
 @keyframes ambDrift5 {
-  from { transform: translate(0, 0) scale(1); }
-  to   { transform: translate(-60px, -90px) scale(1.1); }
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(-60px, -90px) scale(1.1);
+  }
 }
 
 /* Feature 4B: Card tilt spring-back transition */
@@ -10328,7 +10409,9 @@ select.cmp-sel:hover,
 }
 .award-card:hover {
   transform: translateY(-3px) scale(1.04);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(var(--theme-rgb), 0.1);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    0 0 16px rgba(var(--theme-rgb), 0.1);
   border-color: rgba(var(--theme-rgb), 0.25);
 }
 
