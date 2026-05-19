@@ -797,5 +797,32 @@ Parthiv - Par"
         _deferredInstall.userChoice.then(() => { _deferredInstall = null; });
       };
     </script>
+
+    <!-- MATCH INTRO OVERLAY -->
+    <div id="match-intro-overlay" onclick="closeMatchIntro()">
+      <div class="mio-hint">TAP ANYWHERE TO CLOSE</div>
+      <div class="mio-date-bar" id="mio-date-bar"></div>
+      <div class="mio-arena">
+        <div class="mio-side-panel left" id="mio-team-a">
+          <div class="mio-rank-chip" id="mio-rank-a"></div>
+          <div class="mio-player-name" id="mio-name-a"></div>
+          <div class="mio-elo-tag" id="mio-elo-a"></div>
+          <div class="mio-score-num" id="mio-score-a">0</div>
+        </div>
+        <div class="mio-center-col">
+          <div class="mio-vs-label">VS</div>
+          <div class="mio-center-sep"></div>
+        </div>
+        <div class="mio-side-panel right" id="mio-team-b">
+          <div class="mio-rank-chip" id="mio-rank-b"></div>
+          <div class="mio-player-name" id="mio-name-b"></div>
+          <div class="mio-elo-tag" id="mio-elo-b"></div>
+          <div class="mio-score-num" id="mio-score-b">0</div>
+        </div>
+      </div>
+      <div class="mio-result-line" id="mio-result-line"></div>
+      <div class="mio-elo-deltas" id="mio-elo-deltas"></div>
+      <div class="mio-badges" id="mio-badges"></div>
+    </div>
   </body>
 </html>

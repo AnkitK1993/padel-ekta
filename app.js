@@ -8044,6 +8044,8 @@ Object.assign(window, {
   calDayClick,
   showToast,
   toggleHamburgerMenu,
+  openMatchIntro,
+  closeMatchIntro,
 });
 
 function setHistoryDateFilter(value) {
@@ -8091,3 +8093,117 @@ function isMatchWithinDateFilter(match, filterValue) {
 
   return true;
 }
+
+// ── MATCH INTRO OVERLAY ────────────────────────────────────
+function openMatchIntro(idx) {
+  const m = allMatches[idx];
+  if (!m) return;
+
+  const priorElo = computeElo(allMatches.slice(0, idx));
+  const afterElo  = computeElo(allMatches.slice(0, idx + 1));
+  const aWon = m.scoreA > m.scoreB;
+
+  // Pre-match individual and pair ranks
+  const indivRanked = Object.entries(priorElo).sort((a, b) => b[1] - a[1]);
+  const allPairs    = getPairStats();
+  const pairsByElo  = allPairs
+    .map((p) => ({ key: p.key, avg: p.players.reduce((s, n) => s + (priorElo[n] || 1000), 0) / p.players.length }))
+    .sort((a, b) => b.avg - a.avg);
+
+  const mkRankLabel = (players) => {
+    if (players.length >= 2) {
+      const key = getPairKey(players);
+      const i   = pairsByElo.findIndex((p) => p.key === key);
+      return i >= 0 ? `PAIR #${i + 1}` : "";
+    }
+    const i = indivRanked.findIndex(([n]) => n === players[0]);
+    return i >= 0 ? `#${i + 1}` : "";
+  };
+
+  const avgElo = (players) =>
+    Math.round(players.reduce((s, p) => s + (priorElo[p] || 1000), 0) / Math.max(players.length, 1));
+
+  const nameA = m.teamA.map((p) => normPlayer(p)).join(" & ");
+  const nameB = m.teamB.map((p) => normPlayer(p)).join(" & ");
+
+  document.getElementById("mio-date-bar").textContent = fmtDate(m.date).toUpperCase();
+
+  const rankA = mkRankLabel(m.teamA);
+  const rankB = mkRankLabel(m.teamB);
+  const rankAEl = document.getElementById("mio-rank-a");
+  const rankBEl = document.getElementById("mio-rank-b");
+  rankAEl.textContent = rankA;
+  rankAEl.style.visibility = rankA ? "visible" : "hidden";
+  rankBEl.textContent = rankB;
+  rankBEl.style.visibility = rankB ? "visible" : "hidden";
+
+  document.getElementById("mio-name-a").innerHTML = nameA.replace(" & ", "<br>& ");
+  document.getElementById("mio-name-b").innerHTML = nameB.replace(" & ", "<br>& ");
+  document.getElementById("mio-elo-a").textContent = `ELO ${avgElo(m.teamA)}`;
+  document.getElementById("mio-elo-b").textContent = `ELO ${avgElo(m.teamB)}`;
+
+  const scoreAEl = document.getElementById("mio-score-a");
+  const scoreBEl = document.getElementById("mio-score-b");
+  scoreAEl.textContent = "0";
+  scoreBEl.textContent = "0";
+  scoreAEl.className = "mio-score-num" + (aWon ? " win" : "");
+  scoreBEl.className = "mio-score-num" + (!aWon ? " win" : "");
+
+  const winner = aWon ? nameA : nameB;
+  document.getElementById("mio-result-line").textContent = `${winner.toUpperCase()} WIN`;
+
+  // ELO delta pills
+  const deltaPills = [...m.teamA, ...m.teamB]
+    .map((p) => {
+      const delta = (afterElo[p] || 1000) - (priorElo[p] || 1000);
+      const sign = delta >= 0 ? "+" : "";
+      const cls  = delta >= 0 ? "gain" : "loss";
+      return `<span class="mio-delta-pill ${cls}">${normPlayer(p)} ${sign}${delta}</span>`;
+    })
+    .join("");
+  document.getElementById("mio-elo-deltas").innerHTML = deltaPills;
+
+  // Event badges
+  const badges = [];
+  if (isFireMatch(m))       badges.push(`<span class="event-badge fire">🔥 FIRE</span>`);
+  if (isDominatingMatch(m)) badges.push(`<span class="event-badge dominate">💀 DOMINATING</span>`);
+  if (isZeroMatch(m))       badges.push(`<span class="event-badge zero">😂 ZERO</span>`);
+  document.getElementById("mio-badges").innerHTML = badges.join("");
+
+  // Show overlay
+  const overlay = document.getElementById("match-intro-overlay");
+  overlay.classList.remove("active");
+  void overlay.offsetWidth;
+  overlay.classList.add("active");
+
+  // Animate scores in after panels slide in
+  const animScore = (el, final, delay) =>
+    setTimeout(() => {
+      let cur = 0;
+      const tick = () => {
+        cur = Math.min(cur + 1, final);
+        el.textContent = cur;
+        if (cur < final) setTimeout(tick, 110);
+      };
+      tick();
+    }, delay);
+  animScore(scoreAEl, m.scoreA, 480);
+  animScore(scoreBEl, m.scoreB, 480);
+}
+
+function closeMatchIntro() {
+  document.getElementById("match-intro-overlay").classList.remove("active");
+}
+
+// Delegated click: tap any match card (not admin buttons) to open intro
+document.addEventListener("click", (e) => {
+  const card = e.target.closest(".match-card");
+  if (!card) return;
+  if (e.target.closest("button, .swipe-delete-reveal")) return;
+  const idx = parseInt(card.dataset.matchIdx, 10);
+  if (!isNaN(idx)) openMatchIntro(idx);
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeMatchIntro();
+});
