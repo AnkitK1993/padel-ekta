@@ -644,15 +644,65 @@ function goBack() {
   goTo(prevPage === "add" ? "home" : prevPage);
 }
 
-function switchMainTab(id) {
+function _slideTab(fromPage, toPage, dir) {
+  const DUR  = 300;
+  const EASE = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+  const w    = window.innerWidth;
+
+  // Place incoming page off-screen with no transition
+  toPage.style.transition    = "none";
+  toPage.style.opacity       = "1";
+  toPage.style.pointerEvents = "none";
+  toPage.style.transform     = `translateX(${dir * w}px)`;
+
+  // Force reflow so starting position registers before we enable transition
+  toPage.getBoundingClientRect();
+
+  // Slide both pages simultaneously
+  fromPage.style.transition = `transform ${DUR}ms ${EASE}, opacity ${DUR}ms ease`;
+  fromPage.style.transform  = `translateX(${-dir * w}px)`;
+  fromPage.style.opacity    = "0";
+
+  toPage.style.transition = `transform ${DUR}ms ${EASE}`;
+  toPage.style.transform  = "translateX(0)";
+
+  setTimeout(() => {
+    // Swap active class
+    fromPage.classList.remove("active");
+    toPage.classList.add("active");
+
+    // Freeze transitions momentarily so CSS class changes don't re-animate
+    fromPage.style.transition = "none";
+    toPage.style.transition   = "none";
+
+    // Clear all inline overrides — CSS .page / .page.active takes over
+    for (const p of [fromPage, toPage]) {
+      p.style.transform     = "";
+      p.style.opacity       = "";
+      p.style.pointerEvents = "";
+    }
+
+    // Re-enable CSS transitions on next frame
+    requestAnimationFrame(() => {
+      fromPage.style.transition = "";
+      toPage.style.transition   = "";
+    });
+  }, DUR + 10);
+}
+
+function switchMainTab(id, skipAnim = false) {
   if (id === "add" && !window.isAdmin) {
     alert("Only admin can access this");
     return;
   }
 
+  // Capture current page before any class manipulation
+  const curPage  = document.querySelector(".page.active");
+  const nextPage = document.getElementById("pg-" + id);
+
   // ── Sync date filter between Detailed (home) and Summary (compact) ──
   const homeSelEl = document.getElementById("homeFilterSel");
-  const cmpSelEl = document.getElementById("cmpSel");
+  const cmpSelEl  = document.getElementById("cmpSel");
   if (homeSelEl && cmpSelEl) {
     if (id === "compact" && homeFilter !== "all") {
       // Going to Summary: carry Detailed filter over
@@ -668,13 +718,12 @@ function switchMainTab(id) {
   document.querySelectorAll(`.tabbar .tbb`).forEach((b) => {
     if (b.dataset.tab === id) b.classList.add("on");
   });
-  document
-    .querySelectorAll(".page")
-    .forEach((p) => p.classList.remove("active"));
-  document.getElementById("pg-" + id).classList.add("active");
+
   // FAB only visible on admin/add page
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
+
+  // Render content before the page slides in so it's ready on arrival
   if (id === "home") renderHome();
   if (id === "compact") renderCompact();
   if (id === "history") {
@@ -695,6 +744,19 @@ function switchMainTab(id) {
     refreshManage();
     renderAddMatches();
     prefillMatchTADate();
+  }
+
+  // ── Directional slide animation ──────────────────────────
+  const curIdx  = mainTabOrder.indexOf(curPage?.id.replace("pg-", ""));
+  const nextIdx = mainTabOrder.indexOf(id);
+  const canSlide = !skipAnim && curPage && nextPage && curPage !== nextPage
+    && curIdx !== -1 && nextIdx !== -1 && !_nd.active;
+
+  if (canSlide) {
+    _slideTab(curPage, nextPage, nextIdx > curIdx ? 1 : -1);
+  } else {
+    document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+    if (nextPage) nextPage.classList.add("active");
   }
 }
 
@@ -767,7 +829,7 @@ function _ndCommit() {
   const bl = _ndBlurOverlay();
   if (bl) { bl.style.transition = "opacity 0.25s"; bl.style.opacity = "0"; }
   setTimeout(() => {
-    switchMainTab(mainTabOrder[_nd.adjIdx]);
+    switchMainTab(mainTabOrder[_nd.adjIdx], true);
     curPage.style.transition = "none"; curPage.style.transform = ""; curPage.style.filter = "";
     adjPage.style.transition = "none"; adjPage.style.transform = ""; adjPage.style.opacity = "";
     requestAnimationFrame(() => {
