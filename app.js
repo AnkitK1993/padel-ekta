@@ -4283,11 +4283,8 @@ function openH2HDetail(a, b) {
 }
 
 function openSummaryScreenshot() {
-  document.getElementById("share-card-overlay")?.remove();
-
   const leaderTableEl = document.querySelector(".cmp-body-scroll .cmp");
   const matchTableEl  = document.querySelector("#cmpMatches .cmp-match-rows");
-
   if (!leaderTableEl) { showToast("No data to capture", "❌"); return; }
 
   const fname = {
@@ -4296,39 +4293,41 @@ function openSummaryScreenshot() {
   };
   const filterLabel = (fname[cmpFilter] || "Summary").toUpperCase();
 
-  // Clone leaderboard — strip interactivity
+  // Clone leaderboard — strip interactivity & sort arrows
   const leaderClone = leaderTableEl.cloneNode(true);
   leaderClone.querySelectorAll("[onclick]").forEach(el => el.removeAttribute("onclick"));
   leaderClone.querySelectorAll(".sort-arrow").forEach(el => el.remove());
-  leaderClone.style.cssText = "width:100%;border-collapse:collapse";
 
   // Clone matches
   let matchHtml = "";
   if (matchTableEl) {
     const matchClone = matchTableEl.cloneNode(true);
     matchClone.querySelectorAll("[onclick]").forEach(el => el.removeAttribute("onclick"));
-    matchHtml = `<div class="ss-section-lbl">MATCHES PLAYED</div>${matchClone.outerHTML}`;
+    matchHtml = `
+      <div class="snap-section-hdr">MATCHES PLAYED</div>
+      <div class="snap-full-row">${matchClone.outerHTML}</div>`;
   }
 
-  const overlay = document.createElement("div");
-  overlay.id = "share-card-overlay";
-  overlay.className = "share-overlay";
-  overlay.innerHTML = `
-    <div class="share-overlay-bg" onclick="document.getElementById('share-card-overlay').remove()"></div>
-    <div class="share-overlay-inner ss-overlay-inner">
-      <div class="share-overlay-hint">📸 Screenshot to share</div>
-      <div class="ss-card" id="ss-card-content">
-        <div class="ss-card-header">
-          <span class="ss-card-app">🎾 EKTA PADEL</span>
-          <span class="ss-card-badge">${filterLabel}</span>
-        </div>
-        <div class="ss-section-lbl">PLAYER LEADERBOARD</div>
-        <div class="ss-table-wrap">${leaderClone.outerHTML}</div>
-        ${matchHtml}
-      </div>
-      <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
-    </div>`;
-  document.body.appendChild(overlay);
+  // Populate snapshot page
+  document.getElementById("snap-content").innerHTML = `
+    <div class="snap-section-hdr snap-section-hdr-row">
+      <span>PLAYER LEADERBOARD</span>
+      <span class="ss-card-badge">${filterLabel}</span>
+    </div>
+    <div class="snap-full-row">${leaderClone.outerHTML}</div>
+    ${matchHtml}`;
+
+  // Navigate to snapshot page
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("pg-snapshot").classList.add("active");
+  document.getElementById("pg-snapshot").scrollTop = 0;
+  document.getElementById("fab").style.display = "none";
+}
+
+function closeSnapshot() {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("pg-compact").classList.add("active");
+  renderCompact();
 }
 
 function openShareCard(name) {
@@ -7211,6 +7210,7 @@ Object.assign(window, {
   openShareCard,
   openWeeklyDigest,
   openSummaryScreenshot,
+  closeSnapshot,
   openScheduleModal,
   closeScheduleModal,
   saveScheduled,

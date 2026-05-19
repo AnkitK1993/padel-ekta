@@ -2365,9 +2365,9 @@ textarea:focus {
   font-style: italic;
   margin: 6px 0 2px;
   padding: 5px 8px;
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 8px;
-  border-left: 2px solid rgba(var(--theme-rgb),0.4);
+  border-left: 2px solid rgba(var(--theme-rgb), 0.4);
 }
 .swipe-delete-reveal {
   position: absolute;
@@ -2389,8 +2389,13 @@ textarea:focus {
   transition: opacity 0.2s;
   z-index: 0;
 }
-.swipe-delete-reveal span { font-size: 9px; letter-spacing: 0.06em; }
-.match-card.swipe-revealed .swipe-delete-reveal { opacity: 1; }
+.swipe-delete-reveal span {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+.match-card.swipe-revealed .swipe-delete-reveal {
+  opacity: 1;
+}
 
 /* ── Inline match edit card ─────────────────────────── */
 .match-edit-inline {
@@ -2402,7 +2407,10 @@ textarea:focus {
   max-height: 0;
   opacity: 0;
   padding: 0 14px;
-  transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease, padding 0.25s ease;
+  transition:
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease,
+    padding 0.25s ease;
 }
 .match-edit-inline.open {
   max-height: 520px;
@@ -2447,7 +2455,8 @@ textarea:focus {
   gap: 8px;
   margin-bottom: 10px;
 }
-.mei-sel, .mei-input {
+.mei-sel,
+.mei-input {
   flex: 1;
   background: var(--card);
   border: 1px solid var(--border);
@@ -2460,7 +2469,8 @@ textarea:focus {
   outline: none;
   box-sizing: border-box;
 }
-.mei-sel:focus, .mei-input:focus {
+.mei-sel:focus,
+.mei-input:focus {
   border-color: rgba(var(--theme-rgb), 0.6);
 }
 .mei-score {
@@ -2498,7 +2508,9 @@ textarea:focus {
   cursor: pointer;
   font-family: "DM Sans", sans-serif;
 }
-.mei-save:active { background: rgba(var(--theme-rgb), 0.28); }
+.mei-save:active {
+  background: rgba(var(--theme-rgb), 0.28);
+}
 
 .match-card:hover {
   transform: translateY(-2px);
@@ -3949,7 +3961,7 @@ textarea:focus {
 }
 .cmr-date {
   width: 48px;
-  padding: 8px 10px 8px 4px;
+  padding: 8px 10px 8px 8px;
   font-size: 10px;
   color: var(--muted);
   white-space: nowrap;
@@ -3971,7 +3983,7 @@ textarea:focus {
 }
 .cmr-team-r {
   text-align: left;
-  padding-left: 8px;
+  padding-left: 15px;
 }
 .cmr-team.cmr-win {
   color: var(--green);
@@ -4006,7 +4018,7 @@ textarea:focus {
 .cmr-meta {
   width: 18px;
   padding: 8px 0 8px 0;
-  text-align: right;
+  text-align: left;
   white-space: nowrap;
 }
 .cmr-gap {
@@ -7287,7 +7299,7 @@ table.cmp tbody td:nth-child(2) {
 table.cmp thead th:nth-child(9),
 table.cmp tbody td:nth-child(9) {
   width: 58px !important;
-  padding-left: 1px !important;
+  padding-left: 3px !important;
   padding-right: 1px !important;
 }
 
@@ -8246,8 +8258,12 @@ select.cmp-sel option {
 }
 
 /* ── Heatmap (enhanced) ─────────────────────────── */
-:root { --hm-sz: 13px; }
-.hm-outer { padding: 10px 12px 6px; }
+:root {
+  --hm-sz: 13px;
+}
+.hm-outer {
+  padding: 10px 12px 6px;
+}
 .hm-scroll {
   display: flex;
   gap: 4px;
@@ -8296,7 +8312,10 @@ select.cmp-sel option {
   height: var(--hm-sz);
   border-radius: 2px;
 }
-.hm-pad { opacity: 0; pointer-events: none; }
+.hm-pad {
+  opacity: 0;
+  pointer-events: none;
+}
 .hm-legend {
   display: flex;
   align-items: center;
@@ -8317,7 +8336,7 @@ select.cmp-sel option {
   justify-content: space-between;
   margin-top: 12px;
   padding: 10px 12px;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 10px;
   border: 1px solid var(--border);
 }
@@ -8409,14 +8428,16 @@ select.cmp-sel option {
   font-weight: 700;
   cursor: pointer;
   letter-spacing: 0.04em;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 .share-close-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* ── Summary screenshot ─────────────────────── */
+/* ── Summary screenshot button ──────────────── */
 .ss-snap-btn {
   background: rgba(var(--theme-rgb), 0.12);
   border: 1px solid rgba(var(--theme-rgb), 0.3);
@@ -8431,32 +8452,6 @@ select.cmp-sel option {
   justify-content: center;
   flex-shrink: 0;
 }
-.ss-overlay-inner {
-  max-height: 88vh;
-  overflow-y: auto;
-  max-width: 440px !important;
-}
-.ss-card {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
-  box-sizing: border-box;
-}
-.ss-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.ss-card-app {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: 0.04em;
-  flex: 1;
-}
 .ss-card-badge {
   font-size: 9px;
   font-weight: 700;
@@ -8466,21 +8461,76 @@ select.cmp-sel option {
   border: 1px solid rgba(var(--theme-rgb), 0.3);
   border-radius: 20px;
   padding: 3px 10px;
+  white-space: nowrap;
 }
-.ss-section-lbl {
+
+/* ── Snapshot full-screen page ──────────────── */
+#pg-snapshot {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.snap-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+.snap-back-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.snap-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+.snap-content {
+  flex: 1;
+  overflow-x: hidden;
+}
+.snap-section-hdr {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
-  margin: 10px 0 6px;
+  padding: 14px 16px 6px;
+  border-top: 1px solid var(--border);
 }
-.ss-table-wrap {
+.snap-section-hdr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.snap-full-row {
+  width: 100%;
   overflow-x: auto;
 }
-.ss-table-wrap .cmp,
-.ss-card .cmp-match-rows {
-  font-size: 11px;
+.snap-full-row .cmp {
+  width: 100%;
+}
+.snap-full-row .cmp-match-rows {
+  width: 100%;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 /* ── Scheduled Matches ─────────────────────────── */
@@ -8488,19 +8538,52 @@ select.cmp-sel option {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, rgba(var(--theme-rgb),0.12), rgba(var(--theme-rgb),0.06));
-  border: 1px solid rgba(var(--theme-rgb),0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--theme-rgb), 0.12),
+    rgba(var(--theme-rgb), 0.06)
+  );
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
   border-radius: 14px;
   padding: 12px 14px;
   margin-bottom: 8px;
   gap: 10px;
 }
-.sched-banner-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-.sched-banner-icon { font-size: 22px; flex-shrink: 0; }
-.sched-banner-date { font-size: 9px; font-weight: 800; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 2px; }
-.sched-banner-team { font-size: 13px; font-weight: 700; color: var(--text); }
-.sched-banner-note { font-size: 10px; color: var(--muted); margin-top: 2px; }
-.sched-banner-more { font-size: 10px; color: var(--muted); font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.sched-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.sched-banner-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.sched-banner-date {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  margin-bottom: 2px;
+}
+.sched-banner-team {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sched-banner-note {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.sched-banner-more {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .sched-item {
   display: flex;
   align-items: center;
@@ -8511,13 +8594,39 @@ select.cmp-sel option {
   border-radius: 10px;
   margin-bottom: 6px;
 }
-.sched-item.sched-past { opacity: 0.45; }
-.sched-item-body { flex: 1; min-width: 0; }
-.sched-item-date { font-size: 10px; font-weight: 700; color: var(--accent); }
-.sched-item-team { font-size: 12px; font-weight: 600; color: var(--text); }
-.sched-item-note { font-size: 10px; color: var(--muted); }
-.sched-del-btn { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 4px; flex-shrink: 0; }
-.sched-del-btn:hover { color: var(--red); }
+.sched-item.sched-past {
+  opacity: 0.45;
+}
+.sched-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.sched-item-date {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.sched-item-team {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.sched-item-note {
+  font-size: 10px;
+  color: var(--muted);
+}
+.sched-del-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.sched-del-btn:hover {
+  color: var(--red);
+}
 
 /* ── Prediction Accuracy ───────────────────────── */
 .pred-mo-row {
@@ -8527,10 +8636,27 @@ select.cmp-sel option {
   gap: 8px;
   margin-bottom: 6px;
 }
-.pred-mo-lbl { font-size: 10px; color: var(--muted); font-weight: 600; }
-.pred-mo-bar-wrap { height: 6px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
-.pred-mo-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-.pred-mo-pct { font-size: 10px; font-weight: 800; text-align: right; }
+.pred-mo-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.pred-mo-bar-wrap {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pred-mo-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+.pred-mo-pct {
+  font-size: 10px;
+  font-weight: 800;
+  text-align: right;
+}
 
 /* ── Quick Rematch ──────────────────────────────── */
 .rematch-btn {
@@ -8615,9 +8741,13 @@ select.cmp-sel option {
   border: 1.5px solid transparent;
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
 }
-.av-opt:active { background: rgba(255,255,255,0.1); }
+.av-opt:active {
+  background: rgba(255, 255, 255, 0.1);
+}
 .av-opt-sel {
   border-color: rgba(var(--theme-rgb), 0.7);
   background: rgba(var(--theme-rgb), 0.1);
@@ -8635,7 +8765,9 @@ select.cmp-sel option {
   text-align: center;
   letter-spacing: 0.04em;
 }
-.av-opt-sel .av-opt-lbl { color: var(--accent); }
+.av-opt-sel .av-opt-lbl {
+  color: var(--accent);
+}
 .av-done-btn {
   height: 40px;
   border-radius: 12px;
