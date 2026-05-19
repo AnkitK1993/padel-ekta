@@ -1452,9 +1452,9 @@ select.cmp-sel option,
 .summary-nav {
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
   padding: 14px 16px 14px;
   position: relative;
@@ -1629,6 +1629,11 @@ select.cmp-sel:focus {
     transparent
   );
 }
+.cmp-matches-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .cmp-matches-header .t1 {
   font-family: "Bebas Neue", sans-serif;
   font-size: 16px;
@@ -1638,6 +1643,17 @@ select.cmp-sel:focus {
 }
 .cmp-matches-header .t1 span {
   color: var(--accent);
+}
+.cmp-matches-chevron {
+  font-size: 11px;
+  color: var(--muted);
+  transition: transform 0.25s ease;
+}
+.cmp-matches-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+.cmp-match-rows.collapsed {
+  display: none;
 }
 .cmp-matches {
   flex: unset;
@@ -2761,6 +2777,29 @@ textarea:focus {
 .sr-chip-l {
   background: rgba(240, 79, 79, 0.15);
   color: var(--red);
+}
+.sr-chip-z {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+.elo-delta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+}
+.elo-delta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+.elo-delta-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .absence-banner {
@@ -8375,6 +8414,73 @@ select.cmp-sel option {
 .share-close-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Summary screenshot ─────────────────────── */
+.ss-snap-btn {
+  background: rgba(var(--theme-rgb), 0.12);
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  border-radius: 10px;
+  color: var(--theme);
+  font-size: 16px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ss-overlay-inner {
+  max-height: 88vh;
+  overflow-y: auto;
+  max-width: 440px !important;
+}
+.ss-card {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.ss-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ss-card-app {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+.ss-card-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--theme);
+  background: rgba(var(--theme-rgb), 0.12);
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+.ss-section-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 10px 0 6px;
+}
+.ss-table-wrap {
+  overflow-x: auto;
+}
+.ss-table-wrap .cmp,
+.ss-card .cmp-match-rows {
+  font-size: 11px;
 }
 
 /* ── Scheduled Matches ─────────────────────────── */

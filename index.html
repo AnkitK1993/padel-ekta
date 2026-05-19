@@ -141,6 +141,7 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
+          <button class="ss-snap-btn" onclick="openSummaryScreenshot()">📸</button>
         </div>
         <!-- Filter bar — separated by partition -->
         <div class="summary-filter-bar">
@@ -200,8 +201,9 @@
               <tbody id="cmpBody"></tbody>
             </table>
           </div>
-          <div class="cmp-matches-header">
+          <div class="cmp-matches-header" onclick="toggleMatchesSection()" style="cursor:pointer;user-select:none">
             <div class="t1">MATCHES <span>PLAYED</span></div>
+            <span class="cmp-matches-chevron" id="cmpMatchesChevron">▼</span>
           </div>
           <div class="cmp-matches" id="cmpMatches"></div>
         </div>

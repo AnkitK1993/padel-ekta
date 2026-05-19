@@ -2246,7 +2246,7 @@ function renderCompact() {
           matchStartDelay + animCount * 100,
         );
       }
-      const summaryHtml = buildHistorySummary(filtered);
+      const summaryHtml = buildHistorySummary(filtered, cmpFilter);
       if (summaryHtml) {
         setTimeout(
           () => {
@@ -2272,7 +2272,7 @@ function renderCompact() {
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
         `<table class="cmp-match-rows"><tbody>${initRows.join("")}</tbody></table>` +
-        buildHistorySummary(filtered);
+        buildHistorySummary(filtered, cmpFilter);
     } else {
       cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
     }
@@ -2609,7 +2609,7 @@ function buildMatchOfTheDay() {
   return motdHtml + upsetHtml;
 }
 
-function buildHistorySummary(matches) {
+function buildHistorySummary(matches, filter = "all") {
   if (matches.length < 3) return "";
   const stats = computeStats(matches, computeElo(matches));
   const playerSet = new Set();
@@ -2702,29 +2702,32 @@ function buildHistorySummary(matches) {
     hotColdHtml = `<div class="hsum-section-lbl">HOT &amp; COLD</div><div class="hsum-highlights">${rows.join("")}</div>`;
   }
 
-  // Player of the Week — highest ELO gain this calendar week (Mon–today)
+  // Top ELO gainer within the filtered period
+  const potwLabels = {
+    today:    { title: "PLAYER OF THE DAY",          sub: "matches today" },
+    week:     { title: "PLAYER OF THE WEEK",          sub: "matches this week" },
+    weekend:  { title: "PLAYER OF THE WEEKEND",       sub: "matches this weekend" },
+    month:    { title: "PLAYER OF THE MONTH",         sub: "matches this month" },
+    lastweek: { title: "BEST PLAYER OF LAST WEEK",    sub: "matches last week" },
+    all:      { title: "ALL TIME BEST PLAYER",          sub: "matches played" },
+    range:    { title: "TOP PLAYER",                  sub: "matches in range" },
+  };
+  const potwLabel = potwLabels[filter] || potwLabels.all;
   let potwHtml = "";
-  const wkFrom = weekISO(),
-    wkTo = todayISO();
-  const weekMatches = allMatches.filter(
-    (m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo,
-  );
-  if (weekMatches.length >= 2) {
-    const preWeekElo = computeElo(
-      allMatches.filter((m) => (m.date || "") < wkFrom),
-    );
+  if (matches.length >= 2) {
+    const periodDates = matches.map((m) => m.date || "").filter(Boolean);
+    const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
+    const preElo  = computeElo(allMatches.filter((m) => (m.date || "") < firstDate));
     const fullElo = computeElo(allMatches);
-    const weekPlayers = new Set();
-    weekMatches.forEach((m) =>
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
-        weekPlayers.add(normPlayer(p)),
-      ),
+    const periodPlayers = new Set();
+    matches.forEach((m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => periodPlayers.add(p)),
     );
-    const potwDeltas = [...weekPlayers]
+    const potwDeltas = [...periodPlayers]
       .map((p) => ({
-        name: p,
-        delta: Math.round((fullElo[p] || 1000) - (preWeekElo[p] || 1000)),
-        mp: weekMatches.filter((m) =>
+        name: normPlayer(p),
+        delta: Math.round((fullElo[p] || 1000) - (preElo[p] || 1000)),
+        mp: matches.filter((m) =>
           [...(m.teamA || []), ...(m.teamB || [])].includes(p),
         ).length,
       }))
@@ -2735,57 +2738,43 @@ function buildHistorySummary(matches) {
       potwHtml = `<div class="potw-card hsum-cascade" style="animation-delay:${d()}ms">
         <div class="potw-crown">⭐</div>
         <div class="potw-body">
-          <div class="potw-label">PLAYER OF THE WEEK</div>
+          <div class="potw-label">${potwLabel.title}</div>
           <div class="potw-name">${potw.name}</div>
-          <div class="potw-meta"><span style="color:var(--green);font-weight:800">+${potw.delta} ELO</span> · ${potw.mp} matches this week</div>
+          <div class="potw-meta"><span style="color:var(--green);font-weight:800">+${potw.delta} ELO</span> · ${potw.mp} ${potwLabel.sub}</div>
         </div>
       </div>`;
     }
   }
 
-  // Session recap — always based on latest session in allMatches
+  // ELO changes across the entire filtered period
   let sessionRecapHtml = "";
-  if (allMatches.length) {
-    const byDate = {};
-    allMatches.forEach((m) => {
-      const dd = m.date || "1970-01-01";
-      if (!byDate[dd]) byDate[dd] = [];
-      byDate[dd].push(m);
-    });
-    const lastDate = Object.keys(byDate).sort().pop();
-    const sessionMatches = byDate[lastDate];
-    if (sessionMatches.length >= 2) {
-      const beforeMatches = allMatches.filter(
-        (m) => (m.date || "1970-01-01") < lastDate,
-      );
-      const eloAfter = computeElo(allMatches);
-      const eloBefore = computeElo(beforeMatches);
-      const sessionPlayers = new Set();
-      sessionMatches.forEach((m) =>
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
-          sessionPlayers.add(normPlayer(p)),
-        ),
-      );
-      const deltas = [...sessionPlayers]
-        .map((p) => ({
-          name: p,
-          delta: Math.round((eloAfter[p] || 1000) - (eloBefore[p] || 1000)),
-        }))
-        .sort((a, b) => b.delta - a.delta);
-      const gainers = deltas.filter((g) => g.delta > 0).slice(0, 3);
-      const losers = [...deltas]
-        .filter((l) => l.delta < 0)
-        .reverse()
-        .slice(0, 3);
-      const mvp = gainers[0];
-      sessionRecapHtml = `
-        <div class="hsum-section-lbl">ELO CHANGES</div>
-        <div class="hsum-highlights">
-          ${mvp ? `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🏆</span><span class="hsum-hl-label">MVP</span><span class="hsum-hl-val">${mvp.name}&nbsp;<span style="color:var(--green)">+${mvp.delta} ELO</span></span></div>` : ""}
-          ${gainers.length ? `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">📈</span><span class="hsum-hl-label">Gained</span><span class="hsum-hl-val">${gainers.map((g) => `<span class="sr-chip sr-chip-g">▲ ${g.name} +${g.delta}</span>`).join("")}</span></div>` : ""}
-          ${losers.length ? `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">📉</span><span class="hsum-hl-label">Lost</span><span class="hsum-hl-val">${losers.map((l) => `<span class="sr-chip sr-chip-l">▼ ${l.name} ${l.delta}</span>`).join("")}</span></div>` : ""}
-        </div>`;
-    }
+  if (matches.length) {
+    const periodDates = matches.map((m) => m.date || "1970-01-01");
+    const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
+    const eloAfter  = computeElo(allMatches);
+    const eloBefore = computeElo(allMatches.filter((m) => (m.date || "1970-01-01") < firstDate));
+    const periodPlayers = new Set();
+    matches.forEach((m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => periodPlayers.add(p)),
+    );
+    const deltas = [...periodPlayers]
+      .map((p) => ({
+        name: normPlayer(p),
+        delta: Math.round((eloAfter[p] || 1000) - (eloBefore[p] || 1000)),
+      }))
+      .sort((a, b) => b.delta - a.delta);
+    const deltaRows = deltas.map((p) => {
+      const sign   = p.delta > 0 ? "+" : "";
+      const chipCls = p.delta > 0 ? "sr-chip-g" : p.delta < 0 ? "sr-chip-l" : "sr-chip-z";
+      const arrow  = p.delta > 0 ? "▲" : p.delta < 0 ? "▼" : "·";
+      return `<div class="elo-delta-row hsum-cascade" style="animation-delay:${d()}ms">
+        <span class="elo-delta-name">${p.name}</span>
+        <span class="sr-chip ${chipCls}">${arrow} ${sign}${p.delta}</span>
+      </div>`;
+    }).join("");
+    sessionRecapHtml = `
+      <div class="hsum-section-lbl">ELO CHANGES</div>
+      <div class="elo-delta-list">${deltaRows}</div>`;
   }
 
   return `<div class="hist-summary-card hsum-card-anim">
@@ -2805,6 +2794,14 @@ function buildHistorySummary(matches) {
           ${hotColdHtml}
           ${sessionRecapHtml}
         </div>`;
+}
+
+function toggleMatchesSection() {
+  const table = document.querySelector("#cmpMatches .cmp-match-rows");
+  const chevron = document.getElementById("cmpMatchesChevron");
+  if (!table) return;
+  table.classList.toggle("collapsed");
+  chevron?.classList.toggle("collapsed");
 }
 
 function toggleMatchCalendar() {
@@ -4283,6 +4280,55 @@ function openH2HDetail(a, b) {
           </div>
         </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
+}
+
+function openSummaryScreenshot() {
+  document.getElementById("share-card-overlay")?.remove();
+
+  const leaderTableEl = document.querySelector(".cmp-body-scroll .cmp");
+  const matchTableEl  = document.querySelector("#cmpMatches .cmp-match-rows");
+
+  if (!leaderTableEl) { showToast("No data to capture", "❌"); return; }
+
+  const fname = {
+    all: "All Time", today: "Today", week: "This Week",
+    lastweek: "Last Week", weekend: "Weekend", month: "This Month", range: "Custom Range",
+  };
+  const filterLabel = (fname[cmpFilter] || "Summary").toUpperCase();
+
+  // Clone leaderboard — strip interactivity
+  const leaderClone = leaderTableEl.cloneNode(true);
+  leaderClone.querySelectorAll("[onclick]").forEach(el => el.removeAttribute("onclick"));
+  leaderClone.querySelectorAll(".sort-arrow").forEach(el => el.remove());
+  leaderClone.style.cssText = "width:100%;border-collapse:collapse";
+
+  // Clone matches
+  let matchHtml = "";
+  if (matchTableEl) {
+    const matchClone = matchTableEl.cloneNode(true);
+    matchClone.querySelectorAll("[onclick]").forEach(el => el.removeAttribute("onclick"));
+    matchHtml = `<div class="ss-section-lbl">MATCHES PLAYED</div>${matchClone.outerHTML}`;
+  }
+
+  const overlay = document.createElement("div");
+  overlay.id = "share-card-overlay";
+  overlay.className = "share-overlay";
+  overlay.innerHTML = `
+    <div class="share-overlay-bg" onclick="document.getElementById('share-card-overlay').remove()"></div>
+    <div class="share-overlay-inner ss-overlay-inner">
+      <div class="share-overlay-hint">📸 Screenshot to share</div>
+      <div class="ss-card" id="ss-card-content">
+        <div class="ss-card-header">
+          <span class="ss-card-app">🎾 EKTA PADEL</span>
+          <span class="ss-card-badge">${filterLabel}</span>
+        </div>
+        <div class="ss-section-lbl">PLAYER LEADERBOARD</div>
+        <div class="ss-table-wrap">${leaderClone.outerHTML}</div>
+        ${matchHtml}
+      </div>
+      <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 function openShareCard(name) {
@@ -7164,6 +7210,7 @@ Object.assign(window, {
   playerInitials,
   openShareCard,
   openWeeklyDigest,
+  openSummaryScreenshot,
   openScheduleModal,
   closeScheduleModal,
   saveScheduled,
@@ -7171,6 +7218,7 @@ Object.assign(window, {
   quickRematch,
   runMatchSimulator,
   toggleMatchCalendar,
+  toggleMatchesSection,
   calNav,
   calDayClick,
   showToast,
