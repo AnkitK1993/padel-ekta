@@ -8307,26 +8307,25 @@ function scheduleAutoEmail() {
   if (!emailConfig.serviceId || !emailConfig.recipientEmail) return;
 
   const now = new Date();
+  const today = now.toISOString().split("T")[0];
   const target = new Date(now);
   target.setHours(13, 0, 0, 0);
 
-  // If 1pm has already passed today, schedule for tomorrow's 1pm
-  if (now >= target) {
+  if (localStorage.getItem("padel_last_email") !== today && now >= target) {
+    localStorage.setItem("padel_last_email", today); // claim slot before async to prevent multi-tab race
+    sendBackupEmail(true).then((ok) => {
+      if (!ok) localStorage.removeItem("padel_last_email"); // release on failure so it can retry
+      scheduleAutoEmail();
+    });
+    return;
+  }
+
+  if (localStorage.getItem("padel_last_email") === today) {
     target.setDate(target.getDate() + 1);
   }
 
   _emailTimer = setTimeout(() => {
-    // Multi-tab guard: only one tab sends per day
-    const todayKey = new Date().toISOString().split("T")[0];
-    if (localStorage.getItem("padel_last_email") === todayKey) {
-      scheduleAutoEmail();
-      return;
-    }
-    localStorage.setItem("padel_last_email", todayKey);
-    sendBackupEmail(true).then((ok) => {
-      if (!ok) localStorage.removeItem("padel_last_email");
-      scheduleAutoEmail();
-    });
+    sendBackupEmail(true).then(() => scheduleAutoEmail());
   }, target - now);
 }
 
