@@ -189,6 +189,8 @@ let cmpFilter = "today",
 let cmpSortKey = "sr";
 let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
+let _cmpLeaderHtmls = [];
+let _cmpFiltered = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
 window.isAdmin = false;
@@ -2161,6 +2163,8 @@ function renderCompact() {
     `<strong>${stats.length}</strong> players &nbsp;·&nbsp; <strong>${filtered.length}</strong> matches &nbsp;·&nbsp; ${fname[cmpFilter]}`;
   const tbody = document.getElementById("cmpBody");
   if (!sorted.length) {
+    _cmpLeaderHtmls = [];
+    _cmpFiltered = filtered;
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
     document.getElementById("cmpMatches").innerHTML =
       buildCompactMatchRows(filtered);
@@ -2190,6 +2194,9 @@ function renderCompact() {
     const animClass = splashDone ? " row-reveal-anim" : "";
     return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name.toUpperCase()}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(2)}</span></div></td></tr>`;
   });
+
+  _cmpLeaderHtmls = leaderRowHtmls;
+  _cmpFiltered = filtered;
 
   const reversedMatches = [...filtered].reverse();
   const matchRowHtmls = reversedMatches.map((m) => buildMatchRowHtml(m));
@@ -4284,8 +4291,21 @@ function openH2HDetail(a, b) {
 
 function openSummaryScreenshot() {
   const leaderTableEl = document.querySelector(".cmp-body-scroll .cmp");
-  const matchTableEl  = document.querySelector("#cmpMatches .cmp-match-rows");
   if (!leaderTableEl) { showToast("No data to capture", "❌"); return; }
+
+  // Flush any in-progress staggered animation: instantly write all rows to the DOM
+  if (_cmpLeaderHtmls.length) {
+    const tbody = document.getElementById("cmpBody");
+    if (tbody) tbody.innerHTML = _cmpLeaderHtmls.join("");
+  }
+  if (_cmpFiltered.length !== undefined) {
+    const cmpMatchesEl = document.getElementById("cmpMatches");
+    if (cmpMatchesEl) {
+      cmpMatchesEl.innerHTML =
+        buildCompactMatchRows(_cmpFiltered) +
+        buildHistorySummary(_cmpFiltered, cmpFilter);
+    }
+  }
 
   const fname = {
     all: "All Time", today: "Today", week: "This Week",
@@ -4299,6 +4319,7 @@ function openSummaryScreenshot() {
   leaderClone.querySelectorAll(".sort-arrow").forEach(el => el.remove());
 
   // Clone matches
+  const matchTableEl = document.querySelector("#cmpMatches .cmp-match-rows");
   let matchHtml = "";
   if (matchTableEl) {
     const matchClone = matchTableEl.cloneNode(true);

@@ -4025,7 +4025,7 @@ textarea:focus {
 }
 .cmr-meta {
   width: 18px;
-  padding: 8px 0 8px 0;
+  padding: 4px 0;
   text-align: left;
   white-space: nowrap;
 }
@@ -8517,7 +8517,7 @@ select.cmp-sel option {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(var(--theme-rgb), 0.9);
-  padding: 0px 16px;
+  padding: 2px 16px;
   background: rgba(var(--theme-rgb), 0.07);
   border-top: 1px solid rgba(var(--theme-rgb), 0.4);
   border-bottom: 1px solid rgba(var(--theme-rgb), 0.4);
@@ -8542,19 +8542,71 @@ select.cmp-sel option {
   padding: 0 16px;
   box-sizing: border-box;
 }
+#pg-snapshot table.cmp {
+  border-radius: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+  width: 100% !important;
+  table-layout: auto !important;
+  background: rgba(10, 14, 24, 1) !important;
+}
+#pg-snapshot table.cmp thead tr {
+  background: rgba(18, 22, 40, 1) !important;
+}
+#pg-snapshot table.cmp th:nth-child(2),
+#pg-snapshot table.cmp td:nth-child(2) {
+  min-width: unset !important;
+  max-width: unset !important;
+}
 #pg-snapshot table.cmp thead th {
   padding-top: 4px !important;
   padding-bottom: 4px !important;
 }
 #pg-snapshot table.cmp tbody td {
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
 }
 #pg-snapshot .cmr-date,
 #pg-snapshot .cmr-team,
-#pg-snapshot .cmr-sc {
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
+#pg-snapshot .cmr-sc,
+#pg-snapshot .cmr-meta {
+  padding-top: 1px !important;
+  padding-bottom: 1px !important;
+}
+#pg-snapshot .cmr-row {
+  opacity: 0;
+  animation: summaryTableReveal 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+#pg-snapshot .cmr-row:nth-child(1) {
+  animation-delay: 0s;
+}
+#pg-snapshot .cmr-row:nth-child(2) {
+  animation-delay: 0.05s;
+}
+#pg-snapshot .cmr-row:nth-child(3) {
+  animation-delay: 0.1s;
+}
+#pg-snapshot .cmr-row:nth-child(4) {
+  animation-delay: 0.15s;
+}
+#pg-snapshot .cmr-row:nth-child(5) {
+  animation-delay: 0.2s;
+}
+#pg-snapshot .cmr-row:nth-child(6) {
+  animation-delay: 0.25s;
+}
+#pg-snapshot .cmr-row:nth-child(7) {
+  animation-delay: 0.3s;
+}
+#pg-snapshot .cmr-row:nth-child(8) {
+  animation-delay: 0.35s;
+}
+#pg-snapshot .cmr-row:nth-child(9) {
+  animation-delay: 0.4s;
+}
+#pg-snapshot .cmr-row:nth-child(n + 10) {
+  animation-delay: 0.45s;
 }
 
 /* ── Scheduled Matches ─────────────────────────── */
