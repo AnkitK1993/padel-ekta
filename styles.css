@@ -7663,6 +7663,291 @@ select.cmp-sel option {
   font-weight: 700;
 }
 
+/* ── ANALYTICS SEARCH ─────────────────────────────────── */
+@keyframes searchScan {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes searchGlowPulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(var(--theme-rgb), 0.15),
+                         0 0 18px rgba(var(--theme-rgb), 0.12),
+                         inset 0 1px 0 rgba(255,255,255,0.05); }
+  50%       { box-shadow: 0 0 0 1px rgba(var(--theme-rgb), 0.3),
+                         0 0 32px rgba(var(--theme-rgb), 0.25),
+                         inset 0 1px 0 rgba(255,255,255,0.08); }
+}
+@keyframes searchItemIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes searchDropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ana-search-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.ana-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(6,10,26,0.85) 0%, rgba(10,16,36,0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 11px 16px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06),
+              inset 0 -1px 0 rgba(0,0,0,0.3),
+              0 6px 24px rgba(0,0,0,0.4);
+  transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+/* animated scan shimmer across the top edge */
+.ana-search-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(var(--theme-rgb), 0.0) 20%,
+    rgba(var(--theme-rgb), 0.8) 50%,
+    rgba(var(--theme-rgb), 0.0) 80%,
+    transparent 100%);
+  background-size: 200% 100%;
+  animation: searchScan 3.5s linear infinite;
+  opacity: 0.4;
+}
+
+/* corner bracket decorations */
+.ana-search-box::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 12px; height: 12px;
+  border-right: 1px solid rgba(var(--theme-rgb), 0.35);
+  border-bottom: 1px solid rgba(var(--theme-rgb), 0.35);
+  border-radius: 0 0 16px 0;
+  pointer-events: none;
+}
+
+.ana-search-box:focus-within {
+  border-color: rgba(var(--theme-rgb), 0.5);
+  background: linear-gradient(135deg,
+    rgba(var(--theme-rgb), 0.04) 0%,
+    rgba(6, 10, 26, 0.92) 100%);
+  animation: searchGlowPulse 2.2s ease-in-out infinite;
+}
+.ana-search-box:focus-within::before {
+  opacity: 0.9;
+}
+
+/* SVG search icon */
+.ana-search-lead-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: rgba(var(--theme-rgb), 0.45);
+  transition: color 0.25s, filter 0.25s;
+}
+.ana-search-box:focus-within .ana-search-lead-icon {
+  color: rgba(var(--theme-rgb), 1);
+  filter: drop-shadow(0 0 4px rgba(var(--theme-rgb), 0.6));
+}
+
+.ana-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  min-width: 0;
+  caret-color: rgba(var(--theme-rgb), 1);
+}
+.ana-search-input::placeholder {
+  color: rgba(var(--theme-rgb), 0.28);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.ana-search-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: rgba(var(--theme-rgb), 0.1);
+  border: 1px solid rgba(var(--theme-rgb), 0.25);
+  border-radius: 50%;
+  color: rgba(var(--theme-rgb), 0.7);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.ana-search-clear:hover {
+  background: rgba(var(--theme-rgb), 0.28);
+  border-color: rgba(var(--theme-rgb), 0.6);
+  color: var(--fg);
+  box-shadow: 0 0 8px rgba(var(--theme-rgb), 0.4);
+}
+
+/* Dropdown panel */
+.ana-search-results {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, rgba(4,8,22,0.98) 0%, rgba(6,10,26,0.99) 100%);
+  border: 1px solid rgba(var(--theme-rgb), 0.2);
+  border-top: 2px solid rgba(var(--theme-rgb), 0.65);
+  border-radius: 0 0 16px 16px;
+  z-index: 200;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.75),
+              0 0 0 1px rgba(var(--theme-rgb), 0.06),
+              inset 0 1px 0 rgba(var(--theme-rgb), 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  animation: searchDropIn 0.18s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+.ana-search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  position: relative;
+  overflow: hidden;
+  animation: searchItemIn 0.22s cubic-bezier(0.22,1,0.36,1) both;
+  transition: background 0.12s;
+}
+.ana-search-item:nth-child(1)  { animation-delay: 0ms; }
+.ana-search-item:nth-child(2)  { animation-delay: 35ms; }
+.ana-search-item:nth-child(3)  { animation-delay: 65ms; }
+.ana-search-item:nth-child(4)  { animation-delay: 90ms; }
+.ana-search-item:nth-child(5)  { animation-delay: 112ms; }
+.ana-search-item:nth-child(n+6){ animation-delay: 130ms; }
+.ana-search-item:last-child { border-bottom: none; }
+
+/* left neon accent bar on hover */
+.ana-search-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0;
+  background: rgba(var(--theme-rgb), 0.8);
+  box-shadow: 2px 0 8px rgba(var(--theme-rgb), 0.5);
+  transition: width 0.15s;
+}
+.ana-search-item:hover::before,
+.ana-search-item:active::before { width: 2px; }
+
+.ana-search-item:hover,
+.ana-search-item:active {
+  background: linear-gradient(90deg,
+    rgba(var(--theme-rgb), 0.1) 0%,
+    transparent 80%);
+}
+
+.ana-search-item-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.ana-search-item-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.ana-search-item-type {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--theme-rgb), 0.55);
+  flex-shrink: 0;
+  background: rgba(var(--theme-rgb), 0.07);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--theme-rgb), 0.18);
+}
+.ana-search-empty {
+  padding: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--theme-rgb), 0.35);
+  text-align: center;
+}
+
+/* ELO Timeline player chips */
+.elo-tl-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.elo-tl-chip {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.07);
+  color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background 0.15s, color 0.15s;
+}
+.elo-tl-chip.active {
+  background: rgba(var(--theme-rgb),0.18);
+  color: var(--theme);
+  border-color: rgba(var(--theme-rgb),0.5);
+}
+
+/* ELO Timeline filter pills */
+.elo-tl-filters {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.elo-tl-filter {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.elo-tl-filter.active {
+  background: rgba(var(--theme-rgb),0.2);
+  color: var(--theme);
+  border-color: rgba(var(--theme-rgb),0.4);
+}
+
 .card-badge-row {
   display: flex;
   flex-wrap: wrap;

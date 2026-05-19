@@ -191,6 +191,9 @@ let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
+let _eloTLPlayer = "";
+let _eloTLFilter = "all";
+let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
 window.isAdmin = false;
@@ -2999,6 +3002,12 @@ function renderModernMatches() {
     const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
     const escA = h2hFilterA.replace(/'/g, "\\'");
     const escB = h2hFilterB.replace(/'/g, "\\'");
+    const h2hEloHist = computeEloHistory(allMatches);
+    const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) => pt.opponent.split(" & ").includes(h2hFilterB));
+    const h2hP2Pts = (h2hEloHist[h2hFilterB] || []).filter((pt) => pt.opponent.split(" & ").includes(h2hFilterA));
+    const h2hP1Impact = h2hP1Pts.reduce((s, pt) => s + pt.delta, 0);
+    const h2hP2Impact = h2hP2Pts.reduce((s, pt) => s + pt.delta, 0);
+    const fmtEloImpact = (n) => n > 0 ? `<span style="color:var(--green)">+${n}</span>` : n < 0 ? `<span style="color:var(--red)">${n}</span>` : `<span style="color:var(--muted)">0</span>`;
     summary = `<div class="pair-stats-card" style="margin-bottom:10px" onclick="openH2HDetail('${escA}','${escB}')">
             <div class="psc-header"><span class="psc-badge">⚔️ Head-to-Head</span><span class="psc-tap">Full stats →</span></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -3021,6 +3030,20 @@ function renderModernMatches() {
               <div class="psc-stat"><div class="psc-sv ${h2h.diff >= 0 ? "p" : "n"}">${diffStr}</div><div class="psc-sl">Game Diff</div></div>
               <div class="psc-divider"></div>
               <div class="psc-stat"><div class="psc-sv" style="color:${bCol}">${bWinPct}%</div><div class="psc-sl">${h2hFilterB.split(" ")[0]} Win%</div></div>
+            </div>
+            <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)" onclick="event.stopPropagation()">
+              <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">ELO IMPACT FROM THIS RIVALRY</div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div style="font-size:16px;font-weight:900">${fmtEloImpact(h2hP1Impact)}</div>
+                  <div style="font-size:9px;color:var(--muted)">${h2hFilterA.toUpperCase()}</div>
+                </div>
+                <div style="font-size:9px;color:var(--muted)">ELO GAINED / LOST</div>
+                <div style="text-align:right">
+                  <div style="font-size:16px;font-weight:900">${fmtEloImpact(h2hP2Impact)}</div>
+                  <div style="font-size:9px;color:var(--muted)">${h2hFilterB.toUpperCase()}</div>
+                </div>
+              </div>
             </div>
           </div>`;
   }
@@ -4025,10 +4048,20 @@ function openPlayerDetail(name) {
         : netChange < 0
           ? "var(--red)"
           : "var(--muted)";
+    const peakElo = Math.max(...pts.map((p) => p.elo));
+    const peakPt = pts.find((p) => p.elo === peakElo);
+    const fromPeak = lastElo - peakElo;
+    const fromPeakLabel = fromPeak === 0
+      ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
+      : `<span style="color:var(--red);font-weight:700">${fromPeak} from peak</span>`;
     return `<div class="ana-card"><span class="badge">ELO Timeline</span>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px">
         <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
         <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO total</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:9px;color:var(--muted)">All-time high: <span style="color:var(--green);font-weight:800;font-size:11px">${peakElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
+        <div style="font-size:9px">${fromPeakLabel}</div>
       </div>
       <div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
         ${yLines}
@@ -5199,6 +5232,32 @@ function renderH2HDeepDive() {
       '<div class="sub" style="padding:8px">These players have never faced each other.</div>';
     return;
   }
+  // Walk full ELO to capture per-match deltas for this H2H pair
+  const h2hDeltaMap = new Map();
+  const _e = {};
+  [...allMatches]
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _e)) _e[p] = 1000; });
+      const aWon = m.scoreA > m.scoreB;
+      const avgA = m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB = m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      m.teamA.forEach((p) => { _e[p] = (_e[p] || 1000) + dA; });
+      m.teamB.forEach((p) => { _e[p] = (_e[p] || 1000) + dB; });
+      const p1InA = (m.teamA || []).includes(p1);
+      const p2InA = (m.teamA || []).includes(p2);
+      const p1In = p1InA || (m.teamB || []).includes(p1);
+      const p2In = p2InA || (m.teamB || []).includes(p2);
+      if (p1In && p2In) h2hDeltaMap.set(m, { p1d: p1InA ? dA : dB, p2d: p2InA ? dA : dB });
+    });
+  let p1Total = 0, p2Total = 0;
+  h2hDeltaMap.forEach((v) => { p1Total += v.p1d; p2Total += v.p2d; });
+  const fmtD = (n) => n > 0 ? `+${n}` : String(n);
+  const dCol = (n) => n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
+
   const p1Pct = Math.round((h2h.aWins / total) * 100);
   const recent = [...h2h.matches]
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
@@ -5214,14 +5273,36 @@ function renderH2HDeepDive() {
             <div class="rivalry-stat"><div class="rivalry-val m">${total}</div><div class="rivalry-lbl">Meetings</div></div>
             <div class="rivalry-stat"><div class="rivalry-val n">${h2h.bWins}</div><div class="rivalry-lbl">${100 - p1Pct}%</div></div>
           </div>
+          <div style="display:flex;gap:8px;margin:10px 0">
+            <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;border-top:2px solid ${dCol(p1Total)}">
+              <div style="font-size:8px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:4px">ELO CHANGE · ${p1.toUpperCase()}</div>
+              <div style="font-size:22px;font-weight:900;color:${dCol(p1Total)}">${fmtD(p1Total)}</div>
+              <div style="font-size:9px;color:var(--muted);margin-top:2px">across ${total} meetings</div>
+            </div>
+            <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;border-top:2px solid ${dCol(p2Total)}">
+              <div style="font-size:8px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:4px">ELO CHANGE · ${p2.toUpperCase()}</div>
+              <div style="font-size:22px;font-weight:900;color:${dCol(p2Total)}">${fmtD(p2Total)}</div>
+              <div style="font-size:9px;color:var(--muted);margin-top:2px">across ${total} meetings</div>
+            </div>
+          </div>
+          <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin:8px 0 4px">RECENT MEETINGS</div>
           ${recent
             .map((m) => {
               const p1InA = m.teamA.includes(p1);
               const p1Won = p1InA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-              return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-              <span style="font-size:12px;font-weight:700;color:${p1Won ? "var(--green)" : "var(--red)"}">${p1Won ? p1 : p2} won</span>
-              <span style="font-size:11px;color:var(--muted)">${m.scoreA}–${m.scoreB} · ${fmtDate(m.date)}</span>
-            </div>`;
+              const deltas = h2hDeltaMap.get(m);
+              const p1d = deltas?.p1d ?? 0;
+              const p2d = deltas?.p2d ?? 0;
+              return `<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:12px;font-weight:700;color:${p1Won ? "var(--green)" : "var(--red)"}">${p1Won ? p1 : p2} won</span>
+                  <span style="font-size:11px;color:var(--muted)">${m.scoreA}–${m.scoreB} · ${fmtDate(m.date)}</span>
+                </div>
+                <div style="display:flex;gap:12px;margin-top:3px">
+                  <span style="font-size:10px;color:var(--muted)">${p1}: <strong style="color:${dCol(p1d)}">${fmtD(p1d)}</strong></span>
+                  <span style="font-size:10px;color:var(--muted)">${p2}: <strong style="color:${dCol(p2d)}">${fmtD(p2d)}</strong></span>
+                </div>
+              </div>`;
             })
             .join("")}`;
 }
@@ -5394,6 +5475,56 @@ function computeElo(matches) {
     });
   });
   return elo;
+}
+
+function computeEloHistory(matches) {
+  const elo = {};
+  const history = {};
+  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  sorted.forEach((m) => {
+    const allP = [...(m.teamA || []), ...(m.teamB || [])];
+    allP.forEach((p) => { if (!(p in elo)) { elo[p] = 1000; history[p] = []; } });
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    m.teamA.forEach((p) => {
+      elo[p] = (elo[p] || 1000) + dA;
+      history[p].push({ date: m.date, elo: elo[p], delta: dA, won: aWon, opponent: m.teamB.join(" & "), scoreA: m.scoreA, scoreB: m.scoreB });
+    });
+    m.teamB.forEach((p) => {
+      elo[p] = (elo[p] || 1000) + dB;
+      history[p].push({ date: m.date, elo: elo[p], delta: dB, won: !aWon, opponent: m.teamA.join(" & "), scoreA: m.scoreB, scoreB: m.scoreA });
+    });
+  });
+  return history;
+}
+
+function computeEloPeaks(matches) {
+  const elo = {};
+  const peaks = {};
+  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  sorted.forEach((m) => {
+    const allP = [...(m.teamA || []), ...(m.teamB || [])];
+    allP.forEach((p) => { if (!(p in elo)) { elo[p] = 1000; peaks[p] = 1000; } });
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    m.teamA.forEach((p) => {
+      elo[p] = (elo[p] || 1000) + dA;
+      if (elo[p] > (peaks[p] || 0)) peaks[p] = elo[p];
+    });
+    m.teamB.forEach((p) => {
+      elo[p] = (elo[p] || 1000) + dB;
+      if (elo[p] > (peaks[p] || 0)) peaks[p] = elo[p];
+    });
+  });
+  return peaks;
 }
 
 function computeBadges(name, stats, eloMap, allMatchesArr) {
@@ -5607,6 +5738,275 @@ function runMatchSimulator() {
         </div>
       </div>
     </div>`;
+}
+
+function anaSearchInput(q) {
+  const res = document.getElementById("ana-search-results");
+  const clearBtn = document.getElementById("ana-search-clear");
+  if (!res) return;
+  if (clearBtn) clearBtn.style.display = q ? "flex" : "none";
+  const query = (q || "").trim().toLowerCase();
+  if (!query) { res.innerHTML = ""; res.style.display = "none"; return; }
+
+  const items = [];
+  document.querySelectorAll(".ana-sec[data-key]").forEach((el) => {
+    const key = el.dataset.key;
+    const title = el.querySelector(".ana-sec-title-txt")?.textContent?.trim() || key;
+    if (title.toLowerCase().includes(query))
+      items.push({ type: "section", key, label: title });
+  });
+  const players = [...new Set(allMatches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]))].sort();
+  players.forEach((p) => {
+    if (p.toLowerCase().includes(query))
+      items.push({ type: "player", key: p, label: p });
+  });
+
+  if (!items.length) {
+    res.innerHTML = '<div class="ana-search-empty">No results found</div>';
+  } else {
+    res.innerHTML = items.slice(0, 10).map((item) =>
+      `<div class="ana-search-item" onmousedown="anaSearchSelect('${item.type}','${item.key.replace(/'/g, "\\'")}','${item.label.replace(/'/g, "\\'")}')">`+
+      `<span class="ana-search-item-icon">${item.type === "section" ? "📋" : "👤"}</span>`+
+      `<span class="ana-search-item-label">${item.label}</span>`+
+      `<span class="ana-search-item-type">${item.type === "section" ? "Section" : "Player"}</span>`+
+      `</div>`
+    ).join("");
+  }
+  res.style.display = "block";
+}
+
+function anaSearchSelect(type, key, label) {
+  const input = document.getElementById("ana-search-input");
+  const res = document.getElementById("ana-search-results");
+  if (input) input.value = "";
+  if (res) res.style.display = "none";
+  const clearBtn = document.getElementById("ana-search-clear");
+  if (clearBtn) clearBtn.style.display = "none";
+  if (type === "section") {
+    const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
+    if (!el) return;
+    if (el.classList.contains("collapsed")) toggleAnaSection(key);
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    el.style.outline = "1.5px solid rgba(var(--theme-rgb),0.6)";
+    el.style.borderRadius = "12px";
+    setTimeout(() => { el.style.outline = ""; el.style.borderRadius = ""; }, 1800);
+  } else {
+    openPlayerDetail(label);
+  }
+}
+
+function anaSearchClose() {
+  const res = document.getElementById("ana-search-results");
+  if (res) res.style.display = "none";
+}
+
+function anaSearchClear() {
+  const input = document.getElementById("ana-search-input");
+  if (input) { input.value = ""; input.focus(); }
+  const res = document.getElementById("ana-search-results");
+  if (res) { res.innerHTML = ""; res.style.display = "none"; }
+  const clearBtn = document.getElementById("ana-search-clear");
+  if (clearBtn) clearBtn.style.display = "none";
+}
+
+function buildEloTimelineHtml(filterKey) {
+  filterKey = filterKey || _eloTLFilter || "all";
+  _eloTLFilter = filterKey;
+  const history = computeEloHistory(allMatches);
+  const eloNow = computeElo(allMatches);
+  const players = Object.keys(history)
+    .filter((p) => (history[p] || []).length >= 2)
+    .sort((a, b) => (eloNow[b] || 1000) - (eloNow[a] || 1000));
+  if (!players.length)
+    return '<div class="sub" style="padding:8px">No ELO data yet.</div>';
+  if (!_eloTLPlayer || !history[_eloTLPlayer]) _eloTLPlayer = players[0];
+  const name = _eloTLPlayer;
+  let pts = [...(history[name] || [])];
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const dayOfWeek = now.getDay();
+  const daysToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() + daysToMon);
+  const thisMondayStr = thisMonday.toISOString().slice(0, 10);
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+  const lastMondayStr = lastMonday.toISOString().slice(0, 10);
+  const lastSundayStr = new Date(thisMonday.getTime() - 86400000).toISOString().slice(0, 10);
+
+  if (filterKey === "3m") {
+    const c = new Date(now); c.setMonth(c.getMonth() - 3);
+    const cs = c.toISOString().slice(0, 10);
+    pts = pts.filter((p) => (p.date || "") >= cs);
+  } else if (filterKey === "1m") {
+    const c = new Date(now); c.setMonth(c.getMonth() - 1);
+    const cs = c.toISOString().slice(0, 10);
+    pts = pts.filter((p) => (p.date || "") >= cs);
+  } else if (filterKey === "1w") {
+    const c = new Date(now); c.setDate(c.getDate() - 7);
+    const cs = c.toISOString().slice(0, 10);
+    pts = pts.filter((p) => (p.date || "") >= cs);
+  } else if (filterKey === "thisweek") {
+    pts = pts.filter((p) => (p.date || "") >= thisMondayStr);
+  } else if (filterKey === "lastweek") {
+    pts = pts.filter((p) => (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr);
+  } else if (filterKey === "today") {
+    pts = pts.filter((p) => p.date === todayStr);
+  }
+  _eloTLPts = pts;
+  const chips = players
+    .map(
+      (p) =>
+        `<button class="elo-tl-chip${p === name ? " active" : ""}" onclick="selectEloTLPlayer('${p.replace(/'/g, "\\'")}')">${p}</button>`,
+    )
+    .join("");
+  const pills = [
+    { k: "all", l: "ALL" },
+    { k: "3m", l: "3M" },
+    { k: "1m", l: "1M" },
+    { k: "1w", l: "1W" },
+    { k: "thisweek", l: "THIS WK" },
+    { k: "lastweek", l: "LAST WK" },
+    { k: "today", l: "TODAY" },
+  ]
+    .map(
+      (f) =>
+        `<button class="elo-tl-filter${filterKey === f.k ? " active" : ""}" onclick="filterEloTimeline('${f.k}')">${f.l}</button>`,
+    )
+    .join("");
+  let chartHtml = "";
+  if (pts.length < 2) {
+    chartHtml =
+      '<div class="sub" style="padding:16px 0;text-align:center">Not enough data for selected period.</div>';
+  } else {
+    const W = 320, H = 100, pl = 38, pr = 10, pt = 10, pb = 20;
+    const cW = W - pl - pr, cH = H - pt - pb;
+    const minE = Math.min(...pts.map((p) => p.elo)) - 15;
+    const maxE = Math.max(...pts.map((p) => p.elo)) + 15;
+    const eRange = Math.max(1, maxE - minE);
+    const toX = (i) => pl + (i / Math.max(pts.length - 1, 1)) * cW;
+    const toY = (e) => pt + (1 - (e - minE) / eRange) * cH;
+    const col = playerColor(name);
+    const gradId = `etgtl_${name.replace(/[^a-zA-Z0-9]/g, "")}`;
+    const yLines = [minE + eRange * 0.25, minE + eRange * 0.5, minE + eRange * 0.75]
+      .map((ev) => {
+        const y = toY(ev);
+        return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${Math.round(ev)}</text>`;
+      })
+      .join("");
+    const polyline = pts.map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ");
+    const area =
+      `M${toX(0).toFixed(1)},${(H - pb).toFixed(1)} ` +
+      pts.map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ") +
+      ` L${toX(pts.length - 1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
+    const circles = pts
+      .map(
+        (p, i) =>
+          `<circle cx="${toX(i).toFixed(1)}" cy="${toY(p.elo).toFixed(1)}" r="4" fill="${p.won ? "var(--green)" : "var(--red)"}" stroke="rgba(0,0,0,0.4)" stroke-width="0.5" style="cursor:pointer" onclick="showEloMatchDetail(${i})"></circle>`,
+      )
+      .join("");
+    const lastElo = pts[pts.length - 1].elo;
+    const startElo = pts[0].elo - pts[0].delta;
+    const netChange = lastElo - startElo;
+    const netStr = netChange > 0 ? `+${netChange}` : String(netChange);
+    const netCol = netChange > 0 ? "var(--green)" : netChange < 0 ? "var(--red)" : "var(--muted)";
+    chartHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px">
+        <div style="font-size:9px;color:var(--muted)">● W &nbsp;● L &nbsp;· ${pts.length} matches</div>
+        <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO</div>
+      </div>
+      <div style="overflow-x:auto">
+        <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
+          ${yLines}
+          <defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${col}" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+          </linearGradient></defs>
+          <path d="${area}" fill="url(#${gradId})"/>
+          <polyline points="${polyline}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          ${circles}
+          <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastElo) - 7).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="900" fill="${col}">${lastElo}</text>
+        </svg>
+      </div>
+      <div id="elo-tl-detail"></div>`;
+  }
+  return `<div class="ana-card" style="padding:10px 12px">
+    <div class="elo-tl-players">${chips}</div>
+    <div class="elo-tl-filters">${pills}</div>
+    ${chartHtml}
+  </div>`;
+}
+
+function _rerenderEloTLSection() {
+  const el = document.querySelector('.ana-sec[data-key="eloTimeline"] .ana-sec-body');
+  if (el) el.innerHTML = buildEloTimelineHtml(_eloTLFilter);
+}
+
+function selectEloTLPlayer(name) {
+  _eloTLPlayer = name;
+  _rerenderEloTLSection();
+}
+
+function filterEloTimeline(key) {
+  _eloTLFilter = key;
+  _rerenderEloTLSection();
+}
+
+function showEloMatchDetail(idx) {
+  const p = _eloTLPts[idx];
+  const d = document.getElementById("elo-tl-detail");
+  if (!d || !p) return;
+  const dStr = p.delta > 0 ? `+${p.delta}` : String(p.delta);
+  const dCol = p.delta > 0 ? "var(--green)" : p.delta < 0 ? "var(--red)" : "var(--muted)";
+  d.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid ${p.won ? "var(--green)" : "var(--red)"}">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:11px;font-weight:700;color:${p.won ? "var(--green)" : "var(--red)"}">${p.won ? "WIN" : "LOSS"}</span>
+      <span style="font-size:10px;color:var(--muted)">${fmtDate(p.date)}</span>
+    </div>
+    <div style="margin-top:3px;font-size:11px">vs <strong>${p.opponent.toUpperCase()}</strong></div>
+    <div style="margin-top:3px;display:flex;gap:12px;font-size:11px">
+      <span style="color:var(--muted)">Score: <strong style="color:var(--fg)">${p.scoreA}–${p.scoreB}</strong></span>
+      <span style="color:var(--muted)">ELO: <strong style="color:var(--fg)">${p.elo}</strong></span>
+      <span style="font-weight:700;color:${dCol}">${dStr}</span>
+    </div>
+  </div>`;
+}
+
+function calcEloWinProb() {
+  const p1 = document.getElementById("eloProb-p1")?.value;
+  const p2 = document.getElementById("eloProb-p2")?.value;
+  const result = document.getElementById("elo-prob-result");
+  if (!result) return;
+  if (!p1 || !p2 || p1 === p2) {
+    result.innerHTML = '<div class="sub" style="color:var(--red);padding:4px">Select two different players.</div>';
+    return;
+  }
+  const em = computeElo(allMatches);
+  const e1 = em[p1] || 1000;
+  const e2 = em[p2] || 1000;
+  const prob = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
+  const pct1 = Math.round(prob * 100);
+  const pct2 = 100 - pct1;
+  const col1 = playerColor(p1);
+  const col2 = playerColor(p2);
+  result.innerHTML = `<div style="margin-top:8px">
+    <div style="display:flex;align-items:center;gap:0;margin-bottom:10px;border-radius:6px;overflow:hidden;height:10px">
+      <div style="flex:${pct1};background:${col1};height:100%;min-width:4px"></div>
+      <div style="flex:${pct2};background:${col2};height:100%;min-width:4px"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:22px;font-weight:900;color:${col1}">${pct1}%</div>
+        <div style="font-size:10px;color:var(--muted)">${p1.toUpperCase()}</div>
+        <div style="font-size:9px;color:var(--muted)">ELO ${e1}</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);padding-top:6px">WIN CHANCE</div>
+      <div style="text-align:right">
+        <div style="font-size:22px;font-weight:900;color:${col2}">${pct2}%</div>
+        <div style="font-size:10px;color:var(--muted)">${p2.toUpperCase()}</div>
+        <div style="font-size:9px;color:var(--muted)">ELO ${e2}</div>
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderAnalyticsPage() {
@@ -6575,6 +6975,8 @@ function renderAnalyticsPage() {
   const maxEloVal = eloRanked[0]?.[1] || 1000;
   const minEloVal = eloRanked[eloRanked.length - 1]?.[1] || 1000;
   const eloRange = Math.max(1, maxEloVal - minEloVal);
+  const eloPeaks = computeEloPeaks(allMatches);
+  const eloHistoryAll = computeEloHistory(allMatches);
   const eloHtml = eloRanked.length
     ? `<div class="ana-card" style="padding:10px 12px">${eloRanked
         .map(([pname, ev], i) => {
@@ -6585,19 +6987,87 @@ function renderAnalyticsPage() {
               : change < 0
                 ? `<span style="color:var(--red)">${change}</span>`
                 : `<span style="color:var(--muted)">—</span>`;
-          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(
-            0,
-          );
-          const col =
-            ev >= 1100
-              ? "var(--green)"
-              : ev <= 900
-                ? "var(--red)"
-                : "var(--theme)";
-          return `<div class="elo-row"><div class="elo-rank">#${i + 1}</div><div class="elo-name">${pname}</div><div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col}"></div></div><div class="elo-val">${ev}</div><div class="elo-change">${changeStr}</div></div>`;
+          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(0);
+          const col = ev >= 1100 ? "var(--green)" : ev <= 900 ? "var(--red)" : "var(--theme)";
+          const peak = eloPeaks[pname] || ev;
+          const fromPeak = ev - peak;
+          const fromPeakStr = fromPeak === 0
+            ? `<span style="color:var(--green);font-size:8px">▲ PEAK</span>`
+            : `<span style="color:var(--red);font-size:8px">${fromPeak}</span>`;
+          // Last 5 momentum dots
+          const pts5 = (eloHistoryAll[pname] || []).slice(-5);
+          const dots5 = pts5.map((pt) => `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"};margin-right:1px"></span>`).join("");
+          const momDeltas = pts5.map((pt) => pt.delta);
+          const momAvg = momDeltas.length ? Math.round(momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length) : 0;
+          const momStr = momAvg > 0 ? `<span style="color:var(--green);font-size:8px">↑${momAvg}</span>` : momAvg < 0 ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(momAvg)}</span>` : `<span style="color:var(--muted);font-size:8px">→</span>`;
+          return `<div class="elo-row" style="gap:5px;align-items:center">
+            <div class="elo-rank">#${i + 1}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pname}</div>
+              <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col}"></div></div>
+            </div>
+            <div style="flex-shrink:0;width:38px;text-align:right">
+              <div class="elo-val">${ev}</div>
+              <div class="elo-change" style="margin-top:2px">${changeStr}</div>
+            </div>
+            <div style="flex-shrink:0;width:50px;text-align:right;border-left:1px solid rgba(255,255,255,0.06);padding-left:5px">
+              <div style="font-size:7px;color:var(--muted);letter-spacing:0.08em">PEAK</div>
+              <div style="font-size:11px;font-weight:800">${peak}</div>
+              <div style="margin-top:1px">${fromPeakStr}</div>
+            </div>
+            <div style="flex-shrink:0;width:44px;text-align:right;border-left:1px solid rgba(255,255,255,0.06);padding-left:5px">
+              <div style="font-size:7px;color:var(--muted);letter-spacing:0.08em">L5</div>
+              <div style="display:flex;justify-content:flex-end;gap:1px;margin:2px 0">${dots5}</div>
+              <div>${momStr}</div>
+            </div>
+          </div>`;
         })
         .join("")}</div>`
     : '<div class="sub" style="padding:8px">No data yet.</div>';
+
+  // ── ELO WIN PROBABILITY ────────────────────────────────
+  const eloWinProbHtml = playersByMatches.length >= 2
+    ? `<div class="ana-card" style="padding:10px 12px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Pick two players to see win probability based on current ELO ratings.</div>
+        <div class="h2h-selects" style="margin-bottom:8px">
+          <select id="eloProb-p1" class="hist-select compact-select" style="flex:1">${playersByMatches.map((p) => `<option value="${p}">${p.toUpperCase()}</option>`).join("")}</select>
+          <span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span>
+          <select id="eloProb-p2" class="hist-select compact-select" style="flex:1">${playersByMatches.map((p, i) => `<option value="${p}"${i === 1 ? " selected" : ""}>${p.toUpperCase()}</option>`).join("")}</select>
+        </div>
+        <button class="btn-go" style="width:100%" onclick="calcEloWinProb()">CALCULATE</button>
+        <div id="elo-prob-result" style="margin-top:4px"></div>
+      </div>`
+    : '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
+
+  // ── ELO VOLATILITY ─────────────────────────────────────
+  const eloVolatilityHtml = (() => {
+    const players = Object.keys(eloHistoryAll).filter((p) => eloHistoryAll[p].length >= 3);
+    if (!players.length) return '<div class="sub" style="padding:8px">Need more matches.</div>';
+    const rows = players.map((p) => {
+      const deltas = eloHistoryAll[p].map((pt) => pt.delta);
+      const mean = deltas.reduce((s, d) => s + d, 0) / deltas.length;
+      const stdDev = Math.sqrt(deltas.reduce((s, d) => s + Math.pow(d - mean, 2), 0) / deltas.length);
+      return { name: p, stdDev, matches: deltas.length, avgDelta: mean };
+    }).sort((a, b) => a.stdDev - b.stdDev);
+    const maxStd = rows[rows.length - 1]?.stdDev || 1;
+    return `<div class="ana-card" style="padding:10px 12px">
+      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Lower deviation = more consistent ELO swings per match.</div>
+      ${rows.map((r, i) => {
+        const barW = Math.max(5, (r.stdDev / maxStd) * 100).toFixed(0);
+        const label = r.stdDev < 10 ? "🪨 Rock" : r.stdDev < 14 ? "✅ Steady" : r.stdDev < 18 ? "⚡ Variable" : "🎲 Volatile";
+        const avgStr = r.avgDelta > 0 ? `+${r.avgDelta.toFixed(1)}` : r.avgDelta.toFixed(1);
+        const avgCol = r.avgDelta > 0 ? "var(--green)" : r.avgDelta < 0 ? "var(--red)" : "var(--muted)";
+        return `<div class="elo-row">
+          <div class="elo-rank">#${i + 1}</div>
+          <div class="elo-name">${r.name}</div>
+          <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:var(--theme);opacity:0.7"></div></div>
+          <div style="font-size:9px;color:var(--muted);min-width:26px;text-align:right">±${r.stdDev.toFixed(0)}</div>
+          <div style="font-size:9px;min-width:30px;text-align:right;color:${avgCol}">${avgStr}</div>
+          <div style="font-size:8px;color:var(--muted);min-width:56px;text-align:right">${label}</div>
+        </div>`;
+      }).join("")}
+    </div>`;
+  })();
 
   // ── PAIR CHEMISTRY MATRIX ──────────────────────────────
   const pairMatrixPlayers = [
@@ -6982,6 +7452,9 @@ function renderAnalyticsPage() {
       body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
     },
     { key: "elo", title: "⚡ ELO Rankings", body: eloHtml },
+    { key: "eloTimeline", title: "📈 ELO History Chart", body: buildEloTimelineHtml("all") },
+    { key: "eloWinProb", title: "🎯 ELO Win Probability", body: eloWinProbHtml },
+    { key: "eloVolatility", title: "📊 ELO Volatility / Consistency", body: eloVolatilityHtml },
     {
       key: "pairmatrix",
       title: "🧪 Pair Chemistry Matrix",
@@ -7013,7 +7486,24 @@ function renderAnalyticsPage() {
   ];
   const collapsed = getAnaCollapsed();
 
-  container.innerHTML = orderedKeys
+  const searchBarHtml = `<div class="ana-search-wrap">
+    <div class="ana-search-box">
+      <svg class="ana-search-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7.5"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>
+      </svg>
+      <input type="text" id="ana-search-input" class="ana-search-input"
+        placeholder="SEARCH SECTIONS OR PLAYERS"
+        oninput="anaSearchInput(this.value)"
+        onblur="setTimeout(anaSearchClose, 160)"
+        autocomplete="off" spellcheck="false">
+      <button id="ana-search-clear" class="ana-search-clear" onclick="anaSearchClear()" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="9" height="9"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="ana-search-results" class="ana-search-results" style="display:none"></div>
+  </div>`;
+
+  container.innerHTML = searchBarHtml + orderedKeys
     .map((key) => {
       const def = allSecs.find((s) => s.key === key);
       if (!def) return "";
@@ -7221,6 +7711,14 @@ Object.assign(window, {
   onHomeFilterChange,
   prefillMatchTADate,
   renderH2HDeepDive,
+  selectEloTLPlayer,
+  filterEloTimeline,
+  showEloMatchDetail,
+  calcEloWinProb,
+  anaSearchInput,
+  anaSearchSelect,
+  anaSearchClose,
+  anaSearchClear,
   setHistoryDateFilter,
   openPlayerCompare,
   renderCompareSelector,
