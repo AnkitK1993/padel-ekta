@@ -10100,3 +10100,15 @@ select.cmp-sel option {
 #match-intro-overlay.active .mio-badges {
   opacity: 1;
 }
+
+/* Feature 3: swipe blur overlay */
+#swipe-blur-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}

@@ -688,84 +688,156 @@ function switchMainTab(id) {
   }
 }
 
-let touchStartX = 0,
-  touchStartY = 0,
-  touchStartTarget = null,
-  swipeInProgress = false;
 const mainTabOrder = ["home", "compact", "history", "analytics"];
 
 function isScrollable(el) {
-  // Walk up DOM to see if the touch started inside a horizontally/vertically scrollable element
   while (el && el !== document.body) {
     const style = window.getComputedStyle(el);
     const overflow = style.overflow + style.overflowX + style.overflowY;
     if (/auto|scroll/.test(overflow)) {
-      if (
-        el.scrollWidth > el.clientWidth ||
-        el.scrollHeight > el.clientHeight
-      ) {
+      if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight)
         return true;
-      }
     }
     el = el.parentElement;
   }
   return false;
 }
 
-function onTouchStart(e) {
-  if (!e.touches || e.touches.length !== 1) {
-    touchStartTarget = null;
+// ── PHYSICS SWIPE NAVIGATION ───────────────────────────────
+const _nd = {
+  active: false, debounce: false,
+  startX: 0, startY: 0, lastX: 0, lastTime: 0, vel: 0,
+  curPage: null, adjPage: null, adjIdx: -1, curIdx: -1,
+  dir: 0,
+};
+
+function _ndBlurOverlay() {
+  return document.getElementById("swipe-blur-overlay");
+}
+
+function _ndRubberBand(x, limit) {
+  if (Math.abs(x) <= limit) return x;
+  const s = x > 0 ? 1 : -1;
+  return s * (limit + Math.sqrt(Math.abs(x) - limit) * 14);
+}
+
+function _ndCleanup(instant) {
+  const { curPage, adjPage } = _nd;
+  const dur = instant ? 0 : 400;
+  if (curPage) {
+    curPage.style.transition = instant ? "none" : `transform ${dur}ms cubic-bezier(0.34,1.56,0.64,1), filter ${dur}ms ease`;
+    curPage.style.transform  = "";
+    curPage.style.filter     = "";
+  }
+  if (adjPage) {
+    const adjStart = _nd.dir === 1 ? -window.innerWidth : window.innerWidth;
+    adjPage.style.transition = instant ? "none" : `transform ${dur}ms cubic-bezier(0.34,1.56,0.64,1)`;
+    adjPage.style.transform  = `translateX(${adjStart}px)`;
+  }
+  const bl = _ndBlurOverlay();
+  if (bl) { bl.style.transition = "opacity 0.3s"; bl.style.opacity = "0"; }
+  setTimeout(() => {
+    if (adjPage) { adjPage.style.transition = ""; adjPage.style.transform = ""; adjPage.style.opacity = ""; }
+    if (curPage) { curPage.style.transition = ""; }
+    _nd.curPage = null; _nd.adjPage = null; _nd.active = false;
+  }, dur + 10);
+}
+
+function _ndCommit() {
+  const { curPage, adjPage, dir } = _nd;
+  const w = window.innerWidth;
+  const curTarget = dir === 1 ? w : -w;
+  const EASE = "cubic-bezier(0.25,0.46,0.45,0.94)";
+  const DUR  = 310;
+  curPage.style.transition = `transform ${DUR}ms ${EASE}, filter ${DUR}ms ease`;
+  curPage.style.transform  = `translateX(${curTarget}px)`;
+  curPage.style.filter     = "blur(6px)";
+  adjPage.style.transition = `transform ${DUR}ms ${EASE}`;
+  adjPage.style.transform  = "translateX(0px)";
+  const bl = _ndBlurOverlay();
+  if (bl) { bl.style.transition = "opacity 0.25s"; bl.style.opacity = "0"; }
+  setTimeout(() => {
+    switchMainTab(mainTabOrder[_nd.adjIdx]);
+    curPage.style.transition = "none"; curPage.style.transform = ""; curPage.style.filter = "";
+    adjPage.style.transition = "none"; adjPage.style.transform = ""; adjPage.style.opacity = "";
+    requestAnimationFrame(() => {
+      curPage.style.transition = ""; adjPage.style.transition = "";
+      _nd.curPage = null; _nd.adjPage = null; _nd.active = false;
+      _nd.debounce = true;
+      setTimeout(() => { _nd.debounce = false; }, 320);
+    });
+  }, DUR);
+}
+
+document.addEventListener("touchstart", (e) => {
+  if (_nd.debounce || e.touches.length !== 1) return;
+  if (document.querySelector("#player-detail-modal, #h2h-detail-modal")) return;
+  if (isScrollable(e.target)) return;
+  _nd.startX = _nd.lastX = e.touches[0].clientX;
+  _nd.startY = e.touches[0].clientY;
+  _nd.lastTime = Date.now(); _nd.vel = 0;
+  _nd.active = false; _nd.curPage = null; _nd.adjPage = null;
+  const ap = document.querySelector(".page.active");
+  if (!ap) return;
+  _nd.curIdx = mainTabOrder.indexOf(ap.id.replace("pg-", ""));
+  if (_nd.curIdx === -1) return;
+  _nd.curPage = ap;
+}, { passive: true });
+
+document.addEventListener("touchmove", (e) => {
+  if (!_nd.curPage) return;
+  const touch = e.touches[0];
+  const dx = touch.clientX - _nd.startX;
+  const dy = touch.clientY - _nd.startY;
+
+  // Velocity tracking
+  const now = Date.now(), dt = Math.max(now - _nd.lastTime, 1);
+  _nd.vel = (touch.clientX - _nd.lastX) / dt;
+  _nd.lastX = touch.clientX; _nd.lastTime = now;
+
+  if (!_nd.active) {
+    if (Math.abs(dy) > Math.abs(dx) + 5) { _nd.curPage = null; return; }
+    if (Math.abs(dx) < 10) return;
+    const dir    = dx > 0 ? 1 : -1;
+    const adjIdx = _nd.curIdx - dir;
+    if (adjIdx < 0 || adjIdx >= mainTabOrder.length) { _nd.curPage = null; return; }
+    const adjPage = document.getElementById("pg-" + mainTabOrder[adjIdx]);
+    if (!adjPage) { _nd.curPage = null; return; }
+    _nd.dir = dir; _nd.adjIdx = adjIdx; _nd.adjPage = adjPage;
+    // Arm adjacent page off-screen
+    const w = window.innerWidth;
+    adjPage.style.transition = "none";
+    adjPage.style.opacity    = "1";
+    adjPage.style.pointerEvents = "none";
+    adjPage.style.transform  = `translateX(${dir === 1 ? -w : w}px)`;
+    _nd.curPage.style.transition = "none";
+    _nd.active = true;
+  }
+
+  e.preventDefault();
+  const w   = window.innerWidth;
+  const clamped = _ndRubberBand(dx, w * 0.46);
+  const pct = Math.min(Math.abs(clamped) / w, 1);
+
+  _nd.curPage.style.transform = `translateX(${clamped}px)`;
+  _nd.curPage.style.filter    = `blur(${(pct * 5).toFixed(1)}px)`;
+
+  const adjBase = _nd.dir === 1 ? -w : w;
+  _nd.adjPage.style.transform = `translateX(${adjBase + clamped}px)`;
+
+  const bl = _ndBlurOverlay();
+  if (bl) { bl.style.transition = "none"; bl.style.opacity = (pct * 0.55).toFixed(2); }
+}, { passive: false });
+
+document.addEventListener("touchend", (e) => {
+  if (!_nd.active || !_nd.curPage || !_nd.adjPage) {
+    _nd.curPage = null; _nd.adjPage = null; _nd.active = false;
     return;
   }
-  const t = e.touches[0];
-  touchStartX = t.clientX;
-  touchStartY = t.clientY;
-  touchStartTarget = e.target;
-}
-
-function onTouchEnd(e) {
-  if (swipeInProgress || !touchStartTarget) return;
-  if (!e.changedTouches || e.changedTouches.length === 0) return;
-
-  const t = e.changedTouches[0];
-  const dx = t.clientX - touchStartX;
-  const dy = t.clientY - touchStartY;
-
-  // Require clearly horizontal gesture and not too vertical
-  if (Math.abs(dx) < 80 || Math.abs(dy) > 60) return;
-
-  // Don't swipe tabs if the touch started inside a scrollable child
-  if (isScrollable(touchStartTarget)) return;
-
-  const activePage = document.querySelector(".page.active");
-  if (!activePage) return;
-  const current = activePage.id.replace("pg-", "");
-  const index = mainTabOrder.indexOf(current);
-  if (index === -1) return; // current tab not in swipe order (e.g. "add")
-
-  const nextTab =
-    dx > 0 && index > 0
-      ? mainTabOrder[index - 1]
-      : dx < 0 && index < mainTabOrder.length - 1
-        ? mainTabOrder[index + 1]
-        : null;
-
-  if (!nextTab) return;
-
-  swipeInProgress = true;
-  try {
-    switchMainTab(nextTab);
-  } catch (err) {
-    console.error("swipe tab switch error:", err);
-  }
-  // Debounce: prevent another swipe for 350 ms
-  setTimeout(() => {
-    swipeInProgress = false;
-  }, 350);
-}
-
-document.addEventListener("touchstart", onTouchStart, { passive: true });
-document.addEventListener("touchend", onTouchEnd, { passive: true });
+  const dx     = e.changedTouches[0].clientX - _nd.startX;
+  const commit = Math.abs(dx) > window.innerWidth * 0.33 || Math.abs(_nd.vel) > 0.38;
+  commit ? _ndCommit() : _ndCleanup(false);
+}, { passive: true });
 
 // ── SWIPE-TO-DELETE ────────────────────────────────────────
 let _swipeTouchStartX = 0,
@@ -2263,14 +2335,14 @@ function renderCompact() {
     const momentumBadge = getMomentumBadge(p.name);
     const pillW = Math.round((normalizedSR / 10) * 100);
     const animClass = splashDone ? " row-reveal-anim" : "";
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name.toUpperCase()}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val">${p.sr.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name.toUpperCase()}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">0.00</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
   const reversedMatches = [...filtered].reverse();
-  const matchRowHtmls = reversedMatches.map((m) => buildMatchRowHtml(m));
+  const matchRowHtmls = reversedMatches.map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)));
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
   const matchesHeader = cmpMatchesEl.previousElementSibling;
@@ -2286,6 +2358,8 @@ function renderCompact() {
     leaderRowHtmls.forEach((html, i) => {
       setTimeout(() => {
         tbody.insertAdjacentHTML("beforeend", html);
+        const srEl = tbody.lastElementChild.querySelector(".sr-pill-val[data-final]");
+        if (srEl) animateSrVal(srEl, 50);
       }, i * 100);
     });
 
@@ -2304,10 +2378,10 @@ function renderCompact() {
       const animCount = Math.min(10, reversedMatches.length);
       const animRows = reversedMatches
         .slice(0, animCount)
-        .map((m) => buildMatchRowHtml(m, " row-reveal-anim"));
+        .map((m) => buildMatchRowHtml(m, " row-reveal-anim", null, allMatches.indexOf(m)));
       const restRows = reversedMatches
         .slice(animCount)
-        .map((m) => buildMatchRowHtml(m));
+        .map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)));
       animRows.forEach((html, i) => {
         setTimeout(
           () => {
@@ -2341,11 +2415,12 @@ function renderCompact() {
   } else {
     matchesHeader.style.cssText = "";
     tbody.innerHTML = leaderRowHtmls.join("");
+    tbody.querySelectorAll(".sr-pill-val[data-final]").forEach(el => animateSrVal(el, 0));
     const reversedFiltered = [...filtered].reverse();
     const initRows = reversedFiltered.map((m, i) =>
       i < 10
-        ? buildMatchRowHtml(m, " row-reveal-anim", i * 100)
-        : buildMatchRowHtml(m),
+        ? buildMatchRowHtml(m, " row-reveal-anim", i * 100, allMatches.indexOf(m))
+        : buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
     );
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
@@ -2416,7 +2491,7 @@ function isZeroMatch(m) {
   return Number(m.scoreA) === 0 || Number(m.scoreB) === 0;
 }
 
-function buildMatchRowHtml(m, extraClass = "", delay = null) {
+function buildMatchRowHtml(m, extraClass = "", delay = null, matchIdx = null) {
   const aWon = m.scoreA > m.scoreB;
   const winA = aWon ? "cmr-win" : "cmr-loss";
   const winB = !aWon ? "cmr-win" : "cmr-loss";
@@ -2430,9 +2505,8 @@ function buildMatchRowHtml(m, extraClass = "", delay = null) {
       : isZeroMatch(m)
         ? `<span class="cmr-badge cmr-zero">😂</span>`
         : "";
-  const delayStyle =
-    delay !== null ? ` style="animation-delay:${delay}ms"` : "";
-  return `<tr class="cmr-row${extraClass}"${delayStyle}>
+  const clickable = matchIdx !== null ? ` style="animation-delay:${delay !== null ? delay : 0}ms;cursor:pointer" onclick="openMatchIntro(${matchIdx})"` : (delay !== null ? ` style="animation-delay:${delay}ms"` : "");
+  return `<tr class="cmr-row${extraClass}"${clickable}>
           <td class="cmr-date">${fmtDate(m.date)
             .replace(/\s+\d{4}$/, "")
             .toUpperCase()}</td>
@@ -2448,7 +2522,7 @@ function buildCompactMatchRows(matches) {
     return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
   return `<table class="cmp-match-rows"><tbody>${[...matches]
     .reverse()
-    .map((m) => buildMatchRowHtml(m))
+    .map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)))
     .join("")}</tbody></table>`;
 }
 
