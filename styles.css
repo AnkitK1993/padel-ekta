@@ -8477,9 +8477,6 @@ select.cmp-sel option {
   padding: 14px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
   flex-shrink: 0;
 }
 .snap-back-btn {
@@ -8531,6 +8528,23 @@ select.cmp-sel option {
   width: 100%;
   padding: 0 16px;
   box-sizing: border-box;
+}
+#pg-snapshot table.cmp tbody td {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+#pg-snapshot .cmr-date {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+#pg-snapshot .cmr-team {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+#pg-snapshot .cmr-sc,
+#pg-snapshot .cmr-badge-cell {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
 }
 
 /* ── Scheduled Matches ─────────────────────────── */
