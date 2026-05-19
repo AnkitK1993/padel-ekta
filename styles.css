@@ -25,6 +25,10 @@
   padding: 0;
   max-width: 100%;
   -webkit-tap-highlight-color: transparent;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }
 html,
 body {
@@ -58,6 +62,10 @@ body {
   overscroll-behavior: contain;
   scroll-behavior: smooth;
   will-change: opacity, transform;
+  scrollbar-width: none;
+}
+.page::-webkit-scrollbar {
+  display: none;
 }
 .page.active {
   opacity: 1;
@@ -3961,7 +3969,7 @@ textarea:focus {
 }
 .cmr-date {
   width: 48px;
-  padding: 8px 10px 8px 8px;
+  padding: 4px 10px 4px 8px;
   font-size: 10px;
   color: var(--muted);
   white-space: nowrap;
@@ -3971,7 +3979,7 @@ textarea:focus {
   flex-shrink: 0;
 }
 .cmr-team {
-  padding: 8px 2px;
+  padding: 4px 2px;
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
@@ -3993,7 +4001,7 @@ textarea:focus {
 }
 .cmr-sc {
   width: 38px;
-  padding: 8px 2px;
+  padding: 4px 2px;
   text-align: center;
   white-space: nowrap;
   vertical-align: middle;
@@ -7306,7 +7314,7 @@ table.cmp tbody td:nth-child(9) {
 table.cmp tbody td:nth-child(2) {
   overflow: visible !important;
   text-overflow: clip !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
   letter-spacing: -0.01em !important;
 }
 
@@ -8466,9 +8474,8 @@ select.cmp-sel option {
 
 /* ── Snapshot full-screen page ──────────────── */
 #pg-snapshot {
+  display: block;
   background: var(--bg);
-  display: flex;
-  flex-direction: column;
 }
 .snap-header {
   display: flex;
@@ -8477,7 +8484,6 @@ select.cmp-sel option {
   padding: 14px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
 }
 .snap-back-btn {
   background: rgba(255, 255, 255, 0.06);
@@ -8497,10 +8503,8 @@ select.cmp-sel option {
   font-weight: 800;
   color: var(--text);
   letter-spacing: 0.04em;
-  flex: 1;
 }
 .snap-content {
-  flex: 1;
   overflow-x: hidden;
 }
 .snap-section-hdr {
@@ -8532,19 +8536,6 @@ select.cmp-sel option {
 #pg-snapshot table.cmp tbody td {
   padding-top: 6px !important;
   padding-bottom: 6px !important;
-}
-#pg-snapshot .cmr-date {
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
-}
-#pg-snapshot .cmr-team {
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
-}
-#pg-snapshot .cmr-sc,
-#pg-snapshot .cmr-badge-cell {
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
 }
 
 /* ── Scheduled Matches ─────────────────────────── */
