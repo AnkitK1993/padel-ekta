@@ -2637,8 +2637,12 @@ textarea:focus {
   text-transform: uppercase;
   line-height: 1.2;
 }
-.team-p1 { text-align: right; }
-.team-p2 { text-align: left; }
+.team-p1 {
+  text-align: right;
+}
+.team-p2 {
+  text-align: left;
+}
 .team-p1.winner,
 .team-p2.winner {
   color: var(--green);
@@ -9649,8 +9653,12 @@ select.cmp-sel option {
 
 /* ── FEATURE 7: ANIMATED ELO LEADERBOARD ──────────────── */
 @keyframes eloBarSlide {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 .elo-bar {
   transform-origin: left center;
@@ -9670,9 +9678,16 @@ select.cmp-sel option {
   margin-top: 2px;
   letter-spacing: 0;
 }
-.elo-rank-up   { color: var(--green); }
-.elo-rank-down { color: var(--red); }
-.elo-rank-same { color: var(--muted); font-size: 9px; }
+.elo-rank-up {
+  color: var(--green);
+}
+.elo-rank-down {
+  color: var(--red);
+}
+.elo-rank-same {
+  color: var(--muted);
+  font-size: 9px;
+}
 .elo-leaderboard-card .elo-row {
   animation: none;
 }
@@ -9691,23 +9706,43 @@ select.cmp-sel option {
 }
 .match-card[data-margin="0"]::after,
 .match-card[data-margin="1"]::after {
-  background: linear-gradient(90deg, rgba(255, 179, 0, 0.55), rgba(255, 220, 80, 0.15));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 179, 0, 0.55),
+    rgba(255, 220, 80, 0.15)
+  );
 }
 .match-card[data-margin="2"]::after {
-  background: linear-gradient(90deg, rgba(255, 210, 60, 0.25), rgba(255, 210, 60, 0.05));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 210, 60, 0.25),
+    rgba(255, 210, 60, 0.05)
+  );
 }
 .match-card[data-margin="3"]::after {
   background: rgba(255, 255, 255, 0.05);
 }
 .match-card[data-margin="4"]::after {
-  background: linear-gradient(90deg, rgba(180, 60, 255, 0.3), rgba(180, 60, 255, 0.08));
+  background: linear-gradient(
+    90deg,
+    rgba(180, 60, 255, 0.3),
+    rgba(180, 60, 255, 0.08)
+  );
 }
 .match-card[data-margin="5"]::after {
-  background: linear-gradient(90deg, rgba(255, 60, 60, 0.4), rgba(200, 60, 255, 0.15));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 60, 60, 0.4),
+    rgba(200, 60, 255, 0.15)
+  );
 }
 .match-card[data-margin="6"]::after,
 .match-card[data-margin="7"]::after {
-  background: linear-gradient(90deg, rgba(255, 40, 40, 0.55), rgba(200, 40, 255, 0.2));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 40, 40, 0.55),
+    rgba(200, 40, 255, 0.2)
+  );
 }
 
 /* ── FEATURE 11: PAIR CHEMISTRY BADGE ─────────────────── */
@@ -9719,6 +9754,149 @@ select.cmp-sel option {
   flex-shrink: 0;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+/* ── FEATURE 2: XP + LEVELS ─────────────────────────── */
+.lvl-badge {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  vertical-align: middle;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.prestige-rookie {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.prestige-bronze {
+  background: rgba(205, 127, 50, 0.12);
+  color: #cd7f32;
+  border: 1px solid rgba(205, 127, 50, 0.3);
+}
+.prestige-silver {
+  background: rgba(192, 192, 192, 0.1);
+  color: #c8c8c8;
+  border: 1px solid rgba(192, 192, 192, 0.3);
+}
+.prestige-gold {
+  background: rgba(255, 210, 0, 0.1);
+  color: #ffd700;
+  border: 1px solid rgba(255, 210, 0, 0.35);
+}
+.prestige-diamond {
+  background: linear-gradient(
+    135deg,
+    rgba(100, 200, 255, 0.12),
+    rgba(200, 100, 255, 0.12)
+  );
+  color: #a0e8ff;
+  border: 1px solid rgba(150, 200, 255, 0.4);
+  animation: lvlDiamond 2.5s ease-in-out infinite;
+}
+@keyframes lvlDiamond {
+  0%,
+  100% {
+    border-color: rgba(100, 200, 255, 0.4);
+    color: #a0e8ff;
+  }
+  50% {
+    border-color: rgba(200, 100, 255, 0.5);
+    color: #e0b0ff;
+  }
+}
+.xp-row {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  gap: 5px;
+  flex: 1;
+}
+.xp-bar-mini {
+  height: 3px;
+  width: 48px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.xp-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.xp-pct-lbl {
+  font-size: 8px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.lvl-badge.pd-big {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  letter-spacing: 0.12em;
+}
+.pd-xp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+}
+.pd-xp-total {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1;
+}
+.pd-xp-bar-wrap {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.pd-xp-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.pd-xp-progress-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.pd-xp-breakdown {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.pd-xp-src-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 10px;
+}
+.pd-xp-src-lbl {
+  flex: 1;
+  color: var(--muted);
+}
+.pd-xp-src-count {
+  color: var(--muted);
+  font-size: 9px;
+  margin-right: 10px;
+}
+.pd-xp-src-val {
+  font-weight: 800;
+  color: var(--green);
+  min-width: 32px;
+  text-align: right;
 }
 
 /* ── FEATURE 1: MATCH INTRO OVERLAY ─────────────────── */
@@ -9761,7 +9939,9 @@ select.cmp-sel option {
   opacity: 0;
   transition: opacity 0.3s 0s;
 }
-#match-intro-overlay.active .mio-date-bar { opacity: 1; }
+#match-intro-overlay.active .mio-date-bar {
+  opacity: 1;
+}
 .mio-arena {
   display: flex;
   align-items: flex-start;
@@ -9776,10 +9956,18 @@ select.cmp-sel option {
   gap: 5px;
   opacity: 0;
   min-width: 0;
-  transition: transform 0.48s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
+  transition:
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.35s ease;
 }
-.mio-side-panel.left  { transform: translateX(-60px); transition-delay: 0.06s; }
-.mio-side-panel.right { transform: translateX(60px);  transition-delay: 0.12s; }
+.mio-side-panel.left {
+  transform: translateX(-60px);
+  transition-delay: 0.06s;
+}
+.mio-side-panel.right {
+  transform: translateX(60px);
+  transition-delay: 0.12s;
+}
 #match-intro-overlay.active .mio-side-panel {
   transform: translateX(0);
   opacity: 1;
@@ -9795,7 +9983,7 @@ select.cmp-sel option {
   text-transform: uppercase;
 }
 .mio-player-name {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: 22px;
   letter-spacing: 0.04em;
   color: var(--text);
@@ -9811,14 +9999,16 @@ select.cmp-sel option {
   font-weight: 600;
 }
 .mio-score-num {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: 60px;
   line-height: 1;
   letter-spacing: 0.02em;
   margin-top: 10px;
   color: rgba(255, 255, 255, 0.2);
 }
-.mio-score-num.win { color: var(--green); }
+.mio-score-num.win {
+  color: var(--green);
+}
 .mio-center-col {
   display: flex;
   flex-direction: column;
@@ -9829,13 +10019,15 @@ select.cmp-sel option {
   flex-shrink: 0;
 }
 .mio-vs-label {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: 18px;
   letter-spacing: 0.3em;
   color: rgba(255, 255, 255, 0.25);
   opacity: 0;
   transform: scale(0.3);
-  transition: opacity 0.3s 0.22s, transform 0.35s 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    opacity 0.3s 0.22s,
+    transform 0.35s 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 #match-intro-overlay.active .mio-vs-label {
   opacity: 1;
@@ -9844,11 +10036,18 @@ select.cmp-sel option {
 .mio-center-sep {
   width: 1px;
   height: 50px;
-  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.08), transparent);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
   opacity: 0;
   transition: opacity 0.3s 0.28s;
 }
-#match-intro-overlay.active .mio-center-sep { opacity: 1; }
+#match-intro-overlay.active .mio-center-sep {
+  opacity: 1;
+}
 .mio-result-line {
   margin-top: 22px;
   font-size: 11px;
@@ -9859,7 +10058,9 @@ select.cmp-sel option {
   opacity: 0;
   transition: opacity 0.3s 0.55s;
 }
-#match-intro-overlay.active .mio-result-line { opacity: 1; }
+#match-intro-overlay.active .mio-result-line {
+  opacity: 1;
+}
 .mio-elo-deltas {
   margin-top: 10px;
   display: flex;
@@ -9869,7 +10070,9 @@ select.cmp-sel option {
   opacity: 0;
   transition: opacity 0.3s 0.7s;
 }
-#match-intro-overlay.active .mio-elo-deltas { opacity: 1; }
+#match-intro-overlay.active .mio-elo-deltas {
+  opacity: 1;
+}
 .mio-delta-pill {
   font-size: 9px;
   font-weight: 800;
@@ -9877,8 +10080,14 @@ select.cmp-sel option {
   border-radius: 8px;
   letter-spacing: 0.04em;
 }
-.mio-delta-pill.gain { background: rgba(0, 200, 100, 0.12); color: var(--green); }
-.mio-delta-pill.loss { background: rgba(255, 60, 60, 0.12);  color: #ff5555; }
+.mio-delta-pill.gain {
+  background: rgba(0, 200, 100, 0.12);
+  color: var(--green);
+}
+.mio-delta-pill.loss {
+  background: rgba(255, 60, 60, 0.12);
+  color: #ff5555;
+}
 .mio-badges {
   margin-top: 10px;
   display: flex;
@@ -9888,5 +10097,6 @@ select.cmp-sel option {
   opacity: 0;
   transition: opacity 0.3s 0.82s;
 }
-#match-intro-overlay.active .mio-badges { opacity: 1; }
-
+#match-intro-overlay.active .mio-badges {
+  opacity: 1;
+}

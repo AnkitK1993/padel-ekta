@@ -2087,7 +2087,7 @@ function renderHome() {
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div>${mkLvlRow(p.name)}<div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">0.00</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
   if (document.body.classList.contains("splash-done")) {
@@ -2096,7 +2096,12 @@ function renderHome() {
       setTimeout(() => {
         const tmp = document.createElement("div");
         tmp.innerHTML = html;
-        board.appendChild(tmp.firstChild);
+        const card = tmp.firstChild;
+        board.appendChild(card);
+        const srEl  = card.querySelector(".sr-val[data-final]");
+        if (srEl) animateSrVal(srEl, 300);
+        const xpRow = card.querySelector(".xp-row");
+        if (xpRow) animateXpRow(xpRow, 300);
         if (i === cardHtmls.length - 1) {
           runSpeedometerSweep();
           setTimeout(animateGauges, 50);
@@ -2107,7 +2112,53 @@ function renderHome() {
     board.innerHTML = cardHtmls.join("");
     runSpeedometerSweep();
     setTimeout(animateGauges, 50);
+    board.querySelectorAll(".sr-val[data-final]").forEach((el) => animateSrVal(el, 300));
+    board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
   }
+}
+
+function animateXpRow(el, delay = 300) {
+  const lvlEl = el.querySelector(".xp-lvl-num[data-final]");
+  const barEl = el.querySelector(".xp-bar-fill[data-pct]");
+  if (!lvlEl || !barEl) return;
+  const finalLevel = parseInt(lvlEl.dataset.final, 10);
+  const finalPct   = parseInt(barEl.dataset.pct, 10);
+  const startLevel = Math.max(0, finalLevel - 4);
+  let curLevel = startLevel;
+  lvlEl.textContent = startLevel;
+  barEl.style.transition = "none";
+  barEl.style.width = "0%";
+  const nextFill = () => {
+    curLevel++;
+    lvlEl.textContent = curLevel;
+    const isLast = curLevel >= finalLevel;
+    const toPct  = isLast ? finalPct : 100;
+    const fillMs = isLast ? Math.max(450, finalPct * 6) : 320;
+    void barEl.offsetWidth;
+    barEl.style.transition = `width ${fillMs}ms ease-out`;
+    barEl.style.width = `${toPct}%`;
+    if (!isLast) {
+      setTimeout(() => {
+        barEl.style.transition = "none";
+        barEl.style.width = "0%";
+        setTimeout(nextFill, 60);
+      }, fillMs + 100);
+    }
+  };
+  setTimeout(nextFill, delay);
+}
+
+function animateSrVal(el, delay = 200) {
+  const target = parseFloat(el.dataset.final);
+  if (isNaN(target)) return;
+  let cur = 0;
+  const step = target / 45;
+  const tick = () => {
+    cur = Math.min(cur + step, target);
+    el.textContent = cur.toFixed(2);
+    if (cur < target) setTimeout(tick, 22);
+  };
+  setTimeout(tick, delay);
 }
 
 // ── RENDER COMPACT ─────────────────────────────────────────
@@ -3971,6 +4022,49 @@ function openPlayerDetail(name) {
             </div>`
       : "";
 
+  // XP + Level
+  const pdXP = computePlayerXP(name);
+  const { level: pdLevel, progress: pdProgress } = getPlayerLevel(pdXP);
+  const pdTier = getPrestigeTier(pdLevel);
+  const pdXpPct = Math.round(pdProgress * 100);
+  const pdXpToNext = xpThreshold(pdLevel + 1) - pdXP;
+  let pdMatchCount = 0, pdWinCount = 0, pdFireCount = 0, pdDomCount = 0, pdZeroCount = 0;
+  allMatches.forEach((m) => {
+    const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
+    const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
+    if (!inA && !inB) return;
+    pdMatchCount++;
+    const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+    if (won) pdWinCount++;
+    if (isFireMatch(m)) pdFireCount++;
+    if (isDominatingMatch(m) && won) pdDomCount++;
+    if (isZeroMatch(m) && won) pdZeroCount++;
+  });
+  const _pdBarClr = { diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)", gold: "#ffd700", silver: "#c0c0c0", bronze: "#cd7f32", rookie: "rgba(255,255,255,0.28)" };
+  const pdBarStyle = _pdBarClr[pdTier].startsWith("linear") ? `background:${_pdBarClr[pdTier]}` : `background:${_pdBarClr[pdTier]}`;
+  const xpCard = `
+    <div class="ana-card">
+      <span class="badge">XP & Level</span>
+      <div class="pd-xp-header">
+        <span class="lvl-badge prestige-${pdTier} pd-big">LVL <span id="pd-lvl-num" data-final="${pdLevel}">0</span></span>
+        <div class="pd-xp-total">${pdXP}<span style="font-size:12px;color:var(--muted);font-weight:600;margin-left:4px">XP</span></div>
+      </div>
+      <div class="pd-xp-bar-wrap">
+        <div class="pd-xp-bar" id="pd-xp-bar" data-pct="${pdXpPct}" style="width:0%;${pdBarStyle}"></div>
+      </div>
+      <div class="pd-xp-progress-row">
+        <span>${pdXpPct}% to LVL ${pdLevel + 1}</span>
+        <span>${pdXpToNext} XP to go</span>
+      </div>
+      <div class="pd-xp-breakdown">
+        <div class="pd-xp-src-row"><span class="pd-xp-src-lbl">Matches Played</span><span class="pd-xp-src-count">${pdMatchCount} × 15</span><span class="pd-xp-src-val">+${pdMatchCount * 15}</span></div>
+        <div class="pd-xp-src-row"><span class="pd-xp-src-lbl">Wins</span><span class="pd-xp-src-count">${pdWinCount} × 25</span><span class="pd-xp-src-val">+${pdWinCount * 25}</span></div>
+        ${pdFireCount > 0 ? `<div class="pd-xp-src-row"><span class="pd-xp-src-lbl">🔥 Fire Matches</span><span class="pd-xp-src-count">${pdFireCount} × 8</span><span class="pd-xp-src-val">+${pdFireCount * 8}</span></div>` : ""}
+        ${pdDomCount > 0 ? `<div class="pd-xp-src-row"><span class="pd-xp-src-lbl">💀 Dominating Wins</span><span class="pd-xp-src-count">${pdDomCount} × 8</span><span class="pd-xp-src-val">+${pdDomCount * 8}</span></div>` : ""}
+        ${pdZeroCount > 0 ? `<div class="pd-xp-src-row"><span class="pd-xp-src-lbl">😂 Zero Wins</span><span class="pd-xp-src-count">${pdZeroCount} × 12</span><span class="pd-xp-src-val">+${pdZeroCount * 12}</span></div>` : ""}
+      </div>
+    </div>`;
+
   // ELO
   const eloMap = computeElo(allMatches);
   const playerElo = eloMap[name] || 1000;
@@ -4045,12 +4139,12 @@ function openPlayerDetail(name) {
       <span class="badge">Leaderboard Race</span>
       <div class="det-streak-row">
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rAll ? `#${rAll}` : "—"}</div>
+          <div class="det-streak-val">${rAll ? `#<span id="pd-rank-cur" data-final="${rAll}">0</span>` : "—"}</div>
           <div class="sub">Current Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rPre ? `#${rPre}` : "—"}</div>
+          <div class="det-streak-val">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">0</span>` : "—"}</div>
           <div class="sub">Last Wk. Rank</div>
         </div>
         <div class="det-streak-div"></div>
@@ -4202,9 +4296,9 @@ function openPlayerDetail(name) {
                 <div class="ana-card ov-card">
                   <div class="ov-header">
                     <div class="ov-sr-block">
-                      <div class="ov-sr-val">${s.sr.toFixed(2)}</div>
+                      <div class="ov-sr-val" id="pd-sr-val" data-final="${s.sr.toFixed(2)}">0.00</div>
                       <div class="ov-sr-lbl">Skill Rating</div>
-                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:2px">ELO <span style="color:${eloChangeCol};font-weight:700">${playerElo}</span></div>
+                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:2px">ELO <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:700">0</span></div>
                     </div>
                     <div class="ov-record-block">
                       <div class="ov-record">${s.mw}<span class="ov-record-sep">W</span>${s.ml}<span class="ov-record-sep">L</span></div>
@@ -4230,6 +4324,8 @@ function openPlayerDetail(name) {
                     </div>
                   </div>
                 </div>
+
+                ${xpCard}
 
                 <div class="ana-card">
                   <span class="badge">Streak & Form</span>
@@ -4299,6 +4395,59 @@ function openPlayerDetail(name) {
             </div>
           </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
+
+  // shared ticker helper — 45 steps over ~1s (22ms each)
+  const pdTick = (el, target, format, delay = 200) => {
+    if (!el || !target) return;
+    let cur = 0;
+    const step = target / 45;
+    const tick = () => {
+      cur = Math.min(cur + step, target);
+      el.textContent = format(cur);
+      if (cur < target) setTimeout(tick, 22);
+    };
+    setTimeout(tick, delay);
+  };
+
+  pdTick(document.getElementById("pd-sr-val"),  parseFloat(document.getElementById("pd-sr-val")?.dataset.final  || 0), (v) => v.toFixed(2));
+  pdTick(document.getElementById("pd-elo-val"),  parseInt(document.getElementById("pd-elo-val")?.dataset.final   || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-cur"), parseInt(document.getElementById("pd-rank-cur")?.dataset.final  || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-pre"), parseInt(document.getElementById("pd-rank-pre")?.dataset.final  || 0, 10), (v) => Math.round(v));
+
+  // XP level walk-through animation
+  const xpBarEl  = document.getElementById("pd-xp-bar");
+  const lvlNumEl = document.getElementById("pd-lvl-num");
+  if (xpBarEl && lvlNumEl) {
+    const finalLevel = parseInt(lvlNumEl.dataset.final, 10);
+    const finalPct   = parseInt(xpBarEl.dataset.pct, 10);
+    // Start at most 4 levels back so animation stays snappy
+    const startLevel = Math.max(0, finalLevel - 4);
+    let curLevel = startLevel;
+    lvlNumEl.textContent = startLevel;
+    xpBarEl.style.transition = "none";
+    xpBarEl.style.width = "0%";
+
+    const nextFill = () => {
+      curLevel++;
+      lvlNumEl.textContent = curLevel;
+      const isLast  = curLevel >= finalLevel;
+      const toPct   = isLast ? finalPct : 100;
+      const fillMs  = isLast ? Math.max(450, finalPct * 6) : 320;
+      // Force reflow so "none" transition takes effect before we re-enable it
+      void xpBarEl.offsetWidth;
+      xpBarEl.style.transition = `width ${fillMs}ms ease-out`;
+      xpBarEl.style.width = `${toPct}%`;
+      if (!isLast) {
+        setTimeout(() => {
+          xpBarEl.style.transition = "none";
+          xpBarEl.style.width = "0%";
+          setTimeout(nextFill, 60);
+        }, fillMs + 100);
+      }
+    };
+
+    setTimeout(nextFill, 420);
+  }
 }
 
 function openH2HDetail(a, b) {
@@ -5723,6 +5872,60 @@ function computeElo(matches) {
     });
   });
   return elo;
+}
+
+// ── XP + LEVELS ────────────────────────────────────────────
+function xpThreshold(level) {
+  if (level <= 1) return 0;
+  return Math.floor(60 * Math.pow(level - 1, 1.8));
+}
+
+function computePlayerXP(displayName) {
+  let xp = 0;
+  allMatches.forEach((m) => {
+    const inA = (m.teamA || []).some((p) => normPlayer(p) === displayName);
+    const inB = (m.teamB || []).some((p) => normPlayer(p) === displayName);
+    if (!inA && !inB) return;
+    xp += 15;
+    const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+    if (won) xp += 25;
+    if (isFireMatch(m)) xp += 8;
+    if (isDominatingMatch(m) && won) xp += 8;
+    if (isZeroMatch(m) && won) xp += 12;
+  });
+  return xp;
+}
+
+function getPlayerLevel(xp) {
+  let level = 1;
+  while (xpThreshold(level + 1) <= xp) level++;
+  const thisXp = xpThreshold(level);
+  const nextXp = xpThreshold(level + 1);
+  return { level, xp, progress: (xp - thisXp) / (nextXp - thisXp) };
+}
+
+function getPrestigeTier(level) {
+  if (level >= 20) return "diamond";
+  if (level >= 15) return "gold";
+  if (level >= 10) return "silver";
+  if (level >= 5)  return "bronze";
+  return "rookie";
+}
+
+function mkLvlBadge(displayName) {
+  const { level } = getPlayerLevel(computePlayerXP(displayName));
+  const tier = getPrestigeTier(level);
+  return `<span class="lvl-badge prestige-${tier}">LVL ${level}</span>`;
+}
+
+function mkLvlRow(displayName) {
+  const xp = computePlayerXP(displayName);
+  const { level, progress } = getPlayerLevel(xp);
+  const tier = getPrestigeTier(level);
+  const pct = Math.round(progress * 100);
+  const barClr = { diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)", gold: "#ffd700", silver: "#c0c0c0", bronze: "#cd7f32", rookie: "rgba(255,255,255,0.28)" };
+  const bg = barClr[tier].startsWith("linear") ? `background:${barClr[tier]}` : `background:${barClr[tier]}`;
+  return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">0</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
 }
 
 function computeEloHistory(matches) {
@@ -8139,8 +8342,12 @@ function openMatchIntro(idx) {
 
   document.getElementById("mio-name-a").innerHTML = nameA.replace(" & ", "<br>& ");
   document.getElementById("mio-name-b").innerHTML = nameB.replace(" & ", "<br>& ");
-  document.getElementById("mio-elo-a").textContent = `ELO ${avgElo(m.teamA)}`;
-  document.getElementById("mio-elo-b").textContent = `ELO ${avgElo(m.teamB)}`;
+  const teamAvgLvl = (players) => {
+    const levels = players.map((p) => getPlayerLevel(computePlayerXP(normPlayer(p))).level);
+    return Math.round(levels.reduce((s, l) => s + l, 0) / levels.length);
+  };
+  document.getElementById("mio-elo-a").textContent = `ELO ${avgElo(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
+  document.getElementById("mio-elo-b").textContent = `ELO ${avgElo(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
 
   const scoreAEl = document.getElementById("mio-score-a");
   const scoreBEl = document.getElementById("mio-score-b");
