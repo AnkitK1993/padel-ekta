@@ -8513,13 +8513,17 @@ select.cmp-sel option {
 }
 .snap-section-hdr {
   font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
-  padding: 8px 16px 4px;
-  border-top: 1px solid rgba(var(--theme-rgb), 0.45);
-  box-shadow: 0 -2px 8px rgba(var(--theme-rgb), 0.08);
+  color: rgba(var(--theme-rgb), 0.9);
+  padding: 0px 16px;
+  background: rgba(var(--theme-rgb), 0.07);
+  border-top: 1px solid rgba(var(--theme-rgb), 0.4);
+  border-bottom: 1px solid rgba(var(--theme-rgb), 0.4);
+  box-shadow:
+    0 -3px 12px rgba(var(--theme-rgb), 0.1),
+    0 3px 12px rgba(var(--theme-rgb), 0.1);
 }
 .snap-section-hdr-row {
   display: flex;
@@ -8537,6 +8541,10 @@ select.cmp-sel option {
   width: 100%;
   padding: 0 16px;
   box-sizing: border-box;
+}
+#pg-snapshot table.cmp thead th {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
 }
 #pg-snapshot table.cmp tbody td {
   padding-top: 6px !important;
