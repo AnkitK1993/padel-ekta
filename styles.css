@@ -682,8 +682,8 @@ body {
     holoBorder 8s ease-in-out 0.6s infinite,
     holoGlow 8s ease-in-out 0.6s infinite;
   transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.22s ease,
     border-color 0.18s ease,
     background 0.18s ease;
   will-change: transform, opacity;
@@ -708,7 +708,7 @@ body {
   pointer-events: none;
 }
 .pc:hover {
-  transform: translateY(-6px);
+  transform: translateY(-6px) scale(1.02);
   border-color: rgba(var(--theme-rgb), 0.55);
   box-shadow:
     0 20px 40px rgba(0, 0, 0, 0.4),
@@ -719,8 +719,12 @@ body {
     rgba(22, 22, 38, 0.95) 100%
   );
 }
+.pc:active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.12);
+}
 .pc.r1:hover {
-  transform: translateY(-8px);
+  transform: translateY(-8px) scale(1.02);
   border-color: rgba(255, 230, 80, 0.85);
   box-shadow:
     0 22px 44px rgba(0, 0, 0, 0.45),
@@ -731,8 +735,12 @@ body {
     rgba(16, 14, 24, 0.96) 100%
   );
 }
+.pc.r1:active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(245, 200, 66, 0.2);
+}
 .pc.r2:hover {
-  transform: translateY(-8px);
+  transform: translateY(-8px) scale(1.02);
   border-color: rgba(190, 210, 255, 0.7);
   box-shadow:
     0 22px 44px rgba(0, 0, 0, 0.42),
@@ -743,8 +751,12 @@ body {
     rgba(16, 18, 32, 0.96) 100%
   );
 }
+.pc.r2:active {
+  border-color: var(--silver);
+  box-shadow: 0 0 0 3px rgba(152, 152, 184, 0.2);
+}
 .pc.r3:hover {
-  transform: translateY(-8px);
+  transform: translateY(-8px) scale(1.02);
   border-color: rgba(230, 140, 60, 0.72);
   box-shadow:
     0 22px 44px rgba(0, 0, 0, 0.42),
@@ -754,6 +766,10 @@ body {
     rgba(20, 12, 4, 0.98) 0%,
     rgba(16, 14, 24, 0.96) 100%
   );
+}
+.pc.r3:active {
+  border-color: var(--bronze);
+  box-shadow: 0 0 0 3px rgba(196, 106, 40, 0.2);
 }
 @keyframes rowReveal {
   from {
@@ -6457,6 +6473,7 @@ table.cmp {
 }
 .home-filter-sel:hover {
   border-color: rgba(var(--theme-rgb), 0.55);
+  transform: scale(1.05);
 }
 .home-filter-sel:focus {
   border-color: var(--accent);
@@ -6488,10 +6505,12 @@ table.cmp {
     0 0 14px rgba(var(--theme-rgb), 0.08);
   transition:
     border-color 0.18s,
-    box-shadow 0.18s;
+    box-shadow 0.18s,
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .compare-btn:hover {
   border-color: rgba(var(--theme-rgb), 0.55);
+  transform: scale(1.05);
 }
 .compare-btn:active {
   border-color: var(--accent);
@@ -6517,16 +6536,36 @@ table.cmp {
 .home-dr-row input[type="date"] {
   flex: 1;
   background: var(--surface2);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(var(--theme-rgb), 0.35);
   color: var(--text);
   border-radius: 8px;
   padding: 6px 8px;
   font-size: 11px;
   font-family: "DM Sans", sans-serif;
   outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 14px rgba(var(--theme-rgb), 0.08);
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+.home-dr-row input[type="date"]:hover {
+  border-color: rgba(var(--theme-rgb), 0.55);
+}
+.home-dr-row input[type="date"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.12);
 }
 .home-dr-row .btn-go {
   flex-shrink: 0;
+  transition: box-shadow 0.18s;
+}
+.home-dr-row .btn-go:hover {
+  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.2);
+}
+.home-dr-row .btn-go:active {
+  box-shadow: 0 0 0 4px rgba(var(--theme-rgb), 0.3);
 }
 
 @media (max-width: 480px) {
@@ -10101,6 +10140,88 @@ select.cmp-sel option {
   opacity: 1;
 }
 
+/* Feature 4A: Floating ambient background */
+#ambient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.amb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  will-change: transform;
+}
+.b1 {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(24, 215, 255, 0.13) 0%, transparent 70%);
+  top: -100px;
+  left: -80px;
+  animation: ambDrift1 20s ease-in-out infinite alternate;
+}
+.b2 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(100, 60, 255, 0.11) 0%, transparent 70%);
+  top: 15%;
+  right: -60px;
+  animation: ambDrift2 25s ease-in-out infinite alternate;
+}
+.b3 {
+  width: 440px;
+  height: 440px;
+  background: radial-gradient(circle, rgba(0, 80, 200, 0.09) 0%, transparent 70%);
+  bottom: -120px;
+  left: 20%;
+  animation: ambDrift3 28s ease-in-out infinite alternate;
+}
+.b4 {
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(24, 215, 255, 0.09) 0%, transparent 70%);
+  top: 45%;
+  left: -40px;
+  animation: ambDrift4 22s ease-in-out infinite alternate;
+}
+.b5 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(98, 182, 255, 0.1) 0%, transparent 70%);
+  bottom: 8%;
+  right: -50px;
+  animation: ambDrift5 18s ease-in-out infinite alternate;
+}
+@keyframes ambDrift1 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(110px, 90px) scale(1.12); }
+}
+@keyframes ambDrift2 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-90px, 130px) scale(1.08); }
+}
+@keyframes ambDrift3 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-80px, -70px) scale(1.15); }
+}
+@keyframes ambDrift4 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(80px, 110px) scale(1.06); }
+}
+@keyframes ambDrift5 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-60px, -90px) scale(1.1); }
+}
+
+/* Feature 4B: Card tilt spring-back transition */
+.pc.tilt-reset {
+  transition:
+    transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease !important;
+}
+
 /* Feature 3: swipe blur overlay */
 #swipe-blur-overlay {
   position: fixed;
@@ -10111,4 +10232,284 @@ select.cmp-sel option {
   background: rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* ══ Universal spring-pop: filter buttons ══ */
+.hfilt,
+.tbb,
+.btn-p,
+.btn-s,
+.compare-btn,
+.home-filter-sel,
+.compact-select,
+.compact-clear-btn,
+select.cmp-sel,
+.h2h-select,
+.player-filter-select,
+.cmp-ctrl {
+  transition:
+    background 0.15s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.15s ease,
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.hfilt:hover,
+.btn-s:hover,
+.compact-select:hover,
+.compact-clear-btn:hover,
+select.cmp-sel:hover,
+.h2h-select:hover,
+.player-filter-select:hover,
+.cmp-ctrl:hover {
+  transform: scale(1.05);
+}
+.btn-p:hover {
+  transform: scale(1.05);
+}
+.tbb:hover {
+  transform: scale(1.06);
+}
+
+/* ══ Universal spring-pop: cards ══ */
+.ana-card,
+.motd-card,
+.session-summary-card,
+.mng-card,
+.mng-danger-card,
+.analytics-card,
+.pair-stats-card,
+.h2h-match-card {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease;
+}
+.ana-card:hover,
+.motd-card:hover,
+.session-summary-card:hover,
+.mng-card:hover,
+.mng-danger-card:hover,
+.analytics-card:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+.pair-stats-card:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+.h2h-match-card:hover {
+  transform: scale(1.02);
+}
+.match-card {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+.match-card:hover:not(.swiping) {
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* ══ Statistics page: section headers & award cards ══ */
+.ana-sec-hdr {
+  transition:
+    background 0.22s ease,
+    transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ana-sec-hdr:hover {
+  transform: translateX(8px);
+  background: rgba(var(--theme-rgb), 0.05);
+}
+.award-card {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+.award-card:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(var(--theme-rgb), 0.1);
+  border-color: rgba(var(--theme-rgb), 0.25);
+}
+
+/* ══════════════════════════════════════════════
+   FEATURE 5: ESPORTS COMMAND CENTER
+   ══════════════════════════════════════════════ */
+
+/* Scan-line texture overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.014) 2px,
+    rgba(0, 0, 0, 0.014) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* ── Nav bar — glass command strip ── */
+.nav {
+  background: linear-gradient(
+    180deg,
+    rgba(9, 9, 18, 0.97) 0%,
+    rgba(14, 14, 24, 0.96) 100%
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(var(--theme-rgb), 0.18);
+  box-shadow:
+    0 2px 30px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(var(--theme-rgb), 0.04);
+}
+.nav-title span {
+  text-shadow: 0 0 18px rgba(var(--theme-rgb), 0.75);
+}
+
+/* ── Tab bar — neon command bar ── */
+.tabbar {
+  background: linear-gradient(
+    180deg,
+    rgba(11, 11, 19, 0.98) 0%,
+    rgba(7, 7, 14, 0.99) 100%
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(var(--theme-rgb), 0.15);
+  box-shadow:
+    0 -8px 40px rgba(0, 0, 0, 0.55),
+    0 -1px 0 rgba(var(--theme-rgb), 0.07);
+}
+.tbb.on {
+  color: var(--accent);
+  background: linear-gradient(
+    180deg,
+    rgba(var(--theme-rgb), 0.12) 0%,
+    rgba(var(--theme-rgb), 0.03) 100%
+  );
+  border-radius: 14px;
+  box-shadow:
+    0 0 22px rgba(var(--theme-rgb), 0.18),
+    inset 0 1px 0 rgba(var(--theme-rgb), 0.22);
+  text-shadow: 0 0 10px rgba(var(--theme-rgb), 0.55);
+}
+.tbb.on .ico {
+  filter: drop-shadow(0 0 6px rgba(var(--theme-rgb), 0.75));
+}
+
+/* ── Cinematic page transitions ── */
+.page {
+  transition:
+    opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Player cards — Glassmorphism 2.0 ── */
+.pc {
+  background: linear-gradient(
+    135deg,
+    rgba(10, 10, 20, 0.93) 0%,
+    rgba(15, 13, 26, 0.89) 100%
+  );
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(var(--theme-rgb), 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(var(--theme-rgb), 0.04);
+}
+
+/* ── Ana cards — Glassmorphism 2.0 ── */
+.ana-card {
+  background: linear-gradient(
+    145deg,
+    rgba(11, 11, 21, 0.88) 0%,
+    rgba(17, 15, 28, 0.84) 100%
+  );
+  border: 1px solid rgba(var(--theme-rgb), 0.13);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(var(--theme-rgb), 0.03);
+}
+
+/* ── Ana card badges — neon gradient ── */
+.ana-card .badge {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--theme-rgb), 0.2),
+    rgba(var(--theme-rgb), 0.07)
+  );
+  border: 1px solid rgba(var(--theme-rgb), 0.28);
+  box-shadow: 0 0 12px rgba(var(--theme-rgb), 0.12);
+}
+
+/* ── Statistics section headers — neon left rail ── */
+.ana-sec-hdr {
+  border-left: 2px solid rgba(var(--theme-rgb), 0.35);
+  padding-left: 10px;
+  border-radius: 0 6px 6px 0;
+}
+.ana-sec-hdr:hover {
+  border-left-color: var(--accent);
+  box-shadow: inset 4px 0 16px rgba(var(--theme-rgb), 0.08);
+  background: rgba(var(--theme-rgb), 0.05);
+  transform: translateX(8px);
+}
+
+/* ── Home header — cinematic banner ── */
+.home-header {
+  background: linear-gradient(160deg, #070610 0%, #0e0c1e 45%, #09090f 100%);
+  border-bottom: 1px solid rgba(var(--theme-rgb), 0.14);
+}
+.home-header::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(var(--theme-rgb), 0.35) 25%,
+    var(--accent) 50%,
+    rgba(var(--theme-rgb), 0.35) 75%,
+    transparent 100%
+  );
+}
+
+/* ── Match cards — command glass ── */
+.match-card {
+  background: linear-gradient(
+    145deg,
+    rgba(13, 13, 22, 0.92) 0%,
+    rgba(17, 15, 26, 0.88) 100%
+  );
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--theme-rgb), 0.1);
+}
+
+/* ── Pair stats cards — command glass ── */
+.pair-stats-card {
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(var(--theme-rgb), 0.15);
+}
+
+/* ── Award cards — neon glass ── */
+.award-card {
+  background: linear-gradient(
+    145deg,
+    rgba(12, 12, 22, 0.88) 0%,
+    rgba(16, 14, 26, 0.84) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(var(--theme-rgb), 0.12);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }

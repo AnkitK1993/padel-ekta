@@ -62,6 +62,14 @@ function fmtDate(raw) {
 }
 
 // ── HAMBURGER MENU ─────────────────────────────────────────
+function closeHamburgerMenu() {
+  const menu = document.getElementById("hamburger-menu");
+  const btn = document.getElementById("hamburgerBtn");
+  if (!menu) return;
+  menu.classList.remove("open");
+  btn?.classList.remove("active");
+}
+
 function toggleHamburgerMenu() {
   const menu = document.getElementById("hamburger-menu");
   const btn = document.getElementById("hamburgerBtn");
@@ -542,9 +550,11 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   try {
     if (auth.currentUser) {
       await signOut(auth);
+      closeHamburgerMenu();
       return;
     }
     await signInWithPopup(auth, provider);
+    closeHamburgerMenu();
   } catch (err) {
     if (err.code === "auth/popup-blocked")
       await signInWithRedirect(auth, provider);
@@ -4150,6 +4160,7 @@ function openPlayerDetail(name) {
       : eloChange < 0
         ? "var(--red)"
         : "var(--muted)";
+  const eloRank = Object.entries(eloMap).sort((a, b) => b[1] - a[1]).findIndex(([n]) => n === name) + 1;
 
   // Badges
   const badges = computeBadges(name, s, eloMap, allMatches);
@@ -4192,6 +4203,18 @@ function openPlayerDetail(name) {
   const preWkRanked = computeStats(preWkMatches, computeElo(preWkMatches));
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
+  // Best rank: find minimum rank position across all match-date snapshots
+  const _sortedAll = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const _playerDates = [...new Set(
+    _sortedAll.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(name)).map(m => m.date)
+  )];
+  let bestRank = rAll || Infinity;
+  _playerDates.forEach(date => {
+    const snap = _sortedAll.filter(m => (m.date || "") <= date);
+    const rank = computeStats(snap, computeElo(snap)).findIndex(p => p.name === name) + 1;
+    if (rank > 0 && rank < bestRank) bestRank = rank;
+  });
+  bestRank = bestRank === Infinity ? null : bestRank;
   const raceDelta = rPre && rAll ? rPre - rAll : null;
   const raceDeltaStr =
     raceDelta === null
@@ -4220,6 +4243,11 @@ function openPlayerDetail(name) {
         <div class="det-streak-cell">
           <div class="det-streak-val">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">0</span>` : "—"}</div>
           <div class="sub">Last Wk. Rank</div>
+        </div>
+        <div class="det-streak-div"></div>
+        <div class="det-streak-cell">
+          <div class="det-streak-val" style="color:var(--gold)">${bestRank ? `#<span id="pd-rank-best" data-final="${bestRank}">0</span>` : "—"}</div>
+          <div class="sub">Best Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
@@ -4372,7 +4400,7 @@ function openPlayerDetail(name) {
                     <div class="ov-sr-block">
                       <div class="ov-sr-val" id="pd-sr-val" data-final="${s.sr.toFixed(2)}">0.00</div>
                       <div class="ov-sr-lbl">Skill Rating</div>
-                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:2px">ELO <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:700">0</span></div>
+                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:2px">ELO <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:700">0</span>${eloRank > 0 ? `<span style="margin-left:6px;font-size:9px;font-weight:800;letter-spacing:0.06em;color:var(--muted)">· #${eloRank} ELO RANK</span>` : ""}</div>
                     </div>
                     <div class="ov-record-block">
                       <div class="ov-record">${s.mw}<span class="ov-record-sep">W</span>${s.ml}<span class="ov-record-sep">L</span></div>
@@ -4485,8 +4513,9 @@ function openPlayerDetail(name) {
 
   pdTick(document.getElementById("pd-sr-val"),  parseFloat(document.getElementById("pd-sr-val")?.dataset.final  || 0), (v) => v.toFixed(2));
   pdTick(document.getElementById("pd-elo-val"),  parseInt(document.getElementById("pd-elo-val")?.dataset.final   || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-cur"), parseInt(document.getElementById("pd-rank-cur")?.dataset.final  || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-pre"), parseInt(document.getElementById("pd-rank-pre")?.dataset.final  || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-cur"),  parseInt(document.getElementById("pd-rank-cur")?.dataset.final  || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-pre"),  parseInt(document.getElementById("pd-rank-pre")?.dataset.final  || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-best"), parseInt(document.getElementById("pd-rank-best")?.dataset.final || 0, 10), (v) => Math.round(v));
 
   // XP level walk-through animation
   const xpBarEl  = document.getElementById("pd-xp-bar");
@@ -7604,9 +7633,9 @@ function renderAnalyticsPage() {
     ? `<div class="ana-card" style="padding:10px 12px">
         <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Pick two players to see win probability based on current ELO ratings.</div>
         <div class="h2h-selects" style="margin-bottom:8px">
-          <select id="eloProb-p1" class="hist-select compact-select" style="flex:1">${playersByMatches.map((p) => `<option value="${p}">${p.toUpperCase()}</option>`).join("")}</select>
+          <select id="eloProb-p1" class="hist-select compact-select" style="flex:1"><option value="" disabled selected>Select player…</option>${playersByMatches.map((p) => `<option value="${p}">${p.toUpperCase()}</option>`).join("")}</select>
           <span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span>
-          <select id="eloProb-p2" class="hist-select compact-select" style="flex:1">${playersByMatches.map((p, i) => `<option value="${p}"${i === 1 ? " selected" : ""}>${p.toUpperCase()}</option>`).join("")}</select>
+          <select id="eloProb-p2" class="hist-select compact-select" style="flex:1"><option value="" disabled selected>Select player…</option>${playersByMatches.map((p) => `<option value="${p}">${p.toUpperCase()}</option>`).join("")}</select>
         </div>
         <button class="btn-go" style="width:100%" onclick="calcEloWinProb()">CALCULATE</button>
         <div id="elo-prob-result" style="margin-top:4px"></div>
@@ -8321,6 +8350,7 @@ Object.assign(window, {
   calDayClick,
   showToast,
   toggleHamburgerMenu,
+  closeHamburgerMenu,
   openMatchIntro,
   closeMatchIntro,
 });
@@ -8488,3 +8518,50 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeMatchIntro();
 });
+
+// Feature 4B: Card tilt parallax on home leaderboard cards
+(function initCardTilt() {
+  let _tc = null; // currently tilting card
+
+  function _tApply(card, cx, cy) {
+    const r = card.getBoundingClientRect();
+    const px = (cx - r.left) / r.width;
+    const py = (cy - r.top) / r.height;
+    const rx = (py - 0.5) * 14;
+    const ry = (px - 0.5) * -14;
+    card.classList.remove("tilt-reset");
+    card.style.transition = "box-shadow 0.08s ease";
+    card.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.02)`;
+    card.style.boxShadow = `0 24px 48px rgba(0,0,0,0.55), 0 0 30px rgba(var(--theme-rgb),0.16)`;
+  }
+
+  function _tReset(card) {
+    card.classList.add("tilt-reset");
+    card.style.transform = "";
+    card.style.boxShadow = "";
+    card.style.transition = "";
+    setTimeout(() => card.classList.remove("tilt-reset"), 460);
+  }
+
+  document.addEventListener("touchstart", (e) => {
+    const card = e.target.closest(".pc");
+    if (card) _tc = card;
+  }, { passive: true });
+
+  document.addEventListener("touchmove", (e) => {
+    if (!_tc || _nd.active) {
+      if (_tc) { _tReset(_tc); _tc = null; }
+      return;
+    }
+    _tApply(_tc, e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  document.addEventListener("touchend", () => {
+    if (_tc) { _tReset(_tc); _tc = null; }
+  }, { passive: true });
+
+  document.addEventListener("touchcancel", () => {
+    if (_tc) { _tReset(_tc); _tc = null; }
+  }, { passive: true });
+
+})();
