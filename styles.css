@@ -8084,7 +8084,6 @@ select.cmp-sel option {
 .elo-bar {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.6s ease;
 }
 .elo-val {
   width: 36px;
@@ -9647,3 +9646,78 @@ select.cmp-sel option {
   cursor: pointer;
   width: 100%;
 }
+
+/* ── FEATURE 7: ANIMATED ELO LEADERBOARD ──────────────── */
+@keyframes eloBarSlide {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.elo-bar {
+  transform-origin: left center;
+  animation: eloBarSlide 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.elo-rank-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 28px;
+  flex-shrink: 0;
+}
+.elo-rank-arrow {
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1;
+  margin-top: 2px;
+  letter-spacing: 0;
+}
+.elo-rank-up   { color: var(--green); }
+.elo-rank-down { color: var(--red); }
+.elo-rank-same { color: var(--muted); font-size: 9px; }
+.elo-leaderboard-card .elo-row {
+  animation: none;
+}
+
+/* ── FEATURE 8: MATCH CARD HEAT GRADIENT ──────────────── */
+.match-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 0 0 16px 16px;
+}
+.match-card[data-margin="0"]::after,
+.match-card[data-margin="1"]::after {
+  background: linear-gradient(90deg, rgba(255, 179, 0, 0.55), rgba(255, 220, 80, 0.15));
+}
+.match-card[data-margin="2"]::after {
+  background: linear-gradient(90deg, rgba(255, 210, 60, 0.25), rgba(255, 210, 60, 0.05));
+}
+.match-card[data-margin="3"]::after {
+  background: rgba(255, 255, 255, 0.05);
+}
+.match-card[data-margin="4"]::after {
+  background: linear-gradient(90deg, rgba(180, 60, 255, 0.3), rgba(180, 60, 255, 0.08));
+}
+.match-card[data-margin="5"]::after {
+  background: linear-gradient(90deg, rgba(255, 60, 60, 0.4), rgba(200, 60, 255, 0.15));
+}
+.match-card[data-margin="6"]::after,
+.match-card[data-margin="7"]::after {
+  background: linear-gradient(90deg, rgba(255, 40, 40, 0.55), rgba(200, 40, 255, 0.2));
+}
+
+/* ── FEATURE 11: PAIR CHEMISTRY BADGE ─────────────────── */
+.pair-chem-badge {
+  font-size: 9px;
+  font-weight: 800;
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+

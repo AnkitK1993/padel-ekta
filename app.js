@@ -161,6 +161,23 @@ function checkMilestones(prevMatches, newMatches) {
       saveMilestoneEntry(`${player} entered the Top 3!`, "🥉");
     }
   });
+  // ELO threshold milestones
+  const eloThresholds = [1050, 1100, 1150, 1200, 1250, 1300];
+  if (prevMatches.length > 0) {
+    const prevEloMap = computeElo(prevMatches);
+    const newEloMap = computeElo(newMatches);
+    allPlayers.forEach((player) => {
+      const prev = prevEloMap[player] || 1000;
+      const curr = newEloMap[player] || 1000;
+      eloThresholds.forEach((t) => {
+        if (prev < t && curr >= t) {
+          const display = normPlayer(player);
+          showToast(`${display} hit ELO ${t}!`, "⚡");
+          saveMilestoneEntry(`${display} hit ELO ${t}!`, "⚡");
+        }
+      });
+    });
+  }
 }
 
 // ── STATE ──────────────────────────────────────────────────
@@ -2439,14 +2456,14 @@ function buildMatchCards(matches, showAdmin) {
         <span class="team-p1 ${winCls}">${crown}${players[0]}</span>
         <span class="team-amp">&</span>
         <span class="team-p2 ${winCls}">${players[1]}${p2Suffix}</span>
-        <div class="team-score ${scoreCls}">${score}</div>
+        <div class="team-score ${scoreCls}" data-final="${score}">0</div>
         ${rankHtml}
       </div>`;
     }
     const label = (players[0] || "") + (hasZeroEmoji ? " 😭" : "");
     return `<div class="team-block">
       <div class="team-name ${winCls}">${crown}${label}</div>
-      <div class="team-score ${scoreCls}">${score}</div>
+      <div class="team-score ${scoreCls}" data-final="${score}">0</div>
       ${rankHtml}
     </div>`;
   };
@@ -2482,7 +2499,7 @@ function buildMatchCards(matches, showAdmin) {
         ? `<div class="match-note">📝 ${m.note}</div>`
         : "";
       return `
-              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}">
+              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}" data-margin="${diff}">
                 <div class="match-card-inner">
                 <div class="match-top">
                   <span class="match-date">📅 ${fmtDate(m.date)}</span>
@@ -2591,12 +2608,12 @@ function buildMatchOfTheDay() {
               <div class="motd-teams">
                 <div class="motd-team winner">
                   <div class="motd-name">👑 ${winner}</div>
-                  <div class="motd-score win">${wScore}</div>
+                  <div class="motd-score win" data-final="${wScore}">0</div>
                 </div>
                 <div class="motd-vs">VS</div>
                 <div class="motd-team">
                   <div class="motd-name">${loser}</div>
-                  <div class="motd-score">${lScore}</div>
+                  <div class="motd-score" data-final="${lScore}">0</div>
                 </div>
               </div>
               <div class="motd-sub">${motdSub}</div>
@@ -2664,13 +2681,13 @@ function buildMatchOfTheDay() {
                 <div class="motd-teams">
                   <div class="motd-team winner">
                     <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
-                    <div class="motd-score win">${uWin}</div>
+                    <div class="motd-score win" data-final="${uWin}">0</div>
                     <div class="upset-rank">ELO #${winEloRank}</div>
                   </div>
                   <div class="motd-vs">VS</div>
                   <div class="motd-team">
                     <div class="motd-name">${loseTeam.join(" & ")}</div>
-                    <div class="motd-score">${uLose}</div>
+                    <div class="motd-score" data-final="${uLose}">0</div>
                     <div class="upset-rank">ELO #${loseEloRank} favored</div>
                   </div>
                 </div>
@@ -3200,12 +3217,30 @@ function renderModernMatches() {
       el.style.opacity = "";
       el.classList.add("card-anim");
       histList.appendChild(el);
+      el.querySelectorAll(".team-score[data-final], .motd-score[data-final]").forEach((scoreEl) => {
+        const final = parseInt(scoreEl.dataset.final, 10);
+        if (!isNaN(final) && final > 0) {
+          let cur = 0;
+          scoreEl.textContent = "0";
+          const tick = () => {
+            cur = Math.min(cur + 1, final);
+            scoreEl.textContent = cur;
+            if (cur < final) setTimeout(tick, 140);
+          };
+          setTimeout(tick, 80);
+        } else {
+          scoreEl.textContent = scoreEl.dataset.final || "0";
+        }
+      });
     }, i * 100);
   });
 
   if (instant.length) {
     setTimeout(() => {
       instant.forEach((el) => {
+        el.querySelectorAll(".team-score[data-final], .motd-score[data-final]").forEach((scoreEl) => {
+          scoreEl.textContent = scoreEl.dataset.final || "0";
+        });
         el.style.animation = "none";
         el.style.opacity = "1";
         el.style.transform = "none";
@@ -3468,10 +3503,11 @@ function renderAddMatches() {
   let matches = query
     ? allMatches.filter((m) => JSON.stringify(m).toLowerCase().includes(query))
     : [...allMatches];
-  document.getElementById("add-match-list").innerHTML = buildMatchCards(
-    matches,
-    true,
-  );
+  const addList = document.getElementById("add-match-list");
+  addList.innerHTML = buildMatchCards(matches, true);
+  addList.querySelectorAll(".team-score[data-final], .motd-score[data-final]").forEach((el) => {
+    el.textContent = el.dataset.final || "0";
+  });
 }
 
 function deleteMatchByIndex(i) {
@@ -5537,6 +5573,13 @@ function toggleAnaSection(key) {
   saveAnaCollapsed(col);
   if (key === "calendar" && !el.classList.contains("collapsed"))
     renderMatchCalendar();
+  if (key === "elo" && !el.classList.contains("collapsed")) {
+    el.querySelectorAll(".elo-bar").forEach((bar) => {
+      bar.style.animation = "none";
+      void bar.offsetWidth;
+      bar.style.animation = "";
+    });
+  }
   if (!el.classList.contains("collapsed")) {
     el.querySelectorAll(".h2h-cascade-item").forEach((item, i) => {
       item.classList.remove("card-anim");
@@ -7054,13 +7097,26 @@ function renderAnalyticsPage() {
 
   // Compute ELO rank for each pair (avg of the two players' current ELO)
   const pairEloRankMap = new Map();
-  [...Object.entries(partnerships)]
-    .map(([key, p]) => ({
-      key,
-      avgElo: p.players.reduce((s, n) => s + (eloMap[n] || 1000), 0) / p.players.length,
-    }))
+  const pairAvgEloArr = [...Object.entries(partnerships)].map(([key, p]) => ({
+    key,
+    avgElo: p.players.reduce((s, n) => s + (eloMap[n] || 1000), 0) / p.players.length,
+  }));
+  pairAvgEloArr
+    .slice()
     .sort((a, b) => b.avgElo - a.avgElo)
     .forEach(({ key }, i) => pairEloRankMap.set(key, i + 1));
+
+  // Pair chemistry score = 60% win% + 40% ELO-normalized
+  const _minPairElo = pairAvgEloArr.length ? Math.min(...pairAvgEloArr.map(x => x.avgElo)) : 1000;
+  const _maxPairElo = pairAvgEloArr.length ? Math.max(...pairAvgEloArr.map(x => x.avgElo)) : 1000;
+  const _pairEloRange = Math.max(1, _maxPairElo - _minPairElo);
+  const pairChemMap = new Map();
+  pairAvgEloArr.forEach(({ key, avgElo }) => {
+    const p = partnerships[key];
+    const winComp = p.played ? (p.wins / p.played) * 100 : 0;
+    const eloNorm = ((avgElo - _minPairElo) / _pairEloRange) * 100;
+    pairChemMap.set(key, Math.round(0.6 * winComp + 0.4 * eloNorm));
+  });
 
   const allPairsHtml = allPairsRanked.length
     ? `<div class="chem-header">
@@ -7071,6 +7127,7 @@ function renderAnalyticsPage() {
         <div class="chem-bar-wrap"></div>
         <div class="chem-pct">WIN%</div>
         <div class="chem-played">GP</div>
+        <div class="pair-chem-badge">⚡</div>
       </div>` +
       allPairsRanked
         .map(([key, p], i) => {
@@ -7082,7 +7139,9 @@ function renderAnalyticsPage() {
           const eloRankHtml = eloRank
             ? `<div class="chem-elo-rank" style="color:${eloRank <= 3 ? "var(--accent)" : "var(--muted)"}">#${eloRank}</div>`
             : `<div class="chem-elo-rank">—</div>`;
-          return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i + 1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;
+          const chemScore = pairChemMap.get(key) || 0;
+          const chemCol = chemScore >= 70 ? "var(--green)" : chemScore >= 45 ? "var(--text)" : "var(--muted)";
+          return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i + 1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${chemScore}</div></div>`;
         })
         .join("")
     : '<div class="sub" style="padding:8px">No pair data.</div>';
@@ -7202,13 +7261,14 @@ function renderAnalyticsPage() {
     allMatches.filter((m) => (m.date || "") < wkFromElo),
   );
   const eloRanked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
+  const preWkRanked = Object.entries(preWkEloMap).sort((a, b) => b[1] - a[1]);
   const maxEloVal = eloRanked[0]?.[1] || 1000;
   const minEloVal = eloRanked[eloRanked.length - 1]?.[1] || 1000;
   const eloRange = Math.max(1, maxEloVal - minEloVal);
   const eloPeaks = computeEloPeaks(allMatches);
   const eloHistoryAll = computeEloHistory(allMatches);
   const eloHtml = eloRanked.length
-    ? `<div class="ana-card" style="padding:10px 12px">${eloRanked
+    ? `<div class="ana-card elo-leaderboard-card" style="padding:10px 12px">${eloRanked
         .map(([pname, ev], i) => {
           const change = ev - (preWkEloMap[pname] || 1000);
           const changeStr =
@@ -7217,6 +7277,13 @@ function renderAnalyticsPage() {
               : change < 0
                 ? `<span style="color:var(--red)">${change}</span>`
                 : `<span style="color:var(--muted)">—</span>`;
+          const preWkRankIdx = preWkRanked.findIndex(([n]) => n === pname);
+          const rankChange = preWkRankIdx >= 0 ? (preWkRankIdx + 1) - (i + 1) : null;
+          const rankArrow = rankChange === null ? "" : rankChange > 0
+            ? `<span class="elo-rank-arrow elo-rank-up">▲${rankChange}</span>`
+            : rankChange < 0
+              ? `<span class="elo-rank-arrow elo-rank-down">▼${Math.abs(rankChange)}</span>`
+              : `<span class="elo-rank-arrow elo-rank-same">—</span>`;
           const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(0);
           const col = ev >= 1100 ? "var(--green)" : ev <= 900 ? "var(--red)" : "var(--theme)";
           const peak = eloPeaks[pname] || ev;
@@ -7231,10 +7298,10 @@ function renderAnalyticsPage() {
           const momAvg = momDeltas.length ? Math.round(momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length) : 0;
           const momStr = momAvg > 0 ? `<span style="color:var(--green);font-size:8px">↑${momAvg}</span>` : momAvg < 0 ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(momAvg)}</span>` : `<span style="color:var(--muted);font-size:8px">→</span>`;
           return `<div class="elo-row" style="gap:5px;align-items:center">
-            <div class="elo-rank">#${i + 1}</div>
+            <div class="elo-rank-col"><div class="elo-rank">#${i + 1}</div>${rankArrow}</div>
             <div style="flex:1;min-width:0">
               <div style="font-size:12px;font-weight:700;text-transform:uppercase;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pname}</div>
-              <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col}"></div></div>
+              <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col};animation-delay:${(i * 0.07).toFixed(2)}s"></div></div>
             </div>
             <div style="flex-shrink:0;width:38px;text-align:right">
               <div class="elo-val">${ev}</div>
