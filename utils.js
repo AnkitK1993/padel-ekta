@@ -266,6 +266,7 @@ body.paused-animations *{
         { name: "Neon Green", hex: "#00ff9d", r: 0, g: 255, b: 157 },
         { name: "Neon Pink", hex: "#ff2d78", r: 255, g: 45, b: 120 },
         { name: "Neon Purple", hex: "#b44dff", r: 180, g: 77, b: 255 },
+        { name: "Red", hex: "#ff3b3b", r: 255, g: 59, b: 59 },
       ];
       var _themeIdx = 0;
 
