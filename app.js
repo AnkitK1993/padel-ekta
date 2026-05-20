@@ -4208,7 +4208,7 @@ function openPlayerDetail(name) {
       <span class="badge">XP & Level</span>
       <div class="pd-xp-header">
         <span class="lvl-badge prestige-${pdTier} pd-big">LVL <span id="pd-lvl-num" data-final="${pdLevel}">0</span></span>
-        <div class="pd-xp-total">${pdXP}<span style="font-size:12px;color:var(--muted);font-weight:600;margin-left:4px">XP</span></div>
+        <div class="pd-xp-total"><span id="pd-xp-total" data-final="${pdXP}">0</span><span style="font-size:12px;color:var(--muted);font-weight:600;margin-left:4px">XP</span></div>
       </div>
       <div class="pd-xp-bar-wrap">
         <div class="pd-xp-bar" id="pd-xp-bar" data-pct="${pdXpPct}" style="width:0%;${pdBarStyle}"></div>
@@ -4588,11 +4588,12 @@ function openPlayerDetail(name) {
     setTimeout(tick, delay);
   };
 
-  pdTick(document.getElementById("pd-sr-val"),  parseFloat(document.getElementById("pd-sr-val")?.dataset.final  || 0), (v) => v.toFixed(2));
-  pdTick(document.getElementById("pd-elo-val"),  parseInt(document.getElementById("pd-elo-val")?.dataset.final   || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-cur"),  parseInt(document.getElementById("pd-rank-cur")?.dataset.final  || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-pre"),  parseInt(document.getElementById("pd-rank-pre")?.dataset.final  || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-best"), parseInt(document.getElementById("pd-rank-best")?.dataset.final || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-sr-val"),    parseFloat(document.getElementById("pd-sr-val")?.dataset.final    || 0),    (v) => v.toFixed(2));
+  pdTick(document.getElementById("pd-elo-val"),   parseInt(document.getElementById("pd-elo-val")?.dataset.final     || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-xp-total"),  parseInt(document.getElementById("pd-xp-total")?.dataset.final    || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-cur"),  parseInt(document.getElementById("pd-rank-cur")?.dataset.final    || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-pre"),  parseInt(document.getElementById("pd-rank-pre")?.dataset.final    || 0, 10), (v) => Math.round(v));
+  pdTick(document.getElementById("pd-rank-best"), parseInt(document.getElementById("pd-rank-best")?.dataset.final   || 0, 10), (v) => Math.round(v));
 
   // XP level walk-through animation
   const xpBarEl  = document.getElementById("pd-xp-bar");
@@ -4864,6 +4865,10 @@ function openSummaryScreenshot() {
   const leaderClone = leaderTableEl.cloneNode(true);
   leaderClone.querySelectorAll("[onclick]").forEach(el => el.removeAttribute("onclick"));
   leaderClone.querySelectorAll(".sort-arrow").forEach(el => el.remove());
+  // Flush SR pill values to their final number (they start at 0.00 before animation)
+  leaderClone.querySelectorAll(".sr-pill-val[data-final]").forEach(el => {
+    el.textContent = el.dataset.final;
+  });
 
   // Clone matches
   const matchTableEl = document.querySelector("#cmpMatches .cmp-match-rows");
