@@ -341,6 +341,8 @@ function _memoElo(decay = false) {
 function _invalidateEloMemo() { _eloMemoLen = -1; _eloMemo = null; }
 
 let _anaObserver = null;
+let _pairSort = { key: "winPct", dir: -1 };
+let _pairsData = [];
 
 // ── SPLASH HELPERS ─────────────────────────────────────────
 function setSplashStatus(msg) {
@@ -5647,6 +5649,61 @@ function openWeeklyDigest() {
   document.body.appendChild(overlay);
 }
 
+function _pairsHeaderHtml() {
+  const arrow = (col) => {
+    if (_pairSort.key !== col) return '<span style="opacity:0.25;font-size:7px;margin-left:2px">◇</span>';
+    return `<span style="font-size:7px;margin-left:2px">${_pairSort.dir < 0 ? "▼" : "▲"}</span>`;
+  };
+  return `<div class="chem-header">
+    <div class="chem-rank">RANK</div>
+    <div class="chem-elo-rank chem-sort-hd" onclick="sortPairsBy('eloRank')">ELO${arrow("eloRank")}</div>
+    <div class="chem-names chem-sort-hd" onclick="sortPairsBy('name')">PAIR${arrow("name")}</div>
+    <div class="chem-wl chem-sort-hd" onclick="sortPairsBy('wins')">W–L${arrow("wins")}</div>
+    <div class="chem-bar-wrap"></div>
+    <div class="chem-pct chem-sort-hd" onclick="sortPairsBy('winPct')">WIN%${arrow("winPct")}</div>
+    <div class="chem-played chem-sort-hd" onclick="sortPairsBy('played')">GP${arrow("played")}</div>
+    <div class="pair-chem-badge chem-sort-hd" onclick="sortPairsBy('chem')">⚡${arrow("chem")}</div>
+  </div>`;
+}
+
+function _pairsSortedRows() {
+  const { key, dir } = _pairSort;
+  const sorted = [..._pairsData].sort((a, b) => {
+    let av, bv;
+    if (key === "name")   { av = a.key;             bv = b.key; }
+    else if (key === "wins")    { av = a.wins;           bv = b.wins; }
+    else if (key === "winPct")  { av = a.wins / a.played; bv = b.wins / b.played; }
+    else if (key === "played")  { av = a.played;          bv = b.played; }
+    else if (key === "eloRank") { av = a.eloRank;         bv = b.eloRank; }
+    else if (key === "chem")    { av = a.chem;            bv = b.chem; }
+    else { av = a.wins / a.played; bv = b.wins / b.played; }
+    if (typeof av === "string") return dir * av.localeCompare(bv);
+    if (av !== bv) return dir < 0 ? bv - av : av - bv;
+    return b.played - a.played;
+  });
+  return sorted.map((p, i) => {
+    const pc = Math.round((p.wins / p.played) * 100);
+    const col = pc >= 60 ? "var(--green)" : pc <= 40 ? "var(--red)" : "var(--text)";
+    const chemCol = p.chem >= 70 ? "var(--green)" : p.chem >= 45 ? "var(--text)" : "var(--muted)";
+    const eloRankHtml = p.eloRank < 9999
+      ? `<div class="chem-elo-rank" style="color:${p.eloRank <= 3 ? "var(--accent)" : "var(--muted)"}">#${p.eloRank}</div>`
+      : `<div class="chem-elo-rank">—</div>`;
+    const escKey = p.key.replace(/'/g, "\\'");
+    return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i+1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${p.chem}</div></div>`;
+  }).join("");
+}
+
+function sortPairsBy(key) {
+  if (_pairSort.key === key) {
+    _pairSort.dir *= -1;
+  } else {
+    _pairSort.key = key;
+    _pairSort.dir = (key === "eloRank" || key === "name") ? 1 : -1;
+  }
+  const el = document.getElementById("all-pairs-table");
+  if (el) el.innerHTML = _pairsHeaderHtml() + _pairsSortedRows();
+}
+
 function openPairDetail(key) {
   document.getElementById("pair-detail-modal")?.remove();
   const players = key.split(" & ");
@@ -8479,32 +8536,18 @@ function renderAnalyticsPage() {
     pairChemMap.set(key, Math.round(0.6 * winComp + 0.4 * eloNorm));
   });
 
-  const allPairsHtml = allPairsRanked.length
-    ? `<div class="chem-header">
-        <div class="chem-rank">RANK</div>
-        <div class="chem-elo-rank">ELO</div>
-        <div class="chem-names">PAIR</div>
-        <div class="chem-wl">W–L</div>
-        <div class="chem-bar-wrap"></div>
-        <div class="chem-pct">WIN%</div>
-        <div class="chem-played">GP</div>
-        <div class="pair-chem-badge">⚡</div>
-      </div>` +
-      allPairsRanked
-        .map(([key, p], i) => {
-          const pc = Math.round((p.wins / p.played) * 100);
-          const col =
-            pc >= 60 ? "var(--green)" : pc <= 40 ? "var(--red)" : "var(--text)";
-          const escKey = key.replace(/'/g, "\\'");
-          const eloRank = pairEloRankMap.get(key);
-          const eloRankHtml = eloRank
-            ? `<div class="chem-elo-rank" style="color:${eloRank <= 3 ? "var(--accent)" : "var(--muted)"}">#${eloRank}</div>`
-            : `<div class="chem-elo-rank">—</div>`;
-          const chemScore = pairChemMap.get(key) || 0;
-          const chemCol = chemScore >= 70 ? "var(--green)" : chemScore >= 45 ? "var(--text)" : "var(--muted)";
-          return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i + 1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${chemScore}</div></div>`;
-        })
-        .join("")
+  _pairSort = { key: "winPct", dir: -1 };
+  _pairsData = allPairsRanked.map(([key, p]) => ({
+    key,
+    players: p.players,
+    wins: p.wins,
+    played: p.played,
+    eloRank: pairEloRankMap.get(key) || 9999,
+    chem: pairChemMap.get(key) || 0,
+  }));
+
+  const allPairsHtml = _pairsData.length
+    ? `<div id="all-pairs-table">${_pairsHeaderHtml()}${_pairsSortedRows()}</div>`
     : '<div class="sub" style="padding:8px">No pair data.</div>';
 
   const pfHtml = pairFormData.length
@@ -9597,6 +9640,7 @@ Object.assign(window, {
   computeBadges,
   openPlayerDetail,
   openPairDetail,
+  sortPairsBy,
   openH2HDetail,
   onHomeFilterChange,
   prefillMatchTADate,

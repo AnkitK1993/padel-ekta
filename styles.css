@@ -3812,6 +3812,12 @@ textarea:focus {
 }
 
 /* ── CHEMISTRY / PAIR ROWS ───────────────────── */
+.chem-sort-hd {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+.chem-sort-hd:hover { color: var(--theme) !important; }
 .chem-header {
   display: flex;
   align-items: center;
