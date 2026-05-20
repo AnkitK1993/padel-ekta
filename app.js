@@ -1299,29 +1299,11 @@ function refreshManage() {
   document.getElementById("manageInfo").innerHTML =
     `Matches: <strong>${allMatches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(aliasMap).length}</strong>`;
   renderEmailStatus();
-  renderMilestoneLog();
   renderTrash();
   renderEloConfigCard();
 }
 
-function renderMilestoneLog() {
-  const el = document.getElementById("milestone-log-list");
-  if (!el) return;
-  const log = getMilestoneLog();
-  if (!log.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px 0">No milestones yet.</div>';
-    return;
-  }
-  el.innerHTML = log.slice(0, 20).map(entry =>
-    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:16px">${entry.emoji || "🏅"}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:var(--text)">${entry.msg}</div>
-        <div style="font-size:10px;color:var(--muted)">${fmtDate(entry.date)}</div>
-      </div>
-    </div>`
-  ).join("");
-}
+
 
 // ── DATE HELPERS ───────────────────────────────────────────
 function todayISO() {
