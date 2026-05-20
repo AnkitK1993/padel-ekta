@@ -259,7 +259,7 @@
           <div class="history-nav-title">MATCHES <span>PLAYED</span></div>
           <div style="display:flex;align-items:center;gap:6px">
             <span id="hist-filter-badge" style="display:none;background:rgba(var(--theme-rgb),0.2);color:var(--theme);border:1px solid rgba(var(--theme-rgb),0.4);border-radius:20px;font-size:10px;font-weight:800;padding:2px 8px;min-width:22px;justify-content:center"></span>
-            <button id="hist-filter-clear" onclick="clearAllHistFilters()" style="display:none;height:26px;padding:0 10px;border-radius:20px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--muted);font-size:10px;font-weight:700;cursor:pointer">Clear</button>
+            <button id="hist-filter-clear" onclick="clearAllHistFilters()" style="display:none;height:26px;padding:0 12px;border-radius:20px;border:1.5px solid #c89b30;background:linear-gradient(135deg,rgba(245,200,66,0.18),rgba(200,155,48,0.12));color:#f5c842;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:0.5px">Clear ✕</button>
           </div>
         </div>
         <div class="dr-wrap" id="matchDr">
@@ -630,6 +630,16 @@ Parthiv - Par"
             <div id="milestone-log-list"></div>
           </div>
 
+          <!-- ELO Decay Config -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">⚡</span>
+              <span class="mng-card-title">ELO Decay Settings</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Controls how inactive players lose ELO over time. Changes apply immediately to Analytics rankings.</div>
+            <div id="elo-decay-config"></div>
+          </div>
+
           <!-- Danger Zone -->
           <div class="mng-danger-card">
             <div class="mng-card-header">
@@ -685,6 +695,7 @@ Parthiv - Par"
       <div class="snap-header">
         <button class="snap-back-btn" onclick="closeSnapshot()">← Back</button>
         <span class="snap-title">🎾 EKTA PADEL</span>
+        <button class="snap-share-btn" onclick="shareSnapshot()">Share 📤</button>
       </div>
       <div class="snap-content" id="snap-content"></div>
     </div>

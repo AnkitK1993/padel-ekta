@@ -9429,6 +9429,20 @@ select.cmp-sel option {
   font-weight: 800;
   color: var(--text);
   letter-spacing: 0.04em;
+  flex: 1;
+}
+.snap-share-btn {
+  background: rgba(24, 215, 255, 0.12);
+  border: 1px solid rgba(24, 215, 255, 0.4);
+  border-radius: 8px;
+  color: #18d7ff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .snap-content {
   overflow-x: hidden;

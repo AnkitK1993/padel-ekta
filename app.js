@@ -235,6 +235,70 @@ function saveDeletedMatches() {
   try { localStorage.setItem(DELETED_KEY, JSON.stringify(deletedMatches)); } catch(e) {}
 }
 
+// ── ELO DECAY CONFIG ───────────────────────────────────────
+const ELO_CFG_KEY = "elo-config";
+function loadEloConfig() {
+  try { return JSON.parse(localStorage.getItem(ELO_CFG_KEY)) || {}; } catch { return {}; }
+}
+function saveEloConfig(cfg) {
+  try { localStorage.setItem(ELO_CFG_KEY, JSON.stringify(cfg)); } catch {}
+  _invalidateEloMemo();
+}
+function getEloDecayParams() {
+  const c = loadEloConfig();
+  return {
+    perWeek:    Number(c.perWeek)    || 1,
+    graceDays:  Number(c.graceDays)  || 28,
+    maxDecay:   Number(c.maxDecay)   || 30,
+    floor:      Number(c.floor)      || 900,
+  };
+}
+function renderEloConfigCard() {
+  const p = getEloDecayParams();
+  const el = document.getElementById("elo-decay-config");
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">POINTS / WEEK</div>
+        <input id="edcfg-per-week" type="number" min="0" max="50" step="0.5"
+          value="${p.perWeek}" class="mei-input" style="width:100%">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">GRACE PERIOD (days)</div>
+        <input id="edcfg-grace" type="number" min="1" max="365"
+          value="${p.graceDays}" class="mei-input" style="width:100%">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">MAX DECAY (pts)</div>
+        <input id="edcfg-max" type="number" min="0" max="500"
+          value="${p.maxDecay}" class="mei-input" style="width:100%">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">ELO FLOOR</div>
+        <input id="edcfg-floor" type="number" min="500" max="1200"
+          value="${p.floor}" class="mei-input" style="width:100%">
+      </div>
+    </div>
+    <div id="elo-cfg-msg" style="font-size:11px;margin-bottom:6px;display:none"></div>
+    <button onclick="applyEloConfig()" style="width:100%;padding:8px;border-radius:10px;font-weight:700;font-size:12px;background:rgba(var(--theme-rgb),0.15);border:1px solid rgba(var(--theme-rgb),0.4);color:var(--theme);cursor:pointer">Save Config</button>`;
+}
+function applyEloConfig() {
+  const perWeek   = parseFloat(document.getElementById("edcfg-per-week")?.value);
+  const graceDays = parseInt(document.getElementById("edcfg-grace")?.value);
+  const maxDecay  = parseInt(document.getElementById("edcfg-max")?.value);
+  const floor     = parseInt(document.getElementById("edcfg-floor")?.value);
+  if (isNaN(perWeek) || isNaN(graceDays) || isNaN(maxDecay) || isNaN(floor)) {
+    const msg = document.getElementById("elo-cfg-msg");
+    if (msg) { msg.style.display = "block"; msg.style.color = "var(--red)"; msg.textContent = "All fields are required."; }
+    return;
+  }
+  saveEloConfig({ perWeek, graceDays, maxDecay, floor });
+  const msg = document.getElementById("elo-cfg-msg");
+  if (msg) { msg.style.display = "block"; msg.style.color = "var(--green)"; msg.textContent = "Config saved!"; setTimeout(() => msg.style.display = "none", 2000); }
+  showToast("ELO decay config saved", "⚡");
+}
+
 // ── ELO MEMO ───────────────────────────────────────────────
 let _eloMemo = null, _eloMemoLen = -1, _eloMemoDecay = false;
 function _memoElo(decay = false) {
@@ -1063,6 +1127,7 @@ function refreshManage() {
   renderEmailStatus();
   renderMilestoneLog();
   renderTrash();
+  renderEloConfigCard();
 }
 
 function renderMilestoneLog() {
@@ -2611,7 +2676,7 @@ function updateSortArrows() {
           arrow.textContent = cmpSortAsc ? "▲" : "▼";
         }
       } else {
-        arrow.textContent = key === "record" ? "W·L" : "";
+        arrow.textContent = "";
       }
       arrow.classList.toggle("active", cmpSortKey === key);
     });
@@ -2812,7 +2877,7 @@ function buildMatchCards(matches, showAdmin) {
                   ${
                     showAdmin && window.isAdmin
                       ? `<div class="match-actions">
-                    <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx})">✏ Edit</button>
+                    <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx}, this)">✏ Edit</button>
                     <button class="action-btn delete-btn" onclick="deleteMatchByIndex(${realIdx})">🗑 Del</button>
                     <button class="action-btn rematch-btn" onclick="quickRematch(${realIdx})">⚡ Rematch</button>
                   </div>`
@@ -3922,7 +3987,7 @@ function closeMatchEdit() {
   });
 }
 
-function editMatchByIndex(i) {
+function editMatchByIndex(i, btn) {
   const m = allMatches[i];
   if (!m) return;
   // If clicking the same card again, toggle closed
@@ -3975,7 +4040,9 @@ function editMatchByIndex(i) {
       <button class="mei-cancel" onclick="closeMatchEdit()">Cancel</button>
       <button class="mei-save" onclick="saveMatchEdit(${i})">Save Changes</button>
     </div>`;
-  const srcCard = document.querySelector(`.match-card[data-match-idx="${i}"]`);
+  const srcCard = btn
+    ? btn.closest(".match-card")
+    : document.querySelector(`.match-card[data-match-idx="${i}"]`);
   if (srcCard) {
     srcCard.insertAdjacentElement("afterend", el);
     srcCard.classList.add("edit-active");
@@ -5115,6 +5182,30 @@ function closeSnapshot() {
   renderCompact();
 }
 
+function shareSnapshot() {
+  const fname = {
+    all: "All Time", today: "Today", week: "This Week",
+    lastweek: "Last Week", weekend: "Weekend", month: "This Month", range: "Custom Range",
+  };
+  const filterLabel = fname[cmpFilter] || "Summary";
+  const filtered = (_cmpFiltered && _cmpFiltered.length)
+    ? _cmpFiltered : filterMatches(cmpFilter, cmpFrom, cmpTo);
+  const stats = computeStats(filtered, computeElo(filtered));
+  const sorted = [...stats].sort((a, b) => b.sr - a.sr || b.mw - a.mw);
+  const lines = [`🎾 Ekta Padel — ${filterLabel} Leaderboard`, ""];
+  sorted.forEach((p, i) => {
+    lines.push(`${i + 1}. ${p.name}  ${p.mw}W / ${p.ml}L  ·  SR ${p.sr.toFixed(2)}`);
+  });
+  const text = lines.join("\n");
+  if (navigator.share) {
+    navigator.share({ title: "Ekta Padel Leaderboard", text }).catch(() => {});
+  } else {
+    navigator.clipboard?.writeText(text)
+      .then(() => showToast("Copied to clipboard!", "📋"))
+      .catch(() => showToast("Screenshot to share", "📸"));
+  }
+}
+
 function openShareCard(name) {
   document.getElementById("share-card-overlay")?.remove();
   const detail = getPlayerDetail(name);
@@ -6166,8 +6257,7 @@ let _anaActiveCat = "all";
 
 function _togglePairForm(btn) {
   const expanded = btn.dataset.expanded === "1";
-  const rows = btn.closest(".ana-card, [style]")?.querySelectorAll?.(".pform-extra") ||
-    btn.closest("div").parentElement?.querySelectorAll(".pform-extra");
+  const rows = btn.closest(".ana-card")?.querySelectorAll(".pform-extra");
   if (!rows) return;
   rows.forEach(r => r.style.display = expanded ? "none" : "");
   btn.dataset.expanded = expanded ? "0" : "1";
@@ -6328,6 +6418,7 @@ function computeElo(matches, applyDecay = false) {
     });
   });
   if (applyDecay && sorted.length) {
+    const { perWeek, graceDays, maxDecay, floor } = getEloDecayParams();
     const today = todayISO();
     const lastSeen = {};
     sorted.forEach(m => {
@@ -6339,9 +6430,9 @@ function computeElo(matches, applyDecay = false) {
       const last = lastSeen[p];
       if (!last) return;
       const daysSince = Math.round((new Date(today) - new Date(last)) / 86400000);
-      if (daysSince > 28) {
-        const decay = Math.min(30, Math.floor((daysSince - 28) / 7));
-        elo[p] = Math.max(900, elo[p] - decay);
+      if (daysSince > graceDays) {
+        const decay = Math.min(maxDecay, Math.floor((daysSince - graceDays) / 7) * perWeek);
+        elo[p] = Math.max(floor, elo[p] - decay);
       }
     });
   }
@@ -6711,7 +6802,7 @@ function anaSearchSelect(type, key, label) {
     const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
     if (!el) return;
     if (_anaActiveCat !== "all" && el.dataset.cat !== _anaActiveCat)
-      anaFilterCategory("all");
+      anaFilterCategory("all", true);
     if (el.classList.contains("collapsed")) toggleAnaSection(key);
     setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     el.classList.remove("ana-sec-found");
@@ -8738,11 +8829,13 @@ Object.assign(window, {
   openWeeklyDigest,
   openSummaryScreenshot,
   closeSnapshot,
+  shareSnapshot,
   openScheduleModal,
   closeScheduleModal,
   saveScheduled,
   deleteScheduled,
   quickRematch,
+  applyEloConfig,
   runMatchSimulator,
   toggleMatchCalendar,
   toggleMatchesSection,
