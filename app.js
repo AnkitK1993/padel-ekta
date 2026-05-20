@@ -6265,20 +6265,24 @@ function toggleAnaSection(key) {
   saveAnaCollapsed(col);
   if (key === "calendar" && !el.classList.contains("collapsed"))
     renderMatchCalendar();
-  if (key === "elo" && !el.classList.contains("collapsed")) {
-    el.querySelectorAll(".elo-bar").forEach((bar) => {
-      bar.style.animation = "none";
-      void bar.offsetWidth;
-      bar.style.animation = "";
-    });
-  }
   if (!el.classList.contains("collapsed")) {
-    el.querySelectorAll(".h2h-cascade-item").forEach((item, i) => {
-      item.classList.remove("card-anim");
-      void item.offsetWidth;
-      item.style.animationDelay = `${50 + i * 90}ms`;
-      item.classList.add("card-anim");
+    // Staggered card slide-in for all content in the newly expanded section
+    let stagger = 0;
+    el.querySelectorAll(".ana-card, .award-card, .awards-grid, .pair-stats-card, .h2h-cascade-item").forEach((card) => {
+      card.classList.remove("card-anim");
+      void card.offsetWidth;
+      card.style.animationDelay = `${stagger * 55}ms`;
+      card.classList.add("card-anim");
+      stagger++;
     });
+    // Re-trigger ELO bars
+    if (key === "elo") {
+      el.querySelectorAll(".elo-bar").forEach((bar) => {
+        bar.style.animation = "none";
+        void bar.offsetWidth;
+        bar.style.animation = "";
+      });
+    }
   }
 }
 
@@ -6343,9 +6347,11 @@ function _reRenderAnalytics() {
   const sc = document.querySelector("#pg-analytics .page-body-scroll");
   const top = sc?.scrollTop || 0;
   renderAnalyticsPage();
-  requestAnimationFrame(() => {
-    if (sc) sc.scrollTop = top;
-  });
+  // Double RAF: first RAF queues after paint, second RAF fires after layout is stable
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const scNew = document.querySelector("#pg-analytics .page-body-scroll");
+    if (scNew) scNew.scrollTop = top;
+  }));
 }
 
 function anaHandlePointerDown(e, key) {
@@ -8795,6 +8801,8 @@ function renderAnalyticsPage() {
       ".ana-card, .award-card, .awards-grid, .ana-section-title, .pair-stats-card, .h2h-cascade-item",
     )
     .forEach((el) => {
+      // Skip elements inside collapsed sections — they animate when the section expands
+      if (el.closest(".ana-sec.collapsed")) return;
       el.style.opacity = "0";
       anaObserver.observe(el);
     });
