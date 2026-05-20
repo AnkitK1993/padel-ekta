@@ -6696,17 +6696,27 @@ let _pillPreMoveHandler = null;
 let _pillPreUpHandler = null;
 const PILL_LP_MS = 600;
 
+function _pillRemovePreListeners() {
+  const preMove = _pillPreMoveHandler;
+  const preUp   = _pillPreUpHandler;
+  _pillPreMoveHandler = null;
+  _pillPreUpHandler   = null;
+  if (preMove) document.removeEventListener("pointermove",   preMove);
+  if (preUp)   {
+    document.removeEventListener("pointerup",     preUp);
+    document.removeEventListener("pointercancel", preUp);
+  }
+  document.querySelectorAll(".ana-filter-pill.pill-long-pressing").forEach(p => p.classList.remove("pill-long-pressing"));
+}
+
 function _pillPointerDown(e, id) {
   if (e.button !== undefined && e.button !== 0) return;
-  // Cancel any previous unresolved long press
   clearTimeout(_pillLongPressTimer);
-  if (_pillPreMoveHandler) { document.removeEventListener("pointermove", _pillPreMoveHandler); _pillPreMoveHandler = null; }
-  if (_pillPreUpHandler)   { document.removeEventListener("pointerup", _pillPreUpHandler);    _pillPreUpHandler   = null; }
-  document.querySelectorAll(".ana-filter-pill.pill-long-pressing").forEach(p => p.classList.remove("pill-long-pressing"));
+  _pillRemovePreListeners();
 
-  _pillDragSrc  = id;
-  _pillStartX   = e.clientX;
-  _pillStartY   = e.clientY;
+  _pillDragSrc    = id;
+  _pillStartX     = e.clientX;
+  _pillStartY     = e.clientY;
   _pillIsDragging = false;
   _pillDragReady  = false;
   _pillPointerId  = e.pointerId;
@@ -6715,14 +6725,13 @@ function _pillPointerDown(e, id) {
   if (srcEl) { srcEl.classList.add("pill-long-pressing"); srcEl.style.setProperty("--lp-dur", PILL_LP_MS + "ms"); }
 
   _pillPreMoveHandler = (ev) => {
-    if (Math.abs(ev.clientX - _pillStartX) > 8 || Math.abs(ev.clientY - _pillStartY) > 8) {
-      _pillCancelLP(false); // scroll gesture — abort long press, don't filter
-    }
+    if (Math.abs(ev.clientX - _pillStartX) > 8 || Math.abs(ev.clientY - _pillStartY) > 8)
+      _pillCancelLP(false);
   };
-  _pillPreUpHandler = () => _pillCancelLP(true); // quick tap — activate filter
+  _pillPreUpHandler = (ev) => _pillCancelLP(ev.type !== "pointercancel");
 
-  document.addEventListener("pointermove", _pillPreMoveHandler);
-  document.addEventListener("pointerup",   _pillPreUpHandler);
+  document.addEventListener("pointermove",   _pillPreMoveHandler);
+  document.addEventListener("pointerup",     _pillPreUpHandler);
   document.addEventListener("pointercancel", _pillPreUpHandler);
 
   _pillLongPressTimer = setTimeout(_pillActivateDrag, PILL_LP_MS);
@@ -6730,24 +6739,20 @@ function _pillPointerDown(e, id) {
 
 function _pillCancelLP(isTap) {
   clearTimeout(_pillLongPressTimer);
-  if (_pillPreMoveHandler) { document.removeEventListener("pointermove",  _pillPreMoveHandler); _pillPreMoveHandler = null; }
-  if (_pillPreUpHandler)   { document.removeEventListener("pointerup",    _pillPreUpHandler);   _pillPreUpHandler   = null; }
-  document.removeEventListener("pointercancel", _pillPreUpHandler);
-  document.querySelectorAll(".ana-filter-pill.pill-long-pressing").forEach(p => p.classList.remove("pill-long-pressing"));
+  _pillRemovePreListeners();
   if (isTap && _pillDragSrc) anaFilterCategory(_pillDragSrc);
-  if (!isTap) _pillDragSrc = null; // scrolling: clear src so _activateDrag bails if timer somehow still fires
+  if (!isTap) _pillDragSrc = null;
 }
 
 function _pillActivateDrag() {
-  _pillPreMoveHandler = null;
-  _pillPreUpHandler   = null;
+  // Remove pre-phase listeners BEFORE adding drag-phase listeners
+  _pillRemovePreListeners();
   if (!_pillDragSrc) return;
   _pillDragReady = true;
   if (navigator.vibrate) navigator.vibrate(30);
 
   const srcEl = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
   if (srcEl) {
-    srcEl.classList.remove("pill-long-pressing");
     try { srcEl.setPointerCapture(_pillPointerId); } catch {}
     const rect = srcEl.getBoundingClientRect();
     _pillClone = srcEl.cloneNode(true);
@@ -6759,8 +6764,8 @@ function _pillActivateDrag() {
     document.body.appendChild(_pillClone);
     srcEl.style.opacity = "0.25";
   }
-  document.addEventListener("pointermove", _pillOnMove);
-  document.addEventListener("pointerup",   _pillOnUp);
+  document.addEventListener("pointermove",   _pillOnMove);
+  document.addEventListener("pointerup",     _pillOnUp);
   document.addEventListener("pointercancel", _pillOnUp);
 }
 
