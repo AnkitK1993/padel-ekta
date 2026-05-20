@@ -282,35 +282,45 @@ function getEloDecayParams() {
     floor:      Number(c.floor)      || 900,
   };
 }
+const ELO_DEFAULTS = { perWeek: 1, graceDays: 28, maxDecay: 30, floor: 900 };
+
 function renderEloConfigCard() {
   const p = getEloDecayParams();
+  const d = ELO_DEFAULTS;
   const el = document.getElementById("elo-decay-config");
   if (!el) return;
+  const isDefault = p.perWeek === d.perWeek && p.graceDays === d.graceDays && p.maxDecay === d.maxDecay && p.floor === d.floor;
+  const cfgRow = (id, label, val, def, min, max, step, desc) => `
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+        <span style="font-size:10px;color:var(--muted);font-weight:700">${label}</span>
+        <span style="font-size:9px;color:var(--muted)">default: ${def}</span>
+      </div>
+      <input id="${id}" type="number" min="${min}" max="${max}" step="${step || 1}" value="${val}" class="mei-input" style="width:100%">
+      <div style="font-size:9px;color:var(--muted);margin-top:3px">${desc}</div>
+    </div>`;
   el.innerHTML = `
+    <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;margin-bottom:10px;font-size:10px;color:var(--muted);line-height:1.6">
+      📉 Inactive players lose ELO over time. After <strong style="color:var(--fg)">${p.graceDays} days</strong> without a match,
+      they drop <strong style="color:var(--fg)">${p.perWeek} pt/week</strong>, capped at <strong style="color:var(--fg)">${p.maxDecay} pts total</strong>,
+      never falling below <strong style="color:var(--fg)">ELO ${p.floor}</strong>.
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">POINTS / WEEK</div>
-        <input id="edcfg-per-week" type="number" min="0" max="50" step="0.5"
-          value="${p.perWeek}" class="mei-input" style="width:100%">
-      </div>
-      <div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">GRACE PERIOD (days)</div>
-        <input id="edcfg-grace" type="number" min="1" max="365"
-          value="${p.graceDays}" class="mei-input" style="width:100%">
-      </div>
-      <div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">MAX DECAY (pts)</div>
-        <input id="edcfg-max" type="number" min="0" max="500"
-          value="${p.maxDecay}" class="mei-input" style="width:100%">
-      </div>
-      <div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">ELO FLOOR</div>
-        <input id="edcfg-floor" type="number" min="500" max="1200"
-          value="${p.floor}" class="mei-input" style="width:100%">
-      </div>
+      ${cfgRow("edcfg-per-week","POINTS / WEEK",p.perWeek,d.perWeek,0,50,0.5,"ELO lost each week of inactivity")}
+      ${cfgRow("edcfg-grace","GRACE PERIOD (days)",p.graceDays,d.graceDays,1,365,1,"Days without play before decay starts")}
+      ${cfgRow("edcfg-max","MAX DECAY (pts)",p.maxDecay,d.maxDecay,0,500,1,"Maximum total ELO loss from decay")}
+      ${cfgRow("edcfg-floor","ELO FLOOR",p.floor,d.floor,500,1200,1,"ELO cannot drop below this value")}
     </div>
     <div id="elo-cfg-msg" style="font-size:11px;margin-bottom:6px;display:none"></div>
-    <button onclick="applyEloConfig()" style="width:100%;padding:8px;border-radius:10px;font-weight:700;font-size:12px;background:rgba(var(--theme-rgb),0.15);border:1px solid rgba(var(--theme-rgb),0.4);color:var(--theme);cursor:pointer">Save Config</button>`;
+    <div style="display:flex;gap:8px">
+      <button onclick="applyEloConfig()" style="flex:1;padding:8px;border-radius:10px;font-weight:700;font-size:12px;background:rgba(var(--theme-rgb),0.15);border:1px solid rgba(var(--theme-rgb),0.4);color:var(--theme);cursor:pointer">Save</button>
+      ${!isDefault ? `<button onclick="resetEloConfig()" style="padding:8px 12px;border-radius:10px;font-weight:700;font-size:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--muted);cursor:pointer">Reset Defaults</button>` : ""}
+    </div>`;
+}
+function resetEloConfig() {
+  saveEloConfig(ELO_DEFAULTS);
+  renderEloConfigCard();
+  showToast("Reset to defaults", "↺");
 }
 function applyEloConfig() {
   const perWeek   = parseFloat(document.getElementById("edcfg-per-week")?.value);
@@ -343,6 +353,7 @@ function _invalidateEloMemo() { _eloMemoLen = -1; _eloMemo = null; }
 let _anaObserver = null;
 let _pairSort = { key: "winPct", dir: -1 };
 let _pairsData = [];
+let _pairsShowAll = false;
 
 // ── SPLASH HELPERS ─────────────────────────────────────────
 function setSplashStatus(msg) {
@@ -1285,6 +1296,7 @@ function switchITab(id) {
   document.getElementById("fab").style.display =
     id !== "manage" && window.isAdmin ? "flex" : "none";
   if (id === "manage") {
+    applyMngOrder();
     refreshManage();
     document
       .querySelectorAll("#ip-manage .mng-card, #ip-manage .mng-danger-card")
@@ -1298,6 +1310,77 @@ function switchITab(id) {
   if (id === "names") renderNamesTable();
   if (id === "matches") prefillMatchTADate();
 }
+
+// ── MANAGE CARD REORDER ─────────────────────────────────────
+const MNG_ORDER_KEY = "mng-card-order";
+let _mngReorderActive = false;
+let _mngDragSrc = null;
+
+function _saveMngOrder() {
+  const ids = Array.from(document.querySelectorAll("#mng-cards-container .mng-card[data-card-id]")).map(c => c.dataset.cardId);
+  try { localStorage.setItem(MNG_ORDER_KEY, JSON.stringify(ids)); } catch {}
+}
+
+function applyMngOrder() {
+  let order;
+  try { order = JSON.parse(localStorage.getItem(MNG_ORDER_KEY)); } catch {}
+  if (!Array.isArray(order)) return;
+  const container = document.getElementById("mng-cards-container");
+  if (!container) return;
+  order.forEach(id => {
+    const card = container.querySelector(`.mng-card[data-card-id="${id}"]`);
+    if (card) container.appendChild(card);
+  });
+}
+
+function toggleManageReorder() {
+  _mngReorderActive = !_mngReorderActive;
+  const container = document.getElementById("mng-cards-container");
+  const btn = document.getElementById("mng-reorder-btn");
+  if (!container) return;
+  container.classList.toggle("mng-reorder-active", _mngReorderActive);
+  if (btn) {
+    btn.textContent = _mngReorderActive ? "✓ DONE" : "⠿ REORDER";
+    btn.style.color = _mngReorderActive ? "var(--theme)" : "var(--muted)";
+    btn.style.borderColor = _mngReorderActive ? "rgba(var(--theme-rgb),0.4)" : "rgba(255,255,255,0.1)";
+  }
+  if (_mngReorderActive) {
+    container.querySelectorAll(".mng-card[data-card-id]").forEach(card => {
+      card.setAttribute("draggable", "true");
+      card.addEventListener("dragstart", _mngDragStart);
+      card.addEventListener("dragover", _mngDragOver);
+      card.addEventListener("dragleave", _mngDragLeave);
+      card.addEventListener("drop", _mngDrop);
+      card.addEventListener("dragend", _mngDragEnd);
+    });
+  } else {
+    _saveMngOrder();
+    container.querySelectorAll(".mng-card[data-card-id]").forEach(card => {
+      card.removeAttribute("draggable");
+      card.removeEventListener("dragstart", _mngDragStart);
+      card.removeEventListener("dragover", _mngDragOver);
+      card.removeEventListener("dragleave", _mngDragLeave);
+      card.removeEventListener("drop", _mngDrop);
+      card.removeEventListener("dragend", _mngDragEnd);
+    });
+  }
+}
+
+function _mngDragStart(e) { _mngDragSrc = this; this.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; }
+function _mngDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; this.classList.add("drag-over"); }
+function _mngDragLeave() { this.classList.remove("drag-over"); }
+function _mngDrop(e) {
+  e.preventDefault();
+  this.classList.remove("drag-over");
+  if (!_mngDragSrc || _mngDragSrc === this) return;
+  const container = document.getElementById("mng-cards-container");
+  const cards = Array.from(container.querySelectorAll(".mng-card[data-card-id]"));
+  const srcIdx = cards.indexOf(_mngDragSrc);
+  const tgtIdx = cards.indexOf(this);
+  if (srcIdx < tgtIdx) container.insertBefore(_mngDragSrc, this.nextSibling);
+  else container.insertBefore(_mngDragSrc, this);
+}
+function _mngDragEnd() { this.classList.remove("dragging"); document.querySelectorAll(".mng-card").forEach(c => c.classList.remove("drag-over")); _mngDragSrc = null; }
 
 function refreshManage() {
   const days = new Set(allMatches.map((m) => m.date)).size;
@@ -2494,17 +2577,10 @@ function renderHome() {
     return;
   }
 
-  // Session streak badge
+  // Session streak badge (hidden per design)
   const streak = computeSessionStreak();
   const streakEl = document.getElementById("session-streak-badge");
-  if (streakEl) {
-    if (streak >= 2) {
-      streakEl.style.display = "block";
-      streakEl.innerHTML = `<div class="session-streak-pill">🔥 <strong>${streak} weeks</strong> in a row!</div>`;
-    } else {
-      streakEl.style.display = "none";
-    }
-  }
+  if (streakEl) streakEl.style.display = "none";
   const maxSR = stats[0].sr || 1;
   const homeEloMap = homeEloMapFull;
 
@@ -3806,7 +3882,6 @@ function _updateHistFilterBadge() {
 }
 
 function clearAllHistFilters() {
-  matchTabFilter = "today";
   histPlayerFilter = "";
   histOutcomeFilter = "all";
   histMarginFilter = "all";
@@ -3823,7 +3898,7 @@ function clearAllHistFilters() {
   _updateFilterBtnDisplay();
   _updateH2HSlotDisplay();
   populateHistoryPlayerChips();
-  renderModernMatches();
+  filterMatchTab("today"); // also clears date range inputs and hides matchDr
 }
 
 function populateHistoryPlayerChips() {
@@ -3958,6 +4033,29 @@ function selectFilterItem(value) {
   closeFilterSheet();
   if (mode === "player") setHistPlayerFilter(value);
   else if (mode === "pair") setHistPairFilter(value);
+  else if (mode === "digestplayer") renderDigestCard(undefined, value);
+  else if (mode === "whatifplayer") {
+    renderWhatIfSection(value);
+    const btn = document.getElementById("whatif-player-fab");
+    if (btn) { btn.querySelector(".whatif-fab-label").textContent = value || "SELECT PLAYER"; btn.classList.toggle("filter-fab-active", !!value); }
+  }
+  else if (mode === "eloprobp1") { _eloProbP1 = value; _updateEloProbSlots(); }
+  else if (mode === "eloprobp2") { _eloProbP2 = value; _updateEloProbSlots(); }
+  else if (mode === "cmpplayerA") { _cmpPlayerA = value; _updateCmpSlots(); }
+  else if (mode === "cmpplayerB") { _cmpPlayerB = value; _updateCmpSlots(); }
+}
+
+function _updateCmpSlots() {
+  const aBtn = document.getElementById("cmpSlotA");
+  const bBtn = document.getElementById("cmpSlotB");
+  if (aBtn) {
+    document.getElementById("cmpLabelA").textContent = _cmpPlayerA || "P1";
+    aBtn.classList.toggle("h2h-slot-filled", !!_cmpPlayerA);
+  }
+  if (bBtn) {
+    document.getElementById("cmpLabelB").textContent = _cmpPlayerB || "P2";
+    bBtn.classList.toggle("h2h-slot-filled", !!_cmpPlayerB);
+  }
 }
 
 function _updateH2HSlotDisplay() {
@@ -4890,6 +4988,8 @@ function openPlayerDetail(name) {
           : "var(--muted)";
     const peakElo = Math.max(...pts.map((p) => p.elo));
     const peakPt = pts.find((p) => p.elo === peakElo);
+    const valleyElo = Math.min(...pts.map((p) => p.elo));
+    const valleyPt = pts.find((p) => p.elo === valleyElo);
     const fromPeak = lastElo - peakElo;
     const fromPeakLabel = fromPeak === 0
       ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
@@ -4899,9 +4999,13 @@ function openPlayerDetail(name) {
         <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
         <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO total</div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:9px;color:var(--muted)">All-time high: <span style="color:var(--green);font-weight:800;font-size:11px">${peakElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:9px;color:var(--muted)">▲ Peak: <span style="color:var(--green);font-weight:800;font-size:11px">${peakElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
         <div style="font-size:9px">${fromPeakLabel}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:9px;color:var(--muted)">▼ Low: <span style="color:var(--red);font-weight:800;font-size:11px">${valleyElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(valleyPt?.date)})</span></div>
+        <div style="font-size:9px;color:var(--muted)">Range: <span style="font-weight:700;color:var(--fg)">${peakElo - valleyElo}</span></div>
       </div>
       <div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
         ${yLines}
@@ -5495,6 +5599,93 @@ function openShareCard(name) {
   document.body.appendChild(overlay);
 }
 
+let _digestFilter = "week";
+let _digestPlayer = "";
+
+function _digestMatches(filter, player) {
+  const today = todayISO();
+  const { from: wkFrom, to: wkTo } = lastWeekRange();
+  const { from: mFrom } = (() => {
+    const d = new Date(); d.setDate(1);
+    return { from: d.toISOString().slice(0, 10) };
+  })();
+  let base;
+  if (filter === "week") {
+    const wStart = weekISO();
+    base = allMatches.filter(m => (m.date || "") >= wStart && (m.date || "") <= today);
+    if (base.length < 2) base = allMatches.filter(m => (m.date || "") >= wkFrom && (m.date || "") <= wkTo);
+  } else if (filter === "lastweek") {
+    base = allMatches.filter(m => (m.date || "") >= wkFrom && (m.date || "") <= wkTo);
+  } else if (filter === "month") {
+    base = allMatches.filter(m => (m.date || "") >= mFrom && (m.date || "") <= today);
+  } else {
+    base = allMatches;
+  }
+  if (player) base = base.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(player));
+  return base;
+}
+
+function _buildDigestContent(filter, player) {
+  const ms = _digestMatches(filter, player);
+  const accentCol = "var(--theme)";
+  if (ms.length < 2) return `<div class="sub" style="padding:16px;text-align:center">Not enough matches for selected filter.</div>`;
+  const eloNow = computeElo(allMatches);
+  const eloAt = computeElo(allMatches.filter(m => {
+    const base = filter === "week" ? weekISO() : filter === "lastweek" ? lastWeekRange().from : filter === "month" ? (() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); })() : "0000-00-00";
+    return (m.date || "") < base;
+  }));
+  const stats = computeStats(ms, computeElo(ms));
+  const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
+  const mover = Object.keys(eloNow).map(p => ({ name: p, gain: (eloNow[p] || 1000) - (eloAt[p] || 1000) })).filter(p => ms.some(m => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))).sort((a, b) => b.gain - a.gain)[0];
+  const hotPlayer = stats.filter(p => p.curType === "W" && p.curStreak >= 2).sort((a, b) => b.curStreak - a.curStreak)[0];
+  const wkPairs = getPairStats(ms).filter(p => p.played >= 2)[0];
+  const players = [...new Set(ms.flatMap(m => [...(m.teamA || []), ...(m.teamB || [])]))];
+  const labelMap = { week: "This Week", lastweek: "Last Week", month: "This Month", all: "All Time" };
+  const statRow = (icon, lbl, val, sub) =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <div style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase">${lbl}</div><div style="font-size:13px;font-weight:900;color:var(--text);margin-top:1px">${val || "—"}</div></div>
+      <div style="font-size:10px;color:var(--muted);text-align:right;flex-shrink:0">${sub || ""}</div>
+    </div>`;
+  return `<div style="padding:0">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${ms.length} matches · ${players.length} players${player ? ` · ${player}` : ""}</div>
+    ${topWinner ? statRow("🏆", "Most Wins", topWinner.name, `${topWinner.mw}W–${topWinner.ml}L`) : ""}
+    ${mover ? statRow("⚡", "Biggest ELO Gain", mover.name, `+${mover.gain > 0 ? mover.gain : 0}`) : ""}
+    ${hotPlayer ? statRow("🔥", "Hot Streak", hotPlayer.name, `${hotPlayer.curStreak} in a row`) : ""}
+    ${wkPairs ? statRow("🤝", "Best Pair", wkPairs.players.join(" & "), `${wkPairs.wins}W ${wkPairs.winPct}%`) : ""}
+    ${stats[0] ? statRow("📊", "Top Performer", stats[0].name, `SR ${stats[0].sr.toFixed(2)}`) : ""}
+  </div>`;
+}
+
+function renderDigestCard(filter, player) {
+  _digestFilter = filter || _digestFilter;
+  _digestPlayer = player !== undefined ? player : _digestPlayer;
+  const content = document.getElementById("digest-content");
+  if (content) content.innerHTML = _buildDigestContent(_digestFilter, _digestPlayer);
+  // Update active filter button
+  document.querySelectorAll(".digest-filter-btn").forEach(b => b.classList.toggle("active", b.dataset.f === _digestFilter));
+  // Update player label
+  const lbl = document.getElementById("digest-player-label");
+  if (lbl) lbl.textContent = _digestPlayer || "ALL PLAYERS";
+  const btn = document.getElementById("digest-player-btn");
+  if (btn) btn.classList.toggle("filter-fab-active", !!_digestPlayer);
+}
+
+function openDigestPlayerSheet() {
+  _filterSheetMode = "digestplayer";
+  const el = document.getElementById("filter-sheet-title");
+  if (el) el.textContent = "SELECT PLAYER";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const players = computeStats(allMatches).map(s => s.name);
+  list.innerHTML = `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
+    players.map(p => `<div class="live-sheet-item" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`).join("");
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet = document.getElementById("filter-sheet");
+  if (overlay) overlay.classList.add("live-sheet-open");
+  if (sheet) sheet.classList.add("live-sheet-open");
+}
+
 function openWeeklyDigest() {
   document.getElementById("share-card-overlay")?.remove();
   const { from: wkFrom, to: wkTo } = lastWeekRange();
@@ -5666,6 +5857,7 @@ function _pairsHeaderHtml() {
   </div>`;
 }
 
+const PAIRS_PAGE_LIMIT = 15;
 function _pairsSortedRows() {
   const { key, dir } = _pairSort;
   const sorted = [..._pairsData].sort((a, b) => {
@@ -5681,7 +5873,9 @@ function _pairsSortedRows() {
     if (av !== bv) return dir < 0 ? bv - av : av - bv;
     return b.played - a.played;
   });
-  return sorted.map((p, i) => {
+  const toShow = _pairsShowAll ? sorted : sorted.slice(0, PAIRS_PAGE_LIMIT);
+  const moreCount = sorted.length - PAIRS_PAGE_LIMIT;
+  const rowsHtml = toShow.map((p, i) => {
     const pc = Math.round((p.wins / p.played) * 100);
     const col = pc >= 60 ? "var(--green)" : pc <= 40 ? "var(--red)" : "var(--text)";
     const chemCol = p.chem >= 70 ? "var(--green)" : p.chem >= 45 ? "var(--text)" : "var(--muted)";
@@ -5691,6 +5885,15 @@ function _pairsSortedRows() {
     const escKey = p.key.replace(/'/g, "\\'");
     return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i+1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${p.chem}</div></div>`;
   }).join("");
+  const showMoreHtml = (!_pairsShowAll && moreCount > 0)
+    ? `<div onclick="_showAllPairs()" style="text-align:center;padding:10px;font-size:11px;font-weight:700;color:var(--theme);cursor:pointer;border-top:1px solid var(--border)">SHOW ${moreCount} MORE ▼</div>`
+    : "";
+  return rowsHtml + showMoreHtml;
+}
+function _showAllPairs() {
+  _pairsShowAll = true;
+  const el = document.getElementById("all-pairs-table");
+  if (el) el.innerHTML = _pairsHeaderHtml() + _pairsSortedRows();
 }
 
 function sortPairsBy(key) {
@@ -5702,6 +5905,63 @@ function sortPairsBy(key) {
   }
   const el = document.getElementById("all-pairs-table");
   if (el) el.innerHTML = _pairsHeaderHtml() + _pairsSortedRows();
+}
+
+function openSessionHighlights(date) {
+  document.getElementById("session-highlights-modal")?.remove();
+  const sessionMs = allMatches.filter(m => m.date === date);
+  if (!sessionMs.length) return;
+  const sortedMs = [...sessionMs].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const players = [...new Set(sortedMs.flatMap(m => [...(m.teamA || []), ...(m.teamB || [])]))];
+  const eloAfter = computeElo(allMatches.filter(m => (m.date || "") <= date));
+  const eloBefore = computeElo(allMatches.filter(m => (m.date || "") < date));
+  const gains = players.map(p => ({ name: p, delta: (eloAfter[p] || 1000) - (eloBefore[p] || 1000) })).sort((a, b) => b.delta - a.delta);
+  const winsMap = {};
+  sortedMs.forEach(m => {
+    const aWon = m.scoreA > m.scoreB;
+    (aWon ? m.teamA : m.teamB).forEach(p => { winsMap[p] = (winsMap[p] || 0) + 1; });
+  });
+  const mvp = players.reduce((best, p) => (winsMap[p] || 0) > (winsMap[best] || 0) ? p : best, players[0]);
+  const biggestGame = sortedMs.reduce((big, m) => (m.scoreA + m.scoreB) > ((big?.scoreA || 0) + (big?.scoreB || 0)) ? m : big, null);
+  const closest = sortedMs.filter(m => Math.abs(m.scoreA - m.scoreB) <= 1).sort(() => Math.random() - 0.5)[0];
+  const matchRows = sortedMs.map(m => {
+    const aWon = m.scoreA > m.scoreB;
+    const winCol = "var(--green)"; const loseCol = "rgba(255,255,255,0.3)";
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:${aWon ? winCol : loseCol}">${m.teamA.map(p => p.split(" ")[0]).join(" & ")}</div>
+      <div style="font-size:14px;font-weight:900;letter-spacing:0.08em">${m.scoreA}–${m.scoreB}</div>
+      <div style="font-size:11px;font-weight:700;text-align:right;color:${!aWon ? winCol : loseCol}">${m.teamB.map(p => p.split(" ")[0]).join(" & ")}</div>
+    </div>`;
+  }).join("");
+  const gainRows = gains.map(g => {
+    const col = g.delta > 0 ? "var(--green)" : g.delta < 0 ? "var(--red)" : "var(--muted)";
+    const sign = g.delta > 0 ? "+" : "";
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
+      <span style="font-size:11px;font-weight:700">${g.name}</span>
+      <span style="font-size:12px;font-weight:800;color:${col}">${sign}${g.delta}</span>
+    </div>`;
+  }).join("");
+  const overlay = document.createElement("div");
+  overlay.id = "session-highlights-modal";
+  overlay.style.cssText = "position:fixed;inset:0;z-index:9900;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center";
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 16px 40px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:900;letter-spacing:0.04em">📋 ${fmtDate(date).toUpperCase()}</div>
+      <button onclick="document.getElementById('session-highlights-modal').remove()" style="background:rgba(255,255,255,0.06);border:none;color:var(--muted);font-size:14px;border-radius:8px;width:28px;height:28px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:14px;font-weight:800;color:var(--theme)">${sortedMs.length}</div><div style="font-size:9px;color:var(--muted);font-weight:700">MATCHES</div></div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:14px;font-weight:800;color:var(--theme)">${players.length}</div><div style="font-size:9px;color:var(--muted);font-weight:700">PLAYERS</div></div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:11px;font-weight:800;color:var(--accent)">${mvp}</div><div style="font-size:9px;color:var(--muted);font-weight:700">🏆 MVP</div></div>
+    </div>
+    ${closest ? `<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">🔥 CLOSEST GAME</div><div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700">${closest.teamA.map(p=>p.split(" ")[0]).join("&")} ${closest.scoreA}–${closest.scoreB} ${closest.teamB.map(p=>p.split(" ")[0]).join("&")}</div>` : ""}
+    <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">ALL MATCHES</div>
+    <div style="margin-bottom:12px">${matchRows}</div>
+    <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">⚡ ELO CHANGES</div>
+    <div>${gainRows}</div>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 
 function openPairDetail(key) {
@@ -6118,6 +6378,64 @@ const CMP_DATE_OPTS = [
   { v: "month", l: "THIS MONTH" },
 ];
 
+let _cmpPlayerA = "";
+let _cmpPlayerB = "";
+let _cmpDateFilter = "all";
+
+function _cmpSelectorHtml() {
+  const datePills = CMP_DATE_OPTS.map(o =>
+    `<button class="digest-filter-btn${o.v === _cmpDateFilter ? " active" : ""}" onclick="_cmpSetDate('${o.v}')">${o.l}</button>`
+  ).join("");
+  return `
+    <div class="cmp-inline-selectors">
+      <button class="h2h-slot-btn${_cmpPlayerA ? " h2h-slot-filled" : ""}" id="cmpSlotA" onclick="openCmpSheet('A')" style="flex:1">
+        <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 1</span>
+        <span id="cmpLabelA" style="font-size:12px;font-weight:800">${_cmpPlayerA || "P1"}</span>
+      </button>
+      <span class="cmp-inline-vs">VS</span>
+      <button class="h2h-slot-btn${_cmpPlayerB ? " h2h-slot-filled" : ""}" id="cmpSlotB" onclick="openCmpSheet('B')" style="flex:1">
+        <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 2</span>
+        <span id="cmpLabelB" style="font-size:12px;font-weight:800">${_cmpPlayerB || "P2"}</span>
+      </button>
+    </div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0">${datePills}</div>
+    <button class="cmp-ctrl cmp-full" onclick="triggerCompare()">COMPARE</button>`;
+}
+
+function openCmpSheet(slot) {
+  _filterSheetMode = slot === "A" ? "cmpplayerA" : "cmpplayerB";
+  const el = document.getElementById("filter-sheet-title");
+  if (el) el.textContent = slot === "A" ? "SELECT P1" : "SELECT P2";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const taken = slot === "A" ? _cmpPlayerB : _cmpPlayerA;
+  const selected = slot === "A" ? _cmpPlayerA : _cmpPlayerB;
+  const players = computeStats(allMatches).map(s => s.name).sort((a, b) => a.localeCompare(b));
+  list.innerHTML = players.map(p => {
+    const disabled = p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
+    const sel = p === selected ? " live-sheet-item-selected" : "";
+    return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+      <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
+      <span>${p}</span></div>`;
+  }).join("");
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet = document.getElementById("filter-sheet");
+  if (overlay) overlay.classList.add("live-sheet-open");
+  if (sheet) sheet.classList.add("live-sheet-open");
+}
+
+function _cmpSetDate(v) {
+  _cmpDateFilter = v;
+  document.querySelectorAll("#compare-card .digest-filter-btn").forEach(b => b.classList.toggle("active", b.textContent.toLowerCase().includes(v) || (v === "all" && b.textContent === "ALL TIME")));
+  // Re-render date pills with correct active state
+  const card = document.getElementById("compare-card");
+  if (!card) return;
+  card.querySelectorAll(".digest-filter-btn").forEach(b => {
+    const match = CMP_DATE_OPTS.find(o => o.l === b.textContent);
+    if (match) b.classList.toggle("active", match.v === v);
+  });
+}
+
 function cmpDateOptsHtml(selected = "all") {
   return CMP_DATE_OPTS.map(
     (o) =>
@@ -6126,9 +6444,9 @@ function cmpDateOptsHtml(selected = "all") {
 }
 
 function triggerCompare() {
-  const a = document.getElementById("cmpSelA")?.value;
-  const b = document.getElementById("cmpSelB")?.value;
-  const dateF = document.getElementById("cmpDateSel")?.value || "all";
+  const a = _cmpPlayerA;
+  const b = _cmpPlayerB;
+  const dateF = _cmpDateFilter || "all";
   if (!a || !b || a === b) {
     showToast("Select two different players", "⚠️", 2000);
     return;
@@ -6191,23 +6509,12 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     .map((r) => `<span class="form-dot ${r === "W" ? "w" : "l"}">${r}</span>`)
     .join("");
 
-  // Use all-matches player list for dropdowns so they're never empty
-  const allPlayers = computeStats(allMatches).map((s) => s.name);
-  const opts = allPlayers
-    .map(
-      (p) =>
-        `<option value="${p}"${p === nameA ? " selected" : ""}>${p}</option>`,
-    )
-    .join("");
-  const optsB = allPlayers
-    .map(
-      (p) =>
-        `<option value="${p}"${p === nameB ? " selected" : ""}>${p}</option>`,
-    )
-    .join("");
   const noData = (n) =>
     `<span style="color:var(--muted);font-size:11px">${n} — no data for this period</span>`;
 
+  _cmpPlayerA = nameA;
+  _cmpPlayerB = nameB;
+  _cmpDateFilter = dateFilter;
   card.dataset.mode = "result";
   card.style.display = "block";
   card.innerHTML = `
@@ -6216,13 +6523,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
         <span class="cmp-inline-title">⚡ Compare Players</span>
         <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
       </div>
-      <div class="cmp-inline-selectors">
-        <select id="cmpSelA" class="cmp-ctrl cmp-player">${opts}</select>
-        <span class="cmp-inline-vs">VS</span>
-        <select id="cmpSelB" class="cmp-ctrl cmp-player">${optsB}</select>
-      </div>
-      <select id="cmpDateSel" class="cmp-ctrl cmp-full">${cmpDateOptsHtml(dateFilter)}</select>
-      <button class="cmp-ctrl cmp-full" onclick="triggerCompare()">COMPARE</button>
+      ${_cmpSelectorHtml()}
       ${
         !sA || !sB
           ? `<div style="padding:12px 0;color:var(--muted);font-size:12px;text-align:center">${!sA ? noData(nameA) : ""}${!sB ? noData(nameB) : ""}</div>`
@@ -6271,6 +6572,9 @@ function renderCompareSelector() {
   const optsB =
     `<option value="">P2</option>` +
     players.map((p) => `<option value="${p}">${p}</option>`).join("");
+  _cmpPlayerA = "";
+  _cmpPlayerB = "";
+  _cmpDateFilter = "all";
   card.dataset.mode = "selector";
   card.style.display = "block";
   card.innerHTML = `
@@ -6279,13 +6583,7 @@ function renderCompareSelector() {
         <span class="cmp-inline-title">⚡ Compare Players</span>
         <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
       </div>
-      <div class="cmp-inline-selectors">
-        <select id="cmpSelA" class="cmp-ctrl cmp-player">${opts}</select>
-        <span class="cmp-inline-vs">VS</span>
-        <select id="cmpSelB" class="cmp-ctrl cmp-player">${optsB}</select>
-      </div>
-      <select id="cmpDateSel" class="cmp-ctrl cmp-full">${cmpDateOptsHtml()}</select>
-      <button class="cmp-ctrl cmp-full" onclick="triggerCompare()">COMPARE</button>
+      ${_cmpSelectorHtml()}
     </div>`;
 }
 
@@ -7200,6 +7498,31 @@ function computeBadges(name, stats, eloMap, allMatchesArr) {
   return badges;
 }
 
+function _partnerTab(btn, tab) {
+  const panels = ["chemistry", "partners", "synergy", "form"];
+  panels.forEach(t => {
+    const el = document.getElementById(`partner-tab-${t}`);
+    if (el) el.style.display = t === tab ? "" : "none";
+  });
+  btn.closest(".partner-tabs")?.querySelectorAll(".partner-tab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+function _simSync(changed) {
+  const ids = ["simA1", "simA2", "simB1", "simB2"];
+  const selected = ids.map(id => document.getElementById(id)?.value).filter(Boolean);
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el === changed) return;
+    const cur = el.value;
+    const otherSelected = ids.filter(i => i !== id).map(i => document.getElementById(i)?.value).filter(Boolean);
+    Array.from(el.options).forEach(opt => {
+      opt.disabled = opt.value && otherSelected.includes(opt.value);
+    });
+    if (otherSelected.includes(cur)) { el.value = ""; }
+  });
+}
+
 function runMatchSimulator() {
   const a1 = document.getElementById("simA1")?.value;
   const a2 = document.getElementById("simA2")?.value;
@@ -7501,9 +7824,65 @@ function showEloMatchDetail(idx) {
   </div>`;
 }
 
+function _updateEloProbSlots() {
+  const aBtn = document.getElementById("eloProb-slot-p1");
+  const bBtn = document.getElementById("eloProb-slot-p2");
+  if (aBtn) {
+    document.getElementById("eloProb-label-p1").textContent = _eloProbP1 || "P1";
+    aBtn.classList.toggle("h2h-slot-filled", !!_eloProbP1);
+  }
+  if (bBtn) {
+    document.getElementById("eloProb-label-p2").textContent = _eloProbP2 || "P2";
+    bBtn.classList.toggle("h2h-slot-filled", !!_eloProbP2);
+  }
+  if (_eloProbP1 && _eloProbP2 && _eloProbP1 !== _eloProbP2) calcEloWinProb();
+  else { const r = document.getElementById("elo-prob-result"); if (r) r.innerHTML = ""; }
+}
+
+function openEloProbSheet(slot) {
+  _filterSheetMode = slot === "p1" ? "eloprobp1" : "eloprobp2";
+  const el = document.getElementById("filter-sheet-title");
+  if (el) el.textContent = slot === "p1" ? "SELECT P1" : "SELECT P2";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
+  const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
+  const players = computeStats(allMatches).map(s => s.name);
+  list.innerHTML = players.map(p => {
+    const disabled = p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
+    const sel = p === selected ? " live-sheet-item-selected" : "";
+    return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+      <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
+      <span>${p}</span></div>`;
+  }).join("");
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet = document.getElementById("filter-sheet");
+  if (overlay) overlay.classList.add("live-sheet-open");
+  if (sheet) sheet.classList.add("live-sheet-open");
+}
+
+function openWhatIfPlayerSheet() {
+  _filterSheetMode = "whatifplayer";
+  const el = document.getElementById("filter-sheet-title");
+  if (el) el.textContent = "SELECT PLAYER";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const players = computeStats(allMatches).map(s => s.name);
+  list.innerHTML = players.map(p => {
+    const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
+    return `<div class="live-sheet-item${sel}" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+      <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
+      <span>${p}</span></div>`;
+  }).join("");
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet = document.getElementById("filter-sheet");
+  if (overlay) overlay.classList.add("live-sheet-open");
+  if (sheet) sheet.classList.add("live-sheet-open");
+}
+
 function calcEloWinProb() {
-  const p1 = document.getElementById("eloProb-p1")?.value;
-  const p2 = document.getElementById("eloProb-p2")?.value;
+  const p1 = _eloProbP1;
+  const p2 = _eloProbP2;
   const result = document.getElementById("elo-prob-result");
   if (!result) return;
   if (!p1 || !p2 || p1 === p2) {
@@ -7538,6 +7917,10 @@ function calcEloWinProb() {
     </div>
   </div>`;
 }
+
+// ── ELO WIN PROBABILITY STATE ──────────────────────────────
+let _eloProbP1 = "";
+let _eloProbP2 = "";
 
 // ── WHAT-IF SIMULATOR STATE ────────────────────────────────
 let _whatIfToggles = {}; // matchIdx -> bool (false = excluded)
@@ -7788,9 +8171,11 @@ function renderAnalyticsPage() {
           teamB: [...m.teamB].sort(),
           wins: { [tkA]: 0, [tkB]: 0 },
           played: 0,
+          matches: [],
         };
       teamMatchups[mk].played++;
       teamMatchups[mk].wins[aWon ? tkA : tkB]++;
+      teamMatchups[mk].matches.push(m);
     }
     if (m.teamA.length === 2) {
       const [a, b] = m.teamA;
@@ -7945,10 +8330,9 @@ function renderAnalyticsPage() {
     const loserAvgElo =
       losers.reduce((s, p) => s + (eloMapFull[p] || 1000), 0) /
       (losers.length || 1);
-    const qualityScore = loserAvgElo / 1000;
     winners.forEach((p) => {
       if (!qualityWins[p]) qualityWins[p] = { total: 0, count: 0 };
-      qualityWins[p].total += qualityScore;
+      qualityWins[p].total += loserAvgElo;
       qualityWins[p].count++;
     });
   });
@@ -7956,26 +8340,26 @@ function renderAnalyticsPage() {
     .filter(([, v]) => v.count >= 3)
     .map(([name, v]) => ({
       name,
-      score: parseFloat((v.total / v.count).toFixed(3)),
+      score: Math.round(v.total / v.count),
       wins: v.count,
     }))
     .sort((a, b) => b.score - a.score);
-  // grid: Rank | Player | Wins | Quality
+  // grid: Rank | Player | Wins | Avg Opp ELO
   const qualGrid = "grid-template-columns:40px 1fr 44px 72px";
   const qualityRankHtml = qualityRanked.length
-    ? `<div style="font-size:9px;color:var(--muted);margin-bottom:8px">Avg ELO of defeated opponents (normalized to 1000 baseline)</div>` +
-      `<div class="lrace-header" style="${qualGrid}"><span>Rank</span><span>Player</span><span>Wins</span><span>Quality</span></div>` +
+    ? `<div style="font-size:9px;color:var(--muted);margin-bottom:8px">Average ELO of defeated opponents — higher = tougher competition</div>` +
+      `<div class="lrace-header" style="${qualGrid}"><span>Rank</span><span>Player</span><span>Wins</span><span>Avg ELO</span></div>` +
       qualityRanked
         .map((p, i) => {
           const col =
-            p.score > 1.05
+            p.score >= 1050
               ? "var(--green)"
-              : p.score < 0.95
+              : p.score <= 980
                 ? "var(--red)"
                 : "var(--muted)";
           const lbl =
-            p.score > 1.05 ? "ELITE" : p.score < 0.95 ? "EASY" : "MID";
-          return `<div class="lrace-row" style="${qualGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}</div><div class="lrace-delta" style="color:${col}">${p.score.toFixed(2)}x <span style="font-size:9px">${lbl}</span></div></div>`;
+            p.score >= 1050 ? "💎 ELITE" : p.score <= 980 ? "📉 EASY" : "⚖️ MID";
+          return `<div class="lrace-row" style="${qualGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}</div><div class="lrace-delta" style="color:${col}">${p.score} <span style="font-size:8px">${lbl}</span></div></div>`;
         })
         .join("")
     : '<div class="sub" style="padding:8px">Need 3+ wins per player.</div>';
@@ -8339,7 +8723,14 @@ function renderAnalyticsPage() {
           : p.delta < 0
             ? `<span style="color:var(--red)">▼${Math.abs(p.delta)}</span>`
             : `<span style="color:var(--muted)">—</span>`;
-      return `<div class="lrace-row"><div class="lrace-rank">#${p.rAll}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${typeof p.r1mo === "number" ? `#${p.r1mo}` : "—"}</div><div class="lrace-delta">${arrow}</div></div>`;
+      const rankColor = p.rAll === 1 ? "var(--gold)" : p.rAll <= 3 ? "var(--theme)" : "var(--accent)";
+      const avatar = `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>`;
+      return `<div class="lrace-row">
+        <div class="lrace-rank" style="color:${rankColor}">#${p.rAll}</div>
+        <div class="lrace-name">${avatar}<span>${p.name}</span></div>
+        <div class="lrace-1mo">${typeof p.r1mo === "number" ? `#${p.r1mo}` : "—"}</div>
+        <div class="lrace-delta">${arrow}</div>
+      </div>`;
     })
     .join("");
 
@@ -8492,23 +8883,51 @@ function renderAnalyticsPage() {
     .sort((a, b) => b[1].played - a[1].played);
   const pairedH2HHtml = pairedH2HRows.length
     ? pairedH2HRows
-        .map(([, v]) => {
+        .map(([matchupKey, v], idx) => {
           const tkA = v.teamA.join(" & ");
           const tkB = v.teamB.join(" & ");
           const wA = v.wins[tkA] || 0;
           const wB = v.wins[tkB] || 0;
-          const colA =
-            wA > wB ? "var(--green)" : wA < wB ? "var(--red)" : "var(--muted)";
-          const colB =
-            wB > wA ? "var(--green)" : wB < wA ? "var(--red)" : "var(--muted)";
-          return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="font-size:11px;font-weight:700;margin-bottom:4px">${v.teamA.map((p) => p.split(" ")[0]).join(" & ")} <span style="color:var(--muted)">vs</span> ${v.teamB.map((p) => p.split(" ")[0]).join(" & ")}</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:16px;font-weight:900;color:${colA}">${wA}</span>
-            <span style="font-size:10px;color:var(--muted)">${v.played}g</span>
-            <span style="font-size:16px;font-weight:900;color:${colB}">${wB}</span>
-          </div>
-        </div>`;
+          const colA = wA > wB ? "var(--green)" : wA < wB ? "var(--red)" : "var(--muted)";
+          const colB = wB > wA ? "var(--green)" : wB < wA ? "var(--red)" : "var(--muted)";
+          const shortA = v.teamA.map(p => p.split(" ")[0]).join(" & ");
+          const shortB = v.teamB.map(p => p.split(" ")[0]).join(" & ");
+          const leader = wA > wB ? tkA : wB > wA ? tkB : null;
+          const shortLeader = wA > wB ? shortA : wB > wA ? shortB : null;
+          const leadsBy = Math.abs(wA - wB);
+          // Detailed match list for popup
+          const matchList = (v.matches || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(m => {
+            const aWon = m.scoreA > m.scoreB;
+            const mtkA = m.teamA.sort().join(" & ");
+            const isVtkA = mtkA === v.teamA.slice().sort().join(" & ");
+            const winnerSide = aWon ? (isVtkA ? "A" : "B") : (isVtkA ? "B" : "A");
+            const winName = winnerSide === "A" ? shortA : shortB;
+            const scoreStr = isVtkA ? `${m.scoreA}–${m.scoreB}` : `${m.scoreB}–${m.scoreA}`;
+            return `<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+              <span style="color:var(--muted)">${fmtDate(m.date)}</span>
+              <span style="font-weight:700;color:${winnerSide==="A"?colA:colB}">${winName}</span>
+              <span style="font-weight:700">${scoreStr}</span>
+            </div>`;
+          }).join("");
+          const avgScoreA = wA > 0 ? (v.gamesWonByTeam?.[tkA] / wA).toFixed(1) : "—";
+          return `<div style="border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;padding:8px 0;cursor:pointer;gap:8px" onclick="this.parentElement.querySelector('.ph2h-detail').style.display=this.parentElement.querySelector('.ph2h-detail').style.display==='none'?'block':'none'">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;font-weight:700">${shortA} <span style="color:var(--muted);font-weight:400">vs</span> ${shortB}</div>
+                ${shortLeader ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${shortLeader} leads by ${leadsBy}</div>` : `<div style="font-size:9px;color:var(--muted);margin-top:2px">Series tied</div>`}
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:18px;font-weight:900;color:${colA}">${wA}</span>
+                <span style="font-size:10px;color:var(--muted)">${v.played}g</span>
+                <span style="font-size:18px;font-weight:900;color:${colB}">${wB}</span>
+              </div>
+              <span style="color:var(--muted);font-size:10px">›</span>
+            </div>
+            <div class="ph2h-detail" style="display:none;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px 10px;margin-bottom:8px">
+              <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:6px">MATCH HISTORY</div>
+              ${matchList || '<div style="font-size:10px;color:var(--muted)">No match details</div>'}
+            </div>
+          </div>`;
         })
         .join("")
     : '<div class="sub" style="padding:8px">Need 2+ head-to-head matches between same pairs.</div>';
@@ -8542,6 +8961,7 @@ function renderAnalyticsPage() {
   });
 
   _pairSort = { key: "winPct", dir: -1 };
+  _pairsShowAll = false;
   _pairsData = allPairsRanked.map(([key, p]) => ({
     key,
     players: p.players,
@@ -8671,7 +9091,7 @@ function renderAnalyticsPage() {
     ? sessionSummaryHtml + sessions
         .map(
           (s) =>
-            `<div class="session-card"><div class="session-date">${fmtDate(s.date)}</div><div class="session-stats"><span>${s.matches.length} match${s.matches.length > 1 ? "es" : ""}</span><span>${s.players.length} players</span></div>${s.mvp ? `<div class="session-mvp">🏆 MVP: <strong>${s.mvp[0]}</strong> · ${s.mvp[1]}W</div>` : ""}<div class="session-players">${s.players.map((p) => `<span class="session-chip">${p}</span>`).join("")}</div></div>`,
+            `<div class="session-card" onclick="openSessionHighlights('${s.date}')" style="cursor:pointer"><div class="session-date">${fmtDate(s.date)}</div><div class="session-stats"><span>${s.matches.length} match${s.matches.length > 1 ? "es" : ""}</span><span>${s.players.length} players</span></div>${s.mvp ? `<div class="session-mvp">🏆 MVP: <strong>${s.mvp[0]}</strong> · ${s.mvp[1]}W</div>` : ""}<div class="session-players">${s.players.map((p) => `<span class="session-chip">${p}</span>`).join("")}</div><div class="session-tap-hint">Tap for highlights →</div></div>`,
         )
         .join("")
     : '<div class="sub" style="padding:8px">No sessions yet.</div>';
@@ -8754,12 +9174,17 @@ function renderAnalyticsPage() {
   const eloWinProbHtml = playersByMatches.length >= 2
     ? `<div class="ana-card" style="padding:10px 12px">
         <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Pick two players to see win probability based on current ELO ratings.</div>
-        <div class="h2h-selects" style="margin-bottom:8px">
-          <select id="eloProb-p1" class="hist-select compact-select" style="flex:1"><option value="" disabled selected>Select player…</option>${playersByMatches.map((p) => `<option value="${p}">${p.toUpperCase()}</option>`).join("")}</select>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <button class="h2h-slot-btn" id="eloProb-slot-p1" onclick="openEloProbSheet('p1')" style="flex:1">
+            <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 1</span>
+            <span id="eloProb-label-p1" style="font-size:12px;font-weight:800">P1</span>
+          </button>
           <span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span>
-          <select id="eloProb-p2" class="hist-select compact-select" style="flex:1"><option value="" disabled selected>Select player…</option>${playersByMatches.map((p) => `<option value="${p}">${p.toUpperCase()}</option>`).join("")}</select>
+          <button class="h2h-slot-btn" id="eloProb-slot-p2" onclick="openEloProbSheet('p2')" style="flex:1">
+            <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 2</span>
+            <span id="eloProb-label-p2" style="font-size:12px;font-weight:800">P2</span>
+          </button>
         </div>
-        <button class="btn-go" style="width:100%" onclick="calcEloWinProb()">CALCULATE</button>
         <div id="elo-prob-result" style="margin-top:4px"></div>
       </div>`
     : '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
@@ -9042,14 +9467,14 @@ function renderAnalyticsPage() {
       <div class="sim-teams">
         <div class="sim-team">
           <div class="sim-team-label" style="color:var(--green)">TEAM A</div>
-          <select id="simA1" class="sim-sel">${simOpts("Player 1")}</select>
-          <select id="simA2" class="sim-sel">${simOpts("Player 2")}</select>
+          <select id="simA1" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 1")}</select>
+          <select id="simA2" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 2")}</select>
         </div>
         <div class="sim-vs">VS</div>
         <div class="sim-team">
           <div class="sim-team-label" style="color:var(--red)">TEAM B</div>
-          <select id="simB1" class="sim-sel">${simOpts("Player 1")}</select>
-          <select id="simB2" class="sim-sel">${simOpts("Player 2")}</select>
+          <select id="simB1" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 1")}</select>
+          <select id="simB2" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 2")}</select>
         </div>
       </div>
       <button class="sim-btn" onclick="runMatchSimulator()">SIMULATE</button>
@@ -9130,21 +9555,39 @@ function renderAnalyticsPage() {
         return s + (wo ? wo.w / wo.p : 0.5);
       }, 0) / pmates.length;
       const delta = Math.round((avgWithMe - avgWithout) * 100);
-      return { name, delta, avgWithMe: Math.round(avgWithMe * 100), avgWithout: Math.round(avgWithout * 100) };
+      const partnerList = pmates.map(p => {
+        const wp = withP[p];
+        const wo = withoutP[p];
+        const wPct = Math.round((wp.w / wp.p) * 100);
+        const woPct = wo && wo.p ? Math.round((wo.w / wo.p) * 100) : 50;
+        return { p, wPct, woPct, diff: wPct - woPct, played: wp.p };
+      }).sort((a, b) => b.diff - a.diff);
+      return { name, delta, avgWithMe: Math.round(avgWithMe * 100), avgWithout: Math.round(avgWithout * 100), partnerList };
     }).filter(Boolean).sort((a, b) => b.delta - a.delta);
     if (!rows.length) return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     return `<div class="ana-card" style="padding:12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">How much a player lifts their partners' win rate vs. without them</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">How much a player lifts their partners' win rate vs. without them. Tap row to see partner breakdown.</div>
       ${rows.map(r => {
         const col = r.delta >= 0 ? "var(--green)" : "var(--red)";
         const sign = r.delta >= 0 ? "+" : "";
-        return `<div class="carry-row">
+        const bkd = r.partnerList || [];
+        const bkdHtml = bkd.length ? bkd.map(b => {
+          const dc = b.diff >= 0 ? "var(--green)" : "var(--red)";
+          const ds = b.diff >= 0 ? "+" : "";
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:10px">
+            <span style="color:var(--muted)">${b.p}</span>
+            <span style="color:${dc};font-weight:700">${b.wPct}% with (${ds}${b.diff}%)</span>
+            <span style="color:var(--muted);font-size:9px">${b.played}g</span>
+          </div>`;
+        }).join("") : "";
+        return `<div class="carry-row" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer">
           <span class="carry-name">${r.name}</span>
           <div class="carry-bars">
             <div class="carry-bar-bg"><div class="carry-bar-fill" style="width:${r.avgWithMe}%;background:${col}"></div></div>
           </div>
           <span class="carry-delta" style="color:${col}">${sign}${r.delta}%</span>
-        </div>`;
+        </div>
+        <div style="display:none;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 10px;margin-bottom:4px">${bkdHtml || '<div style="font-size:10px;color:var(--muted)">No partner data</div>'}</div>`;
       }).join("")}
     </div>`;
   })();
@@ -9152,7 +9595,7 @@ function renderAnalyticsPage() {
   // ── CLUTCH TRENDS ──────────────────────────────────────
   const clutchTrendHtml = (() => {
     const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const playerList = computeStats(allMatches).map(p => p.name).slice(0, 8);
+    const playerList = computeStats(allMatches).map(p => p.name);
     const byPlayer = {};
     sortedM.forEach(m => {
       if (!m.date || Math.abs(m.scoreA - m.scoreB) > 1) return;
@@ -9171,7 +9614,7 @@ function renderAnalyticsPage() {
     });
     const allMonths = [...new Set(sortedM.filter(m => m.date).map(m => m.date.slice(0, 7)))].sort().slice(-6);
     if (!allMonths.length) return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
-    const topPlayers = playerList.filter(p => byPlayer[p] && Object.values(byPlayer[p]).some(d => d.p >= 1)).slice(0, 5);
+    const topPlayers = playerList.filter(p => byPlayer[p] && Object.values(byPlayer[p]).some(d => d.p >= 1));
     if (!topPlayers.length) return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% in close matches (margin ≤1) per month</div>
@@ -9194,15 +9637,9 @@ function renderAnalyticsPage() {
 
   // ── WHAT-IF SIMULATOR ──────────────────────────────────
   const whatIfHtml = (() => {
-    const playerList = computeStats(allMatches).map(p => p.name);
-    const opts = playerList.map(p => `<option value="${p}">${p}</option>`).join("");
     return `<div class="ana-card" style="padding:12px">
       <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Select a player — flip individual losses to wins, exclude matches, and see the counterfactual ELO</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <select id="whatif-player-sel" class="sim-sel" style="flex:1" onchange="renderWhatIfSection(this.value)">
-          <option value="">Select player…</option>${opts}
-        </select>
-      </div>
+      <button class="filter-fab-btn" id="whatif-player-fab" onclick="openWhatIfPlayerSheet()" style="margin-bottom:10px"><span class="whatif-fab-label">SELECT PLAYER</span></button>
       <div id="whatif-controls" style="display:none;margin-bottom:8px;gap:6px;flex-wrap:wrap">
         <button class="whatif-action-btn" onclick="whatIfFlipAllLosses()">↩ Flip All Losses</button>
         <button class="whatif-action-btn" onclick="whatIfReset()">↺ Reset All</button>
@@ -9213,6 +9650,24 @@ function renderAnalyticsPage() {
   })();
 
   // ── MILESTONE HISTORY ──────────────────────────────────
+  // ── DIGEST CARD ────────────────────────────────────────
+  _digestFilter = "week";
+  _digestPlayer = "";
+  _eloProbP1 = "";
+  _eloProbP2 = "";
+  const digestHtml = `<div style="background:linear-gradient(160deg,rgba(13,13,26,0.95),rgba(17,17,31,0.95));border-radius:16px;border:1px solid rgba(255,255,255,0.07);padding:14px 14px 10px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--theme),transparent)"></div>
+    <div style="font-size:10px;font-weight:800;color:var(--theme);letter-spacing:0.14em;margin-bottom:8px">DIGEST</div>
+    <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="digest-filter-btn active" data-f="week" onclick="renderDigestCard('week')">This Week</button>
+      <button class="digest-filter-btn" data-f="lastweek" onclick="renderDigestCard('lastweek')">Last Week</button>
+      <button class="digest-filter-btn" data-f="month" onclick="renderDigestCard('month')">This Month</button>
+      <button class="digest-filter-btn" data-f="all" onclick="renderDigestCard('all')">All Time</button>
+    </div>
+    <button class="filter-fab-btn" id="digest-player-btn" onclick="openDigestPlayerSheet()" style="margin-bottom:10px"><span id="digest-player-label">ALL PLAYERS</span></button>
+    <div id="digest-content">${_buildDigestContent("week", "")}</div>
+  </div>`;
+
   const milestoneLog = getMilestoneLog();
   const milestoneHtml = (() => {
     if (!milestoneLog.length)
@@ -9250,6 +9705,7 @@ function renderAnalyticsPage() {
   };
 
   const allSecs = [
+    { key: "digest", cat: "activity", title: "📋 Digest", body: digestHtml },
     { key: "predacc", cat: "records", title: "🔮 Prediction Accuracy", body: predAccHtml },
     { key: "simulator", cat: "records", title: "🎮 Match Simulator", body: simulatorHtml },
     {
@@ -9307,14 +9763,30 @@ function renderAnalyticsPage() {
       body: `<div class="ana-card">${sdHtml}</div>`,
     },
     {
-      key: "insights", cat: "records",
-      title: "🎯 Match Insights",
-      body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CLOSEST MATCHES</div>${cmHtml}<div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BIGGEST UPSETS</div>${upHtml}`,
-    },
-    {
       key: "partnership", cat: "pairs",
       title: "🤝 Partnership Analytics",
-      body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div><div class="ana-card" style="padding:10px 12px">${chemHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div><div class="ana-card" style="padding:10px 12px">${bpHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div><div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div><div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
+      body: `<div class="partner-tabs">
+        <button class="partner-tab active" onclick="_partnerTab(this,'chemistry')">Chemistry</button>
+        <button class="partner-tab" onclick="_partnerTab(this,'partners')">Partners</button>
+        <button class="partner-tab" onclick="_partnerTab(this,'synergy')">Synergy</button>
+        <button class="partner-tab" onclick="_partnerTab(this,'form')">Form</button>
+      </div>
+      <div id="partner-tab-chemistry" class="partner-tab-panel">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div>
+        <div class="ana-card" style="padding:10px 12px">${chemHtml}</div>
+      </div>
+      <div id="partner-tab-partners" class="partner-tab-panel" style="display:none">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div>
+        <div class="ana-card" style="padding:10px 12px">${bpHtml}</div>
+      </div>
+      <div id="partner-tab-synergy" class="partner-tab-panel" style="display:none">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div>
+        <div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div>
+      </div>
+      <div id="partner-tab-form" class="partner-tab-panel" style="display:none">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div>
+        <div class="ana-card" style="padding:10px 12px">${pfHtml}</div>
+      </div>`,
     },
     {
       key: "rivalry", cat: "players",
@@ -9327,11 +9799,6 @@ function renderAnalyticsPage() {
     { key: "clutchtrend", cat: "players", title: "🎯 Clutch Trends", body: clutchTrendHtml },
     { key: "whatif", cat: "elo", title: "🔄 What-If Simulator", body: whatIfHtml },
     {
-      key: "shutout", cat: "records",
-      title: "🎯 Shutout Records",
-      body: `<div class="awards-grid">${scard("🚫", "Most Shutout Wins", mostShutoutWinsEntry?.[0], `${mostShutoutWinsEntry?.[1] || 0} games won X-0`)}${scard("💔", "Most Shutout Losses", mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null, `${maxLosses} games lost 0-X`)}</div>`,
-    },
-    {
       key: "pairs", cat: "pairs",
       title: "🤝 All Pairs",
       body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`,
@@ -9341,7 +9808,6 @@ function renderAnalyticsPage() {
       title: "⚔️ Paired H2H Records",
       body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
     },
-    { key: "h2hDive", cat: "players", title: "⚔️ H2H Deep Dive", body: h2hHtml },
     { key: "elo", cat: "elo", title: "⚡ ELO Rankings", body: eloHtml },
     { key: "eloTimeline", cat: "elo", title: "📈 ELO History Chart", body: buildEloTimelineHtml("all") },
     { key: "eloWinProb", cat: "elo", title: "🎯 ELO Win Probability", body: eloWinProbHtml },
@@ -9681,7 +10147,21 @@ Object.assign(window, {
   deleteScheduled,
   quickRematch,
   applyEloConfig,
+  resetEloConfig,
   runMatchSimulator,
+  _simSync,
+  _showAllPairs,
+  openSessionHighlights,
+  _partnerTab,
+  renderDigestCard,
+  openDigestPlayerSheet,
+  openWhatIfPlayerSheet,
+  openEloProbSheet,
+  _updateEloProbSlots,
+  openCmpSheet,
+  _cmpSetDate,
+  _updateCmpSlots,
+  toggleManageReorder,
   toggleMatchCalendar,
   toggleMatchesSection,
   calNav,
@@ -9941,6 +10421,35 @@ function openMatchIntro(idx) {
     })
     .join("");
   document.getElementById("mio-elo-deltas").innerHTML = deltaPills;
+
+  // H2H data between the two teams (all prior matches)
+  const tkA = [...m.teamA].sort().join("|");
+  const tkB = [...m.teamB].sort().join("|");
+  let h2hWinsA = 0, h2hWinsB = 0;
+  allMatches.slice(0, idx).forEach(pm => {
+    const pmA = [...(pm.teamA || [])].sort().join("|");
+    const pmB = [...(pm.teamB || [])].sort().join("|");
+    const fwd = pmA === tkA && pmB === tkB;
+    const rev = pmA === tkB && pmB === tkA;
+    if (!fwd && !rev) return;
+    const pmAWon = pm.scoreA > pm.scoreB;
+    if (fwd) { if (pmAWon) h2hWinsA++; else h2hWinsB++; }
+    else { if (pmAWon) h2hWinsB++; else h2hWinsA++; }
+  });
+  const h2hTotal = h2hWinsA + h2hWinsB;
+  const h2hEl = document.getElementById("mio-h2h-row");
+  if (h2hEl) {
+    if (h2hTotal === 0) {
+      h2hEl.innerHTML = `<div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.08em">FIRST MEETING</div>`;
+    } else {
+      const colA = aWon ? "var(--green)" : "var(--red)";
+      const colB = !aWon ? "var(--green)" : "var(--red)";
+      h2hEl.innerHTML = `
+        <div class="mio-h2h-cell"><div class="mio-h2h-num" style="color:${colA}">${h2hWinsA}</div><div class="mio-h2h-lbl">${nameA.split(" & ")[0]}</div></div>
+        <div class="mio-h2h-sep">H2H</div>
+        <div class="mio-h2h-cell"><div class="mio-h2h-num" style="color:${colB}">${h2hWinsB}</div><div class="mio-h2h-lbl">${nameB.split(" & ")[0]}</div></div>`;
+    }
+  }
 
   // Event badges
   const badges = [];

@@ -3764,26 +3764,28 @@ textarea:focus {
 /* ── LEADERBOARD RACE ────────────────────────── */
 .lrace-header {
   display: grid;
-  grid-template-columns: 42px 1fr 52px 42px;
-  gap: 6px;
-  padding: 0 4px 6px;
+  grid-template-columns: 36px 1fr 52px 48px;
+  gap: 4px;
+  padding: 0 6px 8px;
   border-bottom: 1px solid var(--border);
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  text-align: center;
 }
+.lrace-header span:first-child { text-align: center; }
+.lrace-header span:nth-child(3),
+.lrace-header span:last-child { text-align: right; }
 .lrace-row {
   display: grid;
-  grid-template-columns: 42px 1fr 52px 42px;
-  gap: 6px;
+  grid-template-columns: 36px 1fr 52px 48px;
+  gap: 4px;
   align-items: center;
-  padding: 7px 4px;
+  padding: 8px 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  text-align: center;
 }
+.lrace-row:last-child { border-bottom: none; }
 .lrace-rank {
   font-size: 12px;
   font-weight: 800;
@@ -3791,24 +3793,30 @@ textarea:focus {
   text-align: center;
 }
 .lrace-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12px;
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: center;
+}
+.lrace-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lrace-1mo {
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
-  text-align: center;
+  text-align: right;
 }
 .lrace-delta {
   font-size: 11px;
   font-weight: 800;
-  text-align: center;
+  text-align: right;
 }
 
 /* ── CHEMISTRY / PAIR ROWS ───────────────────── */
@@ -4463,7 +4471,10 @@ textarea:focus {
   border-radius: 14px;
   padding: 12px 14px;
   margin-bottom: 8px;
+  transition: border-color 0.15s;
 }
+.session-card:active { border-color: rgba(var(--theme-rgb),0.4); }
+.session-tap-hint { font-size: 9px; color: var(--muted); font-weight: 600; margin-top: 6px; letter-spacing: 0.04em; }
 .session-date {
   font-size: 13px;
   font-weight: 800;
@@ -10418,6 +10429,42 @@ select.cmp-sel option {
   background: rgba(255, 60, 60, 0.12);
   color: #ff5555;
 }
+.mio-h2h-row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.3s 0.85s;
+}
+#match-intro-overlay.active .mio-h2h-row {
+  opacity: 1;
+}
+.mio-h2h-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 54px;
+}
+.mio-h2h-num {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+}
+.mio-h2h-lbl {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.mio-h2h-sep {
+  font-size: 10px;
+  color: var(--muted);
+  align-self: center;
+  padding-top: 4px;
+}
 .mio-badges {
   margin-top: 10px;
   display: flex;
@@ -11603,3 +11650,62 @@ body::after {
   border: 1px solid rgba(255,255,255,0.1);
   color: var(--muted);
 }
+
+/* ── Partnership Tabs ───────────────────────────────────────── */
+.partner-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.partner-tab {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+  font-family: "DM Sans", sans-serif;
+}
+.partner-tab.active {
+  border-color: rgba(var(--theme-rgb),0.5);
+  background: rgba(var(--theme-rgb),0.1);
+  color: var(--theme);
+}
+.digest-filter-btn {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+  font-family: "DM Sans", sans-serif;
+}
+.digest-filter-btn.active {
+  border-color: rgba(var(--theme-rgb),0.5);
+  background: rgba(var(--theme-rgb),0.1);
+  color: var(--theme);
+}
+.mng-card-drag-handle {
+  font-size: 16px;
+  color: var(--muted);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s;
+  margin-right: 6px;
+  user-select: none;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.mng-reorder-active .mng-card-drag-handle { opacity: 1; }
+.mng-reorder-active .mng-card { cursor: default; }
+.mng-reorder-active .mng-card.dragging { opacity: 0.4; }
+.mng-reorder-active .mng-card.drag-over { border-color: rgba(var(--theme-rgb),0.5); }

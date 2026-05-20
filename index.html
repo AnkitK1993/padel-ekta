@@ -530,10 +530,15 @@ Parthiv - Par"
           <div id="names-table" style="margin-top: 10px"></div>
         </div>
         <div class="panel" id="ip-manage">
+          <div style="display:flex;justify-content:flex-end;padding:0 0 8px">
+            <button onclick="toggleManageReorder()" id="mng-reorder-btn" style="font-size:10px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--muted);cursor:pointer;letter-spacing:0.04em">⠿ REORDER</button>
+          </div>
+          <div id="mng-cards-container">
 
           <!-- Storage Info -->
-          <div class="mng-card">
+          <div class="mng-card" data-card-id="storage">
             <div class="mng-card-header">
+              <span class="mng-card-drag-handle">⠿</span>
               <span class="mng-card-icon">📊</span>
               <span class="mng-card-title">Storage</span>
             </div>
@@ -541,8 +546,9 @@ Parthiv - Par"
           </div>
 
           <!-- Settings -->
-          <div class="mng-card">
+          <div class="mng-card" data-card-id="settings">
             <div class="mng-card-header">
+              <span class="mng-card-drag-handle">⠿</span>
               <span class="mng-card-icon">⚙️</span>
               <span class="mng-card-title">Settings</span>
             </div>
@@ -556,8 +562,9 @@ Parthiv - Par"
           </div>
 
           <!-- Sessions -->
-          <div class="mng-card">
+          <div class="mng-card" data-card-id="sessions">
             <div class="mng-card-header">
+              <span class="mng-card-drag-handle">⠿</span>
               <span class="mng-card-icon">📅</span>
               <span class="mng-card-title">Upcoming Sessions</span>
             </div>
@@ -566,8 +573,9 @@ Parthiv - Par"
           </div>
 
           <!-- Email Backup -->
-          <div class="mng-card">
+          <div class="mng-card" data-card-id="email">
             <div class="mng-card-header">
+              <span class="mng-card-drag-handle">⠿</span>
               <span class="mng-card-icon">📧</span>
               <span class="mng-card-title">Email Backup</span>
             </div>
@@ -576,8 +584,9 @@ Parthiv - Par"
           </div>
 
           <!-- Data Actions -->
-          <div class="mng-card">
+          <div class="mng-card" data-card-id="data">
             <div class="mng-card-header">
+              <span class="mng-card-drag-handle">⠿</span>
               <span class="mng-card-icon">💾</span>
               <span class="mng-card-title">Data</span>
             </div>
@@ -590,8 +599,9 @@ Parthiv - Par"
           </div>
 
           <!-- Trash / Soft Delete -->
-          <div class="mng-card">
+          <div class="mng-card" data-card-id="trash">
             <div class="mng-card-header">
+              <span class="mng-card-drag-handle">⠿</span>
               <span class="mng-card-icon">🗑️</span>
               <span class="mng-card-title">Trash</span>
               <span style="font-size:10px;color:var(--muted);margin-left:4px">(30-day recovery)</span>
@@ -601,14 +611,16 @@ Parthiv - Par"
           </div>
 
           <!-- ELO Decay Config -->
-          <div class="mng-card">
+          <div class="mng-card" data-card-id="elo-decay">
             <div class="mng-card-header">
+              <span class="mng-card-drag-handle">⠿</span>
               <span class="mng-card-icon">⚡</span>
               <span class="mng-card-title">ELO Decay Settings</span>
             </div>
-            <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Controls how inactive players lose ELO over time. Changes apply immediately to Analytics rankings.</div>
             <div id="elo-decay-config"></div>
           </div>
+
+          </div><!-- /mng-cards-container -->
 
           <!-- Danger Zone -->
           <div class="mng-danger-card">
@@ -917,6 +929,7 @@ Parthiv - Par"
       </div>
       <div class="mio-result-line" id="mio-result-line"></div>
       <div class="mio-elo-deltas" id="mio-elo-deltas"></div>
+      <div class="mio-h2h-row" id="mio-h2h-row"></div>
       <div class="mio-badges" id="mio-badges"></div>
       <div class="mio-note" id="mio-note"></div>
     </div>
