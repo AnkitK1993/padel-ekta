@@ -2564,15 +2564,16 @@ function renderHome() {
     const eldHtml = eld !== null && eld !== undefined
       ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
       : "";
-    const sparklineHtml = sparklineSvg
-      ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
+    const hasRowData = sparklineSvg || last5DotsHtml || eldHtml;
+    const sparklineHtml = hasRowData
+      ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
       : "";
     const playerBadges = computeBadges(p.name, p, homeEloMap, filtered);
     const badgePillsHtml = playerBadges.length
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div>${mkLvlRow(p.name)}<div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">0.00</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}${momentumBadge ? `<span style="font-size:16px;margin-left:6px;vertical-align:middle">${momentumBadge}</span>` : ""}</div>${mkLvlRow(p.name)}<div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
   if (document.body.classList.contains("splash-done")) {
@@ -2603,34 +2604,16 @@ function renderHome() {
 }
 
 function animateXpRow(el, delay = 300) {
-  const lvlEl = el.querySelector(".xp-lvl-num[data-final]");
   const barEl = el.querySelector(".xp-bar-fill[data-pct]");
-  if (!lvlEl || !barEl) return;
-  const finalLevel = parseInt(lvlEl.dataset.final, 10);
-  const finalPct   = parseInt(barEl.dataset.pct, 10);
-  const startLevel = Math.max(0, finalLevel - 4);
-  let curLevel = startLevel;
-  lvlEl.textContent = startLevel;
+  if (!barEl) return;
+  const finalPct = parseInt(barEl.dataset.pct, 10);
   barEl.style.transition = "none";
   barEl.style.width = "0%";
-  const nextFill = () => {
-    curLevel++;
-    lvlEl.textContent = curLevel;
-    const isLast = curLevel >= finalLevel;
-    const toPct  = isLast ? finalPct : 100;
-    const fillMs = isLast ? Math.max(450, finalPct * 6) : 320;
+  setTimeout(() => {
     void barEl.offsetWidth;
-    barEl.style.transition = `width ${fillMs}ms ease-out`;
-    barEl.style.width = `${toPct}%`;
-    if (!isLast) {
-      setTimeout(() => {
-        barEl.style.transition = "none";
-        barEl.style.width = "0%";
-        setTimeout(nextFill, 60);
-      }, fillMs + 100);
-    }
-  };
-  setTimeout(nextFill, delay);
+    barEl.style.transition = `width ${Math.max(500, finalPct * 7)}ms ease-out`;
+    barEl.style.width = `${finalPct}%`;
+  }, delay);
 }
 
 function animateSrVal(el, delay = 200) {
@@ -2758,7 +2741,7 @@ function renderCompact() {
       else if (diff < 0) rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name.toUpperCase()}${rankDelta}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">0.00</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name.toUpperCase()}${rankDelta}${momentumBadge ? `<span style="margin-left:5px">${momentumBadge}</span>` : ""}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -4709,8 +4692,8 @@ function openPlayerDetail(name) {
     <div class="ana-card">
       <span class="badge">XP & Level</span>
       <div class="pd-xp-header">
-        <span class="lvl-badge prestige-${pdTier} pd-big">LVL <span id="pd-lvl-num" data-final="${pdLevel}">0</span></span>
-        <div class="pd-xp-total"><span id="pd-xp-total" data-final="${pdXP}">0</span><span style="font-size:12px;color:var(--muted);font-weight:600;margin-left:4px">XP</span></div>
+        <span class="lvl-badge prestige-${pdTier} pd-big">LVL <span id="pd-lvl-num" data-final="${pdLevel}">${pdLevel}</span></span>
+        <div class="pd-xp-total"><span id="pd-xp-total" data-final="${pdXP}">${pdXP}</span><span style="font-size:12px;color:var(--muted);font-weight:600;margin-left:4px">XP</span></div>
       </div>
       <div class="pd-xp-bar-wrap">
         <div class="pd-xp-bar" id="pd-xp-bar" data-pct="${pdXpPct}" style="width:0%;${pdBarStyle}"></div>
@@ -4815,17 +4798,17 @@ function openPlayerDetail(name) {
       <span class="badge">Leaderboard Race</span>
       <div class="det-streak-row">
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rAll ? `#<span id="pd-rank-cur" data-final="${rAll}">0</span>` : "—"}</div>
+          <div class="det-streak-val">${rAll ? `#<span id="pd-rank-cur" data-final="${rAll}">${rAll}</span>` : "—"}</div>
           <div class="sub">Current Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">0</span>` : "—"}</div>
+          <div class="det-streak-val">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">${rPre}</span>` : "—"}</div>
           <div class="sub">Last Wk. Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
-          <div class="det-streak-val" style="color:var(--gold)">${bestRank ? `#<span id="pd-rank-best" data-final="${bestRank}">0</span>` : "—"}</div>
+          <div class="det-streak-val" style="color:var(--gold)">${bestRank ? `#<span id="pd-rank-best" data-final="${bestRank}">${bestRank}</span>` : "—"}</div>
           <div class="sub">Best Rank</div>
         </div>
         <div class="det-streak-div"></div>
@@ -4977,9 +4960,9 @@ function openPlayerDetail(name) {
                 <div class="ana-card ov-card">
                   <div class="ov-header">
                     <div class="ov-sr-block">
-                      <div class="ov-sr-val" id="pd-sr-val" data-final="${s.sr.toFixed(2)}">0.00</div>
+                      <div class="ov-sr-val" id="pd-sr-val" data-final="${s.sr.toFixed(2)}">${s.sr.toFixed(2)}</div>
                       <div class="ov-sr-lbl">Skill Rating</div>
-                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:2px">ELO <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:700">0</span>${eloRank > 0 ? `<span style="margin-left:6px;font-size:9px;font-weight:800;letter-spacing:0.06em;color:var(--muted)">· #${eloRank} ELO RANK</span>` : ""}</div>
+                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:2px">ELO <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:700">${playerElo}</span>${eloRank > 0 ? `<span style="margin-left:6px;font-size:9px;font-weight:800;letter-spacing:0.06em;color:var(--muted)">· #${eloRank} ELO RANK</span>` : ""}</div>
                     </div>
                     <div class="ov-record-block">
                       <div class="ov-record">${s.mw}<span class="ov-record-sep">W</span>${s.ml}<span class="ov-record-sep">L</span></div>
@@ -5097,39 +5080,17 @@ function openPlayerDetail(name) {
   pdTick(document.getElementById("pd-rank-pre"),  parseInt(document.getElementById("pd-rank-pre")?.dataset.final    || 0, 10), (v) => Math.round(v));
   pdTick(document.getElementById("pd-rank-best"), parseInt(document.getElementById("pd-rank-best")?.dataset.final   || 0, 10), (v) => Math.round(v));
 
-  // XP level walk-through animation
-  const xpBarEl  = document.getElementById("pd-xp-bar");
-  const lvlNumEl = document.getElementById("pd-lvl-num");
-  if (xpBarEl && lvlNumEl) {
-    const finalLevel = parseInt(lvlNumEl.dataset.final, 10);
-    const finalPct   = parseInt(xpBarEl.dataset.pct, 10);
-    // Start at most 4 levels back so animation stays snappy
-    const startLevel = Math.max(0, finalLevel - 4);
-    let curLevel = startLevel;
-    lvlNumEl.textContent = startLevel;
+  // XP bar fill animation (level number already shows final value from HTML)
+  const xpBarEl = document.getElementById("pd-xp-bar");
+  if (xpBarEl) {
+    const finalPct = parseInt(xpBarEl.dataset.pct, 10);
     xpBarEl.style.transition = "none";
     xpBarEl.style.width = "0%";
-
-    const nextFill = () => {
-      curLevel++;
-      lvlNumEl.textContent = curLevel;
-      const isLast  = curLevel >= finalLevel;
-      const toPct   = isLast ? finalPct : 100;
-      const fillMs  = isLast ? Math.max(450, finalPct * 6) : 320;
-      // Force reflow so "none" transition takes effect before we re-enable it
+    setTimeout(() => {
       void xpBarEl.offsetWidth;
-      xpBarEl.style.transition = `width ${fillMs}ms ease-out`;
-      xpBarEl.style.width = `${toPct}%`;
-      if (!isLast) {
-        setTimeout(() => {
-          xpBarEl.style.transition = "none";
-          xpBarEl.style.width = "0%";
-          setTimeout(nextFill, 60);
-        }, fillMs + 100);
-      }
-    };
-
-    setTimeout(nextFill, 420);
+      xpBarEl.style.transition = `width ${Math.max(600, finalPct * 8)}ms ease-out`;
+      xpBarEl.style.width = `${finalPct}%`;
+    }, 420);
   }
 }
 
@@ -6906,7 +6867,7 @@ function mkLvlRow(displayName) {
   const pct = Math.round(progress * 100);
   const barClr = { diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)", gold: "#ffd700", silver: "#c0c0c0", bronze: "#cd7f32", rookie: "rgba(255,255,255,0.28)" };
   const bg = barClr[tier].startsWith("linear") ? `background:${barClr[tier]}` : `background:${barClr[tier]}`;
-  return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">0</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
+  return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">${level}</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
 }
 
 function computeEloHistory(matches) {
