@@ -1,12 +1,13 @@
 const CACHE = "ekta-padel";
 const BUILD_KEY = "/__buildv__";
+const BASE = self.registration.scope;
 const STATIC = [
-  "/",
-  "/index.html",
-  "/styles.css",
-  "/app.js",
-  "/utils.js",
-  "/icons/icon.svg"
+  BASE,
+  BASE + "index.html",
+  BASE + "styles.css",
+  BASE + "app.js",
+  BASE + "utils.js",
+  BASE + "icons/icon.svg"
 ];
 
 self.addEventListener("install", e => {
@@ -25,7 +26,7 @@ self.addEventListener("activate", e => {
 // If changed: wipe and re-cache all static files, return true.
 async function checkForUpdates() {
   try {
-    const res = await fetch("/buildinfo.json", { cache: "no-store" });
+    const res = await fetch(BASE + "buildinfo.json", { cache: "no-store" });
     const { v } = await res.json();
     const c = await caches.open(CACHE);
     const stored = await c.match(BUILD_KEY);

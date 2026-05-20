@@ -2,7 +2,7 @@
   "name": "Ekta Padel",
   "short_name": "Ekta Padel",
   "description": "Padel leaderboard & match tracker for Ekta Society",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#09090f",

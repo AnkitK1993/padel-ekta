@@ -773,7 +773,7 @@ Parthiv - Par"
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/sw.js").catch(() => {});
+          navigator.serviceWorker.register("sw.js").catch(() => {});
         });
         // When SW detects a new build, reload once to get fresh files
         navigator.serviceWorker.addEventListener("message", e => {
