@@ -1706,12 +1706,18 @@ function previewMatchImport() {
   const duplicates = parsed.filter((m) =>
     allMatches.some((old) => sameMatch(old, m)),
   );
+  const dupPlayers = parsed.filter(
+    (m) => new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length,
+  );
   const rows = parsed.slice(0, 5).map((m) => {
     const dup = allMatches.some((old) => sameMatch(old, m));
-    return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${dup ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${dup ? " · duplicate?" : ""}</strong></div>`;
+    const badP = new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
+    const warn = dup || badP;
+    const tag = badP ? " · repeated player!" : dup ? " · duplicate?" : "";
+    return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${warn ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${tag}</strong></div>`;
   });
   box.innerHTML = `
-              <div><strong style="color:var(--text)">${parsed.length}</strong> parsed · <strong class="${errors.length ? "preview-warn" : ""}">${errors.length}</strong> skipped · <strong class="${duplicates.length ? "preview-warn" : ""}">${duplicates.length}</strong> duplicate warning(s)</div>
+              <div><strong style="color:var(--text)">${parsed.length}</strong> parsed · <strong class="${errors.length ? "preview-warn" : ""}">${errors.length}</strong> skipped · <strong class="${duplicates.length ? "preview-warn" : ""}">${duplicates.length}</strong> duplicate warning(s)${dupPlayers.length ? ` · <strong class="preview-warn">${dupPlayers.length}</strong> repeated player(s)` : ""}</div>
               ${rows.join("")}
               ${parsed.length > 5 ? `<div class="preview-row"><span>+ ${parsed.length - 5} more</span><span></span></div>` : ""}
             `;
@@ -1724,15 +1730,26 @@ function addMatches() {
     oEl = document.getElementById("mOk");
   eEl.classList.remove("show");
   oEl.classList.remove("show");
-  const { parsed, errors } = parseBlock(raw);
+  const { parsed: allParsed, errors } = parseBlock(raw);
+  const badPlayerRows = allParsed.filter(
+    (m) => new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length,
+  );
+  const parsed = allParsed.filter(
+    (m) => new Set([...m.teamA, ...m.teamB]).size === m.teamA.length + m.teamB.length,
+  );
+  const errParts = [];
   if (errors.length) {
-    eEl.innerHTML =
+    errParts.push(
       `Skipped ${errors.length} line(s):<br>` +
-      errors
-        .slice(0, 4)
-        .map((e) => `Line ${e.ln}: ${e.text}`)
-        .join("<br>") +
-      (errors.length > 4 ? "<br>…and more" : "");
+      errors.slice(0, 4).map((e) => `Line ${e.ln}: ${e.text}`).join("<br>") +
+      (errors.length > 4 ? "<br>…and more" : ""),
+    );
+  }
+  if (badPlayerRows.length) {
+    errParts.push(`Skipped ${badPlayerRows.length} match(es) with repeated players.`);
+  }
+  if (errParts.length) {
+    eEl.innerHTML = errParts.join("<br>");
     eEl.classList.add("show");
   }
   if (parsed.length) {
@@ -3867,6 +3884,29 @@ function populatePlayerDropdowns() {
       `<option value="">${label}</option>` +
       displayNames.map((n) => `<option value="${n}">${n}</option>`).join("");
     sel.value = "";
+    sel.onchange = _syncFabDropdowns;
+  });
+}
+
+function _syncFabDropdowns() {
+  const ids = ["modern-team-a-p1", "modern-team-a-p2", "modern-team-b-p1", "modern-team-b-p2"];
+  const labels = ["Team A — P1", "Team A — P2", "Team B — P1", "Team B — P2"];
+  const chosen = ids.map(id => document.getElementById(id)?.value || "");
+  const displayNames = Object.keys(aliasMap).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+  ids.forEach((id, i) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const myVal = chosen[i];
+    const others = chosen.filter((_, j) => j !== i).filter(Boolean);
+    sel.innerHTML =
+      `<option value="">${labels[i]}</option>` +
+      displayNames
+        .filter(n => !others.includes(n))
+        .map(n => `<option value="${n}">${n}</option>`)
+        .join("");
+    sel.value = myVal;
   });
 }
 
@@ -3901,6 +3941,7 @@ function quickRematch(idx) {
     sel("modern-team-a-p2", newA[1] || "");
     sel("modern-team-b-p1", newB[0] || "");
     sel("modern-team-b-p2", newB[1] || "");
+    _syncFabDropdowns();
     // Clear scores so user enters fresh result
     const sa = document.getElementById("modern-score-a");
     const sb = document.getElementById("modern-score-b");
@@ -3970,6 +4011,10 @@ function saveModernMatch() {
   const note = document.getElementById("modern-note")?.value.trim() || "";
   if (!p1a || !p2a || !p1b || !p2b || isNaN(sA) || isNaN(sB) || sA === sB) {
     alert("Invalid match data");
+    return;
+  }
+  if (new Set([p1a, p2a, p1b, p2b]).size < 4) {
+    alert("All 4 players must be different");
     return;
   }
   const teamA = [p1a, p2a];
