@@ -255,8 +255,12 @@
     <!-- ══════════ HISTORY PAGE ══════════ -->
     <div class="page" id="pg-history">
       <div class="page-body-scroll">
-        <div class="history-nav">
+        <div class="history-nav" style="display:flex;align-items:center;justify-content:space-between;padding-right:12px">
           <div class="history-nav-title">MATCHES <span>PLAYED</span></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span id="hist-filter-badge" style="display:none;background:rgba(var(--theme-rgb),0.2);color:var(--theme);border:1px solid rgba(var(--theme-rgb),0.4);border-radius:20px;font-size:10px;font-weight:800;padding:2px 8px;min-width:22px;justify-content:center"></span>
+            <button id="hist-filter-clear" onclick="clearAllHistFilters()" style="display:none;height:26px;padding:0 10px;border-radius:20px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--muted);font-size:10px;font-weight:700;cursor:pointer">Clear</button>
+          </div>
         </div>
         <div class="dr-wrap" id="matchDr">
           <div class="dr-g">
@@ -606,6 +610,26 @@ Parthiv - Par"
             <div class="msg ok" id="expOk"></div>
           </div>
 
+          <!-- Trash / Soft Delete -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">🗑️</span>
+              <span class="mng-card-title">Trash</span>
+              <span style="font-size:10px;color:var(--muted);margin-left:4px">(30-day recovery)</span>
+            </div>
+            <div id="trash-list"></div>
+            <button id="trash-purge-btn" onclick="purgeTrash()" class="btn-danger" style="width:100%;margin-top:8px;display:none">Empty Trash</button>
+          </div>
+
+          <!-- Milestone Log -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">🏅</span>
+              <span class="mng-card-title">Milestone History</span>
+            </div>
+            <div id="milestone-log-list"></div>
+          </div>
+
           <!-- Danger Zone -->
           <div class="mng-danger-card">
             <div class="mng-card-header">
@@ -685,6 +709,8 @@ Parthiv - Par"
           class="input-modern"
           type="number"
           placeholder="Score A"
+          min="1"
+          max="9"
         />
         <div style="display: flex; gap: 8px; margin-bottom: 12px">
           <select id="modern-team-b-p1" class="input-modern" style="flex: 1">
@@ -700,6 +726,8 @@ Parthiv - Par"
           class="input-modern"
           type="number"
           placeholder="Score B"
+          min="1"
+          max="9"
         />
         <input id="modern-date" class="input-modern" type="date" />
         <input

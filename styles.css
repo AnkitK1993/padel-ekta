@@ -8270,6 +8270,15 @@ select.cmp-sel option {
 .ana-sec-reveal {
   animation: anaSecReveal 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+@keyframes anaSecFound {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--theme-rgb), 0.55); }
+  30%  { box-shadow: 0 0 0 4px rgba(var(--theme-rgb), 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--theme-rgb), 0); }
+}
+.ana-sec-found {
+  animation: anaSecFound 1.6s ease-out forwards;
+  border-radius: 14px;
+}
 
 .ana-search-box {
   display: flex;

@@ -223,6 +223,29 @@ let prevPage = "home";
 let lastMatchSnapshot = null;
 window.isAdmin = false;
 let scheduledMatches = [];
+let deletedMatches = [];
+const DELETED_KEY = "padel_deleted";
+function loadDeletedMatches() {
+  try { deletedMatches = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]"); } catch(e) { deletedMatches = []; }
+}
+function saveDeletedMatches() {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffISO = cutoff.toISOString().slice(0, 10);
+  deletedMatches = deletedMatches.filter(d => (d.deletedAt || "") >= cutoffISO);
+  try { localStorage.setItem(DELETED_KEY, JSON.stringify(deletedMatches)); } catch(e) {}
+}
+
+// ── ELO MEMO ───────────────────────────────────────────────
+let _eloMemo = null, _eloMemoLen = -1, _eloMemoDecay = false;
+function _memoElo(decay = false) {
+  if (_eloMemoLen !== allMatches.length || _eloMemoDecay !== decay || !_eloMemo) {
+    _eloMemoLen = allMatches.length;
+    _eloMemoDecay = decay;
+    _eloMemo = computeElo(allMatches, decay);
+  }
+  return _eloMemo;
+}
+function _invalidateEloMemo() { _eloMemoLen = -1; _eloMemo = null; }
 
 // ── SPLASH HELPERS ─────────────────────────────────────────
 function setSplashStatus(msg) {
@@ -232,6 +255,7 @@ function setSplashStatus(msg) {
 
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
 async function saveCloudData() {
+  _invalidateEloMemo();
   const payload = { matches: allMatches, aliasMap, nameMap };
   if (window.appCache) window.appCache.save(allMatches, aliasMap, nameMap);
   try {
@@ -312,7 +336,7 @@ function renderScheduledBanner() {
       <div class="sched-banner-left">
         <span class="sched-banner-icon">${isToday ? "🏓" : "📅"}</span>
         <div>
-          <div class="sched-banner-date">${isToday ? "🔔 NEXT SESSION — TODAY" : `NEXT SESSION · ${dateLabel}`}</div>
+          <div class="sched-banner-date">${isToday ? "🔔 NEXT SESSION — TODAY" : `NEXT SESSION · ${dateLabel}`}${next.time ? " · " + next.time : ""}</div>
           <div class="sched-banner-team">${teamLabel}</div>
           ${next.note && (next.teamA || next.teamB) ? `<div class="sched-banner-note">${next.note}</div>` : ""}
         </div>
@@ -342,7 +366,7 @@ function renderScheduledAdmin() {
           : "Open session";
       return `<div class="sched-item${isPast ? " sched-past" : ""}">
       <div class="sched-item-body">
-        <div class="sched-item-date">${fmtDate(s.date)}${isPast ? " · past" : ""}</div>
+        <div class="sched-item-date">${fmtDate(s.date)}${s.time ? " · " + s.time : ""}${isPast ? " · past" : ""}</div>
         <div class="sched-item-team">${teamLabel}</div>
         ${s.note ? `<div class="sched-item-note">${s.note}</div>` : ""}
       </div>
@@ -376,8 +400,11 @@ function openScheduleModal() {
       <span class="mei-title">📅 SCHEDULE SESSION</span>
       <button class="mei-close" onclick="closeScheduleModal()">✕</button>
     </div>
-    <div class="mei-section-lbl">DATE</div>
-    <input id="sched-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${todayISO()}">
+    <div class="mei-section-lbl">DATE &amp; TIME</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="sched-date" type="date" class="mei-input" style="flex:1" value="${todayISO()}">
+      <input id="sched-time" type="time" class="mei-input" style="flex:1" placeholder="Time (optional)">
+    </div>
     <div class="mei-section-lbl" style="color:var(--green)">TEAM A <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
     <div class="mei-row">
       <select id="sched-a1" class="mei-sel"><option value="">P1</option>${opts}</select>
@@ -412,8 +439,10 @@ function saveScheduled() {
   const a2 = document.getElementById("sched-a2")?.value;
   const b1 = document.getElementById("sched-b1")?.value;
   const b2 = document.getElementById("sched-b2")?.value;
+  const time = document.getElementById("sched-time")?.value.trim();
   const note = document.getElementById("sched-note")?.value.trim();
   const entry = { date, id: Date.now() };
+  if (time) entry.time = time;
   const teamA = [a1, a2].filter(Boolean);
   const teamB = [b1, b2].filter(Boolean);
   if (teamA.length) entry.teamA = teamA;
@@ -728,12 +757,10 @@ function switchMainTab(id, skipAnim = false) {
     populateHistoryPlayerChips();
     const hdf = document.getElementById("histDateFilter");
     if (hdf) hdf.value = matchTabFilter;
-    const hof = document.getElementById("histOutcomeFilter");
-    if (hof) hof.value = histOutcomeFilter;
-    const hmf = document.getElementById("histMarginFilter");
-    if (hmf) hmf.value = histMarginFilter;
-    const hsf = document.getElementById("histScorelineFilter");
-    if (hsf) hsf.value = histScorelineFilter;
+    const hrf = document.getElementById("histResultFilter");
+    if (hrf) hrf.value = histOutcomeFilter;
+    const htf = document.getElementById("histTagFilter");
+    if (htf) htf.value = histMarginFilter;
   }
   if (id === "analytics") renderAnalyticsPage();
   setTimeout(applyAnalyticsAnimations, 0);
@@ -1034,6 +1061,27 @@ function refreshManage() {
   document.getElementById("manageInfo").innerHTML =
     `Matches: <strong>${allMatches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(aliasMap).length}</strong>`;
   renderEmailStatus();
+  renderMilestoneLog();
+  renderTrash();
+}
+
+function renderMilestoneLog() {
+  const el = document.getElementById("milestone-log-list");
+  if (!el) return;
+  const log = getMilestoneLog();
+  if (!log.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px 0">No milestones yet.</div>';
+    return;
+  }
+  el.innerHTML = log.slice(0, 20).map(entry =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:16px">${entry.emoji || "🏅"}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${entry.msg}</div>
+        <div style="font-size:10px;color:var(--muted)">${fmtDate(entry.date)}</div>
+      </div>
+    </div>`
+  ).join("");
 }
 
 // ── DATE HELPERS ───────────────────────────────────────────
@@ -1755,8 +1803,13 @@ function addMatches() {
   if (parsed.length) {
     const prevSnapshot = [...allMatches];
     lastMatchSnapshot = prevSnapshot;
+    let step = [...prevSnapshot];
+    for (const m of parsed) {
+      const next = [...step, m];
+      checkMilestones(step, next);
+      step = next;
+    }
     allMatches.push(...parsed);
-    checkMilestones(prevSnapshot, allMatches);
     saveCloudData();
     document.getElementById("matchTA").value = "";
     prefillMatchTADate();
@@ -2551,7 +2604,15 @@ function updateSortArrows() {
     ids.forEach((id) => {
       const arrow = document.getElementById(id);
       if (!arrow) return;
-      arrow.textContent = cmpSortKey === key ? (cmpSortAsc ? "▲" : "▼") : "";
+      if (cmpSortKey === key) {
+        if (key === "record") {
+          arrow.textContent = cmpRecordSortMode === "wins" ? "W▼" : "L▼";
+        } else {
+          arrow.textContent = cmpSortAsc ? "▲" : "▼";
+        }
+      } else {
+        arrow.textContent = key === "record" ? "W·L" : "";
+      }
       arrow.classList.toggle("active", cmpSortKey === key);
     });
   });
@@ -3238,10 +3299,17 @@ function renderModernMatches() {
       ? document.getElementById("matchTo")?.value || null
       : null;
   let matches = filterMatches(matchTabFilter, mfrom, mto);
-  if (query)
-    matches = matches.filter((m) =>
-      JSON.stringify(m).toLowerCase().includes(query),
-    );
+  if (query) {
+    const q = query.toLowerCase();
+    matches = matches.filter((m) => {
+      const players = [...(m.teamA || []), ...(m.teamB || [])].map(p => (nameMap[p] || p).toLowerCase());
+      if (players.some(p => p.includes(q))) return true;
+      if (`${m.scoreA}-${m.scoreB}`.includes(q) || `${m.scoreB}-${m.scoreA}`.includes(q)) return true;
+      if ((m.date || "").includes(q)) return true;
+      if ((m.note || "").toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }
   if (histSeasonFilter) {
     matches = matches.filter((m) =>
       (m.date || "").startsWith(histSeasonFilter),
@@ -3483,6 +3551,56 @@ function renderModernMatches() {
   }
   populateHistoryPlayerChips();
   populateHistoryAdvancedFilters();
+  _updateHistFilterBadge();
+}
+
+function _updateHistFilterBadge() {
+  const badge = document.getElementById("hist-filter-badge");
+  const clearBtn = document.getElementById("hist-filter-clear");
+  if (!badge || !clearBtn) return;
+  let count = 0;
+  if (matchTabFilter !== "today") count++;
+  if (histPlayerFilter) count++;
+  if (histOutcomeFilter !== "all") count++;
+  if (histMarginFilter !== "all") count++;
+  if (histPairFilter) count++;
+  if (h2hFilterA || h2hFilterB) count++;
+  if (histSeasonFilter) count++;
+  if (histScorelineFilter) count++;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = "inline-flex";
+    clearBtn.style.display = "inline-flex";
+  } else {
+    badge.style.display = "none";
+    clearBtn.style.display = "none";
+  }
+}
+
+function clearAllHistFilters() {
+  matchTabFilter = "today";
+  histPlayerFilter = "";
+  histOutcomeFilter = "all";
+  histMarginFilter = "all";
+  histPairFilter = "";
+  h2hFilterA = "";
+  h2hFilterB = "";
+  histSeasonFilter = "";
+  histScorelineFilter = "";
+  const hdf = document.getElementById("histDateFilter");
+  if (hdf) hdf.value = "today";
+  const hrf = document.getElementById("histResultFilter");
+  if (hrf) hrf.value = "all";
+  const htf = document.getElementById("histTagFilter");
+  if (htf) htf.value = "all";
+  const hpf = document.getElementById("histPairFilter");
+  if (hpf) hpf.value = "";
+  const ha = document.getElementById("h2hPlayerA");
+  const hb = document.getElementById("h2hPlayerB");
+  if (ha) ha.value = "";
+  if (hb) hb.value = "";
+  populateHistoryPlayerChips();
+  renderModernMatches();
 }
 
 function populateHistoryPlayerChips() {
@@ -3741,12 +3859,58 @@ function renderAddMatches() {
 
 function deleteMatchByIndex(i) {
   if (!confirm("Delete this match?")) return;
-  allMatches.splice(i, 1);
+  const removed = allMatches.splice(i, 1)[0];
+  removed.deletedAt = todayISO();
+  deletedMatches.unshift(removed);
+  saveDeletedMatches();
   saveCloudData();
   renderModernMatches();
   renderAddMatches();
   renderHome();
   renderCompact();
+  renderTrash();
+}
+
+function restoreMatch(i) {
+  const m = deletedMatches.splice(i, 1)[0];
+  delete m.deletedAt;
+  allMatches.push(m);
+  saveDeletedMatches();
+  saveCloudData();
+  renderModernMatches();
+  renderAddMatches();
+  renderHome();
+  renderCompact();
+  renderTrash();
+  showToast("Match restored!", "↩️");
+}
+
+function purgeTrash() {
+  if (!confirm(`Permanently delete all ${deletedMatches.length} match(es) in trash?`)) return;
+  deletedMatches = [];
+  saveDeletedMatches();
+  renderTrash();
+}
+
+function renderTrash() {
+  const el = document.getElementById("trash-list");
+  if (!el) return;
+  if (!deletedMatches.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px 0">Trash is empty.</div>';
+    document.getElementById("trash-purge-btn")?.style.setProperty("display", "none");
+    return;
+  }
+  document.getElementById("trash-purge-btn")?.style.setProperty("display", "block");
+  el.innerHTML = deletedMatches.map((m, i) => {
+    const label = `${m.teamA?.join(" & ")} vs ${m.teamB?.join(" & ")} ${m.scoreA}–${m.scoreB}`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${label}</div>
+        <div style="font-size:10px;color:var(--muted)">${fmtDate(m.date)} · deleted ${fmtDate(m.deletedAt)}</div>
+      </div>
+      <button onclick="restoreMatch(${i})" style="font-size:10px;font-weight:700;padding:4px 8px;border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--theme);cursor:pointer">↩</button>
+    </div>`;
+  }).join("");
 }
 function closeMatchEdit() {
   document.querySelectorAll(".match-edit-inline").forEach((el) => {
@@ -4019,11 +4183,14 @@ function saveModernMatch() {
   }
   const teamA = [p1a, p2a];
   const teamB = [p1b, p2b];
+  const candidate = { teamA, teamB, scoreA: sA, scoreB: sB, date };
+  if (allMatches.some((old) => sameMatch(old, candidate))) {
+    if (!confirm("This match looks like a duplicate. Add anyway?")) return;
+  }
   const prevSnapshot = [...allMatches];
   lastMatchSnapshot = prevSnapshot;
-  const match = { teamA, teamB, scoreA: sA, scoreB: sB, date };
-  if (note) match.note = note;
-  allMatches.push(match);
+  if (note) candidate.note = note;
+  allMatches.push(candidate);
   checkMilestones(prevSnapshot, allMatches);
   saveCloudData();
   closeModernAddModal();
@@ -5180,15 +5347,38 @@ function openWeeklyDigest() {
       </div>
     </div>`;
 
+  const shareLines = [
+    `PADEL EKTA — ${label} Digest`,
+    `${useMatches.length} matches played`,
+    topWinner ? `🏆 Top Winner: ${topWinner.name} (${topWinner.mw}W–${topWinner.ml}L)` : "",
+    mover && mover.gain > 0 ? `📈 Biggest Mover: ${mover.name} (+${mover.gain} ELO)` : "",
+    hotPlayer ? `🔥 On Fire: ${hotPlayer.name} (${hotPlayer.curStreak}-match streak)` : "",
+    wkPairs ? `🤝 Best Duo: ${wkPairs.key} (${wkPairs.winPct}%)` : "",
+    biggestUpset ? `⚡ Biggest Upset: ${biggestUpset.winner.map(p => p.split(" ")[0]).join(" & ")} (+${biggestUpset.gap} ELO gap)` : "",
+  ].filter(Boolean).join("\n");
+
+  window._shareDigest = () => {
+    if (navigator.share) {
+      navigator.share({ title: "Padel Ekta Weekly Digest", text: shareLines }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(shareLines)
+        .then(() => showToast("Copied to clipboard!", "📋"))
+        .catch(() => showToast("Screenshot to share", "📸"));
+    }
+  };
+
   const overlay = document.createElement("div");
   overlay.id = "share-card-overlay";
   overlay.className = "share-overlay";
   overlay.innerHTML = `
     <div class="share-overlay-bg" onclick="document.getElementById('share-card-overlay').remove()"></div>
     <div class="share-overlay-inner">
-      <div class="share-overlay-hint">📸 Screenshot to share</div>
+      <div class="share-overlay-hint">📸 Screenshot or share</div>
       ${card}
-      <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
+      <div style="display:flex;gap:8px;width:100%;max-width:340px">
+        <button class="share-close-btn" style="flex:1" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
+        <button class="share-close-btn" style="flex:1;background:rgba(24,215,255,0.15);border-color:rgba(24,215,255,0.5);color:#18d7ff" onclick="_shareDigest()">Share 📤</button>
+      </div>
     </div>`;
   document.body.appendChild(overlay);
 }
@@ -5974,6 +6164,17 @@ let _anaClone = null;
 let _anaDragOffsetY = 0;
 let _anaActiveCat = "all";
 
+function _togglePairForm(btn) {
+  const expanded = btn.dataset.expanded === "1";
+  const rows = btn.closest(".ana-card, [style]")?.querySelectorAll?.(".pform-extra") ||
+    btn.closest("div").parentElement?.querySelectorAll(".pform-extra");
+  if (!rows) return;
+  rows.forEach(r => r.style.display = expanded ? "none" : "");
+  btn.dataset.expanded = expanded ? "0" : "1";
+  const extra = [...rows].length;
+  btn.textContent = expanded ? `Show ${extra} more ▼` : `Show less ▲`;
+}
+
 function anaFilterCategory(cat, skipPillUpdate) {
   _anaActiveCat = cat;
   if (!skipPillUpdate) {
@@ -6100,7 +6301,7 @@ function _anaOnUp(e) {
   _anaDragKey = null;
 }
 
-function computeElo(matches) {
+function computeElo(matches, applyDecay = false) {
   const elo = {};
   const g = (n) => {
     if (!(n in elo)) elo[n] = 1000;
@@ -6126,6 +6327,24 @@ function computeElo(matches) {
       elo[p] = Math.round(elo[p] + deltaB);
     });
   });
+  if (applyDecay && sorted.length) {
+    const today = todayISO();
+    const lastSeen = {};
+    sorted.forEach(m => {
+      [...m.teamA, ...m.teamB].forEach(p => {
+        if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
+      });
+    });
+    Object.keys(elo).forEach(p => {
+      const last = lastSeen[p];
+      if (!last) return;
+      const daysSince = Math.round((new Date(today) - new Date(last)) / 86400000);
+      if (daysSince > 28) {
+        const decay = Math.min(30, Math.floor((daysSince - 28) / 7));
+        elo[p] = Math.max(900, elo[p] - decay);
+      }
+    });
+  }
   return elo;
 }
 
@@ -6495,9 +6714,10 @@ function anaSearchSelect(type, key, label) {
       anaFilterCategory("all");
     if (el.classList.contains("collapsed")) toggleAnaSection(key);
     setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    el.style.outline = "1.5px solid rgba(var(--theme-rgb),0.6)";
-    el.style.borderRadius = "12px";
-    setTimeout(() => { el.style.outline = ""; el.style.borderRadius = ""; }, 1800);
+    el.classList.remove("ana-sec-found");
+    void el.offsetWidth;
+    el.classList.add("ana-sec-found");
+    setTimeout(() => el.classList.remove("ana-sec-found"), 1800);
   } else {
     openPlayerDetail(label);
   }
@@ -6880,7 +7100,7 @@ function renderAnalyticsPage() {
   });
 
   // ── ELO ────────────────────────────────────────────────
-  const eloMap = computeElo(allMatches);
+  const eloMap = _memoElo(true);
 
   // ── DERIVED ────────────────────────────────────────────
   const players = Object.values(stats);
@@ -7109,7 +7329,6 @@ function renderAnalyticsPage() {
     .filter((p) => p.partner && p.wins >= 1);
   const pairFormData = getPairStats()
     .filter((p) => p.played >= 3)
-    .slice(0, 6)
     .map((pair) => {
       const pm = sortedM
         .filter((m) => {
@@ -7609,10 +7828,13 @@ function renderAnalyticsPage() {
   const pfHtml = pairFormData.length
     ? pairFormData
         .map(
-          (p) =>
-            `<div class="pform-row"><div class="pform-name">${p.key}</div><div class="pform-dots">${fdots(p.form)}</div><div class="pform-stat">${p.winPct}% · ${p.played}g</div></div>`,
+          (p, i) =>
+            `<div class="pform-row pform-extra${i >= 6 ? " pform-hidden" : ""}" style="${i >= 6 ? "display:none" : ""}"><div class="pform-name">${p.key}</div><div class="pform-dots">${fdots(p.form)}</div><div class="pform-stat">${p.winPct}% · ${p.played}g</div></div>`,
         )
-        .join("")
+        .join("") +
+      (pairFormData.length > 6
+        ? `<div class="pform-row" style="justify-content:center;padding:4px 0"><button onclick="_togglePairForm(this)" data-expanded="0" style="font-size:10px;font-weight:700;color:var(--theme);background:transparent;border:none;cursor:pointer;padding:4px 8px">Show ${pairFormData.length - 6} more ▼</button></div>`
+        : "")
     : '<div class="sub" style="padding:8px">Need more pair data.</div>';
 
   // ── RIVALRY ────────────────────────────────────────────
@@ -8423,6 +8645,7 @@ function scheduleAutoEmail() {
 renderNamesTable();
 loadCloudData();
 loadScheduledMatches();
+loadDeletedMatches();
 scheduleAutoEmail();
 
 // Expose globals
@@ -8457,11 +8680,15 @@ Object.assign(window, {
   onHeadToHeadInput,
   clearHeadToHeadPlayer,
   clearHeadToHeadFilter,
+  clearAllHistFilters,
   populateHistoryPlayerChips,
   populateHistoryAdvancedFilters,
   renderAddMatches,
   refreshManage,
   deleteMatchByIndex,
+  restoreMatch,
+  purgeTrash,
+  renderTrash,
   editMatchByIndex,
   saveMatchEdit,
   closeMatchEdit,
@@ -8497,6 +8724,7 @@ Object.assign(window, {
   anaSearchInput,
   anaSearchSelect,
   anaSearchClose,
+  _togglePairForm,
   anaFilterCategory,
   anaSearchClear,
   setHistoryDateFilter,
