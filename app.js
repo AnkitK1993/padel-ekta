@@ -227,7 +227,6 @@ let matchTabFilter = "today",
   histMarginFilter = "all",
   histPairFilter = "",
   histScorelineFilter = "",
-  histSeasonFilter = "",
   h2hFilterA = "",
   h2hFilterB = "",
   matchFrom = null,
@@ -994,7 +993,6 @@ function switchMainTab(id, skipAnim = false) {
   if (id === "history") {
     renderModernMatches();
     populateHistoryPlayerChips();
-    _renderSeasonFilter();
     const hdf = document.getElementById("histDateFilter");
     if (hdf) hdf.value = matchTabFilter;
     const hrf = document.getElementById("histResultFilter");
@@ -1304,8 +1302,6 @@ function refreshManage() {
   renderMilestoneLog();
   renderTrash();
   renderEloConfigCard();
-  renderSeasonManager();
-  renderTournamentAdmin();
 }
 
 function renderMilestoneLog() {
@@ -3562,14 +3558,6 @@ function renderModernMatches() {
       return false;
     });
   }
-  if (histSeasonFilter) {
-    if (histSeasonFilter.includes("__")) {
-      const [sfrom, sto] = histSeasonFilter.split("__");
-      matches = matches.filter(m => (m.date || "") >= sfrom && (m.date || "") <= sto);
-    } else {
-      matches = matches.filter((m) => (m.date || "").startsWith(histSeasonFilter));
-    }
-  }
   // Player filter
   if (histPlayerFilter) {
     matches = matches.filter((m) =>
@@ -3737,7 +3725,6 @@ function renderModernMatches() {
     histOutcomeFilter !== "all" ||
     histMarginFilter !== "all" ||
     histScorelineFilter ||
-    histSeasonFilter ||
     h2hFilterA ||
     h2hFilterB;
   const motdHtml = isFiltered ? "" : buildMatchOfTheDay();
@@ -3820,7 +3807,6 @@ function _updateHistFilterBadge() {
   if (histMarginFilter !== "all") count++;
   if (histPairFilter) count++;
   if (h2hFilterA || h2hFilterB) count++;
-  if (histSeasonFilter) count++;
   if (histScorelineFilter) count++;
   if (count > 0) {
     badge.textContent = count;
@@ -3840,7 +3826,6 @@ function clearAllHistFilters() {
   histPairFilter = "";
   h2hFilterA = "";
   h2hFilterB = "";
-  histSeasonFilter = "";
   histScorelineFilter = "";
   const hdf = document.getElementById("histDateFilter");
   if (hdf) hdf.value = "today";
@@ -3917,27 +3902,6 @@ function populateHistoryAdvancedFilters() {
     if (savedB) h2hB.value = savedB;
   }
 
-  const seasonSelect = document.getElementById("histSeasonFilter");
-  if (seasonSelect) {
-    const currentSeason = seasonSelect.value || histSeasonFilter;
-    const seasons = [
-      ...new Set(
-        allMatches
-          .map((m) => (m.date || "").slice(0, 7))
-          .filter((date) => /^\d{4}-\d{2}$/.test(date)),
-      ),
-    ].sort((a, b) => b.localeCompare(a));
-    seasonSelect.innerHTML =
-      '<option value="">ALL</option>' +
-      seasons
-        .map(
-          (season) =>
-            `<option value="${season}" ${currentSeason === season ? "selected" : ""}>${season}</option>`,
-        )
-        .join("");
-    seasonSelect.value = currentSeason;
-  }
-
   const data = document.getElementById("player-suggestions");
   if (data) {
     data.innerHTML = getAllPlayerNamesFromMatches()
@@ -3995,11 +3959,6 @@ function setHistPairFilter(val) {
 
 function setHistScorelineFilter(val) {
   histScorelineFilter = val;
-  renderModernMatches();
-}
-
-function setHistSeasonFilter(val) {
-  histSeasonFilter = val;
   renderModernMatches();
 }
 
@@ -9547,7 +9506,7 @@ loadCloudData();
 loadScheduledMatches();
 loadDeletedMatches();
 scheduleAutoEmail();
-setTimeout(() => { renderSeasonManager(); renderTournamentAdmin(); renderEloConfigCard(); }, 0);
+setTimeout(() => { renderEloConfigCard(); }, 0);
 
 // Expose globals
 Object.assign(window, {
@@ -9576,7 +9535,6 @@ Object.assign(window, {
   setHistMargin,
   setHistPairFilter,
   setHistScorelineFilter,
-  setHistSeasonFilter,
   applyHeadToHeadFilter,
   onHeadToHeadInput,
   clearHeadToHeadPlayer,
@@ -9673,14 +9631,6 @@ Object.assign(window, {
   closeLivePlayerSheet,
   liveAdjustScore,
   endLiveMatch,
-  renderSeasonManager,
-  saveSeasonEntry,
-  deleteSeasonEntry,
-  applySeasonFilter,
-  renderTournamentAdmin,
-  saveTournament,
-  recordTournamentResult,
-  renderTournamentDetail,
 });
 
 function setHistoryDateFilter(value) {
@@ -9727,216 +9677,6 @@ function isMatchWithinDateFilter(match, filterValue) {
   }
 
   return true;
-}
-
-// ── TOURNAMENT BRACKET MANAGER ─────────────────────────────
-const TOURN_KEY = "ekta_tournaments";
-function loadTournaments() {
-  try { return JSON.parse(localStorage.getItem(TOURN_KEY) || "[]"); } catch { return []; }
-}
-function saveTournamentData(tournaments) {
-  try { localStorage.setItem(TOURN_KEY, JSON.stringify(tournaments)); } catch {}
-}
-function generateRoundRobinPairs(players) {
-  const pairs = [];
-  for (let i = 0; i < players.length; i++)
-    for (let j = i + 1; j < players.length; j++)
-      pairs.push([players[i], players[j]]);
-  return pairs;
-}
-function renderTournamentAdmin() {
-  const el = document.getElementById("tourn-admin-list");
-  if (!el) return;
-  const tournaments = loadTournaments();
-  const played = (t) => t.matches.filter(m => m.scoreA !== null).length;
-  el.innerHTML = `
-    <div class="tourn-create-form">
-      <div class="tourn-form-label">TOURNAMENT NAME</div>
-      <input id="tourn-name-in" class="tourn-input" placeholder="e.g. Summer Cup 2025">
-      <div class="tourn-form-label" style="margin-top:10px">PLAYERS <span style="font-weight:400;text-transform:none">(comma-separated)</span></div>
-      <input id="tourn-players-in" class="tourn-input" placeholder="Ankit, Raj, Priya, Dev, ...">
-      <button class="tourn-create-btn" onclick="saveTournament()">
-        <span style="font-size:14px">🏆</span> CREATE TOURNAMENT
-      </button>
-    </div>
-    ${tournaments.length ? `<div class="tourn-list">` + tournaments.map((t, i) => {
-      const done = played(t);
-      const total = t.matches.length;
-      const pct = total ? Math.round((done / total) * 100) : 0;
-      const standings = computeTournamentStandings(t);
-      const leader = standings[0]?.[0] || "";
-      return `<div class="tourn-card" onclick="renderTournamentDetail(${i})">
-        <div class="tourn-card-glow"></div>
-        <div class="tourn-card-top">
-          <div class="tourn-card-icon">🏆</div>
-          <div class="tourn-card-info">
-            <div class="tourn-card-name">${escHtml(t.name)}</div>
-            <div class="tourn-card-meta">${t.players.length} players · ${fmtDate(t.createdAt)}</div>
-          </div>
-          <div class="tourn-card-badge${pct === 100 ? " done" : ""}">${pct === 100 ? "✓" : `${done}/${total}`}</div>
-        </div>
-        <div class="tourn-progress-bar"><div class="tourn-progress-fill" style="width:${pct}%"></div></div>
-        ${leader && done > 0 ? `<div class="tourn-card-leader">🥇 ${leader} leads</div>` : ""}
-      </div>`;
-    }).join("") + `</div>` : `<div class="tourn-empty">No tournaments yet. Create your first one above.</div>`}`;
-}
-function saveTournament() {
-  const name = document.getElementById("tourn-name-in")?.value.trim();
-  const playersRaw = document.getElementById("tourn-players-in")?.value.trim();
-  if (!name || !playersRaw) { showToast("Enter name and players", "❌"); return; }
-  const players = playersRaw.split(",").map(p => p.trim()).filter(Boolean);
-  if (players.length < 2) { showToast("Need at least 2 players", "❌"); return; }
-  const pairs = generateRoundRobinPairs(players);
-  const tournaments = loadTournaments();
-  tournaments.push({ name, players, matches: pairs.map(([a, b]) => ({ a, b, scoreA: null, scoreB: null })), createdAt: todayISO() });
-  saveTournamentData(tournaments);
-  renderTournamentAdmin();
-  showToast(`Tournament "${name}" created!`, "🏆");
-}
-function recordTournamentResult(tournIdx, matchIdx, scoreA, scoreB) {
-  const tournaments = loadTournaments();
-  const t = tournaments[tournIdx];
-  if (!t) return;
-  t.matches[matchIdx].scoreA = parseInt(scoreA);
-  t.matches[matchIdx].scoreB = parseInt(scoreB);
-  saveTournamentData(tournaments);
-  renderTournamentDetail(tournIdx);
-}
-function computeTournamentStandings(t) {
-  const standing = {};
-  t.players.forEach(p => { standing[p] = { w: 0, l: 0, gw: 0, gl: 0 }; });
-  t.matches.forEach(m => {
-    if (m.scoreA === null || m.scoreB === null) return;
-    const aWon = m.scoreA > m.scoreB;
-    if (aWon) { standing[m.a].w++; standing[m.b].l++; }
-    else { standing[m.b].w++; standing[m.a].l++; }
-    standing[m.a].gw += m.scoreA; standing[m.a].gl += m.scoreB;
-    standing[m.b].gw += m.scoreB; standing[m.b].gl += m.scoreA;
-  });
-  return Object.entries(standing).sort((a, b) => b[1].w - a[1].w || (b[1].gw - b[1].gl) - (a[1].gw - a[1].gl));
-}
-function renderTournamentDetail(idx) {
-  const tournaments = loadTournaments();
-  const t = tournaments[idx];
-  if (!t) return;
-  const standings = computeTournamentStandings(t);
-  const modal = document.createElement("div");
-  modal.className = "h2h-modal-overlay";
-  modal.onclick = e => { if (e.target === modal) modal.remove(); };
-  modal.innerHTML = `<div class="h2h-modal-card">
-    <div class="h2h-modal-header">
-      <span class="h2h-modal-title">🏆 ${escHtml(t.name)}</span>
-      <button class="h2h-modal-close" onclick="this.closest('.h2h-modal-overlay').remove()">✕</button>
-    </div>
-    <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:8px">STANDINGS</div>
-    <div class="ana-card" style="padding:8px;margin-bottom:12px">
-      ${standings.map(([p, s], i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <span style="font-size:11px;color:var(--muted);width:16px">#${i+1}</span>
-        <span style="flex:1;font-size:11px;font-weight:700">${p}</span>
-        <span style="font-size:10px;color:var(--green)">${s.w}W</span>
-        <span style="font-size:10px;color:var(--red)">${s.l}L</span>
-        <span style="font-size:10px;color:var(--muted)">${s.gw}–${s.gl}</span>
-      </div>`).join("")}
-    </div>
-    <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:8px">MATCHES</div>
-    ${t.matches.map((m, mi) => {
-      const done = m.scoreA !== null;
-      const aWon = done && m.scoreA > m.scoreB;
-      return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <span style="flex:1;font-size:11px;${done && aWon ? "color:var(--green);font-weight:700" : ""}">${m.a}</span>
-        ${done ? `<span style="font-size:11px;font-weight:800">${m.scoreA}–${m.scoreB}</span>` :
-          `<input type="number" min="0" id="ts-${idx}-${mi}-a" placeholder="A" style="width:36px;font-size:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:var(--text);padding:2px 4px;text-align:center">
-           <span style="color:var(--muted)">–</span>
-           <input type="number" min="0" id="ts-${idx}-${mi}-b" placeholder="B" style="width:36px;font-size:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:var(--text);padding:2px 4px;text-align:center">
-           <button onclick="recordTournamentResult(${idx},${mi},document.getElementById('ts-${idx}-${mi}-a').value,document.getElementById('ts-${idx}-${mi}-b').value)" style="font-size:9px;padding:3px 7px;border-radius:6px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--theme);cursor:pointer">✓</button>`}
-        <span style="flex:1;font-size:11px;text-align:right;${done && !aWon ? "color:var(--green);font-weight:700" : ""}">${m.b}</span>
-      </div>`;
-    }).join("")}
-  </div>`;
-  document.body.appendChild(modal);
-}
-
-// ── SEASON SYSTEM ──────────────────────────────────────────
-const SEASON_KEY = "ekta_seasons";
-function loadSeasons() {
-  try { return JSON.parse(localStorage.getItem(SEASON_KEY) || "[]"); } catch { return []; }
-}
-function saveSeasons(seasons) {
-  try { localStorage.setItem(SEASON_KEY, JSON.stringify(seasons)); } catch {}
-}
-function renderSeasonManager() {
-  const el = document.getElementById("season-manager");
-  if (!el) return;
-  const seasons = loadSeasons();
-  const nowISO = new Date().toISOString().slice(0, 10);
-  const isActive = s => s.from <= nowISO && s.to >= nowISO;
-  el.innerHTML = `
-    <div class="season-create-form">
-      <input id="season-name-in" class="tourn-input" placeholder="Season name…">
-      <div class="season-date-row">
-        <div class="season-date-cell">
-          <div class="tourn-form-label">FROM</div>
-          <input id="season-from-in" type="date" class="tourn-input">
-        </div>
-        <div class="season-date-cell">
-          <div class="tourn-form-label">TO</div>
-          <input id="season-to-in" type="date" class="tourn-input">
-        </div>
-      </div>
-      <button class="tourn-create-btn" onclick="saveSeasonEntry()">
-        <span style="font-size:14px">📅</span> ADD SEASON
-      </button>
-    </div>
-    ${seasons.length ? `<div class="season-list">` + seasons.map((s, i) => {
-      const active = isActive(s);
-      const matchCount = allMatches.filter(m => (m.date||"") >= s.from && (m.date||"") <= s.to).length;
-      return `<div class="season-card${active ? " season-active" : ""}">
-        <div class="season-card-accent" style="background:${active ? "var(--theme)" : "rgba(255,255,255,0.1)"}"></div>
-        <div class="season-card-body">
-          <div class="season-card-name">${escHtml(s.name)}${active ? `<span class="season-badge-live">LIVE</span>` : ""}</div>
-          <div class="season-card-meta">${fmtDate(s.from)} → ${fmtDate(s.to)} · ${matchCount} matches</div>
-        </div>
-        <button class="season-del-btn" onclick="deleteSeasonEntry(${i})">✕</button>
-      </div>`;
-    }).join("") + `</div>` : `<div class="tourn-empty">No seasons yet. Add one above.</div>`}`;
-  _renderSeasonFilter();
-}
-function saveSeasonEntry() {
-  const name = document.getElementById("season-name-in")?.value.trim();
-  const from = document.getElementById("season-from-in")?.value;
-  const to = document.getElementById("season-to-in")?.value;
-  if (!name || !from || !to) { showToast("Enter name, from and to date", "❌"); return; }
-  const seasons = loadSeasons();
-  seasons.push({ name, from, to });
-  saveSeasons(seasons);
-  renderSeasonManager();
-  showToast(`Season "${name}" added`, "📅");
-}
-function deleteSeasonEntry(i) {
-  const seasons = loadSeasons();
-  seasons.splice(i, 1);
-  saveSeasons(seasons);
-  renderSeasonManager();
-}
-function _renderSeasonFilter() {
-  const el = document.getElementById("season-filter-wrap");
-  if (!el) return;
-  const seasons = loadSeasons();
-  if (!seasons.length) { el.style.display = "none"; return; }
-  el.style.display = "block";
-  const opts = `<option value="">All Seasons</option>` + seasons.map((s, i) => `<option value="${i}">${escHtml(s.name)}</option>`).join("");
-  el.innerHTML = `<select class="hist-select" onchange="applySeasonFilter(this.value)" style="width:100%">${opts}</select>`;
-}
-function applySeasonFilter(idx) {
-  const seasons = loadSeasons();
-  const s = seasons[parseInt(idx)];
-  if (!s) {
-    histSeasonFilter = "";
-    filterMatchTab(matchTabFilter);
-    return;
-  }
-  histSeasonFilter = `${s.from}__${s.to}`;
-  filterMatchTab(matchTabFilter);
 }
 
 // ── LIVE SCORING MODE ──────────────────────────────────────
