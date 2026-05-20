@@ -33,6 +33,17 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// ── HTML ESCAPE ───────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── DATE FORMATTER ────────────────────────────────────────────
 const MONTHS_SHORT = [
   "Jan",
@@ -311,6 +322,8 @@ function _memoElo(decay = false) {
 }
 function _invalidateEloMemo() { _eloMemoLen = -1; _eloMemo = null; }
 
+let _anaObserver = null;
+
 // ── SPLASH HELPERS ─────────────────────────────────────────
 function setSplashStatus(msg) {
   var el = document.getElementById("splash-status");
@@ -402,7 +415,7 @@ function renderScheduledBanner() {
         <div>
           <div class="sched-banner-date">${isToday ? "🔔 NEXT SESSION — TODAY" : `NEXT SESSION · ${dateLabel}`}${next.time ? " · " + next.time : ""}</div>
           <div class="sched-banner-team">${teamLabel}</div>
-          ${next.note && (next.teamA || next.teamB) ? `<div class="sched-banner-note">${next.note}</div>` : ""}
+          ${next.note && (next.teamA || next.teamB) ? `<div class="sched-banner-note">${escHtml(next.note)}</div>` : ""}
         </div>
       </div>
       ${upcoming.length > 1 ? `<div class="sched-banner-more">+${upcoming.length - 1} more</div>` : ""}
@@ -432,7 +445,7 @@ function renderScheduledAdmin() {
       <div class="sched-item-body">
         <div class="sched-item-date">${fmtDate(s.date)}${s.time ? " · " + s.time : ""}${isPast ? " · past" : ""}</div>
         <div class="sched-item-team">${teamLabel}</div>
-        ${s.note ? `<div class="sched-item-note">${s.note}</div>` : ""}
+        ${s.note ? `<div class="sched-item-note">${escHtml(s.note)}</div>` : ""}
       </div>
       <button class="sched-del-btn" onclick="deleteScheduled(${i})">✕</button>
     </div>`;
@@ -2853,7 +2866,7 @@ function buildMatchCards(matches, showAdmin) {
       const delay = Math.min(index * 0.1, 1); // Staggered delay up to 1s
 
       const noteHtml = m.note
-        ? `<div class="match-note">📝 ${m.note}</div>`
+        ? `<div class="match-note">📝 ${escHtml(m.note)}</div>`
         : "";
       return `
               <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}" data-margin="${diff}">
@@ -4036,7 +4049,7 @@ function editMatchByIndex(i, btn) {
       <input id="edit-sb" type="number" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
     </div>
     <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-    <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${m.note || ""}">
+    <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${escHtml(m.note || "")}">
     <div id="edit-match-err" style="color:var(--red);font-size:12px;margin-bottom:6px;display:none"></div>
     <div class="mei-actions">
       <button class="mei-cancel" onclick="closeMatchEdit()">Cancel</button>
@@ -6384,6 +6397,7 @@ function anaHandlePointerDown(e, key) {
 
   document.addEventListener("pointermove", _anaOnMove);
   document.addEventListener("pointerup", _anaOnUp);
+  document.addEventListener("pointercancel", _anaOnUp);
 }
 
 function _anaOnMove(e) {
@@ -6415,6 +6429,7 @@ function _anaOnMove(e) {
 function _anaOnUp(e) {
   document.removeEventListener("pointermove", _anaOnMove);
   document.removeEventListener("pointerup", _anaOnUp);
+  document.removeEventListener("pointercancel", _anaOnUp);
   if (_anaClone) {
     _anaClone.remove();
     _anaClone = null;
@@ -6460,6 +6475,7 @@ function _pillPointerDown(e, id) {
   _pillIsDragging = false;
   document.addEventListener("pointermove", _pillOnMove);
   document.addEventListener("pointerup", _pillOnUp);
+  document.addEventListener("pointercancel", _pillOnUp);
 }
 
 function _pillOnMove(e) {
@@ -6510,6 +6526,7 @@ function _pillOnMove(e) {
 function _pillOnUp(e) {
   document.removeEventListener("pointermove", _pillOnMove);
   document.removeEventListener("pointerup", _pillOnUp);
+  document.removeEventListener("pointercancel", _pillOnUp);
 
   if (_pillClone) { _pillClone.remove(); _pillClone = null; }
 
@@ -8777,7 +8794,8 @@ function renderAnalyticsPage() {
     requestAnimationFrame(() => renderMatchCalendar());
 
   // Animate cards and section titles as they scroll into view
-  const anaObserver = new IntersectionObserver(
+  if (_anaObserver) { _anaObserver.disconnect(); _anaObserver = null; }
+  _anaObserver = new IntersectionObserver(
     (entries) => {
       let stagger = 0;
       entries.forEach((entry) => {
@@ -8790,7 +8808,7 @@ function renderAnalyticsPage() {
             : "card-anim",
         );
         stagger++;
-        anaObserver.unobserve(el);
+        _anaObserver.unobserve(el);
       });
     },
     { threshold: 0.08, rootMargin: "0px 0px -20px 0px" },
@@ -8804,7 +8822,7 @@ function renderAnalyticsPage() {
       // Skip elements inside collapsed sections — they animate when the section expands
       if (el.closest(".ana-sec.collapsed")) return;
       el.style.opacity = "0";
-      anaObserver.observe(el);
+      _anaObserver.observe(el);
     });
 }
 
