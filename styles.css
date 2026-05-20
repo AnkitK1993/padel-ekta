@@ -11716,3 +11716,42 @@ body::after {
 .mng-reorder-active .mng-card { cursor: default; }
 .mng-reorder-active .mng-card.dragging { opacity: 0.4; }
 .mng-reorder-active .mng-card.drag-over { border-color: rgba(var(--theme-rgb),0.5); }
+
+/* ── FORM ENGINE CARD ──────────────────────────────── */
+.form-engine-card { padding: 12px 14px; }
+.form-score-row { display: flex; align-items: center; gap: 12px; margin: 8px 0 10px; }
+.form-score-big { font-size: 28px; font-weight: 900; line-height: 1; }
+.form-score-meta { display: flex; flex-direction: column; gap: 2px; }
+.form-pills-row { display: flex; flex-direction: column; gap: 6px; }
+.form-pill { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 6px 10px; }
+
+/* ── ACHIEVEMENT GRID ──────────────────────────────── */
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+.ach-badge { display: flex; flex-direction: column; align-items: center; gap: 3px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 8px 4px; border: 1px solid rgba(255,255,255,0.08); cursor: default; transition: transform 0.15s; }
+.ach-badge:not(.ach-locked):hover { transform: scale(1.05); }
+.ach-locked { opacity: 0.28; filter: grayscale(0.7); }
+.ach-icon { font-size: 22px; line-height: 1; }
+.ach-label { font-size: 8px; font-weight: 800; text-align: center; color: var(--fg); letter-spacing: 0.03em; }
+.ach-progress { font-size: 7px; color: var(--muted); font-weight: 700; }
+
+/* ── POWER RANKINGS ────────────────────────────────── */
+.pr-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.pr-row:last-child { border-bottom: none; }
+
+/* ── CHEMISTRY LEADERBOARD ─────────────────────────── */
+.chem-ldr-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.chem-ldr-row:last-child { border-bottom: none; }
+
+/* ── MATCH STORY FEED ──────────────────────────────── */
+.story-card { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.story-card:last-child { border-bottom: none; }
+.story-icon { font-size: 22px; line-height: 1; flex-shrink: 0; width: 28px; text-align: center; }
+
+/* ── SEASON MODE ───────────────────────────────────── */
+.season-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; }
+.season-card-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; cursor: pointer; }
+.season-card-body { display: none; padding: 0 14px 12px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px; }
+.season-card.season-open .season-card-body { display: block; }
+.season-card.season-open .season-card-header div:last-child { transform: rotate(180deg); }
+.season-award { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.season-award-icon { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }

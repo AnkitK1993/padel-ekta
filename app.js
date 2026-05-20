@@ -4043,6 +4043,17 @@ function selectFilterItem(value) {
   else if (mode === "eloprobp2") { _eloProbP2 = value; _updateEloProbSlots(); }
   else if (mode === "cmpplayerA") { _cmpPlayerA = value; _updateCmpSlots(); }
   else if (mode === "cmpplayerB") { _cmpPlayerB = value; _updateCmpSlots(); }
+  else if (mode && mode.startsWith("predict_")) {
+    const slot = mode.split("_")[1];
+    if (slot === "a1") _predictPlayerA = value;
+    else if (slot === "a2") _predictPartnerA = value;
+    else if (slot === "b1") _predictPlayerB = value;
+    else if (slot === "b2") _predictPartnerB = value;
+    const el = document.getElementById(`pred-label-${slot}`);
+    const btn = document.getElementById(`pred-slot-${slot}`);
+    if (el) el.textContent = value || "—";
+    if (btn) btn.classList.toggle("h2h-slot-filled", !!value);
+  }
 }
 
 function _updateCmpSlots() {
@@ -4563,6 +4574,116 @@ function openPlayerDetail(name) {
     return;
   }
   const s = detail.stats;
+
+  // ── FORM ENGINE ──────────────────────────────────────────────
+  const form = computePlayerForm(name, allMatches);
+  const formWidgetHtml = form ? `
+    <div class="ana-card form-engine-card">
+      <span class="badge">Player Form</span>
+      <div class="form-score-row">
+        <div class="form-score-big">${form.formEmoji} <span style="color:var(--theme)">${form.score}</span><span style="font-size:14px;color:var(--muted)">/10</span></div>
+        <div class="form-score-meta">
+          <div style="font-size:10px;color:var(--muted)">LAST ${form.last10count} MATCHES</div>
+          <div style="font-size:13px;font-weight:800;color:var(--fg)">${form.winPct10}% WIN RATE</div>
+        </div>
+      </div>
+      <div class="form-pills-row">
+        <div class="form-pill"><span style="font-size:9px;color:var(--muted)">MOMENTUM</span><span style="font-size:11px;font-weight:800;color:${form.momentumColor}">${form.momentumLabel}</span></div>
+        <div class="form-pill"><span style="font-size:9px;color:var(--muted)">UNDER PRESSURE</span><span style="font-size:11px;font-weight:800;color:${form.pressureColor}">${form.pressureLabel} (${form.pressureScore}%)</span></div>
+        <div class="form-pill"><span style="font-size:9px;color:var(--muted)">WIN QUALITY</span><span style="font-size:11px;font-weight:800;color:var(--fg)">ELO ${form.winQuality}</span></div>
+      </div>
+    </div>` : "";
+
+  // ── ARCHETYPE ────────────────────────────────────────────────
+  const archetype = computeArchetype(name, allMatches);
+  const archetypeHtml = archetype ? `
+    <div class="ana-card" style="display:flex;align-items:center;gap:12px;padding:12px 14px">
+      <div style="font-size:32px;line-height:1">${archetype.icon}</div>
+      <div style="flex:1">
+        <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.1em">PLAY STYLE</div>
+        <div style="font-size:16px;font-weight:900;color:${archetype.color};margin:2px 0">${archetype.label}</div>
+        <div style="font-size:10px;color:var(--muted)">${archetype.desc}</div>
+      </div>
+    </div>` : "";
+
+  // ── RADAR CHART ──────────────────────────────────────────────
+  const radarHtml = (() => {
+    const eloMap = computeElo(allMatches);
+    const allStats = computeStats(allMatches, eloMap);
+    const ps = allStats.find(p => p.name === name);
+    if (!ps || ps.mp < 3) return "";
+    const allElos = Object.values(eloMap);
+    const maxElo = Math.max(...allElos), minElo = Math.min(...allElos);
+    const eloNorm = maxElo > minElo ? ((eloMap[name]||1000) - minElo) / (maxElo - minElo) : 0.5;
+    const winRateNorm = ps.mp > 0 ? ps.mw / ps.mp : 0;
+    const closeMs = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(name) && Math.abs(m.scoreA-m.scoreB) <= 2);
+    const clutchNorm = closeMs.length >= 2 ? closeMs.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); }).length / closeMs.length : 0.5;
+    const formNorm = form ? form.score / 10 : winRateNorm;
+    const maxMp = Math.max(...allStats.map(p => p.mp), 1);
+    const actNorm = ps.mp / maxMp;
+    const margins = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(name)).map(m => { const inA=(m.teamA||[]).includes(name); return (inA?m.scoreA:m.scoreB)-(inA?m.scoreB:m.scoreA); });
+    const avgM = margins.reduce((s,v)=>s+v,0)/Math.max(margins.length,1);
+    const consistNorm = Math.min(1, Math.max(0, (avgM + 5) / 10));
+
+    const axes = [
+      { label: "Win Rate", val: winRateNorm },
+      { label: "ELO", val: eloNorm },
+      { label: "Clutch", val: clutchNorm },
+      { label: "Form", val: formNorm },
+      { label: "Activity", val: actNorm },
+      { label: "Margin", val: consistNorm },
+    ];
+    const N = axes.length;
+    const cx = 90, cy = 90, R = 68;
+    const col = playerColor(name);
+    const pts = axes.map((a, i) => {
+      const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
+      const r = a.val * R;
+      return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    });
+    const gridLines = [0.25, 0.5, 0.75, 1].map(scale => {
+      const gpts = axes.map((_, i) => {
+        const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
+        return `${cx + scale * R * Math.cos(angle)},${cy + scale * R * Math.sin(angle)}`;
+      }).join(" ");
+      return `<polygon points="${gpts}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+    }).join("");
+    const spokes = axes.map((_, i) => {
+      const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
+      return `<line x1="${cx}" y1="${cy}" x2="${cx + R * Math.cos(angle)}" y2="${cy + R * Math.sin(angle)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+    }).join("");
+    const polyPts = pts.map(p => `${p.x},${p.y}`).join(" ");
+    const labels = axes.map((a, i) => {
+      const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
+      const lx = cx + (R + 16) * Math.cos(angle);
+      const ly = cy + (R + 16) * Math.sin(angle);
+      const anchor = lx < cx - 5 ? "end" : lx > cx + 5 ? "start" : "middle";
+      return `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.45)" font-family="DM Sans,sans-serif">${a.label.toUpperCase()}</text>`;
+    }).join("");
+    return `<div class="ana-card"><span class="badge">Radar Profile</span>
+      <svg viewBox="0 0 180 180" width="100%" style="max-width:220px;display:block;margin:8px auto 0">
+        ${gridLines}${spokes}
+        <polygon points="${polyPts}" fill="${col}" fill-opacity="0.18" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
+        ${pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${col}"/>`).join("")}
+        ${labels}
+      </svg></div>`;
+  })();
+
+  // ── ACHIEVEMENTS ─────────────────────────────────────────────
+  const achievements = computeAchievements(name, allMatches);
+  const achievementsHtml = achievements.length ? (() => {
+    const unlocked = achievements.filter(a => a.unlocked);
+    const locked = achievements.filter(a => !a.unlocked);
+    const badge = (a, dim) => `<div class="ach-badge${dim ? " ach-locked" : ""}" title="${a.desc}">
+      <div class="ach-icon">${a.icon}</div>
+      <div class="ach-label">${a.label}</div>
+      ${a.progress && !a.unlocked ? `<div class="ach-progress">${a.progress}</div>` : ""}
+    </div>`;
+    return `<div class="ana-card"><span class="badge">Achievements</span>
+      <div style="font-size:9px;color:var(--muted);margin:4px 0 8px;font-weight:700">${unlocked.length}/${achievements.length} UNLOCKED</div>
+      <div class="ach-grid">${unlocked.map(a => badge(a, false)).join("")}${locked.map(a => badge(a, true)).join("")}</div>
+    </div>`;
+  })() : "";
 
   // Feature 1: current streak
   const streakIcon = s.curStreak > 0 ? (s.curType === "W" ? "🔥" : "❄️") : "";
@@ -5131,6 +5252,12 @@ function openPlayerDetail(name) {
                   </div>
                 </div>
 
+                ${formWidgetHtml}
+
+                ${archetypeHtml}
+
+                ${radarHtml}
+
                 ${raceHtml}
 
                 ${eloTimelineHtml}
@@ -5138,6 +5265,8 @@ function openPlayerDetail(name) {
                 ${connectionsHtml}
 
                 ${clutchHtml}
+
+                ${achievementsHtml}
 
                 ${badgesHtml}
 
@@ -7498,6 +7627,481 @@ function computeBadges(name, stats, eloMap, allMatchesArr) {
   return badges;
 }
 
+// ══════════════════════════════════════════════════════════════
+// ── PHASE 1: PLAYER FORM ENGINE ───────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+function computePlayerForm(name, matches) {
+  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const playerMs = sorted.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+  if (playerMs.length < 3) return null;
+
+  const eloMap = computeElo(matches);
+  const last10 = playerMs.slice(-10);
+  const prev10 = playerMs.slice(-20, -10);
+
+  // Win % last 10
+  const wins10 = last10.filter(m => {
+    const inA = (m.teamA || []).includes(name);
+    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+  }).length;
+  const winPct10 = last10.length > 0 ? wins10 / last10.length : 0;
+
+  // Average margin last 10
+  const avgMargin10 = last10.reduce((s, m) => {
+    const inA = (m.teamA || []).includes(name);
+    const myScore = inA ? m.scoreA : m.scoreB;
+    const theirScore = inA ? m.scoreB : m.scoreA;
+    return s + (myScore - theirScore);
+  }, 0) / Math.max(last10.length, 1);
+
+  // Win quality: avg opponent ELO in last 10 wins
+  let qualSum = 0, qualCount = 0;
+  last10.forEach(m => {
+    const inA = (m.teamA || []).includes(name);
+    const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+    if (!won) return;
+    const opps = inA ? (m.teamB || []) : (m.teamA || []);
+    opps.forEach(opp => { qualSum += (eloMap[opp] || 1000); qualCount++; });
+  });
+  const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
+
+  // Pressure (close match win %, diff ≤ 2)
+  const closeMs = playerMs.filter(m => Math.abs(m.scoreA - m.scoreB) <= 2);
+  const closeWins = closeMs.filter(m => {
+    const inA = (m.teamA || []).includes(name);
+    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+  }).length;
+  const pressureScore = closeMs.length >= 3 ? closeWins / closeMs.length : 0.5;
+
+  // Momentum: compare last 5 vs previous 5 win %
+  const last5 = playerMs.slice(-5);
+  const prev5 = playerMs.slice(-10, -5);
+  const w5 = last5.filter(m => { const inA = (m.teamA||[]).includes(name); return (inA && m.scoreA > m.scoreB)||(!inA && m.scoreB > m.scoreA); }).length;
+  const wp5 = prev5.filter(m => { const inA = (m.teamA||[]).includes(name); return (inA && m.scoreA > m.scoreB)||(!inA && m.scoreB > m.scoreA); }).length;
+  const momentumDelta = last5.length > 0 && prev5.length > 0
+    ? (w5 / last5.length - wp5 / prev5.length) * 100
+    : 0;
+
+  // Composite form score 0–10
+  const formScore = Math.min(10, Math.max(0,
+    winPct10 * 4 +
+    Math.min(1, Math.max(0, (avgMargin10 + 5) / 10)) * 2.5 +
+    Math.min(1, (winQuality - 900) / 300) * 2 +
+    pressureScore * 1.5
+  ));
+
+  // Labels
+  const momentumLabel = momentumDelta > 8 ? "Rising ↑" : momentumDelta < -8 ? "Falling ↓" : "Stable →";
+  const momentumColor = momentumDelta > 8 ? "var(--green)" : momentumDelta < -8 ? "var(--red)" : "var(--muted)";
+  const pressureLabel = pressureScore >= 0.7 ? "Elite" : pressureScore >= 0.5 ? "Solid" : "Shaky";
+  const pressureColor = pressureScore >= 0.7 ? "var(--green)" : pressureScore >= 0.5 ? "var(--gold)" : "var(--red)";
+  const formEmoji = formScore >= 8 ? "🔥" : formScore >= 6 ? "⚡" : formScore >= 4 ? "😐" : "❄️";
+
+  return {
+    score: Math.round(formScore * 10) / 10,
+    formEmoji,
+    winPct10: Math.round(winPct10 * 100),
+    avgMargin10: Math.round(avgMargin10 * 10) / 10,
+    momentumDelta: Math.round(momentumDelta),
+    momentumLabel,
+    momentumColor,
+    pressureScore: Math.round(pressureScore * 100),
+    pressureLabel,
+    pressureColor,
+    closeMatches: closeMs.length,
+    last10count: last10.length,
+    winQuality: Math.round(winQuality),
+  };
+}
+
+// ── PLAY STYLE ARCHETYPE ──────────────────────────────────────
+function computeArchetype(name, matches) {
+  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const playerMs = sorted.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+  if (playerMs.length < 5) return null;
+
+  const eloMap = computeElo(matches);
+  const wins = playerMs.filter(m => { const inA = (m.teamA||[]).includes(name); return (inA && m.scoreA>m.scoreB)||(!inA && m.scoreB>m.scoreA); });
+  const winPct = wins.length / playerMs.length;
+
+  // Close match win %
+  const close = playerMs.filter(m => Math.abs(m.scoreA - m.scoreB) <= 2);
+  const closeWinPct = close.length > 0
+    ? close.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); }).length / close.length
+    : 0.5;
+
+  // Avg margin
+  const avgMargin = playerMs.reduce((s, m) => {
+    const inA = (m.teamA||[]).includes(name);
+    return s + ((inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA));
+  }, 0) / playerMs.length;
+
+  // Streak volatility (how often streak direction changes)
+  let changes = 0;
+  for (let i = 1; i < playerMs.length; i++) {
+    const prev = playerMs[i-1], cur = playerMs[i];
+    const prevWon = (prev.teamA||[]).includes(name) ? prev.scoreA > prev.scoreB : prev.scoreB > prev.scoreA;
+    const curWon = (cur.teamA||[]).includes(name) ? cur.scoreA > cur.scoreB : cur.scoreB > cur.scoreA;
+    if (prevWon !== curWon) changes++;
+  }
+  const volatility = changes / Math.max(playerMs.length - 1, 1);
+
+  // Win quality (avg opponent ELO in wins)
+  let qualSum = 0, qualCount = 0;
+  wins.forEach(m => {
+    const opps = (m.teamA||[]).includes(name) ? (m.teamB||[]) : (m.teamA||[]);
+    opps.forEach(opp => { qualSum += (eloMap[opp] || 1000); qualCount++; });
+  });
+  const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
+
+  // Classify
+  if (closeWinPct >= 0.65 && close.length >= 4)
+    return { label: "Clutch Player", icon: "🧊", desc: "Thrives under pressure, wins the close ones", color: "#00c8ff" };
+  if (avgMargin >= 2.5 && winPct >= 0.6)
+    return { label: "Finisher", icon: "🎯", desc: "Wins decisively, rarely drops close sets", color: "#00ff9d" };
+  if (winQuality >= 1050 && wins.length >= 5)
+    return { label: "Giant Slayer", icon: "⚔️", desc: "Elevates against strong opponents", color: "var(--gold)" };
+  if (volatility < 0.35 && winPct >= 0.55)
+    return { label: "Consistent", icon: "🛡", desc: "Rock-solid, rarely goes on bad runs", color: "#b44dff" };
+  if (volatility > 0.55)
+    return { label: "Streaky", icon: "🎲", desc: "Runs hot and cold — dangerous on a good day", color: "#ff9d00" };
+  if (winPct >= 0.65)
+    return { label: "Aggressor", icon: "🔥", desc: "High win rate, dominates most matchups", color: "#ff2d78" };
+  return { label: "Balanced", icon: "⚖️", desc: "Well-rounded, no glaring weakness", color: "var(--muted)" };
+}
+
+// ── SMART POWER RANKINGS ──────────────────────────────────────
+function computePowerRankings(matches) {
+  const eloMap = computeElo(matches);
+  const stats = computeStats(matches, eloMap);
+  if (!stats.length) return [];
+
+  const maxElo = Math.max(...Object.values(eloMap));
+  const minElo = Math.min(...Object.values(eloMap));
+  const eloRange = Math.max(maxElo - minElo, 1);
+
+  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const maxMp = Math.max(...stats.map(s => s.mp), 1);
+
+  return stats.map(p => {
+    const form = computePlayerForm(p.name, matches);
+    const eloNorm = ((eloMap[p.name] || 1000) - minElo) / eloRange;
+    const formNorm = form ? form.score / 10 : p.mw / Math.max(p.mp, 1);
+    const activityNorm = p.mp / maxMp;
+
+    // Win quality: avg ELO of opponents beaten
+    let qualSum = 0, qualCount = 0;
+    sorted.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(p.name)).forEach(m => {
+      const inA = (m.teamA||[]).includes(p.name);
+      const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+      if (!won) return;
+      const opps = inA ? (m.teamB||[]) : (m.teamA||[]);
+      opps.forEach(opp => { qualSum += (eloMap[opp]||1000); qualCount++; });
+    });
+    const winQualNorm = qualCount > 0 ? Math.min(1, (qualSum/qualCount - 900) / 400) : 0;
+
+    const score = eloNorm * 0.4 + formNorm * 0.3 + winQualNorm * 0.2 + activityNorm * 0.1;
+
+    return { name: p.name, score: Math.round(score * 1000) / 10, elo: eloMap[p.name] || 1000,
+             winPct: Math.round((p.mw / Math.max(p.mp, 1)) * 100), mp: p.mp,
+             form: form ? form.score : null, formEmoji: form ? form.formEmoji : "—" };
+  }).sort((a, b) => b.score - a.score);
+}
+
+// ── PARTNERSHIP CHEMISTRY SCORE ───────────────────────────────
+function computeChemistryScores(matches) {
+  const eloMap = computeElo(matches);
+  const pairs = getPairStats(matches).filter(p => p.played >= 3);
+  if (!pairs.length) return [];
+
+  const maxPlayed = Math.max(...pairs.map(p => p.played), 1);
+  const allElos = Object.values(eloMap);
+  const avgElo = allElos.reduce((s, v) => s + v, 0) / Math.max(allElos.length, 1);
+
+  return pairs.map(p => {
+    const [n1, n2] = p.players;
+    const winPctNorm = p.winPct / 100;
+    const marginNorm = Math.min(1, Math.max(0, (p.avgMargin + 5) / 10));
+    const activityNorm = p.played / maxPlayed;
+
+    // vs-strong: wins against above-average ELO opponents
+    const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
+    let strongWins = 0, strongPlayed = 0;
+    sorted.forEach(m => {
+      const inA = (m.teamA||[]).includes(n1) && (m.teamA||[]).includes(n2);
+      const inB = (m.teamB||[]).includes(n1) && (m.teamB||[]).includes(n2);
+      if (!inA && !inB) return;
+      const opps = inA ? (m.teamB||[]) : (m.teamA||[]);
+      const oppAvgElo = opps.reduce((s, op) => s + (eloMap[op]||1000), 0) / Math.max(opps.length, 1);
+      if (oppAvgElo < avgElo) return;
+      strongPlayed++;
+      const aWon = m.scoreA > m.scoreB;
+      if ((inA && aWon) || (inB && !aWon)) strongWins++;
+    });
+    const vsStrongNorm = strongPlayed >= 2 ? strongWins / strongPlayed : 0.5;
+
+    const chemScore = winPctNorm * 0.4 + marginNorm * 0.25 + vsStrongNorm * 0.25 + activityNorm * 0.1;
+    const score10 = Math.min(10, Math.round(chemScore * 10 * 10) / 10);
+    const tier = score10 >= 8.5 ? "S" : score10 >= 7 ? "A" : score10 >= 5.5 ? "B" : "C";
+    const tierColor = tier === "S" ? "var(--gold)" : tier === "A" ? "var(--green)" : tier === "B" ? "var(--theme)" : "var(--muted)";
+
+    return { players: p.players, played: p.played, wins: p.wins,
+             winPct: p.winPct, avgMargin: p.avgMargin,
+             score: score10, tier, tierColor };
+  }).sort((a, b) => b.score - a.score);
+}
+
+// ── MATCH STORY CARDS ─────────────────────────────────────────
+function computeMatchStories(matches) {
+  if (matches.length < 2) return [];
+  const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
+  const stories = [];
+  const eloHistory = {};
+  const streaks = {};
+
+  sorted.forEach((m, idx) => {
+    const allP = [...(m.teamA||[]), ...(m.teamB||[])];
+    allP.forEach(p => { if (!(p in eloHistory)) eloHistory[p] = 1000; if (!(p in streaks)) streaks[p] = { type: null, count: 0 }; });
+
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + eloHistory[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + eloHistory[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+
+    const prevElos = { ...eloHistory };
+
+    m.teamA.forEach(p => { eloHistory[p] = (eloHistory[p] || 1000) + dA; });
+    m.teamB.forEach(p => { eloHistory[p] = (eloHistory[p] || 1000) + dB; });
+
+    // Update streaks
+    [...m.teamA, ...m.teamB].forEach(p => {
+      const won = (m.teamA.includes(p) && aWon) || (m.teamB.includes(p) && !aWon);
+      const type = won ? "W" : "L";
+      if (streaks[p].type === type) streaks[p].count++;
+      else { streaks[p].type = type; streaks[p].count = 1; }
+    });
+
+    const date = m.date;
+
+    // Story: Streak ended
+    [...m.teamA, ...m.teamB].forEach(p => {
+      const prevStreak = streaks[p].count === 1 ? null : null; // tracked below
+    });
+
+    // Story: Upset (lower ELO team wins)
+    const eloDiff = Math.abs(avgA - avgB);
+    if (eloDiff >= 60) {
+      const upsetTeam = (aWon && avgA < avgB) ? m.teamA : (!aWon && avgB < avgA) ? m.teamB : null;
+      const favoriteTeam = upsetTeam === m.teamA ? m.teamB : m.teamA;
+      if (upsetTeam) {
+        stories.push({
+          icon: "😱",
+          type: "upset",
+          text: `${upsetTeam.join(" & ")} upset ${favoriteTeam.join(" & ")} (+${Math.round(eloDiff)} ELO gap)`,
+          date,
+          score: `${m.scoreA}–${m.scoreB}`,
+          matchIdx: idx,
+        });
+      }
+    }
+
+    // Story: ELO milestone (1050, 1100, 1150, 1200)
+    allP.forEach(p => {
+      [1050, 1100, 1150, 1200, 1250].forEach(milestone => {
+        if (prevElos[p] < milestone && eloHistory[p] >= milestone) {
+          stories.push({
+            icon: "🏆",
+            type: "milestone",
+            text: `${p} crossed ELO ${milestone} for the first time!`,
+            date,
+            score: `ELO ${Math.round(eloHistory[p])}`,
+            matchIdx: idx,
+          });
+        }
+      });
+    });
+
+    // Story: Shutout (X–0)
+    if (m.scoreA === 0 || m.scoreB === 0) {
+      const winner = aWon ? m.teamA : m.teamB;
+      const loser = aWon ? m.teamB : m.teamA;
+      stories.push({
+        icon: "💀",
+        type: "shutout",
+        text: `${winner.join(" & ")} shut out ${loser.join(" & ")} ${m.scoreA}–${m.scoreB}`,
+        date,
+        score: `${m.scoreA}–${m.scoreB}`,
+        matchIdx: idx,
+      });
+    }
+  });
+
+  // Story: Longest win streak per player (all-time)
+  const allStats = computeStats(matches);
+  allStats.forEach(p => {
+    if (p.bestWinStreak >= 7) {
+      stories.push({
+        icon: "🔥",
+        type: "streak",
+        text: `${p.name} holds the all-time record: ${p.bestWinStreak}-match win streak`,
+        date: null,
+        score: `${p.bestWinStreak} wins`,
+        matchIdx: null,
+      });
+    }
+  });
+
+  // Most recent stories first, limit 30
+  return stories.reverse().slice(0, 30);
+}
+
+// ── ACHIEVEMENTS (new additions beyond computeBadges) ─────────
+function computeAchievements(name, matches) {
+  const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
+  const playerMs = sorted.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(name));
+  const eloMap = computeElo(matches);
+  const eloHistory = computeEloHistory(matches);
+  const pts = eloHistory[name] || [];
+  const allStats = computeStats(matches, eloMap);
+  const ps = allStats.find(p => p.name === name);
+  if (!ps) return [];
+
+  const ach = [];
+  const add = (icon, label, desc, unlocked, progress = null) =>
+    ach.push({ icon, label, desc, unlocked, progress });
+
+  const wins = playerMs.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); });
+  const closeMs = playerMs.filter(m => Math.abs(m.scoreA-m.scoreB) <= 2);
+  const closeWins = closeMs.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); });
+
+  // Ice Cold — win 5 close games
+  add("🧊", "Ice Cold", "Win 5 close games (≤2 pt diff)", closeWins.length >= 5, `${Math.min(closeWins.length,5)}/5`);
+
+  // King Slayer — beat the #1 ranked player
+  const ranked = allStats;
+  const topPlayer = ranked[0]?.name;
+  const beatTop = topPlayer && topPlayer !== name && wins.some(m => {
+    const opps = (m.teamA||[]).includes(name) ? (m.teamB||[]) : (m.teamA||[]);
+    return opps.includes(topPlayer);
+  });
+  add("👑", "King Slayer", `Beat the #1 ranked player`, beatTop);
+
+  // Untouchable — 10-win streak
+  add("⚡", "Untouchable", "Achieve a 10-match win streak", ps.bestWinStreak >= 10, `${Math.min(ps.bestWinStreak,10)}/10`);
+
+  // Wall — concede ≤10 pts in a match
+  const wallMatch = playerMs.some(m => {
+    const inA = (m.teamA||[]).includes(name);
+    const conceded = inA ? m.scoreB : m.scoreA;
+    const myScore = inA ? m.scoreA : m.scoreB;
+    return myScore > conceded && conceded === 0;
+  });
+  add("🛡", "Wall", "Win a match conceding 0 games", wallMatch);
+
+  // Sharpshooter — 75%+ win rate (min 10 matches)
+  const winPct = ps.mp >= 10 ? Math.round((ps.mw / ps.mp) * 100) : 0;
+  add("🎯", "Sharpshooter", "80%+ win rate (min 10 matches)", ps.mp >= 10 && winPct >= 80, ps.mp >= 10 ? `${winPct}%` : `${ps.mp}/10 played`);
+
+  // On Fire — 5-match win streak
+  add("🔥", "On Fire", "Win 5 matches in a row", ps.bestWinStreak >= 5, `${Math.min(ps.bestWinStreak,5)}/5`);
+
+  // Diamond — reach ELO 1200
+  const peakElo = pts.length > 0 ? Math.max(...pts.map(p => p.elo)) : (eloMap[name] || 1000);
+  add("💎", "Diamond", "Reach ELO 1200", peakElo >= 1200, `Peak: ${Math.round(peakElo)}`);
+
+  // Chemistry Lab — 10 wins with same partner
+  const partnerWins = ps.partnerWins || {};
+  const bestPartnerWins = Math.max(0, ...Object.values(partnerWins));
+  const bestPartnerName = Object.keys(partnerWins).find(k => partnerWins[k] === bestPartnerWins) || null;
+  add("🤝", "Chemistry Lab", "Win 10 matches with the same partner", bestPartnerWins >= 10,
+    bestPartnerName ? `${bestPartnerWins}/10 with ${bestPartnerName}` : "0/10");
+
+  // Climber — rise 5+ ranks in a month
+  const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+  const monthAgoStr = monthAgo.toISOString().slice(0, 10);
+  const oldMs = matches.filter(m => (m.date||"") < monthAgoStr);
+  const oldRank = computeStats(oldMs).findIndex(p => p.name === name) + 1;
+  const curRank = allStats.findIndex(p => p.name === name) + 1;
+  const rankRise = oldRank > 0 && curRank > 0 ? oldRank - curRank : 0;
+  add("⬆️", "Climber", "Rise 5+ ranks in a month", rankRise >= 5, rankRise > 0 ? `+${rankRise} ranks` : "—");
+
+  // Comeback Kid — win 3 close matches from behind concept (close wins)
+  add("😤", "Comeback Kid", "Win 3 tense close matches", closeWins.length >= 3, `${Math.min(closeWins.length,3)}/3`);
+
+  // Upset Artist — beat 3 higher-ELO opponents in a row
+  let consecUpsets = 0, maxConsecUpsets = 0;
+  playerMs.forEach(m => {
+    const inA = (m.teamA||[]).includes(name);
+    const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+    if (!won) { consecUpsets = 0; return; }
+    const myTeam = inA ? m.teamA : m.teamB;
+    const oppTeam = inA ? m.teamB : m.teamA;
+    const myAvg = myTeam.reduce((s,p)=>s+(eloMap[p]||1000),0)/myTeam.length;
+    const oppAvg = oppTeam.reduce((s,p)=>s+(eloMap[p]||1000),0)/oppTeam.length;
+    if (oppAvg > myAvg + 20) { consecUpsets++; maxConsecUpsets = Math.max(maxConsecUpsets, consecUpsets); }
+    else consecUpsets = 0;
+  });
+  add("🎲", "Upset Artist", "Beat 3 higher-ELO opponents in a row", maxConsecUpsets >= 3, `${Math.min(maxConsecUpsets,3)}/3`);
+
+  // Regular — play every week for 4 weeks
+  const weeks = new Set(playerMs.map(m => {
+    if (!m.date) return null;
+    const d = new Date(m.date + "T00:00:00");
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    return `${d.getFullYear()}-${Math.ceil((((d - jan1) / 86400000) + jan1.getDay() + 1) / 7)}`;
+  }).filter(Boolean));
+  add("📅", "Regular", "Play at least once a week for 4 weeks", weeks.size >= 4, `${Math.min(weeks.size,4)}/4 weeks`);
+
+  // Season MVP placeholder — top SR in any month
+  const monthStats = {};
+  matches.forEach(m => {
+    const mo = (m.date||"").slice(0, 7);
+    if (!monthStats[mo]) monthStats[mo] = [];
+    monthStats[mo].push(m);
+  });
+  const isMVP = Object.values(monthStats).some(ms => {
+    const st = computeStats(ms);
+    return st.length && st[0].name === name;
+  });
+  add("🥇", "Season MVP", "Finish #1 in any month", isMVP);
+
+  return ach;
+}
+
+// ── SEASON MODE ───────────────────────────────────────────────
+function computeSeasons(matches) {
+  if (!matches.length) return [];
+  const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
+  // Group by calendar month
+  const byMonth = {};
+  sorted.forEach(m => {
+    const mo = (m.date||"").slice(0, 7);
+    if (!byMonth[mo]) byMonth[mo] = [];
+    byMonth[mo].push(m);
+  });
+  return Object.entries(byMonth).map(([month, ms]) => {
+    const eloMap = computeElo(ms);
+    const stats = computeStats(ms, eloMap).filter(p => p.mp >= 2);
+    const pairs = getPairStats(ms).filter(p => p.played >= 2);
+    const mvp = stats[0] || null;
+    const topPair = pairs[0] || null;
+    const mostImproved = stats.length > 1
+      ? [...stats].sort((a, b) => {
+          const prevEloA = computeElo(sorted.filter(m => (m.date||"") < month.slice(0,7)+"-01"))[a.name] || 1000;
+          const prevEloB = computeElo(sorted.filter(m => (m.date||"") < month.slice(0,7)+"-01"))[b.name] || 1000;
+          return ((eloMap[b.name]||1000) - prevEloB) - ((eloMap[a.name]||1000) - prevEloA);
+        })[0]
+      : null;
+    const ironMan = stats.length ? [...stats].sort((a,b) => b.mp - a.mp)[0] : null;
+    const [yr, mo] = month.split("-");
+    const monthName = new Date(+yr, +mo-1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+    return { month, monthName, matches: ms.length, players: stats, pairs, mvp, topPair, mostImproved, ironMan };
+  }).reverse();
+}
+
 function _partnerTab(btn, tab) {
   const panels = ["chemistry", "partners", "synergy", "form"];
   panels.forEach(t => {
@@ -8061,6 +8665,308 @@ function recomputeWhatIfElo() {
       ${excluded ? `<span class="wi-delta-pill neutral">${excluded} excluded</span>` : ""}
     </div>
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── NEW ANALYTICS SECTION BUILDERS ────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+function _buildPowerRankingsHtml() {
+  const rankings = computePowerRankings(allMatches);
+  if (!rankings.length) return '<div class="sub" style="padding:8px">Need more data.</div>';
+  const rows = rankings.map((p, i) => {
+    const col = i === 0 ? "var(--gold)" : i === 1 ? "var(--theme)" : i === 2 ? "var(--green)" : "var(--muted)";
+    const bar = `<div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.06);margin-top:4px"><div style="height:100%;width:${p.score}%;background:${col};border-radius:2px;transition:width 0.6s"></div></div>`;
+    const avatar = `<div style="width:28px;height:28px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>`;
+    return `<div class="pr-row">
+      <div style="font-size:13px;font-weight:900;color:${col};width:24px;text-align:center">#${i+1}</div>
+      ${avatar}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+        ${bar}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:14px;font-weight:900;color:${col}">${p.score}</div>
+        <div style="font-size:8px;color:var(--muted);font-weight:700">${p.formEmoji} ${p.winPct}%W · ELO ${p.elo}</div>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="ana-card" style="padding:10px 12px">
+    <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Composite: ELO 40% · Form 30% · Win Quality 20% · Activity 10%</div>
+    ${rows}
+  </div>`;
+}
+
+function _buildChemistryLeaderboardHtml() {
+  const scores = computeChemistryScores(allMatches);
+  if (!scores.length) return '<div class="sub" style="padding:8px">Need at least 3 matches per pair.</div>';
+  const rows = scores.slice(0, 20).map((p, i) => {
+    const col = playerColor(p.players[0]);
+    const col2 = playerColor(p.players[1]);
+    return `<div class="chem-ldr-row">
+      <div style="font-size:12px;font-weight:800;color:var(--muted);width:20px">#${i+1}</div>
+      <div style="display:flex;gap:-4px;flex-shrink:0">
+        <div style="width:24px;height:24px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff">${playerInitials(p.players[0])}</div>
+        <div style="width:24px;height:24px;border-radius:50%;background:${col2};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;margin-left:-6px">${playerInitials(p.players[1])}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.players.join(" & ")}</div>
+        <div style="font-size:9px;color:var(--muted)">${p.played} matches · ${p.winPct}% win · avg ${p.avgMargin > 0 ? "+" : ""}${p.avgMargin?.toFixed ? p.avgMargin.toFixed(1) : 0}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:16px;font-weight:900;color:${p.tierColor}">${p.score}</div>
+        <div style="font-size:10px;font-weight:900;color:${p.tierColor}">${p.tier}-Tier</div>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="ana-card" style="padding:10px 12px">
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      ${[["S","var(--gold)","≥8.5"],["A","var(--green)","7–8.5"],["B","var(--theme)","5.5–7"],["C","var(--muted)","<5.5"]].map(([t,c,r]) => `<span style="font-size:9px;font-weight:800;color:${c};background:rgba(255,255,255,0.05);border-radius:6px;padding:2px 7px">${t} ${r}</span>`).join("")}
+    </div>
+    ${rows}
+  </div>`;
+}
+
+let _predictPlayerA = "", _predictPlayerB = "", _predictPartnerA = "", _predictPartnerB = "";
+
+function _buildMatchPredictHtml() {
+  const players = computeStats(allMatches).map(p => p.name);
+  if (players.length < 2) return '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
+  return `<div class="ana-card" style="padding:12px">
+    <div style="font-size:10px;color:var(--muted);margin-bottom:12px">Pick two teams — get win probability, expected score, and chemistry rating.</div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
+      <div>
+        <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:4px">TEAM A</div>
+        <button class="h2h-slot-btn${_predictPlayerA ? " h2h-slot-filled" : ""}" id="pred-slot-a1" onclick="openPredictSheet('a1')" style="width:100%;margin-bottom:6px">
+          <span style="font-size:9px;color:var(--muted);display:block">P1</span>
+          <span id="pred-label-a1" style="font-size:11px;font-weight:800">${_predictPlayerA || "—"}</span>
+        </button>
+        <button class="h2h-slot-btn${_predictPartnerA ? " h2h-slot-filled" : ""}" id="pred-slot-a2" onclick="openPredictSheet('a2')" style="width:100%">
+          <span style="font-size:9px;color:var(--muted);display:block">P2</span>
+          <span id="pred-label-a2" style="font-size:11px;font-weight:800">${_predictPartnerA || "—"}</span>
+        </button>
+      </div>
+      <div style="font-size:14px;font-weight:900;color:var(--muted)">VS</div>
+      <div>
+        <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:4px">TEAM B</div>
+        <button class="h2h-slot-btn${_predictPlayerB ? " h2h-slot-filled" : ""}" id="pred-slot-b1" onclick="openPredictSheet('b1')" style="width:100%;margin-bottom:6px">
+          <span style="font-size:9px;color:var(--muted);display:block">P1</span>
+          <span id="pred-label-b1" style="font-size:11px;font-weight:800">${_predictPlayerB || "—"}</span>
+        </button>
+        <button class="h2h-slot-btn${_predictPartnerB ? " h2h-slot-filled" : ""}" id="pred-slot-b2" onclick="openPredictSheet('b2')" style="width:100%">
+          <span style="font-size:9px;color:var(--muted);display:block">P2</span>
+          <span id="pred-label-b2" style="font-size:11px;font-weight:800">${_predictPartnerB || "—"}</span>
+        </button>
+      </div>
+    </div>
+    <button onclick="runMatchPrediction()" style="width:100%;padding:9px;border-radius:10px;font-weight:800;font-size:12px;background:rgba(var(--theme-rgb),0.15);border:1px solid rgba(var(--theme-rgb),0.4);color:var(--theme);cursor:pointer;letter-spacing:0.04em">PREDICT MATCH ▶</button>
+    <div id="predict-result" style="margin-top:8px"></div>
+  </div>`;
+}
+
+function openPredictSheet(slot) {
+  _filterSheetMode = "predict_" + slot;
+  const el = document.getElementById("filter-sheet-title");
+  if (el) el.textContent = "SELECT PLAYER";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const taken = [_predictPlayerA, _predictPartnerA, _predictPlayerB, _predictPartnerB]
+    .filter((v, i) => v && ["a1","a2","b1","b2"][i] !== slot);
+  const players = computeStats(allMatches).map(s => s.name);
+  const selected = slot === "a1" ? _predictPlayerA : slot === "a2" ? _predictPartnerA : slot === "b1" ? _predictPlayerB : _predictPartnerB;
+  list.innerHTML = `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
+    players.map(p => {
+      const dis = taken.includes(p) ? ' style="opacity:0.3;pointer-events:none"' : "";
+      const sel = p === selected ? " live-sheet-item-selected" : "";
+      return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem('${p.replace(/'/g,"\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`;
+    }).join("");
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet = document.getElementById("filter-sheet");
+  if (overlay) overlay.classList.add("live-sheet-open");
+  if (sheet) sheet.classList.add("live-sheet-open");
+}
+
+function runMatchPrediction() {
+  const teamA = [_predictPlayerA, _predictPartnerA].filter(Boolean);
+  const teamB = [_predictPlayerB, _predictPartnerB].filter(Boolean);
+  const res = document.getElementById("predict-result");
+  if (!res) return;
+  if (!teamA.length || !teamB.length) {
+    res.innerHTML = '<div style="color:var(--red);font-size:11px;padding:4px">Select at least one player per team.</div>';
+    return;
+  }
+  const eloMap = computeElo(allMatches);
+  const avgA = teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
+  const avgB = teamB.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamB.length;
+  const probA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+  const pctA = Math.round(probA * 100), pctB = 100 - pctA;
+  const colA = playerColor(teamA[0]), colB = playerColor(teamB[0]);
+
+  // Chemistry tiers
+  const chemA = computeChemistryScores(allMatches).find(c =>
+    c.players.every(p => teamA.includes(p)) || teamA.length === 1 ? true : false
+  );
+  const chemB = computeChemistryScores(allMatches).find(c =>
+    c.players.every(p => teamB.includes(p)) || teamB.length === 1 ? true : false
+  );
+
+  // H2H between these exact teams
+  const tkA = [...teamA].sort().join("|"), tkB = [...teamB].sort().join("|");
+  let h2hA = 0, h2hB = 0;
+  allMatches.forEach(m => {
+    const pmA = [...(m.teamA||[])].sort().join("|"), pmB = [...(m.teamB||[])].sort().join("|");
+    const fwd = pmA === tkA && pmB === tkB, rev = pmA === tkB && pmB === tkA;
+    if (!fwd && !rev) return;
+    const aWon = m.scoreA > m.scoreB;
+    if (fwd) { aWon ? h2hA++ : h2hB++; } else { aWon ? h2hB++ : h2hA++; }
+  });
+
+  // Expected score based on avg score in their matches
+  const relevantMs = allMatches.filter(m => {
+    const players = [...(m.teamA||[]),...(m.teamB||[])];
+    return teamA.some(p => players.includes(p)) && teamB.some(p => players.includes(p));
+  });
+  const avgScore = relevantMs.length > 2
+    ? Math.round(relevantMs.reduce((s,m) => s + Math.max(m.scoreA,m.scoreB),0) / relevantMs.length)
+    : 4;
+  const upsetFlag = (pctA < 40 || pctA > 60) && (eloMap[teamA[0]]||1000) < (eloMap[teamB[0]]||1000) - 80;
+
+  res.innerHTML = `
+    <div style="border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);padding:12px;margin-top:4px">
+      <div style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;height:8px;margin-bottom:12px">
+        <div style="flex:${pctA};background:${colA};min-width:4px"></div>
+        <div style="flex:${pctB};background:${colB};min-width:4px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <div><div style="font-size:24px;font-weight:900;color:${colA}">${pctA}%</div><div style="font-size:9px;color:var(--muted)">${teamA.join(" & ").toUpperCase()}</div></div>
+        <div style="text-align:right"><div style="font-size:24px;font-weight:900;color:${colB}">${pctB}%</div><div style="font-size:9px;color:var(--muted)">${teamB.join(" & ").toUpperCase()}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px">
+          <div style="font-size:13px;font-weight:800">${h2hA + h2hB > 0 ? `${h2hA}–${h2hB}` : "—"}</div>
+          <div style="font-size:8px;color:var(--muted)">H2H</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px">
+          <div style="font-size:13px;font-weight:800">${pctA > pctB ? avgScore : (Math.max(pctB-pctA,0)>20?Math.max(avgScore-1,1):avgScore)}–${pctA > pctB ? (Math.max(pctA-pctB,0)>20?Math.max(avgScore-1,1):avgScore) : avgScore}</div>
+          <div style="font-size:8px;color:var(--muted)">EXP. SCORE</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px">
+          <div style="font-size:10px;font-weight:800;color:${chemA ? chemA.tierColor : "var(--muted)"}">${chemA ? chemA.tier+"-Tier" : "—"}</div>
+          <div style="font-size:8px;color:var(--muted)">CHEM A</div>
+        </div>
+      </div>
+      ${upsetFlag ? `<div style="margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(255,165,0,0.1);border:1px solid rgba(255,165,0,0.3);font-size:10px;font-weight:700;color:#ffaa00">😱 UPSET ALERT — underdog has a real chance</div>` : ""}
+    </div>`;
+}
+
+function _buildStoryFeedHtml() {
+  const stories = computeMatchStories(allMatches);
+  if (!stories.length) return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
+  const cards = stories.slice(0, 20).map(s => `
+    <div class="story-card">
+      <div class="story-icon">${s.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:var(--fg);line-height:1.4">${s.text}</div>
+        ${s.date ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${fmtDate(s.date)} · ${s.score}</div>` : `<div style="font-size:9px;color:var(--muted);margin-top:2px">${s.score}</div>`}
+      </div>
+    </div>`).join("");
+  return `<div class="ana-card" style="padding:10px 12px">${cards}</div>`;
+}
+
+function _buildSeasonModeHtml() {
+  const seasons = computeSeasons(allMatches);
+  if (!seasons.length) return '<div class="sub" style="padding:8px">No seasons found.</div>';
+  const cards = seasons.slice(0, 6).map(s => `
+    <div class="season-card" onclick="this.classList.toggle('season-open')">
+      <div class="season-card-header">
+        <div>
+          <div style="font-size:13px;font-weight:800">${s.monthName}</div>
+          <div style="font-size:9px;color:var(--muted)">${s.matches} matches · ${s.players.length} players</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">▼</div>
+      </div>
+      <div class="season-card-body">
+        ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${s.mvp.name}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw/s.mvp.mp)*100)}%</div></div></div>` : ""}
+        ${s.topPair ? `<div class="season-award"><span class="season-award-icon">🤝</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">TOP PAIR</div><div style="font-size:12px;font-weight:800">${s.topPair.players.join(" & ")}</div><div style="font-size:9px;color:var(--muted)">${s.topPair.wins}W ${s.topPair.played}P ${s.topPair.winPct}%</div></div></div>` : ""}
+        ${s.ironMan ? `<div class="season-award"><span class="season-award-icon">💪</span><div><div style="font-size:9px;color:var(--green);font-weight:700">IRON MAN</div><div style="font-size:12px;font-weight:800">${s.ironMan.name}</div><div style="font-size:9px;color:var(--muted)">${s.ironMan.mp} matches</div></div></div>` : ""}
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">STANDINGS</div>
+        ${s.players.slice(0,5).map((p,i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="font-size:11px;font-weight:800;color:var(--muted);width:16px">#${i+1}</div>
+          <div style="width:20px;height:20px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${playerInitials(p.name)}</div>
+          <div style="flex:1;font-size:11px;font-weight:700">${p.name}</div>
+          <div style="font-size:11px;font-weight:800;color:var(--muted)">${p.mw}W ${Math.round((p.mw/p.mp)*100)}%</div>
+        </div>`).join("")}
+      </div>
+    </div>`).join("");
+  return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${cards}</div>`;
+}
+
+let _replayIdx = 0, _replayTimer = null;
+
+function _buildLeaderboardReplayHtml() {
+  const sorted = [...allMatches].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  if (sorted.length < 5) return '<div class="sub" style="padding:8px">Need at least 5 matches for replay.</div>';
+  _replayIdx = sorted.length;
+  return `<div class="ana-card" style="padding:12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <button onclick="_replayPlay()" id="replay-play-btn" style="padding:5px 14px;border-radius:20px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.1);color:var(--theme);font-size:11px;font-weight:700;cursor:pointer">▶ PLAY</button>
+      <button onclick="_replayReset()" style="padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer">↺ RESET</button>
+      <div style="flex:1;font-size:10px;color:var(--muted)" id="replay-label">Match ${sorted.length} of ${sorted.length}</div>
+    </div>
+    <input type="range" id="replay-slider" min="5" max="${sorted.length}" value="${sorted.length}" step="1" style="width:100%;accent-color:var(--theme);margin-bottom:10px" oninput="_replayUpdate(this.value)">
+    <div id="replay-board" style="display:flex;flex-direction:column;gap:4px"></div>
+  </div>`;
+}
+
+function _replayUpdate(idx) {
+  _replayIdx = parseInt(idx);
+  const sorted = [...allMatches].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  const slice = sorted.slice(0, _replayIdx);
+  const eloMap = computeElo(slice);
+  const stats = computeStats(slice, eloMap).slice(0, 8);
+  const maxElo = Math.max(...stats.map(s => eloMap[s.name] || 1000), 1000);
+  const board = document.getElementById("replay-board");
+  const lbl = document.getElementById("replay-label");
+  const slider = document.getElementById("replay-slider");
+  if (lbl) lbl.textContent = `Match ${_replayIdx} of ${sorted.length} · ${sorted[_replayIdx-1]?.date || ""}`;
+  if (slider) slider.value = _replayIdx;
+  if (board) board.innerHTML = stats.map((p, i) => {
+    const elo = eloMap[p.name] || 1000;
+    const barW = Math.round((elo / maxElo) * 100);
+    const col = i === 0 ? "var(--gold)" : i === 1 ? "var(--theme)" : i === 2 ? "var(--green)" : "var(--accent)";
+    return `<div style="display:flex;align-items:center;gap:6px">
+      <div style="font-size:10px;font-weight:800;color:${col};width:18px">#${i+1}</div>
+      <div style="width:26px;height:26px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;margin-bottom:2px">${p.name}</div>
+        <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:${col};border-radius:3px;transition:width 0.3s ease"></div>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:800;color:${col};width:36px;text-align:right">${elo}</div>
+    </div>`;
+  }).join("");
+}
+
+function _replayPlay() {
+  const sorted = [...allMatches].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  const btn = document.getElementById("replay-play-btn");
+  if (_replayTimer) { clearInterval(_replayTimer); _replayTimer = null; if (btn) btn.textContent = "▶ PLAY"; return; }
+  if (_replayIdx >= sorted.length) { _replayIdx = 4; }
+  if (btn) btn.textContent = "⏸ PAUSE";
+  _replayTimer = setInterval(() => {
+    _replayIdx = Math.min(_replayIdx + 1, sorted.length);
+    _replayUpdate(_replayIdx);
+    if (_replayIdx >= sorted.length) { clearInterval(_replayTimer); _replayTimer = null; if (btn) btn.textContent = "▶ PLAY"; }
+  }, 400);
+}
+
+function _replayReset() {
+  if (_replayTimer) { clearInterval(_replayTimer); _replayTimer = null; }
+  const btn = document.getElementById("replay-play-btn");
+  if (btn) btn.textContent = "▶ PLAY";
+  const sorted = allMatches.sort ? allMatches : [];
+  _replayUpdate(5);
 }
 
 function renderAnalyticsPage() {
@@ -9833,6 +10739,13 @@ function renderAnalyticsPage() {
       title: "📅 Match Calendar",
       body: `<div id="match-calendar" class="match-calendar"></div>`,
     },
+    // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
+    { key: "powerrankings", cat: "players", title: "⚡ Power Rankings", body: _buildPowerRankingsHtml() },
+    { key: "chemistryleader", cat: "pairs", title: "🧪 Chemistry Leaderboard", body: _buildChemistryLeaderboardHtml() },
+    { key: "matchpredict", cat: "records", title: "🔮 Match Prediction", body: _buildMatchPredictHtml() },
+    { key: "storyfeed", cat: "records", title: "📰 Match Stories", body: _buildStoryFeedHtml() },
+    { key: "seasonmode", cat: "records", title: "🏆 Season Mode", body: _buildSeasonModeHtml() },
+    { key: "lreplay", cat: "players", title: "▶️ Leaderboard Replay", body: _buildLeaderboardReplayHtml() },
   ];
 
   const storedOrder = getAnaOrder();
@@ -10162,6 +11075,11 @@ Object.assign(window, {
   _cmpSetDate,
   _updateCmpSlots,
   toggleManageReorder,
+  openPredictSheet,
+  runMatchPrediction,
+  _replayUpdate,
+  _replayPlay,
+  _replayReset,
   toggleMatchCalendar,
   toggleMatchesSection,
   calNav,
