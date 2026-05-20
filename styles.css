@@ -396,6 +396,13 @@ body {
   border-color: rgba(var(--theme-rgb), 0.65);
   box-shadow: 0 0 12px rgba(var(--theme-rgb), 0.15);
 }
+.hmenu-item--full {
+  padding: 6px 12px;
+}
+.hmenu-action-btn--full {
+  width: 100%;
+  justify-content: center;
+}
 .hmenu-divider {
   height: 1px;
   background: var(--border);
