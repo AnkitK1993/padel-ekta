@@ -3232,6 +3232,26 @@ textarea:focus {
 .ana-sec-drag-handle:active {
   cursor: grabbing;
 }
+.ana-fav-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  opacity: 0.35;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.ana-sec-hdr:hover .ana-fav-btn {
+  opacity: 0.8;
+}
+.ana-fav-btn.active {
+  color: #f5c842;
+  opacity: 1;
+}
 .ana-sec.ana-sec-dragging {
   opacity: 0.35;
 }
@@ -8256,11 +8276,21 @@ select.cmp-sel option {
   cursor: pointer;
   transition: background 0.18s, color 0.18s, border-color 0.18s;
 }
-.ana-filter-pill:active { opacity: 0.7; }
+.ana-filter-pill { cursor: grab; }
+.ana-filter-pill:active { opacity: 0.7; cursor: grabbing; }
 .ana-filter-pill.active {
   background: rgba(var(--theme-rgb), 0.18);
   border-color: rgba(var(--theme-rgb), 0.7);
   color: var(--theme);
+}
+.ana-filter-pill[data-cat="favs"] {
+  border-color: rgba(245, 200, 66, 0.3);
+  color: #c89b30;
+}
+.ana-filter-pill[data-cat="favs"].active {
+  background: rgba(245, 200, 66, 0.15);
+  border-color: #c89b30;
+  color: #f5c842;
 }
 .ana-sec.ana-cat-hidden { display: none; }
 @keyframes anaSecReveal {

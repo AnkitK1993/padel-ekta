@@ -2671,12 +2671,14 @@ function updateSortArrows() {
       if (!arrow) return;
       if (cmpSortKey === key) {
         if (key === "record") {
-          arrow.textContent = cmpRecordSortMode === "wins" ? "W▼" : "L▼";
+          arrow.innerHTML = cmpRecordSortMode === "wins"
+            ? '<span style="color:var(--green)">▲</span>'
+            : '<span style="color:var(--red)">▼</span>';
         } else {
           arrow.textContent = cmpSortAsc ? "▲" : "▼";
         }
       } else {
-        arrow.textContent = "";
+        arrow.innerHTML = "";
       }
       arrow.classList.toggle("active", cmpSortKey === key);
     });
@@ -6203,6 +6205,33 @@ function renderH2HDeepDive() {
 // ── ANALYTICS SECTION STATE ────────────────────────────────
 const ANA_ORDER_KEY = "ekta_ana_order";
 const ANA_COL_KEY = "ekta_ana_col";
+const ANA_PILL_ORDER_KEY = "ekta_ana_pill_order";
+const ANA_FAV_KEY = "ekta_ana_favs";
+
+function getAnaPillOrder() {
+  try { return JSON.parse(localStorage.getItem(ANA_PILL_ORDER_KEY)) || []; } catch { return []; }
+}
+function saveAnaPillOrder(a) { localStorage.setItem(ANA_PILL_ORDER_KEY, JSON.stringify(a)); }
+function getAnaFavs() {
+  try { return JSON.parse(localStorage.getItem(ANA_FAV_KEY)) || []; } catch { return []; }
+}
+function saveAnaFavs(a) { localStorage.setItem(ANA_FAV_KEY, JSON.stringify(a)); }
+function toggleAnaFav(key, e) {
+  e.stopPropagation();
+  const favs = getAnaFavs();
+  const idx = favs.indexOf(key);
+  if (idx === -1) favs.push(key); else favs.splice(idx, 1);
+  saveAnaFavs(favs);
+  // Update star icon on this section
+  const sec = document.querySelector(`.ana-sec[data-key="${key}"]`);
+  if (sec) {
+    const star = sec.querySelector(".ana-fav-btn");
+    if (star) star.classList.toggle("active", idx === -1);
+  }
+  // If currently viewing favs, re-apply filter
+  if (_anaActiveCat === "favs") anaFilterCategory("favs", true);
+}
+
 function getAnaOrder() {
   try {
     return JSON.parse(localStorage.getItem(ANA_ORDER_KEY)) || [];
@@ -6265,17 +6294,35 @@ function _togglePairForm(btn) {
   btn.textContent = expanded ? `Show ${extra} more ▼` : `Show less ▲`;
 }
 
+function _toggleSynergyMore(btn) {
+  const expanded = btn.dataset.expanded === "1";
+  const card = btn.closest(".ana-card, .ana-sec-body");
+  const rows = card?.querySelectorAll(".synergy-extra");
+  if (!rows) return;
+  rows.forEach(r => r.style.display = expanded ? "none" : "");
+  btn.dataset.expanded = expanded ? "0" : "1";
+  btn.textContent = expanded ? `Show ${rows.length} more ▼` : `Show less ▲`;
+}
+
 function anaFilterCategory(cat, skipPillUpdate) {
   _anaActiveCat = cat;
   if (!skipPillUpdate) {
     document.querySelectorAll(".ana-filter-pill").forEach((pill) =>
-      pill.classList.toggle("active", pill.textContent === (cat === "all" ? "ALL" : cat.toUpperCase()))
+      pill.classList.toggle("active", pill.dataset.cat === cat)
     );
   }
 
+  const favs = cat === "favs" ? getAnaFavs() : null;
   let delay = 0;
   document.querySelectorAll("#analytics-page-content .ana-sec").forEach((sec) => {
-    const shouldHide = cat !== "all" && sec.dataset.cat !== cat;
+    let shouldHide;
+    if (cat === "all") {
+      shouldHide = false;
+    } else if (cat === "favs") {
+      shouldHide = !favs.includes(sec.dataset.key);
+    } else {
+      shouldHide = sec.dataset.cat !== cat;
+    }
     const wasHidden = sec.classList.contains("ana-cat-hidden");
     sec.classList.toggle("ana-cat-hidden", shouldHide);
 
@@ -6389,6 +6436,30 @@ function _anaOnUp(e) {
     _reRenderAnalytics();
   }
   _anaDragKey = null;
+}
+
+// ── PILL DRAG-TO-REORDER ────────────────────────────────────
+let _pillDragSrc = null;
+function _pillDragStart(e, id) {
+  _pillDragSrc = id;
+  e.dataTransfer.effectAllowed = "move";
+}
+function _pillDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+}
+function _pillDrop(e, targetId) {
+  e.preventDefault();
+  if (!_pillDragSrc || _pillDragSrc === targetId) return;
+  const order = [...document.querySelectorAll(".ana-filter-pill")].map(b => b.dataset.cat);
+  const from = order.indexOf(_pillDragSrc);
+  const to = order.indexOf(targetId);
+  if (from === -1 || to === -1) return;
+  order.splice(from, 1);
+  order.splice(to, 0, _pillDragSrc);
+  saveAnaPillOrder(order);
+  _reRenderAnalytics();
+  _pillDragSrc = null;
 }
 
 function computeElo(matches, applyDecay = false) {
@@ -7818,20 +7889,21 @@ function renderAnalyticsPage() {
     }
   });
   synergyRows.sort((a, b) => b.delta - a.delta);
-  const synergyHtml = synergyRows.length
-    ? synergyRows
-        .map((r) => {
-          const col =
-            r.delta > 5
-              ? "var(--green)"
-              : r.delta < -5
-                ? "var(--red)"
-                : "var(--muted)";
-          const sign = r.delta >= 0 ? "+" : "";
-          return `<div class="bpair-row"><div class="bpair-player">${r.player}</div><div class="bpair-partner">+ ${r.partner.split(" ")[0]}</div><div class="bpair-pct" style="color:${col}">${sign}${r.delta.toFixed(0)}%</div></div>`;
-        })
-        .join("")
-    : '<div class="sub" style="padding:8px">Not enough data.</div>';
+  const synergyHtml = (() => {
+    if (!synergyRows.length) return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    const SYN_LIMIT = 10;
+    const rowHtml = (r) => {
+      const col = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
+      const sign = r.delta >= 0 ? "+" : "";
+      return `<div class="bpair-row"><div class="bpair-player">${r.player}</div><div class="bpair-partner">+ ${r.partner.split(" ")[0]}</div><div class="bpair-pct" style="color:${col}">${sign}${r.delta.toFixed(0)}%</div></div>`;
+    };
+    const visible = synergyRows.slice(0, SYN_LIMIT).map(rowHtml).join("");
+    const hidden = synergyRows.slice(SYN_LIMIT);
+    if (!hidden.length) return visible;
+    const extraHtml = hidden.map(r => `<div class="synergy-extra" style="display:none">${rowHtml(r)}</div>`).join("");
+    const btn = `<div style="text-align:center;padding:6px 0"><button onclick="_toggleSynergyMore(this)" data-expanded="0" style="font-size:10px;font-weight:700;color:var(--theme);background:transparent;border:none;cursor:pointer;padding:4px 8px">Show ${hidden.length} more ▼</button></div>`;
+    return visible + extraHtml + btn;
+  })();
 
   // ── PAIRED H2H ────────────────────────────────────────────
   const pairedH2HRows = Object.entries(teamMatchups)
@@ -8420,7 +8492,9 @@ function renderAnalyticsPage() {
   })();
 
   // ── RENDER ─────────────────────────────────────────────
+  const favKeys = getAnaFavs();
   const makeSec = (key, title, body, col, cat) => {
+    const isFav = favKeys.includes(key);
     return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}" data-cat="${cat || "all"}">
       <div class="ana-section-title ana-sec-hdr" onclick="toggleAnaSection('${key}')">
         <span class="ana-sec-drag-handle"
@@ -8428,6 +8502,9 @@ function renderAnalyticsPage() {
           onclick="event.stopPropagation()">⠿</span>
         <span class="ana-sec-chev"></span>
         <span class="ana-sec-title-txt">${title}</span>
+        <button class="ana-fav-btn${isFav ? " active" : ""}"
+          onclick="toggleAnaFav('${key}',event)"
+          title="${isFav ? "Remove from Favourites" : "Add to Favourites"}">★</button>
       </div>
       <div class="ana-sec-body">${body}</div>
     </div>`;
@@ -8557,17 +8634,32 @@ function renderAnalyticsPage() {
   ];
   const collapsed = getAnaCollapsed();
 
-  const _catLabels = [
+  const _catBase = [
     { id: "all", label: "ALL" },
+    { id: "favs", label: "★ FAVS" },
     { id: "elo", label: "ELO" },
     { id: "players", label: "PLAYERS" },
     { id: "pairs", label: "PAIRS" },
     { id: "records", label: "RECORDS" },
     { id: "activity", label: "ACTIVITY" },
   ];
+  const pillOrder = getAnaPillOrder();
+  // Merge stored order with base list (preserve any new pills added later)
+  const _catLabels = [
+    ...(pillOrder.length
+      ? pillOrder.map(id => _catBase.find(c => c.id === id)).filter(Boolean)
+      : _catBase),
+    ..._catBase.filter(c => !pillOrder.includes(c.id)),
+  ];
   const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row">${
     _catLabels.map(c =>
-      `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}" onclick="anaFilterCategory('${c.id}')">${c.label}</button>`
+      `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}"
+        data-cat="${c.id}"
+        draggable="true"
+        ondragstart="_pillDragStart(event,'${c.id}')"
+        ondragover="_pillDragOver(event)"
+        ondrop="_pillDrop(event,'${c.id}')"
+        onclick="anaFilterCategory('${c.id}')">${c.label}</button>`
     ).join("")
   }</div>`;
 
@@ -8816,7 +8908,12 @@ Object.assign(window, {
   anaSearchSelect,
   anaSearchClose,
   _togglePairForm,
+  _toggleSynergyMore,
   anaFilterCategory,
+  toggleAnaFav,
+  _pillDragStart,
+  _pillDragOver,
+  _pillDrop,
   anaSearchClear,
   setHistoryDateFilter,
   openPlayerCompare,
