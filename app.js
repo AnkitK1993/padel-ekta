@@ -6684,92 +6684,117 @@ function _anaOnUp(e) {
   _anaDragKey = null;
 }
 
-// ── PILL DRAG-TO-REORDER (pointer-based, works on touch & desktop) ────
+// ── PILL DRAG-TO-REORDER (long-press 600ms to enter drag, scroll works before that) ────
 let _pillDragSrc = null;
 let _pillClone = null;
-let _pillStartX = 0;
+let _pillStartX = 0, _pillStartY = 0;
 let _pillIsDragging = false;
+let _pillDragReady = false;
+let _pillLongPressTimer = null;
+let _pillPointerId = null;
+let _pillPreMoveHandler = null;
+let _pillPreUpHandler = null;
+const PILL_LP_MS = 600;
 
 function _pillPointerDown(e, id) {
   if (e.button !== undefined && e.button !== 0) return;
-  _pillDragSrc = id;
-  _pillStartX = e.clientX;
+  // Cancel any previous unresolved long press
+  clearTimeout(_pillLongPressTimer);
+  if (_pillPreMoveHandler) { document.removeEventListener("pointermove", _pillPreMoveHandler); _pillPreMoveHandler = null; }
+  if (_pillPreUpHandler)   { document.removeEventListener("pointerup", _pillPreUpHandler);    _pillPreUpHandler   = null; }
+  document.querySelectorAll(".ana-filter-pill.pill-long-pressing").forEach(p => p.classList.remove("pill-long-pressing"));
+
+  _pillDragSrc  = id;
+  _pillStartX   = e.clientX;
+  _pillStartY   = e.clientY;
   _pillIsDragging = false;
+  _pillDragReady  = false;
+  _pillPointerId  = e.pointerId;
+
+  const srcEl = document.querySelector(`.ana-filter-pill[data-cat="${id}"]`);
+  if (srcEl) { srcEl.classList.add("pill-long-pressing"); srcEl.style.setProperty("--lp-dur", PILL_LP_MS + "ms"); }
+
+  _pillPreMoveHandler = (ev) => {
+    if (Math.abs(ev.clientX - _pillStartX) > 8 || Math.abs(ev.clientY - _pillStartY) > 8) {
+      _pillCancelLP(false); // scroll gesture — abort long press, don't filter
+    }
+  };
+  _pillPreUpHandler = () => _pillCancelLP(true); // quick tap — activate filter
+
+  document.addEventListener("pointermove", _pillPreMoveHandler);
+  document.addEventListener("pointerup",   _pillPreUpHandler);
+  document.addEventListener("pointercancel", _pillPreUpHandler);
+
+  _pillLongPressTimer = setTimeout(_pillActivateDrag, PILL_LP_MS);
+}
+
+function _pillCancelLP(isTap) {
+  clearTimeout(_pillLongPressTimer);
+  if (_pillPreMoveHandler) { document.removeEventListener("pointermove",  _pillPreMoveHandler); _pillPreMoveHandler = null; }
+  if (_pillPreUpHandler)   { document.removeEventListener("pointerup",    _pillPreUpHandler);   _pillPreUpHandler   = null; }
+  document.removeEventListener("pointercancel", _pillPreUpHandler);
+  document.querySelectorAll(".ana-filter-pill.pill-long-pressing").forEach(p => p.classList.remove("pill-long-pressing"));
+  if (isTap && _pillDragSrc) anaFilterCategory(_pillDragSrc);
+  if (!isTap) _pillDragSrc = null; // scrolling: clear src so _activateDrag bails if timer somehow still fires
+}
+
+function _pillActivateDrag() {
+  _pillPreMoveHandler = null;
+  _pillPreUpHandler   = null;
+  if (!_pillDragSrc) return;
+  _pillDragReady = true;
+  if (navigator.vibrate) navigator.vibrate(30);
+
+  const srcEl = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
+  if (srcEl) {
+    srcEl.classList.remove("pill-long-pressing");
+    try { srcEl.setPointerCapture(_pillPointerId); } catch {}
+    const rect = srcEl.getBoundingClientRect();
+    _pillClone = srcEl.cloneNode(true);
+    Object.assign(_pillClone.style, {
+      position: "fixed", top: rect.top + "px", left: rect.left + "px",
+      width: rect.width + "px", zIndex: "9999", opacity: "0.9",
+      pointerEvents: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.5)", transition: "none",
+    });
+    document.body.appendChild(_pillClone);
+    srcEl.style.opacity = "0.25";
+  }
   document.addEventListener("pointermove", _pillOnMove);
-  document.addEventListener("pointerup", _pillOnUp);
+  document.addEventListener("pointerup",   _pillOnUp);
   document.addEventListener("pointercancel", _pillOnUp);
 }
 
 function _pillOnMove(e) {
-  if (!_pillDragSrc) return;
-  const dx = Math.abs(e.clientX - _pillStartX);
-
-  if (!_pillIsDragging) {
-    if (dx < 6) return;
-    _pillIsDragging = true;
-    const src = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
-    if (src) {
-      const rect = src.getBoundingClientRect();
-      _pillClone = src.cloneNode(true);
-      Object.assign(_pillClone.style, {
-        position: "fixed",
-        top: rect.top + "px",
-        left: rect.left + "px",
-        width: rect.width + "px",
-        zIndex: "9999",
-        opacity: "0.9",
-        pointerEvents: "none",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
-        transition: "none",
-      });
-      document.body.appendChild(_pillClone);
-      src.style.opacity = "0.25";
-    }
-  }
-
-  if (_pillClone) {
-    const w = _pillClone.offsetWidth;
-    _pillClone.style.left = (e.clientX - w / 2) + "px";
-  }
-
-  // Drop indicators
-  document.querySelectorAll(".ana-filter-pill").forEach(p =>
-    p.classList.remove("pill-drop-before", "pill-drop-after")
-  );
+  if (!_pillDragSrc || !_pillDragReady) return;
+  _pillIsDragging = true;
+  if (_pillClone) _pillClone.style.left = (e.clientX - _pillClone.offsetWidth / 2) + "px";
+  document.querySelectorAll(".ana-filter-pill").forEach(p => p.classList.remove("pill-drop-before", "pill-drop-after"));
   document.querySelectorAll(".ana-filter-pill").forEach(p => {
     if (p.dataset.cat === _pillDragSrc) return;
     const r = p.getBoundingClientRect();
-    if (e.clientX >= r.left - 4 && e.clientX <= r.right + 4) {
+    if (e.clientX >= r.left - 4 && e.clientX <= r.right + 4)
       p.classList.add(e.clientX < r.left + r.width / 2 ? "pill-drop-before" : "pill-drop-after");
-    }
   });
 }
 
 function _pillOnUp(e) {
   document.removeEventListener("pointermove", _pillOnMove);
-  document.removeEventListener("pointerup", _pillOnUp);
+  document.removeEventListener("pointerup",   _pillOnUp);
   document.removeEventListener("pointercancel", _pillOnUp);
 
   if (_pillClone) { _pillClone.remove(); _pillClone = null; }
-
   const src = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
   if (src) src.style.opacity = "";
 
   const before = document.querySelector(".pill-drop-before");
   const after  = document.querySelector(".pill-drop-after");
   const target = before || after;
-  document.querySelectorAll(".pill-drop-before, .pill-drop-after").forEach(p =>
-    p.classList.remove("pill-drop-before", "pill-drop-after")
-  );
+  document.querySelectorAll(".pill-drop-before, .pill-drop-after").forEach(p => p.classList.remove("pill-drop-before", "pill-drop-after"));
 
-  if (!_pillIsDragging) {
-    // It was a tap — activate the pill
-    if (_pillDragSrc) anaFilterCategory(_pillDragSrc);
-  } else if (target && _pillDragSrc) {
+  if (_pillIsDragging && target && _pillDragSrc) {
     const seen = new Set();
     const order = [...document.querySelectorAll(".ana-filter-pill")]
-      .map(b => b.dataset.cat)
-      .filter(id => id && !seen.has(id) && seen.add(id));
+      .map(b => b.dataset.cat).filter(id => id && !seen.has(id) && seen.add(id));
     const from = order.indexOf(_pillDragSrc);
     const to   = order.indexOf(target.dataset.cat);
     if (from !== -1 && to !== -1) {
@@ -6779,9 +6804,7 @@ function _pillOnUp(e) {
       _reRenderAnalytics();
     }
   }
-
-  _pillDragSrc = null;
-  _pillIsDragging = false;
+  _pillDragSrc = null; _pillIsDragging = false; _pillDragReady = false;
 }
 
 function computeElo(matches, applyDecay = false) {
@@ -9294,11 +9317,12 @@ function renderAnalyticsPage() {
         ..._catBase.filter(c => !pillOrder.includes(c.id)),
       ]
     : _catBase;
-  const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row">${
+  const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row" oncontextmenu="event.preventDefault()">${
     _catLabels.map(c =>
       `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}"
         data-cat="${c.id}"
-        onpointerdown="_pillPointerDown(event,'${c.id}')">${c.label}</button>`
+        onpointerdown="_pillPointerDown(event,'${c.id}')"
+        oncontextmenu="event.preventDefault()">${c.label}</button>`
     ).join("")
   }</div>`;
 
@@ -9667,23 +9691,37 @@ function renderTournamentAdmin() {
   const el = document.getElementById("tourn-admin-list");
   if (!el) return;
   const tournaments = loadTournaments();
+  const played = (t) => t.matches.filter(m => m.scoreA !== null).length;
   el.innerHTML = `
-    <div style="margin-bottom:12px">
-      <input id="tourn-name-in" class="name-in" placeholder="Tournament name…" style="margin-bottom:6px">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Players (comma-separated)</div>
-      <input id="tourn-players-in" class="name-in" placeholder="e.g. Ankit, Raj, Priya, Dev" style="margin-bottom:6px">
-      <button class="btn-add" onclick="saveTournament()">Create Tournament</button>
+    <div class="tourn-create-form">
+      <div class="tourn-form-label">TOURNAMENT NAME</div>
+      <input id="tourn-name-in" class="tourn-input" placeholder="e.g. Summer Cup 2025">
+      <div class="tourn-form-label" style="margin-top:10px">PLAYERS <span style="font-weight:400;text-transform:none">(comma-separated)</span></div>
+      <input id="tourn-players-in" class="tourn-input" placeholder="Ankit, Raj, Priya, Dev, ...">
+      <button class="tourn-create-btn" onclick="saveTournament()">
+        <span style="font-size:14px">🏆</span> CREATE TOURNAMENT
+      </button>
     </div>
-    ${tournaments.length ? tournaments.map((t, i) => `
-      <div style="padding:8px 0;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div style="font-size:12px;font-weight:700;color:var(--text)">${escHtml(t.name)}</div>
-            <div style="font-size:10px;color:var(--muted)">${t.players.length} players · ${t.matches.length} matches</div>
+    ${tournaments.length ? `<div class="tourn-list">` + tournaments.map((t, i) => {
+      const done = played(t);
+      const total = t.matches.length;
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      const standings = computeTournamentStandings(t);
+      const leader = standings[0]?.[0] || "";
+      return `<div class="tourn-card" onclick="renderTournamentDetail(${i})">
+        <div class="tourn-card-glow"></div>
+        <div class="tourn-card-top">
+          <div class="tourn-card-icon">🏆</div>
+          <div class="tourn-card-info">
+            <div class="tourn-card-name">${escHtml(t.name)}</div>
+            <div class="tourn-card-meta">${t.players.length} players · ${fmtDate(t.createdAt)}</div>
           </div>
-          <button onclick="renderTournamentDetail(${i})" style="font-size:10px;padding:4px 10px;border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--theme);cursor:pointer">View</button>
+          <div class="tourn-card-badge${pct === 100 ? " done" : ""}">${pct === 100 ? "✓" : `${done}/${total}`}</div>
         </div>
-      </div>`).join("") : '<div style="font-size:11px;color:var(--muted)">No tournaments yet.</div>'}`;
+        <div class="tourn-progress-bar"><div class="tourn-progress-fill" style="width:${pct}%"></div></div>
+        ${leader && done > 0 ? `<div class="tourn-card-leader">🥇 ${leader} leads</div>` : ""}
+      </div>`;
+    }).join("") + `</div>` : `<div class="tourn-empty">No tournaments yet. Create your first one above.</div>`}`;
 }
 function saveTournament() {
   const name = document.getElementById("tourn-name-in")?.value.trim();
@@ -9773,24 +9811,37 @@ function renderSeasonManager() {
   const el = document.getElementById("season-manager");
   if (!el) return;
   const seasons = loadSeasons();
+  const nowISO = new Date().toISOString().slice(0, 10);
+  const isActive = s => s.from <= nowISO && s.to >= nowISO;
   el.innerHTML = `
-    <div style="margin-bottom:10px">
-      <input id="season-name-in" class="name-in" placeholder="Season name…" style="margin-bottom:6px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
-        <input id="season-from-in" type="date" class="name-in" placeholder="From">
-        <input id="season-to-in" type="date" class="name-in" placeholder="To">
-      </div>
-      <button class="btn-add" onclick="saveSeasonEntry()">Add Season</button>
-    </div>
-    ${seasons.length ? seasons.map((s, i) => `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:700;color:var(--text)">${escHtml(s.name)}</div>
-          <div style="font-size:10px;color:var(--muted)">${fmtDate(s.from)} → ${fmtDate(s.to)}</div>
+    <div class="season-create-form">
+      <input id="season-name-in" class="tourn-input" placeholder="Season name…">
+      <div class="season-date-row">
+        <div class="season-date-cell">
+          <div class="tourn-form-label">FROM</div>
+          <input id="season-from-in" type="date" class="tourn-input">
         </div>
-        <button onclick="deleteSeasonEntry(${i})" style="font-size:10px;padding:4px 8px;border-radius:8px;border:1px solid rgba(248,113,113,0.3);background:transparent;color:var(--red);cursor:pointer">✕</button>
-      </div>`).join("") : '<div style="font-size:11px;color:var(--muted)">No seasons defined yet.</div>'}`;
-  // Update home season filter
+        <div class="season-date-cell">
+          <div class="tourn-form-label">TO</div>
+          <input id="season-to-in" type="date" class="tourn-input">
+        </div>
+      </div>
+      <button class="tourn-create-btn" onclick="saveSeasonEntry()">
+        <span style="font-size:14px">📅</span> ADD SEASON
+      </button>
+    </div>
+    ${seasons.length ? `<div class="season-list">` + seasons.map((s, i) => {
+      const active = isActive(s);
+      const matchCount = allMatches.filter(m => (m.date||"") >= s.from && (m.date||"") <= s.to).length;
+      return `<div class="season-card${active ? " season-active" : ""}">
+        <div class="season-card-accent" style="background:${active ? "var(--theme)" : "rgba(255,255,255,0.1)"}"></div>
+        <div class="season-card-body">
+          <div class="season-card-name">${escHtml(s.name)}${active ? `<span class="season-badge-live">LIVE</span>` : ""}</div>
+          <div class="season-card-meta">${fmtDate(s.from)} → ${fmtDate(s.to)} · ${matchCount} matches</div>
+        </div>
+        <button class="season-del-btn" onclick="deleteSeasonEntry(${i})">✕</button>
+      </div>`;
+    }).join("") + `</div>` : `<div class="tourn-empty">No seasons yet. Add one above.</div>`}`;
   _renderSeasonFilter();
 }
 function saveSeasonEntry() {
