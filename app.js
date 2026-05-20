@@ -6209,7 +6209,10 @@ const ANA_PILL_ORDER_KEY = "ekta_ana_pill_order";
 const ANA_FAV_KEY = "ekta_ana_favs";
 
 function getAnaPillOrder() {
-  try { return JSON.parse(localStorage.getItem(ANA_PILL_ORDER_KEY)) || []; } catch { return []; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(ANA_PILL_ORDER_KEY)) || [];
+    return [...new Set(raw)]; // deduplicate in case of corrupted state
+  } catch { return []; }
 }
 function saveAnaPillOrder(a) { localStorage.setItem(ANA_PILL_ORDER_KEY, JSON.stringify(a)); }
 function getAnaFavs() {
@@ -6451,7 +6454,11 @@ function _pillDragOver(e) {
 function _pillDrop(e, targetId) {
   e.preventDefault();
   if (!_pillDragSrc || _pillDragSrc === targetId) return;
-  const order = [...document.querySelectorAll(".ana-filter-pill")].map(b => b.dataset.cat);
+  // Deduplicate: take only the first occurrence of each id from the DOM
+  const seen = new Set();
+  const order = [...document.querySelectorAll(".ana-filter-pill")]
+    .map(b => b.dataset.cat)
+    .filter(id => id && !seen.has(id) && seen.add(id));
   const from = order.indexOf(_pillDragSrc);
   const to = order.indexOf(targetId);
   if (from === -1 || to === -1) return;
@@ -8644,13 +8651,14 @@ function renderAnalyticsPage() {
     { id: "activity", label: "ACTIVITY" },
   ];
   const pillOrder = getAnaPillOrder();
-  // Merge stored order with base list (preserve any new pills added later)
-  const _catLabels = [
-    ...(pillOrder.length
-      ? pillOrder.map(id => _catBase.find(c => c.id === id)).filter(Boolean)
-      : _catBase),
-    ..._catBase.filter(c => !pillOrder.includes(c.id)),
-  ];
+  // If a saved order exists, use it; append any new base pills not yet in the order.
+  // If no saved order, use default base list as-is (no appending — avoids duplicates).
+  const _catLabels = pillOrder.length
+    ? [
+        ...pillOrder.map(id => _catBase.find(c => c.id === id)).filter(Boolean),
+        ..._catBase.filter(c => !pillOrder.includes(c.id)),
+      ]
+    : _catBase;
   const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row">${
     _catLabels.map(c =>
       `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}"
