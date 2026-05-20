@@ -8563,6 +8563,13 @@ function openMatchIntro(idx) {
   if (isZeroMatch(m))       badges.push(`<span class="event-badge zero">😂 ZERO</span>`);
   document.getElementById("mio-badges").innerHTML = badges.join("");
 
+  // Note (if present)
+  const noteEl = document.getElementById("mio-note");
+  if (noteEl) {
+    noteEl.textContent = m.note || "";
+    noteEl.style.display = m.note ? "block" : "none";
+  }
+
   // Show overlay
   const overlay = document.getElementById("match-intro-overlay");
   overlay.classList.remove("active");

@@ -10180,6 +10180,22 @@ select.cmp-sel option {
 #match-intro-overlay.active .mio-badges {
   opacity: 1;
 }
+.mio-note {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.04em;
+  text-align: center;
+  font-style: italic;
+  max-width: 280px;
+  align-self: center;
+  opacity: 0;
+  transition: opacity 0.3s 1s;
+}
+#match-intro-overlay.active .mio-note {
+  opacity: 1;
+}
 
 /* Feature 4A: Floating ambient background */
 #ambient-bg {
