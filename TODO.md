@@ -75,20 +75,22 @@
 - ✅ Top-5 standings per month
 
 ### 4C. Rivalry Screen
-- ⬜ Tap any H2H entry → full-screen rivalry card (pending)
+- ✅ Tap any H2H matrix cell → full-screen rivalry card: animated VS, win record, streaks, last 5 results, greatest match
 
 ### 4D. Shareable Match Poster Upgrade
-- ⬜ Extend share-card to match result poster (pending)
+- ✅ Share button on every match card → poster with score, both teams, ELO changes per player
 
 ---
 
 ## Phase 5 — Live Match Enhancements
 
 ### 5A. Live Win Probability Meter
-- ⬜ Real-time bar during live scoring (pending — needs live mode audit)
+- ✅ Real-time win probability bar in live scoring (ELO-based + score tilt)
+- ✅ Shows after all 4 players are selected; updates on every point
 
 ### 5B. Live Momentum Graph
-- ⬜ Point-by-point chart (pending — needs live mode audit)
+- ✅ Point-by-point SVG swing chart during live match
+- ✅ Tracks each scored point; redraws live with color-coded advantage line
 
 ---
 
@@ -99,10 +101,10 @@
 | 1 — Player Intelligence | 8 | 8 ✅ |
 | 2 — Team & Match Intelligence | 8 | 8 ✅ |
 | 3 — Narrative & Stories | 20 | 20 ✅ |
-| 4 — Visual & Animated | 12 | 10 ✅ · 2 pending |
-| 5 — Live Enhancements | 4 | 0 · 4 pending |
-| **Total** | **52** | **46 done · 6 pending** |
+| 4 — Visual & Animated | 12 | 12 ✅ |
+| 5 — Live Enhancements | 4 | 4 ✅ |
+| **Total** | **52** | **52 done · 0 pending** |
 
 ---
 
-*Last updated: 2026-05-20*
+*Last updated: 2026-05-21 — all 52 features complete*

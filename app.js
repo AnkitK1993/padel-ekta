@@ -3126,8 +3126,9 @@ function buildMatchCards(matches, showAdmin) {
                     <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx}, this)">✏ Edit</button>
                     <button class="action-btn delete-btn" onclick="deleteMatchByIndex(${realIdx})">🗑 Del</button>
                     <button class="action-btn rematch-btn" onclick="quickRematch(${realIdx})">⚡ Rematch</button>
+                    <button class="action-btn share-match-btn" onclick="openShareMatchPoster(${realIdx})">⬆ Share</button>
                   </div>`
-                      : `<div></div>`
+                      : `<div class="match-actions"><button class="action-btn share-match-btn" onclick="openShareMatchPoster(${realIdx})">⬆ Share</button></div>`
                   }
                 </div>
                 </div>
@@ -5524,6 +5525,190 @@ function openH2HDetail(a, b) {
   document.body.insertAdjacentHTML("beforeend", html);
 }
 
+// 4C: Rivalry Screen — full-screen overlay from H2H matrix cell tap
+function openRivalryScreen(a, b) {
+  document.getElementById("rivalry-screen-overlay")?.remove();
+  const h2h = getHeadToHeadStats(a, b, allMatches);
+  const total = h2h.aWins + h2h.bWins || 1;
+  const colA = playerColor(a);
+  const colB = playerColor(b);
+  const aN = a.split(" ")[0];
+  const bN = b.split(" ")[0];
+  const leader = h2h.aWins > h2h.bWins ? a : h2h.bWins > h2h.aWins ? b : null;
+  const pctA = Math.round((h2h.aWins / total) * 100);
+  const pctB = 100 - pctA;
+
+  // Per-match stats
+  const sorted = [...h2h.matches].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+  let aStreak = 0, bStreak = 0, aCur = 0, bCur = 0;
+  sorted.forEach(m => {
+    const aInA = (m.teamA || []).some(p => normPlayer(p) === a);
+    const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+    if (aWon) { aCur++; bCur = 0; } else { bCur++; aCur = 0; }
+    aStreak = Math.max(aStreak, aCur);
+    bStreak = Math.max(bStreak, bCur);
+  });
+
+  // Greatest match = closest score
+  const greatest = [...h2h.matches].sort((x, y) => Math.abs(x.scoreA - x.scoreB) - Math.abs(y.scoreA - y.scoreB))[0];
+  let greatestHtml = "";
+  if (greatest) {
+    const aInA = (greatest.teamA || []).some(p => normPlayer(p) === a);
+    const sa = aInA ? greatest.scoreA : greatest.scoreB;
+    const sb = aInA ? greatest.scoreB : greatest.scoreA;
+    const winnerCol = sa > sb ? colA : colB;
+    const winnerName = sa > sb ? aN : bN;
+    greatestHtml = `<div class="rivalry-greatest">
+      <div class="rivalry-greatest-lbl">⚡ GREATEST MATCH</div>
+      <div class="rivalry-greatest-score" style="color:${winnerCol}">${sa}–${sb}</div>
+      <div class="rivalry-greatest-sub">${winnerName} won · ${fmtDate(greatest.date)}</div>
+    </div>`;
+  }
+
+  // Last 5 results
+  const last5 = [...h2h.matches].sort((x, y) => (y.date || "").localeCompare(x.date || "")).slice(0, 5);
+  const last5Html = last5.map(m => {
+    const aInA = (m.teamA || []).some(p => normPlayer(p) === a);
+    const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+    const sa = aInA ? m.scoreA : m.scoreB;
+    const sb = aInA ? m.scoreB : m.scoreA;
+    const wCol = aWon ? colA : colB;
+    return `<div class="rivalry-result-pill" style="border-color:${wCol}44;background:${wCol}12">
+      <span style="color:${wCol};font-weight:900;font-size:10px">${aWon ? aN : bN}</span>
+      <span style="font-size:11px;font-weight:700">${sa}–${sb}</span>
+      <span style="color:var(--muted);font-size:9px">${fmtDate(m.date)}</span>
+    </div>`;
+  }).join("");
+
+  // Current rivalry streak
+  const rs = computeH2HStreak(a, b, allMatches);
+  const rsHtml = rs.leader && rs.streak >= 2
+    ? `<div class="rivalry-streak-badge" style="color:${rs.leader === a ? colA : colB}">🔥 ${rs.leader.split(" ")[0]} on ${rs.streak}-match streak</div>` : "";
+
+  const html = `
+    <div id="rivalry-screen-overlay" class="rivalry-screen-overlay" onclick="if(event.target===this)this.remove()">
+      <div class="rivalry-screen-card">
+        <button class="rivalry-close-btn" onclick="document.getElementById('rivalry-screen-overlay').remove()">✕</button>
+
+        <div class="rivalry-header" style="--ca:${colA};--cb:${colB}">
+          <div class="rivalry-player-side" style="background:linear-gradient(135deg,${colA}22 0%,transparent 60%)">
+            <div class="rivalry-avatar" style="background:${colA}33;border-color:${colA}66;color:${colA}">${playerInitials(a)}</div>
+            <div class="rivalry-player-name" style="color:${colA}">${aN}</div>
+            <div class="rivalry-big-wins" style="color:${colA}">${h2h.aWins}</div>
+            <div class="rivalry-win-pct">${pctA}%</div>
+          </div>
+          <div class="rivalry-center-col">
+            <div class="rivalry-vs-badge">VS</div>
+            <div class="rivalry-total-played">${total}<br><span>played</span></div>
+          </div>
+          <div class="rivalry-player-side rivalry-player-right" style="background:linear-gradient(225deg,${colB}22 0%,transparent 60%)">
+            <div class="rivalry-avatar" style="background:${colB}33;border-color:${colB}66;color:${colB}">${playerInitials(b)}</div>
+            <div class="rivalry-player-name" style="color:${colB}">${bN}</div>
+            <div class="rivalry-big-wins" style="color:${colB}">${h2h.bWins}</div>
+            <div class="rivalry-win-pct">${pctB}%</div>
+          </div>
+        </div>
+
+        <div class="rivalry-win-bar">
+          <div class="rivalry-win-bar-a" style="width:${pctA}%;background:${colA}"></div>
+          <div class="rivalry-win-bar-b" style="width:${pctB}%;background:${colB}"></div>
+        </div>
+        ${leader ? `<div class="rivalry-leader-badge" style="color:${leader === a ? colA : colB}">${leader.split(" ")[0]} leads this rivalry</div>` : `<div class="rivalry-leader-badge" style="color:var(--muted)">Perfect Tie</div>`}
+
+        <div class="rivalry-streaks-row">
+          <div class="rivalry-streak-card"><div style="color:${colA};font-weight:800">${aN}</div><div style="font-size:18px;font-weight:900;color:var(--theme)">${aStreak}</div><div style="font-size:9px;color:var(--muted)">BEST STREAK</div></div>
+          ${rsHtml}
+          <div class="rivalry-streak-card"><div style="color:${colB};font-weight:800">${bN}</div><div style="font-size:18px;font-weight:900;color:var(--theme)">${bStreak}</div><div style="font-size:9px;color:var(--muted)">BEST STREAK</div></div>
+        </div>
+
+        ${greatestHtml}
+
+        <div class="rivalry-last5-label">LAST ${last5.length} RESULTS</div>
+        <div class="rivalry-last5">${last5Html}</div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+}
+
+// 4D: Shareable Match Poster
+function openShareMatchPoster(matchIdx) {
+  document.getElementById("share-card-overlay")?.remove();
+  const m = allMatches[matchIdx];
+  if (!m) return;
+  const eloMap = computeElo(allMatches.slice(0, matchIdx + 1));
+  const eloMapBefore = computeElo(allMatches.slice(0, matchIdx));
+  const aWon = m.scoreA > m.scoreB;
+  const winTeam = aWon ? m.teamA : m.teamB;
+  const losTeam = aWon ? m.teamB : m.teamA;
+  const winScore = aWon ? m.scoreA : m.scoreB;
+  const losScore = aWon ? m.scoreB : m.scoreA;
+  const allPlayers = [...(m.teamA || []), ...(m.teamB || [])];
+  const colA = playerColor(m.teamA[0]);
+  const colB = playerColor(m.teamB[0]);
+  const winCol = aWon ? colA : colB;
+
+  const mkAvatar = (name, size = 36) => {
+    const c = playerColor(name);
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c}33;border:2px solid ${c}66;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.35)}px;font-weight:900;color:${c}">${playerInitials(name)}</div>`;
+  };
+  const mkEloDelta = (name) => {
+    const before = eloMapBefore[name] || 1000;
+    const after = eloMap[name] || 1000;
+    const d = Math.round(after - before);
+    const col = d > 0 ? "#4ade80" : d < 0 ? "#f87171" : "rgba(255,255,255,0.4)";
+    return `<span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? "+" : ""}${d}</span>`;
+  };
+  const mkTeamRow = (team) => team.map(p =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      ${mkAvatar(p, 32)}
+      <span style="font-size:13px;font-weight:800;color:#f0ecff">${p}</span>
+      <span style="margin-left:auto">${mkEloDelta(p)}</span>
+    </div>`).join("");
+
+  const card = `
+    <div style="background:linear-gradient(160deg,#0d0d1a 0%,#11111f 60%,#0a0a15 100%);border-radius:24px;border:1px solid rgba(255,255,255,0.08);padding:0;width:100%;max-width:340px;box-shadow:0 8px 60px rgba(0,0,0,0.7);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 0%,${winCol}18 0%,transparent 55%);pointer-events:none"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${winCol},transparent)"></div>
+
+      <div style="padding:20px 20px 14px;text-align:center">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.15em;color:var(--muted);margin-bottom:6px">MATCH RESULT · ${fmtDate(m.date)}</div>
+        <div style="font-size:46px;font-weight:900;color:#f0ecff;letter-spacing:-0.03em;line-height:1">${winScore}<span style="font-size:28px;color:rgba(255,255,255,0.3)"> – </span>${losScore}</div>
+        <div style="font-size:10px;color:${winCol};font-weight:800;letter-spacing:0.08em;margin-top:6px">🏆 ${winTeam.map(p => p.split(" ")[0]).join(" & ")} WIN</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid rgba(255,255,255,0.06)">
+        <div style="padding:14px 16px;border-right:1px solid rgba(255,255,255,0.06)">
+          <div style="font-size:8px;font-weight:700;color:${aWon ? colA : "rgba(255,255,255,0.3)"};letter-spacing:0.1em;margin-bottom:8px">${aWon ? "🏆 WINNERS" : "TEAM A"}</div>
+          ${mkTeamRow(m.teamA)}
+        </div>
+        <div style="padding:14px 16px">
+          <div style="font-size:8px;font-weight:700;color:${!aWon ? colB : "rgba(255,255,255,0.3)"};letter-spacing:0.1em;margin-bottom:8px">${!aWon ? "🏆 WINNERS" : "TEAM B"}</div>
+          ${mkTeamRow(m.teamB)}
+        </div>
+      </div>
+
+      <div style="padding:10px 20px 16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:16px;height:16px;border-radius:4px;background:${winCol};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000">P</div>
+          <div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:${winCol}">PADEL EKTA</div>
+        </div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:600">ELO changes shown</div>
+      </div>
+    </div>`;
+
+  const overlay = document.createElement("div");
+  overlay.id = "share-card-overlay";
+  overlay.className = "share-overlay";
+  overlay.innerHTML = `
+    <div class="share-overlay-bg" onclick="document.getElementById('share-card-overlay').remove()"></div>
+    <div class="share-overlay-inner">
+      <div class="share-overlay-hint">📸 Screenshot to share</div>
+      ${card}
+      <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
 function openSummaryScreenshot() {
   const leaderTableEl = document.querySelector(".cmp-body-scroll .cmp");
   if (!leaderTableEl) { showToast("No data to capture", "❌"); return; }
@@ -6420,7 +6605,9 @@ function buildH2HMatrixCompact(players) {
           const pct = Math.round((d.wins / d.total) * 100);
           const cls =
             pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
-          return `<td class="pvp-td ${cls}" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L">${pct}%</td>`;
+          const escA2 = a.replace(/'/g, "\\'");
+          const escB2 = b.replace(/'/g, "\\'");
+          return `<td class="pvp-td ${cls} pvp-td-click" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L" onclick="openRivalryScreen('${escA2}','${escB2}')">${pct}%</td>`;
         })
         .join("");
       // Row label: use same alias as column header
@@ -6484,7 +6671,9 @@ function buildH2HMatrix(players) {
           const pct = Math.round((d.wins / d.total) * 100);
           const cls =
             pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
-          return `<td class="pvp-td ${cls}" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L">${pct}%</td>`;
+          const escA3 = a.replace(/'/g, "\\'");
+          const escB3 = b.replace(/'/g, "\\'");
+          return `<td class="pvp-td ${cls} pvp-td-click" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L" onclick="openRivalryScreen('${escA3}','${escB3}')">${pct}%</td>`;
         })
         .join("");
       return `<tr><td class="pvp-row-hdr" title="${a}">${short(a)}</td>${cells}</tr>`;
@@ -11103,6 +11292,8 @@ Object.assign(window, {
   closeLivePlayerSheet,
   liveAdjustScore,
   endLiveMatch,
+  openRivalryScreen,
+  openShareMatchPoster,
 });
 
 function setHistoryDateFilter(value) {
@@ -11155,10 +11346,12 @@ function isMatchWithinDateFilter(match, filterValue) {
 let _liveScoreA = 0, _liveScoreB = 0;
 const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
 let _liveActiveSlot = null;
+let _livePoints = []; // 5B: point history for momentum graph
 
 function openLiveMode() {
   _liveScoreA = 0;
   _liveScoreB = 0;
+  _livePoints = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   const today = new Date().toISOString().slice(0, 10);
   const dateEl = document.getElementById("live-date");
@@ -11166,6 +11359,8 @@ function openLiveMode() {
   const notesEl = document.getElementById("live-notes");
   if (notesEl) notesEl.value = "";
   _updateLiveDisplay();
+  _updateLiveWinProb();
+  _updateLiveMomentum();
   ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
   goTo("live");
 }
@@ -11246,7 +11441,78 @@ function _updateLiveDisplay() {
 function liveAdjustScore(team, delta) {
   if (team === "a") _liveScoreA = Math.max(0, _liveScoreA + delta);
   else _liveScoreB = Math.max(0, _liveScoreB + delta);
+  if (delta > 0) _livePoints.push({ team, a: _liveScoreA, b: _liveScoreB });
+  else if (_livePoints.length) _livePoints.pop();
   _updateLiveDisplay();
+  _updateLiveWinProb();
+  _updateLiveMomentum();
+}
+
+// 5A: Live Win Probability Meter
+function _updateLiveWinProb() {
+  const wrap = document.getElementById("live-prob-wrap");
+  if (!wrap) return;
+  const { a1, a2, b1, b2 } = _liveSlots;
+  if (!a1 || !a2 || !b1 || !b2) {
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "";
+  const eloMap = computeElo(allMatches);
+  const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
+  const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
+  const baseProb = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+  // Tilt probability toward leading team based on score gap
+  const total = _liveScoreA + _liveScoreB;
+  const scoreTilt = total > 0 ? (_liveScoreA - _liveScoreB) / (total + 4) * 0.25 : 0;
+  const probA = Math.min(0.97, Math.max(0.03, baseProb + scoreTilt));
+  const probB = 1 - probA;
+  const pA = Math.round(probA * 100);
+  const pB = 100 - pA;
+  const barA = document.getElementById("live-prob-bar-a");
+  const barB = document.getElementById("live-prob-bar-b");
+  const lblA = document.getElementById("live-prob-lbl-a");
+  const lblB = document.getElementById("live-prob-lbl-b");
+  const fill = document.getElementById("live-prob-fill");
+  if (barA) barA.textContent = `${pA}%`;
+  if (barB) barB.textContent = `${pB}%`;
+  if (lblA) lblA.textContent = (a1.split(" ")[0] + " & " + a2.split(" ")[0]).toUpperCase();
+  if (lblB) lblB.textContent = (b1.split(" ")[0] + " & " + b2.split(" ")[0]).toUpperCase();
+  if (fill) {
+    fill.style.width = pA + "%";
+    const col = pA > 55 ? "var(--live-red)" : pA < 45 ? "var(--live-blue)" : "var(--theme)";
+    fill.style.background = col;
+  }
+}
+
+// 5B: Live Momentum Graph
+function _updateLiveMomentum() {
+  const wrap = document.getElementById("live-momentum-wrap");
+  if (!wrap) return;
+  if (_livePoints.length < 2) { wrap.style.display = "none"; return; }
+  wrap.style.display = "";
+  const W = 280, H = 60, mid = H / 2;
+  const pts = _livePoints;
+  const n = pts.length;
+  const maxAdv = Math.max(...pts.map(p => Math.abs(p.a - p.b)), 1);
+  const scale = (mid - 6) / maxAdv;
+  const xStep = W / Math.max(n - 1, 1);
+  let path = `M 0 ${mid}`;
+  pts.forEach((p, i) => {
+    const adv = p.a - p.b;
+    const y = mid - adv * scale;
+    path += ` L ${(i * xStep).toFixed(1)} ${y.toFixed(1)}`;
+  });
+  const lastPt = pts[n - 1];
+  const lastAdv = lastPt.a - lastPt.b;
+  const lineCol = lastAdv > 0 ? "var(--live-red)" : lastAdv < 0 ? "var(--live-blue)" : "var(--theme)";
+  const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+    <path d="${path}" fill="none" stroke="${lineCol}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${((n-1)*xStep).toFixed(1)}" cy="${(mid - lastAdv * scale).toFixed(1)}" r="4" fill="${lineCol}"/>
+  </svg>`;
+  const chart = document.getElementById("live-momentum-chart");
+  if (chart) chart.innerHTML = svg;
 }
 
 function endLiveMatch() {
