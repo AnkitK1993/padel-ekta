@@ -994,6 +994,7 @@ function switchMainTab(id, skipAnim = false) {
   if (id === "history") {
     renderModernMatches();
     populateHistoryPlayerChips();
+    _renderSeasonFilter();
     const hdf = document.getElementById("histDateFilter");
     if (hdf) hdf.value = matchTabFilter;
     const hrf = document.getElementById("histResultFilter");
