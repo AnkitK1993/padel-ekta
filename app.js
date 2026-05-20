@@ -7535,58 +7535,143 @@ function calcEloWinProb() {
 }
 
 // ── WHAT-IF SIMULATOR STATE ────────────────────────────────
-let _whatIfToggles = {}; // matchIdx -> bool (true = included)
+let _whatIfToggles = {}; // matchIdx -> bool (false = excluded)
+let _whatIfFlips   = {}; // matchIdx -> bool (true = flip outcome)
 let _whatIfPlayer = "";
 
 function renderWhatIfSection(playerName) {
   _whatIfPlayer = playerName;
   _whatIfToggles = {};
+  _whatIfFlips   = {};
   const matchesEl = document.getElementById("whatif-matches");
-  const resultEl = document.getElementById("whatif-result");
+  const resultEl  = document.getElementById("whatif-result");
+  const ctrlEl    = document.getElementById("whatif-controls");
   if (!matchesEl || !resultEl) return;
-  if (!playerName) { matchesEl.innerHTML = ""; resultEl.innerHTML = ""; return; }
+  if (!playerName) { matchesEl.innerHTML = ""; resultEl.innerHTML = ""; if (ctrlEl) ctrlEl.style.display = "none"; return; }
   const playerMatches = allMatches
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => [...(m.teamA || []), ...(m.teamB || [])].includes(playerName));
-  playerMatches.forEach(({ i }) => { _whatIfToggles[i] = true; });
-  matchesEl.innerHTML = `<div style="max-height:200px;overflow-y:auto;margin-bottom:8px">` +
-    playerMatches.slice(-20).reverse().map(({ m, i }) => {
-      const inA = (m.teamA || []).includes(playerName);
-      const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-      const partner = (inA ? m.teamA : m.teamB).filter(p => p !== playerName).join(", ");
-      const opp = (inA ? m.teamB : m.teamA).join(" & ");
-      return `<label class="whatif-match-row" style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:10px">
-        <input type="checkbox" id="whatif-cb-${i}" checked onchange="toggleWhatIfMatch(${i})" style="cursor:pointer">
-        <span style="color:${won ? "var(--green)" : "var(--red)"}">●</span>
-        <span style="flex:1">${fmtDate(m.date)} — ${partner ? partner + " " : ""}vs ${opp} ${m.scoreA}–${m.scoreB}</span>
-      </label>`;
-    }).join("") + `</div>
-    <button class="btn-go" style="width:100%;font-size:11px" onclick="recomputeWhatIfElo()">SIMULATE</button>`;
+  playerMatches.forEach(({ i }) => { _whatIfToggles[i] = true; _whatIfFlips[i] = false; });
+  if (ctrlEl) ctrlEl.style.display = "flex";
+  _renderWhatIfRows(playerName, playerMatches);
   resultEl.innerHTML = "";
 }
 
+function _renderWhatIfRows(playerName, playerMatches) {
+  const matchesEl = document.getElementById("whatif-matches");
+  if (!matchesEl) return;
+  matchesEl.innerHTML = `<div class="whatif-list">` +
+    playerMatches.slice(-20).reverse().map(({ m, i }) => {
+      const inA = (m.teamA || []).includes(playerName);
+      const baseWon = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+      const flipped = !!_whatIfFlips[i];
+      const effectiveWon = flipped ? !baseWon : baseWon;
+      const excluded = _whatIfToggles[i] === false;
+      const partner = (inA ? m.teamA : m.teamB).filter(p => p !== playerName).join(" & ");
+      const opp = (inA ? m.teamB : m.teamA).join(" & ");
+      return `<div class="whatif-row${excluded ? " wi-excluded" : ""}${flipped ? " wi-flipped" : ""}">
+        <div class="wi-outcome-dot" style="background:${effectiveWon ? "var(--green)" : "var(--red)"}"></div>
+        <div class="wi-match-info">
+          <span class="wi-date">${fmtDate(m.date)}</span>
+          <span class="wi-vs">w/ ${partner || "—"} vs ${opp}</span>
+          <span class="wi-score${flipped ? " wi-score-flipped" : ""}">${m.scoreA}–${m.scoreB}${flipped ? " →FLIPPED" : ""}</span>
+        </div>
+        <div class="wi-actions">
+          <button class="wi-btn wi-flip${flipped ? " active" : ""}" title="${flipped ? "Restore outcome" : "Flip to " + (baseWon ? "Loss" : "Win")}" onclick="toggleWhatIfFlip(${i})"
+            ${excluded ? "disabled" : ""}>⇄</button>
+          <button class="wi-btn wi-excl${excluded ? " active" : ""}" title="${excluded ? "Re-include" : "Exclude match"}" onclick="toggleWhatIfMatch(${i})">✕</button>
+        </div>
+      </div>`;
+    }).join("") + `</div>
+    <button class="btn-go" style="width:100%;font-size:11px;margin-top:8px" onclick="recomputeWhatIfElo()">SIMULATE ▶</button>`;
+}
+
 function toggleWhatIfMatch(idx) {
-  const cb = document.getElementById(`whatif-cb-${idx}`);
-  if (cb) _whatIfToggles[idx] = cb.checked;
+  _whatIfToggles[idx] = (_whatIfToggles[idx] === false) ? true : false;
+  if (_whatIfToggles[idx] === false) _whatIfFlips[idx] = false; // can't flip excluded
+  _refreshWhatIfRows();
+}
+
+function toggleWhatIfFlip(idx) {
+  _whatIfFlips[idx] = !_whatIfFlips[idx];
+  _refreshWhatIfRows();
+}
+
+function whatIfFlipAllLosses() {
+  const eloMap = computeElo(allMatches);
+  allMatches.forEach((m, i) => {
+    if (!_whatIfToggles.hasOwnProperty(i)) return;
+    const inA = (m.teamA || []).includes(_whatIfPlayer);
+    const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+    if (!won && _whatIfToggles[i] !== false) _whatIfFlips[i] = true;
+  });
+  _refreshWhatIfRows();
+}
+
+function whatIfReset() {
+  Object.keys(_whatIfToggles).forEach(i => { _whatIfToggles[i] = true; _whatIfFlips[i] = false; });
+  _refreshWhatIfRows();
+  document.getElementById("whatif-result").innerHTML = "";
+}
+
+function _refreshWhatIfRows() {
+  if (!_whatIfPlayer) return;
+  const playerMatches = allMatches.map((m, i) => ({ m, i }))
+    .filter(({ m }) => [...(m.teamA || []), ...(m.teamB || [])].includes(_whatIfPlayer));
+  _renderWhatIfRows(_whatIfPlayer, playerMatches);
 }
 
 function recomputeWhatIfElo() {
   const resultEl = document.getElementById("whatif-result");
   if (!resultEl || !_whatIfPlayer) return;
-  const filteredMatches = allMatches.filter((m, i) => _whatIfToggles[i] !== false);
+  // Build the modified match list
+  const whatIfMatches = allMatches
+    .filter((m, i) => _whatIfToggles[i] !== false)
+    .map(m => {
+      const i = allMatches.indexOf(m);
+      if (_whatIfFlips[i]) {
+        // Flip: swap scores so the outcome reverses
+        return { ...m, scoreA: m.scoreB, scoreB: m.scoreA };
+      }
+      return m;
+    });
   const actualElo = computeElo(allMatches)[_whatIfPlayer] || 1000;
-  const whatIfElo = computeElo(filteredMatches)[_whatIfPlayer] || 1000;
+  const whatIfElo = computeElo(whatIfMatches)[_whatIfPlayer] || 1000;
   const diff = whatIfElo - actualElo;
   const col = diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
   const sign = diff > 0 ? "+" : "";
-  const removed = Object.values(_whatIfToggles).filter(v => !v).length;
-  resultEl.innerHTML = `<div style="margin-top:10px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);text-align:center">
-    <div style="font-size:10px;color:var(--muted);margin-bottom:6px">${removed} match${removed !== 1 ? "es" : ""} excluded</div>
-    <div style="display:flex;justify-content:center;gap:20px;margin-bottom:4px">
-      <div><div style="font-size:9px;color:var(--muted)">ACTUAL</div><div style="font-size:18px;font-weight:800">${actualElo}</div></div>
-      <div><div style="font-size:9px;color:var(--muted)">WHAT-IF</div><div style="font-size:18px;font-weight:800;color:${col}">${whatIfElo}</div></div>
+  // Rank change
+  const actualRanked = Object.entries(computeElo(allMatches)).sort((a,b) => b[1]-a[1]);
+  const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort((a,b) => b[1]-a[1]);
+  const actualRank = actualRanked.findIndex(([n]) => n === _whatIfPlayer) + 1;
+  const whatIfRank = whatIfRanked.findIndex(([n]) => n === _whatIfPlayer) + 1;
+  const rankDiff = actualRank - whatIfRank;
+  const rankStr = rankDiff > 0 ? `▲${rankDiff}` : rankDiff < 0 ? `▼${Math.abs(rankDiff)}` : "—";
+  const rankCol = rankDiff > 0 ? "var(--green)" : rankDiff < 0 ? "var(--red)" : "var(--muted)";
+  const excluded = Object.values(_whatIfToggles).filter(v => !v).length;
+  const flipped  = Object.values(_whatIfFlips).filter(v => v).length;
+  const eloPillCls = diff > 0 ? "positive" : diff < 0 ? "negative" : "neutral";
+  const rankPillCls = rankDiff > 0 ? "positive" : rankDiff < 0 ? "negative" : "neutral";
+  resultEl.innerHTML = `<div class="whatif-result-card">
+    <div class="wi-res-row">
+      <div class="wi-res-cell">
+        <div class="wi-res-label">ACTUAL ELO</div>
+        <div class="wi-res-val">${actualElo}</div>
+        <div class="wi-res-sub">Rank #${actualRank}</div>
+      </div>
+      <div class="wi-res-arrow">→</div>
+      <div class="wi-res-cell">
+        <div class="wi-res-label">WHAT-IF ELO</div>
+        <div class="wi-res-val">${whatIfElo}</div>
+        <div class="wi-res-sub">Rank #${whatIfRank}</div>
+      </div>
     </div>
-    <div style="font-size:14px;font-weight:800;color:${col}">${sign}${diff} ELO</div>
+    <div class="wi-res-deltas">
+      <span class="wi-delta-pill ${eloPillCls}">${sign}${diff} ELO</span>
+      <span class="wi-delta-pill ${rankPillCls}">${rankStr} rank</span>
+      ${flipped ? `<span class="wi-delta-pill neutral">${flipped} flipped</span>` : ""}
+      ${excluded ? `<span class="wi-delta-pill neutral">${excluded} excluded</span>` : ""}
+    </div>
   </div>`;
 }
 
@@ -9121,11 +9206,15 @@ function renderAnalyticsPage() {
     const playerList = computeStats(allMatches).map(p => p.name);
     const opts = playerList.map(p => `<option value="${p}">${p}</option>`).join("");
     return `<div class="ana-card" style="padding:12px">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Select a player and toggle matches on/off to see how their ELO changes</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Select a player — flip individual losses to wins, exclude matches, and see the counterfactual ELO</div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <select id="whatif-player-sel" class="sim-sel" style="flex:1" onchange="renderWhatIfSection(this.value)">
           <option value="">Select player…</option>${opts}
         </select>
+      </div>
+      <div id="whatif-controls" style="display:none;margin-bottom:8px;gap:6px;flex-wrap:wrap">
+        <button class="whatif-action-btn" onclick="whatIfFlipAllLosses()">↩ Flip All Losses</button>
+        <button class="whatif-action-btn" onclick="whatIfReset()">↺ Reset All</button>
       </div>
       <div id="whatif-matches"></div>
       <div id="whatif-result"></div>
@@ -9611,9 +9700,15 @@ Object.assign(window, {
   showUndoToast,
   renderWhatIfSection,
   toggleWhatIfMatch,
+  toggleWhatIfFlip,
+  whatIfFlipAllLosses,
+  whatIfReset,
   recomputeWhatIfElo,
   computeH2HStreak,
   openLiveMode,
+  openLivePlayerSheet,
+  selectLivePlayer,
+  closeLivePlayerSheet,
   liveAdjustScore,
   endLiveMatch,
   renderSeasonManager,
@@ -9884,35 +9979,94 @@ function applySeasonFilter(idx) {
 
 // ── LIVE SCORING MODE ──────────────────────────────────────
 let _liveScoreA = 0, _liveScoreB = 0;
+const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
+let _liveActiveSlot = null;
 
 function openLiveMode() {
-  const pg = document.getElementById("pg-live");
-  if (!pg) return;
   _liveScoreA = 0;
   _liveScoreB = 0;
+  _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   const today = new Date().toISOString().slice(0, 10);
   const dateEl = document.getElementById("live-date");
   if (dateEl) dateEl.value = today;
+  const notesEl = document.getElementById("live-notes");
+  if (notesEl) notesEl.value = "";
   _updateLiveDisplay();
-  // Populate player selects from known players
-  const players = computeStats(allMatches).map(p => p.name).sort();
-  const opts = `<option value="">—</option>` + players.map(p => `<option>${p}</option>`).join("");
-  ["live-p-a1","live-p-a2","live-p-b1","live-p-b2"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = opts;
-  });
+  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
   goTo("live");
+}
+
+function _renderLiveSlot(slot) {
+  const p = _liveSlots[slot];
+  const nameEl = document.getElementById(`live-name-${slot}`);
+  const avatarEl = document.getElementById(`live-avatar-${slot}`);
+  const slotEl = document.getElementById(`live-slot-${slot}`);
+  if (!nameEl || !avatarEl) return;
+  if (p) {
+    nameEl.textContent = p;
+    avatarEl.textContent = playerInitials(p);
+    avatarEl.style.background = playerColor(p);
+    avatarEl.style.color = "#fff";
+    slotEl?.classList.add("live-slot-filled");
+  } else {
+    nameEl.textContent = "TAP TO SELECT";
+    avatarEl.textContent = "?";
+    avatarEl.style.background = "rgba(255,255,255,0.06)";
+    avatarEl.style.color = "var(--muted)";
+    slotEl?.classList.remove("live-slot-filled");
+  }
+}
+
+function openLivePlayerSheet(slot) {
+  _liveActiveSlot = slot;
+  const overlay = document.getElementById("live-sheet-overlay");
+  const sheet   = document.getElementById("live-sheet");
+  const list    = document.getElementById("live-sheet-list");
+  const title   = document.getElementById("live-sheet-title");
+  if (!overlay || !sheet || !list) return;
+  const corner = slot.startsWith("a") ? "RED CORNER" : "BLUE CORNER";
+  const pos    = slot.endsWith("1") ? "PLAYER 1" : "PLAYER 2";
+  if (title) title.textContent = `${corner} — ${pos}`;
+  const taken = Object.entries(_liveSlots).filter(([k, v]) => k !== slot && v).map(([, v]) => v);
+  const players = computeStats(allMatches).map(p => p.name).sort();
+  list.innerHTML = players.map(p => {
+    const isTaken = taken.includes(p);
+    const isCurrent = _liveSlots[slot] === p;
+    return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
+      onclick="${isTaken ? "" : `selectLivePlayer('${p.replace(/'/g, "\\'")}','${slot}')`}"
+      ${isTaken ? "disabled" : ""}>
+      <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      <span class="live-sheet-item-name">${p}</span>
+      ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
+    </button>`;
+  }).join("");
+  overlay.classList.add("live-sheet-open");
+  sheet.classList.add("live-sheet-open");
+}
+
+function selectLivePlayer(name, slot) {
+  _liveSlots[slot] = name;
+  _renderLiveSlot(slot);
+  closeLivePlayerSheet();
+}
+
+function closeLivePlayerSheet() {
+  document.getElementById("live-sheet-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("live-sheet")?.classList.remove("live-sheet-open");
+  _liveActiveSlot = null;
 }
 
 function _updateLiveDisplay() {
   const sa = document.getElementById("live-score-a");
   const sb = document.getElementById("live-score-b");
-  if (sa) sa.textContent = _liveScoreA;
-  if (sb) sb.textContent = _liveScoreB;
-  const sa2 = document.getElementById("live-score-a");
-  const sb2 = document.getElementById("live-score-b");
-  if (sa2) sa2.className = "live-score-num" + (_liveScoreA > _liveScoreB ? " live-win" : "");
-  if (sb2) sb2.className = "live-score-num" + (_liveScoreB > _liveScoreA ? " live-win" : "");
+  if (sa) {
+    sa.textContent = _liveScoreA;
+    sa.className = "live-score-giant" + (_liveScoreA > _liveScoreB ? " live-score-lead" : "");
+  }
+  if (sb) {
+    sb.textContent = _liveScoreB;
+    sb.className = "live-score-giant" + (_liveScoreB > _liveScoreA ? " live-score-lead" : "");
+  }
 }
 
 function liveAdjustScore(team, delta) {
@@ -9922,21 +10076,20 @@ function liveAdjustScore(team, delta) {
 }
 
 function endLiveMatch() {
-  const a1 = document.getElementById("live-p-a1")?.value;
-  const a2 = document.getElementById("live-p-a2")?.value;
-  const b1 = document.getElementById("live-p-b1")?.value;
-  const b2 = document.getElementById("live-p-b2")?.value;
+  const { a1, a2, b1, b2 } = _liveSlots;
   const date = document.getElementById("live-date")?.value || new Date().toISOString().slice(0, 10);
+  const notes = document.getElementById("live-notes")?.value.trim() || "";
   if (!a1 || !a2 || !b1 || !b2) { showToast("Select all 4 players first", "❌"); return; }
   if (new Set([a1, a2, b1, b2]).size < 4) { showToast("All 4 players must be different", "❌"); return; }
   if (_liveScoreA === 0 && _liveScoreB === 0) { showToast("Score must be > 0", "❌"); return; }
   const match = { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, date };
+  if (notes) match.notes = escHtml(notes);
   allMatches.push(match);
   saveCloudData();
   renderHome();
   renderCompact();
   renderModernMatches();
-  showToast(`Match saved! ${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`, "🎾");
+  showToast(`Saved! ${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`, "🎾");
   goTo("home");
 }
 

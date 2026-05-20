@@ -728,41 +728,80 @@ Parthiv - Par"
 
     <!-- Live Scoring Mode -->
     <div class="page" id="pg-live">
-      <div class="page-body-scroll">
-        <div class="nav" style="display:flex;align-items:center;justify-content:space-between">
-          <button onclick="goBack()" style="background:none;border:none;color:var(--theme);font-size:13px;cursor:pointer;padding:4px 0">← Back</button>
-          <span style="font-size:14px;font-weight:800;letter-spacing:0.06em;color:var(--text)">🎾 LIVE SCORE</span>
-          <div style="width:40px"></div>
+      <div class="live-ufc-wrap">
+
+        <!-- Header -->
+        <div class="live-ufc-header">
+          <button class="live-back-btn" onclick="goBack()">← BACK</button>
+          <div class="live-live-badge"><span class="live-dot"></span>LIVE</div>
+          <input id="live-date" type="date" class="live-date-input">
         </div>
-        <div style="padding:12px">
-          <input id="live-date" type="date" class="name-in" style="width:100%;margin-bottom:12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-            <div>
-              <div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:4px">TEAM A</div>
-              <select id="live-p-a1" class="sim-sel" style="width:100%;margin-bottom:6px"></select>
-              <select id="live-p-a2" class="sim-sel" style="width:100%"></select>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--red);font-weight:700;margin-bottom:4px">TEAM B</div>
-              <select id="live-p-b1" class="sim-sel" style="width:100%;margin-bottom:6px"></select>
-              <select id="live-p-b2" class="sim-sel" style="width:100%"></select>
+
+        <!-- Fight Card -->
+        <div class="live-fight-card">
+          <div class="live-corner live-corner-a">
+            <div class="live-corner-label">RED CORNER</div>
+            <button class="live-player-slot" id="live-slot-a1" onclick="openLivePlayerSheet('a1')">
+              <div class="live-slot-avatar" id="live-avatar-a1">?</div>
+              <div class="live-slot-name" id="live-name-a1">TAP TO SELECT</div>
+            </button>
+            <button class="live-player-slot" id="live-slot-a2" onclick="openLivePlayerSheet('a2')">
+              <div class="live-slot-avatar" id="live-avatar-a2">?</div>
+              <div class="live-slot-name" id="live-name-a2">TAP TO SELECT</div>
+            </button>
+          </div>
+
+          <div class="live-fight-vs">VS</div>
+
+          <div class="live-corner live-corner-b">
+            <div class="live-corner-label">BLUE CORNER</div>
+            <button class="live-player-slot" id="live-slot-b1" onclick="openLivePlayerSheet('b1')">
+              <div class="live-slot-avatar" id="live-avatar-b1">?</div>
+              <div class="live-slot-name" id="live-name-b1">TAP TO SELECT</div>
+            </button>
+            <button class="live-player-slot" id="live-slot-b2" onclick="openLivePlayerSheet('b2')">
+              <div class="live-slot-avatar" id="live-avatar-b2">?</div>
+              <div class="live-slot-name" id="live-name-b2">TAP TO SELECT</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scoreboard -->
+        <div class="live-scoreboard">
+          <div class="live-score-panel live-panel-a">
+            <div class="live-score-giant" id="live-score-a">0</div>
+            <div class="live-score-btns">
+              <button class="live-adj-huge" onclick="liveAdjustScore('a',-1)">−</button>
+              <button class="live-adj-huge live-adj-plus" onclick="liveAdjustScore('a',1)">+</button>
             </div>
           </div>
-          <div class="live-court">
-            <div class="live-score-block">
-              <button class="live-adj-btn" onclick="liveAdjustScore('a',-1)">−</button>
-              <span id="live-score-a" class="live-score-num">0</span>
-              <button class="live-adj-btn" onclick="liveAdjustScore('a',1)">+</button>
-            </div>
-            <div style="font-size:20px;font-weight:900;color:var(--muted);align-self:center">VS</div>
-            <div class="live-score-block">
-              <button class="live-adj-btn" onclick="liveAdjustScore('b',-1)">−</button>
-              <span id="live-score-b" class="live-score-num">0</span>
-              <button class="live-adj-btn" onclick="liveAdjustScore('b',1)">+</button>
+          <div class="live-score-colon">:</div>
+          <div class="live-score-panel live-panel-b">
+            <div class="live-score-giant" id="live-score-b">0</div>
+            <div class="live-score-btns">
+              <button class="live-adj-huge" onclick="liveAdjustScore('b',-1)">−</button>
+              <button class="live-adj-huge live-adj-plus" onclick="liveAdjustScore('b',1)">+</button>
             </div>
           </div>
-          <button class="live-end-btn" onclick="endLiveMatch()">END MATCH & SAVE 🎾</button>
         </div>
+
+        <!-- Notes -->
+        <div class="live-notes-wrap">
+          <textarea id="live-notes" class="live-notes-ta" placeholder="Match notes…" rows="2"></textarea>
+        </div>
+
+        <!-- Save -->
+        <button class="live-end-btn" onclick="endLiveMatch()">
+          <span>SAVE MATCH</span><span style="font-size:16px">🎾</span>
+        </button>
+      </div>
+
+      <!-- Player select bottom sheet -->
+      <div class="live-sheet-overlay" id="live-sheet-overlay" onclick="closeLivePlayerSheet()"></div>
+      <div class="live-sheet" id="live-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title" id="live-sheet-title">SELECT PLAYER</div>
+        <div class="live-sheet-list" id="live-sheet-list"></div>
       </div>
     </div>
 
