@@ -540,6 +540,82 @@ function deleteScheduled(i) {
   renderScheduledAdmin();
 }
 
+// ── SYNC CONFLICT RESOLUTION ───────────────────────────────
+function _mkMatchKey(m) {
+  // Stable key for deduplication — order-sensitive (Team A / Team B are distinct)
+  return `${m.date||""}|${(m.teamA||[]).join(",")}|${(m.teamB||[]).join(",")}|${m.scoreA}|${m.scoreB}`;
+}
+
+function _showSyncConflict(cloudMatches, cloudAMap, cloudNMap, localOnly, resolveFn) {
+  document.getElementById("sync-conflict-overlay")?.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "sync-conflict-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;z-index:9992;display:flex;align-items:flex-end;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px)";
+
+  const localCount = allMatches.length;
+  const cloudCount = cloudMatches.length;
+  const mergeCount = cloudCount + localOnly.length;
+
+  const listHtml = localOnly.slice(0, 6).map(m => {
+    const label = `${(m.teamA||[]).map(p=>p.split(" ")[0]).join(" & ")} vs ${(m.teamB||[]).map(p=>p.split(" ")[0]).join(" & ")} <span style="color:var(--muted)">${m.scoreA}–${m.scoreB}</span>`;
+    return `<div class="sc-row">${fmtDate(m.date)} · ${label}</div>`;
+  }).join("") + (localOnly.length > 6 ? `<div style="font-size:10px;color:var(--muted);padding:3px 0">+${localOnly.length - 6} more…</div>` : "");
+
+  overlay.innerHTML = `
+    <div class="sync-conflict-sheet">
+      <div class="sc-title">⚠️ Sync Conflict</div>
+      <div class="sc-desc">Cloud has <strong>${cloudCount}</strong> matches, local has <strong>${localCount}</strong>. The following local matches are missing from cloud:</div>
+      <div class="sc-list">${listHtml}</div>
+      <button class="sc-btn sc-btn-primary" id="sc-merge">🔀 Merge Both — ${mergeCount} matches</button>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="sc-btn sc-btn-secondary" id="sc-cloud">☁️ Use Cloud (${cloudCount})</button>
+        <button class="sc-btn sc-btn-secondary" id="sc-local">📱 Keep Local (${localCount})</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector("#sc-merge").onclick = () => {
+    const cloudKeys = new Set(cloudMatches.map(_mkMatchKey));
+    const merged = [
+      ...cloudMatches,
+      ...localOnly.filter(m => !cloudKeys.has(_mkMatchKey(m))),
+    ].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    overlay.remove();
+    resolveFn(merged, { ...cloudAMap, ...aliasMap }, { ...cloudNMap, ...nameMap }, true);
+  };
+  overlay.querySelector("#sc-cloud").onclick = () => {
+    overlay.remove();
+    resolveFn(cloudMatches, cloudAMap, cloudNMap, false);
+  };
+  overlay.querySelector("#sc-local").onclick = () => {
+    overlay.remove();
+    showToast("Keeping local data", "📱");
+  };
+}
+
+// ── SESSION STREAK ──────────────────────────────────────────
+function computeSessionStreak() {
+  if (!allMatches.length) return 0;
+  const getMonday = (dateStr) => {
+    const d = new Date(dateStr + "T00:00:00");
+    const dow = d.getDay();
+    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    return d.toISOString().slice(0, 10);
+  };
+  const weeks = [...new Set(allMatches.filter(m => m.date).map(m => getMonday(m.date)))]
+    .sort().reverse();
+  if (weeks.length < 2) return weeks.length;
+  let streak = 1;
+  for (let i = 0; i < weeks.length - 1; i++) {
+    const diff = Math.round(
+      (new Date(weeks[i] + "T00:00:00") - new Date(weeks[i + 1] + "T00:00:00")) / 86400000
+    );
+    if (diff === 7) streak++;
+    else break;
+  }
+  return streak;
+}
+
 // ── DATA LOADER ────────────────────────────────────────────
 function loadCloudData() {
   let fired = false;
@@ -561,19 +637,33 @@ function loadCloudData() {
     }
   }
 
-  function onData(matches, aMap, nMap) {
+  function onData(matches, aMap, nMap, skipConflict = false) {
     const fp = dataFingerprint(matches);
     const isFirstLoad = !fired;
 
     // If this is a Firestore update that matches the cache we already rendered, skip re-render
-    if (!isFirstLoad && fp === lastDataFingerprint) {
-      return;
+    if (!isFirstLoad && fp === lastDataFingerprint) return;
+
+    // Conflict detection: local matches that aren't in the incoming cloud data
+    if (!skipConflict && !isFirstLoad && allMatches.length > 0) {
+      const cloudKeys = new Set(matches.map(_mkMatchKey));
+      const localOnly = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+      if (localOnly.length > 0) {
+        _showSyncConflict(matches, aMap, nMap, localOnly, (resolved, rAMap, rNMap, save) => {
+          lastDataFingerprint = null; // force reprocess
+          onData(resolved, rAMap, rNMap, true);
+          if (save) saveCloudData();
+        });
+        return;
+      }
     }
+
     lastDataFingerprint = fp;
 
     allMatches = matches;
     aliasMap = aMap;
     nameMap = nMap;
+    _invalidateEloMemo();
     if (window.appCache) window.appCache.save(allMatches, aliasMap, nameMap);
 
     if (isFirstLoad) {
@@ -2341,7 +2431,21 @@ function renderHome() {
   const board = document.getElementById("board");
   if (!stats.length) {
     board.innerHTML = `<div class="empty"><div class="ico">🏓</div><p>No matches yet.<br>Tap <strong style="color:var(--accent)">+ Add</strong> to get started.</p><button class="add-cta" onclick="goTo('add')">Add Matches</button></div>`;
+    const sb = document.getElementById("session-streak-badge");
+    if (sb) sb.style.display = "none";
     return;
+  }
+
+  // Session streak badge
+  const streak = computeSessionStreak();
+  const streakEl = document.getElementById("session-streak-badge");
+  if (streakEl) {
+    if (streak >= 2) {
+      streakEl.style.display = "block";
+      streakEl.innerHTML = `<div class="session-streak-pill">🔥 <strong>${streak} weeks</strong> in a row!</div>`;
+    } else {
+      streakEl.style.display = "none";
+    }
   }
   const maxSR = stats[0].sr || 1;
   const homeEloMap = homeEloMapFull;

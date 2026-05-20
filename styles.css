@@ -2889,6 +2889,80 @@ textarea:focus {
   color: var(--text);
 }
 
+/* ── SESSION STREAK BADGE ─────────────────────────────────── */
+.session-streak-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(245,200,66,0.14), rgba(200,155,48,0.08));
+  border: 1px solid rgba(245,200,66,0.4);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f5c842;
+  letter-spacing: 0.02em;
+}
+
+/* ── SYNC CONFLICT SHEET ──────────────────────────────────── */
+.sync-conflict-sheet {
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 16px 36px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.sc-title {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.sc-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.sc-list {
+  max-height: 130px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: var(--surface2);
+  padding: 6px 10px;
+}
+.sc-row {
+  font-size: 11px;
+  color: var(--text);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sc-row:last-child { border-bottom: none; }
+.sc-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+}
+.sc-btn-primary {
+  background: rgba(var(--theme-rgb), 0.15);
+  border: 1.5px solid rgba(var(--theme-rgb), 0.5);
+  color: var(--theme);
+}
+.sc-btn-secondary {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .absence-banner {
   flex-shrink: 0;
   background: linear-gradient(
