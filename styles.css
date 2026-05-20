@@ -8230,7 +8230,45 @@ select.cmp-sel option {
 
 .ana-search-wrap {
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+}
+
+/* ── CATEGORY FILTER PILLS ─────────────────────── */
+.ana-filter-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 0 12px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ana-filter-row::-webkit-scrollbar { display: none; }
+.ana-filter-pill {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1px solid rgba(var(--theme-rgb), 0.25);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+.ana-filter-pill:active { opacity: 0.7; }
+.ana-filter-pill.active {
+  background: rgba(var(--theme-rgb), 0.18);
+  border-color: rgba(var(--theme-rgb), 0.7);
+  color: var(--theme);
+}
+.ana-sec.ana-cat-hidden { display: none; }
+@keyframes anaSecReveal {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ana-sec-reveal {
+  animation: anaSecReveal 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .ana-search-box {

@@ -5927,6 +5927,31 @@ function toggleAnaSection(key) {
 let _anaDragKey = null;
 let _anaClone = null;
 let _anaDragOffsetY = 0;
+let _anaActiveCat = "all";
+
+function anaFilterCategory(cat, skipPillUpdate) {
+  _anaActiveCat = cat;
+  if (!skipPillUpdate) {
+    document.querySelectorAll(".ana-filter-pill").forEach((pill) =>
+      pill.classList.toggle("active", pill.textContent === (cat === "all" ? "ALL" : cat.toUpperCase()))
+    );
+  }
+
+  let delay = 0;
+  document.querySelectorAll("#analytics-page-content .ana-sec").forEach((sec) => {
+    const shouldHide = cat !== "all" && sec.dataset.cat !== cat;
+    const wasHidden = sec.classList.contains("ana-cat-hidden");
+    sec.classList.toggle("ana-cat-hidden", shouldHide);
+
+    if (!skipPillUpdate && !shouldHide && (wasHidden || cat !== "all")) {
+      sec.classList.remove("ana-sec-reveal");
+      void sec.offsetWidth;
+      sec.style.animationDelay = `${delay}ms`;
+      sec.classList.add("ana-sec-reveal");
+      delay += 75;
+    }
+  });
+}
 
 function _reRenderAnalytics() {
   const sc = document.querySelector("#pg-analytics .page-body-scroll");
@@ -6421,6 +6446,8 @@ function anaSearchSelect(type, key, label) {
   if (type === "section") {
     const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
     if (!el) return;
+    if (_anaActiveCat !== "all" && el.dataset.cat !== _anaActiveCat)
+      anaFilterCategory("all");
     if (el.classList.contains("collapsed")) toggleAnaSection(key);
     setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     el.style.outline = "1.5px solid rgba(var(--theme-rgb),0.6)";
@@ -8035,8 +8062,8 @@ function renderAnalyticsPage() {
   })();
 
   // ── RENDER ─────────────────────────────────────────────
-  const makeSec = (key, title, body, col) => {
-    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}">
+  const makeSec = (key, title, body, col, cat) => {
+    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}" data-cat="${cat || "all"}">
       <div class="ana-section-title ana-sec-hdr" onclick="toggleAnaSection('${key}')">
         <span class="ana-sec-drag-handle"
           onpointerdown="anaHandlePointerDown(event,'${key}')"
@@ -8049,116 +8076,116 @@ function renderAnalyticsPage() {
   };
 
   const allSecs = [
-    { key: "predacc", title: "🔮 Prediction Accuracy", body: predAccHtml },
-    { key: "simulator", title: "🎮 Match Simulator", body: simulatorHtml },
+    { key: "predacc", cat: "records", title: "🔮 Prediction Accuracy", body: predAccHtml },
+    { key: "simulator", cat: "records", title: "🎮 Match Simulator", body: simulatorHtml },
     {
-      key: "pvp",
+      key: "pvp", cat: "players",
       title: "⚔️ Player vs Player Matrix",
       body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
     },
     {
-      key: "awards",
+      key: "awards", cat: "records",
       title: "🏅 Awards Board",
       body: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
     },
     {
-      key: "form",
+      key: "form", cat: "players",
       title: "⚡ Current Form",
       body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>${ftHtml}</div>`,
     },
     {
-      key: "lrace",
+      key: "lrace", cat: "players",
       title: "🏎️ Leaderboard Race",
       body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
     },
     {
-      key: "clutchrank",
+      key: "clutchrank", cat: "players",
       title: "🎯 Clutch Rankings",
       body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}</div>`,
     },
     {
-      key: "consistency",
+      key: "consistency", cat: "players",
       title: "📐 Consistency Rankings",
       body: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
     },
     {
-      key: "qualitywins",
+      key: "qualitywins", cat: "players",
       title: "💎 Quality Wins",
       body: `<div class="ana-card" style="padding:8px 12px">${qualityRankHtml}</div>`,
     },
     ...(uniqueMonths.length >= 2
       ? [
           {
-            key: "winrate",
+            key: "winrate", cat: "activity",
             title: "📈 Win Rate Over Time",
             body: `<div class="ana-card">${winChartHtml}</div>`,
           },
         ]
       : []),
     {
-      key: "heatmap",
+      key: "heatmap", cat: "activity",
       title: "📅 Activity Heatmap",
       body: `<div class="ana-card">${heatHtml}</div>`,
     },
     {
-      key: "score",
+      key: "score", cat: "activity",
       title: "📊 Score Distribution",
       body: `<div class="ana-card">${sdHtml}</div>`,
     },
     {
-      key: "insights",
+      key: "insights", cat: "records",
       title: "🎯 Match Insights",
       body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CLOSEST MATCHES</div>${cmHtml}<div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BIGGEST UPSETS</div>${upHtml}`,
     },
     {
-      key: "partnership",
+      key: "partnership", cat: "pairs",
       title: "🤝 Partnership Analytics",
       body: `<div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div><div class="ana-card" style="padding:10px 12px">${chemHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div><div class="ana-card" style="padding:10px 12px">${bpHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div><div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div><div style="font-size:10px;font-weight:700;color:var(--muted);margin:10px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div><div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
     },
     {
-      key: "rivalry",
+      key: "rivalry", cat: "players",
       title: "🔥 Rivalry Spotlight",
       body: `<div class="ana-card">${rivalHtml}</div>`,
     },
-    { key: "session", title: "📋 Session Stats", body: sessHtml },
+    { key: "session", cat: "activity", title: "📋 Session Stats", body: sessHtml },
     {
-      key: "shutout",
+      key: "shutout", cat: "records",
       title: "🎯 Shutout Records",
       body: `<div class="awards-grid">${scard("🚫", "Most Shutout Wins", mostShutoutWinsEntry?.[0], `${mostShutoutWinsEntry?.[1] || 0} games won X-0`)}${scard("💔", "Most Shutout Losses", mostShutoutLosses.length ? mostShutoutLosses.join(" & ") : null, `${maxLosses} games lost 0-X`)}</div>`,
     },
     {
-      key: "pairs",
+      key: "pairs", cat: "pairs",
       title: "🤝 All Pairs",
       body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`,
     },
     {
-      key: "pairedh2h",
+      key: "pairedh2h", cat: "pairs",
       title: "⚔️ Paired H2H Records",
       body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
     },
-    { key: "h2hDive", title: "⚔️ H2H Deep Dive", body: h2hHtml },
-    { key: "elo", title: "⚡ ELO Rankings", body: eloHtml },
-    { key: "eloTimeline", title: "📈 ELO History Chart", body: buildEloTimelineHtml("all") },
-    { key: "eloWinProb", title: "🎯 ELO Win Probability", body: eloWinProbHtml },
-    { key: "eloVolatility", title: "📊 ELO Volatility / Consistency", body: eloVolatilityHtml },
+    { key: "h2hDive", cat: "players", title: "⚔️ H2H Deep Dive", body: h2hHtml },
+    { key: "elo", cat: "elo", title: "⚡ ELO Rankings", body: eloHtml },
+    { key: "eloTimeline", cat: "elo", title: "📈 ELO History Chart", body: buildEloTimelineHtml("all") },
+    { key: "eloWinProb", cat: "elo", title: "🎯 ELO Win Probability", body: eloWinProbHtml },
+    { key: "eloVolatility", cat: "elo", title: "📊 ELO Volatility / Consistency", body: eloVolatilityHtml },
     {
-      key: "pairmatrix",
+      key: "pairmatrix", cat: "pairs",
       title: "🧪 Pair Chemistry Matrix",
       body: pairMatrixHtml,
     },
     {
-      key: "monthlyawards",
+      key: "monthlyawards", cat: "records",
       title: "🏆 Monthly Awards",
       body: monthlyAwardsHtml,
     },
     {
-      key: "personalbests",
+      key: "personalbests", cat: "players",
       title: "🏅 Personal Bests",
       body: personalBestsHtml,
     },
-    { key: "milestones", title: "🎖️ Milestone History", body: milestoneHtml },
+    { key: "milestones", cat: "records", title: "🎖️ Milestone History", body: milestoneHtml },
     {
-      key: "calendar",
+      key: "calendar", cat: "activity",
       title: "📅 Match Calendar",
       body: `<div id="match-calendar" class="match-calendar"></div>`,
     },
@@ -8171,6 +8198,20 @@ function renderAnalyticsPage() {
     ...validKeys.filter((k) => !storedOrder.includes(k)),
   ];
   const collapsed = getAnaCollapsed();
+
+  const _catLabels = [
+    { id: "all", label: "ALL" },
+    { id: "elo", label: "ELO" },
+    { id: "players", label: "PLAYERS" },
+    { id: "pairs", label: "PAIRS" },
+    { id: "records", label: "RECORDS" },
+    { id: "activity", label: "ACTIVITY" },
+  ];
+  const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row">${
+    _catLabels.map(c =>
+      `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}" onclick="anaFilterCategory('${c.id}')">${c.label}</button>`
+    ).join("")
+  }</div>`;
 
   const searchBarHtml = `<div class="ana-search-wrap">
     <div class="ana-search-box">
@@ -8189,13 +8230,16 @@ function renderAnalyticsPage() {
     <div id="ana-search-results" class="ana-search-results" style="display:none"></div>
   </div>`;
 
-  container.innerHTML = searchBarHtml + orderedKeys
+  container.innerHTML = searchBarHtml + filterPillsHtml + orderedKeys
     .map((key) => {
       const def = allSecs.find((s) => s.key === key);
       if (!def) return "";
-      return makeSec(key, def.title, def.body, collapsed.has(key));
+      return makeSec(key, def.title, def.body, collapsed.has(key), def.cat);
     })
     .join("");
+
+  // Re-apply active category filter after re-render
+  if (_anaActiveCat !== "all") anaFilterCategory(_anaActiveCat, true);
 
   if (!collapsed.has("calendar"))
     requestAnimationFrame(() => renderMatchCalendar());
@@ -8408,6 +8452,7 @@ Object.assign(window, {
   anaSearchInput,
   anaSearchSelect,
   anaSearchClose,
+  anaFilterCategory,
   anaSearchClear,
   setHistoryDateFilter,
   openPlayerCompare,
