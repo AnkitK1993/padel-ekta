@@ -6441,32 +6441,102 @@ function _anaOnUp(e) {
   _anaDragKey = null;
 }
 
-// ── PILL DRAG-TO-REORDER ────────────────────────────────────
+// ── PILL DRAG-TO-REORDER (pointer-based, works on touch & desktop) ────
 let _pillDragSrc = null;
-function _pillDragStart(e, id) {
+let _pillClone = null;
+let _pillStartX = 0;
+let _pillIsDragging = false;
+
+function _pillPointerDown(e, id) {
+  if (e.button !== undefined && e.button !== 0) return;
   _pillDragSrc = id;
-  e.dataTransfer.effectAllowed = "move";
+  _pillStartX = e.clientX;
+  _pillIsDragging = false;
+  document.addEventListener("pointermove", _pillOnMove);
+  document.addEventListener("pointerup", _pillOnUp);
 }
-function _pillDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = "move";
+
+function _pillOnMove(e) {
+  if (!_pillDragSrc) return;
+  const dx = Math.abs(e.clientX - _pillStartX);
+
+  if (!_pillIsDragging) {
+    if (dx < 6) return;
+    _pillIsDragging = true;
+    const src = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
+    if (src) {
+      const rect = src.getBoundingClientRect();
+      _pillClone = src.cloneNode(true);
+      Object.assign(_pillClone.style, {
+        position: "fixed",
+        top: rect.top + "px",
+        left: rect.left + "px",
+        width: rect.width + "px",
+        zIndex: "9999",
+        opacity: "0.9",
+        pointerEvents: "none",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
+        transition: "none",
+      });
+      document.body.appendChild(_pillClone);
+      src.style.opacity = "0.25";
+    }
+  }
+
+  if (_pillClone) {
+    const w = _pillClone.offsetWidth;
+    _pillClone.style.left = (e.clientX - w / 2) + "px";
+  }
+
+  // Drop indicators
+  document.querySelectorAll(".ana-filter-pill").forEach(p =>
+    p.classList.remove("pill-drop-before", "pill-drop-after")
+  );
+  document.querySelectorAll(".ana-filter-pill").forEach(p => {
+    if (p.dataset.cat === _pillDragSrc) return;
+    const r = p.getBoundingClientRect();
+    if (e.clientX >= r.left - 4 && e.clientX <= r.right + 4) {
+      p.classList.add(e.clientX < r.left + r.width / 2 ? "pill-drop-before" : "pill-drop-after");
+    }
+  });
 }
-function _pillDrop(e, targetId) {
-  e.preventDefault();
-  if (!_pillDragSrc || _pillDragSrc === targetId) return;
-  // Deduplicate: take only the first occurrence of each id from the DOM
-  const seen = new Set();
-  const order = [...document.querySelectorAll(".ana-filter-pill")]
-    .map(b => b.dataset.cat)
-    .filter(id => id && !seen.has(id) && seen.add(id));
-  const from = order.indexOf(_pillDragSrc);
-  const to = order.indexOf(targetId);
-  if (from === -1 || to === -1) return;
-  order.splice(from, 1);
-  order.splice(to, 0, _pillDragSrc);
-  saveAnaPillOrder(order);
-  _reRenderAnalytics();
+
+function _pillOnUp(e) {
+  document.removeEventListener("pointermove", _pillOnMove);
+  document.removeEventListener("pointerup", _pillOnUp);
+
+  if (_pillClone) { _pillClone.remove(); _pillClone = null; }
+
+  const src = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
+  if (src) src.style.opacity = "";
+
+  const before = document.querySelector(".pill-drop-before");
+  const after  = document.querySelector(".pill-drop-after");
+  const target = before || after;
+  document.querySelectorAll(".pill-drop-before, .pill-drop-after").forEach(p =>
+    p.classList.remove("pill-drop-before", "pill-drop-after")
+  );
+
+  if (!_pillIsDragging) {
+    // It was a tap — activate the pill
+    if (_pillDragSrc) anaFilterCategory(_pillDragSrc);
+  } else if (target && _pillDragSrc) {
+    const seen = new Set();
+    const order = [...document.querySelectorAll(".ana-filter-pill")]
+      .map(b => b.dataset.cat)
+      .filter(id => id && !seen.has(id) && seen.add(id));
+    const from = order.indexOf(_pillDragSrc);
+    const to   = order.indexOf(target.dataset.cat);
+    if (from !== -1 && to !== -1) {
+      order.splice(from, 1);
+      order.splice(before ? to : to + 1, 0, _pillDragSrc);
+      saveAnaPillOrder(order);
+      _reRenderAnalytics();
+    }
+  }
+
   _pillDragSrc = null;
+  _pillIsDragging = false;
 }
 
 function computeElo(matches, applyDecay = false) {
@@ -8663,11 +8733,7 @@ function renderAnalyticsPage() {
     _catLabels.map(c =>
       `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}"
         data-cat="${c.id}"
-        draggable="true"
-        ondragstart="_pillDragStart(event,'${c.id}')"
-        ondragover="_pillDragOver(event)"
-        ondrop="_pillDrop(event,'${c.id}')"
-        onclick="anaFilterCategory('${c.id}')">${c.label}</button>`
+        onpointerdown="_pillPointerDown(event,'${c.id}')">${c.label}</button>`
     ).join("")
   }</div>`;
 
@@ -8919,9 +8985,7 @@ Object.assign(window, {
   _toggleSynergyMore,
   anaFilterCategory,
   toggleAnaFav,
-  _pillDragStart,
-  _pillDragOver,
-  _pillDrop,
+  _pillPointerDown,
   anaSearchClear,
   setHistoryDateFilter,
   openPlayerCompare,

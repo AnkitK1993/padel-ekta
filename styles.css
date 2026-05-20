@@ -8276,8 +8276,16 @@ select.cmp-sel option {
   cursor: pointer;
   transition: background 0.18s, color 0.18s, border-color 0.18s;
 }
-.ana-filter-pill { cursor: grab; }
-.ana-filter-pill:active { opacity: 0.7; cursor: grabbing; }
+.ana-filter-pill { cursor: pointer; touch-action: none; }
+.ana-filter-pill:active { opacity: 0.7; }
+.ana-filter-pill.pill-drop-before {
+  border-left: 2.5px solid var(--accent);
+  padding-left: 10.5px;
+}
+.ana-filter-pill.pill-drop-after {
+  border-right: 2.5px solid var(--accent);
+  padding-right: 10.5px;
+}
 .ana-filter-pill.active {
   background: rgba(var(--theme-rgb), 0.18);
   border-color: rgba(var(--theme-rgb), 0.7);
