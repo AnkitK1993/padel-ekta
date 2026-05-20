@@ -230,6 +230,7 @@ let matchTabFilter = "today",
   h2hFilterA = "",
   h2hFilterB = "";
 let _h2hActiveSlot = null;
+let _filterSheetMode = null;
 let
   matchFrom = null,
   matchTo = null;
@@ -3817,46 +3818,18 @@ function clearAllHistFilters() {
   if (hrf) hrf.value = "all";
   const htf = document.getElementById("histTagFilter");
   if (htf) htf.value = "all";
-  const hpf = document.getElementById("histPairFilter");
-  if (hpf) hpf.value = "";
+  _updateFilterBtnDisplay();
   _updateH2HSlotDisplay();
   populateHistoryPlayerChips();
   renderModernMatches();
 }
 
 function populateHistoryPlayerChips() {
-  const select = document.getElementById("histPlayerSelect");
-  if (!select) return;
-  const currentPlayer = histPlayerFilter;
-  const names = new Set();
-  allMatches.forEach((m) => {
-    [...m.teamA, ...m.teamB].forEach((p) => names.add(nameMap[p] || p));
-  });
-  const sorted = [...names].sort((a, b) => a.localeCompare(b));
-  select.innerHTML =
-    '<option value="">ALL PLAYERS</option>' +
-    sorted
-      .map(
-        (name) =>
-          `<option value="${name.replace(/"/g, "&quot;")}" ${currentPlayer === name ? "selected" : ""}>${name.toUpperCase()}</option>`,
-      )
-      .join("");
-  select.value = currentPlayer;
+  _updateFilterBtnDisplay();
 }
 
 function populateHistoryAdvancedFilters() {
-  const pairSelect = document.getElementById("histPairFilter");
-  if (!pairSelect) return;
-  const currentPair = pairSelect.value || histPairFilter;
-  const pairOptions = getPairStats()
-    .map(
-      (p) =>
-        `<option value="${p.key.replace(/"/g, "&quot;")}" ${currentPair === p.key ? "selected" : ""}>${p.key.toUpperCase()} (${p.wins}-${p.losses})</option>`,
-    )
-    .join("");
-  pairSelect.innerHTML = `<option value="">ALL PAIRS</option>${pairOptions}`;
-  pairSelect.value = currentPair;
-
+  _updateFilterBtnDisplay();
   const data = document.getElementById("player-suggestions");
   if (data) {
     data.innerHTML = getAllPlayerNamesFromMatches()
@@ -3875,6 +3848,7 @@ function setHistPlayerFilter(name) {
     histOutcomeFilter = "all";
     refreshOutcomeButtons();
   }
+  _updateFilterBtnDisplay();
   populateHistoryPlayerChips();
   renderModernMatches();
 }
@@ -3901,12 +3875,87 @@ function setHistPairFilter(val) {
     h2hFilterB = "";
     _updateH2HSlotDisplay();
   }
+  _updateFilterBtnDisplay();
   renderModernMatches();
 }
 
 function setHistScorelineFilter(val) {
   histScorelineFilter = val;
   renderModernMatches();
+}
+
+function _updateFilterBtnDisplay() {
+  const playerBtn = document.getElementById("hist-player-btn");
+  const pairBtn   = document.getElementById("hist-pair-btn");
+  if (playerBtn) {
+    document.getElementById("hist-player-label").textContent = histPlayerFilter ? histPlayerFilter.toUpperCase() : "ALL PLAYERS";
+    playerBtn.classList.toggle("filter-fab-active", !!histPlayerFilter);
+  }
+  if (pairBtn) {
+    document.getElementById("hist-pair-label").textContent = histPairFilter ? histPairFilter.toUpperCase() : "ALL PAIRS";
+    pairBtn.classList.toggle("filter-fab-active", !!histPairFilter);
+  }
+}
+
+function openFilterSheet(mode) {
+  _filterSheetMode = mode;
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet   = document.getElementById("filter-sheet");
+  const list    = document.getElementById("filter-sheet-list");
+  const title   = document.getElementById("filter-sheet-title");
+  if (!overlay || !sheet || !list) return;
+  if (mode === "player") {
+    if (title) title.textContent = "SELECT PLAYER";
+    const names = new Set();
+    allMatches.forEach(m => [...(m.teamA||[]), ...(m.teamB||[])].forEach(p => names.add(nameMap[p] || p)));
+    const sorted = [...names].sort((a, b) => a.localeCompare(b));
+    list.innerHTML = [
+      `<button class="live-sheet-item${!histPlayerFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
+        <span class="live-sheet-item-name">ALL PLAYERS</span>
+        ${!histPlayerFilter ? '<span class="live-sheet-check">✓</span>' : ""}
+      </button>`,
+      ...sorted.map(p => {
+        const cur = p === histPlayerFilter;
+        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+          <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+          <span class="live-sheet-item-name">${p}</span>
+          ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
+        </button>`;
+      })
+    ].join("");
+  } else if (mode === "pair") {
+    if (title) title.textContent = "SELECT PAIR";
+    const pairs = getPairStats();
+    list.innerHTML = [
+      `<button class="live-sheet-item${!histPairFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
+        <span class="live-sheet-item-name">ALL PAIRS</span>
+        ${!histPairFilter ? '<span class="live-sheet-check">✓</span>' : ""}
+      </button>`,
+      ...pairs.map(p => {
+        const cur = p.key === histPairFilter;
+        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${p.key.replace(/'/g, "\\'")}')">
+          <span class="live-sheet-item-name">${p.key}</span>
+          <span style="font-size:10px;color:var(--muted);margin-left:auto">${p.wins}W–${p.losses}L</span>
+          ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
+        </button>`;
+      })
+    ].join("");
+  }
+  overlay.classList.add("live-sheet-open");
+  sheet.classList.add("live-sheet-open");
+}
+
+function closeFilterSheet() {
+  document.getElementById("filter-sheet-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("filter-sheet")?.classList.remove("live-sheet-open");
+  _filterSheetMode = null;
+}
+
+function selectFilterItem(value) {
+  const mode = _filterSheetMode;
+  closeFilterSheet();
+  if (mode === "player") setHistPlayerFilter(value);
+  else if (mode === "pair") setHistPairFilter(value);
 }
 
 function _updateH2HSlotDisplay() {
@@ -9508,6 +9557,9 @@ Object.assign(window, {
   setHistMargin,
   setHistPairFilter,
   setHistScorelineFilter,
+  openFilterSheet,
+  closeFilterSheet,
+  selectFilterItem,
   openH2HSheet,
   closeH2HSheet,
   selectH2HPlayer,

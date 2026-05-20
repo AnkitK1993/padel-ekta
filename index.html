@@ -298,13 +298,9 @@
             </div>
 
             <div class="compact-filter-item compact-player">
-              <select
-                class="hist-select compact-select"
-                id="histPlayerSelect"
-                onchange="setHistPlayerFilter(this.value)"
-              >
-                <option value="">All Players</option>
-              </select>
+              <button class="filter-fab-btn" id="hist-player-btn" onclick="openFilterSheet('player')">
+                <span id="hist-player-label">ALL PLAYERS</span>
+              </button>
             </div>
 
             <div class="compact-filter-item">
@@ -336,13 +332,9 @@
           <div class="hist-filter-row compact-row bottom-filter-row">
             <!-- PAIR -->
             <div class="compact-filter-item compact-pair">
-              <select
-                class="hist-select compact-select"
-                id="histPairFilter"
-                onchange="setHistPairFilter(this.value)"
-              >
-                <option value="">All Pairs</option>
-              </select>
+              <button class="filter-fab-btn" id="hist-pair-btn" onclick="openFilterSheet('pair')">
+                <span id="hist-pair-label">ALL PAIRS</span>
+              </button>
             </div>
 
             <!-- H2H -->
@@ -929,6 +921,14 @@ Parthiv - Par"
       <div class="mio-note" id="mio-note"></div>
     </div>
   <div id="swipe-blur-overlay"></div>
+
+    <!-- History filter bottom sheet (player / pair) -->
+    <div class="live-sheet-overlay" id="filter-sheet-overlay" onclick="closeFilterSheet()"></div>
+    <div class="live-sheet" id="filter-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title" id="filter-sheet-title">SELECT</div>
+      <div class="live-sheet-list" id="filter-sheet-list"></div>
+    </div>
 
     <!-- H2H player select bottom sheet -->
     <div class="live-sheet-overlay" id="h2h-sheet-overlay" onclick="closeH2HSheet()"></div>
