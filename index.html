@@ -74,6 +74,11 @@
             <span class="hmenu-label">Account</span>
             <button id="loginBtn" class="hmenu-action-btn">Login</button>
           </div>
+          <div class="hmenu-divider"></div>
+          <div class="hmenu-item">
+            <span class="hmenu-label">Live Scoring</span>
+            <button onclick="openLiveMode();closeHamburgerMenu()" class="hmenu-action-btn">🎾 Live</button>
+          </div>
         </div>
         <div class="home-header"></div>
         <div class="home-filter-bar">
@@ -641,6 +646,26 @@ Parthiv - Par"
             <div id="elo-decay-config"></div>
           </div>
 
+          <!-- Season System -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">📅</span>
+              <span class="mng-card-title">Season Manager</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Define seasons to filter match history and stats by date range.</div>
+            <div id="season-manager"></div>
+          </div>
+
+          <!-- Tournament Bracket -->
+          <div class="mng-card">
+            <div class="mng-card-header">
+              <span class="mng-card-icon">🏆</span>
+              <span class="mng-card-title">Tournament Brackets</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Create round-robin tournaments and track results.</div>
+            <div id="tourn-admin-list"></div>
+          </div>
+
           <!-- Danger Zone -->
           <div class="mng-danger-card">
             <div class="mng-card-header">
@@ -699,6 +724,46 @@ Parthiv - Par"
         <button class="snap-share-btn" onclick="shareSnapshot()">Share 📤</button>
       </div>
       <div class="snap-content" id="snap-content"></div>
+    </div>
+
+    <!-- Live Scoring Mode -->
+    <div class="page" id="pg-live">
+      <div class="page-body-scroll">
+        <div class="nav" style="display:flex;align-items:center;justify-content:space-between">
+          <button onclick="goBack()" style="background:none;border:none;color:var(--theme);font-size:13px;cursor:pointer;padding:4px 0">← Back</button>
+          <span style="font-size:14px;font-weight:800;letter-spacing:0.06em;color:var(--text)">🎾 LIVE SCORE</span>
+          <div style="width:40px"></div>
+        </div>
+        <div style="padding:12px">
+          <input id="live-date" type="date" class="name-in" style="width:100%;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+            <div>
+              <div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:4px">TEAM A</div>
+              <select id="live-p-a1" class="sim-sel" style="width:100%;margin-bottom:6px"></select>
+              <select id="live-p-a2" class="sim-sel" style="width:100%"></select>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--red);font-weight:700;margin-bottom:4px">TEAM B</div>
+              <select id="live-p-b1" class="sim-sel" style="width:100%;margin-bottom:6px"></select>
+              <select id="live-p-b2" class="sim-sel" style="width:100%"></select>
+            </div>
+          </div>
+          <div class="live-court">
+            <div class="live-score-block">
+              <button class="live-adj-btn" onclick="liveAdjustScore('a',-1)">−</button>
+              <span id="live-score-a" class="live-score-num">0</span>
+              <button class="live-adj-btn" onclick="liveAdjustScore('a',1)">+</button>
+            </div>
+            <div style="font-size:20px;font-weight:900;color:var(--muted);align-self:center">VS</div>
+            <div class="live-score-block">
+              <button class="live-adj-btn" onclick="liveAdjustScore('b',-1)">−</button>
+              <span id="live-score-b" class="live-score-num">0</span>
+              <button class="live-adj-btn" onclick="liveAdjustScore('b',1)">+</button>
+            </div>
+          </div>
+          <button class="live-end-btn" onclick="endLiveMatch()">END MATCH & SAVE 🎾</button>
+        </div>
+      </div>
     </div>
 
     <!-- FAB — only visible on add page -->
