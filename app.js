@@ -8709,6 +8709,8 @@ function renderAnalyticsPage() {
     ...storedOrder.filter((k) => validKeys.includes(k)),
     ...validKeys.filter((k) => !storedOrder.includes(k)),
   ];
+  // Collapse all sections by default on first visit (no stored state yet)
+  if (!localStorage.getItem(ANA_COL_KEY)) saveAnaCollapsed(new Set(validKeys));
   const collapsed = getAnaCollapsed();
 
   const _catBase = [
