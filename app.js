@@ -228,7 +228,9 @@ let matchTabFilter = "today",
   histPairFilter = "",
   histScorelineFilter = "",
   h2hFilterA = "",
-  h2hFilterB = "",
+  h2hFilterB = "";
+let _h2hActiveSlot = null;
+let
   matchFrom = null,
   matchTo = null;
 let homeFilter = "all",
@@ -3817,10 +3819,7 @@ function clearAllHistFilters() {
   if (htf) htf.value = "all";
   const hpf = document.getElementById("histPairFilter");
   if (hpf) hpf.value = "";
-  const ha = document.getElementById("h2hPlayerA");
-  const hb = document.getElementById("h2hPlayerB");
-  if (ha) ha.value = "";
-  if (hb) hb.value = "";
+  _updateH2HSlotDisplay();
   populateHistoryPlayerChips();
   renderModernMatches();
 }
@@ -3858,32 +3857,6 @@ function populateHistoryAdvancedFilters() {
   pairSelect.innerHTML = `<option value="">ALL PAIRS</option>${pairOptions}`;
   pairSelect.value = currentPair;
 
-  // ── Populate H2H player selects ──
-  const h2hA = document.getElementById("h2hPlayerA");
-  const h2hB = document.getElementById("h2hPlayerB");
-  if (h2hA && h2hB) {
-    const names = new Set();
-    allMatches.forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
-        names.add(nameMap[p] || p),
-      );
-    });
-    const sorted = [...names].sort((a, b) => a.localeCompare(b));
-    const opts = sorted
-      .map(
-        (n) =>
-          `<option value="${n.replace(/"/g, "&quot;")}">${n.toUpperCase()}</option>`,
-      )
-      .join("");
-    const savedA = h2hA.value || h2hFilterA;
-    const savedB = h2hB.value || h2hFilterB;
-    h2hA.innerHTML = `<option value="">P1</option>${opts}`;
-    h2hB.innerHTML = `<option value="">P2</option>${opts}`;
-
-    if (savedA) h2hA.value = savedA;
-    if (savedB) h2hB.value = savedB;
-  }
-
   const data = document.getElementById("player-suggestions");
   if (data) {
     data.innerHTML = getAllPlayerNamesFromMatches()
@@ -3895,13 +3868,9 @@ function populateHistoryAdvancedFilters() {
 function setHistPlayerFilter(name) {
   histPlayerFilter = name;
   if (name) {
-    // Clear P1/P2 when a player is chosen
     h2hFilterA = "";
     h2hFilterB = "";
-    const a = document.getElementById("h2hPlayerA");
-    const b = document.getElementById("h2hPlayerB");
-    if (a) a.value = "";
-    if (b) b.value = "";
+    _updateH2HSlotDisplay();
   } else {
     histOutcomeFilter = "all";
     refreshOutcomeButtons();
@@ -3928,13 +3897,9 @@ function setHistMargin(val) {
 function setHistPairFilter(val) {
   histPairFilter = val;
   if (val) {
-    // Clear P1/P2 when a pair is chosen
     h2hFilterA = "";
     h2hFilterB = "";
-    const a = document.getElementById("h2hPlayerA");
-    const b = document.getElementById("h2hPlayerB");
-    if (a) a.value = "";
-    if (b) b.value = "";
+    _updateH2HSlotDisplay();
   }
   renderModernMatches();
 }
@@ -3944,11 +3909,55 @@ function setHistScorelineFilter(val) {
   renderModernMatches();
 }
 
-function applyHeadToHeadFilter() {
-  h2hFilterA = document.getElementById("h2hPlayerA").value.trim();
-  h2hFilterB = document.getElementById("h2hPlayerB").value.trim();
+function _updateH2HSlotDisplay() {
+  const aBtn = document.getElementById("h2h-slot-a");
+  const bBtn = document.getElementById("h2h-slot-b");
+  const clearBtn = document.getElementById("h2h-slot-clear");
+  if (!aBtn) return;
+  document.getElementById("h2h-slot-a-label").textContent = h2hFilterA || "P1";
+  document.getElementById("h2h-slot-b-label").textContent = h2hFilterB || "P2";
+  aBtn.classList.toggle("h2h-slot-filled", !!h2hFilterA);
+  bBtn.classList.toggle("h2h-slot-filled", !!h2hFilterB);
+  if (clearBtn) clearBtn.style.display = (h2hFilterA || h2hFilterB) ? "flex" : "none";
+}
+
+function openH2HSheet(slot) {
+  _h2hActiveSlot = slot;
+  const overlay = document.getElementById("h2h-sheet-overlay");
+  const sheet   = document.getElementById("h2h-sheet");
+  const list    = document.getElementById("h2h-sheet-list");
+  const title   = document.getElementById("h2h-sheet-title");
+  if (!overlay || !sheet || !list) return;
+  if (title) title.textContent = slot === "a" ? "SELECT P1" : "SELECT P2";
+  const taken    = slot === "a" ? h2hFilterB : h2hFilterA;
+  const selected = slot === "a" ? h2hFilterA : h2hFilterB;
+  const players  = computeStats(allMatches).map(p => p.name).sort();
+  list.innerHTML = players.map(p => {
+    const isTaken    = p === taken;
+    const isCurrent  = p === selected;
+    return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
+      onclick="${isTaken ? "" : `selectH2HPlayer('${p.replace(/'/g, "\\'")}')`}"
+      ${isTaken ? "disabled" : ""}>
+      <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      <span class="live-sheet-item-name">${p}</span>
+      ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
+    </button>`;
+  }).join("");
+  overlay.classList.add("live-sheet-open");
+  sheet.classList.add("live-sheet-open");
+}
+
+function closeH2HSheet() {
+  document.getElementById("h2h-sheet-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("h2h-sheet")?.classList.remove("live-sheet-open");
+  _h2hActiveSlot = null;
+}
+
+function selectH2HPlayer(name) {
+  if (_h2hActiveSlot === "a") h2hFilterA = name;
+  else if (_h2hActiveSlot === "b") h2hFilterB = name;
+  closeH2HSheet();
   if (h2hFilterA || h2hFilterB) {
-    // Clear player and pair filters when H2H is set
     histPlayerFilter = "";
     histPairFilter = "";
     const ps = document.getElementById("histPlayerSelect");
@@ -3957,32 +3966,14 @@ function applyHeadToHeadFilter() {
     if (pr) pr.value = "";
     populateHistoryPlayerChips();
   }
-  renderModernMatches();
-}
-
-function onHeadToHeadInput() {
-  const a = document.getElementById("h2hPlayerA").value.trim();
-  const b = document.getElementById("h2hPlayerB").value.trim();
-  if (!a || !b) {
-    h2hFilterA = "";
-    h2hFilterB = "";
-    renderModernMatches();
-  }
-}
-
-function clearHeadToHeadPlayer(which) {
-  const id = which === "A" ? "h2hPlayerA" : "h2hPlayerB";
-  document.getElementById(id).value = "";
-  h2hFilterA = "";
-  h2hFilterB = "";
+  _updateH2HSlotDisplay();
   renderModernMatches();
 }
 
 function clearHeadToHeadFilter() {
   h2hFilterA = "";
   h2hFilterB = "";
-  document.getElementById("h2hPlayerA").value = "";
-  document.getElementById("h2hPlayerB").value = "";
+  _updateH2HSlotDisplay();
   renderModernMatches();
 }
 
@@ -9517,9 +9508,9 @@ Object.assign(window, {
   setHistMargin,
   setHistPairFilter,
   setHistScorelineFilter,
-  applyHeadToHeadFilter,
-  onHeadToHeadInput,
-  clearHeadToHeadPlayer,
+  openH2HSheet,
+  closeH2HSheet,
+  selectH2HPlayer,
   clearHeadToHeadFilter,
   clearAllHistFilters,
   populateHistoryPlayerChips,

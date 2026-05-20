@@ -347,34 +347,15 @@
 
             <!-- H2H -->
             <div class="compact-filter-item compact-h2h">
-              <div class="h2h-inline-wrap">
-                <div class="compact-h2h-field">
-                  <select
-                    class="hist-select compact-select h2h-select"
-                    id="h2hPlayerA"
-                    onchange="applyHeadToHeadFilter()"
-                  >
-                    <option value="">P1</option>
-                  </select>
-                </div>
-
-                <button
-                  class="compact-clear-btn"
-                  onclick="clearHeadToHeadFilter()"
-                  title="Clear H2H"
-                >
-                  ✕
+              <div class="h2h-slots-wrap">
+                <button class="h2h-slot-btn" id="h2h-slot-a" onclick="openH2HSheet('a')">
+                  <span id="h2h-slot-a-label">P1</span>
                 </button>
-
-                <div class="compact-h2h-field">
-                  <select
-                    class="hist-select compact-select h2h-select"
-                    id="h2hPlayerB"
-                    onchange="applyHeadToHeadFilter()"
-                  >
-                    <option value="">P2</option>
-                  </select>
-                </div>
+                <span class="h2h-vs-sep">VS</span>
+                <button class="h2h-slot-btn" id="h2h-slot-b" onclick="openH2HSheet('b')">
+                  <span id="h2h-slot-b-label">P2</span>
+                </button>
+                <button class="h2h-slot-clear" id="h2h-slot-clear" onclick="clearHeadToHeadFilter()">✕</button>
               </div>
             </div>
           </div>
@@ -948,5 +929,13 @@ Parthiv - Par"
       <div class="mio-note" id="mio-note"></div>
     </div>
   <div id="swipe-blur-overlay"></div>
+
+    <!-- H2H player select bottom sheet -->
+    <div class="live-sheet-overlay" id="h2h-sheet-overlay" onclick="closeH2HSheet()"></div>
+    <div class="live-sheet" id="h2h-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title" id="h2h-sheet-title">SELECT PLAYER</div>
+      <div class="live-sheet-list" id="h2h-sheet-list"></div>
+    </div>
   </body>
 </html>
