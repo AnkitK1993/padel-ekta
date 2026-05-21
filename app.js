@@ -13416,6 +13416,9 @@ Object.assign(window, {
   selectLivePlayer,
   closeLivePlayerSheet,
   liveAdjustScore,
+  liveAddPoint,
+  liveUndoPoint,
+  setLiveGameMode,
   endLiveMatch,
   openRivalryScreen,
   openShareMatchPoster,
@@ -13432,23 +13435,222 @@ let _liveScoreA = 0,
   _liveScoreB = 0;
 const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
 let _liveActiveSlot = null;
-let _livePoints = []; // 5B: point history for momentum graph
+let _livePoints = []; // point history for momentum graph
+// Tennis-style scoring
+let _liveGameMode = 4; // 4 = race to 4 (no diff), 6 = race to 6 (±2 / TB)
+let _liveGamePtsA = 0; // 0..3 = 0/15/30/40 (then deuce/adv handled below)
+let _liveGamePtsB = 0;
+let _liveAdv = null; // 'a' | 'b' | null
+let _liveMatchEnded = false;
+let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 
 function openLiveMode() {
   _liveScoreA = 0;
   _liveScoreB = 0;
   _livePoints = [];
+  _liveGamePtsA = 0;
+  _liveGamePtsB = 0;
+  _liveAdv = null;
+  _liveMatchEnded = false;
+  _livePointUndoStack = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   const today = new Date().toISOString().slice(0, 10);
   const dateEl = document.getElementById("live-date");
   if (dateEl) dateEl.value = today;
   const notesEl = document.getElementById("live-notes");
   if (notesEl) notesEl.value = "";
+  const savedMode = parseInt(localStorage.getItem("padel_live_mode") || "4", 10);
+  _liveGameMode = savedMode === 6 ? 6 : 4;
+  _liveSyncModeButtons();
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveMomentum();
+  _liveSyncGameDisplay();
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   goTo("live");
+}
+
+function setLiveGameMode(mode) {
+  if (mode !== 4 && mode !== 6) return;
+  if (_liveGameMode === mode) return;
+  _liveGameMode = mode;
+  try {
+    localStorage.setItem("padel_live_mode", String(mode));
+  } catch (e) {}
+  // Reset everything on mode change
+  _liveScoreA = 0;
+  _liveScoreB = 0;
+  _liveGamePtsA = 0;
+  _liveGamePtsB = 0;
+  _liveAdv = null;
+  _liveMatchEnded = false;
+  _livePoints = [];
+  _livePointUndoStack = [];
+  _liveSyncModeButtons();
+  _updateLiveDisplay();
+  _updateLiveWinProb();
+  _updateLiveMomentum();
+  _liveSyncGameDisplay();
+}
+
+function _liveSyncModeButtons() {
+  document.querySelectorAll(".live-mode-btn").forEach((b) => {
+    b.classList.toggle("active", parseInt(b.dataset.mode, 10) === _liveGameMode);
+  });
+}
+
+function _livePointLabel(team) {
+  if (_liveAdv === team) return "AD";
+  if (_liveAdv && _liveAdv !== team) return "40";
+  const pts = team === "a" ? _liveGamePtsA : _liveGamePtsB;
+  return ["0", "15", "30", "40"][pts] || "0";
+}
+
+function _liveGameStateLabel() {
+  if (_liveMatchEnded) {
+    const winner = _liveScoreA > _liveScoreB ? "RED" : "BLUE";
+    return { text: `MATCH — ${winner} WINS`, cls: "match-point" };
+  }
+  // Match point check
+  const a = _liveScoreA,
+    b = _liveScoreB;
+  const target = _liveGameMode;
+  let aMatchPt = false,
+    bMatchPt = false;
+  if (target === 4) {
+    aMatchPt = a === 3;
+    bMatchPt = b === 3;
+  } else {
+    aMatchPt = (a >= 5 && a - b >= 1) || a === 6;
+    bMatchPt = (b >= 5 && b - a >= 1) || b === 6;
+  }
+  const aGamePt =
+    _liveAdv === "a" ||
+    (_liveGamePtsA === 3 && _liveGamePtsB < 3) ||
+    (_liveGamePtsA === 3 && _liveGamePtsB === 3 && _liveAdv === "a");
+  const bGamePt =
+    _liveAdv === "b" ||
+    (_liveGamePtsB === 3 && _liveGamePtsA < 3) ||
+    (_liveGamePtsB === 3 && _liveGamePtsA === 3 && _liveAdv === "b");
+  if (aMatchPt && aGamePt) return { text: "MATCH POINT — RED", cls: "match-point" };
+  if (bMatchPt && bGamePt) return { text: "MATCH POINT — BLUE", cls: "match-point" };
+  if (_liveAdv === "a") return { text: "ADVANTAGE RED", cls: "" };
+  if (_liveAdv === "b") return { text: "ADVANTAGE BLUE", cls: "" };
+  if (_liveGamePtsA === 3 && _liveGamePtsB === 3) return { text: "DEUCE", cls: "" };
+  if (aGamePt) return { text: "GAME POINT — RED", cls: "" };
+  if (bGamePt) return { text: "GAME POINT — BLUE", cls: "" };
+  return { text: "", cls: "" };
+}
+
+function _liveSyncGameDisplay() {
+  const a = document.getElementById("live-pt-val-a");
+  const b = document.getElementById("live-pt-val-b");
+  const st = document.getElementById("live-game-state");
+  if (a) a.textContent = _livePointLabel("a");
+  if (b) b.textContent = _livePointLabel("b");
+  if (st) {
+    const lbl = _liveGameStateLabel();
+    st.textContent = lbl.text;
+    st.className = "live-game-state" + (lbl.cls ? " " + lbl.cls : "");
+  }
+}
+
+function _liveHaptic(ms) {
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate(ms);
+    } catch (e) {}
+  }
+}
+
+function liveAddPoint(team) {
+  if (_liveMatchEnded) return;
+  // Snapshot for undo
+  _livePointUndoStack.push({
+    gpA: _liveGamePtsA,
+    gpB: _liveGamePtsB,
+    adv: _liveAdv,
+    sA: _liveScoreA,
+    sB: _liveScoreB,
+    ended: _liveMatchEnded,
+    points: [..._livePoints],
+  });
+  if (_livePointUndoStack.length > 100) _livePointUndoStack.shift();
+  _liveHaptic(8);
+  // Advantage handling
+  if (_liveAdv === team) {
+    _liveWinGame(team);
+    return;
+  }
+  if (_liveAdv && _liveAdv !== team) {
+    _liveAdv = null;
+    _liveSyncGameDisplay();
+    return;
+  }
+  // Deuce becomes advantage
+  if (_liveGamePtsA === 3 && _liveGamePtsB === 3) {
+    _liveAdv = team;
+    _liveSyncGameDisplay();
+    return;
+  }
+  // Normal progression
+  if (team === "a") _liveGamePtsA++;
+  else _liveGamePtsB++;
+  const ptsT = team === "a" ? _liveGamePtsA : _liveGamePtsB;
+  const ptsO = team === "a" ? _liveGamePtsB : _liveGamePtsA;
+  if (ptsT >= 4 && ptsT - ptsO >= 2) {
+    _liveWinGame(team);
+    return;
+  }
+  _liveSyncGameDisplay();
+}
+
+function _liveWinGame(team) {
+  if (team === "a") _liveScoreA++;
+  else _liveScoreB++;
+  _liveGamePtsA = 0;
+  _liveGamePtsB = 0;
+  _liveAdv = null;
+  _livePoints.push({ team, a: _liveScoreA, b: _liveScoreB });
+  _liveHaptic([20, 30, 20]);
+  // Match-win check
+  if (_liveCheckMatchWin()) {
+    _liveMatchEnded = true;
+    showToast("Match over — tap SAVE", "🎾", 4500);
+  }
+  _updateLiveDisplay();
+  _updateLiveWinProb();
+  _updateLiveMomentum();
+  _liveSyncGameDisplay();
+}
+
+function _liveCheckMatchWin() {
+  const a = _liveScoreA,
+    b = _liveScoreB;
+  if (_liveGameMode === 4) {
+    return a >= 4 || b >= 4;
+  }
+  if (a >= 6 && a - b >= 2) return true;
+  if (b >= 6 && b - a >= 2) return true;
+  if (a === 7 || b === 7) return true; // 7-5 or 7-6 (tiebreak)
+  return false;
+}
+
+function liveUndoPoint() {
+  const snap = _livePointUndoStack.pop();
+  if (!snap) return;
+  _liveGamePtsA = snap.gpA;
+  _liveGamePtsB = snap.gpB;
+  _liveAdv = snap.adv;
+  _liveScoreA = snap.sA;
+  _liveScoreB = snap.sB;
+  _liveMatchEnded = snap.ended;
+  _livePoints = snap.points;
+  _liveHaptic(8);
+  _updateLiveDisplay();
+  _updateLiveWinProb();
+  _updateLiveMomentum();
+  _liveSyncGameDisplay();
 }
 
 function _renderLiveSlot(slot) {

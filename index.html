@@ -730,7 +730,29 @@ Parthiv - Par"
           </div>
         </div>
 
-        <!-- Scoreboard -->
+        <!-- Tennis Mode Toggle -->
+        <div class="live-mode-bar">
+          <span class="live-mode-lbl">RACE TO</span>
+          <button class="live-mode-btn active" data-mode="4" onclick="setLiveGameMode(4)">4 <span class="live-mode-sub">NO DIFF</span></button>
+          <button class="live-mode-btn" data-mode="6" onclick="setLiveGameMode(6)">6 <span class="live-mode-sub">±2 / TB</span></button>
+        </div>
+
+        <!-- Current Game Points (Tennis scoring) -->
+        <div class="live-game-pts-wrap">
+          <button class="live-game-pt live-game-pt-a" onclick="liveAddPoint('a')">
+            <div class="live-pt-val" id="live-pt-val-a">0</div>
+            <div class="live-pt-hint">TAP +</div>
+          </button>
+          <button class="live-game-pt live-game-pt-b" onclick="liveAddPoint('b')">
+            <div class="live-pt-val" id="live-pt-val-b">0</div>
+            <div class="live-pt-hint">TAP +</div>
+          </button>
+        </div>
+        <div class="live-game-state" id="live-game-state"></div>
+        <button class="live-undo-pt" onclick="liveUndoPoint()">↶ UNDO POINT</button>
+
+        <!-- Scoreboard (GAMES) -->
+        <div class="live-games-label">GAMES</div>
         <div class="live-scoreboard">
           <div class="live-score-panel live-panel-a">
             <div class="live-score-giant" id="live-score-a">0</div>
