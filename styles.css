@@ -11350,6 +11350,8 @@ body::after {
 /* ── Summary date FAB (capsule) ──────────────── */
 .summary-filter-bar {
   padding: 7px 12px !important;
+  display: flex !important;
+  justify-content: center !important;
 }
 .cmp-date-fab {
   display: inline-flex;
