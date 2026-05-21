@@ -2079,6 +2079,53 @@ table.cmp tbody td:nth-child(2) {
 .rg .sr-val {
   color: var(--gold);
 }
+
+/* ─── HUD Gauge (IronMan-style SR ring) ─────────────────── */
+.hud-gauge-svg {
+  width: 80px;
+  height: 48px;
+  display: block;
+  overflow: visible;
+  flex-shrink: 0;
+}
+.hud-arc {
+  stroke-dashoffset: calc(var(--total, 103) - var(--fill, 0));
+  animation: hudArcDraw 1.5s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+@keyframes hudArcDraw {
+  from { stroke-dashoffset: var(--total, 103); }
+  to   { stroke-dashoffset: calc(var(--total, 103) - var(--fill, 0)); }
+}
+/* Rev-limit state: high-SR pulsing glow */
+.hud-gauge-svg.hud-rev .hud-arc {
+  animation:
+    hudArcDraw 1.5s cubic-bezier(0.22, 1.2, 0.36, 1) both,
+    hudRevPulse 0.65s ease-in-out 1.6s infinite alternate;
+}
+@keyframes hudRevPulse {
+  from { opacity: 1; }
+  to   { opacity: 0.45; }
+}
+/* SR value below gauge */
+.hud-sr-val {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  line-height: 1;
+  margin-top: 2px;
+}
+.hud-sr-val.sr-high { color: #32d74b; text-shadow: 0 0 8px rgba(50,215,75,0.55); }
+.hud-sr-val.sr-mid  { color: #ffd60a; text-shadow: 0 0 8px rgba(255,214,10,0.55); }
+.hud-sr-val.sr-low  { color: #ff3b30; text-shadow: 0 0 8px rgba(255,59,48,0.55); }
+.r1 .hud-sr-val     { color: var(--gold); text-shadow: 0 0 8px rgba(255,200,0,0.5); }
+/* Wrap the SVG + value in a column */
+.mini-gauge-wrap {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
 .trend-arrow {
   font-size: 10px;
   margin-left: 4px;
