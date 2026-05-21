@@ -12755,6 +12755,7 @@ select:focus,
   padding: 8px 18px !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
+  overflow: visible !important;
   box-shadow:
     0 2px 12px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
