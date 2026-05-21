@@ -3361,7 +3361,6 @@ function renderHome() {
               ${last5DotsHtml}
               <div class="holo-form-delta">${eldHtml || ""}</div>
             </div>
-            ${badgePillsHtml ? `<div class="holo-badge-row">${badgePillsHtml}</div>` : ""}
           </div>
         </div>`;
       }
@@ -3392,7 +3391,6 @@ function renderHome() {
               <div class="holo-gauge-val holo-gauge-val-sm" data-final="${p.sr.toFixed(2)}">0.00</div>
             </div>
           </div>
-          ${badgePillsHtml ? `<div class="holo-badge-row">${badgePillsHtml}</div>` : ""}
         </div>
       </div>`;
     }
