@@ -328,8 +328,10 @@ function openThemePicker() {
   grid.innerHTML = themes
     .map(
       (t, i) =>
-        `<button class="tp-swatch${i === cur ? " tp-swatch-active" : ""}" onclick="pickTheme(${i})" style="--sw:${t.hex};--sw-rgb:${t.r},${t.g},${t.b}">
-          <span class="tp-dot" style="background:${t.hex}"></span>
+        `<button class="tp-swatch${i === cur ? " tp-swatch-active" : ""}${t.mode === "holo" ? " tp-swatch-holo" : ""}" onclick="pickTheme(${i})" style="--sw:${t.hex};--sw-rgb:${t.r},${t.g},${t.b}">
+          ${t.mode === "holo"
+            ? `<span class="tp-dot tp-dot-holo"></span>`
+            : `<span class="tp-dot" style="background:${t.hex}"></span>`}
           <span class="tp-name">${t.name}</span>
         </button>`,
     )
@@ -582,6 +584,7 @@ function checkMilestones(prevMatches, newMatches) {
 let allMatches = [];
 let nameMap = {};
 let aliasMap = {};
+let photoMap = {};
 let calYear = new Date().getFullYear(),
   calMonth = new Date().getMonth();
 let matchTabFilter = "today",
@@ -776,6 +779,71 @@ async function saveCloudData() {
   try {
     localStorage.setItem("padel_matches", JSON.stringify(allMatches));
   } catch (e) {}
+}
+
+// ── PLAYER PHOTOS ──────────────────────────────────────────
+function loadPhotos() {
+  try {
+    const cached = JSON.parse(localStorage.getItem("padel_photos") || "null");
+    if (cached && typeof cached === "object") photoMap = cached;
+  } catch (e) {}
+  try {
+    onSnapshot(doc(db, "padel", "photos"), (snap) => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      if (d.photoMap && typeof d.photoMap === "object") {
+        photoMap = d.photoMap;
+        try { localStorage.setItem("padel_photos", JSON.stringify(photoMap)); } catch (_) {}
+        renderHome();
+      }
+    });
+  } catch (e) {}
+}
+
+async function _savePhotosToCloud() {
+  try {
+    localStorage.setItem("padel_photos", JSON.stringify(photoMap));
+    if (auth.currentUser && window.isAdmin) {
+      await setDoc(doc(db, "padel", "photos"), { photoMap });
+    }
+  } catch (e) { console.error("Photo save failed:", e); }
+}
+
+function savePlayerPhoto(name) {
+  if (!window.isAdmin) return;
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = () => {
+    const file = input.files[0];
+    if (!file) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = 128; canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const s = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
+      photoMap[name] = canvas.toDataURL("image/jpeg", 0.78);
+      _savePhotosToCloud();
+      renderHome();
+      if (document.getElementById("player-detail-modal")) openPlayerDetail(name);
+      showToast("Photo saved");
+    };
+    img.src = url;
+  };
+  input.click();
+}
+
+function removePlayerPhoto(name) {
+  if (!window.isAdmin) return;
+  delete photoMap[name];
+  _savePhotosToCloud();
+  renderHome();
+  if (document.getElementById("player-detail-modal")) openPlayerDetail(name);
+  showToast("Photo removed");
 }
 
 // ── SCHEDULED MATCHES ──────────────────────────────────────
@@ -2127,6 +2195,10 @@ function playerInitials(name) {
 function playerAvatar(name, size = 26) {
   const col = playerColor(name);
   const fs = Math.round(size * 0.38);
+  const photo = photoMap[name];
+  if (photo) {
+    return `<span class="p-av p-av-photo" style="width:${size}px;height:${size}px;min-width:${size}px;border:1.5px solid ${col}"><img src="${photo}" alt="${escHtml(name)}" style="width:100%;height:100%;object-fit:cover;display:block"></span>`;
+  }
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
 }
 
@@ -3253,7 +3325,7 @@ function renderHome() {
           ${corners}
           <div class="holo-grid-hero">
             <div class="holo-av-area">
-              <div class="holo-av-ring"><div class="holo-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div></div>
+              <div class="holo-av-ring">${photoMap[p.name] ? `<img class="holo-av holo-av-photo" src="${photoMap[p.name]}" alt="${escHtml(p.name)}">` : `<div class="holo-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>`}</div>
               <div class="holo-rank-tag">${i + 1}</div>
             </div>
             <div class="holo-info-hero">
@@ -3270,7 +3342,7 @@ function renderHome() {
             </div>
             <div class="holo-gauge holo-gauge-hero">
               ${holoArc(38, p.sr)}
-              <div class="holo-gauge-val holo-gauge-val-hero">${p.sr.toFixed(2)}</div>
+              <div class="holo-gauge-val holo-gauge-val-hero" data-final="${p.sr.toFixed(2)}">0.00</div>
             </div>
             <div class="holo-form-row">
               <span class="holo-form-lbl">FORM</span>
@@ -3299,7 +3371,7 @@ function renderHome() {
           <div class="holo-gauge-wrap-sm">
             <div class="holo-gauge holo-gauge-sm">
               ${holoArc(26, p.sr)}
-              <div class="holo-gauge-val holo-gauge-val-sm">${p.sr.toFixed(2)}</div>
+              <div class="holo-gauge-val holo-gauge-val-sm" data-final="${p.sr.toFixed(2)}">0.00</div>
             </div>
             <div class="holo-delta-sm">${eldHtml || ""}</div>
           </div>
@@ -3321,6 +3393,7 @@ function renderHome() {
         if (srEl) animateSrVal(srEl, 300);
         const xpRow = card.querySelector(".xp-row");
         if (xpRow) animateXpRow(xpRow, 300);
+        card.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 220 + i * 60));
         if (i === cardHtmls.length - 1) {
           runSpeedometerSweep();
           setTimeout(animateGauges, 50);
@@ -3335,6 +3408,7 @@ function renderHome() {
       .querySelectorAll(".sr-val[data-final]")
       .forEach((el) => animateSrVal(el, 300));
     board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
+    board.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 300));
   }
 }
 
@@ -6349,7 +6423,7 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="display:flex;align-items:center;gap:10px">${playerAvatar(name, 64)}<div style="display:flex;flex-direction:column;gap:4px"><span>${name}</span>${eloTierBadge(playerElo)}</div></div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}${window.isAdmin ? `<button class="pd-photo-btn" onclick="savePlayerPhoto('${name.replace(/'/g, "\\'")}')" title="Upload photo">📷</button>` : ""}${window.isAdmin && photoMap[name] ? `<button class="pd-photo-remove" onclick="removePlayerPhoto('${name.replace(/'/g, "\\'")}')" title="Remove photo">✕</button>` : ""}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${name}</span>${eloTierBadge(playerElo)}</div></div>
                 <div style="display:flex;align-items:center;gap:8px">
                   <button class="share-card-btn" onclick="openShareCard('${name.replace(/'/g, "\\'")}')">⬆ Share</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
@@ -14250,6 +14324,7 @@ function scheduleAutoEmail() {
 // renderHome/renderCompact are called inside it after data is ready.
 renderNamesTable();
 loadCloudData();
+loadPhotos();
 loadScheduledMatches();
 loadDeletedMatches();
 scheduleAutoEmail();
@@ -14433,6 +14508,8 @@ Object.assign(window, {
   openShareMatchPoster,
   openHomeFilterSheet,
   openCmpDateSheet,
+  savePlayerPhoto,
+  removePlayerPhoto,
 });
 
 function setHistoryDateFilter(value) {

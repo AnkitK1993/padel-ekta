@@ -9276,6 +9276,10 @@ select.cmp-sel option {
   flex-shrink: 0;
   line-height: 1;
 }
+.p-av-photo {
+  overflow: hidden;
+  background: none !important;
+}
 .team-avatars {
   display: flex;
   gap: 4px;
@@ -14163,6 +14167,22 @@ body.holo-mode #themeBtn {
   flex-shrink: 0;
   box-shadow: 0 0 12px var(--sw, currentColor), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
+/* Holo HUD theme swatch: mini circuit preview */
+.tp-dot-holo {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background-color: #04101e;
+  background-image:
+    linear-gradient(rgba(92, 208, 255, 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 208, 255, 0.35) 1px, transparent 1px),
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(92, 208, 255, 0.5), transparent 70%);
+  background-size: 5px 5px, 5px 5px, 100% 100%;
+  border: 1px solid rgba(92, 208, 255, 0.6);
+  box-shadow: 0 0 10px rgba(92, 208, 255, 0.5), inset 0 0 4px rgba(92, 208, 255, 0.2);
+}
+.tp-swatch-holo { border-color: rgba(92, 208, 255, 0.4) !important; }
 .tp-name {
   font-family: "Bebas Neue", sans-serif;
   font-size: 13px;
@@ -14298,4 +14318,143 @@ body.holo-mode #themeBtn {
   padding: 2px 6px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Player photo upload ── */
+.pd-av-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pd-photo-btn {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--theme);
+  color: #000;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  z-index: 1;
+  padding: 0;
+  line-height: 1;
+}
+.pd-photo-remove {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 60, 60, 0.85);
+  color: #fff;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  z-index: 2;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Holo HUD hero — photo fills avatar ring */
+.holo-av-photo {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ════════════════════════════════════════════════════════
+   HOLO MODE — other tabs treatment
+   ════════════════════════════════════════════════════════ */
+
+/* Analytics section headers */
+body.holo-mode .ana-sec-hdr,
+body.holo-mode .ana-section-title {
+  color: var(--theme) !important;
+  text-shadow: 0 0 12px rgba(92, 208, 255, 0.45);
+  letter-spacing: 0.12em;
+}
+
+/* Analytics cards */
+body.holo-mode .ana-card,
+body.holo-mode .ov-card {
+  background: linear-gradient(135deg, rgba(8, 24, 42, 0.85), rgba(4, 14, 26, 0.92)) !important;
+  border: 1px solid rgba(92, 208, 255, 0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(92, 208, 255, 0.08), 0 0 16px rgba(92, 208, 255, 0.04) !important;
+}
+body.holo-mode .ana-card::before,
+body.holo-mode .ov-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(92, 208, 255, 0.3), transparent);
+  pointer-events: none;
+}
+
+/* History match cards */
+body.holo-mode .match-card,
+body.holo-mode .match-card-inner,
+body.holo-mode .history-card {
+  background: linear-gradient(135deg, rgba(8, 24, 42, 0.8), rgba(4, 14, 26, 0.88)) !important;
+  border: 1px solid rgba(92, 208, 255, 0.18) !important;
+}
+body.holo-mode .date-separator,
+body.holo-mode .hist-date-hdr {
+  color: var(--theme) !important;
+  border-bottom-color: rgba(92, 208, 255, 0.2) !important;
+}
+
+/* Summary / compact table */
+body.holo-mode .cmp {
+  border-collapse: collapse;
+}
+body.holo-mode .cmp th {
+  background: rgba(92, 208, 255, 0.08) !important;
+  color: var(--theme) !important;
+  border-bottom: 1px solid rgba(92, 208, 255, 0.25) !important;
+}
+body.holo-mode .cmp td {
+  border-bottom: 1px solid rgba(92, 208, 255, 0.08) !important;
+}
+body.holo-mode .cmp tr:hover td {
+  background: rgba(92, 208, 255, 0.05) !important;
+}
+body.holo-mode .pc-row {
+  background: linear-gradient(135deg, rgba(8, 24, 42, 0.8), rgba(4, 14, 26, 0.88)) !important;
+  border: 1px solid rgba(92, 208, 255, 0.18) !important;
+}
+
+/* Live scoring */
+body.holo-mode .live-score-a,
+body.holo-mode .live-score-b {
+  text-shadow: 0 0 20px rgba(92, 208, 255, 0.6) !important;
+}
+body.holo-mode .live-mode-bar {
+  background: rgba(4, 16, 30, 0.75) !important;
+  border-bottom: 1px solid rgba(92, 208, 255, 0.22) !important;
+}
+
+/* Bottom nav active glow */
+body.holo-mode .tbb.active,
+body.holo-mode .bottom-nav-item.active {
+  text-shadow: 0 0 14px rgba(92, 208, 255, 0.7);
+}
+body.holo-mode .tbb.active::after,
+body.holo-mode .bottom-nav-item.active::after {
+  box-shadow: 0 0 12px rgba(92, 208, 255, 0.5);
 }
