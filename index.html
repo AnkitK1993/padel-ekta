@@ -84,6 +84,17 @@
           </div>
         </div>
 
+        <!-- Theme picker overlay -->
+        <div class="tp-overlay" id="tp-overlay" onclick="if(event.target.id==='tp-overlay')closeThemePicker()">
+          <div class="tp-panel">
+            <div class="tp-header">
+              <div class="tp-title">PICK A THEME</div>
+              <button class="tp-close" onclick="closeThemePicker()">✕</button>
+            </div>
+            <div class="tp-grid" id="tp-grid"></div>
+          </div>
+        </div>
+
         <!-- Global search overlay -->
         <div class="gs-overlay" id="gs-overlay" onclick="if(event.target.id==='gs-overlay')closeGlobalSearch()">
           <div class="gs-panel">

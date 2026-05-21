@@ -138,6 +138,118 @@ function showToast(msg, emoji = "🎉", duration = 4000) {
   }, duration);
 }
 
+// ── CONFETTI (canvas-based, milestone celebration) ────────
+function fireConfetti(opts = {}) {
+  const count = opts.count || 90;
+  const duration = opts.duration || 2200;
+  const colors = opts.colors || [
+    "var(--theme)",
+    "#f5c842",
+    "#ff5fe5",
+    "#5cd0ff",
+    "#36d47e",
+    "#ff7a3d",
+    "#ffffff",
+  ];
+  // Resolve CSS vars to actual hex
+  const resolvedColors = colors.map((c) => {
+    if (!c.startsWith("var(")) return c;
+    const name = c.slice(4, -1);
+    return (
+      getComputedStyle(document.documentElement)
+        .getPropertyValue(name)
+        .trim() || "#fff"
+    );
+  });
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText =
+    "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:99999";
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const particles = [];
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: W / 2 + (Math.random() - 0.5) * 60,
+      y: H / 3,
+      vx: (Math.random() - 0.5) * 14,
+      vy: -8 - Math.random() * 8,
+      g: 0.32 + Math.random() * 0.15,
+      size: 4 + Math.random() * 5,
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.35,
+      color: resolvedColors[Math.floor(Math.random() * resolvedColors.length)],
+      shape: Math.random() < 0.5 ? "rect" : "circle",
+      life: 1,
+    });
+  }
+  const start = performance.now();
+  function tick(t) {
+    const elapsed = t - start;
+    const fade = Math.max(0, 1 - elapsed / duration);
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.g;
+      p.rot += p.vr;
+      p.life = fade;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      if (p.shape === "rect") {
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.55);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+    if (elapsed < duration) requestAnimationFrame(tick);
+    else canvas.remove();
+  }
+  requestAnimationFrame(tick);
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate([12, 25, 12, 25, 30]);
+    } catch (e) {}
+  }
+}
+
+// ── THEME PICKER ─────────────────────────────────────────
+function openThemePicker() {
+  const ov = document.getElementById("tp-overlay");
+  const grid = document.getElementById("tp-grid");
+  if (!ov || !grid) return;
+  const themes = window.THEMES || [];
+  const cur = typeof window.getThemeIdx === "function" ? window.getThemeIdx() : -1;
+  grid.innerHTML = themes
+    .map(
+      (t, i) =>
+        `<button class="tp-swatch${i === cur ? " tp-swatch-active" : ""}" onclick="pickTheme(${i})" style="--sw:${t.hex};--sw-rgb:${t.r},${t.g},${t.b}">
+          <span class="tp-dot" style="background:${t.hex}"></span>
+          <span class="tp-name">${t.name}</span>
+        </button>`,
+    )
+    .join("");
+  ov.classList.add("open");
+}
+function closeThemePicker() {
+  document.getElementById("tp-overlay")?.classList.remove("open");
+}
+function pickTheme(i) {
+  if (typeof window.setThemeByIdx === "function") window.setThemeByIdx(i);
+  closeThemePicker();
+}
+
 // ── ANNIVERSARY TOAST ─────────────────────────────────────
 function _checkAnniversaries() {
   if (!allMatches || !allMatches.length) return;
@@ -177,6 +289,7 @@ function _checkAnniversaries() {
         "🎂",
         6000,
       );
+      fireConfetti({ count: 70, duration: 2400 });
     }, i * 2500);
     allKeys += "|" + a.key;
   });
@@ -316,6 +429,7 @@ function checkMilestones(prevMatches, newMatches) {
       if (prevCount < n && newCount >= n) {
         showToast(`${player} hit ${n} matches!`, "🏅");
         saveMilestoneEntry(`${player} hit ${n} matches!`, "🏅");
+        if (n >= 50) fireConfetti({ count: 100, duration: 2400 });
       }
     });
   });
@@ -343,9 +457,11 @@ function checkMilestones(prevMatches, newMatches) {
     if (prevRank > 1 && newRank === 1) {
       showToast(`${player} is now #1!`, "👑");
       saveMilestoneEntry(`${player} is now #1!`, "👑");
+      fireConfetti({ count: 150, duration: 3000 });
     } else if (prevRank > 3 && newRank <= 3) {
       showToast(`${player} entered the Top 3!`, "🥉");
       saveMilestoneEntry(`${player} entered the Top 3!`, "🥉");
+      fireConfetti({ count: 80, duration: 2200 });
     }
   });
   // ELO threshold milestones
@@ -361,6 +477,7 @@ function checkMilestones(prevMatches, newMatches) {
           const display = normPlayer(player);
           showToast(`${display} hit ELO ${t}!`, "⚡");
           saveMilestoneEntry(`${display} hit ELO ${t}!`, "⚡");
+          fireConfetti({ count: 90, duration: 2400 });
         }
       });
     });
@@ -13788,6 +13905,10 @@ Object.assign(window, {
   closeGlobalSearch,
   _globalSearchInput,
   _storyFilter,
+  openThemePicker,
+  closeThemePicker,
+  pickTheme,
+  fireConfetti,
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,

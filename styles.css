@@ -13417,6 +13417,93 @@ select:focus,
   opacity: 0.85;
 }
 
+/* ── THEME PICKER OVERLAY ── */
+.tp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.tp-overlay.open { display: flex; }
+.tp-panel {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(180deg, rgba(20, 22, 28, 0.98), rgba(12, 14, 18, 0.98));
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(var(--theme-rgb), 0.15);
+  animation: gsPanelIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tp-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.tp-title {
+  flex: 1;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  color: var(--theme);
+  font-weight: 700;
+}
+.tp-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+.tp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 12px;
+}
+.tp-swatch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(var(--sw-rgb), 0.25);
+  background: linear-gradient(135deg, rgba(var(--sw-rgb), 0.08), rgba(0, 0, 0, 0.2));
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  transition: transform 0.12s, border-color 0.18s, box-shadow 0.18s;
+}
+.tp-swatch:hover { transform: translateY(-1px); }
+.tp-swatch:active { transform: scale(0.97); }
+.tp-swatch-active {
+  border-color: var(--sw);
+  box-shadow: 0 0 14px rgba(var(--sw-rgb), 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.tp-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px var(--sw, currentColor), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.tp-name {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
 /* ── GLOBAL SEARCH OVERLAY ── */
 .gs-overlay {
   position: fixed;

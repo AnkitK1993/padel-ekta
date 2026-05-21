@@ -267,7 +267,13 @@ body.paused-animations *{
         { name: "Neon Pink", hex: "#ff2d78", r: 255, g: 45, b: 120 },
         { name: "Neon Purple", hex: "#b44dff", r: 180, g: 77, b: 255 },
         { name: "Red", hex: "#ff3b3b", r: 255, g: 59, b: 59 },
+        { name: "Royal Blue", hex: "#2563eb", r: 37, g: 99, b: 235 },
+        { name: "Crimson", hex: "#dc2626", r: 220, g: 38, b: 38 },
+        { name: "Forest", hex: "#15803d", r: 21, g: 128, b: 61 },
+        { name: "Cyberpunk", hex: "#ff00d4", r: 255, g: 0, b: 212 },
+        { name: "Mono", hex: "#c0c0c0", r: 192, g: 192, b: 192 },
       ];
+      window.THEMES = THEMES;
       var _themeIdx = 0;
 
       function applyTheme(t) {
@@ -302,7 +308,18 @@ body.paused-animations *{
       }
 
       function cycleTheme() {
-        _themeIdx = (_themeIdx + 1) % THEMES.length;
+        // Now opens the picker overlay instead of cycling
+        if (typeof window.openThemePicker === "function") {
+          window.openThemePicker();
+        } else {
+          _themeIdx = (_themeIdx + 1) % THEMES.length;
+          applyTheme(THEMES[_themeIdx]);
+        }
+      }
+
+      function setThemeByIdx(i) {
+        if (i < 0 || i >= THEMES.length) return;
+        _themeIdx = i;
         applyTheme(THEMES[_themeIdx]);
         var btn = document.getElementById("themeBtn");
         if (btn) {
@@ -311,6 +328,8 @@ body.paused-animations *{
           btn.classList.add("theme-spin");
         }
       }
+      window.setThemeByIdx = setThemeByIdx;
+      window.getThemeIdx = function () { return _themeIdx; };
 
       // Restore saved theme immediately
       (function () {
