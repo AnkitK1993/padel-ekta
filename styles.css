@@ -5306,6 +5306,7 @@ select.input-modern option[value=""] {
   align-items: center;
   gap: 3px;
   padding: 6px 0;
+  text-align: center;
 }
 .det-streak-val {
   font-size: 20px;

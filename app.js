@@ -2720,6 +2720,11 @@ function runSpeedometerSweep() {
 }
 
 function renderCompact() {
+  const _cmpDateLbl = document.getElementById("cmpDateLabel");
+  if (_cmpDateLbl) {
+    const _cmpLblMap = { all: "ALL TIME", today: "TODAY", week: "THIS WEEK", lastweek: "LAST WEEK", weekend: "WEEKEND", month: "THIS MONTH", range: "RANGE" };
+    _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
+  }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const stats = computeStats(filtered, computeElo(filtered));
   const sortFns = {
@@ -4029,9 +4034,44 @@ function closeFilterSheet() {
   _filterSheetMode = null;
 }
 
+const _CMP_DATE_OPTIONS = [
+  { v: "all",      l: "ALL TIME",   icon: "⏱" },
+  { v: "today",    l: "TODAY",      icon: "📅" },
+  { v: "week",     l: "THIS WEEK",  icon: "📆" },
+  { v: "lastweek", l: "LAST WEEK",  icon: "⬅️" },
+  { v: "weekend",  l: "WEEKEND",    icon: "🏖" },
+  { v: "month",    l: "THIS MONTH", icon: "🗓" },
+];
+
+function openCmpDateSheet() {
+  _filterSheetMode = "cmpdate";
+  const title = document.getElementById("filter-sheet-title");
+  if (title) title.textContent = "DATE FILTER";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  list.innerHTML = _CMP_DATE_OPTIONS.map(o =>
+    `<div class="live-sheet-item${cmpFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
+      <span style="font-size:20px;width:28px;text-align:center">${o.icon}</span>
+      <span>${o.l}</span>
+      ${cmpFilter === o.v ? '<span class="live-sheet-check">✓</span>' : ''}
+    </div>`
+  ).join("");
+  document.getElementById("filter-sheet-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("filter-sheet")?.classList.add("live-sheet-open");
+}
+
 function selectFilterItem(value) {
   const mode = _filterSheetMode;
   closeFilterSheet();
+  if (mode === "cmpdate") {
+    const sel = document.getElementById("cmpSel");
+    if (sel) sel.value = value;
+    cmpFilter = value;
+    const dr = document.getElementById("cmpDr");
+    if (dr) dr.classList.toggle("show", value === "range");
+    renderCompact();
+    return;
+  }
   if (mode === "player") setHistPlayerFilter(value);
   else if (mode === "pair") setHistPairFilter(value);
   else if (mode === "digestplayer") renderDigestCard(undefined, value);
@@ -4626,65 +4666,72 @@ function openPlayerDetail(name) {
     const avgM = margins.reduce((s,v)=>s+v,0)/Math.max(margins.length,1);
     const consistNorm = Math.min(1, Math.max(0, (avgM + 5) / 10));
 
+    // Avg values across all active players for comparison overlay
+    const activePlayers = allStats.filter(p => p.mp >= 3);
+    const _avg = (fn) => activePlayers.reduce((s,p) => s + fn(p), 0) / Math.max(activePlayers.length, 1);
+    const avgWinRate = _avg(p => p.mp > 0 ? p.mw/p.mp : 0);
+    const avgElo = _avg(p => maxElo > minElo ? ((eloMap[p.name]||1000)-minElo)/(maxElo-minElo) : 0.5);
+    const avgClutch = _avg(p => {
+      const cMs = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(p.name) && Math.abs(m.scoreA-m.scoreB) <= 2);
+      return cMs.length >= 2 ? cMs.filter(m => { const inA=(m.teamA||[]).includes(p.name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); }).length / cMs.length : 0.5;
+    });
+    const avgForm = _avg(p => p.mp > 0 ? p.mw/p.mp : 0);
+    const avgAct = _avg(p => p.mp / maxMp);
+    const avgConsist = _avg(p => {
+      const ms2 = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(p.name)).map(m => { const inA=(m.teamA||[]).includes(p.name); return (inA?m.scoreA:m.scoreB)-(inA?m.scoreB:m.scoreA); });
+      const a2 = ms2.reduce((a,v)=>a+v,0)/Math.max(ms2.length,1);
+      return Math.min(1, Math.max(0, (a2+5)/10));
+    });
+
     const axes = [
-      { label: "Win Rate", val: winRateNorm },
-      { label: "ELO", val: eloNorm },
-      { label: "Clutch", val: clutchNorm },
-      { label: "Form", val: formNorm },
-      { label: "Activity", val: actNorm },
-      { label: "Margin", val: consistNorm },
+      { label: "WIN RATE", val: winRateNorm, avg: avgWinRate },
+      { label: "ELO",      val: eloNorm,     avg: avgElo },
+      { label: "CLUTCH",   val: clutchNorm,  avg: avgClutch },
+      { label: "FORM",     val: formNorm,    avg: avgForm },
+      { label: "ACTIVITY", val: actNorm,     avg: avgAct },
+      { label: "MARGIN",   val: consistNorm, avg: avgConsist },
     ];
     const N = axes.length;
-    const cx = 90, cy = 90, R = 68;
+    const cx = 110, cy = 110, R = 78;
     const col = playerColor(name);
-    const pts = axes.map((a, i) => {
+    const xy = (i, scale) => {
       const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
-      const r = a.val * R;
-      return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
-    });
-    const gridLines = [0.25, 0.5, 0.75, 1].map(scale => {
-      const gpts = axes.map((_, i) => {
-        const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
-        return `${cx + scale * R * Math.cos(angle)},${cy + scale * R * Math.sin(angle)}`;
-      }).join(" ");
-      return `<polygon points="${gpts}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+      return { x: cx + scale * R * Math.cos(angle), y: cy + scale * R * Math.sin(angle) };
+    };
+    const playerPts = axes.map((a, i) => xy(i, a.val));
+    const avgPts    = axes.map((a, i) => xy(i, a.avg));
+    const gridLines = [0.25, 0.5, 0.75, 1].map(sc => {
+      const g = axes.map((_, i) => { const p = xy(i, sc); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(" ");
+      return `<polygon points="${g}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
     }).join("");
     const spokes = axes.map((_, i) => {
-      const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
-      return `<line x1="${cx}" y1="${cy}" x2="${cx + R * Math.cos(angle)}" y2="${cy + R * Math.sin(angle)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+      const p = xy(i, 1);
+      return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
     }).join("");
-    const polyPts = pts.map(p => `${p.x},${p.y}`).join(" ");
+    const polyPts = playerPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    const avgPolyPts = avgPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
     const labels = axes.map((a, i) => {
       const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
-      const lx = cx + (R + 16) * Math.cos(angle);
-      const ly = cy + (R + 16) * Math.sin(angle);
-      const anchor = lx < cx - 5 ? "end" : lx > cx + 5 ? "start" : "middle";
-      return `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.45)" font-family="DM Sans,sans-serif">${a.label.toUpperCase()}</text>`;
+      const lx = cx + (R + 22) * Math.cos(angle);
+      const ly = cy + (R + 22) * Math.sin(angle);
+      const anchor = Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
+      return `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="DM Sans,sans-serif">${a.label}</text>`;
     }).join("");
-    return `<div class="ana-card"><span class="badge">Radar Profile</span>
-      <svg viewBox="0 0 180 180" width="100%" style="max-width:220px;display:block;margin:8px auto 0">
+    return `<div class="ana-card" style="overflow:visible"><span class="badge">Radar Profile</span>
+      <svg viewBox="0 0 220 220" width="100%" style="max-width:260px;display:block;margin:8px auto 0;overflow:visible">
         ${gridLines}${spokes}
+        <polygon points="${avgPolyPts}" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.28)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>
         <polygon points="${polyPts}" fill="${col}" fill-opacity="0.18" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
-        ${pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${col}"/>`).join("")}
+        ${playerPts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${col}"/>`).join("")}
         ${labels}
-      </svg></div>`;
+      </svg>
+      <div style="display:flex;gap:14px;justify-content:center;margin-top:8px">
+        <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:10px;border-radius:50%;background:${col}"></div><span style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">YOU</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:0;border-top:1.5px dashed rgba(255,255,255,0.35)"></div><span style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">AVG</span></div>
+      </div></div>`;
   })();
 
-  // ── ACHIEVEMENTS ─────────────────────────────────────────────
-  const achievements = computeAchievements(name, allMatches);
-  const achievementsHtml = achievements.length ? (() => {
-    const unlocked = achievements.filter(a => a.unlocked);
-    const locked = achievements.filter(a => !a.unlocked);
-    const badge = (a, dim) => `<div class="ach-badge${dim ? " ach-locked" : ""}" title="${a.desc}">
-      <div class="ach-icon">${a.icon}</div>
-      <div class="ach-label">${a.label}</div>
-      ${a.progress && !a.unlocked ? `<div class="ach-progress">${a.progress}</div>` : ""}
-    </div>`;
-    return `<div class="ana-card"><span class="badge">Achievements</span>
-      <div style="font-size:9px;color:var(--muted);margin:4px 0 8px;font-weight:700">${unlocked.length}/${achievements.length} UNLOCKED</div>
-      <div class="ach-grid">${unlocked.map(a => badge(a, false)).join("")}${locked.map(a => badge(a, true)).join("")}</div>
-    </div>`;
-  })() : "";
+  const achievementsHtml = "";
 
   // Feature 1: current streak
   const streakIcon = s.curStreak > 0 ? (s.curType === "W" ? "🔥" : "❄️") : "";
@@ -5211,12 +5258,12 @@ function openPlayerDetail(name) {
                     <div class="det-streak-div"></div>
                     <div class="det-streak-cell">
                       <div class="det-streak-val" style="color:var(--green)">${s.bestWinStreak}W</div>
-                      <div class="sub">Win</div>
+                      <div class="sub">Winning</div>
                     </div>
                     <div class="det-streak-div"></div>
                     <div class="det-streak-cell">
                       <div class="det-streak-val" style="color:var(--red)">${detail.maxLossStreak}L</div>
-                      <div class="sub">Loss</div>
+                      <div class="sub">Losing</div>
                     </div>
                   </div>
                   <div class="det-form-row">
@@ -6707,12 +6754,10 @@ function _cmpSelectorHtml() {
   return `
     <div class="cmp-inline-selectors">
       <button class="h2h-slot-btn${_cmpPlayerA ? " h2h-slot-filled" : ""}" id="cmpSlotA" onclick="openCmpSheet('A')" style="flex:1">
-        <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 1</span>
         <span id="cmpLabelA" style="font-size:12px;font-weight:800">${_cmpPlayerA || "P1"}</span>
       </button>
       <span class="cmp-inline-vs">VS</span>
       <button class="h2h-slot-btn${_cmpPlayerB ? " h2h-slot-filled" : ""}" id="cmpSlotB" onclick="openCmpSheet('B')" style="flex:1">
-        <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 2</span>
         <span id="cmpLabelB" style="font-size:12px;font-weight:800">${_cmpPlayerB || "P2"}</span>
       </button>
     </div>
@@ -11294,6 +11339,7 @@ Object.assign(window, {
   endLiveMatch,
   openRivalryScreen,
   openShareMatchPoster,
+  openCmpDateSheet,
 });
 
 function setHistoryDateFilter(value) {

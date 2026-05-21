@@ -154,20 +154,23 @@
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
           <button class="ss-snap-btn" onclick="openSummaryScreenshot()">📸</button>
         </div>
-        <!-- Filter bar — separated by partition -->
+        <!-- Filter bar — FAB date picker -->
         <div class="summary-filter-bar">
-          <div class="cmp-sel-wrap">
-            <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()">
-              <option value="all">ALL TIME</option>
-              <option value="today" selected>TODAY</option>
-              <option value="week">THIS WEEK</option>
-              <option value="lastweek">LAST WEEK</option>
-              <option value="weekend">WEEKEND</option>
-              <option value="month">THIS MONTH</option>
-              <option value="range">DATE RANGE</option>
-            </select>
-          </div>
+          <button class="filter-fab-btn" id="cmpDateFab" onclick="openCmpDateSheet()" style="flex:1;max-width:200px">
+            <span style="font-size:13px">📅</span>
+            <span id="cmpDateLabel" style="font-size:11px;font-weight:800;letter-spacing:0.06em">TODAY</span>
+            <span style="font-size:9px;color:var(--muted);margin-left:auto">▼</span>
+          </button>
         </div>
+        <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()" style="display:none">
+          <option value="all">ALL TIME</option>
+          <option value="today" selected>TODAY</option>
+          <option value="week">THIS WEEK</option>
+          <option value="lastweek">LAST WEEK</option>
+          <option value="weekend">WEEKEND</option>
+          <option value="month">THIS MONTH</option>
+          <option value="range">DATE RANGE</option>
+        </select>
         <div class="cmp-dr" id="cmpDr">
           <input type="date" id="cmpFrom" /><input type="date" id="cmpTo" />
           <button class="btn-go" onclick="applyRange('compact')">Go</button>
