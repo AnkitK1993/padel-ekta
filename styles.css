@@ -2316,6 +2316,24 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.mng-card-header::after {
+  content: "▾";
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+.mng-card.mng-collapsed .mng-card-header {
+  margin-bottom: 0;
+}
+.mng-card.mng-collapsed .mng-card-header::after {
+  transform: rotate(-90deg);
+}
+.mng-card.mng-collapsed > *:not(.mng-card-header) {
+  display: none !important;
 }
 .mng-card-icon {
   font-size: 15px;

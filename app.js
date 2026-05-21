@@ -1306,6 +1306,18 @@ function switchITab(id) {
         void el.offsetWidth;
         el.style.animation = "";
       });
+    // Make cards collapsible; start collapsed on first visit
+    document.querySelectorAll("#mng-cards-container .mng-card").forEach(card => {
+      const header = card.querySelector(".mng-card-header");
+      if (header && !header.dataset.collapseInit) {
+        header.dataset.collapseInit = "1";
+        header.addEventListener("click", () => toggleMngCard(header));
+      }
+      if (!card.dataset.collapseInited) {
+        card.dataset.collapseInited = "1";
+        card.classList.add("mng-collapsed");
+      }
+    });
   }
   if (id === "names") renderNamesTable();
   if (id === "matches") prefillMatchTADate();
@@ -1331,6 +1343,11 @@ function applyMngOrder() {
     const card = container.querySelector(`.mng-card[data-card-id="${id}"]`);
     if (card) container.appendChild(card);
   });
+}
+
+function toggleMngCard(header) {
+  const card = header.closest(".mng-card");
+  if (card) card.classList.toggle("mng-collapsed");
 }
 
 function toggleManageReorder() {
@@ -11375,6 +11392,7 @@ Object.assign(window, {
   openCmpSheet,
   _cmpSetDate,
   _updateCmpSlots,
+  toggleMngCard,
   toggleManageReorder,
   openPredictSheet,
   runMatchPrediction,
