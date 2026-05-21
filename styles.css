@@ -5312,6 +5312,14 @@ select.input-modern option[value=""] {
   font-size: 20px;
   font-weight: 900;
   line-height: 1;
+  text-align: center;
+  width: 100%;
+}
+.det-streak-cell .sub {
+  font-size: 9px;
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 .det-streak-div {
   width: 1px;
