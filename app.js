@@ -3338,8 +3338,7 @@ function renderHome() {
             <div class="holo-info-hero">
               <div class="holo-name-row">
                 <span class="holo-name">${p.name}</span>
-                <span class="holo-pill holo-pill-alltime">ALLTIME</span>
-                <span class="holo-pill holo-pill-lvl">LVL ${lvl}</span>
+<span class="holo-pill holo-pill-lvl">LVL ${lvl}</span>
                 ${eloTierBadge(homeEloMap[p.name] || 1000)}
               </div>
               <div class="holo-stats holo-stats-5">
