@@ -5645,7 +5645,40 @@ function openPlayerDetail(name) {
       </div></div>`;
   })();
 
-  const achievementsHtml = "";
+  // Achievements with progress bars
+  const achievements = computeAchievements(name, allMatches);
+  const achievementsHtml = achievements.length
+    ? (() => {
+        const unlocked = achievements.filter((a) => a.unlocked);
+        const locked = achievements.filter((a) => !a.unlocked);
+        const ordered = [...unlocked, ...locked];
+        const renderCard = (a) => {
+          // Parse progress fraction "n/d" or percent "n%" if present
+          let pct = a.unlocked ? 100 : 0;
+          if (!a.unlocked && a.progress) {
+            const frac = String(a.progress).match(/(\d+)\s*\/\s*(\d+)/);
+            const perc = String(a.progress).match(/(\d+)\s*%/);
+            if (frac) pct = Math.min(100, (parseInt(frac[1], 10) / parseInt(frac[2], 10)) * 100);
+            else if (perc) pct = Math.min(100, parseInt(perc[1], 10));
+          }
+          return `<div class="ach-row${a.unlocked ? " ach-unlocked" : ""}">
+            <div class="ach-icon">${a.icon}</div>
+            <div class="ach-body">
+              <div class="ach-head">
+                <span class="ach-label">${a.label}</span>
+                <span class="ach-progress-lbl">${a.unlocked ? "✓ UNLOCKED" : (a.progress || "—")}</span>
+              </div>
+              <div class="ach-desc">${a.desc}</div>
+              <div class="ach-bar"><div class="ach-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
+            </div>
+          </div>`;
+        };
+        return `<div class="ana-card">
+          <span class="badge">Achievements (${unlocked.length}/${achievements.length})</span>
+          <div class="ach-list">${ordered.map(renderCard).join("")}</div>
+        </div>`;
+      })()
+    : "";
 
   // Feature 1: current streak
   const streakIcon = s.curStreak > 0 ? (s.curType === "W" ? "🔥" : "❄️") : "";
@@ -7842,6 +7875,60 @@ function getMatrixAlias(name) {
 }
 
 // ── P VS P MATRIX (COMPACT, NO SCROLL) ────────────────────
+let _h2hMatrixSort = "matches";
+
+function _h2hSortPlayers(players) {
+  if (!Array.isArray(players)) return [];
+  const eloMap = computeElo(allMatches);
+  const matchCount = {};
+  const winPct = {};
+  players.forEach((p) => {
+    let played = 0,
+      wins = 0;
+    allMatches.forEach((m) => {
+      const inA = (m.teamA || []).includes(p);
+      const inB = (m.teamB || []).includes(p);
+      if (!inA && !inB) return;
+      played++;
+      const won = (inA && m.scoreA > m.scoreB) || (inB && m.scoreB > m.scoreA);
+      if (won) wins++;
+    });
+    matchCount[p] = played;
+    winPct[p] = played > 0 ? wins / played : 0;
+  });
+  const sorted = [...players];
+  if (_h2hMatrixSort === "matches") {
+    sorted.sort(
+      (a, b) =>
+        (matchCount[b] || 0) - (matchCount[a] || 0) ||
+        (eloMap[b] || 0) - (eloMap[a] || 0),
+    );
+  } else if (_h2hMatrixSort === "winrate") {
+    sorted.sort(
+      (a, b) => (winPct[b] || 0) - (winPct[a] || 0) || (matchCount[b] || 0) - (matchCount[a] || 0),
+    );
+  } else if (_h2hMatrixSort === "name") {
+    sorted.sort((a, b) => a.localeCompare(b));
+  }
+  return sorted;
+}
+
+function _h2hSetSort(key) {
+  _h2hMatrixSort = key;
+  document.querySelectorAll(".h2h-sort-pill").forEach((b) => {
+    const isActive =
+      (b.textContent.trim() === "MATCHES" && key === "matches") ||
+      (b.textContent.trim() === "WIN %" && key === "winrate") ||
+      (b.textContent.trim() === "NAME" && key === "name");
+    b.classList.toggle("active", isActive);
+  });
+  const inner = document.getElementById("h2h-matrix-inner");
+  if (inner) {
+    const sorted = _h2hSortPlayers(getAllPlayerNamesFromMatches());
+    inner.innerHTML = buildH2HMatrixCompact(sorted);
+  }
+}
+
 function buildH2HMatrixCompact(players) {
   if (players.length < 2)
     return '<div style="color:var(--muted);font-size:11px">Need at least 2 players with matches.</div>';
@@ -11804,8 +11891,24 @@ function renderAnalyticsPage() {
       return b.gw / b.gt - a.gw / a.gt;
     })[0];
   const pairLeaderboard = getPairStats().slice(0, 8);
-  const playersByMatches = getAllPlayerNamesFromMatches();
-  const matrixHtml = buildH2HMatrixCompact(playersByMatches);
+  const playersByMatches = _h2hSortPlayers(getAllPlayerNamesFromMatches());
+  const matrixSortBar = `<div class="h2h-sort-bar">
+    <span class="h2h-sort-lbl">SORT</span>
+    ${[
+      ["matches", "MATCHES"],
+      ["winrate", "WIN %"],
+      ["name", "NAME"],
+    ]
+      .map(
+        ([k, l]) =>
+          `<button class="h2h-sort-pill${_h2hMatrixSort === k ? " active" : ""}" onclick="_h2hSetSort('${k}')">${l}</button>`,
+      )
+      .join("")}
+  </div>`;
+  const matrixHtml = `<div id="h2h-matrix-wrap">
+    ${matrixSortBar}
+    <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
+  </div>`;
 
   const compList = computeStats(allMatches, computeElo(allMatches));
   const clutchP = Object.keys(closePlayed)
@@ -14051,6 +14154,7 @@ Object.assign(window, {
   pickTheme,
   fireConfetti,
   streakCalDayClick,
+  _h2hSetSort,
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,

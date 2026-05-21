@@ -13200,6 +13200,113 @@ select:focus,
   margin-bottom: 4px;
 }
 
+/* ── H2H matrix sort bar ── */
+.h2h-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.h2h-sort-lbl {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.h2h-sort-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--theme-rgb), 0.25);
+  background: rgba(var(--theme-rgb), 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.h2h-sort-pill.active {
+  background: var(--theme);
+  color: #000;
+  border-color: var(--theme);
+}
+
+/* ── ACHIEVEMENTS with progress bars ── */
+.ach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ach-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  opacity: 0.6;
+}
+.ach-row.ach-unlocked {
+  opacity: 1;
+  border-color: rgba(var(--theme-rgb), 0.3);
+  background: linear-gradient(135deg, rgba(var(--theme-rgb), 0.08), rgba(0, 0, 0, 0.15));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.ach-icon {
+  font-size: 22px;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+  filter: grayscale(0.7);
+}
+.ach-row.ach-unlocked .ach-icon { filter: none; }
+.ach-body { flex: 1; min-width: 0; }
+.ach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.ach-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+.ach-progress-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.ach-row.ach-unlocked .ach-progress-lbl { color: var(--green); }
+.ach-desc {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.ach-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.ach-bar-fill {
+  height: 100%;
+  background: var(--muted);
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ach-row.ach-unlocked .ach-bar-fill {
+  background: var(--theme);
+  box-shadow: 0 0 6px rgba(var(--theme-rgb), 0.5);
+}
+
 /* ── STREAK CALENDAR (GitHub-style activity heatmap) ── */
 .sc-card { padding: 12px 14px; }
 .sc-stats {
