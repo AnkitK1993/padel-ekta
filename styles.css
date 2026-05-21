@@ -8418,24 +8418,24 @@ select.cmp-sel option {
 
 /* Full-width overlay */
 .ana-search-overlay {
-  position: sticky;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
   z-index: 120;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(-8px);
-  transition: opacity 0.22s, transform 0.22s;
-  padding: 8px 12px 4px;
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 12px;
   background: linear-gradient(180deg, rgba(3,3,9,0.98) 80%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  transition: max-height 0.28s ease, opacity 0.22s, padding 0.22s;
 }
 .ana-search-overlay.active {
   pointer-events: all;
   opacity: 1;
-  transform: translateY(0);
+  max-height: 200px;
+  padding: 8px 12px 4px;
+  overflow: visible;
 }
 
 /* Search bar row */
