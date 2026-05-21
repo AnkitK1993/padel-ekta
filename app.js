@@ -10836,10 +10836,10 @@ function _buildStoryFeedHtml() {
   if (!stories.length)
     return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
   const cards = stories
-    .slice(0, 20)
+    .slice(0, 30)
     .map(
       (s) => `
-    <div class="story-card">
+    <div class="story-card" data-type="${s.type || ""}">
       <div class="story-icon">${s.icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;font-weight:700;color:var(--fg);line-height:1.4">${s.text}</div>
@@ -10848,7 +10848,34 @@ function _buildStoryFeedHtml() {
     </div>`,
     )
     .join("");
-  return `<div class="ana-card" style="padding:10px 12px">${cards}</div>`;
+  const chips = [
+    ["all", "ALL"],
+    ["upset", "😱 UPSETS"],
+    ["milestone", "🏆 MILESTONES"],
+    ["shutout", "💀 SHUTOUTS"],
+    ["streak", "🔥 STREAKS"],
+  ]
+    .map(
+      ([f, l]) =>
+        `<button class="story-chip${f === "all" ? " active" : ""}" onclick="_storyFilter('${f}', this)">${l}</button>`,
+    )
+    .join("");
+  return `<div class="ana-card" style="padding:10px 12px">
+    <div class="story-chips">${chips}</div>
+    <div class="story-cards-wrap">${cards}</div>
+  </div>`;
+}
+
+function _storyFilter(filter, btn) {
+  const wrap = btn.parentElement;
+  if (wrap)
+    wrap.querySelectorAll(".story-chip").forEach((b) => b.classList.toggle("active", b === btn));
+  const card = btn.closest(".ana-card");
+  if (!card) return;
+  card.querySelectorAll(".story-card").forEach((c) => {
+    if (filter === "all") c.style.display = "";
+    else c.style.display = c.dataset.type === filter ? "" : "none";
+  });
 }
 
 function _buildSeasonModeHtml() {
@@ -13760,6 +13787,7 @@ Object.assign(window, {
   openGlobalSearch,
   closeGlobalSearch,
   _globalSearchInput,
+  _storyFilter,
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,

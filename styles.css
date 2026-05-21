@@ -13200,6 +13200,40 @@ select:focus,
   margin-bottom: 4px;
 }
 
+/* ── Story Feed filter chips ── */
+.story-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+.story-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--theme-rgb), 0.25);
+  background: rgba(var(--theme-rgb), 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.story-chip.active {
+  background: var(--theme);
+  color: #000;
+  border-color: var(--theme);
+  box-shadow: 0 0 12px rgba(var(--theme-rgb), 0.4);
+}
+.story-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ── Rivalry Hall of Fame ── */
 .rhof-card {
   padding: 12px 14px;
