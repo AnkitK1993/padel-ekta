@@ -81,21 +81,18 @@
         </div>
         <div class="home-header"></div>
         <div class="home-filter-bar">
-          <div class="home-filter-pill">
-            <select
-              class="home-filter-sel"
-              id="homeFilterSel"
-              onchange="onHomeFilterChange(this.value)"
-            >
-              <option value="all" selected>ALL TIME</option>
-              <option value="today">TODAY</option>
-              <option value="week">THIS WEEK</option>
-              <option value="lastweek">LAST WEEK</option>
-              <option value="weekend">WEEKEND</option>
-              <option value="month">THIS MONTH</option>
-              <option value="range">DATE RANGE</option>
-            </select>
-          </div>
+          <button class="home-date-fab" id="homeFilterFab" onclick="openHomeFilterSheet()">
+            <span class="home-date-fab-label" id="homeFilterLabel">ALL TIME</span>
+          </button>
+          <select id="homeFilterSel" onchange="onHomeFilterChange(this.value)" style="display:none">
+            <option value="all" selected>ALL TIME</option>
+            <option value="today">TODAY</option>
+            <option value="week">THIS WEEK</option>
+            <option value="lastweek">LAST WEEK</option>
+            <option value="weekend">WEEKEND</option>
+            <option value="month">THIS MONTH</option>
+            <option value="range">DATE RANGE</option>
+          </select>
           <button onclick="renderCompareSelector()" class="compare-btn">⚡ COMPARE</button>
         </div>
         <div class="home-dr-row" id="homeDrRow">

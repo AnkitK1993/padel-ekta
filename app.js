@@ -2623,6 +2623,7 @@ function applyRange(page) {
 }
 function onHomeFilterChange(val) {
   homeFilter = val;
+  _syncHomeFilterLabel();
   const dr = document.getElementById("homeDrRow");
   if (val === "range") {
     dr.classList.add("show");
@@ -4396,6 +4397,40 @@ const _CMP_DATE_OPTIONS = [
   { v: "month", l: "THIS MONTH", icon: "🗓" },
 ];
 
+const _HOME_DATE_OPTIONS = [
+  { v: "all",      l: "ALL TIME",   icon: "⏱" },
+  { v: "today",    l: "TODAY",      icon: "📅" },
+  { v: "week",     l: "THIS WEEK",  icon: "📆" },
+  { v: "lastweek", l: "LAST WEEK",  icon: "⬅️" },
+  { v: "weekend",  l: "WEEKEND",    icon: "🏖" },
+  { v: "month",    l: "THIS MONTH", icon: "🗓" },
+  { v: "range",    l: "DATE RANGE", icon: "📏" },
+];
+const _HOME_LBL_MAP = { all: "ALL TIME", today: "TODAY", week: "THIS WEEK", lastweek: "LAST WEEK", weekend: "WEEKEND", month: "THIS MONTH", range: "DATE RANGE" };
+
+function _syncHomeFilterLabel() {
+  const lbl = document.getElementById("homeFilterLabel");
+  if (lbl) lbl.textContent = _HOME_LBL_MAP[homeFilter] || homeFilter.toUpperCase();
+}
+
+function openHomeFilterSheet() {
+  _filterSheetMode = "homedate";
+  const title = document.getElementById("filter-sheet-title");
+  if (title) title.textContent = "DATE FILTER";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  list.innerHTML = _HOME_DATE_OPTIONS
+    .map((o) =>
+      `<div class="live-sheet-item${homeFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
+        <span style="font-size:20px;width:28px;text-align:center">${o.icon}</span>
+        <span>${o.l}</span>
+        ${homeFilter === o.v ? '<span class="live-sheet-check">✓<\/span>' : ""}
+      </div>`)
+    .join("");
+  document.getElementById("filter-sheet-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("filter-sheet")?.classList.add("live-sheet-open");
+}
+
 function openCmpDateSheet() {
   _filterSheetMode = "cmpdate";
   const title = document.getElementById("filter-sheet-title");
@@ -4421,6 +4456,16 @@ function openCmpDateSheet() {
 function selectFilterItem(value) {
   const mode = _filterSheetMode;
   closeFilterSheet();
+  if (mode === "homedate") {
+    homeFilter = value;
+    const sel = document.getElementById("homeFilterSel");
+    if (sel) sel.value = value;
+    const dr = document.getElementById("homeDrRow");
+    if (dr) dr.classList.toggle("show", value === "range");
+    _syncHomeFilterLabel();
+    if (value !== "range") { homeFrom = null; homeTo = null; renderHome(); }
+    return;
+  }
   if (mode === "cmpdate") {
     const sel = document.getElementById("cmpSel");
     if (sel) sel.value = value;
@@ -13101,6 +13146,7 @@ Object.assign(window, {
   endLiveMatch,
   openRivalryScreen,
   openShareMatchPoster,
+  openHomeFilterSheet,
   openCmpDateSheet,
 });
 

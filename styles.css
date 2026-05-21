@@ -6682,50 +6682,30 @@ table.cmp {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.home-filter-pill {
-  display: flex;
+.home-date-fab {
   flex: 1;
-  width: 100%;
-}
-.home-filter-sel {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  flex: 1;
-  width: 100%;
   height: 34px;
-  background: linear-gradient(
-    180deg,
-    rgba(24, 24, 36, 0.98),
-    rgba(16, 16, 26, 0.98)
-  );
-  border: 1px solid rgba(var(--theme-rgb), 0.35);
-  color: var(--accent);
-  text-align: center;
-  text-align-last: center;
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  font-family: "DM Sans", sans-serif;
-  outline: none;
+  background: rgba(var(--theme-rgb), 0.07);
+  border: 1px solid rgba(var(--theme-rgb), 0.28);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  background-image: none;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 0 14px rgba(var(--theme-rgb), 0.08);
-  transition:
-    border-color 0.18s,
-    box-shadow 0.18s;
+  padding: 0 16px;
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
 }
-.home-filter-sel:hover {
-  border-color: rgba(var(--theme-rgb), 0.55);
-  transform: scale(1.05);
+.home-date-fab:hover,
+.home-date-fab:active {
+  background: rgba(var(--theme-rgb), 0.14);
+  border-color: rgba(var(--theme-rgb), 0.5);
+  box-shadow: 0 0 12px rgba(var(--theme-rgb), 0.15);
 }
-.home-filter-sel:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.12);
+.home-date-fab-label {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
 }
 .compare-btn {
   height: 34px;
@@ -6763,11 +6743,6 @@ table.cmp {
 .compare-btn:active {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.12);
-}
-.home-filter-sel option {
-  background: var(--surface2);
-  color: var(--text);
-  font-weight: 600;
 }
 .home-dr-row {
   display: none;
@@ -10373,7 +10348,6 @@ select.cmp-sel option {
 .btn-p,
 .btn-s,
 .compare-btn,
-.home-filter-sel,
 .compact-select,
 .compact-clear-btn,
 select.cmp-sel,
