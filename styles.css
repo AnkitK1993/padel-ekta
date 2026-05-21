@@ -8438,6 +8438,16 @@ select.cmp-sel option {
 .ana-search-wrap {
   position: relative;
   margin-bottom: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(var(--theme-rgb), 0.2);
+  border-radius: 999px;
+  padding: 2px 6px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ana-search-wrap:focus-within {
+  border-color: rgba(var(--theme-rgb), 0.5);
+  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.08),
+              0 0 16px rgba(var(--theme-rgb), 0.1);
 }
 
 /* ── CATEGORY FILTER PILLS ─────────────────────── */
@@ -8529,14 +8539,12 @@ select.cmp-sel option {
   gap: 10px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
   border-radius: 0;
-  padding: 8px 4px;
-  transition: border-color 0.2s;
+  padding: 8px 10px;
 }
 .ana-search-box:focus-within {
-  border-bottom-color: rgba(var(--theme-rgb), 0.5);
   background: transparent;
+  border: none;
   box-shadow: none;
   animation: none;
 }
@@ -8549,7 +8557,7 @@ select.cmp-sel option {
   color: rgba(var(--theme-rgb), 0.5);
   transition: color 0.2s;
 }
-.ana-search-box:focus-within .ana-search-lead-icon {
+.ana-search-wrap:focus-within .ana-search-lead-icon {
   color: rgba(var(--theme-rgb), 1);
 }
 
