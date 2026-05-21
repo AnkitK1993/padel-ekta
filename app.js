@@ -5390,52 +5390,92 @@ function saveMatchEdit(i) {
 }
 
 // ── FAB MODAL ──────────────────────────────────────────────
+const _fabSlotLabels = {
+  "modern-team-a-p1": "Team A — P1",
+  "modern-team-a-p2": "Team A — P2",
+  "modern-team-b-p1": "Team B — P1",
+  "modern-team-b-p2": "Team B — P2",
+};
+const _fabSlotIds = Object.keys(_fabSlotLabels);
+let _pickerSlotId = null;
+
 function populatePlayerDropdowns() {
-  const displayNames = Object.keys(aliasMap).sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" }),
-  );
-  const placeholders = {
-    "modern-team-a-p1": "Team A — P1",
-    "modern-team-a-p2": "Team A — P2",
-    "modern-team-b-p1": "Team B — P1",
-    "modern-team-b-p2": "Team B — P2",
-  };
-  Object.entries(placeholders).forEach(([id, label]) => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    sel.innerHTML =
-      `<option value="">${label}</option>` +
-      displayNames.map((n) => `<option value="${n}">${n}</option>`).join("");
-    sel.value = "";
-    sel.onchange = _syncFabDropdowns;
+  _fabSlotIds.forEach((id) => {
+    const inp = document.getElementById(id);
+    if (inp) inp.value = "";
+    _updateSlotButton(id, "");
   });
 }
 
+function _updateSlotButton(slotId, name) {
+  const btn = document.getElementById(`slot-${slotId}`);
+  if (!btn) return;
+  if (!name) {
+    btn.innerHTML = `<span class="slot-av-placeholder">+</span><span class="slot-label">${_fabSlotLabels[slotId] || slotId}</span>`;
+    btn.classList.remove("filled");
+    return;
+  }
+  const photo = photoMap[name];
+  const avInner = photo
+    ? `<img src="${photo}" alt="${escHtml(name)}" style="width:100%;height:100%;object-fit:cover;display:block;">`
+    : playerInitials(name);
+  btn.innerHTML = `<span class="slot-av" style="background:${photo ? "none" : playerColor(name)}">${avInner}</span><span class="slot-name">${escHtml(name)}</span>`;
+  btn.classList.add("filled");
+}
+
 function _syncFabDropdowns() {
-  const ids = [
-    "modern-team-a-p1",
-    "modern-team-a-p2",
-    "modern-team-b-p1",
-    "modern-team-b-p2",
-  ];
-  const labels = ["Team A — P1", "Team A — P2", "Team B — P1", "Team B — P2"];
-  const chosen = ids.map((id) => document.getElementById(id)?.value || "");
+  _fabSlotIds.forEach((id) => {
+    const val = document.getElementById(id)?.value || "";
+    _updateSlotButton(id, val);
+  });
+}
+
+function openPlayerPicker(slotId, label) {
+  _pickerSlotId = slotId;
+  const overlay = document.getElementById("player-picker-overlay");
+  const titleEl = document.getElementById("player-picker-title");
+  const grid = document.getElementById("player-picker-grid");
+  if (!overlay || !grid) return;
+  if (titleEl) titleEl.textContent = label;
+  const taken = _fabSlotIds
+    .filter((id) => id !== slotId)
+    .map((id) => document.getElementById(id)?.value || "")
+    .filter(Boolean);
+  const currentVal = document.getElementById(slotId)?.value || "";
   const displayNames = Object.keys(aliasMap).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" }),
   );
-  ids.forEach((id, i) => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    const myVal = chosen[i];
-    const others = chosen.filter((_, j) => j !== i).filter(Boolean);
-    sel.innerHTML =
-      `<option value="">${labels[i]}</option>` +
-      displayNames
-        .filter((n) => !others.includes(n))
-        .map((n) => `<option value="${n}">${n}</option>`)
-        .join("");
-    sel.value = myVal;
-  });
+  grid.innerHTML = displayNames.map((name) => {
+    const isTaken = taken.includes(name);
+    const isSelected = name === currentVal;
+    const photo = photoMap[name];
+    const avInner = photo
+      ? `<img src="${photo}" alt="${escHtml(name)}">`
+      : playerInitials(name);
+    const cls = `player-picker-chip${isTaken ? " taken" : ""}${isSelected ? " selected" : ""}`;
+    return `<button class="${cls}" onclick="pickPlayer('${name.replace(/'/g, "\\'")}')">
+      <div class="pp-chip-av" style="background:${photo ? "none" : playerColor(name)}">${avInner}</div>
+      <span class="pp-chip-name">${escHtml(name)}</span>
+    </button>`;
+  }).join("");
+  overlay.classList.add("open");
+}
+
+function pickPlayer(name) {
+  if (!_pickerSlotId) return;
+  const inp = document.getElementById(_pickerSlotId);
+  if (inp) inp.value = name;
+  _updateSlotButton(_pickerSlotId, name);
+  closePlayerPicker();
+}
+
+function closePlayerPicker() {
+  document.getElementById("player-picker-overlay")?.classList.remove("open");
+  _pickerSlotId = null;
+}
+
+function closePlayerPickerBackdrop(e) {
+  if (e.target.id === "player-picker-overlay") closePlayerPicker();
 }
 
 function openFabModal() {
@@ -5451,6 +5491,10 @@ function openModernAddModal() {
   document.getElementById("modern-add-modal").classList.add("show");
   document.getElementById("modern-date").value = todayISO();
   populatePlayerDropdowns();
+  const sa = document.getElementById("modern-score-a");
+  const sb = document.getElementById("modern-score-b");
+  if (sa) sa.value = "";
+  if (sb) sb.value = "";
 }
 
 function quickRematch(idx) {
@@ -14389,6 +14433,10 @@ Object.assign(window, {
   openModernAddModal,
   closeModernAddModal,
   saveModernMatch,
+  openPlayerPicker,
+  pickPlayer,
+  closePlayerPicker,
+  closePlayerPickerBackdrop,
   showAnalytics,
   renderAnalyticsPage,
   toggleAnaSection,

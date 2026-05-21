@@ -846,16 +846,31 @@ Parthiv - Par"
     <button class="fab-modern" id="fab" onclick="openFabModal()">+</button>
 
     <!-- Quick-add modal -->
+    <!-- Player Picker bottom sheet -->
+    <div id="player-picker-overlay" class="player-picker-overlay" onclick="closePlayerPickerBackdrop(event)">
+      <div class="player-picker-sheet">
+        <div class="player-picker-header">
+          <span id="player-picker-title" class="player-picker-title">Select Player</span>
+          <button class="player-picker-close" onclick="closePlayerPicker()">✕</button>
+        </div>
+        <div id="player-picker-grid" class="player-picker-grid"></div>
+      </div>
+    </div>
+
     <div id="modern-add-modal" class="modern-modal">
       <div class="modern-sheet">
         <div class="sheet-title">Quick Add Match</div>
-        <div style="display: flex; gap: 8px; margin-bottom: 12px">
-          <select id="modern-team-a-p1" class="input-modern" style="flex: 1">
-            <option value="">Team A — P1</option>
-          </select>
-          <select id="modern-team-a-p2" class="input-modern" style="flex: 1">
-            <option value="">Team A — P2</option>
-          </select>
+        <div class="fab-team-row">
+          <button class="player-slot" id="slot-modern-team-a-p1" onclick="openPlayerPicker('modern-team-a-p1','Team A — P1')">
+            <span class="slot-av-placeholder">+</span>
+            <span class="slot-label">Team A — P1</span>
+          </button>
+          <input type="hidden" id="modern-team-a-p1" value="">
+          <button class="player-slot" id="slot-modern-team-a-p2" onclick="openPlayerPicker('modern-team-a-p2','Team A — P2')">
+            <span class="slot-av-placeholder">+</span>
+            <span class="slot-label">Team A — P2</span>
+          </button>
+          <input type="hidden" id="modern-team-a-p2" value="">
         </div>
         <input
           id="modern-score-a"
@@ -865,13 +880,17 @@ Parthiv - Par"
           min="1"
           max="9"
         />
-        <div style="display: flex; gap: 8px; margin-bottom: 12px">
-          <select id="modern-team-b-p1" class="input-modern" style="flex: 1">
-            <option value="">Team B — P1</option>
-          </select>
-          <select id="modern-team-b-p2" class="input-modern" style="flex: 1">
-            <option value="">Team B — P2</option>
-          </select>
+        <div class="fab-team-row">
+          <button class="player-slot" id="slot-modern-team-b-p1" onclick="openPlayerPicker('modern-team-b-p1','Team B — P1')">
+            <span class="slot-av-placeholder">+</span>
+            <span class="slot-label">Team B — P1</span>
+          </button>
+          <input type="hidden" id="modern-team-b-p1" value="">
+          <button class="player-slot" id="slot-modern-team-b-p2" onclick="openPlayerPicker('modern-team-b-p2','Team B — P2')">
+            <span class="slot-av-placeholder">+</span>
+            <span class="slot-label">Team B — P2</span>
+          </button>
+          <input type="hidden" id="modern-team-b-p2" value="">
         </div>
         <datalist id="player-suggestions"></datalist>
         <input

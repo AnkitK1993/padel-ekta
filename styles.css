@@ -15857,3 +15857,213 @@ body.midnight-oled-mode #themeBtn {
   border: 1.5px solid rgba(0, 200, 255, 0.75);
   box-shadow: 0 0 6px rgba(0, 200, 255, 0.45), inset 0 0 4px rgba(0, 200, 255, 0.1);
 }
+
+/* ════════════════════════════════════════════════════════
+   FAB PLAYER PICKER — slot buttons + bottom sheet
+   ════════════════════════════════════════════════════════ */
+
+.fab-team-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.player-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(var(--theme-rgb), 0.35);
+  background: rgba(var(--theme-rgb), 0.04);
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.12s;
+  min-height: 76px;
+  overflow: hidden;
+}
+.player-slot:active {
+  transform: scale(0.97);
+}
+.player-slot.filled {
+  border-style: solid;
+  border-color: rgba(var(--theme-rgb), 0.55);
+  background: rgba(var(--theme-rgb), 0.09);
+}
+
+.slot-av-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(var(--theme-rgb), 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--theme-rgb), 0.55);
+  font-size: 22px;
+  line-height: 1;
+}
+.slot-av {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  color: #fff;
+  border: 1.5px solid rgba(var(--theme-rgb), 0.4);
+  flex-shrink: 0;
+}
+.slot-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.slot-name {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.06em;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+.slot-label {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 9px;
+  color: rgba(var(--theme-rgb), 0.5);
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+/* ── Player Picker Overlay ── */
+.player-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10001;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.player-picker-overlay.open {
+  display: flex;
+}
+.player-picker-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: linear-gradient(180deg, #141420 0%, #0d0d18 100%);
+  border-radius: 22px 22px 0 0;
+  border-top: 1px solid rgba(var(--theme-rgb), 0.28);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.7), 0 0 30px rgba(var(--theme-rgb), 0.08);
+  padding: 16px 14px 28px;
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  animation: ppSheetUp 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ppSheetUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.player-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+.player-picker-title {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+  color: var(--theme);
+}
+.player-picker-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.player-picker-close:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+.player-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0 4px;
+}
+.player-picker-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 14px 8px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--theme-rgb), 0.14);
+  background: rgba(var(--theme-rgb), 0.04);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.player-picker-chip:active {
+  transform: scale(0.93);
+}
+.player-picker-chip.taken {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.player-picker-chip.selected {
+  border-color: rgba(var(--theme-rgb), 0.75);
+  background: rgba(var(--theme-rgb), 0.16);
+  box-shadow: 0 0 12px rgba(var(--theme-rgb), 0.2);
+}
+.pp-chip-av {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 18px;
+  color: #fff;
+  border: 1.5px solid rgba(var(--theme-rgb), 0.3);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.pp-chip-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pp-chip-name {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  line-height: 1;
+}
