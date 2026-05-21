@@ -11762,12 +11762,12 @@ function openMatchIntro(idx) {
     h2hEl.innerHTML = `
       <div class="mio-h2h-cell">
         <div class="mio-h2h-num" style="color:${colA}">${h2hAfterA}${aWon ? '<span class="mio-h2h-plus">+1</span>' : ''}</div>
-        <div class="mio-h2h-lbl">${nameA.split(" & ")[0]}</div>
+        <div class="mio-h2h-lbl">${nameA}</div>
       </div>
       <div class="mio-h2h-sep">${h2hTotal === 0 ? "FIRST<br>MEETING" : "H2H"}</div>
       <div class="mio-h2h-cell">
         <div class="mio-h2h-num" style="color:${colB}">${h2hAfterB}${!aWon ? '<span class="mio-h2h-plus">+1</span>' : ''}</div>
-        <div class="mio-h2h-lbl">${nameB.split(" & ")[0]}</div>
+        <div class="mio-h2h-lbl">${nameB}</div>
       </div>`;
   }
 
@@ -11789,12 +11789,10 @@ function openMatchIntro(idx) {
       });
       const newWA = wA + (aWon ? 1 : 0);
       const newWB = wB + (!aWon ? 1 : 0);
-      const shortA = pa.split(" ")[0];
-      const shortB = pb.split(" ")[0];
       return `<div class="mio-pvp-row">
-        <span class="mio-pvp-name ${aWon ? 'mio-pvp-winner' : ''}">${shortA}${aWon ? ' <span class="mio-pvp-plus">+1</span>' : ''}</span>
+        <span class="mio-pvp-name ${aWon ? 'mio-pvp-winner' : ''}">${pa}${aWon ? ' <span class="mio-pvp-plus">+1</span>' : ''}</span>
         <span class="mio-pvp-rec">${newWA}–${newWB}</span>
-        <span class="mio-pvp-name mio-pvp-right ${!aWon ? 'mio-pvp-winner' : ''}">${!aWon ? '<span class="mio-pvp-plus">+1</span> ' : ''}${shortB}</span>
+        <span class="mio-pvp-name mio-pvp-right ${!aWon ? 'mio-pvp-winner' : ''}">${!aWon ? '<span class="mio-pvp-plus">+1</span> ' : ''}${pb}</span>
       </div>`;
     }).join("");
     pvpEl.innerHTML = `<div class="mio-pvp-label">PLAYER H2H</div>${pvpRows}`;

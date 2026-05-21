@@ -10494,6 +10494,8 @@ select.cmp-sel option {
   letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
+  text-align: center;
+  line-height: 1.3;
 }
 .mio-h2h-sep {
   font-size: 10px;
