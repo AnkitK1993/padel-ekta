@@ -1772,7 +1772,7 @@ table.cmp thead tr {
   border-bottom: 2px solid var(--border);
 }
 table.cmp thead th {
-  padding: 8px 4px;
+  padding: 5px 4px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1845,7 +1845,7 @@ table.cmp tbody tr:nth-child(even):not(.rg):not(.rs):not(.rb2) {
   background: rgba(255, 255, 255, 0.012);
 }
 table.cmp tbody td {
-  padding: 9px 4px;
+  padding: 5px 4px;
   text-align: center;
   vertical-align: middle;
   color: var(--text);
