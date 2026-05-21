@@ -9632,6 +9632,27 @@ select.cmp-sel option {
 .snap-content {
   overflow-x: hidden;
 }
+.snap-brand-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  background: rgba(var(--theme-rgb), 0.1);
+  border-bottom: 1px solid rgba(var(--theme-rgb), 0.25);
+}
+.snap-brand-name {
+  font-size: 17px;
+  font-weight: 900;
+  color: rgba(var(--theme-rgb), 1);
+  letter-spacing: 0.05em;
+}
+.snap-brand-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .snap-section-hdr {
   font-size: 9px;
   font-weight: 800;

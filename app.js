@@ -7246,7 +7246,16 @@ function openSummaryScreenshot() {
   }
 
   // Populate snapshot page
+  const _snapDate = new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   document.getElementById("snap-content").innerHTML = `
+    <div class="snap-brand-bar">
+      <span class="snap-brand-name">🎾 EKTA PADEL</span>
+      <span class="snap-brand-sub">${_snapDate}</span>
+    </div>
     <div class="snap-section-hdr snap-section-hdr-row">
       <span>PLAYER LEADERBOARD</span>
       <span class="ss-card-badge">${filterLabel}</span>
@@ -7271,37 +7280,52 @@ function closeSnapshot() {
   renderCompact();
 }
 
-function shareSnapshot() {
+async function shareSnapshot() {
+  if (!window.html2canvas) {
+    showToast("Capture not available", "❌");
+    return;
+  }
+  showToast("Capturing…", "📸");
+  const snapEl = document.getElementById("snap-content");
+  if (!snapEl) return;
   const fname = {
-    all: "All Time",
+    all: "AllTime",
     today: "Today",
-    week: "This Week",
-    lastweek: "Last Week",
+    week: "ThisWeek",
+    lastweek: "LastWeek",
     weekend: "Weekend",
-    month: "This Month",
-    range: "Custom Range",
+    month: "ThisMonth",
+    range: "Custom",
   };
-  const filterLabel = fname[cmpFilter] || "Summary";
-  const filtered =
-    _cmpFiltered && _cmpFiltered.length
-      ? _cmpFiltered
-      : filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const stats = computeStats(filtered, computeElo(filtered));
-  const sorted = [...stats].sort((a, b) => b.sr - a.sr || b.mw - a.mw);
-  const lines = [`🎾 Ekta Padel — ${filterLabel} Leaderboard`, ""];
-  sorted.forEach((p, i) => {
-    lines.push(
-      `${i + 1}. ${p.name}  ${p.mw}W / ${p.ml}L  ·  SR ${p.sr.toFixed(2)}`,
-    );
-  });
-  const text = lines.join("\n");
-  if (navigator.share) {
-    navigator.share({ title: "Ekta Padel Leaderboard", text }).catch(() => {});
-  } else {
-    navigator.clipboard
-      ?.writeText(text)
-      .then(() => showToast("Copied to clipboard!", "📋"))
-      .catch(() => showToast("Screenshot to share", "📸"));
+  const label = fname[cmpFilter] || "Summary";
+  try {
+    const canvas = await window.html2canvas(snapEl, {
+      backgroundColor: "#030309",
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+    });
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], `EktaPadel-${label}.png`, {
+        type: "image/png",
+      });
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        await navigator
+          .share({ files: [file], title: "Ekta Padel", text: `${label} Leaderboard` })
+          .catch(() => {});
+      } else {
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = `EktaPadel-${label}.png`;
+        a.click();
+      }
+    }, "image/png");
+  } catch (e) {
+    showToast("Capture failed", "❌");
   }
 }
 
