@@ -12787,7 +12787,10 @@ select:focus,
 .ana-sec-title-txt {
   font-family: 'Bebas Neue', sans-serif !important;
   font-size: 13px !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
   letter-spacing: 0.1em !important;
   color: rgba(255, 255, 255, 0.82) !important;
   text-shadow: none !important;
+  text-transform: uppercase !important;
 }
