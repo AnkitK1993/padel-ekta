@@ -10611,8 +10611,9 @@ select.cmp-sel:hover,
     box-shadow 0.28s ease,
     transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.ana-sec-hdr:hover {
-  transform: scale(1.012) translateX(2px);
+.ana-sec-hdr:hover,
+.ana-sec-hdr:active {
+  transform: scale(1.04) translateX(4px);
 }
 .award-card {
   transition:
@@ -11937,7 +11938,10 @@ body::before {
     0 5px 30px rgba(0,0,0,0.65),
     inset 0 1px 0 rgba(255,255,255,0.08),
     0 0 32px rgba(var(--theme-rgb), 0.13) !important;
-  transform: scale(1.012) translateX(2px) !important;
+  transform: scale(1.04) translateX(4px) !important;
+}
+.ana-sec-hdr:active {
+  transform: scale(1.04) translateX(4px) !important;
 }
 /* Section title text — Bebas Neue, compact premium */
 .ana-sec-title-txt {
