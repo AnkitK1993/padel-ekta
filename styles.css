@@ -15620,3 +15620,512 @@ body.holo-mode .tbb.active::after,
 body.holo-mode .bottom-nav-item.active::after {
   box-shadow: 0 0 12px rgba(92, 208, 255, 0.5);
 }
+
+/* ════════════════════════════════════════════════════════
+   ROYAL GOLD THEME — body.royal-gold-mode
+   ════════════════════════════════════════════════════════ */
+
+body.royal-gold-mode {
+  background: #0d0900 !important;
+}
+body.royal-gold-mode::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% -5%, rgba(251, 191, 36, 0.07), transparent 70%);
+  z-index: 0;
+}
+
+body.royal-gold-mode .topbar,
+body.royal-gold-mode .nav-inner {
+  background: rgba(10, 7, 0, 0.97) !important;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.18) !important;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.9) !important;
+}
+
+body.royal-gold-mode .home-filter-bar {
+  background: rgba(13, 9, 0, 0.85) !important;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.12) !important;
+}
+
+body.royal-gold-mode #board {
+  background: transparent !important;
+}
+
+/* ── Royal Gold card ── */
+body.royal-gold-mode .rg-pc {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 12px 10px 10px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #1c1400 0%, #100d00 100%) !important;
+  border: 1px solid rgba(251, 191, 36, 0.18) !important;
+  border-left: 2px solid rgba(251, 191, 36, 0.55) !important;
+  margin-bottom: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(251, 191, 36, 0.06) !important;
+  overflow: hidden !important;
+}
+body.royal-gold-mode .rg-pc-first {
+  border-left: 3px solid #fbbf24 !important;
+  background: linear-gradient(135deg, #241a00 0%, #160f00 100%) !important;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.6), 0 0 24px rgba(251, 191, 36, 0.08), inset 0 1px 0 rgba(251, 191, 36, 0.1) !important;
+}
+
+body.royal-gold-mode .rg-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  width: 42px;
+}
+body.royal-gold-mode .rg-medal {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+body.royal-gold-mode .rg-av-ring {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1.5px solid rgba(251, 191, 36, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.2);
+}
+body.royal-gold-mode .rg-av-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+body.royal-gold-mode .rg-av-init {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 15px;
+  color: #fff;
+}
+
+body.royal-gold-mode .rg-mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+body.royal-gold-mode .rg-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+body.royal-gold-mode .rg-name {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.07em;
+  line-height: 1;
+}
+body.royal-gold-mode .rg-lvl-pill {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: rgba(251, 191, 36, 0.07);
+  flex-shrink: 0;
+}
+body.royal-gold-mode .rg-stats {
+  display: flex;
+  gap: 10px;
+}
+body.royal-gold-mode .rg-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+body.royal-gold-mode .rg-sv {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+body.royal-gold-mode .rg-sl {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 7px;
+  color: rgba(251, 191, 36, 0.48);
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+body.royal-gold-mode .rg-spark-row {
+  height: 18px;
+  overflow: hidden;
+  opacity: 0.7;
+}
+body.royal-gold-mode .rg-spark-row svg {
+  display: block;
+}
+
+body.royal-gold-mode .rg-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+}
+body.royal-gold-mode .rg-sr-val {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  color: #fbbf24;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 22px rgba(251, 191, 36, 0.65);
+  line-height: 1;
+}
+
+/* ── Royal Gold — other tabs ── */
+body.royal-gold-mode .ana-sec-hdr,
+body.royal-gold-mode .ana-section-title {
+  color: #fbbf24 !important;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+body.royal-gold-mode .ana-card,
+body.royal-gold-mode .ov-card {
+  background: linear-gradient(135deg, #1a1200, #100d00) !important;
+  border: 1px solid rgba(251, 191, 36, 0.18) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(251, 191, 36, 0.05) !important;
+}
+body.royal-gold-mode .match-card,
+body.royal-gold-mode .match-card-inner,
+body.royal-gold-mode .history-card {
+  background: linear-gradient(135deg, #1a1200, #100d00) !important;
+  border: 1px solid rgba(251, 191, 36, 0.14) !important;
+}
+body.royal-gold-mode .date-separator,
+body.royal-gold-mode .hist-date-hdr {
+  color: #fbbf24 !important;
+  border-bottom-color: rgba(251, 191, 36, 0.18) !important;
+}
+body.royal-gold-mode .cmp th {
+  background: rgba(251, 191, 36, 0.07) !important;
+  color: #fbbf24 !important;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.22) !important;
+}
+body.royal-gold-mode table.cmp thead th:last-child {
+  box-shadow: 9999px 0 0 0 #110d00 !important;
+}
+body.royal-gold-mode .cmp td {
+  border-bottom: 1px solid rgba(251, 191, 36, 0.07) !important;
+}
+body.royal-gold-mode .cmp tr:hover td {
+  background: rgba(251, 191, 36, 0.04) !important;
+}
+body.royal-gold-mode .pc-row {
+  background: linear-gradient(135deg, #1a1200, #100d00) !important;
+  border: 1px solid rgba(251, 191, 36, 0.15) !important;
+}
+body.royal-gold-mode .live-score-a,
+body.royal-gold-mode .live-score-b {
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.6) !important;
+}
+body.royal-gold-mode .live-mode-bar {
+  background: rgba(13, 9, 0, 0.88) !important;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2) !important;
+}
+body.royal-gold-mode .tbb.active,
+body.royal-gold-mode .bottom-nav-item.active {
+  text-shadow: 0 0 14px rgba(251, 191, 36, 0.7);
+}
+body.royal-gold-mode #themeBtn {
+  background: radial-gradient(circle, #fbbf24, #92540a) !important;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.55) !important;
+}
+
+/* ── Royal Gold swatch thumbnail ── */
+.tp-dot-royal-gold {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #241a00, #0d0900);
+  border: 1px solid rgba(251, 191, 36, 0.65);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.4), inset 0 0 4px rgba(251, 191, 36, 0.12);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(251, 191, 36, 0.9);
+}
+.tp-dot-royal-gold::after {
+  content: "♛";
+}
+
+/* ════════════════════════════════════════════════════════
+   MIDNIGHT OLED THEME — body.midnight-oled-mode
+   ════════════════════════════════════════════════════════ */
+
+body.midnight-oled-mode {
+  background: #000000 !important;
+}
+
+body.midnight-oled-mode .topbar,
+body.midnight-oled-mode .nav-inner {
+  background: #000000 !important;
+  border-bottom: 1px solid rgba(0, 200, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+body.midnight-oled-mode .home-filter-bar {
+  background: #000000 !important;
+  border-bottom: 1px solid rgba(0, 200, 255, 0.1) !important;
+}
+body.midnight-oled-mode #board {
+  background: transparent !important;
+}
+
+/* ── Midnight OLED card ── */
+body.midnight-oled-mode .mo-pc {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  background: #0a0a0a !important;
+  border: 1px solid rgba(0, 200, 255, 0.12) !important;
+  margin-bottom: 7px !important;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.7) !important;
+}
+body.midnight-oled-mode .mo-pc:hover {
+  border-color: rgba(0, 200, 255, 0.28) !important;
+  background: #0d0d0d !important;
+}
+
+body.midnight-oled-mode .mo-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+body.midnight-oled-mode .mo-av-ring {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 200, 255, 0.65);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.25), inset 0 0 6px rgba(0, 200, 255, 0.08);
+}
+body.midnight-oled-mode .mo-av-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+body.midnight-oled-mode .mo-av-init {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 16px;
+  color: #fff;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.midnight-oled-mode .mo-chem-icon {
+  font-size: 11px;
+  color: rgba(0, 200, 255, 0.45);
+  line-height: 1;
+}
+
+body.midnight-oled-mode .mo-mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+body.midnight-oled-mode .mo-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+body.midnight-oled-mode .mo-name {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 19px;
+  color: #fff;
+  letter-spacing: 0.07em;
+  line-height: 1;
+}
+body.midnight-oled-mode .mo-lvl-pill {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: rgba(0, 200, 255, 0.8);
+  border: 1px solid rgba(0, 200, 255, 0.32);
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: rgba(0, 200, 255, 0.05);
+  flex-shrink: 0;
+}
+body.midnight-oled-mode .mo-stats {
+  display: flex;
+  gap: 10px;
+}
+body.midnight-oled-mode .mo-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+body.midnight-oled-mode .mo-sv {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+body.midnight-oled-mode .mo-sl {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 7px;
+  color: rgba(0, 200, 255, 0.42);
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+body.midnight-oled-mode .mo-spark-row {
+  height: 18px;
+  overflow: hidden;
+  opacity: 0.65;
+}
+
+body.midnight-oled-mode .mo-right {
+  flex-shrink: 0;
+}
+body.midnight-oled-mode .mo-arc-container {
+  position: relative;
+  width: 66px;
+  height: 66px;
+}
+body.midnight-oled-mode .mo-arc-svg {
+  width: 66px;
+  height: 66px;
+  display: block;
+}
+body.midnight-oled-mode .mo-arc-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+body.midnight-oled-mode .mo-win-val {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 18px;
+  color: rgba(0, 200, 255, 0.95);
+  text-shadow: 0 0 12px rgba(0, 200, 255, 0.55);
+  line-height: 1;
+}
+body.midnight-oled-mode .mo-win-lbl {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 6px;
+  color: rgba(0, 200, 255, 0.45);
+  letter-spacing: 0.16em;
+  line-height: 1;
+}
+
+/* ── Midnight OLED — other tabs ── */
+body.midnight-oled-mode .ana-sec-hdr,
+body.midnight-oled-mode .ana-section-title {
+  color: rgba(0, 200, 255, 0.9) !important;
+  text-shadow: 0 0 10px rgba(0, 200, 255, 0.35);
+}
+body.midnight-oled-mode .ana-card,
+body.midnight-oled-mode .ov-card {
+  background: #0a0a0a !important;
+  border: 1px solid rgba(0, 200, 255, 0.12) !important;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.8) !important;
+}
+body.midnight-oled-mode .match-card,
+body.midnight-oled-mode .match-card-inner,
+body.midnight-oled-mode .history-card {
+  background: #0a0a0a !important;
+  border: 1px solid rgba(0, 200, 255, 0.1) !important;
+}
+body.midnight-oled-mode .date-separator,
+body.midnight-oled-mode .hist-date-hdr {
+  color: rgba(0, 200, 255, 0.8) !important;
+  border-bottom-color: rgba(0, 200, 255, 0.15) !important;
+}
+body.midnight-oled-mode .cmp th {
+  background: #050505 !important;
+  color: rgba(0, 200, 255, 0.85) !important;
+  border-bottom: 1px solid rgba(0, 200, 255, 0.18) !important;
+}
+body.midnight-oled-mode table.cmp thead th:last-child {
+  box-shadow: 9999px 0 0 0 #050505 !important;
+}
+body.midnight-oled-mode .cmp td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+body.midnight-oled-mode .cmp tr:hover td {
+  background: rgba(0, 200, 255, 0.04) !important;
+}
+body.midnight-oled-mode .pc-row {
+  background: #0a0a0a !important;
+  border: 1px solid rgba(0, 200, 255, 0.1) !important;
+}
+body.midnight-oled-mode .live-score-a,
+body.midnight-oled-mode .live-score-b {
+  text-shadow: 0 0 20px rgba(0, 200, 255, 0.6) !important;
+}
+body.midnight-oled-mode .live-mode-bar {
+  background: #000000 !important;
+  border-bottom: 1px solid rgba(0, 200, 255, 0.15) !important;
+}
+body.midnight-oled-mode .tbb.active,
+body.midnight-oled-mode .bottom-nav-item.active {
+  text-shadow: 0 0 14px rgba(0, 200, 255, 0.7);
+}
+body.midnight-oled-mode #themeBtn {
+  background: radial-gradient(circle, #00c8ff, #004d6e) !important;
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.5) !important;
+}
+
+/* ── Midnight OLED swatch thumbnail ── */
+.tp-dot-midnight-oled {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: #000000;
+  border: 1px solid rgba(0, 200, 255, 0.55);
+  box-shadow: 0 0 8px rgba(0, 200, 255, 0.3);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tp-dot-midnight-oled::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 200, 255, 0.75);
+  box-shadow: 0 0 6px rgba(0, 200, 255, 0.45), inset 0 0 4px rgba(0, 200, 255, 0.1);
+}

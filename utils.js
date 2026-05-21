@@ -273,6 +273,8 @@ body.paused-animations *{
         { name: "Cyberpunk", hex: "#ff00d4", r: 255, g: 0, b: 212 },
         { name: "Mono", hex: "#c0c0c0", r: 192, g: 192, b: 192 },
         { name: "Holo HUD", hex: "#5cd0ff", r: 92, g: 208, b: 255, mode: "holo" },
+        { name: "Royal Gold", hex: "#fbbf24", r: 251, g: 191, b: 36, mode: "royal-gold" },
+        { name: "Midnight OLED", hex: "#00c8ff", r: 0, g: 200, b: 255, mode: "midnight-oled" },
       ];
       window.THEMES = THEMES;
       var _themeIdx = 0;
@@ -288,6 +290,8 @@ body.paused-animations *{
         // Special modes (e.g. Holo HUD restructures the Detailed cards)
         if (document.body) {
           document.body.classList.toggle("holo-mode", t.mode === "holo");
+          document.body.classList.toggle("royal-gold-mode", t.mode === "royal-gold");
+          document.body.classList.toggle("midnight-oled-mode", t.mode === "midnight-oled");
         }
         // Re-render Home so the active mode picks up the right card template
         try {
