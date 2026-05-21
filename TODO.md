@@ -41,9 +41,9 @@ Current state: full enhanced control bar shipped.
 10. [x] **Global search** (Cmd-K-style overlay) — search players, matches by score, achievements, badges, dates
 11. [ ] **Filter presets** — save current History filter combo as a named preset
 12. [ ] **Onboarding tour** — first-launch animated 4-step walkthrough (Add → History → Stats → Live)
-13. [ ] **Confetti + haptics** on milestones (50/100/250 matches, first win, biggest upset)
-14. [ ] **Theme picker** — premade theme presets (Royal Blue, Crimson Red, Forest Green, Cyberpunk, Mono). Optional auto-switch by month.
-15. [ ] **Streak Calendar** — GitHub-style contribution heatmap per player showing match days; tap a square for that day's matches
+13. [x] **Confetti + haptics** on milestones (50/100/250 matches, first win, biggest upset)
+14. [x] **Theme picker** — premade theme presets (Royal Blue, Crimson Red, Forest Green, Cyberpunk, Mono). Optional auto-switch by month.
+15. [x] **Streak Calendar** — GitHub-style contribution heatmap per player showing match days; tap a square for that day's matches
 16. [ ] **Player Card 3D flip share** — generated share image: front = stats, back = signature win (canvas)
 17. [ ] **What-If ELO++** — "Reset everyone to 1000 and replay all matches" global toggle (effectively covered by Leaderboard Replay)
 
@@ -89,20 +89,20 @@ Current state: full enhanced control bar shipped.
 
 ### ELO Timeline ([buildEloTimelineHtml](app.js#L9927))
 
-- [ ] Pinch-zoom range
-- [ ] Annotate peaks/troughs ("biggest jump", "longest plateau")
-- [ ] Overlay 2 players for direct comparison
+- [ ] Pinch-zoom range (existing 7 date-range pills cover this cleanly)
+- [x] Annotate peaks/troughs ("biggest jump", "longest plateau")
+- [x] Overlay 2 players for direct comparison
 
 ### History page ([renderModernMatches](app.js#L3931))
 
-- [ ] Pull-to-refresh
+- [x] Pull-to-refresh
 - [ ] Long-press match → quick actions sheet (share, copy, edit, delete)
 - [ ] Bookmark filter presets (see B-19)
 - [ ] "Jump to date" button
 
 ### Achievements ([getAchievements](app.js#L2223), [computeAchievements](app.js#L9557))
 
-- [ ] Progress bars on in-progress ones ("47/50 matches")
+- [x] Progress bars on in-progress ones ("47/50 matches")
 - [ ] Share unlocked achievement as image
 
 ### Match cards ([buildMatchCards](app.js#L3271))
@@ -112,7 +112,7 @@ Current state: full enhanced control bar shipped.
 
 ### H2H Matrix ([buildH2HMatrix](app.js#L7528))
 
-- [ ] Sort options: by total games, by win rate, by recency
+- [x] Sort options: by total games, by win rate, by recency (matches / win% / name pills)
 - [ ] Tap row to highlight matchups for that player
 
 ### Form Sparkline ([getFormSparkline](app.js#L2719))
@@ -125,8 +125,8 @@ Current state: full enhanced control bar shipped.
 
 ### Global UX
 
-- [ ] Pull-to-refresh on Home/History
-- [ ] Skeleton loaders while Firestore loads
+- [x] Pull-to-refresh on Home/History (also on Summary)
+- [ ] Skeleton loaders while Firestore loads (splash already covers it; PTR re-render is instant from cache)
 - [ ] Extend undo to: name edits, match edits, filter clears
 - [ ] Empty-state illustrations on first-launch screens
 
@@ -144,5 +144,14 @@ Current state: full enhanced control bar shipped.
 
 ## Status
 
-**Done so far:** 22 items across A/B/C/D shipped over 8 commits.
+**Done so far:** 30 items across A/B/C/D shipped over 14 commits.
 **Bonus:** along the way, fixed `applyAnalyticsAnimations` ReferenceError, live-mode notes data-loss bug, momentum-graph desync bug, and removed ~80 lines of dead code (see commits `03beb81` and `ecd98ae`).
+
+**Recent batch (this session):**
+- Confetti canvas helper + haptics on milestones (B-13)
+- Theme Picker overlay with 11 themes including the 5 new ones (B-14)
+- GitHub-style Activity Calendar on every player detail (B-15)
+- Achievement progress bars (wired computeAchievements that was unused)
+- H2H matrix MATCHES / WIN % / NAME sort pills
+- Pull-to-refresh on Home / Summary / History
+- ELO Timeline peak ▲ / trough ▼ annotations + 2-player overlay compare
