@@ -13668,16 +13668,31 @@ function openMatchIntro(idx) {
   if (h2hEl) {
     const colA = aWon ? "var(--green)" : "var(--red)";
     const colB = !aWon ? "var(--green)" : "var(--red)";
+    // Show pre-match counts first; winner's count animates up after scores land
     h2hEl.innerHTML = `
-      <div class="mio-h2h-cell">
-        <div class="mio-h2h-num" style="color:${colA}">${h2hAfterA}${aWon ? '<span class="mio-h2h-plus">+1</span>' : ""}</div>
+      <div class="mio-h2h-cell" style="position:relative">
+        <div class="mio-h2h-num mio-h2h-num-a" style="color:${colA}">${h2hWinsA}</div>
         <div class="mio-h2h-lbl">${nameA}</div>
       </div>
       <div class="mio-h2h-sep">${h2hTotal === 0 ? "FIRST<br>MEETING" : "H2H"}</div>
-      <div class="mio-h2h-cell">
-        <div class="mio-h2h-num" style="color:${colB}">${h2hAfterB}${!aWon ? '<span class="mio-h2h-plus">+1</span>' : ""}</div>
+      <div class="mio-h2h-cell" style="position:relative">
+        <div class="mio-h2h-num mio-h2h-num-b" style="color:${colB}">${h2hWinsB}</div>
         <div class="mio-h2h-lbl">${nameB}</div>
       </div>`;
+    setTimeout(() => {
+      const winNumEl = h2hEl.querySelector(aWon ? ".mio-h2h-num-a" : ".mio-h2h-num-b");
+      const newVal = aWon ? h2hAfterA : h2hAfterB;
+      const oldVal = aWon ? h2hWinsA : h2hWinsB;
+      if (winNumEl && newVal > oldVal) {
+        winNumEl.textContent = newVal;
+        winNumEl.classList.add("mio-count-flash");
+        const plus = document.createElement("span");
+        plus.className = "mio-float-plus";
+        plus.textContent = "+1";
+        winNumEl.parentElement.appendChild(plus);
+        setTimeout(() => { winNumEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
+      }
+    }, 900);
   }
 
   // Individual player H2H grid (all 4 cross-matchups)
@@ -13710,14 +13725,36 @@ function openMatchIntro(idx) {
         });
         const newWA = wA + (aWon ? 1 : 0);
         const newWB = wB + (!aWon ? 1 : 0);
+        // Show pre-match counts; winner's number animates up after delay
         return `<div class="mio-pvp-row">
-        <span class="mio-pvp-name ${aWon ? "mio-pvp-winner" : ""}">${pa}${aWon ? ' <span class="mio-pvp-plus">+1</span>' : ""}</span>
-        <span class="mio-pvp-rec">${newWA}–${newWB}</span>
-        <span class="mio-pvp-name mio-pvp-right ${!aWon ? "mio-pvp-winner" : ""}">${!aWon ? '<span class="mio-pvp-plus">+1</span> ' : ""}${pb}</span>
+        <span class="mio-pvp-name ${aWon ? "mio-pvp-winner" : ""}">${pa}</span>
+        <span class="mio-pvp-rec" style="position:relative">
+          <span class="mio-pvp-num-a" data-after="${newWA}"${aWon ? ' style="color:var(--green)"' : ""}>${wA}</span>–<span class="mio-pvp-num-b" data-after="${newWB}"${!aWon ? ' style="color:var(--green)"' : ""}>${wB}</span>
+        </span>
+        <span class="mio-pvp-name mio-pvp-right ${!aWon ? "mio-pvp-winner" : ""}">${pb}</span>
       </div>`;
       })
       .join("");
     pvpEl.innerHTML = `<div class="mio-pvp-label">PLAYER H2H</div>${pvpRows}`;
+    setTimeout(() => {
+      pvpEl.querySelectorAll(".mio-pvp-row").forEach((row, ri) => {
+        const numEl = row.querySelector(aWon ? ".mio-pvp-num-a" : ".mio-pvp-num-b");
+        if (!numEl) return;
+        const after = parseInt(numEl.dataset.after, 10);
+        const before = parseInt(numEl.textContent, 10);
+        if (after > before) {
+          setTimeout(() => {
+            numEl.textContent = after;
+            numEl.classList.add("mio-count-flash");
+            const plus = document.createElement("span");
+            plus.className = "mio-float-plus";
+            plus.textContent = "+1";
+            numEl.parentElement.appendChild(plus);
+            setTimeout(() => { numEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
+          }, ri * 160);
+        }
+      });
+    }, 1150);
   } else if (pvpEl) {
     pvpEl.innerHTML = "";
   }
