@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="styles.css" />
     <script src="utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   </head>
   <body>
     <div id="ambient-bg" aria-hidden="true">
@@ -152,7 +153,7 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
-          <button class="ss-snap-btn" onclick="openSummaryScreenshot()">📸</button>
+          <button class="ss-snap-btn" onclick="openSummaryShare()">⬆ Share</button>
         </div>
         <!-- Filter bar — FAB date picker -->
         <div class="summary-filter-bar">
@@ -946,6 +947,7 @@ Parthiv - Par"
       <div class="mio-result-line" id="mio-result-line"></div>
       <div class="mio-elo-deltas" id="mio-elo-deltas"></div>
       <div class="mio-h2h-row" id="mio-h2h-row"></div>
+      <div class="mio-pvp-section" id="mio-pvp-section"></div>
       <div class="mio-badges" id="mio-badges"></div>
       <div class="mio-note" id="mio-note"></div>
     </div>

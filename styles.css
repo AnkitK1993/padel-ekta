@@ -12045,3 +12045,134 @@ select:focus,
   box-shadow: 0 6px 28px rgba(var(--theme-rgb),0.4) !important;
   transform: translateY(-2px) !important;
 }
+
+/* ── ELO before/after in Highlights card ──────────────── */
+.elo-ba-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 6px;
+}
+.elo-ba-num {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.elo-ba-after, .elo-ba-a {
+  color: var(--text);
+}
+.elo-ba-sep {
+  font-size: 10px;
+  color: var(--muted);
+  animation: elo-sep-pulse 1s ease-in-out 0.3s both;
+}
+@keyframes elo-sep-pulse {
+  0%   { opacity: 0; transform: scaleX(0.4); }
+  60%  { opacity: 1; transform: scaleX(1.15); color: var(--theme); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+.elo-delta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+/* ── Match intro — H2H +1 badge ──────────────── */
+.mio-h2h-plus {
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--green);
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.35);
+  border-radius: 4px;
+  padding: 0 3px;
+  margin-left: 3px;
+  vertical-align: middle;
+  animation: mio-plus-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.5s both;
+}
+@keyframes mio-plus-pop {
+  from { opacity: 0; transform: scale(0.3); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Match intro — Player H2H grid ──────────────── */
+.mio-pvp-section {
+  width: 100%;
+  padding: 0 16px 8px;
+  box-sizing: border-box;
+}
+.mio-pvp-label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 6px;
+  margin-top: 10px;
+}
+.mio-pvp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  animation: mio-pvp-in 0.3s ease both;
+}
+.mio-pvp-row:nth-child(2) { animation-delay: 0.55s; }
+.mio-pvp-row:nth-child(3) { animation-delay: 0.62s; }
+.mio-pvp-row:nth-child(4) { animation-delay: 0.69s; }
+.mio-pvp-row:nth-child(5) { animation-delay: 0.76s; }
+@keyframes mio-pvp-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mio-pvp-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mio-pvp-right {
+  text-align: right;
+}
+.mio-pvp-winner {
+  color: var(--green);
+  font-weight: 900;
+}
+.mio-pvp-rec {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  flex-shrink: 0;
+  padding: 0 10px;
+  text-align: center;
+}
+.mio-pvp-plus {
+  font-size: 8px;
+  font-weight: 900;
+  color: var(--green);
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 3px;
+  padding: 0 2px;
+  vertical-align: middle;
+}
+
+/* ── Summary share button ──────────────── */
+.ss-snap-btn {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  width: auto !important;
+  padding: 0 10px !important;
+}

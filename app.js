@@ -2874,6 +2874,7 @@ function renderCompact() {
         setTimeout(
           () => {
             cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
+            setTimeout(_animEloCounts, 80);
           },
           matchStartDelay + animCount * 100 + 100,
         );
@@ -2897,6 +2898,7 @@ function renderCompact() {
       cmpMatchesEl.innerHTML =
         `<table class="cmp-match-rows"><tbody>${initRows.join("")}</tbody></table>` +
         buildHistorySummary(filtered, cmpFilter);
+      setTimeout(_animEloCounts, 80);
     } else {
       cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
     }
@@ -3457,14 +3459,21 @@ function buildHistorySummary(matches, filter = "all") {
       .map((p) => ({
         name: normPlayer(p),
         delta: Math.round((eloAfter[p] || 1000) - (eloBefore[p] || 1000)),
+        bElo: Math.round(eloBefore[p] || 1000),
+        aElo: Math.round(eloAfter[p] || 1000),
       }))
       .sort((a, b) => b.delta - a.delta);
     const deltaRows = deltas.map((p) => {
-      const sign   = p.delta > 0 ? "+" : "";
+      const sign    = p.delta > 0 ? "+" : "";
       const chipCls = p.delta > 0 ? "sr-chip-g" : p.delta < 0 ? "sr-chip-l" : "sr-chip-z";
-      const arrow  = p.delta > 0 ? "▲" : p.delta < 0 ? "▼" : "·";
+      const arrow   = p.delta > 0 ? "▲" : p.delta < 0 ? "▼" : "·";
       return `<div class="elo-delta-row hsum-cascade" style="animation-delay:${d()}ms">
         <span class="elo-delta-name">${p.name}</span>
+        <span class="elo-ba-wrap">
+          <span class="elo-ba-num elo-ba-b">${p.bElo}</span>
+          <span class="elo-ba-sep">→</span>
+          <span class="elo-ba-num elo-ba-a" data-from="${p.bElo}" data-to="${p.aElo}">${p.bElo}</span>
+        </span>
         <span class="sr-chip ${chipCls}">${arrow} ${sign}${p.delta}</span>
       </div>`;
     }).join("");
@@ -5754,6 +5763,63 @@ function openShareMatchPoster(matchIdx) {
       <button class="share-close-btn" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
     </div>`;
   document.body.appendChild(overlay);
+}
+
+function _animEloCounts() {
+  document.querySelectorAll(".elo-ba-a[data-from][data-to]").forEach((el, i) => {
+    const from = parseInt(el.dataset.from, 10);
+    const to   = parseInt(el.dataset.to, 10);
+    if (from === to) return;
+    const dur = 700;
+    const delay = 350 + i * 60;
+    setTimeout(() => {
+      const startTime = performance.now();
+      const tick = (now) => {
+        const p = Math.min((now - startTime) / dur, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(from + (to - from) * ease);
+        if (p < 1) requestAnimationFrame(tick);
+        else el.textContent = to;
+      };
+      requestAnimationFrame(tick);
+    }, delay);
+  });
+}
+
+async function openSummaryShare() {
+  if (!window.html2canvas) { showToast("Share not available", "❌"); return; }
+  showToast("Capturing...", "📸");
+  const pageEl = document.getElementById("pg-compact");
+  if (!pageEl) return;
+  try {
+    const scrollEl = pageEl.querySelector(".page-body-scroll");
+    const savedOver = scrollEl ? scrollEl.style.overflow : null;
+    if (scrollEl) scrollEl.style.overflow = "visible";
+    const canvas = await window.html2canvas(pageEl, {
+      backgroundColor: "#030309",
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      height: scrollEl ? scrollEl.scrollHeight + 80 : pageEl.scrollHeight,
+      windowHeight: scrollEl ? scrollEl.scrollHeight + 80 : pageEl.scrollHeight,
+    });
+    if (scrollEl) scrollEl.style.overflow = savedOver;
+    const fname = { all: "AllTime", today: "Today", week: "Week", lastweek: "LastWeek", weekend: "Weekend", month: "Month" };
+    const label = fname[cmpFilter] || "Summary";
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], `EktaPadel-${label}.png`, { type: "image/png" });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Ekta Padel", text: `${label} Leaderboard` }).catch(() => {});
+      } else {
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = `EktaPadel-${label}.png`;
+        a.click();
+      }
+    }, "image/png");
+  } catch (e) {
+    showToast("Capture failed", "❌");
+  }
 }
 
 function openSummaryScreenshot() {
@@ -11285,6 +11351,7 @@ Object.assign(window, {
   playerInitials,
   openShareCard,
   openWeeklyDigest,
+  openSummaryShare,
   openSummaryScreenshot,
   closeSnapshot,
   shareSnapshot,
@@ -11667,18 +11734,54 @@ function openMatchIntro(idx) {
     else { if (pmAWon) h2hWinsB++; else h2hWinsA++; }
   });
   const h2hTotal = h2hWinsA + h2hWinsB;
+  // After this match
+  const h2hAfterA = h2hWinsA + (aWon ? 1 : 0);
+  const h2hAfterB = h2hWinsB + (!aWon ? 1 : 0);
   const h2hEl = document.getElementById("mio-h2h-row");
   if (h2hEl) {
-    if (h2hTotal === 0) {
-      h2hEl.innerHTML = `<div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.08em">FIRST MEETING</div>`;
-    } else {
-      const colA = aWon ? "var(--green)" : "var(--red)";
-      const colB = !aWon ? "var(--green)" : "var(--red)";
-      h2hEl.innerHTML = `
-        <div class="mio-h2h-cell"><div class="mio-h2h-num" style="color:${colA}">${h2hWinsA}</div><div class="mio-h2h-lbl">${nameA.split(" & ")[0]}</div></div>
-        <div class="mio-h2h-sep">H2H</div>
-        <div class="mio-h2h-cell"><div class="mio-h2h-num" style="color:${colB}">${h2hWinsB}</div><div class="mio-h2h-lbl">${nameB.split(" & ")[0]}</div></div>`;
-    }
+    const colA = aWon ? "var(--green)" : "var(--red)";
+    const colB = !aWon ? "var(--green)" : "var(--red)";
+    h2hEl.innerHTML = `
+      <div class="mio-h2h-cell">
+        <div class="mio-h2h-num" style="color:${colA}">${h2hAfterA}${aWon ? '<span class="mio-h2h-plus">+1</span>' : ''}</div>
+        <div class="mio-h2h-lbl">${nameA.split(" & ")[0]}</div>
+      </div>
+      <div class="mio-h2h-sep">${h2hTotal === 0 ? "FIRST<br>MEETING" : "H2H"}</div>
+      <div class="mio-h2h-cell">
+        <div class="mio-h2h-num" style="color:${colB}">${h2hAfterB}${!aWon ? '<span class="mio-h2h-plus">+1</span>' : ''}</div>
+        <div class="mio-h2h-lbl">${nameB.split(" & ")[0]}</div>
+      </div>`;
+  }
+
+  // Individual player H2H grid (all 4 cross-matchups)
+  const pvpEl = document.getElementById("mio-pvp-section");
+  if (pvpEl && m.teamA.length >= 2 && m.teamB.length >= 2) {
+    const priorMatches = allMatches.slice(0, idx);
+    const [p1, p2] = m.teamA.map(normPlayer);
+    const [p3, p4] = m.teamB.map(normPlayer);
+    const crossPairs = [[p1, p3], [p1, p4], [p2, p3], [p2, p4]];
+    const pvpRows = crossPairs.map(([pa, pb]) => {
+      let wA = 0, wB = 0;
+      priorMatches.forEach(pm => {
+        const aP = [...(pm.teamA || [])].map(normPlayer);
+        const bP = [...(pm.teamB || [])].map(normPlayer);
+        const mAWon = pm.scoreA > pm.scoreB;
+        if (aP.includes(pa) && bP.includes(pb)) { if (mAWon) wA++; else wB++; }
+        else if (aP.includes(pb) && bP.includes(pa)) { if (mAWon) wB++; else wA++; }
+      });
+      const newWA = wA + (aWon ? 1 : 0);
+      const newWB = wB + (!aWon ? 1 : 0);
+      const shortA = pa.split(" ")[0];
+      const shortB = pb.split(" ")[0];
+      return `<div class="mio-pvp-row">
+        <span class="mio-pvp-name ${aWon ? 'mio-pvp-winner' : ''}">${shortA}${aWon ? ' <span class="mio-pvp-plus">+1</span>' : ''}</span>
+        <span class="mio-pvp-rec">${newWA}–${newWB}</span>
+        <span class="mio-pvp-name mio-pvp-right ${!aWon ? 'mio-pvp-winner' : ''}">${!aWon ? '<span class="mio-pvp-plus">+1</span> ' : ''}${shortB}</span>
+      </div>`;
+    }).join("");
+    pvpEl.innerHTML = `<div class="mio-pvp-label">PLAYER H2H</div>${pvpRows}`;
+  } else if (pvpEl) {
+    pvpEl.innerHTML = "";
   }
 
   // Event badges
