@@ -138,6 +138,100 @@ function showToast(msg, emoji = "🎉", duration = 4000) {
   }, duration);
 }
 
+// ── PULL TO REFRESH ──────────────────────────────────────
+const _PTR_THRESHOLD = 70;
+let _ptrStartY = 0,
+  _ptrDelta = 0,
+  _ptrPulling = false,
+  _ptrRefreshing = false;
+
+function _ptrTarget(e) {
+  // PTR only when scroll container is at the top
+  const page = e.target.closest(".page");
+  if (!page || !page.classList.contains("active")) return null;
+  const id = page.id;
+  // Only enable on home / compact / history pages
+  if (!["pg-home", "pg-compact", "pg-history"].includes(id)) return null;
+  // Find scrolling container — usually page itself or its first scroll child
+  const scroller =
+    page.querySelector(".page-body-scroll") || page;
+  if (scroller.scrollTop > 0) return null;
+  return scroller;
+}
+
+function _ptrStart(e) {
+  if (_ptrRefreshing) return;
+  const t = _ptrTarget(e);
+  if (!t) return;
+  _ptrStartY = e.touches[0].clientY;
+  _ptrDelta = 0;
+  _ptrPulling = true;
+}
+
+function _ptrMove(e) {
+  if (!_ptrPulling || _ptrRefreshing) return;
+  const dy = e.touches[0].clientY - _ptrStartY;
+  if (dy < 0) return;
+  _ptrDelta = Math.min(dy * 0.55, 120);
+  const ind = document.getElementById("ptr-indicator");
+  const lbl = document.getElementById("ptr-label");
+  if (!ind) return;
+  ind.style.transform = `translate(-50%, ${Math.min(_ptrDelta, 80) - 60}px)`;
+  ind.style.opacity = Math.min(_ptrDelta / 60, 1);
+  if (lbl)
+    lbl.textContent = _ptrDelta >= _PTR_THRESHOLD ? "RELEASE TO REFRESH" : "PULL TO REFRESH";
+  ind.classList.toggle("armed", _ptrDelta >= _PTR_THRESHOLD);
+  if (_ptrDelta > 30) e.preventDefault();
+}
+
+function _ptrEnd() {
+  if (!_ptrPulling) return;
+  _ptrPulling = false;
+  const ind = document.getElementById("ptr-indicator");
+  const lbl = document.getElementById("ptr-label");
+  if (_ptrDelta >= _PTR_THRESHOLD) {
+    _ptrRefreshing = true;
+    if (ind) {
+      ind.classList.add("refreshing");
+      ind.style.transform = "translate(-50%, 20px)";
+      ind.style.opacity = 1;
+    }
+    if (lbl) lbl.textContent = "REFRESHING…";
+    // Re-render current active page
+    const page = document.querySelector(".page.active");
+    const id = page?.id;
+    setTimeout(() => {
+      if (id === "pg-home") renderHome();
+      else if (id === "pg-compact") renderCompact();
+      else if (id === "pg-history") renderModernMatches();
+      if (lbl) lbl.textContent = "UPDATED ✓";
+      if (navigator.vibrate) {
+        try { navigator.vibrate(20); } catch (e) {}
+      }
+      setTimeout(() => {
+        if (ind) {
+          ind.classList.remove("refreshing", "armed");
+          ind.style.transform = "translate(-50%, -60px)";
+          ind.style.opacity = 0;
+        }
+        _ptrRefreshing = false;
+      }, 600);
+    }, 350);
+  } else {
+    if (ind) {
+      ind.classList.remove("armed");
+      ind.style.transform = "translate(-50%, -60px)";
+      ind.style.opacity = 0;
+    }
+  }
+  _ptrDelta = 0;
+}
+
+document.addEventListener("touchstart", _ptrStart, { passive: true });
+document.addEventListener("touchmove", _ptrMove, { passive: false });
+document.addEventListener("touchend", _ptrEnd, { passive: true });
+document.addEventListener("touchcancel", _ptrEnd, { passive: true });
+
 // ── CONFETTI (canvas-based, milestone celebration) ────────
 function fireConfetti(opts = {}) {
   const count = opts.count || 90;
