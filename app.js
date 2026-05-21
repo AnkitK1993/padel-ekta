@@ -3311,77 +3311,6 @@ function renderHome() {
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
-    if (document.body.classList.contains("royal-gold-mode")) {
-      const lvl = getPlayerLevel(computePlayerXP(normPlayer(p.name))).level;
-      const safeName = p.name.replace(/'/g, "\\'");
-      const leftContent = i < 3
-        ? `<div class="rg-medal">${ri}</div>`
-        : photoMap[p.name]
-          ? `<div class="rg-av-ring"><img class="rg-av-img" src="${photoMap[p.name]}" alt="${escHtml(p.name)}"></div>`
-          : `<div class="rg-av-ring rg-av-init" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>`;
-      return `<div class="pc rg-pc${i === 0 ? " rg-pc-first" : ""}" style="--card-index:${i}" onclick="openPlayerDetail('${safeName}')">
-        <div class="rg-left">${leftContent}</div>
-        <div class="rg-mid">
-          <div class="rg-name-row">
-            <span class="rg-name">${p.name}</span>
-            <span class="rg-lvl-pill">LVL ${lvl}</span>
-          </div>
-          <div class="rg-stats">
-            <div class="rg-stat"><span class="rg-sv">${p.winPct.toFixed(0)}%</span><span class="rg-sl">WIN %</span></div>
-            <div class="rg-stat"><span class="rg-sv">${p.mw}W–${p.ml}L</span><span class="rg-sl">RECORD</span></div>
-            <div class="rg-stat"><span class="rg-sv">${p.gw}W–${p.gl}L</span><span class="rg-sl">GAMES</span></div>
-            <div class="rg-stat"><span class="rg-sv">${p.gamePct.toFixed(0)}%</span><span class="rg-sl">CS%</span></div>
-          </div>
-          <div class="rg-spark-row">${sparklineSvg || ""}</div>
-        </div>
-        <div class="rg-right">
-          <div class="rg-sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div>
-        </div>
-      </div>`;
-    }
-
-    if (document.body.classList.contains("midnight-oled-mode")) {
-      const lvl = getPlayerLevel(computePlayerXP(normPlayer(p.name))).level;
-      const safeName = p.name.replace(/'/g, "\\'");
-      const moArcFn = (radius, pct) => {
-        const c = 2 * Math.PI * radius;
-        const filled = Math.min(1, Math.max(0, pct / 100)) * c;
-        const cx = radius + 3;
-        const dia = cx * 2;
-        return `<svg width="${dia}" height="${dia}" viewBox="0 0 ${dia} ${dia}" class="mo-arc-svg"><circle cx="${cx}" cy="${cx}" r="${radius}" fill="none" stroke="rgba(0,200,255,0.12)" stroke-width="3"/><circle cx="${cx}" cy="${cx}" r="${radius}" fill="none" stroke="rgba(0,200,255,0.85)" stroke-width="3" stroke-dasharray="${filled.toFixed(1)} ${c.toFixed(1)}" stroke-linecap="round" transform="rotate(-90 ${cx} ${cx})" style="filter:drop-shadow(0 0 4px rgba(0,200,255,0.5))"/></svg>`;
-      };
-      const avContent = photoMap[p.name]
-        ? `<img class="mo-av-img" src="${photoMap[p.name]}" alt="${escHtml(p.name)}">`
-        : `<span class="mo-av-init" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</span>`;
-      return `<div class="pc mo-pc" style="--card-index:${i}" onclick="openPlayerDetail('${safeName}')">
-        <div class="mo-left">
-          <div class="mo-av-ring">${avContent}</div>
-          <div class="mo-chem-icon">⇄</div>
-        </div>
-        <div class="mo-mid">
-          <div class="mo-name-row">
-            <span class="mo-name">${p.name}</span>
-            <span class="mo-lvl-pill">LVL ${lvl}</span>
-          </div>
-          <div class="mo-stats">
-            <div class="mo-stat"><span class="mo-sv">${p.mw}W–${p.ml}L</span><span class="mo-sl">RECORD</span></div>
-            <div class="mo-stat"><span class="mo-sv">${p.gw}W–${p.gl}L</span><span class="mo-sl">GAMES</span></div>
-            <div class="mo-stat"><span class="mo-sv">${p.gamePct.toFixed(0)}%</span><span class="mo-sl">CS%</span></div>
-          </div>
-          <div class="mo-spark-row">${sparklineSvg || ""}</div>
-        </div>
-        <div class="mo-right">
-          <div class="mo-arc-container">
-            ${moArcFn(30, p.winPct)}
-            <div class="mo-arc-overlay">
-              <span class="mo-win-val">${p.winPct.toFixed(0)}%</span>
-              <span class="mo-win-lbl">WIN %</span>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    }
-
     if (document.body.classList.contains("holo-mode")) {
       const lvl = getPlayerLevel(computePlayerXP(normPlayer(p.name))).level;
       const safeName = p.name.replace(/'/g, "\\'");
@@ -3472,7 +3401,6 @@ function renderHome() {
         const xpRow = card.querySelector(".xp-row");
         if (xpRow) animateXpRow(xpRow, 300);
         card.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 220 + i * 60));
-        card.querySelectorAll(".rg-sr-val[data-final]").forEach((el) => animateSrVal(el, 220 + i * 60));
         if (i === cardHtmls.length - 1) {
           runSpeedometerSweep();
           setTimeout(animateGauges, 50);
@@ -3488,7 +3416,6 @@ function renderHome() {
       .forEach((el) => animateSrVal(el, 300));
     board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
     board.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 300));
-    board.querySelectorAll(".rg-sr-val[data-final]").forEach((el) => animateSrVal(el, 300));
   }
 }
 
