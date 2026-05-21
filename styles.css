@@ -8527,29 +8527,30 @@ select.cmp-sel option {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 12px;
-  padding: 10px 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(var(--theme-rgb), 0.22);
+  border-radius: 999px;
+  padding: 10px 16px;
+  box-shadow: 0 1px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
   transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 .ana-search-box:focus-within {
-  border-color: rgba(var(--theme-rgb), 0.38);
-  background: rgba(var(--theme-rgb), 0.05);
-  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.08);
+  border-color: rgba(var(--theme-rgb), 0.55);
+  background: rgba(var(--theme-rgb), 0.06);
+  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.1), 0 1px 10px rgba(0,0,0,0.3);
   animation: none;
 }
 
 /* SVG search icon */
 .ana-search-lead-icon {
   flex-shrink: 0;
-  width: 15px;
-  height: 15px;
-  color: rgba(255,255,255,0.25);
+  width: 14px;
+  height: 14px;
+  color: rgba(var(--theme-rgb), 0.5);
   transition: color 0.2s;
 }
 .ana-search-box:focus-within .ana-search-lead-icon {
-  color: rgba(var(--theme-rgb), 0.8);
+  color: rgba(var(--theme-rgb), 1);
 }
 
 .ana-search-input {
@@ -8566,10 +8567,10 @@ select.cmp-sel option {
   caret-color: rgba(var(--theme-rgb), 1);
 }
 .ana-search-input::placeholder {
-  color: rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.32);
   font-size: 11px;
   font-weight: 400;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
 }
 
 .ana-search-clear {
