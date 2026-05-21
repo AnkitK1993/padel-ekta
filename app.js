@@ -609,6 +609,7 @@ let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
 let _eloTLPlayer = "";
 let _eloTLFilter = "all";
+let _eloTLOverlay = "";
 let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
@@ -10613,6 +10614,67 @@ function buildEloTimelineHtml(filterKey) {
         : netChange < 0
           ? "var(--red)"
           : "var(--muted)";
+    // Peak / trough annotations
+    let peakIdx = 0,
+      troughIdx = 0;
+    pts.forEach((p, i) => {
+      if (p.elo > pts[peakIdx].elo) peakIdx = i;
+      if (p.elo < pts[troughIdx].elo) troughIdx = i;
+    });
+    const annot = (i, label, fill) => {
+      const x = toX(i);
+      const y = toY(pts[i].elo);
+      const above = pts[i].elo - minE > eRange * 0.5;
+      const ly = above ? y + 18 : y - 12;
+      return `<g>
+        <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="none" stroke="${fill}" stroke-width="1.5"/>
+        <text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="8" font-weight="900" fill="${fill}">${label} ${pts[i].elo}</text>
+      </g>`;
+    };
+    const peakTroughAnnotations =
+      peakIdx !== troughIdx
+        ? annot(peakIdx, "▲", "var(--gold)") + annot(troughIdx, "▼", "var(--red)")
+        : "";
+
+    // Overlay: 2nd player line
+    let overlayHtml = "";
+    if (_eloTLOverlay && _eloTLOverlay !== name && history[_eloTLOverlay]) {
+      let opts = [...history[_eloTLOverlay]];
+      if (filterKey === "3m") {
+        const c = new Date(now);
+        c.setMonth(c.getMonth() - 3);
+        const cs = c.toISOString().slice(0, 10);
+        opts = opts.filter((p) => (p.date || "") >= cs);
+      } else if (filterKey === "1m") {
+        const c = new Date(now);
+        c.setMonth(c.getMonth() - 1);
+        const cs = c.toISOString().slice(0, 10);
+        opts = opts.filter((p) => (p.date || "") >= cs);
+      } else if (filterKey === "1w") {
+        const c = new Date(now);
+        c.setDate(c.getDate() - 7);
+        const cs = c.toISOString().slice(0, 10);
+        opts = opts.filter((p) => (p.date || "") >= cs);
+      } else if (filterKey === "thisweek") {
+        opts = opts.filter((p) => (p.date || "") >= thisMondayStr);
+      } else if (filterKey === "lastweek") {
+        opts = opts.filter(
+          (p) => (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr,
+        );
+      } else if (filterKey === "today") {
+        opts = opts.filter((p) => p.date === todayStr);
+      }
+      if (opts.length >= 2) {
+        // Map opts onto same horizontal scale (by index ratio of main pts) for visual comparison
+        const overlayCol = playerColor(_eloTLOverlay);
+        const overlayPoly = opts
+          .map((p, i) => `${toX((i / Math.max(opts.length - 1, 1)) * (pts.length - 1)).toFixed(1)},${toY(p.elo).toFixed(1)}`)
+          .join(" ");
+        overlayHtml = `<polyline points="${overlayPoly}" fill="none" stroke="${overlayCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3" opacity="0.85"/>
+          <text x="${(toX(pts.length - 1) - 4).toFixed(1)}" y="${(toY(opts[opts.length - 1].elo) - 5).toFixed(1)}" text-anchor="end" font-size="9" font-weight="800" fill="${overlayCol}">${_eloTLOverlay}</text>`;
+      }
+    }
+
     chartHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px">
         <div style="font-size:9px;color:var(--muted)">● W &nbsp;● L &nbsp;· ${pts.length} matches</div>
         <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO</div>
@@ -10626,17 +10688,39 @@ function buildEloTimelineHtml(filterKey) {
           </linearGradient></defs>
           <path d="${area}" fill="url(#${gradId})"/>
           <polyline points="${polyline}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          ${overlayHtml}
           ${circles}
+          ${peakTroughAnnotations}
           <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastElo) - 7).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="900" fill="${col}">${lastElo}</text>
         </svg>
       </div>
       <div id="elo-tl-detail"></div>`;
   }
+  // Build overlay selector
+  const overlayOpts =
+    '<option value="">+ COMPARE WITH…</option>' +
+    players
+      .filter((p) => p !== name)
+      .map(
+        (p) =>
+          `<option value="${escHtml(p)}"${p === _eloTLOverlay ? " selected" : ""}>${escHtml(p)}</option>`,
+      )
+      .join("");
+  const overlaySelector = `<div style="display:flex;align-items:center;gap:6px;margin:6px 0">
+    <select class="elo-tl-overlay" onchange="_eloTLSetOverlay(this.value)">${overlayOpts}</select>
+    ${_eloTLOverlay ? `<button class="elo-tl-clear" onclick="_eloTLSetOverlay('')">✕</button>` : ""}
+  </div>`;
   return `<div class="ana-card" style="padding:10px 12px">
     <div class="elo-tl-players">${chips}</div>
     <div class="elo-tl-filters">${pills}</div>
+    ${overlaySelector}
     ${chartHtml}
   </div>`;
+}
+
+function _eloTLSetOverlay(name) {
+  _eloTLOverlay = name || "";
+  _rerenderEloTLSection();
 }
 
 function _rerenderEloTLSection() {
@@ -14249,6 +14333,7 @@ Object.assign(window, {
   fireConfetti,
   streakCalDayClick,
   _h2hSetSort,
+  _eloTLSetOverlay,
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,
