@@ -12239,3 +12239,98 @@ select:focus,
   gap: 8px !important;
   padding: 10px 12px 10px !important;
 }
+
+/* ── DETAILED tab rank 4 (indigo) & rank 5 (purple) ─────────────────────── */
+
+@keyframes holoBorderR4 {
+  0%, 100% { border-color: rgba(112, 128, 238, 0.62); }
+  25%       { border-color: rgba(90,  108, 220, 0.55); }
+  50%       { border-color: rgba(140, 155, 255, 0.58); }
+  75%       { border-color: rgba(100, 120, 230, 0.50); }
+}
+@keyframes holoGlowR4 {
+  0%, 100% { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 22px rgba(112,128,238,0.14); }
+  25%      { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 22px rgba(90,108,220,0.18); }
+  50%      { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 26px rgba(150,165,255,0.12); }
+  75%      { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 18px rgba(100,80,210,0.14); }
+}
+@keyframes holoBorderR5 {
+  0%, 100% { border-color: rgba(170, 96, 238, 0.62); }
+  25%       { border-color: rgba(140, 70, 210, 0.55); }
+  50%       { border-color: rgba(200, 130, 255, 0.58); }
+  75%       { border-color: rgba(155, 80, 225, 0.50); }
+}
+@keyframes holoGlowR5 {
+  0%, 100% { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 22px rgba(170,96,238,0.14); }
+  25%      { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 22px rgba(140,70,210,0.18); }
+  50%      { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 26px rgba(210,140,255,0.12); }
+  75%      { box-shadow: 0 8px 28px rgba(0,0,0,0.38), 0 0 18px rgba(130,50,200,0.14); }
+}
+
+.pc.r4 {
+  border-color: rgba(112, 128, 238, 0.62) !important;
+  background: linear-gradient(135deg, rgba(8, 8, 32, 0.97) 0%, rgba(12, 10, 28, 0.94) 100%) !important;
+  animation:
+    detailedCardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    holoBorderR4 8s ease-in-out 0.6s infinite,
+    holoGlowR4 8s ease-in-out 0.6s infinite !important;
+}
+.pc.r5 {
+  border-color: rgba(170, 96, 238, 0.62) !important;
+  background: linear-gradient(135deg, rgba(14, 4, 24, 0.97) 0%, rgba(16, 8, 28, 0.94) 100%) !important;
+  animation:
+    detailedCardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    holoBorderR5 8s ease-in-out 0.6s infinite,
+    holoGlowR5 8s ease-in-out 0.6s infinite !important;
+}
+
+.pc.r4::before {
+  background: linear-gradient(180deg, rgba(112,128,238,0), rgba(112,128,238,0.9), rgba(112,128,238,0)) !important;
+}
+.pc.r5::before {
+  background: linear-gradient(180deg, rgba(170,96,238,0), rgba(170,96,238,0.9), rgba(170,96,238,0)) !important;
+}
+
+.pc.r4:hover {
+  transform: translateY(-8px) scale(1.02);
+  border-color: rgba(150, 165, 255, 0.82) !important;
+  box-shadow: 0 22px 44px rgba(0,0,0,0.44), 0 0 32px rgba(112,128,238,0.22) !important;
+  background: linear-gradient(135deg, rgba(12, 12, 40, 0.98) 0%, rgba(16, 14, 36, 0.96) 100%) !important;
+}
+.pc.r4:active {
+  border-color: #7080ee !important;
+  box-shadow: 0 0 0 3px rgba(112, 128, 238, 0.22) !important;
+}
+.pc.r5:hover {
+  transform: translateY(-8px) scale(1.02);
+  border-color: rgba(210, 140, 255, 0.82) !important;
+  box-shadow: 0 22px 44px rgba(0,0,0,0.44), 0 0 32px rgba(170,96,238,0.22) !important;
+  background: linear-gradient(135deg, rgba(22, 6, 36, 0.98) 0%, rgba(20, 10, 34, 0.96) 100%) !important;
+}
+.pc.r5:active {
+  border-color: #aa60ee !important;
+  box-shadow: 0 0 0 3px rgba(170, 96, 238, 0.22) !important;
+}
+
+.r4 .rb,
+.r5 .rb {
+  background: transparent !important;
+  border-color: transparent !important;
+  overflow: visible !important;
+}
+.r4 .rb {
+  filter: drop-shadow(0 0 10px rgba(112, 128, 238, 0.65)) drop-shadow(0 3px 8px rgba(0,0,0,0.55)) !important;
+}
+.r5 .rb {
+  filter: drop-shadow(0 0 10px rgba(170, 96, 238, 0.65)) drop-shadow(0 3px 8px rgba(0,0,0,0.55)) !important;
+}
+
+.r2 .pname { color: #b4c3e6 !important; }
+.r3 .pname { color: #cd853f !important; }
+.r4 .pname { color: #8090ee !important; }
+.r5 .pname { color: #c070ee !important; }
+
+.pc.r2 .bar-fill { background: linear-gradient(90deg, #6080cc, #a0c0f0) !important; }
+.pc.r3 .bar-fill { background: linear-gradient(90deg, #8b5a2b, #e0a060) !important; }
+.pc.r4 .bar-fill { background: linear-gradient(90deg, #5060bb, #9090ee) !important; }
+.pc.r5 .bar-fill { background: linear-gradient(90deg, #7030a0, #cc80ff) !important; }
