@@ -38,14 +38,7 @@ body {
 }
 body {
   position: relative;
-  background-color: #07070f;
-  background-image:
-    linear-gradient(rgba(var(--theme-rgb), 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(var(--theme-rgb), 0.04) 1px, transparent 1px),
-    linear-gradient(180deg, #07070f 0%, #09090f 45%, #0b0b12 100%) !important;
-  background-size: 28px 28px, 28px 28px, 100% 100% !important;
-  background-attachment: fixed !important;
-  background-position: center top !important;
+  background: linear-gradient(180deg, #07070f 0%, #09090f 45%, #0b0b12 100%);
   color: var(--text);
   font-family: "DM Sans", sans-serif;
   display: flex;
@@ -7408,11 +7401,10 @@ body::after {
   z-index: -1;
 
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    linear-gradient(rgba(var(--theme-rgb), 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--theme-rgb), 0.055) 1px, transparent 1px);
 
-  background-size: 42px 42px;
-  mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+  background-size: 28px 28px;
 }
 
 @keyframes ambientShift {
@@ -15633,13 +15625,7 @@ body.holo-mode .bottom-nav-item.active::after {
    ════════════════════════════════════════════════════════ */
 
 body.royal-gold-mode {
-  background-color: #0d0900 !important;
-  background-image:
-    linear-gradient(rgba(251, 191, 36, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(251, 191, 36, 0.04) 1px, transparent 1px),
-    linear-gradient(180deg, #0d0900 0%, #0a0700 100%) !important;
-  background-size: 28px 28px, 28px 28px, 100% 100% !important;
-  background-attachment: fixed !important;
+  background: linear-gradient(180deg, #0d0900 0%, #0a0700 100%) !important;
 }
 body.royal-gold-mode::after {
   content: "";
@@ -15762,13 +15748,7 @@ body.royal-gold-mode #themeBtn {
    ════════════════════════════════════════════════════════ */
 
 body.midnight-oled-mode {
-  background-color: #000000 !important;
-  background-image:
-    linear-gradient(rgba(0, 200, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 200, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(180deg, #000000, #000000) !important;
-  background-size: 28px 28px, 28px 28px, 100% 100% !important;
-  background-attachment: fixed !important;
+  background: #000000 !important;
 }
 
 body.midnight-oled-mode .topbar,
