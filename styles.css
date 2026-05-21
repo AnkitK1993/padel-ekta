@@ -10780,7 +10780,6 @@ body::after {
     0 5px 30px rgba(0,0,0,0.65),
     inset 0 1px 0 rgba(255,255,255,0.08),
     0 0 32px rgba(var(--theme-rgb), 0.13);
-  transform: none;
 }
 
 /* ── Home header — cinematic banner ── */
@@ -11904,6 +11903,11 @@ body::before {
   margin: 0 0 2px !important;
   overflow: hidden !important;
   position: relative !important;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.28s ease,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 /* top shimmer line — overrides the left accent ::before from ana-section-title */
 .ana-sec-hdr::before {
