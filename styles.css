@@ -13200,6 +13200,71 @@ select:focus,
   margin-bottom: 4px;
 }
 
+/* ── Match Intro skip button ── */
+.mio-skip-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 999;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.mio-skip-btn:active { transform: scale(0.94); }
+.mio-skip-btn:hover { background: rgba(0, 0, 0, 0.7); }
+
+/* ── Power Rankings movement chips ── */
+.pr-mvmt {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  min-width: 26px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.pr-mvmt-up { background: rgba(54, 212, 126, 0.18); color: var(--green); }
+.pr-mvmt-dn { background: rgba(240, 79, 79, 0.18); color: var(--red); }
+.pr-mvmt-eq { background: rgba(255, 255, 255, 0.04); color: var(--muted); }
+.pr-mvmt-new { background: rgba(var(--theme-rgb), 0.18); color: var(--theme); }
+
+/* ── ELO TIER BADGES ── */
+.elo-tier-chip {
+  display: inline-block;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+.elo-tier-row {
+  margin: 2px 0 4px;
+  display: flex;
+  justify-content: center;
+}
+.lr-tier-mini {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin-left: 4px;
+  opacity: 0.85;
+}
+
 /* ── GLOBAL SEARCH OVERLAY ── */
 .gs-overlay {
   position: fixed;

@@ -2931,6 +2931,20 @@ function getSRRatingClass(normalizedSR) {
   return c;
 }
 
+function getEloTier(elo) {
+  if (elo >= 1150) return { name: "MASTER", color: "#ff5fe5" };
+  if (elo >= 1100) return { name: "DIAMOND", color: "#5cd0ff" };
+  if (elo >= 1050) return { name: "PLATINUM", color: "#7bc7c7" };
+  if (elo >= 1000) return { name: "GOLD", color: "#f5c842" };
+  if (elo >= 950) return { name: "SILVER", color: "#b8bdcc" };
+  return { name: "BRONZE", color: "#c47645" };
+}
+
+function eloTierBadge(elo) {
+  const t = getEloTier(elo);
+  return `<span class="elo-tier-chip" style="color:${t.color};border-color:${t.color}66;background:${t.color}1f">${t.name} · ${elo}</span>`;
+}
+
 function renderHome() {
   renderAbsenceBanner();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
@@ -3006,7 +3020,7 @@ function renderHome() {
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div>${mkLvlRow(p.name)}<div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}<div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
   if (document.body.classList.contains("splash-done")) {
@@ -5877,7 +5891,7 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="display:flex;align-items:center;gap:10px">${playerAvatar(name, 64)}${name}</div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px">${playerAvatar(name, 64)}<div style="display:flex;flex-direction:column;gap:4px"><span>${name}</span>${eloTierBadge(playerElo)}</div></div>
                 <div style="display:flex;align-items:center;gap:8px">
                   <button class="share-card-btn" onclick="openShareCard('${name.replace(/'/g, "\\'")}')">⬆ Share</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
@@ -10523,6 +10537,7 @@ function _buildPowerRankingsHtml() {
   const rankings = computePowerRankings(allMatches);
   if (!rankings.length)
     return '<div class="sub" style="padding:8px">Need more data.</div>';
+  const prevRanks = getPrevWeekRankMap();
   const rows = rankings
     .map((p, i) => {
       const col =
@@ -10535,8 +10550,19 @@ function _buildPowerRankingsHtml() {
               : "var(--muted)";
       const bar = `<div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.06);margin-top:4px"><div style="height:100%;width:${p.score}%;background:${col};border-radius:2px;transition:width 0.6s"></div></div>`;
       const avatar = `<div style="width:28px;height:28px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>`;
+      const prev = prevRanks[p.name];
+      let movement = `<span class="pr-mvmt pr-mvmt-eq">—</span>`;
+      if (prev) {
+        const diff = prev - (i + 1);
+        if (diff > 0) movement = `<span class="pr-mvmt pr-mvmt-up">↑${diff}</span>`;
+        else if (diff < 0)
+          movement = `<span class="pr-mvmt pr-mvmt-dn">↓${Math.abs(diff)}</span>`;
+      } else {
+        movement = `<span class="pr-mvmt pr-mvmt-new">NEW</span>`;
+      }
       return `<div class="pr-row">
       <div style="font-size:13px;font-weight:900;color:${col};width:24px;text-align:center">#${i + 1}</div>
+      ${movement}
       ${avatar}
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
@@ -10550,7 +10576,7 @@ function _buildPowerRankingsHtml() {
     })
     .join("");
   return `<div class="ana-card" style="padding:10px 12px">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Composite: ELO 40% · Form 30% · Win Quality 20% · Activity 10%</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Composite: ELO 40% · Form 30% · Win Quality 20% · Activity 10% · Arrows vs last week</div>
     ${rows}
   </div>`;
 }
@@ -10559,6 +10585,7 @@ function _buildChemistryLeaderboardHtml() {
   const scores = computeChemistryScores(allMatches);
   if (!scores.length)
     return '<div class="sub" style="padding:8px">Need at least 3 matches per pair.</div>';
+  const worst = scores.length > 5 ? scores.slice(-5).reverse() : [];
   const rows = scores
     .slice(0, 20)
     .map((p, i) => {
@@ -10581,6 +10608,32 @@ function _buildChemistryLeaderboardHtml() {
     </div>`;
     })
     .join("");
+  const antiRows = worst
+    .map((p, i) => {
+      const col = playerColor(p.players[0]);
+      const col2 = playerColor(p.players[1]);
+      return `<div class="chem-ldr-row" style="opacity:0.92">
+      <div style="font-size:11px;font-weight:800;color:var(--red);width:24px">💔${i + 1}</div>
+      <div style="display:flex;gap:-4px;flex-shrink:0">
+        <div style="width:22px;height:22px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;filter:grayscale(0.35)">${playerInitials(p.players[0])}</div>
+        <div style="width:22px;height:22px;border-radius:50%;background:${col2};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;margin-left:-5px;filter:grayscale(0.35)">${playerInitials(p.players[1])}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.players.join(" & ")}</div>
+        <div style="font-size:9px;color:var(--muted)">${p.played} matches · ${p.winPct}% win · avg ${p.avgMargin > 0 ? "+" : ""}${p.avgMargin?.toFixed ? p.avgMargin.toFixed(1) : 0}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:14px;font-weight:900;color:var(--red)">${p.score}</div>
+      </div>
+    </div>`;
+    })
+    .join("");
+  const antiBlock = antiRows
+    ? `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.1)">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:0.14em;color:var(--red);margin-bottom:8px">💔 ANTI-CHEMISTRY — pairs to avoid</div>
+      ${antiRows}
+    </div>`
+    : "";
   return `<div class="ana-card" style="padding:10px 12px">
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
       ${[
@@ -10596,6 +10649,7 @@ function _buildChemistryLeaderboardHtml() {
         .join("")}
     </div>
     ${rows}
+    ${antiBlock}
   </div>`;
 }
 
@@ -10998,12 +11052,13 @@ function _replayUpdate(idx) {
           eloChip = `<span class="lr-elo-d" style="color:${d > 0 ? "var(--green)" : "var(--red)"}">${s}${d}</span>`;
         }
       }
+      const tier = getEloTier(elo);
       return `<div class="lr-row${dim}${fat}">
         <div class="lr-rank" style="color:${col}">#${i + 1}</div>
         ${rankChip}
         <div class="lr-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>
         <div class="lr-name-wrap">
-          <div class="lr-name">${p.name}</div>
+          <div class="lr-name">${p.name} <span class="lr-tier-mini" style="color:${tier.color}">${tier.name}</span></div>
           <div class="lr-bar"><div class="lr-bar-fill" style="width:${barW}%;background:${col}"></div></div>
         </div>
         <div class="lr-elo" style="color:${col}">${elo}</div>
@@ -13549,6 +13604,7 @@ Object.assign(window, {
   _globalSearchInput,
   openMatchIntro,
   closeMatchIntro,
+  mioSkipAnimation,
   showUndoToast,
   renderWhatIfSection,
   toggleWhatIfMatch,
@@ -14045,9 +14101,29 @@ function endLiveMatch() {
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
+let _mioTimers = [];
+let _mioFinalize = null;
+function _mioSched(fn, delay) {
+  const id = setTimeout(() => {
+    _mioTimers = _mioTimers.filter((t) => t !== id);
+    fn();
+  }, delay);
+  _mioTimers.push(id);
+  return id;
+}
+function mioSkipAnimation() {
+  _mioTimers.forEach((id) => clearTimeout(id));
+  _mioTimers = [];
+  if (typeof _mioFinalize === "function") _mioFinalize();
+}
+
 function openMatchIntro(idx) {
   const m = allMatches[idx];
   if (!m) return;
+  // Cancel any in-flight animations from a previous opening
+  _mioTimers.forEach((id) => clearTimeout(id));
+  _mioTimers = [];
+  _mioFinalize = null;
 
   const priorElo = computeElo(allMatches.slice(0, idx));
   const afterElo = computeElo(allMatches.slice(0, idx + 1));
@@ -14177,7 +14253,7 @@ function openMatchIntro(idx) {
         <div class="mio-h2h-num mio-h2h-num-b" style="color:${colB}">${h2hWinsB}</div>
         <div class="mio-h2h-lbl">${nameB}</div>
       </div>`;
-    setTimeout(() => {
+    _mioSched(() => {
       const winNumEl = h2hEl.querySelector(aWon ? ".mio-h2h-num-a" : ".mio-h2h-num-b");
       const newVal = aWon ? h2hAfterA : h2hAfterB;
       const oldVal = aWon ? h2hWinsA : h2hWinsB;
@@ -14188,7 +14264,7 @@ function openMatchIntro(idx) {
         plus.className = "mio-float-plus";
         plus.textContent = "+1";
         winNumEl.parentElement.appendChild(plus);
-        setTimeout(() => { winNumEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
+        _mioSched(() => { winNumEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
       }
     }, 900);
   }
@@ -14234,21 +14310,21 @@ function openMatchIntro(idx) {
       })
       .join("");
     pvpEl.innerHTML = `<div class="mio-pvp-label">PLAYER H2H</div>${pvpRows}`;
-    setTimeout(() => {
+    _mioSched(() => {
       pvpEl.querySelectorAll(".mio-pvp-row").forEach((row, ri) => {
         const numEl = row.querySelector(aWon ? ".mio-pvp-num-a" : ".mio-pvp-num-b");
         if (!numEl) return;
         const after = parseInt(numEl.dataset.after, 10);
         const before = parseInt(numEl.textContent, 10);
         if (after > before) {
-          setTimeout(() => {
+          _mioSched(() => {
             numEl.textContent = after;
             numEl.classList.add("mio-count-flash");
             const plus = document.createElement("span");
             plus.className = "mio-float-plus";
             plus.textContent = "+1";
             numEl.parentElement.appendChild(plus);
-            setTimeout(() => { numEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
+            _mioSched(() => { numEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
           }, ri * 160);
         }
       });
@@ -14282,17 +14358,46 @@ function openMatchIntro(idx) {
 
   // Animate scores in after panels slide in
   const animScore = (el, final, delay) =>
-    setTimeout(() => {
+    _mioSched(() => {
       let cur = 0;
       const tick = () => {
         cur = Math.min(cur + 1, final);
         el.textContent = cur;
-        if (cur < final) setTimeout(tick, 110);
+        if (cur < final) _mioSched(tick, 110);
       };
       tick();
     }, delay);
   animScore(scoreAEl, m.scoreA, 480);
   animScore(scoreBEl, m.scoreB, 480);
+
+  // Skip handler: jump every animated value to its final state
+  _mioFinalize = () => {
+    scoreAEl.textContent = m.scoreA;
+    scoreBEl.textContent = m.scoreB;
+    if (h2hEl) {
+      const winNumEl = h2hEl.querySelector(
+        aWon ? ".mio-h2h-num-a" : ".mio-h2h-num-b",
+      );
+      if (winNumEl) winNumEl.textContent = aWon ? h2hAfterA : h2hAfterB;
+    }
+    if (pvpEl) {
+      pvpEl.querySelectorAll(".mio-pvp-row").forEach((row) => {
+        const numEl = row.querySelector(
+          aWon ? ".mio-pvp-num-a" : ".mio-pvp-num-b",
+        );
+        if (!numEl) return;
+        const after = parseInt(numEl.dataset.after, 10);
+        if (!isNaN(after)) numEl.textContent = after;
+      });
+    }
+    // Remove any floating +1 elements still in flight
+    document
+      .querySelectorAll(".mio-float-plus")
+      .forEach((el) => el.remove());
+    document
+      .querySelectorAll(".mio-count-flash")
+      .forEach((el) => el.classList.remove("mio-count-flash"));
+  };
 }
 
 function closeMatchIntro() {
