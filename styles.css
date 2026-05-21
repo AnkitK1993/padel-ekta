@@ -8439,15 +8439,15 @@ select.cmp-sel option {
   position: relative;
   margin-bottom: 10px;
   background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(var(--theme-rgb), 0.2);
+  border: 1px solid rgba(var(--theme-rgb), 0.22);
   border-radius: 999px;
-  padding: 2px 6px;
+  padding: 0 4px;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .ana-search-wrap:focus-within {
-  border-color: rgba(var(--theme-rgb), 0.5);
-  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.08),
-              0 0 16px rgba(var(--theme-rgb), 0.1);
+  border-color: rgba(var(--theme-rgb), 0.55);
+  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.09),
+              0 0 18px rgba(var(--theme-rgb), 0.12);
 }
 
 /* ── CATEGORY FILTER PILLS ─────────────────────── */
@@ -8540,7 +8540,7 @@ select.cmp-sel option {
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 8px 10px;
+  padding: 9px 12px;
 }
 .ana-search-box:focus-within {
   background: transparent;
