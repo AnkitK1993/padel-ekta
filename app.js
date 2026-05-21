@@ -3232,6 +3232,80 @@ function renderHome() {
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
+    if (document.body.classList.contains("holo-mode")) {
+      const lvl = getPlayerLevel(computePlayerXP(normPlayer(p.name))).level;
+      const safeName = p.name.replace(/'/g, "\\'");
+      const holoArc = (radius, sr) => {
+        const c = 2 * Math.PI * radius;
+        const filled = Math.min(1, Math.max(0, sr / 10)) * c;
+        const col = sr >= 6 ? "var(--theme)" : sr >= 4 ? "#f5c842" : "#ff4f4f";
+        const cx = radius + 4;
+        return `<svg viewBox="0 0 ${cx * 2} ${cx * 2}" class="holo-arc">
+          <circle cx="${cx}" cy="${cx}" r="${radius}" fill="none" stroke="rgba(92,208,255,0.12)" stroke-width="2.5"/>
+          <circle cx="${cx}" cy="${cx}" r="${radius}" fill="none" stroke="${col}" stroke-width="2.5" stroke-dasharray="${filled.toFixed(1)} ${c.toFixed(1)}" stroke-linecap="round" transform="rotate(-90 ${cx} ${cx})" style="filter:drop-shadow(0 0 6px ${col})"/>
+        </svg>`;
+      };
+      const rankColors = ["var(--theme)", "var(--theme)", "#f5c842", "var(--theme)", "var(--theme)"];
+      const rankCol = rankColors[i] || "var(--theme)";
+      const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
+      if (i === 0) {
+        return `<div class="pc holo-pc holo-pc-hero" style="--card-index:${i}" onclick="openPlayerDetail('${safeName}')">
+          ${corners}
+          <div class="holo-grid-hero">
+            <div class="holo-av-area">
+              <div class="holo-av-ring"><div class="holo-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div></div>
+              <div class="holo-rank-tag">${i + 1}</div>
+            </div>
+            <div class="holo-info-hero">
+              <div class="holo-name-row">
+                <span class="holo-name">${p.name}</span>
+                <span class="holo-pill holo-pill-alltime">ALLTIME</span>
+                <span class="holo-pill holo-pill-lvl">LVL ${lvl}</span>
+              </div>
+              <div class="holo-stats holo-stats-3">
+                <div class="holo-stat"><div class="holo-stat-v holo-win">${p.winPct.toFixed(0)}%</div><div class="holo-stat-l">WIN %</div></div>
+                <div class="holo-stat"><div class="holo-stat-v holo-win">${p.mw}W–${p.ml}L</div><div class="holo-stat-l">RECORD</div></div>
+                <div class="holo-stat"><div class="holo-stat-v">${p.gw}W–${p.gl}L</div><div class="holo-stat-l">GAMES</div></div>
+              </div>
+            </div>
+            <div class="holo-gauge holo-gauge-hero">
+              ${holoArc(38, p.sr)}
+              <div class="holo-gauge-val holo-gauge-val-hero">${p.sr.toFixed(2)}</div>
+            </div>
+            <div class="holo-form-row">
+              <span class="holo-form-lbl">FORM</span>
+              <div class="holo-form-spark">${sparklineSvg || ""}</div>
+              <div class="holo-form-delta">${eldHtml || ""}</div>
+            </div>
+          </div>
+        </div>`;
+      }
+      return `<div class="pc holo-pc holo-pc-compact" style="--card-index:${i}" onclick="openPlayerDetail('${safeName}')">
+        ${corners}
+        <div class="holo-grid-compact">
+          <div class="holo-rank-circle" style="--rc:${rankCol}">${i + 1}</div>
+          <div class="holo-info">
+            <div class="holo-name-row">
+              <span class="holo-name-sm">${p.name}</span>
+              <span class="holo-pill holo-pill-lvl-sm">LVL ${lvl}</span>
+            </div>
+            <div class="holo-stats holo-stats-4">
+              <div class="holo-stat-sm"><div class="holo-stat-v-sm holo-win">${p.winPct.toFixed(0)}%</div><div class="holo-stat-l-sm">WIN %</div></div>
+              <div class="holo-stat-sm"><div class="holo-stat-v-sm holo-win">${p.mw}W–${p.ml}L</div><div class="holo-stat-l-sm">RECORD</div></div>
+              <div class="holo-stat-sm"><div class="holo-stat-v-sm">${p.gw}W–${p.gl}L</div><div class="holo-stat-l-sm">GAMES</div></div>
+              <div class="holo-stat-sm"><div class="holo-stat-v-sm">${p.gamePct.toFixed(0)}%</div><div class="holo-stat-l-sm">CS %</div></div>
+            </div>
+          </div>
+          <div class="holo-gauge-wrap-sm">
+            <div class="holo-gauge holo-gauge-sm">
+              ${holoArc(26, p.sr)}
+              <div class="holo-gauge-val holo-gauge-val-sm">${p.sr.toFixed(2)}</div>
+            </div>
+            <div class="holo-delta-sm">${eldHtml || ""}</div>
+          </div>
+        </div>
+      </div>`;
+    }
     return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="pname">${p.name}</div><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}<div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg;"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
@@ -14191,6 +14265,7 @@ Object.assign(window, {
   switchITab,
   filterMatchTab,
   applyRange,
+  renderHome,
   onCmpFilter,
   addMatches,
   saveNames,

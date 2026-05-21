@@ -272,6 +272,7 @@ body.paused-animations *{
         { name: "Forest", hex: "#15803d", r: 21, g: 128, b: 61 },
         { name: "Cyberpunk", hex: "#ff00d4", r: 255, g: 0, b: 212 },
         { name: "Mono", hex: "#c0c0c0", r: 192, g: 192, b: 192 },
+        { name: "Holo HUD", hex: "#5cd0ff", r: 92, g: 208, b: 255, mode: "holo" },
       ];
       window.THEMES = THEMES;
       var _themeIdx = 0;
@@ -284,6 +285,14 @@ body.paused-animations *{
           "--theme2",
           "rgba(" + t.r + "," + t.g + "," + t.b + ",0.6)",
         );
+        // Special modes (e.g. Holo HUD restructures the Detailed cards)
+        if (document.body) {
+          document.body.classList.toggle("holo-mode", t.mode === "holo");
+        }
+        // Re-render Home so the active mode picks up the right card template
+        try {
+          if (typeof window.renderHome === "function") window.renderHome();
+        } catch (e) {}
         var btn = document.getElementById("themeBtn");
         if (btn) {
           btn.style.background = t.hex;
