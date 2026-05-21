@@ -42,10 +42,10 @@ body {
   background-image:
     linear-gradient(rgba(var(--theme-rgb), 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(var(--theme-rgb), 0.04) 1px, transparent 1px),
-    linear-gradient(180deg, #07070f 0%, #09090f 45%, #0b0b12 100%);
-  background-size: 28px 28px, 28px 28px, 100% 100%;
-  background-attachment: fixed;
-  background-position: center top;
+    linear-gradient(180deg, #07070f 0%, #09090f 45%, #0b0b12 100%) !important;
+  background-size: 28px 28px, 28px 28px, 100% 100% !important;
+  background-attachment: fixed !important;
+  background-position: center top !important;
   color: var(--text);
   font-family: "DM Sans", sans-serif;
   display: flex;
@@ -12445,7 +12445,7 @@ body::after {
 
 /* Override the body pseudo-element gradient to match live's #030309 */
 body {
-  background: #030309 !important;
+  background-color: #030309 !important;
 }
 body::before {
   background:
