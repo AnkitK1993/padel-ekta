@@ -15111,6 +15111,74 @@ body.holo-mode .holo-delta-sm {
   letter-spacing: 0.06em;
 }
 
+/* ─── HOLO FULL-DATA additions ─── */
+body.holo-mode .holo-stats-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+body.holo-mode .holo-grid-compact {
+  align-items: start;
+}
+/* Mini avatar in compact name row */
+body.holo-mode .holo-av-mini {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(92, 208, 255, 0.45);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  background-position: center;
+}
+/* Form row for compact cards */
+body.holo-mode .holo-form-row-compact {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  min-height: 20px;
+  flex-wrap: nowrap;
+}
+body.holo-mode .holo-form-row-compact .holo-form-spark {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+body.holo-mode .holo-form-row-compact .holo-form-spark svg {
+  max-width: 100%;
+  display: block;
+}
+/* Remove excessive left-padding from ELO delta inside holo form rows */
+body.holo-mode .holo-form-row .s5-elo,
+body.holo-mode .holo-form-row-compact .s5-elo {
+  padding-left: 4px;
+}
+/* Badge pills row spanning all grid columns */
+body.holo-mode .holo-badge-row {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+body.holo-mode .holo-badge-row .card-badge-row {
+  margin: 0;
+  padding: 0;
+}
+/* XP bar stretches inside holo info column */
+body.holo-mode .holo-pc .xp-row {
+  margin-top: 5px;
+  width: 100%;
+}
+body.holo-mode .holo-pc .xp-bar-mini {
+  flex: 1;
+  width: auto;
+  min-width: 30px;
+}
+
 /* Theme button shows a special icon when Holo HUD is active */
 body.holo-mode #themeBtn {
   background: radial-gradient(circle, var(--theme), #1a4670) !important;

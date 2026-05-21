@@ -3340,12 +3340,16 @@ function renderHome() {
                 <span class="holo-name">${p.name}</span>
                 <span class="holo-pill holo-pill-alltime">ALLTIME</span>
                 <span class="holo-pill holo-pill-lvl">LVL ${lvl}</span>
+                ${eloTierBadge(homeEloMap[p.name] || 1000)}
               </div>
-              <div class="holo-stats holo-stats-3">
-                <div class="holo-stat"><div class="holo-stat-v holo-win">${p.winPct.toFixed(0)}%</div><div class="holo-stat-l">WIN %</div></div>
+              <div class="holo-stats holo-stats-5">
+                <div class="holo-stat"><div class="holo-stat-v">${p.mp}</div><div class="holo-stat-l">PLAYED</div></div>
                 <div class="holo-stat"><div class="holo-stat-v holo-win">${p.mw}W–${p.ml}L</div><div class="holo-stat-l">RECORD</div></div>
+                <div class="holo-stat"><div class="holo-stat-v holo-win">${p.winPct.toFixed(0)}%</div><div class="holo-stat-l">WIN %</div></div>
                 <div class="holo-stat"><div class="holo-stat-v">${p.gw}W–${p.gl}L</div><div class="holo-stat-l">GAMES</div></div>
+                <div class="holo-stat"><div class="holo-stat-v">${p.gamePct.toFixed(0)}%</div><div class="holo-stat-l">GAME %</div></div>
               </div>
+              ${mkLvlRow(p.name)}
             </div>
             <div class="holo-gauge holo-gauge-hero">
               ${holoArc(38, p.sr)}
@@ -3354,8 +3358,10 @@ function renderHome() {
             <div class="holo-form-row">
               <span class="holo-form-lbl">FORM</span>
               <div class="holo-form-spark">${sparklineSvg || ""}</div>
+              ${last5DotsHtml}
               <div class="holo-form-delta">${eldHtml || ""}</div>
             </div>
+            ${badgePillsHtml ? `<div class="holo-badge-row">${badgePillsHtml}</div>` : ""}
           </div>
         </div>`;
       }
@@ -3365,23 +3371,28 @@ function renderHome() {
           <div class="holo-rank-circle" style="--rc:${rankCol}">${i + 1}</div>
           <div class="holo-info">
             <div class="holo-name-row">
+              ${photoMap[p.name] ? `<div class="holo-av-mini" style="background-image:url(${photoMap[p.name]});background-size:cover;background-position:center"></div>` : `<div class="holo-av-mini" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>`}
               <span class="holo-name-sm">${p.name}</span>
               <span class="holo-pill holo-pill-lvl-sm">LVL ${lvl}</span>
+              ${eloTierBadge(homeEloMap[p.name] || 1000)}
             </div>
-            <div class="holo-stats holo-stats-4">
-              <div class="holo-stat-sm"><div class="holo-stat-v-sm holo-win">${p.winPct.toFixed(0)}%</div><div class="holo-stat-l-sm">WIN %</div></div>
+            <div class="holo-stats holo-stats-5">
+              <div class="holo-stat-sm"><div class="holo-stat-v-sm">${p.mp}</div><div class="holo-stat-l-sm">PLAYED</div></div>
               <div class="holo-stat-sm"><div class="holo-stat-v-sm holo-win">${p.mw}W–${p.ml}L</div><div class="holo-stat-l-sm">RECORD</div></div>
+              <div class="holo-stat-sm"><div class="holo-stat-v-sm holo-win">${p.winPct.toFixed(0)}%</div><div class="holo-stat-l-sm">WIN %</div></div>
               <div class="holo-stat-sm"><div class="holo-stat-v-sm">${p.gw}W–${p.gl}L</div><div class="holo-stat-l-sm">GAMES</div></div>
-              <div class="holo-stat-sm"><div class="holo-stat-v-sm">${p.gamePct.toFixed(0)}%</div><div class="holo-stat-l-sm">CS %</div></div>
+              <div class="holo-stat-sm"><div class="holo-stat-v-sm">${p.gamePct.toFixed(0)}%</div><div class="holo-stat-l-sm">GAME %</div></div>
             </div>
+            ${mkLvlRow(p.name)}
+            ${sparklineSvg || last5DotsHtml || eldHtml ? `<div class="holo-form-row-compact"><span class="holo-form-lbl">FORM</span><div class="holo-form-spark">${sparklineSvg || ""}</div>${last5DotsHtml}<div class="holo-form-delta">${eldHtml || ""}</div></div>` : ""}
           </div>
           <div class="holo-gauge-wrap-sm">
             <div class="holo-gauge holo-gauge-sm">
               ${holoArc(26, p.sr)}
               <div class="holo-gauge-val holo-gauge-val-sm" data-final="${p.sr.toFixed(2)}">0.00</div>
             </div>
-            <div class="holo-delta-sm">${eldHtml || ""}</div>
           </div>
+          ${badgePillsHtml ? `<div class="holo-badge-row">${badgePillsHtml}</div>` : ""}
         </div>
       </div>`;
     }
