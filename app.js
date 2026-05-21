@@ -1346,7 +1346,7 @@ function applyMngOrder() {
 }
 
 function toggleMngCard(header) {
-  const card = header.closest(".mng-card");
+  const card = header.closest(".mng-card, .mng-danger-card");
   if (card) card.classList.toggle("mng-collapsed");
 }
 
