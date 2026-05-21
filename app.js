@@ -14828,9 +14828,9 @@ function openLivePlayerSheet(slot) {
   const taken = Object.entries(_liveSlots)
     .filter(([k, v]) => k !== slot && v)
     .map(([, v]) => v);
-  const players = computeStats(allMatches)
-    .map((p) => p.name)
-    .sort();
+  const players = Object.keys(aliasMap).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
   list.innerHTML = players
     .map((p) => {
       const isTaken = taken.includes(p);
