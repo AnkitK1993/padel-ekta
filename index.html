@@ -403,8 +403,20 @@
     <!-- ══════════ ANALYTICS PAGE ══════════ -->
     <div class="page" id="pg-analytics">
       <div class="page-body-scroll">
-        <div class="nav">
+        <div class="nav" style="position:relative">
           <div class="history-nav-title">STAT<span>ISTICS</span></div>
+          <button class="ana-search-btn" onclick="openAnaSearch()" aria-label="Search sections">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+          </button>
+        </div>
+        <!-- Search overlay -->
+        <div class="ana-search-overlay" id="ana-search-overlay">
+          <div class="ana-search-overlay-bar">
+            <svg class="ana-sov-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            <input class="ana-sov-input" id="ana-sov-input" placeholder="Search sections…" autocomplete="off" spellcheck="false" oninput="anaSearchInput(this.value)" onkeydown="anaSearchKey(event)">
+            <button class="ana-sov-close" onclick="closeAnaSearch()">✕</button>
+          </div>
+          <div class="ana-sov-results" id="ana-sov-results"></div>
         </div>
         <div id="analytics-page-content" style="padding: 0 11px 110px"></div>
       </div>

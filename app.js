@@ -8100,6 +8100,84 @@ function _toggleSynergyMore(btn) {
   btn.textContent = expanded ? `Show ${rows.length} more ▼` : `Show less ▲`;
 }
 
+// ── ANALYTICS SECTION SEARCH ───────────────────────────────
+let _anaSections = [];
+let _anaSearchIdx = -1;
+
+function openAnaSearch() {
+  const overlay = document.getElementById("ana-search-overlay");
+  const input = document.getElementById("ana-sov-input");
+  if (!overlay) return;
+  overlay.classList.add("active");
+  document.getElementById("ana-sov-results").innerHTML = "";
+  _anaSearchIdx = -1;
+  setTimeout(() => input && input.focus(), 60);
+}
+
+function closeAnaSearch() {
+  const overlay = document.getElementById("ana-search-overlay");
+  if (overlay) overlay.classList.remove("active");
+  const input = document.getElementById("ana-sov-input");
+  if (input) input.value = "";
+  document.getElementById("ana-sov-results").innerHTML = "";
+  _anaSearchIdx = -1;
+}
+
+function anaSearchInput(q) {
+  const res = document.getElementById("ana-sov-results");
+  if (!res) return;
+  _anaSearchIdx = -1;
+  const query = (q || "").trim().toLowerCase();
+  if (!query) { res.innerHTML = ""; return; }
+
+  const matches = _anaSections.filter(s =>
+    s.title.toLowerCase().replace(/[^\w\s]/g, "").includes(query) ||
+    s.key.toLowerCase().includes(query)
+  );
+
+  if (!matches.length) {
+    res.innerHTML = `<div class="ana-sov-empty">No sections found</div>`;
+    return;
+  }
+
+  const catLabel = { activity:"Activity", players:"Players", records:"Records", elo:"ELO", rivals:"Rivals" };
+  res.innerHTML = matches.slice(0, 8).map((s, i) =>
+    `<div class="ana-sov-item" data-key="${s.key}" style="animation-delay:${i * 40}ms"
+      onmousedown="anaSearchSelect('${s.key}')">
+      <span class="ana-sov-item-icon">${s.title.match(/^\p{Emoji}/u)?.[0] || "📋"}</span>
+      <span class="ana-sov-item-title">${s.title.replace(/^\p{Emoji}\s*/u, "")}</span>
+      <span class="ana-sov-item-cat">${catLabel[s.cat] || s.cat}</span>
+    </div>`
+  ).join("");
+}
+
+function anaSearchKey(e) {
+  const items = document.querySelectorAll(".ana-sov-item");
+  if (e.key === "Escape") { closeAnaSearch(); return; }
+  if (e.key === "ArrowDown") { _anaSearchIdx = Math.min(_anaSearchIdx + 1, items.length - 1); }
+  else if (e.key === "ArrowUp") { _anaSearchIdx = Math.max(_anaSearchIdx - 1, 0); }
+  else if (e.key === "Enter" && _anaSearchIdx >= 0) {
+    const key = items[_anaSearchIdx]?.dataset.key;
+    if (key) anaSearchSelect(key);
+    return;
+  } else return;
+  items.forEach((el, i) => el.classList.toggle("ana-sov-item-focus", i === _anaSearchIdx));
+  e.preventDefault();
+}
+
+function anaSearchSelect(key) {
+  closeAnaSearch();
+  const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
+  if (!el) return;
+  if (_anaActiveCat !== "all" && el.dataset.cat !== _anaActiveCat) anaFilterCategory("all", true);
+  if (el.classList.contains("collapsed")) toggleAnaSection(key);
+  setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  el.classList.remove("ana-sec-highlight");
+  void el.offsetWidth;
+  el.classList.add("ana-sec-highlight");
+  setTimeout(() => el.classList.remove("ana-sec-highlight"), 1800);
+}
+
 function anaFilterCategory(cat, skipPillUpdate) {
   _anaActiveCat = cat;
   if (!skipPillUpdate) {
@@ -12838,6 +12916,9 @@ function renderAnalyticsPage() {
     )
     .join("")}</div>`;
 
+  // Cache sections for search autocomplete
+  _anaSections = allSecs.map(s => ({ key: s.key, title: s.title, cat: s.cat }));
+
   container.innerHTML =
     filterPillsHtml +
     orderedKeys
@@ -13078,6 +13159,11 @@ Object.assign(window, {
   calcEloWinProb,
   _togglePairForm,
   _toggleSynergyMore,
+  openAnaSearch,
+  closeAnaSearch,
+  anaSearchInput,
+  anaSearchKey,
+  anaSearchSelect,
   anaFilterCategory,
   toggleAnaFav,
   _pillPointerDown,
