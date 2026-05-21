@@ -3207,10 +3207,6 @@ function setCmpSort(key) {
 }
 
 // ── MATCH HISTORY HELPERS ──────────────────────────────────
-function getMatchTag(m) {
-  return null; // tag moved to event strip below score
-}
-
 function isFireMatch(m) {
   return Math.abs(m.scoreA - m.scoreB) <= 1;
 }
@@ -7448,38 +7444,6 @@ function buildH2HMatrixCompact(players) {
     });
   });
 
-  // Build unique 2-char aliases (fall back to 3 if clash)
-  // const usedAliases = new Set();
-  // const aliases = {};
-  // players.forEach((p) => {
-  //   // Strategy 1: first 2 chars
-  //   let alias = p.slice(0, 3).toUpperCase();
-  //   if (!usedAliases.has(alias)) {
-  //     aliases[p] = alias;
-  //     usedAliases.add(alias);
-  //     return;
-  //   }
-  //   // Strategy 2: first char + last char
-  //   alias = (p[0] + p[p.length - 1]).toUpperCase();
-  //   if (!usedAliases.has(alias)) {
-  //     aliases[p] = alias;
-  //     usedAliases.add(alias);
-  //     return;
-  //   }
-  //   // Strategy 3: first 3 chars
-  //   alias = p.slice(0, 3).toUpperCase();
-  //   if (!usedAliases.has(alias)) {
-  //     aliases[p] = alias;
-  //     usedAliases.add(alias);
-  //     return;
-  //   }
-  //   // Fallback: first 2 + index digit
-  //   let i = 1;
-  //   while (usedAliases.has(p.slice(0, 1).toUpperCase() + i)) i++;
-  //   aliases[p] = p.slice(0, 1).toUpperCase() + i;
-  //   usedAliases.add(aliases[p]);
-  // });
-
   const colHeaders = players
     .map(
       (p) =>
@@ -10806,7 +10770,7 @@ function _replayPlay() {
     return;
   }
   if (_replayIdx >= sorted.length) {
-    _replayIdx = 4;
+    _replayIdx = 4; // first tick increments to 5 (slider min)
   }
   if (btn) btn.textContent = "⏸ PAUSE";
   _replayTimer = setInterval(() => {
@@ -10827,7 +10791,6 @@ function _replayReset() {
   }
   const btn = document.getElementById("replay-play-btn");
   if (btn) btn.textContent = "▶ PLAY";
-  const sorted = allMatches.sort ? allMatches : [];
   _replayUpdate(5);
 }
 
@@ -13254,48 +13217,6 @@ function setHistoryDateFilter(value) {
   filterMatchTab(value || "all");
 }
 
-function isMatchWithinDateFilter(match, filterValue) {
-  if (!filterValue || filterValue === "all") return true;
-
-  const now = new Date();
-  const matchDate = new Date(match.date || match.createdAt || Date.now());
-
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  );
-
-  if (filterValue === "today") {
-    return matchDate >= startOfToday;
-  }
-
-  if (filterValue === "week") {
-    const weekAgo = new Date();
-    weekAgo.setDate(now.getDate() - 7);
-    return matchDate >= weekAgo;
-  }
-
-  if (filterValue === "weekend") {
-    const day = matchDate.getDay();
-    return day === 0 || day === 6;
-  }
-
-  if (filterValue === "month") {
-    return (
-      matchDate.getMonth() === now.getMonth() &&
-      matchDate.getFullYear() === now.getFullYear()
-    );
-  }
-
-  if (filterValue === "lastweek") {
-    const lwr = lastWeekRange();
-    return match.date >= lwr.from && match.date <= lwr.to;
-  }
-
-  return true;
-}
-
 // ── LIVE SCORING MODE ──────────────────────────────────────
 let _liveScoreA = 0,
   _liveScoreB = 0;
@@ -13406,10 +13327,29 @@ function _updateLiveDisplay() {
 }
 
 function liveAdjustScore(team, delta) {
-  if (team === "a") _liveScoreA = Math.max(0, _liveScoreA + delta);
-  else _liveScoreB = Math.max(0, _liveScoreB + delta);
-  if (delta > 0) _livePoints.push({ team, a: _liveScoreA, b: _liveScoreB });
-  else if (_livePoints.length) _livePoints.pop();
+  const cur = team === "a" ? _liveScoreA : _liveScoreB;
+  const next = Math.max(0, cur + delta);
+  const actualDelta = next - cur;
+  if (team === "a") _liveScoreA = next;
+  else _liveScoreB = next;
+  if (actualDelta > 0) {
+    _livePoints.push({ team, a: _liveScoreA, b: _liveScoreB });
+  } else if (actualDelta < 0) {
+    for (let i = _livePoints.length - 1; i >= 0; i--) {
+      if (_livePoints[i].team === team) {
+        _livePoints.splice(i, 1);
+        break;
+      }
+    }
+    let cA = 0,
+      cB = 0;
+    _livePoints.forEach((p) => {
+      if (p.team === "a") cA++;
+      else cB++;
+      p.a = cA;
+      p.b = cB;
+    });
+  }
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveMomentum();
@@ -13533,7 +13473,7 @@ function endLiveMatch() {
     scoreB: _liveScoreB,
     date,
   };
-  if (notes) match.notes = escHtml(notes);
+  if (notes) match.note = notes;
   allMatches.push(match);
   saveCloudData();
   renderHome();
