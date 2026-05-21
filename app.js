@@ -11108,7 +11108,7 @@ function renderAnalyticsPage() {
         <circle cx="11" cy="11" r="7.5"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>
       </svg>
       <input type="text" id="ana-search-input" class="ana-search-input"
-        placeholder="SEARCH SECTIONS OR PLAYERS"
+        placeholder="Search sections or players"
         oninput="anaSearchInput(this.value)"
         onblur="setTimeout(anaSearchClose, 160)"
         autocomplete="off" spellcheck="false">
