@@ -7195,14 +7195,14 @@ table.cmp {
 }
 
 table.cmp thead tr {
-  background: #0c1020 !important;
+  background: transparent !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
   position: relative !important;
   z-index: 2 !important;
 }
 
 table.cmp thead th {
-  background: #0c1020 !important;
+  background: transparent !important;
   color: rgba(255, 255, 255, 0.7) !important;
 
   font-size: 9px !important;
@@ -7214,7 +7214,7 @@ table.cmp thead th {
 }
 
 table.cmp thead th:last-child {
-  box-shadow: 9999px 0 0 0 #0c1020;
+  box-shadow: none;
 }
 
 table.cmp tbody tr {
@@ -15694,7 +15694,7 @@ body.royal-gold-mode .cmp th {
   border-bottom: 1px solid rgba(251, 191, 36, 0.22) !important;
 }
 body.royal-gold-mode table.cmp thead th:last-child {
-  box-shadow: 9999px 0 0 0 #110d00 !important;
+  box-shadow: none !important;
 }
 body.royal-gold-mode .cmp td {
   border-bottom: 1px solid rgba(251, 191, 36, 0.07) !important;
@@ -15807,7 +15807,7 @@ body.midnight-oled-mode .cmp th {
   border-bottom: 1px solid rgba(0, 200, 255, 0.18) !important;
 }
 body.midnight-oled-mode table.cmp thead th:last-child {
-  box-shadow: 9999px 0 0 0 #050505 !important;
+  box-shadow: none !important;
 }
 body.midnight-oled-mode .cmp td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
