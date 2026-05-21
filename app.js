@@ -1307,7 +1307,7 @@ function switchITab(id) {
         el.style.animation = "";
       });
     // Make cards collapsible; start collapsed on first visit
-    document.querySelectorAll("#mng-cards-container .mng-card").forEach(card => {
+    document.querySelectorAll("#ip-manage .mng-card, #ip-manage .mng-danger-card").forEach(card => {
       const header = card.querySelector(".mng-card-header");
       if (header && !header.dataset.collapseInit) {
         header.dataset.collapseInit = "1";

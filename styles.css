@@ -2326,13 +2326,16 @@ textarea:focus {
   margin-left: auto;
   transition: transform 0.2s;
 }
-.mng-card.mng-collapsed .mng-card-header {
+.mng-card.mng-collapsed .mng-card-header,
+.mng-danger-card.mng-collapsed .mng-card-header {
   margin-bottom: 0;
 }
-.mng-card.mng-collapsed .mng-card-header::after {
+.mng-card.mng-collapsed .mng-card-header::after,
+.mng-danger-card.mng-collapsed .mng-card-header::after {
   transform: rotate(-90deg);
 }
-.mng-card.mng-collapsed > *:not(.mng-card-header) {
+.mng-card.mng-collapsed > *:not(.mng-card-header),
+.mng-danger-card.mng-collapsed > *:not(.mng-card-header) {
   display: none !important;
 }
 .mng-card-icon {
