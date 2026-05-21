@@ -1110,8 +1110,10 @@ function switchMainTab(id, skipAnim = false) {
     const htf = document.getElementById("histTagFilter");
     if (htf) htf.value = histMarginFilter;
   }
-  if (id === "analytics") renderAnalyticsPage();
-  setTimeout(applyAnalyticsAnimations, 0);
+  if (id === "analytics") {
+    renderAnalyticsPage();
+    setTimeout(applyAnalyticsAnimations, 0);
+  }
   if (id === "add") {
     refreshManage();
     renderAddMatches();
@@ -12946,6 +12948,20 @@ function renderAnalyticsPage() {
       if (hdr) hdr.classList.remove("ana-sec-hovered");
     });
   }
+}
+
+// Cascade-in: top-level sections animate sequentially on tab entry
+function applyAnalyticsAnimations() {
+  const container = document.getElementById("analytics-page-content");
+  if (!container) return;
+  const sections = container.querySelectorAll(".ana-sec");
+  sections.forEach((sec, i) => {
+    sec.classList.remove("ana-cascade-in");
+    // force reflow so the animation restarts on repeat visits
+    void sec.offsetWidth;
+    sec.style.animationDelay = `${i * 65}ms`;
+    sec.classList.add("ana-cascade-in");
+  });
 }
 
 // Keep showAnalytics as alias for backward compat

@@ -12795,3 +12795,19 @@ select:focus,
   text-shadow: none !important;
   text-transform: uppercase !important;
 }
+
+/* ── STATISTICS page cascade-in (triggered on tab entry) ── */
+@keyframes anaCascadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.ana-sec.ana-cascade-in {
+  opacity: 0;
+  animation: anaCascadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
