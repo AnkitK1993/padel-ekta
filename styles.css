@@ -1776,7 +1776,7 @@ table.cmp {
   );
 }
 table.cmp thead tr {
-  background: var(--surface2);
+  background: transparent;
   border-bottom: 2px solid var(--border);
 }
 table.cmp thead th {
