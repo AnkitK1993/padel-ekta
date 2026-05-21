@@ -12416,3 +12416,289 @@ select:focus,
     rgba(200, 100, 30, 0.10) 45%,
     transparent 70%) !important;
 }
+
+/* ── HISTORY — premium match cards ──────────────────────────────────────── */
+
+/* Base card: sharp dark-glass look, clean border */
+.match-card {
+  border: 1px solid rgba(var(--theme-rgb), 0.18) !important;
+  border-radius: 18px !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.42),
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.22s ease,
+    border-color 0.2s ease !important;
+  margin-bottom: 10px !important;
+}
+
+/* Inner: carries the gradient + left accent inset shadow */
+.match-card-inner {
+  background: linear-gradient(
+    150deg,
+    rgba(10, 12, 24, 0.98) 0%,
+    rgba(14, 16, 30, 0.96) 45%,
+    rgba(10, 11, 22, 0.98) 100%
+  ) !important;
+  border-radius: 18px !important;
+  box-shadow: inset 3px 0 0 rgba(var(--theme-rgb), 0.42) !important;
+  padding: 14px 14px 12px !important;
+}
+
+/* Top edge shimmer on all cards */
+.match-card::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  height: 1px !important;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--theme-rgb), 0.55) 0%,
+    rgba(var(--theme-rgb), 0.15) 50%,
+    transparent 100%
+  ) !important;
+  animation: none !important;
+  z-index: 2 !important;
+}
+
+/* Hover: spring lift */
+.match-card:hover {
+  transform: translateY(-5px) scale(1.008) !important;
+  border-color: rgba(var(--theme-rgb), 0.36) !important;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.52),
+    0 4px 10px rgba(0, 0, 0, 0.35),
+    0 0 26px rgba(var(--theme-rgb), 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ── Fire card ── */
+.match-card.fire-card {
+  border-color: rgba(255, 170, 20, 0.52) !important;
+  box-shadow:
+    0 8px 26px rgba(0, 0, 0, 0.44),
+    0 0 32px rgba(255, 179, 0, 0.13),
+    inset 0 1px 0 rgba(255, 220, 80, 0.05) !important;
+}
+.match-card.fire-card .match-card-inner {
+  background: linear-gradient(
+    150deg,
+    rgba(22, 13, 2, 0.99) 0%,
+    rgba(16, 11, 4, 0.97) 45%,
+    rgba(10, 10, 20, 0.98) 100%
+  ) !important;
+  box-shadow: inset 3px 0 0 rgba(255, 170, 20, 0.7) !important;
+}
+.match-card.fire-card::before {
+  height: 2px !important;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 175, 0, 0.95) 0%,
+    rgba(255, 225, 60, 0.5) 45%,
+    transparent 100%
+  ) !important;
+  animation: shimmer 2.6s ease-in-out infinite !important;
+}
+
+/* ── Dominate card ── */
+.match-card.dominate-card {
+  border-color: rgba(190, 95, 255, 0.5) !important;
+  box-shadow:
+    0 8px 26px rgba(0, 0, 0, 0.44),
+    0 0 32px rgba(200, 120, 255, 0.13),
+    inset 0 1px 0 rgba(220, 155, 255, 0.05) !important;
+}
+.match-card.dominate-card .match-card-inner {
+  background: linear-gradient(
+    150deg,
+    rgba(16, 6, 26, 0.99) 0%,
+    rgba(12, 8, 22, 0.97) 45%,
+    rgba(10, 10, 22, 0.98) 100%
+  ) !important;
+  box-shadow: inset 3px 0 0 rgba(190, 95, 255, 0.65) !important;
+}
+.match-card.dominate-card::before {
+  height: 2px !important;
+  background: linear-gradient(
+    90deg,
+    rgba(200, 120, 255, 0.95) 0%,
+    rgba(180, 80, 255, 0.4) 45%,
+    transparent 100%
+  ) !important;
+  animation: shimmer 2.6s ease-in-out infinite !important;
+}
+
+/* ── Zero card ── */
+.match-card.zero-card {
+  border-color: rgba(255, 75, 75, 0.52) !important;
+  box-shadow:
+    0 8px 26px rgba(0, 0, 0, 0.44),
+    0 0 32px rgba(255, 79, 79, 0.13),
+    inset 0 1px 0 rgba(255, 130, 130, 0.05) !important;
+}
+.match-card.zero-card .match-card-inner {
+  background: linear-gradient(
+    150deg,
+    rgba(22, 4, 4, 0.99) 0%,
+    rgba(16, 6, 6, 0.97) 45%,
+    rgba(10, 10, 20, 0.98) 100%
+  ) !important;
+  box-shadow: inset 3px 0 0 rgba(255, 75, 75, 0.68) !important;
+}
+.match-card.zero-card::before {
+  height: 2px !important;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 79, 79, 0.95) 0%,
+    rgba(255, 130, 130, 0.4) 45%,
+    transparent 100%
+  ) !important;
+  animation: shimmer 2.6s ease-in-out infinite !important;
+}
+
+/* ── Score display ── */
+.team-score {
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 36px !important;
+  letter-spacing: 0.04em !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  margin-top: 4px !important;
+  line-height: 1 !important;
+}
+.team-score.win {
+  color: #00e676 !important;
+  text-shadow:
+    0 0 18px rgba(0, 230, 118, 0.5),
+    0 0 6px rgba(0, 230, 118, 0.35) !important;
+}
+
+/* ── VS separator ── */
+.vs-text {
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 16px !important;
+  letter-spacing: 0.12em !important;
+  color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* ── Player names ── */
+.team-p1,
+.team-p2 {
+  font-size: 12px !important;
+  letter-spacing: 0.05em !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-weight: 700 !important;
+}
+.team-p1.winner,
+.team-p2.winner {
+  color: #00e676 !important;
+  text-shadow: 0 0 8px rgba(0, 230, 118, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+/* ── Date & gap tag ── */
+.match-date {
+  font-size: 10px !important;
+  color: rgba(255, 255, 255, 0.38) !important;
+  letter-spacing: 0.03em !important;
+}
+.match-tag {
+  background: rgba(var(--theme-rgb), 0.1) !important;
+  border: 1px solid rgba(var(--theme-rgb), 0.22) !important;
+  color: var(--accent) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 3px 9px !important;
+  border-radius: 20px !important;
+}
+
+/* ── ELO delta pills ── */
+.elo-delta-pill {
+  padding: 3px 8px !important;
+  border-radius: 8px !important;
+  font-size: 10px !important;
+  gap: 4px !important;
+}
+.elo-delta-pill.elo-gain {
+  background: rgba(0, 230, 118, 0.12) !important;
+  border: 1px solid rgba(0, 230, 118, 0.3) !important;
+  color: #00e676 !important;
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.1) !important;
+}
+.elo-delta-pill.elo-loss {
+  background: rgba(255, 82, 82, 0.12) !important;
+  border: 1px solid rgba(255, 82, 82, 0.3) !important;
+  color: #ff5252 !important;
+  box-shadow: 0 0 8px rgba(255, 82, 82, 0.1) !important;
+}
+.elo-pname {
+  color: rgba(255, 255, 255, 0.38) !important;
+}
+
+/* ── Event badges ── */
+.event-badge {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  padding: 5px 13px !important;
+  border-radius: 20px !important;
+  letter-spacing: 0.06em !important;
+}
+.event-badge.fire {
+  background: rgba(255, 149, 0, 0.16) !important;
+  border: 1.5px solid rgba(255, 149, 0, 0.52) !important;
+  color: #ff9500 !important;
+  text-shadow: 0 0 10px rgba(255, 149, 0, 0.55) !important;
+  box-shadow: 0 0 14px rgba(255, 149, 0, 0.1) !important;
+}
+.event-badge.dominate {
+  background: rgba(180, 80, 255, 0.14) !important;
+  border: 1.5px solid rgba(180, 80, 255, 0.48) !important;
+  color: #c87cff !important;
+  text-shadow: 0 0 10px rgba(180, 80, 255, 0.5) !important;
+  box-shadow: 0 0 14px rgba(180, 80, 255, 0.1) !important;
+}
+.event-badge.zero {
+  background: rgba(255, 79, 79, 0.14) !important;
+  border: 1.5px solid rgba(255, 79, 79, 0.48) !important;
+  color: #ff4f4f !important;
+  text-shadow: 0 0 10px rgba(255, 79, 79, 0.5) !important;
+  box-shadow: 0 0 14px rgba(255, 79, 79, 0.1) !important;
+}
+
+/* ── Match note ── */
+.match-note {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-left: 2px solid rgba(var(--theme-rgb), 0.45) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  border-radius: 0 8px 8px 0 !important;
+  font-size: 11px !important;
+}
+
+/* ── Action buttons ── */
+.action-btn {
+  border-radius: 10px !important;
+  font-size: 11px !important;
+  padding: 7px 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+}
+.edit-btn {
+  background: rgba(var(--theme-rgb), 0.13) !important;
+  border: 1px solid rgba(var(--theme-rgb), 0.28) !important;
+  color: var(--accent) !important;
+}
+.delete-btn {
+  background: rgba(255, 103, 103, 0.1) !important;
+  border: 1px solid rgba(240, 80, 80, 0.26) !important;
+}
+.rematch-btn {
+  background: rgba(255, 200, 0, 0.1) !important;
+  border: 1px solid rgba(255, 200, 0, 0.26) !important;
+  color: #ffc800 !important;
+}
+.share-match-btn {
+  background: rgba(0, 200, 140, 0.1) !important;
+  border: 1px solid rgba(0, 200, 140, 0.26) !important;
+  color: #00c88c !important;
+}
