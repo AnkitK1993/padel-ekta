@@ -13200,6 +13200,84 @@ select:focus,
   margin-bottom: 4px;
 }
 
+/* ── STREAK CALENDAR (GitHub-style activity heatmap) ── */
+.sc-card { padding: 12px 14px; }
+.sc-stats {
+  font-size: 10px;
+  color: var(--muted);
+  margin: 6px 0 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.sc-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+.sc-monthrow {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  margin-bottom: 4px;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.sc-mlbl {
+  width: 11px;
+  min-width: 11px;
+  text-align: left;
+  line-height: 1;
+}
+.sc-grid {
+  display: flex;
+  gap: 2px;
+}
+.sc-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sc-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: default;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+.sc-cell.sc-future { visibility: hidden; }
+.sc-cell.sc-b0 { background: rgba(255, 255, 255, 0.04); }
+.sc-cell.sc-b1 { background: rgba(var(--theme-rgb), 0.25); }
+.sc-cell.sc-b2 { background: rgba(var(--theme-rgb), 0.5); }
+.sc-cell.sc-b3 { background: rgba(var(--theme-rgb), 0.75); }
+.sc-cell.sc-b4 {
+  background: var(--theme);
+  box-shadow: 0 0 4px rgba(var(--theme-rgb), 0.6);
+}
+.sc-cell[onclick] {
+  cursor: pointer;
+}
+.sc-cell[onclick]:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px rgba(var(--theme-rgb), 0.85);
+}
+.sc-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 9px;
+  color: var(--muted);
+  justify-content: flex-end;
+  letter-spacing: 0.08em;
+}
+.sc-legend .sc-cell {
+  width: 9px;
+  height: 9px;
+}
+
 /* ── Story Feed filter chips ── */
 .story-chips {
   display: flex;

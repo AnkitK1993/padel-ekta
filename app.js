@@ -5314,6 +5314,142 @@ function saveModernMatch() {
   renderCompact();
 }
 
+function _buildStreakCalendarHtml(name) {
+  if (!name) return "";
+  // Count matches per day for this player over the last 52 weeks
+  const playerMatches = allMatches.filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
+  );
+  const dayCount = {};
+  const dayMatches = {};
+  playerMatches.forEach((m) => {
+    if (!m.date) return;
+    dayCount[m.date] = (dayCount[m.date] || 0) + 1;
+    (dayMatches[m.date] = dayMatches[m.date] || []).push(m);
+  });
+  if (!Object.keys(dayCount).length) return "";
+
+  // Last 52 weeks ending today, but align end column to current week (Sunday)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(today);
+  endOfWeek.setDate(today.getDate() + (6 - today.getDay())); // upcoming Saturday
+  const startOfWeek = new Date(endOfWeek);
+  startOfWeek.setDate(endOfWeek.getDate() - 52 * 7 + 1);
+
+  const monthLabels = [
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+  ];
+
+  // Build columns (weeks) × rows (Sun=0..Sat=6)
+  const cols = [];
+  let cur = new Date(startOfWeek);
+  cur.setDate(cur.getDate() - cur.getDay()); // align to Sunday
+  let maxCount = 1;
+  Object.values(dayCount).forEach((c) => {
+    if (c > maxCount) maxCount = c;
+  });
+  while (cur <= endOfWeek) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const iso = cur.toISOString().slice(0, 10);
+      const isFuture = cur > today;
+      week.push({
+        iso,
+        count: dayCount[iso] || 0,
+        isFuture,
+        month: cur.getMonth(),
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+    cols.push(week);
+  }
+
+  // Intensity bucket: 0, 1, 2-3, 4+
+  const bucket = (n) =>
+    n === 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : n <= 5 ? 3 : 4;
+
+  // Build SVG-like div grid
+  let lastMonth = -1;
+  const monthHeader = cols
+    .map((col, i) => {
+      const firstDay = col.find((d) => !d.isFuture && d.iso);
+      if (!firstDay) return `<div class="sc-mlbl"></div>`;
+      const m = firstDay.month;
+      if (m !== lastMonth && col[0].iso.endsWith("-01")) {
+        lastMonth = m;
+        return `<div class="sc-mlbl">${monthLabels[m]}</div>`;
+      }
+      // Also show label at first week of new month
+      if (
+        i > 0 &&
+        cols[i - 1].some((d) => d.month !== m) &&
+        col.some((d) => d.month === m && parseInt(d.iso.slice(8), 10) <= 7)
+      ) {
+        if (m !== lastMonth) {
+          lastMonth = m;
+          return `<div class="sc-mlbl">${monthLabels[m]}</div>`;
+        }
+      }
+      return `<div class="sc-mlbl"></div>`;
+    })
+    .join("");
+
+  const colsHtml = cols
+    .map((col) => {
+      const cells = col
+        .map((d) => {
+          if (d.isFuture)
+            return `<div class="sc-cell sc-future" title=""></div>`;
+          const b = bucket(d.count);
+          const ttl = d.count
+            ? `${d.iso} · ${d.count} match${d.count > 1 ? "es" : ""}`
+            : d.iso;
+          const click = d.count
+            ? `onclick="streakCalDayClick('${d.iso}', '${name.replace(/'/g, "\\'")}')"`
+            : "";
+          return `<div class="sc-cell sc-b${b}" title="${ttl}" ${click}></div>`;
+        })
+        .join("");
+      return `<div class="sc-col">${cells}</div>`;
+    })
+    .join("");
+
+  const total = Object.values(dayCount).reduce((s, c) => s + c, 0);
+  const activeDays = Object.keys(dayCount).length;
+  const legend = `<div class="sc-legend">
+    <span>Less</span>
+    ${[0, 1, 2, 3, 4].map((b) => `<div class="sc-cell sc-b${b}"></div>`).join("")}
+    <span>More</span>
+  </div>`;
+
+  return `<div class="ana-card sc-card">
+    <span class="badge">Activity Calendar — last 52 weeks</span>
+    <div class="sc-stats">${total} matches · ${activeDays} active days</div>
+    <div class="sc-scroll">
+      <div class="sc-monthrow">${monthHeader}</div>
+      <div class="sc-grid">${colsHtml}</div>
+    </div>
+    ${legend}
+  </div>`;
+}
+
+function streakCalDayClick(date, playerName) {
+  const dayMatches = allMatches.filter(
+    (m) =>
+      m.date === date &&
+      [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
+  );
+  if (!dayMatches.length) return;
+  // Find first match index in allMatches
+  const idx = allMatches.indexOf(dayMatches[0]);
+  if (idx >= 0) {
+    document.getElementById("player-detail-modal")?.remove();
+    openMatchIntro(idx);
+  }
+}
+
 function openPlayerDetail(name) {
   document.getElementById("player-detail-modal")?.remove();
   const detail = getPlayerDetail(name);
@@ -5774,6 +5910,9 @@ function openPlayerDetail(name) {
     ? `<div class="ana-card"><span class="badge">Award Badges</span><div class="badge-chips" style="margin-top:10px">${badges.map((b) => `<div class="badge-chip${b.tier ? " badge-tier-" + b.tier : ""}" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span>${b.tier ? `<span class="badge-tier-lbl">${b.tier.toUpperCase()}</span>` : ""}</div>`).join("")}</div></div>`
     : "";
 
+  // Streak Calendar — last 52 weeks
+  const streakCalendarHtml = _buildStreakCalendarHtml(name);
+
   // Clutch stats
   const playerMatchesForClutch = allMatches.filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].includes(name),
@@ -6117,6 +6256,8 @@ function openPlayerDetail(name) {
                 ${clutchHtml}
 
                 ${achievementsHtml}
+
+                ${streakCalendarHtml}
 
                 ${badgesHtml}
 
@@ -13909,6 +14050,7 @@ Object.assign(window, {
   closeThemePicker,
   pickTheme,
   fireConfetti,
+  streakCalDayClick,
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,
