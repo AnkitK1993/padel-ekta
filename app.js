@@ -10696,104 +10696,291 @@ function _buildSeasonModeHtml() {
   return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${cards}</div>`;
 }
 
+const _REPLAY_MIN = 5;
+const _REPLAY_BASE_MS = 400;
 let _replayIdx = 0,
-  _replayTimer = null;
+  _replayTimer = null,
+  _replaySpeed = 1,
+  _replayLoop = false,
+  _replayReverse = false,
+  _replaySpotlight = "",
+  _replayPrevElos = {},
+  _replayPrevRanks = {};
 
-function _buildLeaderboardReplayHtml() {
-  const sorted = [...allMatches].sort((a, b) =>
+function _replaySorted() {
+  return [...allMatches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
-  if (sorted.length < 5)
+}
+
+function _replayComputeMilestones(sorted) {
+  const ms = [];
+  for (let i = 25; i < sorted.length; i += 25)
+    ms.push({ idx: i, label: `Match ${i}` });
+  let big = null;
+  sorted.forEach((m, i) => {
+    const diff = Math.abs(m.scoreA - m.scoreB);
+    if (diff >= 5 && (!big || diff > big.diff))
+      big = { idx: i + 1, diff, label: `Blowout ${m.scoreA}-${m.scoreB}` };
+  });
+  if (big) ms.push(big);
+  return ms;
+}
+
+function _buildLeaderboardReplayHtml() {
+  const sorted = _replaySorted();
+  if (sorted.length < _REPLAY_MIN)
     return '<div class="sub" style="padding:8px">Need at least 5 matches for replay.</div>';
   _replayIdx = sorted.length;
-  return `<div class="ana-card" style="padding:12px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-      <button onclick="_replayPlay()" id="replay-play-btn" style="padding:5px 14px;border-radius:20px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.1);color:var(--theme);font-size:11px;font-weight:700;cursor:pointer">▶ PLAY</button>
-      <button onclick="_replayReset()" style="padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer">↺ RESET</button>
-      <div style="flex:1;font-size:10px;color:var(--muted)" id="replay-label">Match ${sorted.length} of ${sorted.length}</div>
+  _replayPrevElos = {};
+  _replayPrevRanks = {};
+  const milestones = _replayComputeMilestones(sorted);
+  const range = sorted.length - _REPLAY_MIN || 1;
+  const milestoneDots = milestones
+    .map((m) => {
+      const pct = ((m.idx - _REPLAY_MIN) / range) * 100;
+      return `<div class="lr-milestone" style="left:${pct}%" title="${escHtml(m.label)}"></div>`;
+    })
+    .join("");
+  const uniqDates = [...new Set(sorted.map((m) => m.date).filter(Boolean))].sort();
+  const dateOpts =
+    '<option value="">— Jump to date —</option>' +
+    uniqDates.map((d) => `<option value="${d}">${d}</option>`).join("");
+  const topPlayers = computeStats(sorted, computeElo(sorted)).slice(0, 8);
+  const spotlightOpts =
+    '<option value="">No spotlight</option>' +
+    topPlayers
+      .map(
+        (p) =>
+          `<option value="${escHtml(p.name)}"${p.name === _replaySpotlight ? " selected" : ""}>${escHtml(p.name)}</option>`,
+      )
+      .join("");
+  return `<div class="ana-card lr-card" style="padding:12px">
+    <div class="lr-controls">
+      <button class="lr-btn" title="-10 matches" onclick="_replayStep(-10)">⏮</button>
+      <button class="lr-btn" title="-1 match" onclick="_replayStep(-1)">◀</button>
+      <button class="lr-btn lr-btn-play" id="replay-play-btn" onclick="_replayPlay()">▶</button>
+      <button class="lr-btn" title="+1 match" onclick="_replayStep(1)">▶</button>
+      <button class="lr-btn" title="+10 matches" onclick="_replayStep(10)">⏭</button>
+      <button class="lr-btn lr-reset-btn" title="Reset" onclick="_replayReset()">↺</button>
     </div>
-    <input type="range" id="replay-slider" min="5" max="${sorted.length}" value="${sorted.length}" step="1" style="width:100%;accent-color:var(--theme);margin-bottom:10px" oninput="_replayUpdate(this.value)">
-    <div id="replay-board" style="display:flex;flex-direction:column;gap:4px"></div>
+    <div class="lr-toggles">
+      <div class="lr-speed-group">
+        ${[0.5, 1, 2, 4]
+          .map(
+            (s) =>
+              `<button class="lr-speed-pill${_replaySpeed === s ? " active" : ""}" onclick="_replaySetSpeed(${s})">${s}x</button>`,
+          )
+          .join("")}
+      </div>
+      <button class="lr-toggle lr-toggle-loop${_replayLoop ? " active" : ""}" onclick="_replayToggleLoop()" title="Loop">↻</button>
+      <button class="lr-toggle lr-toggle-rev${_replayReverse ? " active" : ""}" onclick="_replayToggleReverse()" title="Reverse">⇄</button>
+    </div>
+    <div class="lr-slider-wrap">
+      <div class="lr-milestones">${milestoneDots}</div>
+      <input type="range" id="replay-slider" min="${_REPLAY_MIN}" max="${sorted.length}" value="${sorted.length}" step="1" oninput="_replayUpdate(this.value)">
+    </div>
+    <div class="lr-jumps">
+      <input type="number" id="replay-jump-num" min="${_REPLAY_MIN}" max="${sorted.length}" placeholder="Match #" onchange="_replayJumpToMatch(this.value)">
+      <select id="replay-jump-date" onchange="_replayJumpToDate(this.value)">${dateOpts}</select>
+      <select id="replay-spotlight" onchange="_replaySetSpotlight(this.value)">${spotlightOpts}</select>
+    </div>
+    <div class="lr-caption" id="replay-caption"></div>
+    <div id="replay-board" class="lr-board"></div>
   </div>`;
 }
 
 function _replayUpdate(idx) {
-  _replayIdx = parseInt(idx);
-  const sorted = [...allMatches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
+  const sorted = _replaySorted();
+  _replayIdx = Math.max(
+    _REPLAY_MIN,
+    Math.min(parseInt(idx, 10) || _REPLAY_MIN, sorted.length),
   );
   const slice = sorted.slice(0, _replayIdx);
   const eloMap = computeElo(slice);
   const stats = computeStats(slice, eloMap).slice(0, 8);
   const maxElo = Math.max(...stats.map((s) => eloMap[s.name] || 1000), 1000);
   const board = document.getElementById("replay-board");
-  const lbl = document.getElementById("replay-label");
   const slider = document.getElementById("replay-slider");
-  if (lbl)
-    lbl.textContent = `Match ${_replayIdx} of ${sorted.length} · ${sorted[_replayIdx - 1]?.date || ""}`;
+  const caption = document.getElementById("replay-caption");
   if (slider) slider.value = _replayIdx;
-  if (board)
-    board.innerHTML = stats
-      .map((p, i) => {
-        const elo = eloMap[p.name] || 1000;
-        const barW = Math.round((elo / maxElo) * 100);
-        const col =
-          i === 0
-            ? "var(--gold)"
-            : i === 1
-              ? "var(--theme)"
-              : i === 2
-                ? "var(--green)"
-                : "var(--accent)";
-        return `<div style="display:flex;align-items:center;gap:6px">
-      <div style="font-size:10px;font-weight:800;color:${col};width:18px">#${i + 1}</div>
-      <div style="width:26px;height:26px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:10px;font-weight:700;margin-bottom:2px">${p.name}</div>
-        <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden">
-          <div style="height:100%;width:${barW}%;background:${col};border-radius:3px;transition:width 0.3s ease"></div>
+  const m = sorted[_replayIdx - 1];
+  if (caption && m) {
+    const aWon = m.scoreA > m.scoreB;
+    const winners = aWon ? m.teamA : m.teamB;
+    const losers = aWon ? m.teamB : m.teamA;
+    const ws = Math.max(m.scoreA, m.scoreB);
+    const ls = Math.min(m.scoreA, m.scoreB);
+    const prevElos = computeElo(sorted.slice(0, _replayIdx - 1));
+    const winnerName = winners[0];
+    const eloDelta =
+      (eloMap[winnerName] || 1000) - (prevElos[winnerName] || 1000);
+    const sign = eloDelta >= 0 ? "+" : "";
+    caption.innerHTML = `<span class="lr-cap-num">Match ${_replayIdx}/${sorted.length}</span>
+      <span class="lr-cap-date">${m.date || ""}</span>
+      <span class="lr-cap-result">${winners.join(" & ")} <span class="lr-cap-def">def.</span> ${losers.join(" & ")} <b>${ws}-${ls}</b></span>
+      <span class="lr-cap-elo" style="color:${eloDelta >= 0 ? "var(--green)" : "var(--red)"}">${winnerName} ${sign}${eloDelta} ELO</span>`;
+  }
+  if (!board) return;
+  board.innerHTML = stats
+    .map((p, i) => {
+      const elo = eloMap[p.name] || 1000;
+      const barW = Math.round((elo / maxElo) * 100);
+      const isSpot = _replaySpotlight && p.name === _replaySpotlight;
+      const dim = _replaySpotlight && !isSpot ? " lr-dim" : "";
+      const fat = isSpot ? " lr-fat" : "";
+      const col =
+        i === 0
+          ? "var(--gold)"
+          : i === 1
+            ? "var(--theme)"
+            : i === 2
+              ? "var(--green)"
+              : "var(--accent)";
+      const prevRank = _replayPrevRanks[p.name];
+      let rankChip = '<span class="lr-rank-blank"></span>';
+      if (typeof prevRank === "number" && prevRank !== i) {
+        const diff = prevRank - i;
+        rankChip =
+          diff > 0
+            ? `<span class="lr-rank-up">↑${diff}</span>`
+            : `<span class="lr-rank-dn">↓${Math.abs(diff)}</span>`;
+      }
+      const prevElo = _replayPrevElos[p.name];
+      let eloChip = '<span class="lr-elo-d-blank"></span>';
+      if (typeof prevElo === "number") {
+        const d = elo - prevElo;
+        if (d !== 0) {
+          const s = d > 0 ? "+" : "";
+          eloChip = `<span class="lr-elo-d" style="color:${d > 0 ? "var(--green)" : "var(--red)"}">${s}${d}</span>`;
+        }
+      }
+      return `<div class="lr-row${dim}${fat}">
+        <div class="lr-rank" style="color:${col}">#${i + 1}</div>
+        ${rankChip}
+        <div class="lr-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>
+        <div class="lr-name-wrap">
+          <div class="lr-name">${p.name}</div>
+          <div class="lr-bar"><div class="lr-bar-fill" style="width:${barW}%;background:${col}"></div></div>
         </div>
-      </div>
-      <div style="font-size:11px;font-weight:800;color:${col};width:36px;text-align:right">${elo}</div>
-    </div>`;
-      })
-      .join("");
+        <div class="lr-elo" style="color:${col}">${elo}</div>
+        ${eloChip}
+      </div>`;
+    })
+    .join("");
+  _replayPrevElos = {};
+  _replayPrevRanks = {};
+  stats.forEach((p, i) => {
+    _replayPrevElos[p.name] = eloMap[p.name] || 1000;
+    _replayPrevRanks[p.name] = i;
+  });
+}
+
+function _replayStep(delta) {
+  const max = _replaySorted().length;
+  _replayUpdate(Math.max(_REPLAY_MIN, Math.min(_replayIdx + delta, max)));
+}
+
+function _replayJumpToMatch(n) {
+  const v = parseInt(n, 10);
+  if (!isNaN(v)) _replayUpdate(v);
+}
+
+function _replayJumpToDate(date) {
+  if (!date) return;
+  const sorted = _replaySorted();
+  let idx = -1;
+  for (let i = 0; i < sorted.length; i++) {
+    if ((sorted[i].date || "") <= date) idx = i;
+    else break;
+  }
+  if (idx >= 0) _replayUpdate(idx + 1);
+}
+
+function _replaySetSpeed(s) {
+  _replaySpeed = s;
+  document.querySelectorAll(".lr-speed-pill").forEach((b) => {
+    b.classList.toggle("active", parseFloat(b.textContent) === s);
+  });
+  if (_replayTimer) {
+    _replayStop();
+    _replayPlay();
+  }
+}
+
+function _replayToggleLoop() {
+  _replayLoop = !_replayLoop;
+  document
+    .querySelector(".lr-toggle-loop")
+    ?.classList.toggle("active", _replayLoop);
+}
+
+function _replayToggleReverse() {
+  _replayReverse = !_replayReverse;
+  document
+    .querySelector(".lr-toggle-rev")
+    ?.classList.toggle("active", _replayReverse);
+}
+
+function _replaySetSpotlight(name) {
+  _replaySpotlight = name || "";
+  _replayUpdate(_replayIdx);
+}
+
+function _replayStop() {
+  if (_replayTimer) {
+    clearInterval(_replayTimer);
+    _replayTimer = null;
+  }
+  const btn = document.getElementById("replay-play-btn");
+  if (btn) btn.textContent = "▶";
 }
 
 function _replayPlay() {
-  const sorted = [...allMatches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
+  const sorted = _replaySorted();
   const btn = document.getElementById("replay-play-btn");
   if (_replayTimer) {
-    clearInterval(_replayTimer);
-    _replayTimer = null;
-    if (btn) btn.textContent = "▶ PLAY";
+    _replayStop();
     return;
   }
-  if (_replayIdx >= sorted.length) {
-    _replayIdx = 4; // first tick increments to 5 (slider min)
+  if (_replayReverse) {
+    if (_replayIdx <= _REPLAY_MIN) _replayIdx = sorted.length + 1;
+  } else if (_replayIdx >= sorted.length) {
+    _replayIdx = _REPLAY_MIN - 1;
   }
-  if (btn) btn.textContent = "⏸ PAUSE";
+  if (btn) btn.textContent = "⏸";
+  const intervalMs = Math.max(50, Math.round(_REPLAY_BASE_MS / _replaySpeed));
   _replayTimer = setInterval(() => {
-    _replayIdx = Math.min(_replayIdx + 1, sorted.length);
-    _replayUpdate(_replayIdx);
-    if (_replayIdx >= sorted.length) {
-      clearInterval(_replayTimer);
-      _replayTimer = null;
-      if (btn) btn.textContent = "▶ PLAY";
+    if (_replayReverse) {
+      _replayIdx = Math.max(_REPLAY_MIN, _replayIdx - 1);
+      _replayUpdate(_replayIdx);
+      if (_replayIdx <= _REPLAY_MIN) {
+        if (_replayLoop) _replayIdx = sorted.length + 1;
+        else _replayStop();
+      }
+    } else {
+      _replayIdx = Math.min(_replayIdx + 1, sorted.length);
+      _replayUpdate(_replayIdx);
+      if (_replayIdx >= sorted.length) {
+        if (_replayLoop) _replayIdx = _REPLAY_MIN - 1;
+        else _replayStop();
+      }
     }
-  }, 400);
+  }, intervalMs);
 }
 
 function _replayReset() {
-  if (_replayTimer) {
-    clearInterval(_replayTimer);
-    _replayTimer = null;
-  }
-  const btn = document.getElementById("replay-play-btn");
-  if (btn) btn.textContent = "▶ PLAY";
-  _replayUpdate(5);
+  _replayStop();
+  _replaySpotlight = "";
+  _replayPrevElos = {};
+  _replayPrevRanks = {};
+  const sp = document.getElementById("replay-spotlight");
+  if (sp) sp.value = "";
+  const jn = document.getElementById("replay-jump-num");
+  if (jn) jn.value = "";
+  const jd = document.getElementById("replay-jump-date");
+  if (jd) jd.value = "";
+  _replayUpdate(_REPLAY_MIN);
 }
 
 function renderAnalyticsPage() {
@@ -13200,6 +13387,13 @@ Object.assign(window, {
   _replayUpdate,
   _replayPlay,
   _replayReset,
+  _replayStep,
+  _replayJumpToMatch,
+  _replayJumpToDate,
+  _replaySetSpeed,
+  _replayToggleLoop,
+  _replayToggleReverse,
+  _replaySetSpotlight,
   toggleMatchCalendar,
   toggleMatchesSection,
   calNav,
