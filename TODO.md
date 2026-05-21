@@ -1,157 +1,102 @@
-# Padel Tracker — Feature Roadmap & Enhancements
-
-> Scope: skip Season, Scheduled Sessions, and Tournament features.
-> Generated from codebase scan: `app.js` (13,886 lines · 200+ functions), `styles.css` (12,797 lines), `index.html` (980 lines).
+# Padel Tracker — Feature & Enhancement Backlog
 
 ---
 
-## A. Leaderboard Replay — Granular Controls (priority request)
+## 1. STATISTICS PAGE — Enhancements to Existing Sections
 
-Current state: full enhanced control bar shipped.
+### 1a. Player Stats Table (main leaderboard section)
+- [ ] Add **Avg Games Scored** column — total games scored ÷ matches played
+- [ ] Add **Shutout Rate** column — % of wins that were clean-sheet (opponent scored 0)
+- [ ] Add **Partner Diversity** column — count of unique partners played with
+- [ ] Add **Avg Margin** column — average winning/losing margin per match (signed)
 
-### Proposed control bar
+### 1b. Partnerships Table
+- [ ] Show **top 10 pairs** (currently shows only the best pair as a callout)
+- [ ] Add **current win streak** per pair
+- [ ] Add **"Against Quality"** column — average ELO of opponents they've faced together
+- [ ] Add **total games played together** alongside win/loss count
 
-```
-⏮ FAST BACK   ◀ STEP   ▶/⏸ PLAY   STEP ▶   FAST FWD ⏭     [speed: 0.5x · 1x · 2x · 4x]    ↺ RESET
-   -10          -1                    +1       +10
-```
+### 1c. Monthly Stats
+- [ ] Add **"Player of the Month"** callout per month (highest win rate, min 2 matches)
+- [ ] Add **trend arrow** next to each player (↑ improving / ↓ declining vs previous month)
+- [ ] Colour-code cells by win rate (dark green ≥ 70%, amber 40–69%, red < 40%)
 
-### Additional enhancements
+### 1d. Score Distribution
+- [ ] Add **most common winning score** callout ("4-2 is the most common result")
+- [ ] Add **average margin** stat
+- [ ] Replace plain list with a **horizontal bar chart** showing relative frequencies
 
-- [x] **Jump-to-date** picker (skip to a specific calendar day)
-- [x] **Jump-to-match-N** number input
-- [x] **Milestone markers** on the slider — small dots where someone became #1, hit 100 matches, biggest upset, etc.
-- [x] **Highlight the delta** — on each step, briefly flash ↑/↓ next to players whose rank changed, with ELO delta number
-- [x] **Per-match caption** under the board ("Match 47: Ankit/Sachin def. Ojo/Mahi 6-3 · Ankit +14 ELO")
-- [x] **Reverse playback** (play backwards through history)
-- [x] **Loop** toggle (auto-restart on reach end)
-- [x] **Spotlight a player** — dim everyone else, fat-line the chosen player's bar across all replay frames
-- [ ] **Compare mode** — pin a second leaderboard state (e.g. "3 months ago") side-by-side with the live replay
+### 1e. Clutch Performance Table
+- [ ] Add **"Anti-Clutch"** bottom section — worst performers in close matches
+- [ ] Show explicit **close-match W–L record** alongside the %, not just %
+- [ ] Add a minimum-match filter control (currently hard-coded at ≥ 3)
 
----
+### 1f. H2H Matrix
+- [ ] **Colour-code cells** by win rate — green > 60%, red < 40%, neutral 40–60%
+- [ ] **Tap a row** to highlight all cells in that row (dim others)
+- [ ] Show **total matches** in each cell as a subscript alongside the W–L
 
-## B. NEW FEATURES — high impact, low scope
+### 1g. Form Table (last 10 matches per player)
+- [ ] Add a **trend sparkline** mini-chart alongside the W/L dots (already computed in `getFormSparkline`)
+- [ ] Add **current streak count** badge at end of each row
 
-4. [ ] **Match notes** — free-text per-match field (no current notes field; useful for "wrist sore", "Sachin's birthday match")
-5. [x] **Personal Bests page** — auto-tracked records per player: longest streak, biggest win margin, highest ELO peak, fastest 10 wins, most matches in a day. Each tile is shareable.
-6. [x] **Rivalry Hall of Fame** — pinned top-5 most-played rivalries with mini scoreboard, total games, last result
-7. [x] **ELO Tier badges** — Bronze/Silver/Gold/Platinum/Diamond/Master ring around player avatars based on ELO breakpoints
-8. [ ] **Player nicknames/flair** — 1-line tagline ("The Wall", "Smash King"); shown under name on detail page and share posters
-9. [ ] **Compatibility recommender** — given a player, recommend the best partner they haven't played with much yet (chemistry score + sample size)
-10. [x] **Global search** (Cmd-K-style overlay) — search players, matches by score, achievements, badges, dates
-11. [ ] **Filter presets** — save current History filter combo as a named preset
-12. [ ] **Onboarding tour** — first-launch animated 4-step walkthrough (Add → History → Stats → Live)
-13. [x] **Confetti + haptics** on milestones (50/100/250 matches, first win, biggest upset)
-14. [x] **Theme picker** — premade theme presets (Royal Blue, Crimson Red, Forest Green, Cyberpunk, Mono). Optional auto-switch by month.
-15. [x] **Streak Calendar** — GitHub-style contribution heatmap per player showing match days; tap a square for that day's matches
-16. [ ] **Player Card 3D flip share** — generated share image: front = stats, back = signature win (canvas)
-17. [ ] **What-If ELO++** — "Reset everyone to 1000 and replay all matches" global toggle (effectively covered by Leaderboard Replay)
+### 1h. Consistency Rankings
+- [ ] Add **"Most Volatile"** bottom section (highest std-dev = most unpredictable player)
+- [ ] Show the actual std-dev value alongside the rank
 
----
-
-## C. ENHANCEMENTS to existing features
-
-### Live Scoring ([openLiveMode](app.js#L13306))
-
-- [x] Implement Lawn Tennis Style scoring. Ask whether match is a Race to 4 or Race to 6, default it to 4. If race to 4, No difference of 2. If Race to 6 then difference of 2 or tie breaker.
-- [x] Add game score incrementer as well, tapping on red team side should add values like 15,30, 40. Same to applied on Blue team side. 40 - 40 should be deuce, Then Advantage and game.
-- [x] Haptic vibration + sound on score change
-- [x] "MATCH POINT" / "GAME POINT" indicator banner
-- [x] Auto-detect end of match (first to 6 with 2-game lead) and prompt to save
-- [ ] Per-game scoring (track 6-3, 6-4 separately instead of one combined number)
-- [ ] Generate a post-match share card directly from Live mode
-
-### Match Intro popup ([openMatchIntro](app.js#L13550))
-
-- [x] "Skip animation" / fast-forward button
-- [ ] "Share intro" — share the whole H2H+PVP intro card as image
-- [ ] Tap any stat → drill-down to source matches
-
-### Story Feed ([\_buildStoryFeedHtml](app.js#L10671))
-
-- [x] Filter chips: Upsets · Comebacks · Milestones · Streaks
-- [ ] Share single story as image
-- [ ] "This day in history" — auto-pin story from same day last year
-
-### Power Rankings ([\_buildPowerRankingsHtml](app.js#L10413))
-
-- [x] Movement arrows (up 2 / down 1) vs last week (uses existing weekly snaps)
-- [ ] Tap player → mini sparkline of rank over last 8 weeks
-
-### Chemistry Leaderboard ([\_buildChemistryLeaderboardHtml](app.js#L10449))
-
-- [x] "Anti-Chemistry" section — worst-performing pairs (banter material)
-
-### Match Prediction ([\_buildMatchPredictHtml](app.js#L10498), [runMatchPrediction](app.js#L10572))
-
-- [ ] Calibration tracking: "Your predictions are 67% accurate"
-- [ ] Save predictions and show win/loss vs actual
-
-### ELO Timeline ([buildEloTimelineHtml](app.js#L9927))
-
-- [ ] Pinch-zoom range (existing 7 date-range pills cover this cleanly)
-- [x] Annotate peaks/troughs ("biggest jump", "longest plateau")
-- [x] Overlay 2 players for direct comparison
-
-### History page ([renderModernMatches](app.js#L3931))
-
-- [x] Pull-to-refresh
-- [ ] Long-press match → quick actions sheet (share, copy, edit, delete)
-- [ ] Bookmark filter presets (see B-19)
-- [ ] "Jump to date" button
-
-### Achievements ([getAchievements](app.js#L2223), [computeAchievements](app.js#L9557))
-
-- [x] Progress bars on in-progress ones ("47/50 matches")
-- [ ] Share unlocked achievement as image
-
-### Match cards ([buildMatchCards](app.js#L3271))
-
-- [ ] Long-press → quick action sheet
-- [ ] Group consecutive same-day matches into expandable "Session" cards
-
-### H2H Matrix ([buildH2HMatrix](app.js#L7528))
-
-- [x] Sort options: by total games, by win rate, by recency (matches / win% / name pills)
-- [ ] Tap row to highlight matchups for that player
-
-### Form Sparkline ([getFormSparkline](app.js#L2719))
-
-- [ ] Tappable → inline expansion of last N matches with mini scores
-
-### Pair Detail ([openPairDetail](app.js#L7173))
-
-- [ ] Predicted record vs every other pair (uses existing chemistry math)
-
-### Global UX
-
-- [x] Pull-to-refresh on Home/History (also on Summary)
-- [ ] Skeleton loaders while Firestore loads (splash already covers it; PTR re-render is instant from cache)
-- [ ] Extend undo to: name edits, match edits, filter clears
-- [ ] Empty-state illustrations on first-launch screens
+### 1i. Quality Wins
+- [ ] Add **"Hardest Win"** callout — single match with highest combined opponent ELO
+- [ ] Show average opponent ELO rather than just a ranking
 
 ---
 
-## D. Quick wins (each small, together transformative)
+## 2. STATISTICS PAGE — New Sections
 
-- [x] **Search bar** in hamburger menu
-- [ ] **"Recent" carousel** on home — last 5 matches at a glance
-- [ ] **Match emoji reactions** — tap to react, count shows on card
-- [ ] **Animated number counters** everywhere stats change (extend `_animEloCounts` pattern)
-- [x] **Birthday/anniversary toasts** — "1 year since your first match!"
+- [ ] **Peak ELO Tracker** — Table: Player | Peak ELO | Date Achieved | Current ELO | Delta from Peak
+- [ ] **Day-of-Week Analysis** — Win rate per player broken down by Mon/Tue/Wed etc. (grid table)
+- [ ] **Score Margin Trend** — Line chart of average match margin per month — shows if competition is getting tighter or more one-sided over time
+- [ ] **Partner Chemistry Rankings** — For each player: their best, worst, and most-played partners with win rates (expandable per player)
+- [ ] **Dominance Index** — Number of distinct opponents beaten at least once; who has the widest range of wins
+- [ ] **Most One-Sided Rivalries** — Team matchups with ≥ 3 meetings where one team has won all or nearly all (e.g. "Ankit+Sachin vs Ojo+Mahi — 6W 0L")
+- [ ] **Score Heatmap Grid** — Visual grid where rows = games scored, cols = games conceded; each cell shows how often that exact score occurred (e.g. 4-0, 4-1, 4-2, 3-4 etc.)
+- [ ] **Longest Absence / Active Streak** — "Ankit has played in every session for the last N weeks" or "Ojo last played X days ago"
 
 ---
 
-## Status
+## 3. MATCH CARD POPUP — Enhancements
 
-**Done so far:** 30 items across A/B/C/D shipped over 14 commits.
-**Bonus:** along the way, fixed `applyAnalyticsAnimations` ReferenceError, live-mode notes data-loss bug, momentum-graph desync bug, and removed ~80 lines of dead code (see commits `03beb81` and `ecd98ae`).
+Currently shows: date, teams, scores, pre-match rank + ELO + level, team H2H, individual 4-player cross-records, ELO deltas, event badges, match note.
 
-**Recent batch (this session):**
-- Confetti canvas helper + haptics on milestones (B-13)
-- Theme Picker overlay with 11 themes including the 5 new ones (B-14)
-- GitHub-style Activity Calendar on every player detail (B-15)
-- Achievement progress bars (wired computeAchievements that was unused)
-- H2H matrix MATCHES / WIN % / NAME sort pills
-- Pull-to-refresh on Home / Summary / History
-- ELO Timeline peak ▲ / trough ▼ annotations + 2-player overlay compare
+- [ ] **Match number context** — "Match #47 all-time" / "47th match in this group" shown in the date bar
+- [ ] **Streak context line** — "This extended Ankit's win streak to 5" or "This ended Sachin's 3-game run"
+- [ ] **Margin context** — "5th biggest winning margin by this team all-time" if noteworthy
+- [ ] **ELO tier cross** — If a player crossed a tier boundary (e.g. into GOLD) with this match, show a badge: "Ankit → GOLD ★"
+- [ ] **Last meeting reminder** — "Last time these teams met: 12 Mar · 4-2" (one line, under the H2H bar)
+- [ ] **Relative performance indicator** — Was each team's score above or below their average? A small "above avg ↑" / "below avg ↓" tag per side
+
+---
+
+## 4. PLAYER DETAIL MODAL — Enhancements
+
+Currently shows: Form engine, Archetype, Radar (6 axes: Win Rate, ELO, Clutch, Form, Activity, Margin), Achievements, basic stats, Activity Calendar.
+
+- [ ] **Recent match log** — Last 5 matches as a mini-table: Date | Partner | Opponents | Score | ELO delta — concise and scannable
+- [ ] **vs. All Opponents breakdown** — Collapsible table: one row per opponent, showing W–L record and avg margin vs them specifically
+- [ ] **All Partners ranked** — Collapsible table: every partner played with, sorted by win rate, showing games played together
+- [ ] **Personal Records section** — "Career Highs": biggest win margin, worst loss, longest streak, best month win%, highest ELO ever, most matches in a single day
+- [ ] **ELO mini-timeline** — A small version of the existing ELO Timeline chart embedded in the modal (last 20 matches), so the player's rating arc is visible without leaving the modal
+- [ ] **Monthly win-rate sparkline** — Small 6-month bar or line chart showing month-by-month win rate trend
+- [ ] **Strengths / Weaknesses tags** — 2–3 auto-generated tags from archetype + stats (e.g. "Clutch performer", "Best with Sachin", "Struggles vs Ojo")
+
+---
+
+## 5. Quick Wins
+
+- [ ] **Match notes field in Add Match modal** — free-text box saved with each match (the `m.note` field exists in the data model; just add the UI input)
+- [ ] **"Jump to date" button on History page** — tap a date chip to scroll to that date in the match list
+- [ ] **Long-press match card** → quick-action sheet (Share, Edit, Delete) on History page
+- [ ] **Filter presets** — save the current History filter combo as a named shortcut (e.g. "Weekday Evenings")
+
+---
+
+*Review this list and confirm which items to implement.*
