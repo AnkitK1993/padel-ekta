@@ -10608,10 +10608,11 @@ select.cmp-sel:hover,
   transition:
     background 0.25s ease,
     border-color 0.25s ease,
-    box-shadow 0.28s ease;
+    box-shadow 0.28s ease,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .ana-sec-hdr:hover {
-  transform: none;
+  transform: scale(1.012) translateX(2px);
 }
 .award-card {
   transition:
@@ -10757,12 +10758,12 @@ body::after {
   border: 1px solid rgba(var(--theme-rgb), 0.22);
   border-left: 4px solid var(--theme);
   border-radius: 0 14px 14px 0;
-  padding: 13px 16px;
+  padding: 8px 14px;
   box-shadow:
     0 3px 22px rgba(0,0,0,0.55),
     inset 0 1px 0 rgba(255,255,255,0.05),
     0 0 22px rgba(var(--theme-rgb), 0.06);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   overflow: hidden;
 }
 .ana-sec-hdr:hover {
@@ -11894,12 +11895,12 @@ body::before {
   border: 1px solid rgba(var(--theme-rgb), 0.22) !important;
   border-left: 4px solid var(--theme) !important;
   border-radius: 0 14px 14px 0 !important;
-  padding: 13px 16px !important;
+  padding: 8px 14px !important;
   box-shadow:
     0 3px 22px rgba(0,0,0,0.55),
     inset 0 1px 0 rgba(255,255,255,0.05),
     0 0 22px rgba(var(--theme-rgb), 0.06) !important;
-  margin-bottom: 8px !important;
+  margin-bottom: 4px !important;
   overflow: hidden !important;
   position: relative !important;
 }
@@ -11936,15 +11937,15 @@ body::before {
     0 5px 30px rgba(0,0,0,0.65),
     inset 0 1px 0 rgba(255,255,255,0.08),
     0 0 32px rgba(var(--theme-rgb), 0.13) !important;
-  transform: none !important;
+  transform: scale(1.012) translateX(2px) !important;
 }
-/* Section title text — Bebas Neue, large, premium */
+/* Section title text — Bebas Neue, compact premium */
 .ana-sec-title-txt {
   font-family: 'Bebas Neue', 'Impact', sans-serif !important;
-  font-size: 17px !important;
-  letter-spacing: 0.13em !important;
+  font-size: 13px !important;
+  letter-spacing: 0.15em !important;
   color: rgba(255,255,255,0.95) !important;
-  text-shadow: 0 0 20px rgba(var(--theme-rgb), 0.38) !important;
+  text-shadow: 0 0 16px rgba(var(--theme-rgb), 0.38) !important;
 }
 /* Chevron — theme tinted */
 .ana-sec-hdr .ana-sec-chev {
