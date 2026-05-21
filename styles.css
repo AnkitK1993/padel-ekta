@@ -10608,12 +10608,7 @@ select.cmp-sel:hover,
   transition:
     background 0.25s ease,
     border-color 0.25s ease,
-    box-shadow 0.28s ease,
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.ana-sec-hdr:hover,
-.ana-sec-hdr:active {
-  transform: scale(1.04) translateX(4px);
+    box-shadow 0.28s ease;
 }
 .award-card {
   transition:
@@ -11901,13 +11896,11 @@ body::before {
     inset 0 1px 0 rgba(255,255,255,0.05),
     0 0 22px rgba(var(--theme-rgb), 0.06) !important;
   margin: 0 0 2px !important;
-  overflow: hidden !important;
   position: relative !important;
   transition:
     background 0.25s ease,
     border-color 0.25s ease,
-    box-shadow 0.28s ease,
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    box-shadow 0.28s ease !important;
 }
 /* top shimmer line — overrides the left accent ::before from ana-section-title */
 .ana-sec-hdr::before {
@@ -11942,10 +11935,10 @@ body::before {
     0 5px 30px rgba(0,0,0,0.65),
     inset 0 1px 0 rgba(255,255,255,0.08),
     0 0 32px rgba(var(--theme-rgb), 0.13) !important;
-  transform: scale(1.04) translateX(4px) !important;
+  animation: ana-hdr-spring 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
 }
 .ana-sec-hdr:active {
-  transform: scale(1.04) translateX(4px) !important;
+  animation: ana-hdr-spring 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
 }
 /* Section title text — Bebas Neue, compact premium */
 .ana-sec-title-txt {
@@ -12146,4 +12139,87 @@ select:focus,
   letter-spacing: 0.08em !important;
   width: auto !important;
   padding: 0 10px !important;
+}
+
+/* ── Statistics section header spring-bounce (keyframe bypasses cascade) ── */
+@keyframes ana-hdr-spring {
+  0%   { transform: scale(1)    translateY(0);    }
+  45%  { transform: scale(1.04) translateY(-3px); }
+  72%  { transform: scale(1.03) translateY(-1.5px); }
+  100% { transform: scale(1.04) translateY(-2px); }
+}
+
+/* ══ History filters — Premium uniform pills ══ */
+.compact-select,
+.filter-fab-btn,
+.h2h-slot-btn {
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--theme-rgb), 0.09) 0%,
+    rgba(var(--theme-rgb), 0.03) 100%
+  ) !important;
+  border: 1px solid rgba(var(--theme-rgb), 0.25) !important;
+  color: rgba(255,255,255,0.82) !important;
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.1em !important;
+  padding: 0 14px !important;
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 0 14px rgba(var(--theme-rgb), 0.06) !important;
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    color 0.2s ease !important;
+  width: 100% !important;
+  text-align: center !important;
+  text-align-last: center !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+.compact-select:hover,
+.filter-fab-btn:hover,
+.h2h-slot-btn:hover {
+  border-color: rgba(var(--theme-rgb), 0.5) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--theme-rgb), 0.16) 0%,
+    rgba(var(--theme-rgb), 0.07) 100%
+  ) !important;
+  box-shadow:
+    0 3px 18px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    0 0 22px rgba(var(--theme-rgb), 0.12) !important;
+}
+/* Active / selected state */
+.filter-fab-btn.filter-fab-active,
+.h2h-slot-btn.h2h-slot-filled {
+  background: rgba(var(--theme-rgb), 0.18) !important;
+  border-color: rgba(var(--theme-rgb), 0.7) !important;
+  color: var(--theme) !important;
+  box-shadow:
+    0 0 20px rgba(var(--theme-rgb), 0.18),
+    inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+/* VS separator */
+.h2h-vs-sep {
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+  color: rgba(var(--theme-rgb), 0.7) !important;
+}
+/* Row spacing */
+.top-filter-row,
+.bottom-filter-row {
+  gap: 8px !important;
+}
+.compact-history-panel {
+  gap: 8px !important;
+  padding: 10px 12px 10px !important;
 }
