@@ -8438,16 +8438,17 @@ select.cmp-sel option {
 .ana-search-wrap {
   position: relative;
   margin-bottom: 10px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(var(--theme-rgb), 0.22);
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(var(--theme-rgb), 0.45);
   border-radius: 999px;
   padding: 0 4px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 .ana-search-wrap:focus-within {
-  border-color: rgba(var(--theme-rgb), 0.55);
-  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.09),
-              0 0 18px rgba(var(--theme-rgb), 0.12);
+  background: rgba(var(--theme-rgb), 0.07);
+  border-color: rgba(var(--theme-rgb), 0.7);
+  box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.1),
+              0 0 20px rgba(var(--theme-rgb), 0.15);
 }
 
 /* ── CATEGORY FILTER PILLS ─────────────────────── */
