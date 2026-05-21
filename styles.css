@@ -12239,3 +12239,180 @@ select:focus,
   gap: 8px !important;
   padding: 10px 12px 10px !important;
 }
+
+/* ── DETAILED tab — premium top-3 cards ─────────────────────────────────── */
+
+/* Re-declare holo animations with more vivid intensity */
+@keyframes holoBorderR1 {
+  0%, 100% { border-color: rgba(255, 215, 60, 0.85); }
+  25%       { border-color: rgba(255, 155, 40, 0.75); }
+  50%       { border-color: rgba(255, 245, 130, 0.9); }
+  75%       { border-color: rgba(255, 185, 30, 0.70); }
+}
+@keyframes holoGlowR1 {
+  0%, 100% { box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 36px rgba(255,200,40,0.28), inset 0 1px 0 rgba(255,240,100,0.07); }
+  25%       { box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 28px rgba(255,150,20,0.22), inset 0 1px 0 rgba(255,200,60,0.05); }
+  50%       { box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 44px rgba(255,245,100,0.32), inset 0 1px 0 rgba(255,250,140,0.09); }
+  75%       { box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 24px rgba(255,120,20,0.2),  inset 0 1px 0 rgba(255,180,40,0.04); }
+}
+@keyframes holoBorderR2 {
+  0%, 100% { border-color: rgba(185, 205, 245, 0.65); }
+  25%       { border-color: rgba(120, 195, 255, 0.58); }
+  50%       { border-color: rgba(205, 218, 252, 0.62); }
+  75%       { border-color: rgba(160, 140, 230, 0.52); }
+}
+@keyframes holoGlowR2 {
+  0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.44), 0 0 26px rgba(175,200,255,0.18), inset 0 1px 0 rgba(200,215,255,0.06); }
+  25%       { box-shadow: 0 10px 30px rgba(0,0,0,0.44), 0 0 22px rgba(100,185,255,0.20), inset 0 1px 0 rgba(160,200,255,0.04); }
+  50%       { box-shadow: 0 10px 30px rgba(0,0,0,0.44), 0 0 30px rgba(200,215,255,0.16), inset 0 1px 0 rgba(220,230,255,0.07); }
+  75%       { box-shadow: 0 10px 30px rgba(0,0,0,0.44), 0 0 20px rgba(155,130,225,0.16), inset 0 1px 0 rgba(180,165,235,0.04); }
+}
+@keyframes holoBorderR3 {
+  0%, 100% { border-color: rgba(215, 125, 55, 0.70); }
+  25%       { border-color: rgba(240, 150, 45, 0.65); }
+  50%       { border-color: rgba(205, 95, 35, 0.65); }
+  75%       { border-color: rgba(230, 170, 65, 0.60); }
+}
+@keyframes holoGlowR3 {
+  0%, 100% { box-shadow: 0 10px 28px rgba(0,0,0,0.44), 0 0 24px rgba(218,130,55,0.18), inset 0 1px 0 rgba(240,160,80,0.06); }
+  25%       { box-shadow: 0 10px 28px rgba(0,0,0,0.44), 0 0 22px rgba(245,155,45,0.20), inset 0 1px 0 rgba(250,170,60,0.05); }
+  50%       { box-shadow: 0 10px 28px rgba(0,0,0,0.44), 0 0 22px rgba(205,85,30,0.16), inset 0 1px 0 rgba(220,100,40,0.04); }
+  75%       { box-shadow: 0 10px 28px rgba(0,0,0,0.44), 0 0 20px rgba(230,180,65,0.16), inset 0 1px 0 rgba(240,190,80,0.05); }
+}
+
+/* R1 badge pulse */
+@keyframes r1BadgePulse {
+  0%, 100% { filter: drop-shadow(0 0 12px rgba(255,210,0,0.75)) drop-shadow(0 4px 10px rgba(0,0,0,0.65)); }
+  50%       { filter: drop-shadow(0 0 24px rgba(255,225,50,1.0)) drop-shadow(0 2px 18px rgba(255,155,0,0.55)); }
+}
+
+/* ── R1 — crown card ── */
+.pc.r1 {
+  border: 2px solid rgba(255, 215, 60, 0.85) !important;
+  border-radius: 18px !important;
+  background: linear-gradient(145deg,
+    rgba(30, 20, 4, 0.99) 0%,
+    rgba(22, 14, 5, 0.97) 35%,
+    rgba(16, 12, 20, 0.96) 70%,
+    rgba(12, 10, 18, 0.95) 100%) !important;
+  padding: 14px 13px 12px !important;
+}
+.pc.r1::before {
+  width: 5px !important;
+  background: linear-gradient(180deg,
+    rgba(255, 230, 120, 0) 0%,
+    rgba(255, 215, 40, 1) 40%,
+    rgba(255, 200, 30, 1) 60%,
+    rgba(255, 230, 120, 0) 100%) !important;
+  box-shadow: 0 0 14px rgba(255, 210, 0, 0.65), 0 0 32px rgba(255, 175, 0, 0.28) !important;
+  opacity: 1 !important;
+  top: 8% !important;
+  height: 84% !important;
+}
+.r1 .rb {
+  animation: r1BadgePulse 2.8s ease-in-out infinite !important;
+}
+.r1 .glow {
+  width: 140px !important;
+  height: 140px !important;
+  background: radial-gradient(circle at top right,
+    rgba(255, 215, 60, 0.38) 0%,
+    rgba(255, 140, 25, 0.18) 42%,
+    transparent 70%) !important;
+}
+.r1 .pname {
+  background: linear-gradient(90deg, #ffeb6a 0%, #ffd700 45%, #ffb300 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  text-shadow: none !important;
+  filter: drop-shadow(0 0 8px rgba(255, 210, 0, 0.4)) !important;
+}
+.r1 .skill-num {
+  color: #ffd700 !important;
+  text-shadow: 0 0 14px rgba(255, 200, 0, 0.55) !important;
+}
+.r1 .bar-fill {
+  background: linear-gradient(90deg, #e67e00 0%, #ffc400 50%, #ffe97a 100%) !important;
+  box-shadow: 0 0 12px rgba(255, 195, 0, 0.5), 0 0 4px rgba(255, 225, 50, 0.7) !important;
+}
+.pc.r1:hover {
+  transform: translateY(-10px) scale(1.025) !important;
+  border-color: rgba(255, 240, 100, 0.95) !important;
+  box-shadow:
+    0 26px 52px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(255, 215, 40, 0.3),
+    inset 0 1px 0 rgba(255, 250, 160, 0.1) !important;
+}
+
+/* ── R2 — silver card ── */
+.pc.r2 {
+  border-color: rgba(185, 205, 245, 0.65) !important;
+  background: linear-gradient(145deg,
+    rgba(8, 10, 26, 0.98) 0%,
+    rgba(12, 14, 28, 0.96) 40%,
+    rgba(16, 18, 32, 0.94) 100%) !important;
+}
+.pc.r2::before {
+  width: 4px !important;
+  background: linear-gradient(180deg,
+    rgba(175, 190, 235, 0) 0%,
+    rgba(185, 205, 245, 1) 50%,
+    rgba(175, 190, 235, 0) 100%) !important;
+  box-shadow: 0 0 10px rgba(170, 190, 240, 0.55), 0 0 22px rgba(150, 175, 230, 0.2) !important;
+  opacity: 0.92 !important;
+}
+.r2 .pname {
+  color: #c8d8f4 !important;
+  -webkit-text-fill-color: #c8d8f4 !important;
+}
+.r2 .skill-num {
+  color: #b8ccee !important;
+  text-shadow: 0 0 10px rgba(170, 200, 255, 0.4) !important;
+}
+.r2 .bar-fill {
+  background: linear-gradient(90deg, #4a72c0 0%, #80a8e8 50%, #b8d0f8 100%) !important;
+  box-shadow: 0 0 10px rgba(160, 200, 255, 0.38) !important;
+}
+.r2 .glow {
+  background: radial-gradient(circle at top right,
+    rgba(155, 205, 255, 0.22) 0%,
+    rgba(130, 155, 240, 0.1) 45%,
+    transparent 70%) !important;
+}
+
+/* ── R3 — bronze card ── */
+.pc.r3 {
+  border-color: rgba(215, 125, 55, 0.70) !important;
+  background: linear-gradient(145deg,
+    rgba(20, 11, 4, 0.98) 0%,
+    rgba(16, 10, 4, 0.96) 40%,
+    rgba(14, 12, 22, 0.94) 100%) !important;
+}
+.pc.r3::before {
+  width: 4px !important;
+  background: linear-gradient(180deg,
+    rgba(215, 125, 70, 0) 0%,
+    rgba(218, 130, 55, 1) 50%,
+    rgba(215, 125, 70, 0) 100%) !important;
+  box-shadow: 0 0 10px rgba(215, 130, 55, 0.55), 0 0 22px rgba(200, 115, 40, 0.2) !important;
+  opacity: 0.92 !important;
+}
+.r3 .pname {
+  color: #e0a060 !important;
+  -webkit-text-fill-color: #e0a060 !important;
+}
+.r3 .skill-num {
+  color: #cc8840 !important;
+  text-shadow: 0 0 10px rgba(210, 130, 55, 0.4) !important;
+}
+.r3 .bar-fill {
+  background: linear-gradient(90deg, #7a4010 0%, #c87830 50%, #e8aa60 100%) !important;
+  box-shadow: 0 0 10px rgba(210, 135, 55, 0.38) !important;
+}
+.r3 .glow {
+  background: radial-gradient(circle at top right,
+    rgba(230, 145, 60, 0.24) 0%,
+    rgba(200, 100, 30, 0.10) 45%,
+    transparent 70%) !important;
+}
