@@ -78,14 +78,24 @@ function showUndoToast(msg, undoFn, ms = 5000) {
   const el = document.createElement("div");
   el.className = "undo-toast";
   el.innerHTML = `<span class="undo-toast-msg">${msg}</span><button class="undo-toast-btn" onclick="this.closest('.undo-toast')._undo()">UNDO</button><div class="undo-toast-bar"></div>`;
-  el._undo = () => { clearTimeout(el._tid); el.remove(); undoFn(); };
+  el._undo = () => {
+    clearTimeout(el._tid);
+    el.remove();
+    undoFn();
+  };
   document.body.appendChild(el);
   requestAnimationFrame(() => {
     el.classList.add("undo-toast-show");
-    el.querySelector(".undo-toast-bar").style.transition = `width ${ms}ms linear`;
-    requestAnimationFrame(() => { el.querySelector(".undo-toast-bar").style.width = "0%"; });
+    el.querySelector(".undo-toast-bar").style.transition =
+      `width ${ms}ms linear`;
+    requestAnimationFrame(() => {
+      el.querySelector(".undo-toast-bar").style.width = "0%";
+    });
   });
-  el._tid = setTimeout(() => { el.classList.remove("undo-toast-show"); setTimeout(() => el.remove(), 400); }, ms);
+  el._tid = setTimeout(() => {
+    el.classList.remove("undo-toast-show");
+    setTimeout(() => el.remove(), 400);
+  }, ms);
 }
 
 // ── HAMBURGER MENU ─────────────────────────────────────────
@@ -231,8 +241,7 @@ let matchTabFilter = "today",
   h2hFilterB = "";
 let _h2hActiveSlot = null;
 let _filterSheetMode = null;
-let
-  matchFrom = null,
+let matchFrom = null,
   matchTo = null;
 let homeFilter = "all",
   homeFrom = null,
@@ -255,31 +264,46 @@ let scheduledMatches = [];
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
-  try { deletedMatches = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]"); } catch(e) { deletedMatches = []; }
+  try {
+    deletedMatches = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
+  } catch (e) {
+    deletedMatches = [];
+  }
 }
 function saveDeletedMatches() {
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
   const cutoffISO = cutoff.toISOString().slice(0, 10);
-  deletedMatches = deletedMatches.filter(d => (d.deletedAt || "") >= cutoffISO);
-  try { localStorage.setItem(DELETED_KEY, JSON.stringify(deletedMatches)); } catch(e) {}
+  deletedMatches = deletedMatches.filter(
+    (d) => (d.deletedAt || "") >= cutoffISO,
+  );
+  try {
+    localStorage.setItem(DELETED_KEY, JSON.stringify(deletedMatches));
+  } catch (e) {}
 }
 
 // ── ELO DECAY CONFIG ───────────────────────────────────────
 const ELO_CFG_KEY = "elo-config";
 function loadEloConfig() {
-  try { return JSON.parse(localStorage.getItem(ELO_CFG_KEY)) || {}; } catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(ELO_CFG_KEY)) || {};
+  } catch {
+    return {};
+  }
 }
 function saveEloConfig(cfg) {
-  try { localStorage.setItem(ELO_CFG_KEY, JSON.stringify(cfg)); } catch {}
+  try {
+    localStorage.setItem(ELO_CFG_KEY, JSON.stringify(cfg));
+  } catch {}
   _invalidateEloMemo();
 }
 function getEloDecayParams() {
   const c = loadEloConfig();
   return {
-    perWeek:    Number(c.perWeek)    || 1,
-    graceDays:  Number(c.graceDays)  || 28,
-    maxDecay:   Number(c.maxDecay)   || 30,
-    floor:      Number(c.floor)      || 900,
+    perWeek: Number(c.perWeek) || 1,
+    graceDays: Number(c.graceDays) || 28,
+    maxDecay: Number(c.maxDecay) || 30,
+    floor: Number(c.floor) || 900,
   };
 }
 const ELO_DEFAULTS = { perWeek: 1, graceDays: 28, maxDecay: 30, floor: 900 };
@@ -289,7 +313,11 @@ function renderEloConfigCard() {
   const d = ELO_DEFAULTS;
   const el = document.getElementById("elo-decay-config");
   if (!el) return;
-  const isDefault = p.perWeek === d.perWeek && p.graceDays === d.graceDays && p.maxDecay === d.maxDecay && p.floor === d.floor;
+  const isDefault =
+    p.perWeek === d.perWeek &&
+    p.graceDays === d.graceDays &&
+    p.maxDecay === d.maxDecay &&
+    p.floor === d.floor;
   const cfgRow = (id, label, val, def, min, max, step, desc) => `
     <div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
@@ -306,10 +334,10 @@ function renderEloConfigCard() {
       never falling below <strong style="color:var(--fg)">ELO ${p.floor}</strong>.
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      ${cfgRow("edcfg-per-week","POINTS / WEEK",p.perWeek,d.perWeek,0,50,0.5,"ELO lost each week of inactivity")}
-      ${cfgRow("edcfg-grace","GRACE PERIOD (days)",p.graceDays,d.graceDays,1,365,1,"Days without play before decay starts")}
-      ${cfgRow("edcfg-max","MAX DECAY (pts)",p.maxDecay,d.maxDecay,0,500,1,"Maximum total ELO loss from decay")}
-      ${cfgRow("edcfg-floor","ELO FLOOR",p.floor,d.floor,500,1200,1,"ELO cannot drop below this value")}
+      ${cfgRow("edcfg-per-week", "POINTS / WEEK", p.perWeek, d.perWeek, 0, 50, 0.5, "ELO lost each week of inactivity")}
+      ${cfgRow("edcfg-grace", "GRACE PERIOD (days)", p.graceDays, d.graceDays, 1, 365, 1, "Days without play before decay starts")}
+      ${cfgRow("edcfg-max", "MAX DECAY (pts)", p.maxDecay, d.maxDecay, 0, 500, 1, "Maximum total ELO loss from decay")}
+      ${cfgRow("edcfg-floor", "ELO FLOOR", p.floor, d.floor, 500, 1200, 1, "ELO cannot drop below this value")}
     </div>
     <div id="elo-cfg-msg" style="font-size:11px;margin-bottom:6px;display:none"></div>
     <div style="display:flex;gap:8px">
@@ -323,32 +351,50 @@ function resetEloConfig() {
   showToast("Reset to defaults", "↺");
 }
 function applyEloConfig() {
-  const perWeek   = parseFloat(document.getElementById("edcfg-per-week")?.value);
+  const perWeek = parseFloat(document.getElementById("edcfg-per-week")?.value);
   const graceDays = parseInt(document.getElementById("edcfg-grace")?.value);
-  const maxDecay  = parseInt(document.getElementById("edcfg-max")?.value);
-  const floor     = parseInt(document.getElementById("edcfg-floor")?.value);
+  const maxDecay = parseInt(document.getElementById("edcfg-max")?.value);
+  const floor = parseInt(document.getElementById("edcfg-floor")?.value);
   if (isNaN(perWeek) || isNaN(graceDays) || isNaN(maxDecay) || isNaN(floor)) {
     const msg = document.getElementById("elo-cfg-msg");
-    if (msg) { msg.style.display = "block"; msg.style.color = "var(--red)"; msg.textContent = "All fields are required."; }
+    if (msg) {
+      msg.style.display = "block";
+      msg.style.color = "var(--red)";
+      msg.textContent = "All fields are required.";
+    }
     return;
   }
   saveEloConfig({ perWeek, graceDays, maxDecay, floor });
   const msg = document.getElementById("elo-cfg-msg");
-  if (msg) { msg.style.display = "block"; msg.style.color = "var(--green)"; msg.textContent = "Config saved!"; setTimeout(() => msg.style.display = "none", 2000); }
+  if (msg) {
+    msg.style.display = "block";
+    msg.style.color = "var(--green)";
+    msg.textContent = "Config saved!";
+    setTimeout(() => (msg.style.display = "none"), 2000);
+  }
   showToast("ELO decay config saved", "⚡");
 }
 
 // ── ELO MEMO ───────────────────────────────────────────────
-let _eloMemo = null, _eloMemoLen = -1, _eloMemoDecay = false;
+let _eloMemo = null,
+  _eloMemoLen = -1,
+  _eloMemoDecay = false;
 function _memoElo(decay = false) {
-  if (_eloMemoLen !== allMatches.length || _eloMemoDecay !== decay || !_eloMemo) {
+  if (
+    _eloMemoLen !== allMatches.length ||
+    _eloMemoDecay !== decay ||
+    !_eloMemo
+  ) {
     _eloMemoLen = allMatches.length;
     _eloMemoDecay = decay;
     _eloMemo = computeElo(allMatches, decay);
   }
   return _eloMemo;
 }
-function _invalidateEloMemo() { _eloMemoLen = -1; _eloMemo = null; }
+function _invalidateEloMemo() {
+  _eloMemoLen = -1;
+  _eloMemo = null;
+}
 
 let _anaObserver = null;
 let _pairSort = { key: "winPct", dir: -1 };
@@ -574,23 +620,37 @@ function deleteScheduled(i) {
 // ── SYNC CONFLICT RESOLUTION ───────────────────────────────
 function _mkMatchKey(m) {
   // Stable key for deduplication — order-sensitive (Team A / Team B are distinct)
-  return `${m.date||""}|${(m.teamA||[]).join(",")}|${(m.teamB||[]).join(",")}|${m.scoreA}|${m.scoreB}`;
+  return `${m.date || ""}|${(m.teamA || []).join(",")}|${(m.teamB || []).join(",")}|${m.scoreA}|${m.scoreB}`;
 }
 
-function _showSyncConflict(cloudMatches, cloudAMap, cloudNMap, localOnly, resolveFn) {
+function _showSyncConflict(
+  cloudMatches,
+  cloudAMap,
+  cloudNMap,
+  localOnly,
+  resolveFn,
+) {
   document.getElementById("sync-conflict-overlay")?.remove();
   const overlay = document.createElement("div");
   overlay.id = "sync-conflict-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;z-index:9992;display:flex;align-items:flex-end;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px)";
+  overlay.style.cssText =
+    "position:fixed;inset:0;z-index:9992;display:flex;align-items:flex-end;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px)";
 
   const localCount = allMatches.length;
   const cloudCount = cloudMatches.length;
   const mergeCount = cloudCount + localOnly.length;
 
-  const listHtml = localOnly.slice(0, 6).map(m => {
-    const label = `${(m.teamA||[]).map(p=>p.split(" ")[0]).join(" & ")} vs ${(m.teamB||[]).map(p=>p.split(" ")[0]).join(" & ")} <span style="color:var(--muted)">${m.scoreA}–${m.scoreB}</span>`;
-    return `<div class="sc-row">${fmtDate(m.date)} · ${label}</div>`;
-  }).join("") + (localOnly.length > 6 ? `<div style="font-size:10px;color:var(--muted);padding:3px 0">+${localOnly.length - 6} more…</div>` : "");
+  const listHtml =
+    localOnly
+      .slice(0, 6)
+      .map((m) => {
+        const label = `${(m.teamA || []).map((p) => p.split(" ")[0]).join(" & ")} vs ${(m.teamB || []).map((p) => p.split(" ")[0]).join(" & ")} <span style="color:var(--muted)">${m.scoreA}–${m.scoreB}</span>`;
+        return `<div class="sc-row">${fmtDate(m.date)} · ${label}</div>`;
+      })
+      .join("") +
+    (localOnly.length > 6
+      ? `<div style="font-size:10px;color:var(--muted);padding:3px 0">+${localOnly.length - 6} more…</div>`
+      : "");
 
   overlay.innerHTML = `
     <div class="sync-conflict-sheet">
@@ -609,10 +669,15 @@ function _showSyncConflict(cloudMatches, cloudAMap, cloudNMap, localOnly, resolv
     const cloudKeys = new Set(cloudMatches.map(_mkMatchKey));
     const merged = [
       ...cloudMatches,
-      ...localOnly.filter(m => !cloudKeys.has(_mkMatchKey(m))),
+      ...localOnly.filter((m) => !cloudKeys.has(_mkMatchKey(m))),
     ].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     overlay.remove();
-    resolveFn(merged, { ...cloudAMap, ...aliasMap }, { ...cloudNMap, ...nameMap }, true);
+    resolveFn(
+      merged,
+      { ...cloudAMap, ...aliasMap },
+      { ...cloudNMap, ...nameMap },
+      true,
+    );
   };
   overlay.querySelector("#sc-cloud").onclick = () => {
     overlay.remove();
@@ -633,13 +698,18 @@ function computeSessionStreak() {
     d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
     return d.toISOString().slice(0, 10);
   };
-  const weeks = [...new Set(allMatches.filter(m => m.date).map(m => getMonday(m.date)))]
-    .sort().reverse();
+  const weeks = [
+    ...new Set(allMatches.filter((m) => m.date).map((m) => getMonday(m.date))),
+  ]
+    .sort()
+    .reverse();
   if (weeks.length < 2) return weeks.length;
   let streak = 1;
   for (let i = 0; i < weeks.length - 1; i++) {
     const diff = Math.round(
-      (new Date(weeks[i] + "T00:00:00") - new Date(weeks[i + 1] + "T00:00:00")) / 86400000
+      (new Date(weeks[i] + "T00:00:00") -
+        new Date(weeks[i + 1] + "T00:00:00")) /
+        86400000,
     );
     if (diff === 7) streak++;
     else break;
@@ -650,22 +720,27 @@ function computeSessionStreak() {
 // ── RIVALRY STREAKS ─────────────────────────────────────────
 function computeH2HStreak(pA, pB, matches) {
   const h2h = [...matches]
-    .filter(m => {
-      const aInA = (m.teamA || []).some(p => normPlayer(p) === pA);
-      const aInB = (m.teamB || []).some(p => normPlayer(p) === pA);
-      const bInA = (m.teamA || []).some(p => normPlayer(p) === pB);
-      const bInB = (m.teamB || []).some(p => normPlayer(p) === pB);
+    .filter((m) => {
+      const aInA = (m.teamA || []).some((p) => normPlayer(p) === pA);
+      const aInB = (m.teamB || []).some((p) => normPlayer(p) === pA);
+      const bInA = (m.teamA || []).some((p) => normPlayer(p) === pB);
+      const bInB = (m.teamB || []).some((p) => normPlayer(p) === pB);
       return (aInA && bInB) || (aInB && bInA);
     })
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (!h2h.length) return { leader: null, streak: 0 };
-  let curLeader = null, streak = 0;
+  let curLeader = null,
+    streak = 0;
   for (const m of h2h) {
-    const aInA = (m.teamA || []).some(p => normPlayer(p) === pA);
+    const aInA = (m.teamA || []).some((p) => normPlayer(p) === pA);
     const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
     const winner = aWon ? pA : pB;
-    if (winner === curLeader) { streak++; }
-    else { curLeader = winner; streak = 1; }
+    if (winner === curLeader) {
+      streak++;
+    } else {
+      curLeader = winner;
+      streak = 1;
+    }
   }
   return { leader: curLeader, streak };
 }
@@ -673,14 +748,21 @@ function computeH2HStreak(pA, pB, matches) {
 // ── WEEKLY SNAPSHOT ─────────────────────────────────────────
 const SNAP_KEY = "ekta_weekly_snap";
 function getWeeklySnaps() {
-  try { return JSON.parse(localStorage.getItem(SNAP_KEY) || "[]"); } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(SNAP_KEY) || "[]");
+  } catch {
+    return [];
+  }
 }
 function saveWeeklySnap(snap) {
   const snaps = getWeeklySnaps();
-  const existing = snaps.findIndex(s => s.weekOf === snap.weekOf);
-  if (existing >= 0) snaps[existing] = snap; else snaps.unshift(snap);
+  const existing = snaps.findIndex((s) => s.weekOf === snap.weekOf);
+  if (existing >= 0) snaps[existing] = snap;
+  else snaps.unshift(snap);
   snaps.splice(12); // keep last 12 weeks
-  try { localStorage.setItem(SNAP_KEY, JSON.stringify(snaps)); } catch {}
+  try {
+    localStorage.setItem(SNAP_KEY, JSON.stringify(snaps));
+  } catch {}
 }
 function autoSaveWeeklySnap() {
   if (!allMatches.length) return;
@@ -689,11 +771,13 @@ function autoSaveWeeklySnap() {
   const monday = new Date(now);
   monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
   const weekOf = monday.toISOString().slice(0, 10);
-  const existing = getWeeklySnaps().find(s => s.weekOf === weekOf);
+  const existing = getWeeklySnaps().find((s) => s.weekOf === weekOf);
   if (existing) return; // already snapped this week
   const stats = computeStats(allMatches, computeElo(allMatches));
   const rankMap = {};
-  stats.forEach((p, i) => { rankMap[p.name] = i + 1; });
+  stats.forEach((p, i) => {
+    rankMap[p.name] = i + 1;
+  });
   saveWeeklySnap({ weekOf, rankMap });
 }
 function getPrevWeekRankMap() {
@@ -733,13 +817,21 @@ function loadCloudData() {
     // Conflict detection: local matches that aren't in the incoming cloud data
     if (!skipConflict && !isFirstLoad && allMatches.length > 0) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
-      const localOnly = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+      const localOnly = allMatches.filter(
+        (m) => !cloudKeys.has(_mkMatchKey(m)),
+      );
       if (localOnly.length > 0) {
-        _showSyncConflict(matches, aMap, nMap, localOnly, (resolved, rAMap, rNMap, save) => {
-          lastDataFingerprint = null; // force reprocess
-          onData(resolved, rAMap, rNMap, true);
-          if (save) saveCloudData();
-        });
+        _showSyncConflict(
+          matches,
+          aMap,
+          nMap,
+          localOnly,
+          (resolved, rAMap, rNMap, save) => {
+            lastDataFingerprint = null; // force reprocess
+            onData(resolved, rAMap, rNMap, true);
+            if (save) saveCloudData();
+          },
+        );
         return;
       }
     }
@@ -928,40 +1020,40 @@ function goBack() {
 }
 
 function _slideTab(fromPage, toPage, dir) {
-  const DUR  = 300;
+  const DUR = 300;
   const EASE = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-  const w    = window.innerWidth;
+  const w = window.innerWidth;
 
   // Classes already swapped by switchMainTab before this is called.
   // fromPage = now-inactive (CSS: opacity 0, translateX 8px, pointer-events none)
   // toPage   = now-active   (CSS: opacity 1, translateX 0,  pointer-events auto)
   // We override inline to set the START positions, then animate to the END positions.
 
-  fromPage.style.transition    = "none";
-  fromPage.style.opacity       = "1";
+  fromPage.style.transition = "none";
+  fromPage.style.opacity = "1";
   fromPage.style.pointerEvents = "none";
-  fromPage.style.transform     = "translateX(0)";
+  fromPage.style.transform = "translateX(0)";
 
   toPage.style.transition = "none";
-  toPage.style.transform  = `translateX(${dir * w}px)`;
+  toPage.style.transform = `translateX(${dir * w}px)`;
 
   // Force reflow so start positions register before transitions begin
   fromPage.getBoundingClientRect();
   toPage.getBoundingClientRect();
 
   fromPage.style.transition = `transform ${DUR}ms ${EASE}, opacity ${DUR}ms ease`;
-  fromPage.style.transform  = `translateX(${-dir * w}px)`;
-  fromPage.style.opacity    = "0";
+  fromPage.style.transform = `translateX(${-dir * w}px)`;
+  fromPage.style.opacity = "0";
 
   toPage.style.transition = `transform ${DUR}ms ${EASE}`;
-  toPage.style.transform  = "translateX(0)";
+  toPage.style.transform = "translateX(0)";
 
   // Return CSS control after animation completes
   setTimeout(() => {
     for (const p of [fromPage, toPage]) {
-      p.style.transition    = "";
-      p.style.transform     = "";
-      p.style.opacity       = "";
+      p.style.transition = "";
+      p.style.transform = "";
+      p.style.opacity = "";
       p.style.pointerEvents = "";
     }
   }, DUR + 50);
@@ -974,12 +1066,12 @@ function switchMainTab(id, skipAnim = false) {
   }
 
   // Capture current page before any class changes
-  const curPage  = document.querySelector(".page.active");
+  const curPage = document.querySelector(".page.active");
   const nextPage = document.getElementById("pg-" + id);
 
   // ── Sync date filter between Detailed (home) and Summary (compact) ──
   const homeSelEl = document.getElementById("homeFilterSel");
-  const cmpSelEl  = document.getElementById("cmpSel");
+  const cmpSelEl = document.getElementById("cmpSel");
   if (homeSelEl && cmpSelEl) {
     if (id === "compact" && homeFilter !== "all") {
       cmpFilter = homeFilter;
@@ -996,7 +1088,9 @@ function switchMainTab(id, skipAnim = false) {
   });
 
   // Swap active class immediately (same as original — keeps tabs always responsive)
-  document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+  document
+    .querySelectorAll(".page")
+    .forEach((p) => p.classList.remove("active"));
   if (nextPage) nextPage.classList.add("active");
 
   // FAB only visible on admin/add page
@@ -1025,10 +1119,16 @@ function switchMainTab(id, skipAnim = false) {
   }
 
   // ── Directional slide animation (pure visual layer on top of correct DOM state) ──
-  const curIdx  = mainTabOrder.indexOf(curPage?.id.replace("pg-", ""));
+  const curIdx = mainTabOrder.indexOf(curPage?.id.replace("pg-", ""));
   const nextIdx = mainTabOrder.indexOf(id);
-  const canSlide = !skipAnim && curPage && nextPage && curPage !== nextPage
-    && curIdx !== -1 && nextIdx !== -1 && !_nd.active;
+  const canSlide =
+    !skipAnim &&
+    curPage &&
+    nextPage &&
+    curPage !== nextPage &&
+    curIdx !== -1 &&
+    nextIdx !== -1 &&
+    !_nd.active;
 
   if (canSlide) {
     _slideTab(curPage, nextPage, nextIdx > curIdx ? 1 : -1);
@@ -1052,9 +1152,17 @@ function isScrollable(el) {
 
 // ── PHYSICS SWIPE NAVIGATION ───────────────────────────────
 const _nd = {
-  active: false, debounce: false,
-  startX: 0, startY: 0, lastX: 0, lastTime: 0, vel: 0,
-  curPage: null, adjPage: null, adjIdx: -1, curIdx: -1,
+  active: false,
+  debounce: false,
+  startX: 0,
+  startY: 0,
+  lastX: 0,
+  lastTime: 0,
+  vel: 0,
+  curPage: null,
+  adjPage: null,
+  adjIdx: -1,
+  curIdx: -1,
   dir: 0,
 };
 
@@ -1072,21 +1180,36 @@ function _ndCleanup(instant) {
   const { curPage, adjPage } = _nd;
   const dur = instant ? 0 : 400;
   if (curPage) {
-    curPage.style.transition = instant ? "none" : `transform ${dur}ms cubic-bezier(0.34,1.56,0.64,1), filter ${dur}ms ease`;
-    curPage.style.transform  = "";
-    curPage.style.filter     = "";
+    curPage.style.transition = instant
+      ? "none"
+      : `transform ${dur}ms cubic-bezier(0.34,1.56,0.64,1), filter ${dur}ms ease`;
+    curPage.style.transform = "";
+    curPage.style.filter = "";
   }
   if (adjPage) {
     const adjStart = _nd.dir === 1 ? -window.innerWidth : window.innerWidth;
-    adjPage.style.transition = instant ? "none" : `transform ${dur}ms cubic-bezier(0.34,1.56,0.64,1)`;
-    adjPage.style.transform  = `translateX(${adjStart}px)`;
+    adjPage.style.transition = instant
+      ? "none"
+      : `transform ${dur}ms cubic-bezier(0.34,1.56,0.64,1)`;
+    adjPage.style.transform = `translateX(${adjStart}px)`;
   }
   const bl = _ndBlurOverlay();
-  if (bl) { bl.style.transition = "opacity 0.3s"; bl.style.opacity = "0"; }
+  if (bl) {
+    bl.style.transition = "opacity 0.3s";
+    bl.style.opacity = "0";
+  }
   setTimeout(() => {
-    if (adjPage) { adjPage.style.transition = ""; adjPage.style.transform = ""; adjPage.style.opacity = ""; }
-    if (curPage) { curPage.style.transition = ""; }
-    _nd.curPage = null; _nd.adjPage = null; _nd.active = false;
+    if (adjPage) {
+      adjPage.style.transition = "";
+      adjPage.style.transform = "";
+      adjPage.style.opacity = "";
+    }
+    if (curPage) {
+      curPage.style.transition = "";
+    }
+    _nd.curPage = null;
+    _nd.adjPage = null;
+    _nd.active = false;
   }, dur + 10);
 }
 
@@ -1095,96 +1218,143 @@ function _ndCommit() {
   const w = window.innerWidth;
   const curTarget = dir === 1 ? w : -w;
   const EASE = "cubic-bezier(0.25,0.46,0.45,0.94)";
-  const DUR  = 310;
+  const DUR = 310;
   curPage.style.transition = `transform ${DUR}ms ${EASE}, filter ${DUR}ms ease`;
-  curPage.style.transform  = `translateX(${curTarget}px)`;
-  curPage.style.filter     = "blur(6px)";
+  curPage.style.transform = `translateX(${curTarget}px)`;
+  curPage.style.filter = "blur(6px)";
   adjPage.style.transition = `transform ${DUR}ms ${EASE}`;
-  adjPage.style.transform  = "translateX(0px)";
+  adjPage.style.transform = "translateX(0px)";
   const bl = _ndBlurOverlay();
-  if (bl) { bl.style.transition = "opacity 0.25s"; bl.style.opacity = "0"; }
+  if (bl) {
+    bl.style.transition = "opacity 0.25s";
+    bl.style.opacity = "0";
+  }
   setTimeout(() => {
     switchMainTab(mainTabOrder[_nd.adjIdx], true);
-    curPage.style.transition = "none"; curPage.style.transform = ""; curPage.style.filter = "";
-    adjPage.style.transition = "none"; adjPage.style.transform = ""; adjPage.style.opacity = "";
+    curPage.style.transition = "none";
+    curPage.style.transform = "";
+    curPage.style.filter = "";
+    adjPage.style.transition = "none";
+    adjPage.style.transform = "";
+    adjPage.style.opacity = "";
     requestAnimationFrame(() => {
-      curPage.style.transition = ""; adjPage.style.transition = "";
-      _nd.curPage = null; _nd.adjPage = null; _nd.active = false;
+      curPage.style.transition = "";
+      adjPage.style.transition = "";
+      _nd.curPage = null;
+      _nd.adjPage = null;
+      _nd.active = false;
       _nd.debounce = true;
-      setTimeout(() => { _nd.debounce = false; }, 320);
+      setTimeout(() => {
+        _nd.debounce = false;
+      }, 320);
     });
   }, DUR);
 }
 
-document.addEventListener("touchstart", (e) => {
-  if (_nd.debounce || e.touches.length !== 1) return;
-  if (document.querySelector("#player-detail-modal, #h2h-detail-modal")) return;
-  if (isScrollable(e.target)) return;
-  _nd.startX = _nd.lastX = e.touches[0].clientX;
-  _nd.startY = e.touches[0].clientY;
-  _nd.lastTime = Date.now(); _nd.vel = 0;
-  _nd.active = false; _nd.curPage = null; _nd.adjPage = null;
-  const ap = document.querySelector(".page.active");
-  if (!ap) return;
-  _nd.curIdx = mainTabOrder.indexOf(ap.id.replace("pg-", ""));
-  if (_nd.curIdx === -1) return;
-  _nd.curPage = ap;
-}, { passive: true });
+document.addEventListener(
+  "touchstart",
+  (e) => {
+    if (_nd.debounce || e.touches.length !== 1) return;
+    if (document.querySelector("#player-detail-modal, #h2h-detail-modal"))
+      return;
+    if (isScrollable(e.target)) return;
+    _nd.startX = _nd.lastX = e.touches[0].clientX;
+    _nd.startY = e.touches[0].clientY;
+    _nd.lastTime = Date.now();
+    _nd.vel = 0;
+    _nd.active = false;
+    _nd.curPage = null;
+    _nd.adjPage = null;
+    const ap = document.querySelector(".page.active");
+    if (!ap) return;
+    _nd.curIdx = mainTabOrder.indexOf(ap.id.replace("pg-", ""));
+    if (_nd.curIdx === -1) return;
+    _nd.curPage = ap;
+  },
+  { passive: true },
+);
 
-document.addEventListener("touchmove", (e) => {
-  if (!_nd.curPage) return;
-  const touch = e.touches[0];
-  const dx = touch.clientX - _nd.startX;
-  const dy = touch.clientY - _nd.startY;
+document.addEventListener(
+  "touchmove",
+  (e) => {
+    if (!_nd.curPage) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - _nd.startX;
+    const dy = touch.clientY - _nd.startY;
 
-  // Velocity tracking
-  const now = Date.now(), dt = Math.max(now - _nd.lastTime, 1);
-  _nd.vel = (touch.clientX - _nd.lastX) / dt;
-  _nd.lastX = touch.clientX; _nd.lastTime = now;
+    // Velocity tracking
+    const now = Date.now(),
+      dt = Math.max(now - _nd.lastTime, 1);
+    _nd.vel = (touch.clientX - _nd.lastX) / dt;
+    _nd.lastX = touch.clientX;
+    _nd.lastTime = now;
 
-  if (!_nd.active) {
-    if (Math.abs(dy) > Math.abs(dx) + 5) { _nd.curPage = null; return; }
-    if (Math.abs(dx) < 10) return;
-    const dir    = dx > 0 ? 1 : -1;
-    const adjIdx = _nd.curIdx - dir;
-    if (adjIdx < 0 || adjIdx >= mainTabOrder.length) { _nd.curPage = null; return; }
-    const adjPage = document.getElementById("pg-" + mainTabOrder[adjIdx]);
-    if (!adjPage) { _nd.curPage = null; return; }
-    _nd.dir = dir; _nd.adjIdx = adjIdx; _nd.adjPage = adjPage;
-    // Arm adjacent page off-screen
+    if (!_nd.active) {
+      if (Math.abs(dy) > Math.abs(dx) + 5) {
+        _nd.curPage = null;
+        return;
+      }
+      if (Math.abs(dx) < 10) return;
+      const dir = dx > 0 ? 1 : -1;
+      const adjIdx = _nd.curIdx - dir;
+      if (adjIdx < 0 || adjIdx >= mainTabOrder.length) {
+        _nd.curPage = null;
+        return;
+      }
+      const adjPage = document.getElementById("pg-" + mainTabOrder[adjIdx]);
+      if (!adjPage) {
+        _nd.curPage = null;
+        return;
+      }
+      _nd.dir = dir;
+      _nd.adjIdx = adjIdx;
+      _nd.adjPage = adjPage;
+      // Arm adjacent page off-screen
+      const w = window.innerWidth;
+      adjPage.style.transition = "none";
+      adjPage.style.opacity = "1";
+      adjPage.style.pointerEvents = "none";
+      adjPage.style.transform = `translateX(${dir === 1 ? -w : w}px)`;
+      _nd.curPage.style.transition = "none";
+      _nd.active = true;
+    }
+
+    e.preventDefault();
     const w = window.innerWidth;
-    adjPage.style.transition = "none";
-    adjPage.style.opacity    = "1";
-    adjPage.style.pointerEvents = "none";
-    adjPage.style.transform  = `translateX(${dir === 1 ? -w : w}px)`;
-    _nd.curPage.style.transition = "none";
-    _nd.active = true;
-  }
+    const clamped = _ndRubberBand(dx, w * 0.46);
+    const pct = Math.min(Math.abs(clamped) / w, 1);
 
-  e.preventDefault();
-  const w   = window.innerWidth;
-  const clamped = _ndRubberBand(dx, w * 0.46);
-  const pct = Math.min(Math.abs(clamped) / w, 1);
+    _nd.curPage.style.transform = `translateX(${clamped}px)`;
+    _nd.curPage.style.filter = `blur(${(pct * 5).toFixed(1)}px)`;
 
-  _nd.curPage.style.transform = `translateX(${clamped}px)`;
-  _nd.curPage.style.filter    = `blur(${(pct * 5).toFixed(1)}px)`;
+    const adjBase = _nd.dir === 1 ? -w : w;
+    _nd.adjPage.style.transform = `translateX(${adjBase + clamped}px)`;
 
-  const adjBase = _nd.dir === 1 ? -w : w;
-  _nd.adjPage.style.transform = `translateX(${adjBase + clamped}px)`;
+    const bl = _ndBlurOverlay();
+    if (bl) {
+      bl.style.transition = "none";
+      bl.style.opacity = (pct * 0.55).toFixed(2);
+    }
+  },
+  { passive: false },
+);
 
-  const bl = _ndBlurOverlay();
-  if (bl) { bl.style.transition = "none"; bl.style.opacity = (pct * 0.55).toFixed(2); }
-}, { passive: false });
-
-document.addEventListener("touchend", (e) => {
-  if (!_nd.active || !_nd.curPage || !_nd.adjPage) {
-    _nd.curPage = null; _nd.adjPage = null; _nd.active = false;
-    return;
-  }
-  const dx     = e.changedTouches[0].clientX - _nd.startX;
-  const commit = Math.abs(dx) > window.innerWidth * 0.33 || Math.abs(_nd.vel) > 0.38;
-  commit ? _ndCommit() : _ndCleanup(false);
-}, { passive: true });
+document.addEventListener(
+  "touchend",
+  (e) => {
+    if (!_nd.active || !_nd.curPage || !_nd.adjPage) {
+      _nd.curPage = null;
+      _nd.adjPage = null;
+      _nd.active = false;
+      return;
+    }
+    const dx = e.changedTouches[0].clientX - _nd.startX;
+    const commit =
+      Math.abs(dx) > window.innerWidth * 0.33 || Math.abs(_nd.vel) > 0.38;
+    commit ? _ndCommit() : _ndCleanup(false);
+  },
+  { passive: true },
+);
 
 // ── SWIPE-TO-DELETE ────────────────────────────────────────
 let _swipeTouchStartX = 0,
@@ -1307,17 +1477,19 @@ function switchITab(id) {
         el.style.animation = "";
       });
     // Make cards collapsible; start collapsed on first visit
-    document.querySelectorAll("#ip-manage .mng-card, #ip-manage .mng-danger-card").forEach(card => {
-      const header = card.querySelector(".mng-card-header");
-      if (header && !header.dataset.collapseInit) {
-        header.dataset.collapseInit = "1";
-        header.addEventListener("click", () => toggleMngCard(header));
-      }
-      if (!card.dataset.collapseInited) {
-        card.dataset.collapseInited = "1";
-        card.classList.add("mng-collapsed");
-      }
-    });
+    document
+      .querySelectorAll("#ip-manage .mng-card, #ip-manage .mng-danger-card")
+      .forEach((card) => {
+        const header = card.querySelector(".mng-card-header");
+        if (header && !header.dataset.collapseInit) {
+          header.dataset.collapseInit = "1";
+          header.addEventListener("click", () => toggleMngCard(header));
+        }
+        if (!card.dataset.collapseInited) {
+          card.dataset.collapseInited = "1";
+          card.classList.add("mng-collapsed");
+        }
+      });
   }
   if (id === "names") renderNamesTable();
   if (id === "matches") prefillMatchTADate();
@@ -1329,17 +1501,23 @@ let _mngReorderActive = false;
 let _mngDragSrc = null;
 
 function _saveMngOrder() {
-  const ids = Array.from(document.querySelectorAll("#mng-cards-container .mng-card[data-card-id]")).map(c => c.dataset.cardId);
-  try { localStorage.setItem(MNG_ORDER_KEY, JSON.stringify(ids)); } catch {}
+  const ids = Array.from(
+    document.querySelectorAll("#mng-cards-container .mng-card[data-card-id]"),
+  ).map((c) => c.dataset.cardId);
+  try {
+    localStorage.setItem(MNG_ORDER_KEY, JSON.stringify(ids));
+  } catch {}
 }
 
 function applyMngOrder() {
   let order;
-  try { order = JSON.parse(localStorage.getItem(MNG_ORDER_KEY)); } catch {}
+  try {
+    order = JSON.parse(localStorage.getItem(MNG_ORDER_KEY));
+  } catch {}
   if (!Array.isArray(order)) return;
   const container = document.getElementById("mng-cards-container");
   if (!container) return;
-  order.forEach(id => {
+  order.forEach((id) => {
     const card = container.querySelector(`.mng-card[data-card-id="${id}"]`);
     if (card) container.appendChild(card);
   });
@@ -1359,10 +1537,12 @@ function toggleManageReorder() {
   if (btn) {
     btn.textContent = _mngReorderActive ? "✓ DONE" : "⠿ REORDER";
     btn.style.color = _mngReorderActive ? "var(--theme)" : "var(--muted)";
-    btn.style.borderColor = _mngReorderActive ? "rgba(var(--theme-rgb),0.4)" : "rgba(255,255,255,0.1)";
+    btn.style.borderColor = _mngReorderActive
+      ? "rgba(var(--theme-rgb),0.4)"
+      : "rgba(255,255,255,0.1)";
   }
   if (_mngReorderActive) {
-    container.querySelectorAll(".mng-card[data-card-id]").forEach(card => {
+    container.querySelectorAll(".mng-card[data-card-id]").forEach((card) => {
       card.setAttribute("draggable", "true");
       card.addEventListener("dragstart", _mngDragStart);
       card.addEventListener("dragover", _mngDragOver);
@@ -1372,7 +1552,7 @@ function toggleManageReorder() {
     });
   } else {
     _saveMngOrder();
-    container.querySelectorAll(".mng-card[data-card-id]").forEach(card => {
+    container.querySelectorAll(".mng-card[data-card-id]").forEach((card) => {
       card.removeAttribute("draggable");
       card.removeEventListener("dragstart", _mngDragStart);
       card.removeEventListener("dragover", _mngDragOver);
@@ -1383,21 +1563,39 @@ function toggleManageReorder() {
   }
 }
 
-function _mngDragStart(e) { _mngDragSrc = this; this.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; }
-function _mngDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; this.classList.add("drag-over"); }
-function _mngDragLeave() { this.classList.remove("drag-over"); }
+function _mngDragStart(e) {
+  _mngDragSrc = this;
+  this.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+}
+function _mngDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  this.classList.add("drag-over");
+}
+function _mngDragLeave() {
+  this.classList.remove("drag-over");
+}
 function _mngDrop(e) {
   e.preventDefault();
   this.classList.remove("drag-over");
   if (!_mngDragSrc || _mngDragSrc === this) return;
   const container = document.getElementById("mng-cards-container");
-  const cards = Array.from(container.querySelectorAll(".mng-card[data-card-id]"));
+  const cards = Array.from(
+    container.querySelectorAll(".mng-card[data-card-id]"),
+  );
   const srcIdx = cards.indexOf(_mngDragSrc);
   const tgtIdx = cards.indexOf(this);
   if (srcIdx < tgtIdx) container.insertBefore(_mngDragSrc, this.nextSibling);
   else container.insertBefore(_mngDragSrc, this);
 }
-function _mngDragEnd() { this.classList.remove("dragging"); document.querySelectorAll(".mng-card").forEach(c => c.classList.remove("drag-over")); _mngDragSrc = null; }
+function _mngDragEnd() {
+  this.classList.remove("dragging");
+  document
+    .querySelectorAll(".mng-card")
+    .forEach((c) => c.classList.remove("drag-over"));
+  _mngDragSrc = null;
+}
 
 function refreshManage() {
   const days = new Set(allMatches.map((m) => m.date)).size;
@@ -1407,8 +1605,6 @@ function refreshManage() {
   renderTrash();
   renderEloConfigCard();
 }
-
-
 
 // ── DATE HELPERS ───────────────────────────────────────────
 function todayISO() {
@@ -2081,11 +2277,13 @@ function previewMatchImport() {
     allMatches.some((old) => sameMatch(old, m)),
   );
   const dupPlayers = parsed.filter(
-    (m) => new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length,
+    (m) =>
+      new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length,
   );
   const rows = parsed.slice(0, 5).map((m) => {
     const dup = allMatches.some((old) => sameMatch(old, m));
-    const badP = new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
+    const badP =
+      new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
     const warn = dup || badP;
     const tag = badP ? " · repeated player!" : dup ? " · duplicate?" : "";
     return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${warn ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${tag}</strong></div>`;
@@ -2106,21 +2304,29 @@ function addMatches() {
   oEl.classList.remove("show");
   const { parsed: allParsed, errors } = parseBlock(raw);
   const badPlayerRows = allParsed.filter(
-    (m) => new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length,
+    (m) =>
+      new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length,
   );
   const parsed = allParsed.filter(
-    (m) => new Set([...m.teamA, ...m.teamB]).size === m.teamA.length + m.teamB.length,
+    (m) =>
+      new Set([...m.teamA, ...m.teamB]).size ===
+      m.teamA.length + m.teamB.length,
   );
   const errParts = [];
   if (errors.length) {
     errParts.push(
       `Skipped ${errors.length} line(s):<br>` +
-      errors.slice(0, 4).map((e) => `Line ${e.ln}: ${e.text}`).join("<br>") +
-      (errors.length > 4 ? "<br>…and more" : ""),
+        errors
+          .slice(0, 4)
+          .map((e) => `Line ${e.ln}: ${e.text}`)
+          .join("<br>") +
+        (errors.length > 4 ? "<br>…and more" : ""),
     );
   }
   if (badPlayerRows.length) {
-    errParts.push(`Skipped ${badPlayerRows.length} match(es) with repeated players.`);
+    errParts.push(
+      `Skipped ${badPlayerRows.length} match(es) with repeated players.`,
+    );
   }
   if (errParts.length) {
     eEl.innerHTML = errParts.join("<br>");
@@ -2608,7 +2814,10 @@ function renderHome() {
       .filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     const last5 = playerMs.slice(-5);
-    if (!last5.length) { eloDeltaMap[p.name] = null; return; }
+    if (!last5.length) {
+      eloDeltaMap[p.name] = null;
+      return;
+    }
     const without5 = filtered.filter((m) => !last5.includes(m));
     const prevElo = computeElo(without5)[p.name] || 1000;
     eloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - prevElo);
@@ -2638,9 +2847,10 @@ function renderHome() {
       ? `<span class="spark-dots">${p.form.map((r) => `<span class="s5-dot ${r === "W" ? "s5-w" : "s5-l"}"></span>`).join("")}</span>`
       : "";
     const eld = eloDeltaMap[p.name];
-    const eldHtml = eld !== null && eld !== undefined
-      ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
-      : "";
+    const eldHtml =
+      eld !== null && eld !== undefined
+        ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
+        : "";
     const hasRowData = sparklineSvg || last5DotsHtml || eldHtml;
     const sparklineHtml = hasRowData
       ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
@@ -2661,7 +2871,7 @@ function renderHome() {
         tmp.innerHTML = html;
         const card = tmp.firstChild;
         board.appendChild(card);
-        const srEl  = card.querySelector(".sr-val[data-final]");
+        const srEl = card.querySelector(".sr-val[data-final]");
         if (srEl) animateSrVal(srEl, 300);
         const xpRow = card.querySelector(".xp-row");
         if (xpRow) animateXpRow(xpRow, 300);
@@ -2675,7 +2885,9 @@ function renderHome() {
     board.innerHTML = cardHtmls.join("");
     runSpeedometerSweep();
     setTimeout(animateGauges, 50);
-    board.querySelectorAll(".sr-val[data-final]").forEach((el) => animateSrVal(el, 300));
+    board
+      .querySelectorAll(".sr-val[data-final]")
+      .forEach((el) => animateSrVal(el, 300));
     board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
   }
 }
@@ -2739,7 +2951,15 @@ function runSpeedometerSweep() {
 function renderCompact() {
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
-    const _cmpLblMap = { all: "ALL TIME", today: "TODAY", week: "THIS WEEK", lastweek: "LAST WEEK", weekend: "WEEKEND", month: "THIS MONTH", range: "RANGE" };
+    const _cmpLblMap = {
+      all: "ALL TIME",
+      today: "TODAY",
+      week: "THIS WEEK",
+      lastweek: "LAST WEEK",
+      weekend: "WEEKEND",
+      month: "THIS MONTH",
+      range: "RANGE",
+    };
     _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
@@ -2819,8 +3039,10 @@ function renderCompact() {
     let rankDelta = "";
     if (prevRank) {
       const diff = prevRank - curRank;
-      if (diff > 0) rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
-      else if (diff < 0) rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
+      if (diff > 0)
+        rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
+      else if (diff < 0)
+        rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
     return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name.toUpperCase()}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
@@ -2830,7 +3052,9 @@ function renderCompact() {
   _cmpFiltered = filtered;
 
   const reversedMatches = [...filtered].reverse();
-  const matchRowHtmls = reversedMatches.map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)));
+  const matchRowHtmls = reversedMatches.map((m) =>
+    buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
+  );
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
   const matchesHeader = cmpMatchesEl.previousElementSibling;
@@ -2846,7 +3070,9 @@ function renderCompact() {
     leaderRowHtmls.forEach((html, i) => {
       setTimeout(() => {
         tbody.insertAdjacentHTML("beforeend", html);
-        const srEl = tbody.lastElementChild.querySelector(".sr-pill-val[data-final]");
+        const srEl = tbody.lastElementChild.querySelector(
+          ".sr-pill-val[data-final]",
+        );
         if (srEl) animateSrVal(srEl, 50);
       }, i * 100);
     });
@@ -2866,7 +3092,9 @@ function renderCompact() {
       const animCount = Math.min(10, reversedMatches.length);
       const animRows = reversedMatches
         .slice(0, animCount)
-        .map((m) => buildMatchRowHtml(m, " row-reveal-anim", null, allMatches.indexOf(m)));
+        .map((m) =>
+          buildMatchRowHtml(m, " row-reveal-anim", null, allMatches.indexOf(m)),
+        );
       const restRows = reversedMatches
         .slice(animCount)
         .map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)));
@@ -2904,11 +3132,18 @@ function renderCompact() {
   } else {
     matchesHeader.style.cssText = "";
     tbody.innerHTML = leaderRowHtmls.join("");
-    tbody.querySelectorAll(".sr-pill-val[data-final]").forEach(el => animateSrVal(el, 0));
+    tbody
+      .querySelectorAll(".sr-pill-val[data-final]")
+      .forEach((el) => animateSrVal(el, 0));
     const reversedFiltered = [...filtered].reverse();
     const initRows = reversedFiltered.map((m, i) =>
       i < 10
-        ? buildMatchRowHtml(m, " row-reveal-anim", i * 100, allMatches.indexOf(m))
+        ? buildMatchRowHtml(
+            m,
+            " row-reveal-anim",
+            i * 100,
+            allMatches.indexOf(m),
+          )
         : buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
     );
     if (initRows.length) {
@@ -2939,9 +3174,10 @@ function updateSortArrows() {
       if (!arrow) return;
       if (cmpSortKey === key) {
         if (key === "record") {
-          arrow.innerHTML = cmpRecordSortMode === "wins"
-            ? '<span style="color:var(--green)">▲</span>'
-            : '<span style="color:var(--red)">▼</span>';
+          arrow.innerHTML =
+            cmpRecordSortMode === "wins"
+              ? '<span style="color:var(--green)">▲</span>'
+              : '<span style="color:var(--red)">▼</span>';
         } else {
           arrow.textContent = cmpSortAsc ? "▲" : "▼";
         }
@@ -3005,7 +3241,12 @@ function buildMatchRowHtml(m, extraClass = "", delay = null, matchIdx = null) {
       : isZeroMatch(m)
         ? `<span class="cmr-badge cmr-zero">😂</span>`
         : "";
-  const clickable = matchIdx !== null ? ` style="animation-delay:${delay !== null ? delay : 0}ms;cursor:pointer" onclick="openMatchIntro(${matchIdx})"` : (delay !== null ? ` style="animation-delay:${delay}ms"` : "");
+  const clickable =
+    matchIdx !== null
+      ? ` style="animation-delay:${delay !== null ? delay : 0}ms;cursor:pointer" onclick="openMatchIntro(${matchIdx})"`
+      : delay !== null
+        ? ` style="animation-delay:${delay}ms"`
+        : "";
   return `<tr class="cmr-row${extraClass}"${clickable}>
           <td class="cmr-date">${fmtDate(m.date)
             .replace(/\s+\d{4}$/, "")
@@ -3039,23 +3280,43 @@ function buildMatchCards(matches, showAdmin) {
     [...allMatches]
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
       .forEach((m) => {
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in elo)) elo[p] = 1000; });
+        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+          if (!(p in elo)) elo[p] = 1000;
+        });
         // Rank all pairs by their avg ELO right now (before this match)
-        matchPairRankMap.set(m, new Map(
-          _allPairsList
-            .map((p) => ({ key: p.key, avgElo: p.players.reduce((s, n) => s + (elo[n] || 1000), 0) / p.players.length }))
-            .sort((a, b) => b.avgElo - a.avgElo)
-            .map(({ key }, i) => [key, i + 1])
-        ));
+        matchPairRankMap.set(
+          m,
+          new Map(
+            _allPairsList
+              .map((p) => ({
+                key: p.key,
+                avgElo:
+                  p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
+                  p.players.length,
+              }))
+              .sort((a, b) => b.avgElo - a.avgElo)
+              .map(({ key }, i) => [key, i + 1]),
+          ),
+        );
         const aWon = m.scoreA > m.scoreB;
-        const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-        const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+        const avgA =
+          m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+        const avgB =
+          m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
         const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
         const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
         const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
         const mData = {};
-        (m.teamA || []).forEach((p) => { const after = (elo[p] || 1000) + dA; mData[p] = { delta: dA, after }; elo[p] = after; });
-        (m.teamB || []).forEach((p) => { const after = (elo[p] || 1000) + dB; mData[p] = { delta: dB, after }; elo[p] = after; });
+        (m.teamA || []).forEach((p) => {
+          const after = (elo[p] || 1000) + dA;
+          mData[p] = { delta: dA, after };
+          elo[p] = after;
+        });
+        (m.teamB || []).forEach((p) => {
+          const after = (elo[p] || 1000) + dB;
+          mData[p] = { delta: dB, after };
+          elo[p] = after;
+        });
         eloMatchMap.set(m, mData);
       });
   }
@@ -3063,7 +3324,10 @@ function buildMatchCards(matches, showAdmin) {
     const d = eloData[p];
     if (!d) return "";
     const display = normPlayer(p);
-    const short = Object.keys(nameMap).find(k => nameMap[k] === display && k.length === 3) || display.slice(0, 3).toUpperCase();
+    const short =
+      Object.keys(nameMap).find(
+        (k) => nameMap[k] === display && k.length === 3,
+      ) || display.slice(0, 3).toUpperCase();
     const cls = d.delta >= 0 ? "elo-gain" : "elo-loss";
     const arrow = d.delta >= 0 ? "↑" : "↓";
     return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${short}</span><span class="elo-pval">${d.after}</span><span class="elo-parrow">${arrow}${Math.abs(d.delta)}</span></span>`;
@@ -3074,7 +3338,9 @@ function buildMatchCards(matches, showAdmin) {
     const scoreCls = won ? "win" : "";
     const crown = won ? "👑 " : "";
     const rank = preMatchRankMap?.get(getPairKey(players));
-    const rankHtml = rank ? `<div class="team-pair-rank">ELO #${rank}</div>` : "";
+    const rankHtml = rank
+      ? `<div class="team-pair-rank">ELO #${rank}</div>`
+      : "";
     if (players.length >= 2) {
       const p2Suffix = hasZeroEmoji ? " 😭" : "";
       return `<div class="team-block team-block-split">
@@ -3137,8 +3403,12 @@ function buildMatchCards(matches, showAdmin) {
                 </div>
                 ${(() => {
                   const ed = eloMatchMap.get(m) || {};
-                  const aP = (m.teamA || []).map(p => mkEloPill(p, ed)).join("");
-                  const bP = (m.teamB || []).map(p => mkEloPill(p, ed)).join("");
+                  const aP = (m.teamA || [])
+                    .map((p) => mkEloPill(p, ed))
+                    .join("");
+                  const bP = (m.teamB || [])
+                    .map((p) => mkEloPill(p, ed))
+                    .join("");
                   return `<div class="match-elo-row"><div class="match-elo-team">${aP}</div><div class="match-elo-vs-gap"></div><div class="match-elo-team">${bP}</div></div>`;
                 })()}
                 ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
@@ -3255,29 +3525,46 @@ function buildMatchOfTheDay() {
     [...allMatches]
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
       .forEach((m) => {
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in elo)) elo[p] = 1000; });
+        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+          if (!(p in elo)) elo[p] = 1000;
+        });
         if (sessionMatches.includes(m)) {
-          upsetMatchRankMap.set(m, new Map(
-            _allPairsForUpset
-              .map((p) => ({ key: p.key, avgElo: p.players.reduce((s, n) => s + (elo[n] || 1000), 0) / p.players.length }))
-              .sort((a, b) => b.avgElo - a.avgElo)
-              .map(({ key }, i) => [key, i + 1])
-          ));
+          upsetMatchRankMap.set(
+            m,
+            new Map(
+              _allPairsForUpset
+                .map((p) => ({
+                  key: p.key,
+                  avgElo:
+                    p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
+                    p.players.length,
+                }))
+                .sort((a, b) => b.avgElo - a.avgElo)
+                .map(({ key }, i) => [key, i + 1]),
+            ),
+          );
         }
         const aWon = m.scoreA > m.scoreB;
-        const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-        const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+        const avgA =
+          m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+        const avgB =
+          m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
         const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
         const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
         const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-        m.teamA.forEach((p) => { elo[p] = (elo[p] || 1000) + dA; });
-        m.teamB.forEach((p) => { elo[p] = (elo[p] || 1000) + dB; });
+        m.teamA.forEach((p) => {
+          elo[p] = (elo[p] || 1000) + dA;
+        });
+        m.teamB.forEach((p) => {
+          elo[p] = (elo[p] || 1000) + dB;
+        });
       });
   }
   const getPairEloRank = (m, team) =>
     upsetMatchRankMap.get(m)?.get([...team].sort().join(" & ")) || "?";
 
-  let bestUpset = null, bestGap = 0;
+  let bestUpset = null,
+    bestGap = 0;
   sessionMatches.forEach((m) => {
     const winTeam = m.scoreA > m.scoreB ? m.teamA : m.teamB;
     const loseTeam = m.scoreA > m.scoreB ? m.teamB : m.teamA;
@@ -3419,24 +3706,28 @@ function buildHistorySummary(matches, filter = "all") {
 
   // Top ELO gainer within the filtered period
   const potwLabels = {
-    today:    { title: "PLAYER OF THE DAY",          sub: "matches today" },
-    week:     { title: "PLAYER OF THE WEEK",          sub: "matches this week" },
-    weekend:  { title: "PLAYER OF THE WEEKEND",       sub: "matches this weekend" },
-    month:    { title: "PLAYER OF THE MONTH",         sub: "matches this month" },
-    lastweek: { title: "BEST PLAYER OF LAST WEEK",    sub: "matches last week" },
-    all:      { title: "ALL TIME BEST PLAYER",          sub: "matches played" },
-    range:    { title: "TOP PLAYER",                  sub: "matches in range" },
+    today: { title: "PLAYER OF THE DAY", sub: "matches today" },
+    week: { title: "PLAYER OF THE WEEK", sub: "matches this week" },
+    weekend: { title: "PLAYER OF THE WEEKEND", sub: "matches this weekend" },
+    month: { title: "PLAYER OF THE MONTH", sub: "matches this month" },
+    lastweek: { title: "BEST PLAYER OF LAST WEEK", sub: "matches last week" },
+    all: { title: "ALL TIME BEST PLAYER", sub: "matches played" },
+    range: { title: "TOP PLAYER", sub: "matches in range" },
   };
   const potwLabel = potwLabels[filter] || potwLabels.all;
   let potwHtml = "";
   if (matches.length >= 2) {
     const periodDates = matches.map((m) => m.date || "").filter(Boolean);
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
-    const preElo  = computeElo(allMatches.filter((m) => (m.date || "") < firstDate));
+    const preElo = computeElo(
+      allMatches.filter((m) => (m.date || "") < firstDate),
+    );
     const fullElo = computeElo(allMatches);
     const periodPlayers = new Set();
     matches.forEach((m) =>
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => periodPlayers.add(p)),
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
+        periodPlayers.add(p),
+      ),
     );
     const potwDeltas = [...periodPlayers]
       .map((p) => ({
@@ -3466,11 +3757,15 @@ function buildHistorySummary(matches, filter = "all") {
   if (matches.length) {
     const periodDates = matches.map((m) => m.date || "1970-01-01");
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
-    const eloAfter  = computeElo(allMatches);
-    const eloBefore = computeElo(allMatches.filter((m) => (m.date || "1970-01-01") < firstDate));
+    const eloAfter = computeElo(allMatches);
+    const eloBefore = computeElo(
+      allMatches.filter((m) => (m.date || "1970-01-01") < firstDate),
+    );
     const periodPlayers = new Set();
     matches.forEach((m) =>
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => periodPlayers.add(p)),
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
+        periodPlayers.add(p),
+      ),
     );
     const deltas = [...periodPlayers]
       .map((p) => ({
@@ -3480,11 +3775,13 @@ function buildHistorySummary(matches, filter = "all") {
         aElo: Math.round(eloAfter[p] || 1000),
       }))
       .sort((a, b) => b.delta - a.delta);
-    const deltaRows = deltas.map((p) => {
-      const sign    = p.delta > 0 ? "+" : "";
-      const chipCls = p.delta > 0 ? "sr-chip-g" : p.delta < 0 ? "sr-chip-l" : "sr-chip-z";
-      const arrow   = p.delta > 0 ? "▲" : p.delta < 0 ? "▼" : "·";
-      return `<div class="elo-delta-row hsum-cascade" style="animation-delay:${d()}ms">
+    const deltaRows = deltas
+      .map((p) => {
+        const sign = p.delta > 0 ? "+" : "";
+        const chipCls =
+          p.delta > 0 ? "sr-chip-g" : p.delta < 0 ? "sr-chip-l" : "sr-chip-z";
+        const arrow = p.delta > 0 ? "▲" : p.delta < 0 ? "▼" : "·";
+        return `<div class="elo-delta-row hsum-cascade" style="animation-delay:${d()}ms">
         <span class="elo-delta-name">${p.name}</span>
         <span class="elo-ba-wrap">
           <span class="elo-ba-num elo-ba-b">${p.bElo}</span>
@@ -3493,7 +3790,8 @@ function buildHistorySummary(matches, filter = "all") {
         </span>
         <span class="sr-chip ${chipCls}">${arrow} ${sign}${p.delta}</span>
       </div>`;
-    }).join("");
+      })
+      .join("");
     sessionRecapHtml = `
       <div class="hsum-section-lbl">ELO CHANGES</div>
       <div class="elo-delta-list">${deltaRows}</div>`;
@@ -3645,9 +3943,15 @@ function renderModernMatches() {
   if (query) {
     const q = query.toLowerCase();
     matches = matches.filter((m) => {
-      const players = [...(m.teamA || []), ...(m.teamB || [])].map(p => (nameMap[p] || p).toLowerCase());
-      if (players.some(p => p.includes(q))) return true;
-      if (`${m.scoreA}-${m.scoreB}`.includes(q) || `${m.scoreB}-${m.scoreA}`.includes(q)) return true;
+      const players = [...(m.teamA || []), ...(m.teamB || [])].map((p) =>
+        (nameMap[p] || p).toLowerCase(),
+      );
+      if (players.some((p) => p.includes(q))) return true;
+      if (
+        `${m.scoreA}-${m.scoreB}`.includes(q) ||
+        `${m.scoreB}-${m.scoreA}`.includes(q)
+      )
+        return true;
       if ((m.date || "").includes(q)) return true;
       if ((m.note || "").toLowerCase().includes(q)) return true;
       return false;
@@ -3717,11 +4021,20 @@ function renderModernMatches() {
     const escA = h2hFilterA.replace(/'/g, "\\'");
     const escB = h2hFilterB.replace(/'/g, "\\'");
     const h2hEloHist = computeEloHistory(allMatches);
-    const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) => pt.opponent.split(" & ").includes(h2hFilterB));
-    const h2hP2Pts = (h2hEloHist[h2hFilterB] || []).filter((pt) => pt.opponent.split(" & ").includes(h2hFilterA));
+    const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) =>
+      pt.opponent.split(" & ").includes(h2hFilterB),
+    );
+    const h2hP2Pts = (h2hEloHist[h2hFilterB] || []).filter((pt) =>
+      pt.opponent.split(" & ").includes(h2hFilterA),
+    );
     const h2hP1Impact = h2hP1Pts.reduce((s, pt) => s + pt.delta, 0);
     const h2hP2Impact = h2hP2Pts.reduce((s, pt) => s + pt.delta, 0);
-    const fmtEloImpact = (n) => n > 0 ? `<span style="color:var(--green)">+${n}</span>` : n < 0 ? `<span style="color:var(--red)">${n}</span>` : `<span style="color:var(--muted)">0</span>`;
+    const fmtEloImpact = (n) =>
+      n > 0
+        ? `<span style="color:var(--green)">+${n}</span>`
+        : n < 0
+          ? `<span style="color:var(--red)">${n}</span>`
+          : `<span style="color:var(--muted)">0</span>`;
     summary = `<div class="pair-stats-card" style="margin-bottom:10px" onclick="openH2HDetail('${escA}','${escB}')">
             <div class="psc-header"><span class="psc-badge">⚔️ Head-to-Head</span><span class="psc-tap">Full stats →</span></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -3851,7 +4164,9 @@ function renderModernMatches() {
       el.style.opacity = "";
       el.classList.add("card-anim");
       histList.appendChild(el);
-      el.querySelectorAll(".team-score[data-final], .motd-score[data-final]").forEach((scoreEl) => {
+      el.querySelectorAll(
+        ".team-score[data-final], .motd-score[data-final]",
+      ).forEach((scoreEl) => {
         const final = parseInt(scoreEl.dataset.final, 10);
         if (!isNaN(final) && final > 0) {
           let cur = 0;
@@ -3872,7 +4187,9 @@ function renderModernMatches() {
   if (instant.length) {
     setTimeout(() => {
       instant.forEach((el) => {
-        el.querySelectorAll(".team-score[data-final], .motd-score[data-final]").forEach((scoreEl) => {
+        el.querySelectorAll(
+          ".team-score[data-final], .motd-score[data-final]",
+        ).forEach((scoreEl) => {
           scoreEl.textContent = scoreEl.dataset.final || "0";
         });
         el.style.animation = "none";
@@ -3995,13 +4312,17 @@ function setHistScorelineFilter(val) {
 
 function _updateFilterBtnDisplay() {
   const playerBtn = document.getElementById("hist-player-btn");
-  const pairBtn   = document.getElementById("hist-pair-btn");
+  const pairBtn = document.getElementById("hist-pair-btn");
   if (playerBtn) {
-    document.getElementById("hist-player-label").textContent = histPlayerFilter ? histPlayerFilter.toUpperCase() : "ALL PLAYERS";
+    document.getElementById("hist-player-label").textContent = histPlayerFilter
+      ? histPlayerFilter.toUpperCase()
+      : "ALL PLAYERS";
     playerBtn.classList.toggle("filter-fab-active", !!histPlayerFilter);
   }
   if (pairBtn) {
-    document.getElementById("hist-pair-label").textContent = histPairFilter ? histPairFilter.toUpperCase() : "ALL PAIRS";
+    document.getElementById("hist-pair-label").textContent = histPairFilter
+      ? histPairFilter.toUpperCase()
+      : "ALL PAIRS";
     pairBtn.classList.toggle("filter-fab-active", !!histPairFilter);
   }
 }
@@ -4009,28 +4330,32 @@ function _updateFilterBtnDisplay() {
 function openFilterSheet(mode) {
   _filterSheetMode = mode;
   const overlay = document.getElementById("filter-sheet-overlay");
-  const sheet   = document.getElementById("filter-sheet");
-  const list    = document.getElementById("filter-sheet-list");
-  const title   = document.getElementById("filter-sheet-title");
+  const sheet = document.getElementById("filter-sheet");
+  const list = document.getElementById("filter-sheet-list");
+  const title = document.getElementById("filter-sheet-title");
   if (!overlay || !sheet || !list) return;
   if (mode === "player") {
     if (title) title.textContent = "SELECT PLAYER";
     const names = new Set();
-    allMatches.forEach(m => [...(m.teamA||[]), ...(m.teamB||[])].forEach(p => names.add(nameMap[p] || p)));
+    allMatches.forEach((m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
+        names.add(nameMap[p] || p),
+      ),
+    );
     const sorted = [...names].sort((a, b) => a.localeCompare(b));
     list.innerHTML = [
       `<button class="live-sheet-item${!histPlayerFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
         <span class="live-sheet-item-name">ALL PLAYERS</span>
         ${!histPlayerFilter ? '<span class="live-sheet-check">✓</span>' : ""}
       </button>`,
-      ...sorted.map(p => {
+      ...sorted.map((p) => {
         const cur = p === histPlayerFilter;
         return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
           <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
           <span class="live-sheet-item-name">${p}</span>
           ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
         </button>`;
-      })
+      }),
     ].join("");
   } else if (mode === "pair") {
     if (title) title.textContent = "SELECT PAIR";
@@ -4040,14 +4365,14 @@ function openFilterSheet(mode) {
         <span class="live-sheet-item-name">ALL PAIRS</span>
         ${!histPairFilter ? '<span class="live-sheet-check">✓</span>' : ""}
       </button>`,
-      ...pairs.map(p => {
+      ...pairs.map((p) => {
         const cur = p.key === histPairFilter;
         return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${p.key.replace(/'/g, "\\'")}')">
           <span class="live-sheet-item-name">${p.key}</span>
           <span style="font-size:10px;color:var(--muted);margin-left:auto">${p.wins}W–${p.losses}L</span>
           ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
         </button>`;
-      })
+      }),
     ].join("");
   }
   overlay.classList.add("live-sheet-open");
@@ -4055,18 +4380,20 @@ function openFilterSheet(mode) {
 }
 
 function closeFilterSheet() {
-  document.getElementById("filter-sheet-overlay")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("filter-sheet-overlay")
+    ?.classList.remove("live-sheet-open");
   document.getElementById("filter-sheet")?.classList.remove("live-sheet-open");
   _filterSheetMode = null;
 }
 
 const _CMP_DATE_OPTIONS = [
-  { v: "all",      l: "ALL TIME",   icon: "⏱" },
-  { v: "today",    l: "TODAY",      icon: "📅" },
-  { v: "week",     l: "THIS WEEK",  icon: "📆" },
-  { v: "lastweek", l: "LAST WEEK",  icon: "⬅️" },
-  { v: "weekend",  l: "WEEKEND",    icon: "🏖" },
-  { v: "month",    l: "THIS MONTH", icon: "🗓" },
+  { v: "all", l: "ALL TIME", icon: "⏱" },
+  { v: "today", l: "TODAY", icon: "📅" },
+  { v: "week", l: "THIS WEEK", icon: "📆" },
+  { v: "lastweek", l: "LAST WEEK", icon: "⬅️" },
+  { v: "weekend", l: "WEEKEND", icon: "🏖" },
+  { v: "month", l: "THIS MONTH", icon: "🗓" },
 ];
 
 function openCmpDateSheet() {
@@ -4075,14 +4402,19 @@ function openCmpDateSheet() {
   if (title) title.textContent = "DATE FILTER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  list.innerHTML = _CMP_DATE_OPTIONS.map(o =>
-    `<div class="live-sheet-item${cmpFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
+  list.innerHTML = _CMP_DATE_OPTIONS
+    .map(
+      (o) =>
+        `<div class="live-sheet-item${cmpFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
       <span style="font-size:20px;width:28px;text-align:center">${o.icon}</span>
       <span>${o.l}</span>
-      ${cmpFilter === o.v ? '<span class="live-sheet-check">✓</span>' : ''}
-    </div>`
-  ).join("");
-  document.getElementById("filter-sheet-overlay")?.classList.add("live-sheet-open");
+      ${cmpFilter === o.v ? '<span class="live-sheet-check">✓</span>' : ""}
+    </div>`,
+    )
+    .join("");
+  document
+    .getElementById("filter-sheet-overlay")
+    ?.classList.add("live-sheet-open");
   document.getElementById("filter-sheet")?.classList.add("live-sheet-open");
 }
 
@@ -4104,13 +4436,24 @@ function selectFilterItem(value) {
   else if (mode === "whatifplayer") {
     renderWhatIfSection(value);
     const btn = document.getElementById("whatif-player-fab");
-    if (btn) { btn.querySelector(".whatif-fab-label").textContent = value || "SELECT PLAYER"; btn.classList.toggle("filter-fab-active", !!value); }
-  }
-  else if (mode === "eloprobp1") { _eloProbP1 = value; _updateEloProbSlots(); }
-  else if (mode === "eloprobp2") { _eloProbP2 = value; _updateEloProbSlots(); }
-  else if (mode === "cmpplayerA") { _cmpPlayerA = value; _updateCmpSlots(); }
-  else if (mode === "cmpplayerB") { _cmpPlayerB = value; _updateCmpSlots(); }
-  else if (mode && mode.startsWith("predict_")) {
+    if (btn) {
+      btn.querySelector(".whatif-fab-label").textContent =
+        value || "SELECT PLAYER";
+      btn.classList.toggle("filter-fab-active", !!value);
+    }
+  } else if (mode === "eloprobp1") {
+    _eloProbP1 = value;
+    _updateEloProbSlots();
+  } else if (mode === "eloprobp2") {
+    _eloProbP2 = value;
+    _updateEloProbSlots();
+  } else if (mode === "cmpplayerA") {
+    _cmpPlayerA = value;
+    _updateCmpSlots();
+  } else if (mode === "cmpplayerB") {
+    _cmpPlayerB = value;
+    _updateCmpSlots();
+  } else if (mode && mode.startsWith("predict_")) {
     const slot = mode.split("_")[1];
     if (slot === "a1") _predictPlayerA = value;
     else if (slot === "a2") _predictPartnerA = value;
@@ -4145,37 +4488,44 @@ function _updateH2HSlotDisplay() {
   document.getElementById("h2h-slot-b-label").textContent = h2hFilterB || "P2";
   aBtn.classList.toggle("h2h-slot-filled", !!h2hFilterA);
   bBtn.classList.toggle("h2h-slot-filled", !!h2hFilterB);
-  if (clearBtn) clearBtn.style.display = (h2hFilterA || h2hFilterB) ? "flex" : "none";
+  if (clearBtn)
+    clearBtn.style.display = h2hFilterA || h2hFilterB ? "flex" : "none";
 }
 
 function openH2HSheet(slot) {
   _h2hActiveSlot = slot;
   const overlay = document.getElementById("h2h-sheet-overlay");
-  const sheet   = document.getElementById("h2h-sheet");
-  const list    = document.getElementById("h2h-sheet-list");
-  const title   = document.getElementById("h2h-sheet-title");
+  const sheet = document.getElementById("h2h-sheet");
+  const list = document.getElementById("h2h-sheet-list");
+  const title = document.getElementById("h2h-sheet-title");
   if (!overlay || !sheet || !list) return;
   if (title) title.textContent = slot === "a" ? "SELECT P1" : "SELECT P2";
-  const taken    = slot === "a" ? h2hFilterB : h2hFilterA;
+  const taken = slot === "a" ? h2hFilterB : h2hFilterA;
   const selected = slot === "a" ? h2hFilterA : h2hFilterB;
-  const players  = computeStats(allMatches).map(p => p.name).sort();
-  list.innerHTML = players.map(p => {
-    const isTaken    = p === taken;
-    const isCurrent  = p === selected;
-    return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
+  const players = computeStats(allMatches)
+    .map((p) => p.name)
+    .sort();
+  list.innerHTML = players
+    .map((p) => {
+      const isTaken = p === taken;
+      const isCurrent = p === selected;
+      return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
       onclick="${isTaken ? "" : `selectH2HPlayer('${p.replace(/'/g, "\\'")}')`}"
       ${isTaken ? "disabled" : ""}>
       <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
       <span class="live-sheet-item-name">${p}</span>
       ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
-  }).join("");
+    })
+    .join("");
   overlay.classList.add("live-sheet-open");
   sheet.classList.add("live-sheet-open");
 }
 
 function closeH2HSheet() {
-  document.getElementById("h2h-sheet-overlay")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("h2h-sheet-overlay")
+    ?.classList.remove("live-sheet-open");
   document.getElementById("h2h-sheet")?.classList.remove("live-sheet-open");
   _h2hActiveSlot = null;
 }
@@ -4266,9 +4616,11 @@ function renderAddMatches() {
     : [...allMatches];
   const addList = document.getElementById("add-match-list");
   addList.innerHTML = buildMatchCards(matches, true);
-  addList.querySelectorAll(".team-score[data-final], .motd-score[data-final]").forEach((el) => {
-    el.textContent = el.dataset.final || "0";
-  });
+  addList
+    .querySelectorAll(".team-score[data-final], .motd-score[data-final]")
+    .forEach((el) => {
+      el.textContent = el.dataset.final || "0";
+    });
 }
 
 function deleteMatchByIndex(i) {
@@ -4327,21 +4679,28 @@ function renderTrash() {
   const el = document.getElementById("trash-list");
   if (!el) return;
   if (!deletedMatches.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px 0">Trash is empty.</div>';
-    document.getElementById("trash-purge-btn")?.style.setProperty("display", "none");
+    el.innerHTML =
+      '<div style="color:var(--muted);font-size:12px;padding:4px 0">Trash is empty.</div>';
+    document
+      .getElementById("trash-purge-btn")
+      ?.style.setProperty("display", "none");
     return;
   }
-  document.getElementById("trash-purge-btn")?.style.setProperty("display", "block");
-  el.innerHTML = deletedMatches.map((m, i) => {
-    const label = `${m.teamA?.join(" & ")} vs ${m.teamB?.join(" & ")} ${m.scoreA}–${m.scoreB}`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+  document
+    .getElementById("trash-purge-btn")
+    ?.style.setProperty("display", "block");
+  el.innerHTML = deletedMatches
+    .map((m, i) => {
+      const label = `${m.teamA?.join(" & ")} vs ${m.teamB?.join(" & ")} ${m.scoreA}–${m.scoreB}`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:var(--text)">${label}</div>
         <div style="font-size:10px;color:var(--muted)">${fmtDate(m.date)} · deleted ${fmtDate(m.deletedAt)}</div>
       </div>
       <button onclick="restoreMatch(${i})" style="font-size:10px;font-weight:700;padding:4px 8px;border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--theme);cursor:pointer">↩</button>
     </div>`;
-  }).join("");
+    })
+    .join("");
 }
 function closeMatchEdit() {
   document.querySelectorAll(".match-edit-inline").forEach((el) => {
@@ -4486,9 +4845,14 @@ function populatePlayerDropdowns() {
 }
 
 function _syncFabDropdowns() {
-  const ids = ["modern-team-a-p1", "modern-team-a-p2", "modern-team-b-p1", "modern-team-b-p2"];
+  const ids = [
+    "modern-team-a-p1",
+    "modern-team-a-p2",
+    "modern-team-b-p1",
+    "modern-team-b-p2",
+  ];
   const labels = ["Team A — P1", "Team A — P2", "Team B — P1", "Team B — P2"];
-  const chosen = ids.map(id => document.getElementById(id)?.value || "");
+  const chosen = ids.map((id) => document.getElementById(id)?.value || "");
   const displayNames = Object.keys(aliasMap).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" }),
   );
@@ -4500,8 +4864,8 @@ function _syncFabDropdowns() {
     sel.innerHTML =
       `<option value="">${labels[i]}</option>` +
       displayNames
-        .filter(n => !others.includes(n))
-        .map(n => `<option value="${n}">${n}</option>`)
+        .filter((n) => !others.includes(n))
+        .map((n) => `<option value="${n}">${n}</option>`)
         .join("");
     sel.value = myVal;
   });
@@ -4644,7 +5008,8 @@ function openPlayerDetail(name) {
 
   // ── FORM ENGINE ──────────────────────────────────────────────
   const form = computePlayerForm(name, allMatches);
-  const formWidgetHtml = form ? `
+  const formWidgetHtml = form
+    ? `
     <div class="ana-card form-engine-card">
       <span class="badge">Player Form</span>
       <div class="form-score-row">
@@ -4659,11 +5024,13 @@ function openPlayerDetail(name) {
         <div class="form-pill"><span style="font-size:9px;color:var(--muted)">UNDER PRESSURE</span><span style="font-size:11px;font-weight:800;color:${form.pressureColor}">${form.pressureLabel} (${form.pressureScore}%)</span></div>
         <div class="form-pill"><span style="font-size:9px;color:var(--muted)">WIN QUALITY</span><span style="font-size:11px;font-weight:800;color:var(--fg)">ELO ${form.winQuality}</span></div>
       </div>
-    </div>` : "";
+    </div>`
+    : "";
 
   // ── ARCHETYPE ────────────────────────────────────────────────
   const archetype = computeArchetype(name, allMatches);
-  const archetypeHtml = archetype ? `
+  const archetypeHtml = archetype
+    ? `
     <div class="ana-card" style="display:flex;align-items:center;gap:12px;padding:12px 14px">
       <div style="font-size:32px;line-height:1">${archetype.icon}</div>
       <div style="flex:1">
@@ -4671,84 +5038,152 @@ function openPlayerDetail(name) {
         <div style="font-size:16px;font-weight:900;color:${archetype.color};margin:2px 0">${archetype.label}</div>
         <div style="font-size:10px;color:var(--muted)">${archetype.desc}</div>
       </div>
-    </div>` : "";
+    </div>`
+    : "";
 
   // ── RADAR CHART ──────────────────────────────────────────────
   const radarHtml = (() => {
     const eloMap = computeElo(allMatches);
     const allStats = computeStats(allMatches, eloMap);
-    const ps = allStats.find(p => p.name === name);
+    const ps = allStats.find((p) => p.name === name);
     if (!ps || ps.mp < 3) return "";
     const allElos = Object.values(eloMap);
-    const maxElo = Math.max(...allElos), minElo = Math.min(...allElos);
-    const eloNorm = maxElo > minElo ? ((eloMap[name]||1000) - minElo) / (maxElo - minElo) : 0.5;
+    const maxElo = Math.max(...allElos),
+      minElo = Math.min(...allElos);
+    const eloNorm =
+      maxElo > minElo
+        ? ((eloMap[name] || 1000) - minElo) / (maxElo - minElo)
+        : 0.5;
     const winRateNorm = ps.mp > 0 ? ps.mw / ps.mp : 0;
-    const closeMs = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(name) && Math.abs(m.scoreA-m.scoreB) <= 2);
-    const clutchNorm = closeMs.length >= 2 ? closeMs.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); }).length / closeMs.length : 0.5;
+    const closeMs = allMatches.filter(
+      (m) =>
+        [...(m.teamA || []), ...(m.teamB || [])].includes(name) &&
+        Math.abs(m.scoreA - m.scoreB) <= 2,
+    );
+    const clutchNorm =
+      closeMs.length >= 2
+        ? closeMs.filter((m) => {
+            const inA = (m.teamA || []).includes(name);
+            return (
+              (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA)
+            );
+          }).length / closeMs.length
+        : 0.5;
     const formNorm = form ? form.score / 10 : winRateNorm;
-    const maxMp = Math.max(...allStats.map(p => p.mp), 1);
+    const maxMp = Math.max(...allStats.map((p) => p.mp), 1);
     const actNorm = ps.mp / maxMp;
-    const margins = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(name)).map(m => { const inA=(m.teamA||[]).includes(name); return (inA?m.scoreA:m.scoreB)-(inA?m.scoreB:m.scoreA); });
-    const avgM = margins.reduce((s,v)=>s+v,0)/Math.max(margins.length,1);
+    const margins = allMatches
+      .filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name))
+      .map((m) => {
+        const inA = (m.teamA || []).includes(name);
+        return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA);
+      });
+    const avgM =
+      margins.reduce((s, v) => s + v, 0) / Math.max(margins.length, 1);
     const consistNorm = Math.min(1, Math.max(0, (avgM + 5) / 10));
 
     // Avg values across all active players for comparison overlay
-    const activePlayers = allStats.filter(p => p.mp >= 3);
-    const _avg = (fn) => activePlayers.reduce((s,p) => s + fn(p), 0) / Math.max(activePlayers.length, 1);
-    const avgWinRate = _avg(p => p.mp > 0 ? p.mw/p.mp : 0);
-    const avgElo = _avg(p => maxElo > minElo ? ((eloMap[p.name]||1000)-minElo)/(maxElo-minElo) : 0.5);
-    const avgClutch = _avg(p => {
-      const cMs = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(p.name) && Math.abs(m.scoreA-m.scoreB) <= 2);
-      return cMs.length >= 2 ? cMs.filter(m => { const inA=(m.teamA||[]).includes(p.name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); }).length / cMs.length : 0.5;
+    const activePlayers = allStats.filter((p) => p.mp >= 3);
+    const _avg = (fn) =>
+      activePlayers.reduce((s, p) => s + fn(p), 0) /
+      Math.max(activePlayers.length, 1);
+    const avgWinRate = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
+    const avgElo = _avg((p) =>
+      maxElo > minElo
+        ? ((eloMap[p.name] || 1000) - minElo) / (maxElo - minElo)
+        : 0.5,
+    );
+    const avgClutch = _avg((p) => {
+      const cMs = allMatches.filter(
+        (m) =>
+          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) &&
+          Math.abs(m.scoreA - m.scoreB) <= 2,
+      );
+      return cMs.length >= 2
+        ? cMs.filter((m) => {
+            const inA = (m.teamA || []).includes(p.name);
+            return (
+              (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA)
+            );
+          }).length / cMs.length
+        : 0.5;
     });
-    const avgForm = _avg(p => p.mp > 0 ? p.mw/p.mp : 0);
-    const avgAct = _avg(p => p.mp / maxMp);
-    const avgConsist = _avg(p => {
-      const ms2 = allMatches.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(p.name)).map(m => { const inA=(m.teamA||[]).includes(p.name); return (inA?m.scoreA:m.scoreB)-(inA?m.scoreB:m.scoreA); });
-      const a2 = ms2.reduce((a,v)=>a+v,0)/Math.max(ms2.length,1);
-      return Math.min(1, Math.max(0, (a2+5)/10));
+    const avgForm = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
+    const avgAct = _avg((p) => p.mp / maxMp);
+    const avgConsist = _avg((p) => {
+      const ms2 = allMatches
+        .filter((m) =>
+          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
+        )
+        .map((m) => {
+          const inA = (m.teamA || []).includes(p.name);
+          return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA);
+        });
+      const a2 = ms2.reduce((a, v) => a + v, 0) / Math.max(ms2.length, 1);
+      return Math.min(1, Math.max(0, (a2 + 5) / 10));
     });
 
     const axes = [
       { label: "WIN RATE", val: winRateNorm, avg: avgWinRate },
-      { label: "ELO",      val: eloNorm,     avg: avgElo },
-      { label: "CLUTCH",   val: clutchNorm,  avg: avgClutch },
-      { label: "FORM",     val: formNorm,    avg: avgForm },
-      { label: "ACTIVITY", val: actNorm,     avg: avgAct },
-      { label: "MARGIN",   val: consistNorm, avg: avgConsist },
+      { label: "ELO", val: eloNorm, avg: avgElo },
+      { label: "CLUTCH", val: clutchNorm, avg: avgClutch },
+      { label: "FORM", val: formNorm, avg: avgForm },
+      { label: "ACTIVITY", val: actNorm, avg: avgAct },
+      { label: "MARGIN", val: consistNorm, avg: avgConsist },
     ];
     const N = axes.length;
-    const cx = 110, cy = 110, R = 78;
+    const cx = 110,
+      cy = 110,
+      R = 78;
     const col = playerColor(name);
     const xy = (i, scale) => {
-      const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
-      return { x: cx + scale * R * Math.cos(angle), y: cy + scale * R * Math.sin(angle) };
+      const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
+      return {
+        x: cx + scale * R * Math.cos(angle),
+        y: cy + scale * R * Math.sin(angle),
+      };
     };
     const playerPts = axes.map((a, i) => xy(i, a.val));
-    const avgPts    = axes.map((a, i) => xy(i, a.avg));
-    const gridLines = [0.25, 0.5, 0.75, 1].map(sc => {
-      const g = axes.map((_, i) => { const p = xy(i, sc); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(" ");
-      return `<polygon points="${g}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
-    }).join("");
-    const spokes = axes.map((_, i) => {
-      const p = xy(i, 1);
-      return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
-    }).join("");
-    const polyPts = playerPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-    const avgPolyPts = avgPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-    const labels = axes.map((a, i) => {
-      const angle = (Math.PI * 2 * i / N) - Math.PI / 2;
-      const lx = cx + (R + 22) * Math.cos(angle);
-      const ly = cy + (R + 22) * Math.sin(angle);
-      const anchor = Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
-      return `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="DM Sans,sans-serif">${a.label}</text>`;
-    }).join("");
+    const avgPts = axes.map((a, i) => xy(i, a.avg));
+    const gridLines = [0.25, 0.5, 0.75, 1]
+      .map((sc) => {
+        const g = axes
+          .map((_, i) => {
+            const p = xy(i, sc);
+            return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+          })
+          .join(" ");
+        return `<polygon points="${g}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+      })
+      .join("");
+    const spokes = axes
+      .map((_, i) => {
+        const p = xy(i, 1);
+        return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+      })
+      .join("");
+    const polyPts = playerPts
+      .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+      .join(" ");
+    const avgPolyPts = avgPts
+      .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+      .join(" ");
+    const labels = axes
+      .map((a, i) => {
+        const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
+        const lx = cx + (R + 22) * Math.cos(angle);
+        const ly = cy + (R + 22) * Math.sin(angle);
+        const anchor =
+          Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
+        return `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="DM Sans,sans-serif">${a.label}</text>`;
+      })
+      .join("");
     return `<div class="ana-card" style="overflow:visible"><span class="badge">Radar Profile</span>
       <svg viewBox="0 0 220 220" width="100%" style="max-width:260px;display:block;margin:8px auto 0;overflow:visible">
         ${gridLines}${spokes}
         <polygon points="${avgPolyPts}" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.28)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>
         <polygon points="${polyPts}" fill="${col}" fill-opacity="0.18" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
-        ${playerPts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${col}"/>`).join("")}
+        ${playerPts.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${col}"/>`).join("")}
         ${labels}
       </svg>
       <div style="display:flex;gap:14px;justify-content:center;margin-top:8px">
@@ -4951,7 +5386,11 @@ function openPlayerDetail(name) {
   const pdTier = getPrestigeTier(pdLevel);
   const pdXpPct = Math.round(pdProgress * 100);
   const pdXpToNext = xpThreshold(pdLevel + 1) - pdXP;
-  let pdMatchCount = 0, pdWinCount = 0, pdFireCount = 0, pdDomCount = 0, pdZeroCount = 0;
+  let pdMatchCount = 0,
+    pdWinCount = 0,
+    pdFireCount = 0,
+    pdDomCount = 0,
+    pdZeroCount = 0;
   allMatches.forEach((m) => {
     const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
     const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
@@ -4963,8 +5402,16 @@ function openPlayerDetail(name) {
     if (isDominatingMatch(m) && won) pdDomCount++;
     if (isZeroMatch(m) && won) pdZeroCount++;
   });
-  const _pdBarClr = { diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)", gold: "#ffd700", silver: "#c0c0c0", bronze: "#cd7f32", rookie: "rgba(255,255,255,0.28)" };
-  const pdBarStyle = _pdBarClr[pdTier].startsWith("linear") ? `background:${_pdBarClr[pdTier]}` : `background:${_pdBarClr[pdTier]}`;
+  const _pdBarClr = {
+    diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)",
+    gold: "#ffd700",
+    silver: "#c0c0c0",
+    bronze: "#cd7f32",
+    rookie: "rgba(255,255,255,0.28)",
+  };
+  const pdBarStyle = _pdBarClr[pdTier].startsWith("linear")
+    ? `background:${_pdBarClr[pdTier]}`
+    : `background:${_pdBarClr[pdTier]}`;
   const xpCard = `
     <div class="ana-card">
       <span class="badge">XP & Level</span>
@@ -4999,7 +5446,10 @@ function openPlayerDetail(name) {
       : eloChange < 0
         ? "var(--red)"
         : "var(--muted)";
-  const eloRank = Object.entries(eloMap).sort((a, b) => b[1] - a[1]).findIndex(([n]) => n === name) + 1;
+  const eloRank =
+    Object.entries(eloMap)
+      .sort((a, b) => b[1] - a[1])
+      .findIndex(([n]) => n === name) + 1;
 
   // Badges
   const badges = computeBadges(name, s, eloMap, allMatches);
@@ -5043,14 +5493,22 @@ function openPlayerDetail(name) {
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
   // Best rank: find minimum rank position across all match-date snapshots
-  const _sortedAll = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const _playerDates = [...new Set(
-    _sortedAll.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(name)).map(m => m.date)
-  )];
+  const _sortedAll = [...allMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const _playerDates = [
+    ...new Set(
+      _sortedAll
+        .filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name))
+        .map((m) => m.date),
+    ),
+  ];
   let bestRank = rAll || Infinity;
-  _playerDates.forEach(date => {
-    const snap = _sortedAll.filter(m => (m.date || "") <= date);
-    const rank = computeStats(snap, computeElo(snap)).findIndex(p => p.name === name) + 1;
+  _playerDates.forEach((date) => {
+    const snap = _sortedAll.filter((m) => (m.date || "") <= date);
+    const rank =
+      computeStats(snap, computeElo(snap)).findIndex((p) => p.name === name) +
+      1;
     if (rank > 0 && rank < bestRank) bestRank = rank;
   });
   bestRank = bestRank === Infinity ? null : bestRank;
@@ -5186,9 +5644,10 @@ function openPlayerDetail(name) {
     const valleyElo = Math.min(...pts.map((p) => p.elo));
     const valleyPt = pts.find((p) => p.elo === valleyElo);
     const fromPeak = lastElo - peakElo;
-    const fromPeakLabel = fromPeak === 0
-      ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
-      : `<span style="color:var(--red);font-weight:700">${fromPeak} from peak</span>`;
+    const fromPeakLabel =
+      fromPeak === 0
+        ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
+        : `<span style="color:var(--red);font-weight:700">${fromPeak} from peak</span>`;
     return `<div class="ana-card"><span class="badge">ELO Timeline</span>
       <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px">
         <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
@@ -5364,12 +5823,36 @@ function openPlayerDetail(name) {
     setTimeout(tick, delay);
   };
 
-  pdTick(document.getElementById("pd-sr-val"),    parseFloat(document.getElementById("pd-sr-val")?.dataset.final    || 0),    (v) => v.toFixed(2));
-  pdTick(document.getElementById("pd-elo-val"),   parseInt(document.getElementById("pd-elo-val")?.dataset.final     || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-xp-total"),  parseInt(document.getElementById("pd-xp-total")?.dataset.final    || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-cur"),  parseInt(document.getElementById("pd-rank-cur")?.dataset.final    || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-pre"),  parseInt(document.getElementById("pd-rank-pre")?.dataset.final    || 0, 10), (v) => Math.round(v));
-  pdTick(document.getElementById("pd-rank-best"), parseInt(document.getElementById("pd-rank-best")?.dataset.final   || 0, 10), (v) => Math.round(v));
+  pdTick(
+    document.getElementById("pd-sr-val"),
+    parseFloat(document.getElementById("pd-sr-val")?.dataset.final || 0),
+    (v) => v.toFixed(2),
+  );
+  pdTick(
+    document.getElementById("pd-elo-val"),
+    parseInt(document.getElementById("pd-elo-val")?.dataset.final || 0, 10),
+    (v) => Math.round(v),
+  );
+  pdTick(
+    document.getElementById("pd-xp-total"),
+    parseInt(document.getElementById("pd-xp-total")?.dataset.final || 0, 10),
+    (v) => Math.round(v),
+  );
+  pdTick(
+    document.getElementById("pd-rank-cur"),
+    parseInt(document.getElementById("pd-rank-cur")?.dataset.final || 0, 10),
+    (v) => Math.round(v),
+  );
+  pdTick(
+    document.getElementById("pd-rank-pre"),
+    parseInt(document.getElementById("pd-rank-pre")?.dataset.final || 0, 10),
+    (v) => Math.round(v),
+  );
+  pdTick(
+    document.getElementById("pd-rank-best"),
+    parseInt(document.getElementById("pd-rank-best")?.dataset.final || 0, 10),
+    (v) => Math.round(v),
+  );
 
   // XP bar fill animation (level number already shows final value from HTML)
   const xpBarEl = document.getElementById("pd-xp-bar");
@@ -5394,23 +5877,36 @@ function openH2HDetail(a, b) {
   const bWinPct = 100 - aWinPct;
 
   // Game-level stats
-  let aGW = 0, bGW = 0, aShut = 0, bShut = 0;
-  let aStreak = 0, bStreak = 0, aCurStreak = 0, bCurStreak = 0, aCurType = null, bCurType = null;
-  const sorted = [...h2h.matches].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+  let aGW = 0,
+    bGW = 0,
+    aShut = 0,
+    bShut = 0;
+  let aStreak = 0,
+    bStreak = 0,
+    aCurStreak = 0,
+    bCurStreak = 0,
+    aCurType = null,
+    bCurType = null;
+  const sorted = [...h2h.matches].sort((x, y) =>
+    (x.date || "").localeCompare(y.date || ""),
+  );
   sorted.forEach((m) => {
     const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
     const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
     const aS = aInA ? m.scoreA : m.scoreB;
     const bS = aInA ? m.scoreB : m.scoreA;
-    aGW += aS; bGW += bS;
+    aGW += aS;
+    bGW += bS;
     if (bS === 0) aShut++;
     if (aS === 0) bShut++;
     if (aWon) {
       aCurType === "w" ? aCurStreak++ : ((aCurType = "w"), (aCurStreak = 1));
-      bCurStreak = 0; bCurType = null;
+      bCurStreak = 0;
+      bCurType = null;
     } else {
       bCurType === "w" ? bCurStreak++ : ((bCurType = "w"), (bCurStreak = 1));
-      aCurStreak = 0; aCurType = null;
+      aCurStreak = 0;
+      aCurType = null;
     }
     aStreak = Math.max(aStreak, aCurStreak);
     bStreak = Math.max(bStreak, bCurStreak);
@@ -5423,15 +5919,23 @@ function openH2HDetail(a, b) {
   [...allMatches]
     .sort((x, y) => (x.date || "").localeCompare(y.date || ""))
     .forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _e)) _e[p] = 1000; });
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in _e)) _e[p] = 1000;
+      });
       const mAWon = m.scoreA > m.scoreB;
-      const avgA = m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB = m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
+      const avgA =
+        m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB =
+        m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
       const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
       const dA = Math.round(32 * ((mAWon ? 1 : 0) - expA));
       const dB = Math.round(32 * ((mAWon ? 0 : 1) - (1 - expA)));
-      m.teamA.forEach((p) => { _e[p] = (_e[p] || 1000) + dA; });
-      m.teamB.forEach((p) => { _e[p] = (_e[p] || 1000) + dB; });
+      m.teamA.forEach((p) => {
+        _e[p] = (_e[p] || 1000) + dA;
+      });
+      m.teamB.forEach((p) => {
+        _e[p] = (_e[p] || 1000) + dB;
+      });
       const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
       const aInB = (m.teamB || []).some((p) => normPlayer(p) === a);
       const bInA = (m.teamA || []).some((p) => normPlayer(p) === b);
@@ -5439,13 +5943,24 @@ function openH2HDetail(a, b) {
       if ((aInA && bInB) || (aInB && bInA))
         h2hDeltaMap.set(m, { ad: aInA ? dA : dB, bd: bInA ? dA : dB });
     });
-  let aEloTotal = 0, bEloTotal = 0;
-  h2hDeltaMap.forEach((v) => { aEloTotal += v.ad; bEloTotal += v.bd; });
+  let aEloTotal = 0,
+    bEloTotal = 0;
+  h2hDeltaMap.forEach((v) => {
+    aEloTotal += v.ad;
+    bEloTotal += v.bd;
+  });
 
-  const fmtD = (n) => n > 0 ? `+${n}` : String(n);
-  const dCol = (n) => n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
-  const eloBg = (n) => n > 0 ? "rgba(74,222,128,0.15)" : n < 0 ? "rgba(248,113,113,0.15)" : "rgba(255,255,255,0.06)";
-  const borderCol = (n) => n > 0 ? "#4ade80" : n < 0 ? "#f87171" : "rgba(255,255,255,0.1)";
+  const fmtD = (n) => (n > 0 ? `+${n}` : String(n));
+  const dCol = (n) =>
+    n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
+  const eloBg = (n) =>
+    n > 0
+      ? "rgba(74,222,128,0.15)"
+      : n < 0
+        ? "rgba(248,113,113,0.15)"
+        : "rgba(255,255,255,0.06)";
+  const borderCol = (n) =>
+    n > 0 ? "#4ade80" : n < 0 ? "#f87171" : "rgba(255,255,255,0.1)";
 
   const col1 = playerColor(a);
   const col2 = playerColor(b);
@@ -5521,9 +6036,11 @@ function openH2HDetail(a, b) {
           </div>
 
           <div class="h2h-leader-badge">
-            ${leader
-              ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
-              : "⚖️ Perfectly balanced"}
+            ${
+              leader
+                ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
+                : "⚖️ Perfectly balanced"
+            }
           </div>
 
           <div class="h2h-stats-grid">
@@ -5612,21 +6129,34 @@ function openRivalryScreen(a, b) {
   const pctB = 100 - pctA;
 
   // Per-match stats
-  const sorted = [...h2h.matches].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
-  let aStreak = 0, bStreak = 0, aCur = 0, bCur = 0;
-  sorted.forEach(m => {
-    const aInA = (m.teamA || []).some(p => normPlayer(p) === a);
+  const sorted = [...h2h.matches].sort((x, y) =>
+    (x.date || "").localeCompare(y.date || ""),
+  );
+  let aStreak = 0,
+    bStreak = 0,
+    aCur = 0,
+    bCur = 0;
+  sorted.forEach((m) => {
+    const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
     const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-    if (aWon) { aCur++; bCur = 0; } else { bCur++; aCur = 0; }
+    if (aWon) {
+      aCur++;
+      bCur = 0;
+    } else {
+      bCur++;
+      aCur = 0;
+    }
     aStreak = Math.max(aStreak, aCur);
     bStreak = Math.max(bStreak, bCur);
   });
 
   // Greatest match = closest score
-  const greatest = [...h2h.matches].sort((x, y) => Math.abs(x.scoreA - x.scoreB) - Math.abs(y.scoreA - y.scoreB))[0];
+  const greatest = [...h2h.matches].sort(
+    (x, y) => Math.abs(x.scoreA - x.scoreB) - Math.abs(y.scoreA - y.scoreB),
+  )[0];
   let greatestHtml = "";
   if (greatest) {
-    const aInA = (greatest.teamA || []).some(p => normPlayer(p) === a);
+    const aInA = (greatest.teamA || []).some((p) => normPlayer(p) === a);
     const sa = aInA ? greatest.scoreA : greatest.scoreB;
     const sb = aInA ? greatest.scoreB : greatest.scoreA;
     const winnerCol = sa > sb ? colA : colB;
@@ -5639,24 +6169,30 @@ function openRivalryScreen(a, b) {
   }
 
   // Last 5 results
-  const last5 = [...h2h.matches].sort((x, y) => (y.date || "").localeCompare(x.date || "")).slice(0, 5);
-  const last5Html = last5.map(m => {
-    const aInA = (m.teamA || []).some(p => normPlayer(p) === a);
-    const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-    const sa = aInA ? m.scoreA : m.scoreB;
-    const sb = aInA ? m.scoreB : m.scoreA;
-    const wCol = aWon ? colA : colB;
-    return `<div class="rivalry-result-pill" style="border-color:${wCol}44;background:${wCol}12">
+  const last5 = [...h2h.matches]
+    .sort((x, y) => (y.date || "").localeCompare(x.date || ""))
+    .slice(0, 5);
+  const last5Html = last5
+    .map((m) => {
+      const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
+      const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      const sa = aInA ? m.scoreA : m.scoreB;
+      const sb = aInA ? m.scoreB : m.scoreA;
+      const wCol = aWon ? colA : colB;
+      return `<div class="rivalry-result-pill" style="border-color:${wCol}44;background:${wCol}12">
       <span style="color:${wCol};font-weight:900;font-size:10px">${aWon ? aN : bN}</span>
       <span style="font-size:11px;font-weight:700">${sa}–${sb}</span>
       <span style="color:var(--muted);font-size:9px">${fmtDate(m.date)}</span>
     </div>`;
-  }).join("");
+    })
+    .join("");
 
   // Current rivalry streak
   const rs = computeH2HStreak(a, b, allMatches);
-  const rsHtml = rs.leader && rs.streak >= 2
-    ? `<div class="rivalry-streak-badge" style="color:${rs.leader === a ? colA : colB}">🔥 ${rs.leader.split(" ")[0]} on ${rs.streak}-match streak</div>` : "";
+  const rsHtml =
+    rs.leader && rs.streak >= 2
+      ? `<div class="rivalry-streak-badge" style="color:${rs.leader === a ? colA : colB}">🔥 ${rs.leader.split(" ")[0]} on ${rs.streak}-match streak</div>`
+      : "";
 
   const html = `
     <div id="rivalry-screen-overlay" class="rivalry-screen-overlay" onclick="if(event.target===this)this.remove()">
@@ -5722,7 +6258,7 @@ function openShareMatchPoster(matchIdx) {
 
   const mkAvatar = (name, size = 36) => {
     const c = playerColor(name);
-    return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c}33;border:2px solid ${c}66;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.35)}px;font-weight:900;color:${c}">${playerInitials(name)}</div>`;
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c}33;border:2px solid ${c}66;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.35)}px;font-weight:900;color:${c}">${playerInitials(name)}</div>`;
   };
   const mkEloDelta = (name) => {
     const before = eloMapBefore[name] || 1000;
@@ -5731,12 +6267,17 @@ function openShareMatchPoster(matchIdx) {
     const col = d > 0 ? "#4ade80" : d < 0 ? "#f87171" : "rgba(255,255,255,0.4)";
     return `<span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? "+" : ""}${d}</span>`;
   };
-  const mkTeamRow = (team) => team.map(p =>
-    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+  const mkTeamRow = (team) =>
+    team
+      .map(
+        (p) =>
+          `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       ${mkAvatar(p, 32)}
       <span style="font-size:13px;font-weight:800;color:#f0ecff">${p}</span>
       <span style="margin-left:auto">${mkEloDelta(p)}</span>
-    </div>`).join("");
+    </div>`,
+      )
+      .join("");
 
   const card = `
     <div style="background:linear-gradient(160deg,#0d0d1a 0%,#11111f 60%,#0a0a15 100%);border-radius:24px;border:1px solid rgba(255,255,255,0.08);padding:0;width:100%;max-width:340px;box-shadow:0 8px 60px rgba(0,0,0,0.7);position:relative;overflow:hidden">
@@ -5746,7 +6287,7 @@ function openShareMatchPoster(matchIdx) {
       <div style="padding:20px 20px 14px;text-align:center">
         <div style="font-size:9px;font-weight:800;letter-spacing:0.15em;color:var(--muted);margin-bottom:6px">MATCH RESULT · ${fmtDate(m.date)}</div>
         <div style="font-size:46px;font-weight:900;color:#f0ecff;letter-spacing:-0.03em;line-height:1">${winScore}<span style="font-size:28px;color:rgba(255,255,255,0.3)"> – </span>${losScore}</div>
-        <div style="font-size:10px;color:${winCol};font-weight:800;letter-spacing:0.08em;margin-top:6px">🏆 ${winTeam.map(p => p.split(" ")[0]).join(" & ")} WIN</div>
+        <div style="font-size:10px;color:${winCol};font-weight:800;letter-spacing:0.08em;margin-top:6px">🏆 ${winTeam.map((p) => p.split(" ")[0]).join(" & ")} WIN</div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid rgba(255,255,255,0.06)">
@@ -5783,28 +6324,33 @@ function openShareMatchPoster(matchIdx) {
 }
 
 function _animEloCounts() {
-  document.querySelectorAll(".elo-ba-a[data-from][data-to]").forEach((el, i) => {
-    const from = parseInt(el.dataset.from, 10);
-    const to   = parseInt(el.dataset.to, 10);
-    if (from === to) return;
-    const dur = 700;
-    const delay = 350 + i * 60;
-    setTimeout(() => {
-      const startTime = performance.now();
-      const tick = (now) => {
-        const p = Math.min((now - startTime) / dur, 1);
-        const ease = 1 - Math.pow(1 - p, 3);
-        el.textContent = Math.round(from + (to - from) * ease);
-        if (p < 1) requestAnimationFrame(tick);
-        else el.textContent = to;
-      };
-      requestAnimationFrame(tick);
-    }, delay);
-  });
+  document
+    .querySelectorAll(".elo-ba-a[data-from][data-to]")
+    .forEach((el, i) => {
+      const from = parseInt(el.dataset.from, 10);
+      const to = parseInt(el.dataset.to, 10);
+      if (from === to) return;
+      const dur = 700;
+      const delay = 350 + i * 60;
+      setTimeout(() => {
+        const startTime = performance.now();
+        const tick = (now) => {
+          const p = Math.min((now - startTime) / dur, 1);
+          const ease = 1 - Math.pow(1 - p, 3);
+          el.textContent = Math.round(from + (to - from) * ease);
+          if (p < 1) requestAnimationFrame(tick);
+          else el.textContent = to;
+        };
+        requestAnimationFrame(tick);
+      }, delay);
+    });
 }
 
 async function openSummaryShare() {
-  if (!window.html2canvas) { showToast("Share not available", "❌"); return; }
+  if (!window.html2canvas) {
+    showToast("Share not available", "❌");
+    return;
+  }
   showToast("Capturing...", "📸");
   const pageEl = document.getElementById("pg-compact");
   if (!pageEl) return;
@@ -5821,12 +6367,31 @@ async function openSummaryShare() {
       windowHeight: scrollEl ? scrollEl.scrollHeight + 80 : pageEl.scrollHeight,
     });
     if (scrollEl) scrollEl.style.overflow = savedOver;
-    const fname = { all: "AllTime", today: "Today", week: "Week", lastweek: "LastWeek", weekend: "Weekend", month: "Month" };
+    const fname = {
+      all: "AllTime",
+      today: "Today",
+      week: "Week",
+      lastweek: "LastWeek",
+      weekend: "Weekend",
+      month: "Month",
+    };
     const label = fname[cmpFilter] || "Summary";
     canvas.toBlob(async (blob) => {
-      const file = new File([blob], `EktaPadel-${label}.png`, { type: "image/png" });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: "Ekta Padel", text: `${label} Leaderboard` }).catch(() => {});
+      const file = new File([blob], `EktaPadel-${label}.png`, {
+        type: "image/png",
+      });
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        await navigator
+          .share({
+            files: [file],
+            title: "Ekta Padel",
+            text: `${label} Leaderboard`,
+          })
+          .catch(() => {});
       } else {
         const a = document.createElement("a");
         a.href = canvas.toDataURL("image/png");
@@ -5841,7 +6406,10 @@ async function openSummaryShare() {
 
 function openSummaryScreenshot() {
   const leaderTableEl = document.querySelector(".cmp-body-scroll .cmp");
-  if (!leaderTableEl) { showToast("No data to capture", "❌"); return; }
+  if (!leaderTableEl) {
+    showToast("No data to capture", "❌");
+    return;
+  }
 
   // Flush any in-progress staggered animation: instantly write all rows to the DOM
   if (_cmpLeaderHtmls.length) {
@@ -5858,17 +6426,24 @@ function openSummaryScreenshot() {
   }
 
   const fname = {
-    all: "All Time", today: "Today", week: "This Week",
-    lastweek: "Last Week", weekend: "Weekend", month: "This Month", range: "Custom Range",
+    all: "All Time",
+    today: "Today",
+    week: "This Week",
+    lastweek: "Last Week",
+    weekend: "Weekend",
+    month: "This Month",
+    range: "Custom Range",
   };
   const filterLabel = (fname[cmpFilter] || "Summary").toUpperCase();
 
   // Clone leaderboard — strip interactivity & sort arrows
   const leaderClone = leaderTableEl.cloneNode(true);
-  leaderClone.querySelectorAll("[onclick]").forEach(el => el.removeAttribute("onclick"));
-  leaderClone.querySelectorAll(".sort-arrow").forEach(el => el.remove());
+  leaderClone
+    .querySelectorAll("[onclick]")
+    .forEach((el) => el.removeAttribute("onclick"));
+  leaderClone.querySelectorAll(".sort-arrow").forEach((el) => el.remove());
   // Flush SR pill values to their final number (they start at 0.00 before animation)
-  leaderClone.querySelectorAll(".sr-pill-val[data-final]").forEach(el => {
+  leaderClone.querySelectorAll(".sr-pill-val[data-final]").forEach((el) => {
     el.textContent = el.dataset.final;
   });
 
@@ -5877,7 +6452,9 @@ function openSummaryScreenshot() {
   let matchHtml = "";
   if (matchTableEl) {
     const matchClone = matchTableEl.cloneNode(true);
-    matchClone.querySelectorAll("[onclick]").forEach(el => el.removeAttribute("onclick"));
+    matchClone
+      .querySelectorAll("[onclick]")
+      .forEach((el) => el.removeAttribute("onclick"));
     matchHtml = `
       <div class="snap-section-hdr">MATCHES PLAYED</div>
       <div class="snap-full-row">${matchClone.outerHTML}</div>`;
@@ -5893,37 +6470,51 @@ function openSummaryScreenshot() {
     ${matchHtml}`;
 
   // Navigate to snapshot page
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document
+    .querySelectorAll(".page")
+    .forEach((p) => p.classList.remove("active"));
   document.getElementById("pg-snapshot").classList.add("active");
   document.getElementById("pg-snapshot").scrollTop = 0;
   document.getElementById("fab").style.display = "none";
 }
 
 function closeSnapshot() {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document
+    .querySelectorAll(".page")
+    .forEach((p) => p.classList.remove("active"));
   document.getElementById("pg-compact").classList.add("active");
   renderCompact();
 }
 
 function shareSnapshot() {
   const fname = {
-    all: "All Time", today: "Today", week: "This Week",
-    lastweek: "Last Week", weekend: "Weekend", month: "This Month", range: "Custom Range",
+    all: "All Time",
+    today: "Today",
+    week: "This Week",
+    lastweek: "Last Week",
+    weekend: "Weekend",
+    month: "This Month",
+    range: "Custom Range",
   };
   const filterLabel = fname[cmpFilter] || "Summary";
-  const filtered = (_cmpFiltered && _cmpFiltered.length)
-    ? _cmpFiltered : filterMatches(cmpFilter, cmpFrom, cmpTo);
+  const filtered =
+    _cmpFiltered && _cmpFiltered.length
+      ? _cmpFiltered
+      : filterMatches(cmpFilter, cmpFrom, cmpTo);
   const stats = computeStats(filtered, computeElo(filtered));
   const sorted = [...stats].sort((a, b) => b.sr - a.sr || b.mw - a.mw);
   const lines = [`🎾 Ekta Padel — ${filterLabel} Leaderboard`, ""];
   sorted.forEach((p, i) => {
-    lines.push(`${i + 1}. ${p.name}  ${p.mw}W / ${p.ml}L  ·  SR ${p.sr.toFixed(2)}`);
+    lines.push(
+      `${i + 1}. ${p.name}  ${p.mw}W / ${p.ml}L  ·  SR ${p.sr.toFixed(2)}`,
+    );
   });
   const text = lines.join("\n");
   if (navigator.share) {
     navigator.share({ title: "Ekta Padel Leaderboard", text }).catch(() => {});
   } else {
-    navigator.clipboard?.writeText(text)
+    navigator.clipboard
+      ?.writeText(text)
       .then(() => showToast("Copied to clipboard!", "📋"))
       .catch(() => showToast("Screenshot to share", "📸"));
   }
@@ -6050,41 +6641,82 @@ function _digestMatches(filter, player) {
   const today = todayISO();
   const { from: wkFrom, to: wkTo } = lastWeekRange();
   const { from: mFrom } = (() => {
-    const d = new Date(); d.setDate(1);
+    const d = new Date();
+    d.setDate(1);
     return { from: d.toISOString().slice(0, 10) };
   })();
   let base;
   if (filter === "week") {
     const wStart = weekISO();
-    base = allMatches.filter(m => (m.date || "") >= wStart && (m.date || "") <= today);
-    if (base.length < 2) base = allMatches.filter(m => (m.date || "") >= wkFrom && (m.date || "") <= wkTo);
+    base = allMatches.filter(
+      (m) => (m.date || "") >= wStart && (m.date || "") <= today,
+    );
+    if (base.length < 2)
+      base = allMatches.filter(
+        (m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo,
+      );
   } else if (filter === "lastweek") {
-    base = allMatches.filter(m => (m.date || "") >= wkFrom && (m.date || "") <= wkTo);
+    base = allMatches.filter(
+      (m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo,
+    );
   } else if (filter === "month") {
-    base = allMatches.filter(m => (m.date || "") >= mFrom && (m.date || "") <= today);
+    base = allMatches.filter(
+      (m) => (m.date || "") >= mFrom && (m.date || "") <= today,
+    );
   } else {
     base = allMatches;
   }
-  if (player) base = base.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(player));
+  if (player)
+    base = base.filter((m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].includes(player),
+    );
   return base;
 }
 
 function _buildDigestContent(filter, player) {
   const ms = _digestMatches(filter, player);
   const accentCol = "var(--theme)";
-  if (ms.length < 2) return `<div class="sub" style="padding:16px;text-align:center">Not enough matches for selected filter.</div>`;
+  if (ms.length < 2)
+    return `<div class="sub" style="padding:16px;text-align:center">Not enough matches for selected filter.</div>`;
   const eloNow = computeElo(allMatches);
-  const eloAt = computeElo(allMatches.filter(m => {
-    const base = filter === "week" ? weekISO() : filter === "lastweek" ? lastWeekRange().from : filter === "month" ? (() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); })() : "0000-00-00";
-    return (m.date || "") < base;
-  }));
+  const eloAt = computeElo(
+    allMatches.filter((m) => {
+      const base =
+        filter === "week"
+          ? weekISO()
+          : filter === "lastweek"
+            ? lastWeekRange().from
+            : filter === "month"
+              ? (() => {
+                  const d = new Date();
+                  d.setDate(1);
+                  return d.toISOString().slice(0, 10);
+                })()
+              : "0000-00-00";
+      return (m.date || "") < base;
+    }),
+  );
   const stats = computeStats(ms, computeElo(ms));
   const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
-  const mover = Object.keys(eloNow).map(p => ({ name: p, gain: (eloNow[p] || 1000) - (eloAt[p] || 1000) })).filter(p => ms.some(m => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))).sort((a, b) => b.gain - a.gain)[0];
-  const hotPlayer = stats.filter(p => p.curType === "W" && p.curStreak >= 2).sort((a, b) => b.curStreak - a.curStreak)[0];
-  const wkPairs = getPairStats(ms).filter(p => p.played >= 2)[0];
-  const players = [...new Set(ms.flatMap(m => [...(m.teamA || []), ...(m.teamB || [])]))];
-  const labelMap = { week: "This Week", lastweek: "Last Week", month: "This Month", all: "All Time" };
+  const mover = Object.keys(eloNow)
+    .map((p) => ({ name: p, gain: (eloNow[p] || 1000) - (eloAt[p] || 1000) }))
+    .filter((p) =>
+      ms.some((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name)),
+    )
+    .sort((a, b) => b.gain - a.gain)[0];
+  const hotPlayer = stats
+    .filter((p) => p.curType === "W" && p.curStreak >= 2)
+    .sort((a, b) => b.curStreak - a.curStreak)[0];
+  const wkPairs = getPairStats(ms).filter((p) => p.played >= 2)[0];
+  const players = [
+    ...new Set(ms.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])])),
+  ];
+  const labelMap = {
+    week: "This Week",
+    lastweek: "Last Week",
+    month: "This Month",
+    all: "All Time",
+  };
   const statRow = (icon, lbl, val, sub) =>
     `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
       <div style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</div>
@@ -6105,9 +6737,14 @@ function renderDigestCard(filter, player) {
   _digestFilter = filter || _digestFilter;
   _digestPlayer = player !== undefined ? player : _digestPlayer;
   const content = document.getElementById("digest-content");
-  if (content) content.innerHTML = _buildDigestContent(_digestFilter, _digestPlayer);
+  if (content)
+    content.innerHTML = _buildDigestContent(_digestFilter, _digestPlayer);
   // Update active filter button
-  document.querySelectorAll(".digest-filter-btn").forEach(b => b.classList.toggle("active", b.dataset.f === _digestFilter));
+  document
+    .querySelectorAll(".digest-filter-btn")
+    .forEach((b) =>
+      b.classList.toggle("active", b.dataset.f === _digestFilter),
+    );
   // Update player label
   const lbl = document.getElementById("digest-player-label");
   if (lbl) lbl.textContent = _digestPlayer || "ALL PLAYERS";
@@ -6121,9 +6758,15 @@ function openDigestPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(allMatches).map(s => s.name);
-  list.innerHTML = `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
-    players.map(p => `<div class="live-sheet-item" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`).join("");
+  const players = computeStats(allMatches).map((s) => s.name);
+  list.innerHTML =
+    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
+    players
+      .map(
+        (p) =>
+          `<div class="live-sheet-item" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`,
+      )
+      .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
   const sheet = document.getElementById("filter-sheet");
   if (overlay) overlay.classList.add("live-sheet-open");
@@ -6251,18 +6894,31 @@ function openWeeklyDigest() {
   const shareLines = [
     `PADEL EKTA — ${label} Digest`,
     `${useMatches.length} matches played`,
-    topWinner ? `🏆 Top Winner: ${topWinner.name} (${topWinner.mw}W–${topWinner.ml}L)` : "",
-    mover && mover.gain > 0 ? `📈 Biggest Mover: ${mover.name} (+${mover.gain} ELO)` : "",
-    hotPlayer ? `🔥 On Fire: ${hotPlayer.name} (${hotPlayer.curStreak}-match streak)` : "",
+    topWinner
+      ? `🏆 Top Winner: ${topWinner.name} (${topWinner.mw}W–${topWinner.ml}L)`
+      : "",
+    mover && mover.gain > 0
+      ? `📈 Biggest Mover: ${mover.name} (+${mover.gain} ELO)`
+      : "",
+    hotPlayer
+      ? `🔥 On Fire: ${hotPlayer.name} (${hotPlayer.curStreak}-match streak)`
+      : "",
     wkPairs ? `🤝 Best Duo: ${wkPairs.key} (${wkPairs.winPct}%)` : "",
-    biggestUpset ? `⚡ Biggest Upset: ${biggestUpset.winner.map(p => p.split(" ")[0]).join(" & ")} (+${biggestUpset.gap} ELO gap)` : "",
-  ].filter(Boolean).join("\n");
+    biggestUpset
+      ? `⚡ Biggest Upset: ${biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ")} (+${biggestUpset.gap} ELO gap)`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   window._shareDigest = () => {
     if (navigator.share) {
-      navigator.share({ title: "Padel Ekta Weekly Digest", text: shareLines }).catch(() => {});
+      navigator
+        .share({ title: "Padel Ekta Weekly Digest", text: shareLines })
+        .catch(() => {});
     } else {
-      navigator.clipboard?.writeText(shareLines)
+      navigator.clipboard
+        ?.writeText(shareLines)
         .then(() => showToast("Copied to clipboard!", "📋"))
         .catch(() => showToast("Screenshot to share", "📸"));
     }
@@ -6286,7 +6942,8 @@ function openWeeklyDigest() {
 
 function _pairsHeaderHtml() {
   const arrow = (col) => {
-    if (_pairSort.key !== col) return '<span style="opacity:0.25;font-size:7px;margin-left:2px">◇</span>';
+    if (_pairSort.key !== col)
+      return '<span style="opacity:0.25;font-size:7px;margin-left:2px">◇</span>';
     return `<span style="font-size:7px;margin-left:2px">${_pairSort.dir < 0 ? "▼" : "▲"}</span>`;
   };
   return `<div class="chem-header">
@@ -6306,32 +6963,57 @@ function _pairsSortedRows() {
   const { key, dir } = _pairSort;
   const sorted = [..._pairsData].sort((a, b) => {
     let av, bv;
-    if (key === "name")   { av = a.key;             bv = b.key; }
-    else if (key === "wins")    { av = a.wins;           bv = b.wins; }
-    else if (key === "winPct")  { av = a.wins / a.played; bv = b.wins / b.played; }
-    else if (key === "played")  { av = a.played;          bv = b.played; }
-    else if (key === "eloRank") { av = a.eloRank;         bv = b.eloRank; }
-    else if (key === "chem")    { av = a.chem;            bv = b.chem; }
-    else { av = a.wins / a.played; bv = b.wins / b.played; }
+    if (key === "name") {
+      av = a.key;
+      bv = b.key;
+    } else if (key === "wins") {
+      av = a.wins;
+      bv = b.wins;
+    } else if (key === "winPct") {
+      av = a.wins / a.played;
+      bv = b.wins / b.played;
+    } else if (key === "played") {
+      av = a.played;
+      bv = b.played;
+    } else if (key === "eloRank") {
+      av = a.eloRank;
+      bv = b.eloRank;
+    } else if (key === "chem") {
+      av = a.chem;
+      bv = b.chem;
+    } else {
+      av = a.wins / a.played;
+      bv = b.wins / b.played;
+    }
     if (typeof av === "string") return dir * av.localeCompare(bv);
     if (av !== bv) return dir < 0 ? bv - av : av - bv;
     return b.played - a.played;
   });
   const toShow = _pairsShowAll ? sorted : sorted.slice(0, PAIRS_PAGE_LIMIT);
   const moreCount = sorted.length - PAIRS_PAGE_LIMIT;
-  const rowsHtml = toShow.map((p, i) => {
-    const pc = Math.round((p.wins / p.played) * 100);
-    const col = pc >= 60 ? "var(--green)" : pc <= 40 ? "var(--red)" : "var(--text)";
-    const chemCol = p.chem >= 70 ? "var(--green)" : p.chem >= 45 ? "var(--text)" : "var(--muted)";
-    const eloRankHtml = p.eloRank < 9999
-      ? `<div class="chem-elo-rank" style="color:${p.eloRank <= 3 ? "var(--accent)" : "var(--muted)"}">#${p.eloRank}</div>`
-      : `<div class="chem-elo-rank">—</div>`;
-    const escKey = p.key.replace(/'/g, "\\'");
-    return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i+1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${p.chem}</div></div>`;
-  }).join("");
-  const showMoreHtml = (!_pairsShowAll && moreCount > 0)
-    ? `<div onclick="_showAllPairs()" style="text-align:center;padding:10px;font-size:11px;font-weight:700;color:var(--theme);cursor:pointer;border-top:1px solid var(--border)">SHOW ${moreCount} MORE ▼</div>`
-    : "";
+  const rowsHtml = toShow
+    .map((p, i) => {
+      const pc = Math.round((p.wins / p.played) * 100);
+      const col =
+        pc >= 60 ? "var(--green)" : pc <= 40 ? "var(--red)" : "var(--text)";
+      const chemCol =
+        p.chem >= 70
+          ? "var(--green)"
+          : p.chem >= 45
+            ? "var(--text)"
+            : "var(--muted)";
+      const eloRankHtml =
+        p.eloRank < 9999
+          ? `<div class="chem-elo-rank" style="color:${p.eloRank <= 3 ? "var(--accent)" : "var(--muted)"}">#${p.eloRank}</div>`
+          : `<div class="chem-elo-rank">—</div>`;
+      const escKey = p.key.replace(/'/g, "\\'");
+      return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i + 1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${p.chem}</div></div>`;
+    })
+    .join("");
+  const showMoreHtml =
+    !_pairsShowAll && moreCount > 0
+      ? `<div onclick="_showAllPairs()" style="text-align:center;padding:10px;font-size:11px;font-weight:700;color:var(--theme);cursor:pointer;border-top:1px solid var(--border)">SHOW ${moreCount} MORE ▼</div>`
+      : "";
   return rowsHtml + showMoreHtml;
 }
 function _showAllPairs() {
@@ -6345,7 +7027,7 @@ function sortPairsBy(key) {
     _pairSort.dir *= -1;
   } else {
     _pairSort.key = key;
-    _pairSort.dir = (key === "eloRank" || key === "name") ? 1 : -1;
+    _pairSort.dir = key === "eloRank" || key === "name" ? 1 : -1;
   }
   const el = document.getElementById("all-pairs-table");
   if (el) el.innerHTML = _pairsHeaderHtml() + _pairsSortedRows();
@@ -6353,42 +7035,77 @@ function sortPairsBy(key) {
 
 function openSessionHighlights(date) {
   document.getElementById("session-highlights-modal")?.remove();
-  const sessionMs = allMatches.filter(m => m.date === date);
+  const sessionMs = allMatches.filter((m) => m.date === date);
   if (!sessionMs.length) return;
-  const sortedMs = [...sessionMs].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const players = [...new Set(sortedMs.flatMap(m => [...(m.teamA || []), ...(m.teamB || [])]))];
-  const eloAfter = computeElo(allMatches.filter(m => (m.date || "") <= date));
-  const eloBefore = computeElo(allMatches.filter(m => (m.date || "") < date));
-  const gains = players.map(p => ({ name: p, delta: (eloAfter[p] || 1000) - (eloBefore[p] || 1000) })).sort((a, b) => b.delta - a.delta);
+  const sortedMs = [...sessionMs].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const players = [
+    ...new Set(
+      sortedMs.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]),
+    ),
+  ];
+  const eloAfter = computeElo(allMatches.filter((m) => (m.date || "") <= date));
+  const eloBefore = computeElo(allMatches.filter((m) => (m.date || "") < date));
+  const gains = players
+    .map((p) => ({
+      name: p,
+      delta: (eloAfter[p] || 1000) - (eloBefore[p] || 1000),
+    }))
+    .sort((a, b) => b.delta - a.delta);
   const winsMap = {};
-  sortedMs.forEach(m => {
+  sortedMs.forEach((m) => {
     const aWon = m.scoreA > m.scoreB;
-    (aWon ? m.teamA : m.teamB).forEach(p => { winsMap[p] = (winsMap[p] || 0) + 1; });
+    (aWon ? m.teamA : m.teamB).forEach((p) => {
+      winsMap[p] = (winsMap[p] || 0) + 1;
+    });
   });
-  const mvp = players.reduce((best, p) => (winsMap[p] || 0) > (winsMap[best] || 0) ? p : best, players[0]);
-  const biggestGame = sortedMs.reduce((big, m) => (m.scoreA + m.scoreB) > ((big?.scoreA || 0) + (big?.scoreB || 0)) ? m : big, null);
-  const closest = sortedMs.filter(m => Math.abs(m.scoreA - m.scoreB) <= 1).sort(() => Math.random() - 0.5)[0];
-  const matchRows = sortedMs.map(m => {
-    const aWon = m.scoreA > m.scoreB;
-    const winCol = "var(--green)"; const loseCol = "rgba(255,255,255,0.3)";
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:700;color:${aWon ? winCol : loseCol}">${m.teamA.map(p => p.split(" ")[0]).join(" & ")}</div>
+  const mvp = players.reduce(
+    (best, p) => ((winsMap[p] || 0) > (winsMap[best] || 0) ? p : best),
+    players[0],
+  );
+  const biggestGame = sortedMs.reduce(
+    (big, m) =>
+      m.scoreA + m.scoreB > (big?.scoreA || 0) + (big?.scoreB || 0) ? m : big,
+    null,
+  );
+  const closest = sortedMs
+    .filter((m) => Math.abs(m.scoreA - m.scoreB) <= 1)
+    .sort(() => Math.random() - 0.5)[0];
+  const matchRows = sortedMs
+    .map((m) => {
+      const aWon = m.scoreA > m.scoreB;
+      const winCol = "var(--green)";
+      const loseCol = "rgba(255,255,255,0.3)";
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:${aWon ? winCol : loseCol}">${m.teamA.map((p) => p.split(" ")[0]).join(" & ")}</div>
       <div style="font-size:14px;font-weight:900;letter-spacing:0.08em">${m.scoreA}–${m.scoreB}</div>
-      <div style="font-size:11px;font-weight:700;text-align:right;color:${!aWon ? winCol : loseCol}">${m.teamB.map(p => p.split(" ")[0]).join(" & ")}</div>
+      <div style="font-size:11px;font-weight:700;text-align:right;color:${!aWon ? winCol : loseCol}">${m.teamB.map((p) => p.split(" ")[0]).join(" & ")}</div>
     </div>`;
-  }).join("");
-  const gainRows = gains.map(g => {
-    const col = g.delta > 0 ? "var(--green)" : g.delta < 0 ? "var(--red)" : "var(--muted)";
-    const sign = g.delta > 0 ? "+" : "";
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
+    })
+    .join("");
+  const gainRows = gains
+    .map((g) => {
+      const col =
+        g.delta > 0
+          ? "var(--green)"
+          : g.delta < 0
+            ? "var(--red)"
+            : "var(--muted)";
+      const sign = g.delta > 0 ? "+" : "";
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
       <span style="font-size:11px;font-weight:700">${g.name}</span>
       <span style="font-size:12px;font-weight:800;color:${col}">${sign}${g.delta}</span>
     </div>`;
-  }).join("");
+    })
+    .join("");
   const overlay = document.createElement("div");
   overlay.id = "session-highlights-modal";
-  overlay.style.cssText = "position:fixed;inset:0;z-index:9900;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center";
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.style.cssText =
+    "position:fixed;inset:0;z-index:9900;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center";
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
   overlay.innerHTML = `<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 16px 40px;max-height:80vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div style="font-size:14px;font-weight:900;letter-spacing:0.04em">📋 ${fmtDate(date).toUpperCase()}</div>
@@ -6399,7 +7116,7 @@ function openSessionHighlights(date) {
       <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:14px;font-weight:800;color:var(--theme)">${players.length}</div><div style="font-size:9px;color:var(--muted);font-weight:700">PLAYERS</div></div>
       <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:11px;font-weight:800;color:var(--accent)">${mvp}</div><div style="font-size:9px;color:var(--muted);font-weight:700">🏆 MVP</div></div>
     </div>
-    ${closest ? `<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">🔥 CLOSEST GAME</div><div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700">${closest.teamA.map(p=>p.split(" ")[0]).join("&")} ${closest.scoreA}–${closest.scoreB} ${closest.teamB.map(p=>p.split(" ")[0]).join("&")}</div>` : ""}
+    ${closest ? `<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">🔥 CLOSEST GAME</div><div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700">${closest.teamA.map((p) => p.split(" ")[0]).join("&")} ${closest.scoreA}–${closest.scoreB} ${closest.teamB.map((p) => p.split(" ")[0]).join("&")}</div>` : ""}
     <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">ALL MATCHES</div>
     <div style="margin-bottom:12px">${matchRows}</div>
     <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">⚡ ELO CHANGES</div>
@@ -6831,8 +7548,9 @@ let _cmpPlayerB = "";
 let _cmpDateFilter = "all";
 
 function _cmpSelectorHtml() {
-  const datePills = CMP_DATE_OPTS.map(o =>
-    `<button class="digest-filter-btn${o.v === _cmpDateFilter ? " active" : ""}" onclick="_cmpSetDate('${o.v}')">${o.l}</button>`
+  const datePills = CMP_DATE_OPTS.map(
+    (o) =>
+      `<button class="digest-filter-btn${o.v === _cmpDateFilter ? " active" : ""}" onclick="_cmpSetDate('${o.v}')">${o.l}</button>`,
   ).join("");
   return `
     <div class="cmp-inline-selectors">
@@ -6856,14 +7574,19 @@ function openCmpSheet(slot) {
   if (!list) return;
   const taken = slot === "A" ? _cmpPlayerB : _cmpPlayerA;
   const selected = slot === "A" ? _cmpPlayerA : _cmpPlayerB;
-  const players = computeStats(allMatches).map(s => s.name).sort((a, b) => a.localeCompare(b));
-  list.innerHTML = players.map(p => {
-    const disabled = p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
-    const sel = p === selected ? " live-sheet-item-selected" : "";
-    return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+  const players = computeStats(allMatches)
+    .map((s) => s.name)
+    .sort((a, b) => a.localeCompare(b));
+  list.innerHTML = players
+    .map((p) => {
+      const disabled =
+        p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
+      const sel = p === selected ? " live-sheet-item-selected" : "";
+      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
       <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
       <span>${p}</span></div>`;
-  }).join("");
+    })
+    .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
   const sheet = document.getElementById("filter-sheet");
   if (overlay) overlay.classList.add("live-sheet-open");
@@ -6872,12 +7595,20 @@ function openCmpSheet(slot) {
 
 function _cmpSetDate(v) {
   _cmpDateFilter = v;
-  document.querySelectorAll("#compare-card .digest-filter-btn").forEach(b => b.classList.toggle("active", b.textContent.toLowerCase().includes(v) || (v === "all" && b.textContent === "ALL TIME")));
+  document
+    .querySelectorAll("#compare-card .digest-filter-btn")
+    .forEach((b) =>
+      b.classList.toggle(
+        "active",
+        b.textContent.toLowerCase().includes(v) ||
+          (v === "all" && b.textContent === "ALL TIME"),
+      ),
+    );
   // Re-render date pills with correct active state
   const card = document.getElementById("compare-card");
   if (!card) return;
-  card.querySelectorAll(".digest-filter-btn").forEach(b => {
-    const match = CMP_DATE_OPTS.find(o => o.l === b.textContent);
+  card.querySelectorAll(".digest-filter-btn").forEach((b) => {
+    const match = CMP_DATE_OPTS.find((o) => o.l === b.textContent);
     if (match) b.classList.toggle("active", match.v === v);
   });
 }
@@ -7057,15 +7788,23 @@ function renderH2HDeepDive() {
   [...allMatches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
     .forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _e)) _e[p] = 1000; });
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in _e)) _e[p] = 1000;
+      });
       const aWon = m.scoreA > m.scoreB;
-      const avgA = m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB = m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
+      const avgA =
+        m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB =
+        m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
       const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
       const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
       const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      m.teamA.forEach((p) => { _e[p] = (_e[p] || 1000) + dA; });
-      m.teamB.forEach((p) => { _e[p] = (_e[p] || 1000) + dB; });
+      m.teamA.forEach((p) => {
+        _e[p] = (_e[p] || 1000) + dA;
+      });
+      m.teamB.forEach((p) => {
+        _e[p] = (_e[p] || 1000) + dB;
+      });
       const p1InA = (m.teamA || []).includes(p1);
       const p1InB = (m.teamB || []).includes(p1);
       const p2InA = (m.teamA || []).includes(p2);
@@ -7073,10 +7812,15 @@ function renderH2HDeepDive() {
       if ((p1InA && p2InB) || (p1InB && p2InA))
         h2hDeltaMap.set(m, { p1d: p1InA ? dA : dB, p2d: p2InA ? dA : dB });
     });
-  let p1Total = 0, p2Total = 0;
-  h2hDeltaMap.forEach((v) => { p1Total += v.p1d; p2Total += v.p2d; });
-  const fmtD = (n) => n > 0 ? `+${n}` : String(n);
-  const dCol = (n) => n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
+  let p1Total = 0,
+    p2Total = 0;
+  h2hDeltaMap.forEach((v) => {
+    p1Total += v.p1d;
+    p2Total += v.p2d;
+  });
+  const fmtD = (n) => (n > 0 ? `+${n}` : String(n));
+  const dCol = (n) =>
+    n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
 
   const p1Pct = Math.round((h2h.aWins / total) * 100);
   const p2Pct = 100 - p1Pct;
@@ -7087,8 +7831,14 @@ function renderH2HDeepDive() {
   const col2 = playerColor(p2);
   const leader = h2h.aWins > h2h.bWins ? p1 : h2h.bWins > h2h.aWins ? p2 : null;
   const leaderCol = leader === p1 ? col1 : col2;
-  const eloBg = (n) => n > 0 ? "rgba(74,222,128,0.15)" : n < 0 ? "rgba(248,113,113,0.15)" : "rgba(255,255,255,0.06)";
-  const borderCol = (n) => n > 0 ? "#4ade80" : n < 0 ? "#f87171" : "rgba(255,255,255,0.1)";
+  const eloBg = (n) =>
+    n > 0
+      ? "rgba(74,222,128,0.15)"
+      : n < 0
+        ? "rgba(248,113,113,0.15)"
+        : "rgba(255,255,255,0.06)";
+  const borderCol = (n) =>
+    n > 0 ? "#4ade80" : n < 0 ? "#f87171" : "rgba(255,255,255,0.1)";
   result.innerHTML = `
     <div class="h2h-modern">
       <div class="h2h-hero">
@@ -7120,9 +7870,11 @@ function renderH2HDeepDive() {
       </div>
 
       <div class="h2h-leader-badge">
-        ${leader
-          ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
-          : "⚖️ Perfectly balanced"}
+        ${
+          leader
+            ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
+            : "⚖️ Perfectly balanced"
+        }
       </div>
 
       <div class="h2h-elo-row">
@@ -7141,11 +7893,11 @@ function renderH2HDeepDive() {
       </div>
 
       ${(() => {
-          const rs = computeH2HStreak(p1, p2, allMatches);
-          if (!rs.leader || rs.streak < 2) return "";
-          const rCol = rs.leader === p1 ? col1 : col2;
-          return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${rs.leader}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
-        })()}
+        const rs = computeH2HStreak(p1, p2, allMatches);
+        if (!rs.leader || rs.streak < 2) return "";
+        const rCol = rs.leader === p1 ? col1 : col2;
+        return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${rs.leader}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
+      })()}
 
       <div class="h2h-matches-title">RECENT ENCOUNTERS</div>
       <div class="h2h-match-list">
@@ -7191,18 +7943,29 @@ function getAnaPillOrder() {
   try {
     const raw = JSON.parse(localStorage.getItem(ANA_PILL_ORDER_KEY)) || [];
     return [...new Set(raw)]; // deduplicate in case of corrupted state
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
-function saveAnaPillOrder(a) { localStorage.setItem(ANA_PILL_ORDER_KEY, JSON.stringify(a)); }
+function saveAnaPillOrder(a) {
+  localStorage.setItem(ANA_PILL_ORDER_KEY, JSON.stringify(a));
+}
 function getAnaFavs() {
-  try { return JSON.parse(localStorage.getItem(ANA_FAV_KEY)) || []; } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(ANA_FAV_KEY)) || [];
+  } catch {
+    return [];
+  }
 }
-function saveAnaFavs(a) { localStorage.setItem(ANA_FAV_KEY, JSON.stringify(a)); }
+function saveAnaFavs(a) {
+  localStorage.setItem(ANA_FAV_KEY, JSON.stringify(a));
+}
 function toggleAnaFav(key, e) {
   e.stopPropagation();
   const favs = getAnaFavs();
   const idx = favs.indexOf(key);
-  if (idx === -1) favs.push(key); else favs.splice(idx, 1);
+  if (idx === -1) favs.push(key);
+  else favs.splice(idx, 1);
   saveAnaFavs(favs);
   // Update star icon on this section
   const sec = document.querySelector(`.ana-sec[data-key="${key}"]`);
@@ -7247,7 +8010,9 @@ function toggleAnaSection(key) {
   if (!el.classList.contains("collapsed")) {
     // Staggered card slide-in for all content in the newly expanded section
     let stagger = 0;
-    el.querySelectorAll(".ana-card, .award-card, .awards-grid, .pair-stats-card, .h2h-cascade-item").forEach((card) => {
+    el.querySelectorAll(
+      ".ana-card, .award-card, .awards-grid, .pair-stats-card, .h2h-cascade-item",
+    ).forEach((card) => {
       card.classList.remove("card-anim");
       void card.offsetWidth;
       card.style.animationDelay = `${stagger * 55}ms`;
@@ -7274,7 +8039,7 @@ function _togglePairForm(btn) {
   const expanded = btn.dataset.expanded === "1";
   const rows = btn.closest(".ana-card")?.querySelectorAll(".pform-extra");
   if (!rows) return;
-  rows.forEach(r => r.style.display = expanded ? "none" : "");
+  rows.forEach((r) => (r.style.display = expanded ? "none" : ""));
   btn.dataset.expanded = expanded ? "0" : "1";
   const extra = [...rows].length;
   btn.textContent = expanded ? `Show ${extra} more ▼` : `Show less ▲`;
@@ -7285,7 +8050,7 @@ function _toggleSynergyMore(btn) {
   const card = btn.closest(".ana-card, .ana-sec-body");
   const rows = card?.querySelectorAll(".synergy-extra");
   if (!rows) return;
-  rows.forEach(r => r.style.display = expanded ? "none" : "");
+  rows.forEach((r) => (r.style.display = expanded ? "none" : ""));
   btn.dataset.expanded = expanded ? "0" : "1";
   btn.textContent = expanded ? `Show ${rows.length} more ▼` : `Show less ▲`;
 }
@@ -7293,33 +8058,37 @@ function _toggleSynergyMore(btn) {
 function anaFilterCategory(cat, skipPillUpdate) {
   _anaActiveCat = cat;
   if (!skipPillUpdate) {
-    document.querySelectorAll(".ana-filter-pill").forEach((pill) =>
-      pill.classList.toggle("active", pill.dataset.cat === cat)
-    );
+    document
+      .querySelectorAll(".ana-filter-pill")
+      .forEach((pill) =>
+        pill.classList.toggle("active", pill.dataset.cat === cat),
+      );
   }
 
   const favs = cat === "favs" ? getAnaFavs() : null;
   let delay = 0;
-  document.querySelectorAll("#analytics-page-content .ana-sec").forEach((sec) => {
-    let shouldHide;
-    if (cat === "all") {
-      shouldHide = false;
-    } else if (cat === "favs") {
-      shouldHide = !favs.includes(sec.dataset.key);
-    } else {
-      shouldHide = sec.dataset.cat !== cat;
-    }
-    const wasHidden = sec.classList.contains("ana-cat-hidden");
-    sec.classList.toggle("ana-cat-hidden", shouldHide);
+  document
+    .querySelectorAll("#analytics-page-content .ana-sec")
+    .forEach((sec) => {
+      let shouldHide;
+      if (cat === "all") {
+        shouldHide = false;
+      } else if (cat === "favs") {
+        shouldHide = !favs.includes(sec.dataset.key);
+      } else {
+        shouldHide = sec.dataset.cat !== cat;
+      }
+      const wasHidden = sec.classList.contains("ana-cat-hidden");
+      sec.classList.toggle("ana-cat-hidden", shouldHide);
 
-    if (!skipPillUpdate && !shouldHide && (wasHidden || cat !== "all")) {
-      sec.classList.remove("ana-sec-reveal");
-      void sec.offsetWidth;
-      sec.style.animationDelay = `${delay}ms`;
-      sec.classList.add("ana-sec-reveal");
-      delay += 75;
-    }
-  });
+      if (!skipPillUpdate && !shouldHide && (wasHidden || cat !== "all")) {
+        sec.classList.remove("ana-sec-reveal");
+        void sec.offsetWidth;
+        sec.style.animationDelay = `${delay}ms`;
+        sec.classList.add("ana-sec-reveal");
+        delay += 75;
+      }
+    });
 }
 
 function _reRenderAnalytics() {
@@ -7327,10 +8096,12 @@ function _reRenderAnalytics() {
   const top = sc?.scrollTop || 0;
   renderAnalyticsPage();
   // Double RAF: first RAF queues after paint, second RAF fires after layout is stable
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const scNew = document.querySelector("#pg-analytics .page-body-scroll");
-    if (scNew) scNew.scrollTop = top;
-  }));
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const scNew = document.querySelector("#pg-analytics .page-body-scroll");
+      if (scNew) scNew.scrollTop = top;
+    }),
+  );
 }
 
 function anaHandlePointerDown(e, key) {
@@ -7431,7 +8202,8 @@ function _anaOnUp(e) {
 // ── PILL DRAG-TO-REORDER (long-press 600ms to enter drag, scroll works before that) ────
 let _pillDragSrc = null;
 let _pillClone = null;
-let _pillStartX = 0, _pillStartY = 0;
+let _pillStartX = 0,
+  _pillStartY = 0;
 let _pillIsDragging = false;
 let _pillDragReady = false;
 let _pillLongPressTimer = null;
@@ -7442,15 +8214,17 @@ const PILL_LP_MS = 600;
 
 function _pillRemovePreListeners() {
   const preMove = _pillPreMoveHandler;
-  const preUp   = _pillPreUpHandler;
+  const preUp = _pillPreUpHandler;
   _pillPreMoveHandler = null;
-  _pillPreUpHandler   = null;
-  if (preMove) document.removeEventListener("pointermove",   preMove);
-  if (preUp)   {
-    document.removeEventListener("pointerup",     preUp);
+  _pillPreUpHandler = null;
+  if (preMove) document.removeEventListener("pointermove", preMove);
+  if (preUp) {
+    document.removeEventListener("pointerup", preUp);
     document.removeEventListener("pointercancel", preUp);
   }
-  document.querySelectorAll(".ana-filter-pill.pill-long-pressing").forEach(p => p.classList.remove("pill-long-pressing"));
+  document
+    .querySelectorAll(".ana-filter-pill.pill-long-pressing")
+    .forEach((p) => p.classList.remove("pill-long-pressing"));
 }
 
 function _pillPointerDown(e, id) {
@@ -7458,24 +8232,30 @@ function _pillPointerDown(e, id) {
   clearTimeout(_pillLongPressTimer);
   _pillRemovePreListeners();
 
-  _pillDragSrc    = id;
-  _pillStartX     = e.clientX;
-  _pillStartY     = e.clientY;
+  _pillDragSrc = id;
+  _pillStartX = e.clientX;
+  _pillStartY = e.clientY;
   _pillIsDragging = false;
-  _pillDragReady  = false;
-  _pillPointerId  = e.pointerId;
+  _pillDragReady = false;
+  _pillPointerId = e.pointerId;
 
   const srcEl = document.querySelector(`.ana-filter-pill[data-cat="${id}"]`);
-  if (srcEl) { srcEl.classList.add("pill-long-pressing"); srcEl.style.setProperty("--lp-dur", PILL_LP_MS + "ms"); }
+  if (srcEl) {
+    srcEl.classList.add("pill-long-pressing");
+    srcEl.style.setProperty("--lp-dur", PILL_LP_MS + "ms");
+  }
 
   _pillPreMoveHandler = (ev) => {
-    if (Math.abs(ev.clientX - _pillStartX) > 8 || Math.abs(ev.clientY - _pillStartY) > 8)
+    if (
+      Math.abs(ev.clientX - _pillStartX) > 8 ||
+      Math.abs(ev.clientY - _pillStartY) > 8
+    )
       _pillCancelLP(false);
   };
   _pillPreUpHandler = (ev) => _pillCancelLP(ev.type !== "pointercancel");
 
-  document.addEventListener("pointermove",   _pillPreMoveHandler);
-  document.addEventListener("pointerup",     _pillPreUpHandler);
+  document.addEventListener("pointermove", _pillPreMoveHandler);
+  document.addEventListener("pointerup", _pillPreUpHandler);
   document.addEventListener("pointercancel", _pillPreUpHandler);
 
   _pillLongPressTimer = setTimeout(_pillActivateDrag, PILL_LP_MS);
@@ -7495,57 +8275,82 @@ function _pillActivateDrag() {
   _pillDragReady = true;
   if (navigator.vibrate) navigator.vibrate(30);
 
-  const srcEl = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
+  const srcEl = document.querySelector(
+    `.ana-filter-pill[data-cat="${_pillDragSrc}"]`,
+  );
   if (srcEl) {
-    try { srcEl.setPointerCapture(_pillPointerId); } catch {}
+    try {
+      srcEl.setPointerCapture(_pillPointerId);
+    } catch {}
     const rect = srcEl.getBoundingClientRect();
     _pillClone = srcEl.cloneNode(true);
     Object.assign(_pillClone.style, {
-      position: "fixed", top: rect.top + "px", left: rect.left + "px",
-      width: rect.width + "px", zIndex: "9999", opacity: "0.9",
-      pointerEvents: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.5)", transition: "none",
+      position: "fixed",
+      top: rect.top + "px",
+      left: rect.left + "px",
+      width: rect.width + "px",
+      zIndex: "9999",
+      opacity: "0.9",
+      pointerEvents: "none",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+      transition: "none",
     });
     document.body.appendChild(_pillClone);
     srcEl.style.opacity = "0.25";
   }
-  document.addEventListener("pointermove",   _pillOnMove);
-  document.addEventListener("pointerup",     _pillOnUp);
+  document.addEventListener("pointermove", _pillOnMove);
+  document.addEventListener("pointerup", _pillOnUp);
   document.addEventListener("pointercancel", _pillOnUp);
 }
 
 function _pillOnMove(e) {
   if (!_pillDragSrc || !_pillDragReady) return;
   _pillIsDragging = true;
-  if (_pillClone) _pillClone.style.left = (e.clientX - _pillClone.offsetWidth / 2) + "px";
-  document.querySelectorAll(".ana-filter-pill").forEach(p => p.classList.remove("pill-drop-before", "pill-drop-after"));
-  document.querySelectorAll(".ana-filter-pill").forEach(p => {
+  if (_pillClone)
+    _pillClone.style.left = e.clientX - _pillClone.offsetWidth / 2 + "px";
+  document
+    .querySelectorAll(".ana-filter-pill")
+    .forEach((p) => p.classList.remove("pill-drop-before", "pill-drop-after"));
+  document.querySelectorAll(".ana-filter-pill").forEach((p) => {
     if (p.dataset.cat === _pillDragSrc) return;
     const r = p.getBoundingClientRect();
     if (e.clientX >= r.left - 4 && e.clientX <= r.right + 4)
-      p.classList.add(e.clientX < r.left + r.width / 2 ? "pill-drop-before" : "pill-drop-after");
+      p.classList.add(
+        e.clientX < r.left + r.width / 2
+          ? "pill-drop-before"
+          : "pill-drop-after",
+      );
   });
 }
 
 function _pillOnUp(e) {
   document.removeEventListener("pointermove", _pillOnMove);
-  document.removeEventListener("pointerup",   _pillOnUp);
+  document.removeEventListener("pointerup", _pillOnUp);
   document.removeEventListener("pointercancel", _pillOnUp);
 
-  if (_pillClone) { _pillClone.remove(); _pillClone = null; }
-  const src = document.querySelector(`.ana-filter-pill[data-cat="${_pillDragSrc}"]`);
+  if (_pillClone) {
+    _pillClone.remove();
+    _pillClone = null;
+  }
+  const src = document.querySelector(
+    `.ana-filter-pill[data-cat="${_pillDragSrc}"]`,
+  );
   if (src) src.style.opacity = "";
 
   const before = document.querySelector(".pill-drop-before");
-  const after  = document.querySelector(".pill-drop-after");
+  const after = document.querySelector(".pill-drop-after");
   const target = before || after;
-  document.querySelectorAll(".pill-drop-before, .pill-drop-after").forEach(p => p.classList.remove("pill-drop-before", "pill-drop-after"));
+  document
+    .querySelectorAll(".pill-drop-before, .pill-drop-after")
+    .forEach((p) => p.classList.remove("pill-drop-before", "pill-drop-after"));
 
   if (_pillIsDragging && target && _pillDragSrc) {
     const seen = new Set();
     const order = [...document.querySelectorAll(".ana-filter-pill")]
-      .map(b => b.dataset.cat).filter(id => id && !seen.has(id) && seen.add(id));
+      .map((b) => b.dataset.cat)
+      .filter((id) => id && !seen.has(id) && seen.add(id));
     const from = order.indexOf(_pillDragSrc);
-    const to   = order.indexOf(target.dataset.cat);
+    const to = order.indexOf(target.dataset.cat);
     if (from !== -1 && to !== -1) {
       order.splice(from, 1);
       order.splice(before ? to : to + 1, 0, _pillDragSrc);
@@ -7553,7 +8358,9 @@ function _pillOnUp(e) {
       _reRenderAnalytics();
     }
   }
-  _pillDragSrc = null; _pillIsDragging = false; _pillDragReady = false;
+  _pillDragSrc = null;
+  _pillIsDragging = false;
+  _pillDragReady = false;
 }
 
 function computeElo(matches, applyDecay = false) {
@@ -7586,17 +8393,22 @@ function computeElo(matches, applyDecay = false) {
     const { perWeek, graceDays, maxDecay, floor } = getEloDecayParams();
     const today = todayISO();
     const lastSeen = {};
-    sorted.forEach(m => {
-      [...m.teamA, ...m.teamB].forEach(p => {
+    sorted.forEach((m) => {
+      [...m.teamA, ...m.teamB].forEach((p) => {
         if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
       });
     });
-    Object.keys(elo).forEach(p => {
+    Object.keys(elo).forEach((p) => {
       const last = lastSeen[p];
       if (!last) return;
-      const daysSince = Math.round((new Date(today) - new Date(last)) / 86400000);
+      const daysSince = Math.round(
+        (new Date(today) - new Date(last)) / 86400000,
+      );
       if (daysSince > graceDays) {
-        const decay = Math.min(maxDecay, Math.floor((daysSince - graceDays) / 7) * perWeek);
+        const decay = Math.min(
+          maxDecay,
+          Math.floor((daysSince - graceDays) / 7) * perWeek,
+        );
         elo[p] = Math.max(floor, elo[p] - decay);
       }
     });
@@ -7638,7 +8450,7 @@ function getPrestigeTier(level) {
   if (level >= 20) return "diamond";
   if (level >= 15) return "gold";
   if (level >= 10) return "silver";
-  if (level >= 5)  return "bronze";
+  if (level >= 5) return "bronze";
   return "rookie";
 }
 
@@ -7653,31 +8465,64 @@ function mkLvlRow(displayName) {
   const { level, progress } = getPlayerLevel(xp);
   const tier = getPrestigeTier(level);
   const pct = Math.round(progress * 100);
-  const barClr = { diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)", gold: "#ffd700", silver: "#c0c0c0", bronze: "#cd7f32", rookie: "rgba(255,255,255,0.28)" };
-  const bg = barClr[tier].startsWith("linear") ? `background:${barClr[tier]}` : `background:${barClr[tier]}`;
+  const barClr = {
+    diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)",
+    gold: "#ffd700",
+    silver: "#c0c0c0",
+    bronze: "#cd7f32",
+    rookie: "rgba(255,255,255,0.28)",
+  };
+  const bg = barClr[tier].startsWith("linear")
+    ? `background:${barClr[tier]}`
+    : `background:${barClr[tier]}`;
   return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">${level}</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
 }
 
 function computeEloHistory(matches) {
   const elo = {};
   const history = {};
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   sorted.forEach((m) => {
     const allP = [...(m.teamA || []), ...(m.teamB || [])];
-    allP.forEach((p) => { if (!(p in elo)) { elo[p] = 1000; history[p] = []; } });
+    allP.forEach((p) => {
+      if (!(p in elo)) {
+        elo[p] = 1000;
+        history[p] = [];
+      }
+    });
     const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const avgA =
+      m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB =
+      m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
     const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
     const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
     const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
     m.teamA.forEach((p) => {
       elo[p] = (elo[p] || 1000) + dA;
-      history[p].push({ date: m.date, elo: elo[p], delta: dA, won: aWon, opponent: m.teamB.join(" & "), scoreA: m.scoreA, scoreB: m.scoreB });
+      history[p].push({
+        date: m.date,
+        elo: elo[p],
+        delta: dA,
+        won: aWon,
+        opponent: m.teamB.join(" & "),
+        scoreA: m.scoreA,
+        scoreB: m.scoreB,
+      });
     });
     m.teamB.forEach((p) => {
       elo[p] = (elo[p] || 1000) + dB;
-      history[p].push({ date: m.date, elo: elo[p], delta: dB, won: !aWon, opponent: m.teamA.join(" & "), scoreA: m.scoreB, scoreB: m.scoreA });
+      history[p].push({
+        date: m.date,
+        elo: elo[p],
+        delta: dB,
+        won: !aWon,
+        opponent: m.teamA.join(" & "),
+        scoreA: m.scoreB,
+        scoreB: m.scoreA,
+      });
     });
   });
   return history;
@@ -7686,13 +8531,22 @@ function computeEloHistory(matches) {
 function computeEloPeaks(matches) {
   const elo = {};
   const peaks = {};
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   sorted.forEach((m) => {
     const allP = [...(m.teamA || []), ...(m.teamB || [])];
-    allP.forEach((p) => { if (!(p in elo)) { elo[p] = 1000; peaks[p] = 1000; } });
+    allP.forEach((p) => {
+      if (!(p in elo)) {
+        elo[p] = 1000;
+        peaks[p] = 1000;
+      }
+    });
     const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const avgA =
+      m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB =
+      m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
     const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
     const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
     const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
@@ -7855,66 +8709,177 @@ function computeBadges(name, stats, eloMap, allMatchesArr) {
   // Veteran: matches played
   if (ps) {
     const mp = ps.mp;
-    if (mp >= 50) badges.push({ icon: "🎖️", label: "Veteran", desc: `${mp} matches played`, tier: "gold" });
-    else if (mp >= 25) badges.push({ icon: "🎖️", label: "Veteran", desc: `${mp} matches played`, tier: "silver" });
-    else if (mp >= 10) badges.push({ icon: "🎖️", label: "Veteran", desc: `${mp} matches played`, tier: "bronze" });
+    if (mp >= 50)
+      badges.push({
+        icon: "🎖️",
+        label: "Veteran",
+        desc: `${mp} matches played`,
+        tier: "gold",
+      });
+    else if (mp >= 25)
+      badges.push({
+        icon: "🎖️",
+        label: "Veteran",
+        desc: `${mp} matches played`,
+        tier: "silver",
+      });
+    else if (mp >= 10)
+      badges.push({
+        icon: "🎖️",
+        label: "Veteran",
+        desc: `${mp} matches played`,
+        tier: "bronze",
+      });
   }
 
   // Win Machine: total wins
   if (ps) {
     const w = ps.mw;
-    if (w >= 40) badges.push({ icon: "🏆", label: "Win Machine", desc: `${w} wins`, tier: "gold" });
-    else if (w >= 20) badges.push({ icon: "🏆", label: "Win Machine", desc: `${w} wins`, tier: "silver" });
-    else if (w >= 10) badges.push({ icon: "🏆", label: "Win Machine", desc: `${w} wins`, tier: "bronze" });
+    if (w >= 40)
+      badges.push({
+        icon: "🏆",
+        label: "Win Machine",
+        desc: `${w} wins`,
+        tier: "gold",
+      });
+    else if (w >= 20)
+      badges.push({
+        icon: "🏆",
+        label: "Win Machine",
+        desc: `${w} wins`,
+        tier: "silver",
+      });
+    else if (w >= 10)
+      badges.push({
+        icon: "🏆",
+        label: "Win Machine",
+        desc: `${w} wins`,
+        tier: "bronze",
+      });
   }
 
   // Comeback King: most wins after trailing (win with lower score first)
   if (ps) {
     let comebacks = 0;
-    const pMatches = allMatchesArr.filter(m => (m.teamA||[]).includes(name)||(m.teamB||[]).includes(name));
-    pMatches.forEach(m => {
-      const inA = (m.teamA||[]).includes(name);
+    const pMatches = allMatchesArr.filter(
+      (m) => (m.teamA || []).includes(name) || (m.teamB || []).includes(name),
+    );
+    pMatches.forEach((m) => {
+      const inA = (m.teamA || []).includes(name);
       const myScore = inA ? m.scoreA : m.scoreB;
       const theirScore = inA ? m.scoreB : m.scoreA;
-      if (myScore > theirScore && theirScore > 0 && myScore - theirScore <= 2) comebacks++;
+      if (myScore > theirScore && theirScore > 0 && myScore - theirScore <= 2)
+        comebacks++;
     });
-    if (comebacks >= 10) badges.push({ icon: "💪", label: "Comeback King", desc: `${comebacks} close wins`, tier: "gold" });
-    else if (comebacks >= 5) badges.push({ icon: "💪", label: "Comeback King", desc: `${comebacks} close wins`, tier: "silver" });
-    else if (comebacks >= 2) badges.push({ icon: "💪", label: "Comeback King", desc: `${comebacks} close wins`, tier: "bronze" });
+    if (comebacks >= 10)
+      badges.push({
+        icon: "💪",
+        label: "Comeback King",
+        desc: `${comebacks} close wins`,
+        tier: "gold",
+      });
+    else if (comebacks >= 5)
+      badges.push({
+        icon: "💪",
+        label: "Comeback King",
+        desc: `${comebacks} close wins`,
+        tier: "silver",
+      });
+    else if (comebacks >= 2)
+      badges.push({
+        icon: "💪",
+        label: "Comeback King",
+        desc: `${comebacks} close wins`,
+        tier: "bronze",
+      });
   }
 
   // Dominator: wins by 3+ margin
   if (ps) {
-    const dominWins = allMatchesArr.filter(m => {
-      const inA = (m.teamA||[]).includes(name), inB = (m.teamB||[]).includes(name);
+    const dominWins = allMatchesArr.filter((m) => {
+      const inA = (m.teamA || []).includes(name),
+        inB = (m.teamB || []).includes(name);
       if (!inA && !inB) return false;
       const aWon = m.scoreA > m.scoreB;
-      return ((inA && aWon) || (inB && !aWon)) && Math.abs(m.scoreA - m.scoreB) >= 3;
+      return (
+        ((inA && aWon) || (inB && !aWon)) && Math.abs(m.scoreA - m.scoreB) >= 3
+      );
     }).length;
-    if (dominWins >= 20) badges.push({ icon: "💀", label: "Dominator", desc: `${dominWins} dominant wins`, tier: "gold" });
-    else if (dominWins >= 10) badges.push({ icon: "💀", label: "Dominator", desc: `${dominWins} dominant wins`, tier: "silver" });
-    else if (dominWins >= 5) badges.push({ icon: "💀", label: "Dominator", desc: `${dominWins} dominant wins`, tier: "bronze" });
+    if (dominWins >= 20)
+      badges.push({
+        icon: "💀",
+        label: "Dominator",
+        desc: `${dominWins} dominant wins`,
+        tier: "gold",
+      });
+    else if (dominWins >= 10)
+      badges.push({
+        icon: "💀",
+        label: "Dominator",
+        desc: `${dominWins} dominant wins`,
+        tier: "silver",
+      });
+    else if (dominWins >= 5)
+      badges.push({
+        icon: "💀",
+        label: "Dominator",
+        desc: `${dominWins} dominant wins`,
+        tier: "bronze",
+      });
   }
 
   // Weekend Warrior: most matches on weekends
   if (ps) {
-    const wkMatches = allMatchesArr.filter(m => {
+    const wkMatches = allMatchesArr.filter((m) => {
       if (!m.date) return false;
       const d = new Date(m.date + "T00:00:00").getDay();
-      return (d === 0 || d === 6) && ([...(m.teamA||[]),...(m.teamB||[])].includes(name));
+      return (
+        (d === 0 || d === 6) &&
+        [...(m.teamA || []), ...(m.teamB || [])].includes(name)
+      );
     }).length;
-    if (wkMatches >= 30) badges.push({ icon: "🏖️", label: "Weekend Warrior", desc: `${wkMatches} weekend matches`, tier: "gold" });
-    else if (wkMatches >= 15) badges.push({ icon: "🏖️", label: "Weekend Warrior", desc: `${wkMatches} weekend matches`, tier: "silver" });
-    else if (wkMatches >= 5) badges.push({ icon: "🏖️", label: "Weekend Warrior", desc: `${wkMatches} weekend matches`, tier: "bronze" });
+    if (wkMatches >= 30)
+      badges.push({
+        icon: "🏖️",
+        label: "Weekend Warrior",
+        desc: `${wkMatches} weekend matches`,
+        tier: "gold",
+      });
+    else if (wkMatches >= 15)
+      badges.push({
+        icon: "🏖️",
+        label: "Weekend Warrior",
+        desc: `${wkMatches} weekend matches`,
+        tier: "silver",
+      });
+    else if (wkMatches >= 5)
+      badges.push({
+        icon: "🏖️",
+        label: "Weekend Warrior",
+        desc: `${wkMatches} weekend matches`,
+        tier: "bronze",
+      });
   }
 
   // Perfect Day: won all matches in a session
   for (const date of sessionDates) {
-    const sm = allMatchesArr.filter(m => m.date === date && [...(m.teamA||[]),...(m.teamB||[])].includes(name));
+    const sm = allMatchesArr.filter(
+      (m) =>
+        m.date === date &&
+        [...(m.teamA || []), ...(m.teamB || [])].includes(name),
+    );
     if (sm.length >= 3) {
-      const allWon = sm.every(m => { const inA = (m.teamA||[]).includes(name); return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA); });
+      const allWon = sm.every((m) => {
+        const inA = (m.teamA || []).includes(name);
+        return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+      });
       if (allWon) {
-        badges.push({ icon: "⭐", label: "Perfect Day", desc: `Won all ${sm.length} on ${fmtDate(date)}`, tier: sm.length >= 5 ? "gold" : sm.length >= 4 ? "silver" : "bronze" });
+        badges.push({
+          icon: "⭐",
+          label: "Perfect Day",
+          desc: `Won all ${sm.length} on ${fmtDate(date)}`,
+          tier: sm.length >= 5 ? "gold" : sm.length >= 4 ? "silver" : "bronze",
+        });
         break;
       }
     }
@@ -7924,21 +8889,43 @@ function computeBadges(name, stats, eloMap, allMatchesArr) {
   if (ps) {
     const eloMapCur = eloMap;
     let underdogWins = 0;
-    allMatchesArr.forEach(m => {
-      const inA = (m.teamA||[]).includes(name), inB = (m.teamB||[]).includes(name);
+    allMatchesArr.forEach((m) => {
+      const inA = (m.teamA || []).includes(name),
+        inB = (m.teamB || []).includes(name);
       if (!inA && !inB) return;
       const aWon = m.scoreA > m.scoreB;
       const myWon = (inA && aWon) || (inB && !aWon);
       if (!myWon) return;
       const myTeam = inA ? m.teamA : m.teamB;
       const oppTeam = inA ? m.teamB : m.teamA;
-      const myAvg = myTeam.reduce((s,p) => s + (eloMapCur[p]||1000), 0) / myTeam.length;
-      const oppAvg = oppTeam.reduce((s,p) => s + (eloMapCur[p]||1000), 0) / oppTeam.length;
+      const myAvg =
+        myTeam.reduce((s, p) => s + (eloMapCur[p] || 1000), 0) / myTeam.length;
+      const oppAvg =
+        oppTeam.reduce((s, p) => s + (eloMapCur[p] || 1000), 0) /
+        oppTeam.length;
       if (myAvg < oppAvg - 30) underdogWins++;
     });
-    if (underdogWins >= 10) badges.push({ icon: "🐉", label: "Underdog", desc: `${underdogWins} underdog wins`, tier: "gold" });
-    else if (underdogWins >= 5) badges.push({ icon: "🐉", label: "Underdog", desc: `${underdogWins} underdog wins`, tier: "silver" });
-    else if (underdogWins >= 2) badges.push({ icon: "🐉", label: "Underdog", desc: `${underdogWins} underdog wins`, tier: "bronze" });
+    if (underdogWins >= 10)
+      badges.push({
+        icon: "🐉",
+        label: "Underdog",
+        desc: `${underdogWins} underdog wins`,
+        tier: "gold",
+      });
+    else if (underdogWins >= 5)
+      badges.push({
+        icon: "🐉",
+        label: "Underdog",
+        desc: `${underdogWins} underdog wins`,
+        tier: "silver",
+      });
+    else if (underdogWins >= 2)
+      badges.push({
+        icon: "🐉",
+        label: "Underdog",
+        desc: `${underdogWins} underdog wins`,
+        tier: "bronze",
+      });
   }
 
   return badges;
@@ -7949,8 +8936,12 @@ function computeBadges(name, stats, eloMap, allMatchesArr) {
 // ══════════════════════════════════════════════════════════════
 
 function computePlayerForm(name, matches) {
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const playerMs = sorted.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const playerMs = sorted.filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
+  );
   if (playerMs.length < 3) return null;
 
   const eloMap = computeElo(matches);
@@ -7958,34 +8949,39 @@ function computePlayerForm(name, matches) {
   const prev10 = playerMs.slice(-20, -10);
 
   // Win % last 10
-  const wins10 = last10.filter(m => {
+  const wins10 = last10.filter((m) => {
     const inA = (m.teamA || []).includes(name);
     return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
   }).length;
   const winPct10 = last10.length > 0 ? wins10 / last10.length : 0;
 
   // Average margin last 10
-  const avgMargin10 = last10.reduce((s, m) => {
-    const inA = (m.teamA || []).includes(name);
-    const myScore = inA ? m.scoreA : m.scoreB;
-    const theirScore = inA ? m.scoreB : m.scoreA;
-    return s + (myScore - theirScore);
-  }, 0) / Math.max(last10.length, 1);
+  const avgMargin10 =
+    last10.reduce((s, m) => {
+      const inA = (m.teamA || []).includes(name);
+      const myScore = inA ? m.scoreA : m.scoreB;
+      const theirScore = inA ? m.scoreB : m.scoreA;
+      return s + (myScore - theirScore);
+    }, 0) / Math.max(last10.length, 1);
 
   // Win quality: avg opponent ELO in last 10 wins
-  let qualSum = 0, qualCount = 0;
-  last10.forEach(m => {
+  let qualSum = 0,
+    qualCount = 0;
+  last10.forEach((m) => {
     const inA = (m.teamA || []).includes(name);
     const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
     if (!won) return;
-    const opps = inA ? (m.teamB || []) : (m.teamA || []);
-    opps.forEach(opp => { qualSum += (eloMap[opp] || 1000); qualCount++; });
+    const opps = inA ? m.teamB || [] : m.teamA || [];
+    opps.forEach((opp) => {
+      qualSum += eloMap[opp] || 1000;
+      qualCount++;
+    });
   });
   const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
 
   // Pressure (close match win %, diff ≤ 2)
-  const closeMs = playerMs.filter(m => Math.abs(m.scoreA - m.scoreB) <= 2);
-  const closeWins = closeMs.filter(m => {
+  const closeMs = playerMs.filter((m) => Math.abs(m.scoreA - m.scoreB) <= 2);
+  const closeWins = closeMs.filter((m) => {
     const inA = (m.teamA || []).includes(name);
     return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
   }).length;
@@ -7994,26 +8990,60 @@ function computePlayerForm(name, matches) {
   // Momentum: compare last 5 vs previous 5 win %
   const last5 = playerMs.slice(-5);
   const prev5 = playerMs.slice(-10, -5);
-  const w5 = last5.filter(m => { const inA = (m.teamA||[]).includes(name); return (inA && m.scoreA > m.scoreB)||(!inA && m.scoreB > m.scoreA); }).length;
-  const wp5 = prev5.filter(m => { const inA = (m.teamA||[]).includes(name); return (inA && m.scoreA > m.scoreB)||(!inA && m.scoreB > m.scoreA); }).length;
-  const momentumDelta = last5.length > 0 && prev5.length > 0
-    ? (w5 / last5.length - wp5 / prev5.length) * 100
-    : 0;
+  const w5 = last5.filter((m) => {
+    const inA = (m.teamA || []).includes(name);
+    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+  }).length;
+  const wp5 = prev5.filter((m) => {
+    const inA = (m.teamA || []).includes(name);
+    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+  }).length;
+  const momentumDelta =
+    last5.length > 0 && prev5.length > 0
+      ? (w5 / last5.length - wp5 / prev5.length) * 100
+      : 0;
 
   // Composite form score 0–10
-  const formScore = Math.min(10, Math.max(0,
-    winPct10 * 4 +
-    Math.min(1, Math.max(0, (avgMargin10 + 5) / 10)) * 2.5 +
-    Math.min(1, (winQuality - 900) / 300) * 2 +
-    pressureScore * 1.5
-  ));
+  const formScore = Math.min(
+    10,
+    Math.max(
+      0,
+      winPct10 * 4 +
+        Math.min(1, Math.max(0, (avgMargin10 + 5) / 10)) * 2.5 +
+        Math.min(1, (winQuality - 900) / 300) * 2 +
+        pressureScore * 1.5,
+    ),
+  );
 
   // Labels
-  const momentumLabel = momentumDelta > 8 ? "Rising ↑" : momentumDelta < -8 ? "Falling ↓" : "Stable →";
-  const momentumColor = momentumDelta > 8 ? "var(--green)" : momentumDelta < -8 ? "var(--red)" : "var(--muted)";
-  const pressureLabel = pressureScore >= 0.7 ? "Elite" : pressureScore >= 0.5 ? "Solid" : "Shaky";
-  const pressureColor = pressureScore >= 0.7 ? "var(--green)" : pressureScore >= 0.5 ? "var(--gold)" : "var(--red)";
-  const formEmoji = formScore >= 8 ? "🔥" : formScore >= 6 ? "⚡" : formScore >= 4 ? "😐" : "❄️";
+  const momentumLabel =
+    momentumDelta > 8
+      ? "Rising ↑"
+      : momentumDelta < -8
+        ? "Falling ↓"
+        : "Stable →";
+  const momentumColor =
+    momentumDelta > 8
+      ? "var(--green)"
+      : momentumDelta < -8
+        ? "var(--red)"
+        : "var(--muted)";
+  const pressureLabel =
+    pressureScore >= 0.7 ? "Elite" : pressureScore >= 0.5 ? "Solid" : "Shaky";
+  const pressureColor =
+    pressureScore >= 0.7
+      ? "var(--green)"
+      : pressureScore >= 0.5
+        ? "var(--gold)"
+        : "var(--red)";
+  const formEmoji =
+    formScore >= 8
+      ? "🔥"
+      : formScore >= 6
+        ? "⚡"
+        : formScore >= 4
+          ? "😐"
+          : "❄️";
 
   return {
     score: Math.round(formScore * 10) / 10,
@@ -8034,58 +9064,114 @@ function computePlayerForm(name, matches) {
 
 // ── PLAY STYLE ARCHETYPE ──────────────────────────────────────
 function computeArchetype(name, matches) {
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const playerMs = sorted.filter(m => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const playerMs = sorted.filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
+  );
   if (playerMs.length < 5) return null;
 
   const eloMap = computeElo(matches);
-  const wins = playerMs.filter(m => { const inA = (m.teamA||[]).includes(name); return (inA && m.scoreA>m.scoreB)||(!inA && m.scoreB>m.scoreA); });
+  const wins = playerMs.filter((m) => {
+    const inA = (m.teamA || []).includes(name);
+    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+  });
   const winPct = wins.length / playerMs.length;
 
   // Close match win %
-  const close = playerMs.filter(m => Math.abs(m.scoreA - m.scoreB) <= 2);
-  const closeWinPct = close.length > 0
-    ? close.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); }).length / close.length
-    : 0.5;
+  const close = playerMs.filter((m) => Math.abs(m.scoreA - m.scoreB) <= 2);
+  const closeWinPct =
+    close.length > 0
+      ? close.filter((m) => {
+          const inA = (m.teamA || []).includes(name);
+          return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+        }).length / close.length
+      : 0.5;
 
   // Avg margin
-  const avgMargin = playerMs.reduce((s, m) => {
-    const inA = (m.teamA||[]).includes(name);
-    return s + ((inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA));
-  }, 0) / playerMs.length;
+  const avgMargin =
+    playerMs.reduce((s, m) => {
+      const inA = (m.teamA || []).includes(name);
+      return s + ((inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA));
+    }, 0) / playerMs.length;
 
   // Streak volatility (how often streak direction changes)
   let changes = 0;
   for (let i = 1; i < playerMs.length; i++) {
-    const prev = playerMs[i-1], cur = playerMs[i];
-    const prevWon = (prev.teamA||[]).includes(name) ? prev.scoreA > prev.scoreB : prev.scoreB > prev.scoreA;
-    const curWon = (cur.teamA||[]).includes(name) ? cur.scoreA > cur.scoreB : cur.scoreB > cur.scoreA;
+    const prev = playerMs[i - 1],
+      cur = playerMs[i];
+    const prevWon = (prev.teamA || []).includes(name)
+      ? prev.scoreA > prev.scoreB
+      : prev.scoreB > prev.scoreA;
+    const curWon = (cur.teamA || []).includes(name)
+      ? cur.scoreA > cur.scoreB
+      : cur.scoreB > cur.scoreA;
     if (prevWon !== curWon) changes++;
   }
   const volatility = changes / Math.max(playerMs.length - 1, 1);
 
   // Win quality (avg opponent ELO in wins)
-  let qualSum = 0, qualCount = 0;
-  wins.forEach(m => {
-    const opps = (m.teamA||[]).includes(name) ? (m.teamB||[]) : (m.teamA||[]);
-    opps.forEach(opp => { qualSum += (eloMap[opp] || 1000); qualCount++; });
+  let qualSum = 0,
+    qualCount = 0;
+  wins.forEach((m) => {
+    const opps = (m.teamA || []).includes(name) ? m.teamB || [] : m.teamA || [];
+    opps.forEach((opp) => {
+      qualSum += eloMap[opp] || 1000;
+      qualCount++;
+    });
   });
   const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
 
   // Classify
   if (closeWinPct >= 0.65 && close.length >= 4)
-    return { label: "Clutch Player", icon: "🧊", desc: "Thrives under pressure, wins the close ones", color: "#00c8ff" };
+    return {
+      label: "Clutch Player",
+      icon: "🧊",
+      desc: "Thrives under pressure, wins the close ones",
+      color: "#00c8ff",
+    };
   if (avgMargin >= 2.5 && winPct >= 0.6)
-    return { label: "Finisher", icon: "🎯", desc: "Wins decisively, rarely drops close sets", color: "#00ff9d" };
+    return {
+      label: "Finisher",
+      icon: "🎯",
+      desc: "Wins decisively, rarely drops close sets",
+      color: "#00ff9d",
+    };
   if (winQuality >= 1050 && wins.length >= 5)
-    return { label: "Giant Slayer", icon: "⚔️", desc: "Elevates against strong opponents", color: "var(--gold)" };
+    return {
+      label: "Giant Slayer",
+      icon: "⚔️",
+      desc: "Elevates against strong opponents",
+      color: "var(--gold)",
+    };
   if (volatility < 0.35 && winPct >= 0.55)
-    return { label: "Consistent", icon: "🛡", desc: "Rock-solid, rarely goes on bad runs", color: "#b44dff" };
+    return {
+      label: "Consistent",
+      icon: "🛡",
+      desc: "Rock-solid, rarely goes on bad runs",
+      color: "#b44dff",
+    };
   if (volatility > 0.55)
-    return { label: "Streaky", icon: "🎲", desc: "Runs hot and cold — dangerous on a good day", color: "#ff9d00" };
+    return {
+      label: "Streaky",
+      icon: "🎲",
+      desc: "Runs hot and cold — dangerous on a good day",
+      color: "#ff9d00",
+    };
   if (winPct >= 0.65)
-    return { label: "Aggressor", icon: "🔥", desc: "High win rate, dominates most matchups", color: "#ff2d78" };
-  return { label: "Balanced", icon: "⚖️", desc: "Well-rounded, no glaring weakness", color: "var(--muted)" };
+    return {
+      label: "Aggressor",
+      icon: "🔥",
+      desc: "High win rate, dominates most matchups",
+      color: "#ff2d78",
+    };
+  return {
+    label: "Balanced",
+    icon: "⚖️",
+    desc: "Well-rounded, no glaring weakness",
+    color: "var(--muted)",
+  };
 }
 
 // ── SMART POWER RANKINGS ──────────────────────────────────────
@@ -8098,120 +9184,188 @@ function computePowerRankings(matches) {
   const minElo = Math.min(...Object.values(eloMap));
   const eloRange = Math.max(maxElo - minElo, 1);
 
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const maxMp = Math.max(...stats.map(s => s.mp), 1);
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const maxMp = Math.max(...stats.map((s) => s.mp), 1);
 
-  return stats.map(p => {
-    const form = computePlayerForm(p.name, matches);
-    const eloNorm = ((eloMap[p.name] || 1000) - minElo) / eloRange;
-    const formNorm = form ? form.score / 10 : p.mw / Math.max(p.mp, 1);
-    const activityNorm = p.mp / maxMp;
+  return stats
+    .map((p) => {
+      const form = computePlayerForm(p.name, matches);
+      const eloNorm = ((eloMap[p.name] || 1000) - minElo) / eloRange;
+      const formNorm = form ? form.score / 10 : p.mw / Math.max(p.mp, 1);
+      const activityNorm = p.mp / maxMp;
 
-    // Win quality: avg ELO of opponents beaten
-    let qualSum = 0, qualCount = 0;
-    sorted.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(p.name)).forEach(m => {
-      const inA = (m.teamA||[]).includes(p.name);
-      const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-      if (!won) return;
-      const opps = inA ? (m.teamB||[]) : (m.teamA||[]);
-      opps.forEach(opp => { qualSum += (eloMap[opp]||1000); qualCount++; });
-    });
-    const winQualNorm = qualCount > 0 ? Math.min(1, (qualSum/qualCount - 900) / 400) : 0;
+      // Win quality: avg ELO of opponents beaten
+      let qualSum = 0,
+        qualCount = 0;
+      sorted
+        .filter((m) =>
+          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
+        )
+        .forEach((m) => {
+          const inA = (m.teamA || []).includes(p.name);
+          const won =
+            (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+          if (!won) return;
+          const opps = inA ? m.teamB || [] : m.teamA || [];
+          opps.forEach((opp) => {
+            qualSum += eloMap[opp] || 1000;
+            qualCount++;
+          });
+        });
+      const winQualNorm =
+        qualCount > 0 ? Math.min(1, (qualSum / qualCount - 900) / 400) : 0;
 
-    const score = eloNorm * 0.4 + formNorm * 0.3 + winQualNorm * 0.2 + activityNorm * 0.1;
+      const score =
+        eloNorm * 0.4 + formNorm * 0.3 + winQualNorm * 0.2 + activityNorm * 0.1;
 
-    return { name: p.name, score: Math.round(score * 1000) / 10, elo: eloMap[p.name] || 1000,
-             winPct: Math.round((p.mw / Math.max(p.mp, 1)) * 100), mp: p.mp,
-             form: form ? form.score : null, formEmoji: form ? form.formEmoji : "—" };
-  }).sort((a, b) => b.score - a.score);
+      return {
+        name: p.name,
+        score: Math.round(score * 1000) / 10,
+        elo: eloMap[p.name] || 1000,
+        winPct: Math.round((p.mw / Math.max(p.mp, 1)) * 100),
+        mp: p.mp,
+        form: form ? form.score : null,
+        formEmoji: form ? form.formEmoji : "—",
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 }
 
 // ── PARTNERSHIP CHEMISTRY SCORE ───────────────────────────────
 function computeChemistryScores(matches) {
   const eloMap = computeElo(matches);
-  const pairs = getPairStats(matches).filter(p => p.played >= 3);
+  const pairs = getPairStats(matches).filter((p) => p.played >= 3);
   if (!pairs.length) return [];
 
-  const maxPlayed = Math.max(...pairs.map(p => p.played), 1);
+  const maxPlayed = Math.max(...pairs.map((p) => p.played), 1);
   const allElos = Object.values(eloMap);
-  const avgElo = allElos.reduce((s, v) => s + v, 0) / Math.max(allElos.length, 1);
+  const avgElo =
+    allElos.reduce((s, v) => s + v, 0) / Math.max(allElos.length, 1);
 
-  return pairs.map(p => {
-    const [n1, n2] = p.players;
-    const winPctNorm = p.winPct / 100;
-    const marginNorm = Math.min(1, Math.max(0, (p.avgMargin + 5) / 10));
-    const activityNorm = p.played / maxPlayed;
+  return pairs
+    .map((p) => {
+      const [n1, n2] = p.players;
+      const winPctNorm = p.winPct / 100;
+      const marginNorm = Math.min(1, Math.max(0, (p.avgMargin + 5) / 10));
+      const activityNorm = p.played / maxPlayed;
 
-    // vs-strong: wins against above-average ELO opponents
-    const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
-    let strongWins = 0, strongPlayed = 0;
-    sorted.forEach(m => {
-      const inA = (m.teamA||[]).includes(n1) && (m.teamA||[]).includes(n2);
-      const inB = (m.teamB||[]).includes(n1) && (m.teamB||[]).includes(n2);
-      if (!inA && !inB) return;
-      const opps = inA ? (m.teamB||[]) : (m.teamA||[]);
-      const oppAvgElo = opps.reduce((s, op) => s + (eloMap[op]||1000), 0) / Math.max(opps.length, 1);
-      if (oppAvgElo < avgElo) return;
-      strongPlayed++;
-      const aWon = m.scoreA > m.scoreB;
-      if ((inA && aWon) || (inB && !aWon)) strongWins++;
-    });
-    const vsStrongNorm = strongPlayed >= 2 ? strongWins / strongPlayed : 0.5;
+      // vs-strong: wins against above-average ELO opponents
+      const sorted = [...matches].sort((a, b) =>
+        (a.date || "").localeCompare(b.date || ""),
+      );
+      let strongWins = 0,
+        strongPlayed = 0;
+      sorted.forEach((m) => {
+        const inA =
+          (m.teamA || []).includes(n1) && (m.teamA || []).includes(n2);
+        const inB =
+          (m.teamB || []).includes(n1) && (m.teamB || []).includes(n2);
+        if (!inA && !inB) return;
+        const opps = inA ? m.teamB || [] : m.teamA || [];
+        const oppAvgElo =
+          opps.reduce((s, op) => s + (eloMap[op] || 1000), 0) /
+          Math.max(opps.length, 1);
+        if (oppAvgElo < avgElo) return;
+        strongPlayed++;
+        const aWon = m.scoreA > m.scoreB;
+        if ((inA && aWon) || (inB && !aWon)) strongWins++;
+      });
+      const vsStrongNorm = strongPlayed >= 2 ? strongWins / strongPlayed : 0.5;
 
-    const chemScore = winPctNorm * 0.4 + marginNorm * 0.25 + vsStrongNorm * 0.25 + activityNorm * 0.1;
-    const score10 = Math.min(10, Math.round(chemScore * 10 * 10) / 10);
-    const tier = score10 >= 8.5 ? "S" : score10 >= 7 ? "A" : score10 >= 5.5 ? "B" : "C";
-    const tierColor = tier === "S" ? "var(--gold)" : tier === "A" ? "var(--green)" : tier === "B" ? "var(--theme)" : "var(--muted)";
+      const chemScore =
+        winPctNorm * 0.4 +
+        marginNorm * 0.25 +
+        vsStrongNorm * 0.25 +
+        activityNorm * 0.1;
+      const score10 = Math.min(10, Math.round(chemScore * 10 * 10) / 10);
+      const tier =
+        score10 >= 8.5 ? "S" : score10 >= 7 ? "A" : score10 >= 5.5 ? "B" : "C";
+      const tierColor =
+        tier === "S"
+          ? "var(--gold)"
+          : tier === "A"
+            ? "var(--green)"
+            : tier === "B"
+              ? "var(--theme)"
+              : "var(--muted)";
 
-    return { players: p.players, played: p.played, wins: p.wins,
-             winPct: p.winPct, avgMargin: p.avgMargin,
-             score: score10, tier, tierColor };
-  }).sort((a, b) => b.score - a.score);
+      return {
+        players: p.players,
+        played: p.played,
+        wins: p.wins,
+        winPct: p.winPct,
+        avgMargin: p.avgMargin,
+        score: score10,
+        tier,
+        tierColor,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 }
 
 // ── MATCH STORY CARDS ─────────────────────────────────────────
 function computeMatchStories(matches) {
   if (matches.length < 2) return [];
-  const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   const stories = [];
   const eloHistory = {};
   const streaks = {};
 
   sorted.forEach((m, idx) => {
-    const allP = [...(m.teamA||[]), ...(m.teamB||[])];
-    allP.forEach(p => { if (!(p in eloHistory)) eloHistory[p] = 1000; if (!(p in streaks)) streaks[p] = { type: null, count: 0 }; });
+    const allP = [...(m.teamA || []), ...(m.teamB || [])];
+    allP.forEach((p) => {
+      if (!(p in eloHistory)) eloHistory[p] = 1000;
+      if (!(p in streaks)) streaks[p] = { type: null, count: 0 };
+    });
 
     const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + eloHistory[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + eloHistory[p], 0) / Math.max(m.teamB.length, 1);
+    const avgA =
+      m.teamA.reduce((s, p) => s + eloHistory[p], 0) /
+      Math.max(m.teamA.length, 1);
+    const avgB =
+      m.teamB.reduce((s, p) => s + eloHistory[p], 0) /
+      Math.max(m.teamB.length, 1);
     const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
     const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
     const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
 
     const prevElos = { ...eloHistory };
 
-    m.teamA.forEach(p => { eloHistory[p] = (eloHistory[p] || 1000) + dA; });
-    m.teamB.forEach(p => { eloHistory[p] = (eloHistory[p] || 1000) + dB; });
+    m.teamA.forEach((p) => {
+      eloHistory[p] = (eloHistory[p] || 1000) + dA;
+    });
+    m.teamB.forEach((p) => {
+      eloHistory[p] = (eloHistory[p] || 1000) + dB;
+    });
 
     // Update streaks
-    [...m.teamA, ...m.teamB].forEach(p => {
-      const won = (m.teamA.includes(p) && aWon) || (m.teamB.includes(p) && !aWon);
+    [...m.teamA, ...m.teamB].forEach((p) => {
+      const won =
+        (m.teamA.includes(p) && aWon) || (m.teamB.includes(p) && !aWon);
       const type = won ? "W" : "L";
       if (streaks[p].type === type) streaks[p].count++;
-      else { streaks[p].type = type; streaks[p].count = 1; }
+      else {
+        streaks[p].type = type;
+        streaks[p].count = 1;
+      }
     });
 
     const date = m.date;
 
     // Story: Streak ended
-    [...m.teamA, ...m.teamB].forEach(p => {
+    [...m.teamA, ...m.teamB].forEach((p) => {
       const prevStreak = streaks[p].count === 1 ? null : null; // tracked below
     });
 
     // Story: Upset (lower ELO team wins)
     const eloDiff = Math.abs(avgA - avgB);
     if (eloDiff >= 60) {
-      const upsetTeam = (aWon && avgA < avgB) ? m.teamA : (!aWon && avgB < avgA) ? m.teamB : null;
+      const upsetTeam =
+        aWon && avgA < avgB ? m.teamA : !aWon && avgB < avgA ? m.teamB : null;
       const favoriteTeam = upsetTeam === m.teamA ? m.teamB : m.teamA;
       if (upsetTeam) {
         stories.push({
@@ -8226,8 +9380,8 @@ function computeMatchStories(matches) {
     }
 
     // Story: ELO milestone (1050, 1100, 1150, 1200)
-    allP.forEach(p => {
-      [1050, 1100, 1150, 1200, 1250].forEach(milestone => {
+    allP.forEach((p) => {
+      [1050, 1100, 1150, 1200, 1250].forEach((milestone) => {
         if (prevElos[p] < milestone && eloHistory[p] >= milestone) {
           stories.push({
             icon: "🏆",
@@ -8258,7 +9412,7 @@ function computeMatchStories(matches) {
 
   // Story: Longest win streak per player (all-time)
   const allStats = computeStats(matches);
-  allStats.forEach(p => {
+  allStats.forEach((p) => {
     if (p.bestWinStreak >= 7) {
       stories.push({
         icon: "🔥",
@@ -8277,41 +9431,68 @@ function computeMatchStories(matches) {
 
 // ── ACHIEVEMENTS (new additions beyond computeBadges) ─────────
 function computeAchievements(name, matches) {
-  const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
-  const playerMs = sorted.filter(m => [...(m.teamA||[]),...(m.teamB||[])].includes(name));
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const playerMs = sorted.filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
+  );
   const eloMap = computeElo(matches);
   const eloHistory = computeEloHistory(matches);
   const pts = eloHistory[name] || [];
   const allStats = computeStats(matches, eloMap);
-  const ps = allStats.find(p => p.name === name);
+  const ps = allStats.find((p) => p.name === name);
   if (!ps) return [];
 
   const ach = [];
   const add = (icon, label, desc, unlocked, progress = null) =>
     ach.push({ icon, label, desc, unlocked, progress });
 
-  const wins = playerMs.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); });
-  const closeMs = playerMs.filter(m => Math.abs(m.scoreA-m.scoreB) <= 2);
-  const closeWins = closeMs.filter(m => { const inA=(m.teamA||[]).includes(name); return (inA&&m.scoreA>m.scoreB)||(!inA&&m.scoreB>m.scoreA); });
+  const wins = playerMs.filter((m) => {
+    const inA = (m.teamA || []).includes(name);
+    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+  });
+  const closeMs = playerMs.filter((m) => Math.abs(m.scoreA - m.scoreB) <= 2);
+  const closeWins = closeMs.filter((m) => {
+    const inA = (m.teamA || []).includes(name);
+    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+  });
 
   // Ice Cold — win 5 close games
-  add("🧊", "Ice Cold", "Win 5 close games (≤2 pt diff)", closeWins.length >= 5, `${Math.min(closeWins.length,5)}/5`);
+  add(
+    "🧊",
+    "Ice Cold",
+    "Win 5 close games (≤2 pt diff)",
+    closeWins.length >= 5,
+    `${Math.min(closeWins.length, 5)}/5`,
+  );
 
   // King Slayer — beat the #1 ranked player
   const ranked = allStats;
   const topPlayer = ranked[0]?.name;
-  const beatTop = topPlayer && topPlayer !== name && wins.some(m => {
-    const opps = (m.teamA||[]).includes(name) ? (m.teamB||[]) : (m.teamA||[]);
-    return opps.includes(topPlayer);
-  });
+  const beatTop =
+    topPlayer &&
+    topPlayer !== name &&
+    wins.some((m) => {
+      const opps = (m.teamA || []).includes(name)
+        ? m.teamB || []
+        : m.teamA || [];
+      return opps.includes(topPlayer);
+    });
   add("👑", "King Slayer", `Beat the #1 ranked player`, beatTop);
 
   // Untouchable — 10-win streak
-  add("⚡", "Untouchable", "Achieve a 10-match win streak", ps.bestWinStreak >= 10, `${Math.min(ps.bestWinStreak,10)}/10`);
+  add(
+    "⚡",
+    "Untouchable",
+    "Achieve a 10-match win streak",
+    ps.bestWinStreak >= 10,
+    `${Math.min(ps.bestWinStreak, 10)}/10`,
+  );
 
   // Wall — concede ≤10 pts in a match
-  const wallMatch = playerMs.some(m => {
-    const inA = (m.teamA||[]).includes(name);
+  const wallMatch = playerMs.some((m) => {
+    const inA = (m.teamA || []).includes(name);
     const conceded = inA ? m.scoreB : m.scoreA;
     const myScore = inA ? m.scoreA : m.scoreB;
     return myScore > conceded && conceded === 0;
@@ -8320,66 +9501,129 @@ function computeAchievements(name, matches) {
 
   // Sharpshooter — 75%+ win rate (min 10 matches)
   const winPct = ps.mp >= 10 ? Math.round((ps.mw / ps.mp) * 100) : 0;
-  add("🎯", "Sharpshooter", "80%+ win rate (min 10 matches)", ps.mp >= 10 && winPct >= 80, ps.mp >= 10 ? `${winPct}%` : `${ps.mp}/10 played`);
+  add(
+    "🎯",
+    "Sharpshooter",
+    "80%+ win rate (min 10 matches)",
+    ps.mp >= 10 && winPct >= 80,
+    ps.mp >= 10 ? `${winPct}%` : `${ps.mp}/10 played`,
+  );
 
   // On Fire — 5-match win streak
-  add("🔥", "On Fire", "Win 5 matches in a row", ps.bestWinStreak >= 5, `${Math.min(ps.bestWinStreak,5)}/5`);
+  add(
+    "🔥",
+    "On Fire",
+    "Win 5 matches in a row",
+    ps.bestWinStreak >= 5,
+    `${Math.min(ps.bestWinStreak, 5)}/5`,
+  );
 
   // Diamond — reach ELO 1200
-  const peakElo = pts.length > 0 ? Math.max(...pts.map(p => p.elo)) : (eloMap[name] || 1000);
-  add("💎", "Diamond", "Reach ELO 1200", peakElo >= 1200, `Peak: ${Math.round(peakElo)}`);
+  const peakElo =
+    pts.length > 0 ? Math.max(...pts.map((p) => p.elo)) : eloMap[name] || 1000;
+  add(
+    "💎",
+    "Diamond",
+    "Reach ELO 1200",
+    peakElo >= 1200,
+    `Peak: ${Math.round(peakElo)}`,
+  );
 
   // Chemistry Lab — 10 wins with same partner
   const partnerWins = ps.partnerWins || {};
   const bestPartnerWins = Math.max(0, ...Object.values(partnerWins));
-  const bestPartnerName = Object.keys(partnerWins).find(k => partnerWins[k] === bestPartnerWins) || null;
-  add("🤝", "Chemistry Lab", "Win 10 matches with the same partner", bestPartnerWins >= 10,
-    bestPartnerName ? `${bestPartnerWins}/10 with ${bestPartnerName}` : "0/10");
+  const bestPartnerName =
+    Object.keys(partnerWins).find((k) => partnerWins[k] === bestPartnerWins) ||
+    null;
+  add(
+    "🤝",
+    "Chemistry Lab",
+    "Win 10 matches with the same partner",
+    bestPartnerWins >= 10,
+    bestPartnerName ? `${bestPartnerWins}/10 with ${bestPartnerName}` : "0/10",
+  );
 
   // Climber — rise 5+ ranks in a month
-  const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+  const monthAgo = new Date();
+  monthAgo.setDate(monthAgo.getDate() - 30);
   const monthAgoStr = monthAgo.toISOString().slice(0, 10);
-  const oldMs = matches.filter(m => (m.date||"") < monthAgoStr);
-  const oldRank = computeStats(oldMs).findIndex(p => p.name === name) + 1;
-  const curRank = allStats.findIndex(p => p.name === name) + 1;
+  const oldMs = matches.filter((m) => (m.date || "") < monthAgoStr);
+  const oldRank = computeStats(oldMs).findIndex((p) => p.name === name) + 1;
+  const curRank = allStats.findIndex((p) => p.name === name) + 1;
   const rankRise = oldRank > 0 && curRank > 0 ? oldRank - curRank : 0;
-  add("⬆️", "Climber", "Rise 5+ ranks in a month", rankRise >= 5, rankRise > 0 ? `+${rankRise} ranks` : "—");
+  add(
+    "⬆️",
+    "Climber",
+    "Rise 5+ ranks in a month",
+    rankRise >= 5,
+    rankRise > 0 ? `+${rankRise} ranks` : "—",
+  );
 
   // Comeback Kid — win 3 close matches from behind concept (close wins)
-  add("😤", "Comeback Kid", "Win 3 tense close matches", closeWins.length >= 3, `${Math.min(closeWins.length,3)}/3`);
+  add(
+    "😤",
+    "Comeback Kid",
+    "Win 3 tense close matches",
+    closeWins.length >= 3,
+    `${Math.min(closeWins.length, 3)}/3`,
+  );
 
   // Upset Artist — beat 3 higher-ELO opponents in a row
-  let consecUpsets = 0, maxConsecUpsets = 0;
-  playerMs.forEach(m => {
-    const inA = (m.teamA||[]).includes(name);
+  let consecUpsets = 0,
+    maxConsecUpsets = 0;
+  playerMs.forEach((m) => {
+    const inA = (m.teamA || []).includes(name);
     const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-    if (!won) { consecUpsets = 0; return; }
+    if (!won) {
+      consecUpsets = 0;
+      return;
+    }
     const myTeam = inA ? m.teamA : m.teamB;
     const oppTeam = inA ? m.teamB : m.teamA;
-    const myAvg = myTeam.reduce((s,p)=>s+(eloMap[p]||1000),0)/myTeam.length;
-    const oppAvg = oppTeam.reduce((s,p)=>s+(eloMap[p]||1000),0)/oppTeam.length;
-    if (oppAvg > myAvg + 20) { consecUpsets++; maxConsecUpsets = Math.max(maxConsecUpsets, consecUpsets); }
-    else consecUpsets = 0;
+    const myAvg =
+      myTeam.reduce((s, p) => s + (eloMap[p] || 1000), 0) / myTeam.length;
+    const oppAvg =
+      oppTeam.reduce((s, p) => s + (eloMap[p] || 1000), 0) / oppTeam.length;
+    if (oppAvg > myAvg + 20) {
+      consecUpsets++;
+      maxConsecUpsets = Math.max(maxConsecUpsets, consecUpsets);
+    } else consecUpsets = 0;
   });
-  add("🎲", "Upset Artist", "Beat 3 higher-ELO opponents in a row", maxConsecUpsets >= 3, `${Math.min(maxConsecUpsets,3)}/3`);
+  add(
+    "🎲",
+    "Upset Artist",
+    "Beat 3 higher-ELO opponents in a row",
+    maxConsecUpsets >= 3,
+    `${Math.min(maxConsecUpsets, 3)}/3`,
+  );
 
   // Regular — play every week for 4 weeks
-  const weeks = new Set(playerMs.map(m => {
-    if (!m.date) return null;
-    const d = new Date(m.date + "T00:00:00");
-    const jan1 = new Date(d.getFullYear(), 0, 1);
-    return `${d.getFullYear()}-${Math.ceil((((d - jan1) / 86400000) + jan1.getDay() + 1) / 7)}`;
-  }).filter(Boolean));
-  add("📅", "Regular", "Play at least once a week for 4 weeks", weeks.size >= 4, `${Math.min(weeks.size,4)}/4 weeks`);
+  const weeks = new Set(
+    playerMs
+      .map((m) => {
+        if (!m.date) return null;
+        const d = new Date(m.date + "T00:00:00");
+        const jan1 = new Date(d.getFullYear(), 0, 1);
+        return `${d.getFullYear()}-${Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7)}`;
+      })
+      .filter(Boolean),
+  );
+  add(
+    "📅",
+    "Regular",
+    "Play at least once a week for 4 weeks",
+    weeks.size >= 4,
+    `${Math.min(weeks.size, 4)}/4 weeks`,
+  );
 
   // Season MVP placeholder — top SR in any month
   const monthStats = {};
-  matches.forEach(m => {
-    const mo = (m.date||"").slice(0, 7);
+  matches.forEach((m) => {
+    const mo = (m.date || "").slice(0, 7);
     if (!monthStats[mo]) monthStats[mo] = [];
     monthStats[mo].push(m);
   });
-  const isMVP = Object.values(monthStats).some(ms => {
+  const isMVP = Object.values(monthStats).some((ms) => {
     const st = computeStats(ms);
     return st.length && st[0].name === name;
   });
@@ -8391,56 +9635,100 @@ function computeAchievements(name, matches) {
 // ── SEASON MODE ───────────────────────────────────────────────
 function computeSeasons(matches) {
   if (!matches.length) return [];
-  const sorted = [...matches].sort((a, b) => (a.date||"").localeCompare(b.date||""));
+  const sorted = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   // Group by calendar month
   const byMonth = {};
-  sorted.forEach(m => {
-    const mo = (m.date||"").slice(0, 7);
+  sorted.forEach((m) => {
+    const mo = (m.date || "").slice(0, 7);
     if (!byMonth[mo]) byMonth[mo] = [];
     byMonth[mo].push(m);
   });
-  return Object.entries(byMonth).map(([month, ms]) => {
-    const eloMap = computeElo(ms);
-    const stats = computeStats(ms, eloMap).filter(p => p.mp >= 2);
-    const pairs = getPairStats(ms).filter(p => p.played >= 2);
-    const mvp = stats[0] || null;
-    const topPair = pairs[0] || null;
-    const mostImproved = stats.length > 1
-      ? [...stats].sort((a, b) => {
-          const prevEloA = computeElo(sorted.filter(m => (m.date||"") < month.slice(0,7)+"-01"))[a.name] || 1000;
-          const prevEloB = computeElo(sorted.filter(m => (m.date||"") < month.slice(0,7)+"-01"))[b.name] || 1000;
-          return ((eloMap[b.name]||1000) - prevEloB) - ((eloMap[a.name]||1000) - prevEloA);
-        })[0]
-      : null;
-    const ironMan = stats.length ? [...stats].sort((a,b) => b.mp - a.mp)[0] : null;
-    const [yr, mo] = month.split("-");
-    const monthName = new Date(+yr, +mo-1, 1).toLocaleString("default", { month: "long", year: "numeric" });
-    return { month, monthName, matches: ms.length, players: stats, pairs, mvp, topPair, mostImproved, ironMan };
-  }).reverse();
+  return Object.entries(byMonth)
+    .map(([month, ms]) => {
+      const eloMap = computeElo(ms);
+      const stats = computeStats(ms, eloMap).filter((p) => p.mp >= 2);
+      const pairs = getPairStats(ms).filter((p) => p.played >= 2);
+      const mvp = stats[0] || null;
+      const topPair = pairs[0] || null;
+      const mostImproved =
+        stats.length > 1
+          ? [...stats].sort((a, b) => {
+              const prevEloA =
+                computeElo(
+                  sorted.filter(
+                    (m) => (m.date || "") < month.slice(0, 7) + "-01",
+                  ),
+                )[a.name] || 1000;
+              const prevEloB =
+                computeElo(
+                  sorted.filter(
+                    (m) => (m.date || "") < month.slice(0, 7) + "-01",
+                  ),
+                )[b.name] || 1000;
+              return (
+                (eloMap[b.name] || 1000) -
+                prevEloB -
+                ((eloMap[a.name] || 1000) - prevEloA)
+              );
+            })[0]
+          : null;
+      const ironMan = stats.length
+        ? [...stats].sort((a, b) => b.mp - a.mp)[0]
+        : null;
+      const [yr, mo] = month.split("-");
+      const monthName = new Date(+yr, +mo - 1, 1).toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+      });
+      return {
+        month,
+        monthName,
+        matches: ms.length,
+        players: stats,
+        pairs,
+        mvp,
+        topPair,
+        mostImproved,
+        ironMan,
+      };
+    })
+    .reverse();
 }
 
 function _partnerTab(btn, tab) {
   const panels = ["chemistry", "partners", "synergy", "form"];
-  panels.forEach(t => {
+  panels.forEach((t) => {
     const el = document.getElementById(`partner-tab-${t}`);
     if (el) el.style.display = t === tab ? "" : "none";
   });
-  btn.closest(".partner-tabs")?.querySelectorAll(".partner-tab").forEach(b => b.classList.remove("active"));
+  btn
+    .closest(".partner-tabs")
+    ?.querySelectorAll(".partner-tab")
+    .forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
 }
 
 function _simSync(changed) {
   const ids = ["simA1", "simA2", "simB1", "simB2"];
-  const selected = ids.map(id => document.getElementById(id)?.value).filter(Boolean);
-  ids.forEach(id => {
+  const selected = ids
+    .map((id) => document.getElementById(id)?.value)
+    .filter(Boolean);
+  ids.forEach((id) => {
     const el = document.getElementById(id);
     if (!el || el === changed) return;
     const cur = el.value;
-    const otherSelected = ids.filter(i => i !== id).map(i => document.getElementById(i)?.value).filter(Boolean);
-    Array.from(el.options).forEach(opt => {
+    const otherSelected = ids
+      .filter((i) => i !== id)
+      .map((i) => document.getElementById(i)?.value)
+      .filter(Boolean);
+    Array.from(el.options).forEach((opt) => {
       opt.disabled = opt.value && otherSelected.includes(opt.value);
     });
-    if (otherSelected.includes(cur)) { el.value = ""; }
+    if (otherSelected.includes(cur)) {
+      el.value = "";
+    }
   });
 }
 
@@ -8511,77 +9799,6 @@ function runMatchSimulator() {
     </div>`;
 }
 
-function anaSearchInput(q) {
-  const res = document.getElementById("ana-search-results");
-  const clearBtn = document.getElementById("ana-search-clear");
-  if (!res) return;
-  if (clearBtn) clearBtn.style.display = q ? "flex" : "none";
-  const query = (q || "").trim().toLowerCase();
-  if (!query) { res.innerHTML = ""; res.style.display = "none"; return; }
-
-  const items = [];
-  document.querySelectorAll(".ana-sec[data-key]").forEach((el) => {
-    const key = el.dataset.key;
-    const title = el.querySelector(".ana-sec-title-txt")?.textContent?.trim() || key;
-    if (title.toLowerCase().includes(query))
-      items.push({ type: "section", key, label: title });
-  });
-  const players = [...new Set(allMatches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]))].sort();
-  players.forEach((p) => {
-    if (p.toLowerCase().includes(query))
-      items.push({ type: "player", key: p, label: p });
-  });
-
-  if (!items.length) {
-    res.innerHTML = '<div class="ana-search-empty">No results found</div>';
-  } else {
-    res.innerHTML = items.slice(0, 10).map((item) =>
-      `<div class="ana-search-item" onmousedown="anaSearchSelect('${item.type}','${item.key.replace(/'/g, "\\'")}','${item.label.replace(/'/g, "\\'")}')">`+
-      `<span class="ana-search-item-icon">${item.type === "section" ? "📋" : "👤"}</span>`+
-      `<span class="ana-search-item-label">${item.label}</span>`+
-      `<span class="ana-search-item-type">${item.type === "section" ? "Section" : "Player"}</span>`+
-      `</div>`
-    ).join("");
-  }
-  res.style.display = "block";
-}
-
-function anaSearchSelect(type, key, label) {
-  const input = document.getElementById("ana-search-input");
-  const res = document.getElementById("ana-search-results");
-  if (input) input.value = "";
-  if (res) res.style.display = "none";
-  const clearBtn = document.getElementById("ana-search-clear");
-  if (clearBtn) clearBtn.style.display = "none";
-  if (type === "section") {
-    const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
-    if (!el) return;
-    if (_anaActiveCat !== "all" && el.dataset.cat !== _anaActiveCat)
-      anaFilterCategory("all", true);
-    if (el.classList.contains("collapsed")) toggleAnaSection(key);
-    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    el.classList.remove("ana-sec-found");
-    void el.offsetWidth;
-    el.classList.add("ana-sec-found");
-    setTimeout(() => el.classList.remove("ana-sec-found"), 1800);
-  } else {
-    openPlayerDetail(label);
-  }
-}
-
-function anaSearchClose() {
-  const res = document.getElementById("ana-search-results");
-  if (res) res.style.display = "none";
-}
-
-function anaSearchClear() {
-  const input = document.getElementById("ana-search-input");
-  if (input) { input.value = ""; input.focus(); }
-  const res = document.getElementById("ana-search-results");
-  if (res) { res.innerHTML = ""; res.style.display = "none"; }
-  const clearBtn = document.getElementById("ana-search-clear");
-  if (clearBtn) clearBtn.style.display = "none";
-}
 
 function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || _eloTLFilter || "all";
@@ -8606,24 +9823,31 @@ function buildEloTimelineHtml(filterKey) {
   const lastMonday = new Date(thisMonday);
   lastMonday.setDate(thisMonday.getDate() - 7);
   const lastMondayStr = lastMonday.toISOString().slice(0, 10);
-  const lastSundayStr = new Date(thisMonday.getTime() - 86400000).toISOString().slice(0, 10);
+  const lastSundayStr = new Date(thisMonday.getTime() - 86400000)
+    .toISOString()
+    .slice(0, 10);
 
   if (filterKey === "3m") {
-    const c = new Date(now); c.setMonth(c.getMonth() - 3);
+    const c = new Date(now);
+    c.setMonth(c.getMonth() - 3);
     const cs = c.toISOString().slice(0, 10);
     pts = pts.filter((p) => (p.date || "") >= cs);
   } else if (filterKey === "1m") {
-    const c = new Date(now); c.setMonth(c.getMonth() - 1);
+    const c = new Date(now);
+    c.setMonth(c.getMonth() - 1);
     const cs = c.toISOString().slice(0, 10);
     pts = pts.filter((p) => (p.date || "") >= cs);
   } else if (filterKey === "1w") {
-    const c = new Date(now); c.setDate(c.getDate() - 7);
+    const c = new Date(now);
+    c.setDate(c.getDate() - 7);
     const cs = c.toISOString().slice(0, 10);
     pts = pts.filter((p) => (p.date || "") >= cs);
   } else if (filterKey === "thisweek") {
     pts = pts.filter((p) => (p.date || "") >= thisMondayStr);
   } else if (filterKey === "lastweek") {
-    pts = pts.filter((p) => (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr);
+    pts = pts.filter(
+      (p) => (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr,
+    );
   } else if (filterKey === "today") {
     pts = pts.filter((p) => p.date === todayStr);
   }
@@ -8653,8 +9877,14 @@ function buildEloTimelineHtml(filterKey) {
     chartHtml =
       '<div class="sub" style="padding:16px 0;text-align:center">Not enough data for selected period.</div>';
   } else {
-    const W = 320, H = 100, pl = 38, pr = 10, pt = 10, pb = 20;
-    const cW = W - pl - pr, cH = H - pt - pb;
+    const W = 320,
+      H = 100,
+      pl = 38,
+      pr = 10,
+      pt = 10,
+      pb = 20;
+    const cW = W - pl - pr,
+      cH = H - pt - pb;
     const minE = Math.min(...pts.map((p) => p.elo)) - 15;
     const maxE = Math.max(...pts.map((p) => p.elo)) + 15;
     const eRange = Math.max(1, maxE - minE);
@@ -8662,16 +9892,24 @@ function buildEloTimelineHtml(filterKey) {
     const toY = (e) => pt + (1 - (e - minE) / eRange) * cH;
     const col = playerColor(name);
     const gradId = `etgtl_${name.replace(/[^a-zA-Z0-9]/g, "")}`;
-    const yLines = [minE + eRange * 0.25, minE + eRange * 0.5, minE + eRange * 0.75]
+    const yLines = [
+      minE + eRange * 0.25,
+      minE + eRange * 0.5,
+      minE + eRange * 0.75,
+    ]
       .map((ev) => {
         const y = toY(ev);
         return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${Math.round(ev)}</text>`;
       })
       .join("");
-    const polyline = pts.map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ");
+    const polyline = pts
+      .map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`)
+      .join(" ");
     const area =
       `M${toX(0).toFixed(1)},${(H - pb).toFixed(1)} ` +
-      pts.map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ") +
+      pts
+        .map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`)
+        .join(" ") +
       ` L${toX(pts.length - 1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
     const circles = pts
       .map(
@@ -8683,7 +9921,12 @@ function buildEloTimelineHtml(filterKey) {
     const startElo = pts[0].elo - pts[0].delta;
     const netChange = lastElo - startElo;
     const netStr = netChange > 0 ? `+${netChange}` : String(netChange);
-    const netCol = netChange > 0 ? "var(--green)" : netChange < 0 ? "var(--red)" : "var(--muted)";
+    const netCol =
+      netChange > 0
+        ? "var(--green)"
+        : netChange < 0
+          ? "var(--red)"
+          : "var(--muted)";
     chartHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px">
         <div style="font-size:9px;color:var(--muted)">● W &nbsp;● L &nbsp;· ${pts.length} matches</div>
         <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO</div>
@@ -8711,7 +9954,9 @@ function buildEloTimelineHtml(filterKey) {
 }
 
 function _rerenderEloTLSection() {
-  const el = document.querySelector('.ana-sec[data-key="eloTimeline"] .ana-sec-body');
+  const el = document.querySelector(
+    '.ana-sec[data-key="eloTimeline"] .ana-sec-body',
+  );
   if (el) el.innerHTML = buildEloTimelineHtml(_eloTLFilter);
 }
 
@@ -8730,7 +9975,8 @@ function showEloMatchDetail(idx) {
   const d = document.getElementById("elo-tl-detail");
   if (!d || !p) return;
   const dStr = p.delta > 0 ? `+${p.delta}` : String(p.delta);
-  const dCol = p.delta > 0 ? "var(--green)" : p.delta < 0 ? "var(--red)" : "var(--muted)";
+  const dCol =
+    p.delta > 0 ? "var(--green)" : p.delta < 0 ? "var(--red)" : "var(--muted)";
   d.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid ${p.won ? "var(--green)" : "var(--red)"}">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:11px;font-weight:700;color:${p.won ? "var(--green)" : "var(--red)"}">${p.won ? "WIN" : "LOSS"}</span>
@@ -8749,15 +9995,20 @@ function _updateEloProbSlots() {
   const aBtn = document.getElementById("eloProb-slot-p1");
   const bBtn = document.getElementById("eloProb-slot-p2");
   if (aBtn) {
-    document.getElementById("eloProb-label-p1").textContent = _eloProbP1 || "P1";
+    document.getElementById("eloProb-label-p1").textContent =
+      _eloProbP1 || "P1";
     aBtn.classList.toggle("h2h-slot-filled", !!_eloProbP1);
   }
   if (bBtn) {
-    document.getElementById("eloProb-label-p2").textContent = _eloProbP2 || "P2";
+    document.getElementById("eloProb-label-p2").textContent =
+      _eloProbP2 || "P2";
     bBtn.classList.toggle("h2h-slot-filled", !!_eloProbP2);
   }
   if (_eloProbP1 && _eloProbP2 && _eloProbP1 !== _eloProbP2) calcEloWinProb();
-  else { const r = document.getElementById("elo-prob-result"); if (r) r.innerHTML = ""; }
+  else {
+    const r = document.getElementById("elo-prob-result");
+    if (r) r.innerHTML = "";
+  }
 }
 
 function openEloProbSheet(slot) {
@@ -8768,14 +10019,17 @@ function openEloProbSheet(slot) {
   if (!list) return;
   const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
   const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
-  const players = computeStats(allMatches).map(s => s.name);
-  list.innerHTML = players.map(p => {
-    const disabled = p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
-    const sel = p === selected ? " live-sheet-item-selected" : "";
-    return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+  const players = computeStats(allMatches).map((s) => s.name);
+  list.innerHTML = players
+    .map((p) => {
+      const disabled =
+        p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
+      const sel = p === selected ? " live-sheet-item-selected" : "";
+      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
       <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
       <span>${p}</span></div>`;
-  }).join("");
+    })
+    .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
   const sheet = document.getElementById("filter-sheet");
   if (overlay) overlay.classList.add("live-sheet-open");
@@ -8788,13 +10042,15 @@ function openWhatIfPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(allMatches).map(s => s.name);
-  list.innerHTML = players.map(p => {
-    const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
-    return `<div class="live-sheet-item${sel}" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+  const players = computeStats(allMatches).map((s) => s.name);
+  list.innerHTML = players
+    .map((p) => {
+      const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
+      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
       <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
       <span>${p}</span></div>`;
-  }).join("");
+    })
+    .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
   const sheet = document.getElementById("filter-sheet");
   if (overlay) overlay.classList.add("live-sheet-open");
@@ -8807,7 +10063,8 @@ function calcEloWinProb() {
   const result = document.getElementById("elo-prob-result");
   if (!result) return;
   if (!p1 || !p2 || p1 === p2) {
-    result.innerHTML = '<div class="sub" style="color:var(--red);padding:4px">Select two different players.</div>';
+    result.innerHTML =
+      '<div class="sub" style="color:var(--red);padding:4px">Select two different players.</div>';
     return;
   }
   const em = computeElo(allMatches);
@@ -8845,22 +10102,32 @@ let _eloProbP2 = "";
 
 // ── WHAT-IF SIMULATOR STATE ────────────────────────────────
 let _whatIfToggles = {}; // matchIdx -> bool (false = excluded)
-let _whatIfFlips   = {}; // matchIdx -> bool (true = flip outcome)
+let _whatIfFlips = {}; // matchIdx -> bool (true = flip outcome)
 let _whatIfPlayer = "";
 
 function renderWhatIfSection(playerName) {
   _whatIfPlayer = playerName;
   _whatIfToggles = {};
-  _whatIfFlips   = {};
+  _whatIfFlips = {};
   const matchesEl = document.getElementById("whatif-matches");
-  const resultEl  = document.getElementById("whatif-result");
-  const ctrlEl    = document.getElementById("whatif-controls");
+  const resultEl = document.getElementById("whatif-result");
+  const ctrlEl = document.getElementById("whatif-controls");
   if (!matchesEl || !resultEl) return;
-  if (!playerName) { matchesEl.innerHTML = ""; resultEl.innerHTML = ""; if (ctrlEl) ctrlEl.style.display = "none"; return; }
+  if (!playerName) {
+    matchesEl.innerHTML = "";
+    resultEl.innerHTML = "";
+    if (ctrlEl) ctrlEl.style.display = "none";
+    return;
+  }
   const playerMatches = allMatches
     .map((m, i) => ({ m, i }))
-    .filter(({ m }) => [...(m.teamA || []), ...(m.teamB || [])].includes(playerName));
-  playerMatches.forEach(({ i }) => { _whatIfToggles[i] = true; _whatIfFlips[i] = false; });
+    .filter(({ m }) =>
+      [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
+    );
+  playerMatches.forEach(({ i }) => {
+    _whatIfToggles[i] = true;
+    _whatIfFlips[i] = false;
+  });
   if (ctrlEl) ctrlEl.style.display = "flex";
   _renderWhatIfRows(playerName, playerMatches);
   resultEl.innerHTML = "";
@@ -8869,16 +10136,23 @@ function renderWhatIfSection(playerName) {
 function _renderWhatIfRows(playerName, playerMatches) {
   const matchesEl = document.getElementById("whatif-matches");
   if (!matchesEl) return;
-  matchesEl.innerHTML = `<div class="whatif-list">` +
-    playerMatches.slice(-20).reverse().map(({ m, i }) => {
-      const inA = (m.teamA || []).includes(playerName);
-      const baseWon = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-      const flipped = !!_whatIfFlips[i];
-      const effectiveWon = flipped ? !baseWon : baseWon;
-      const excluded = _whatIfToggles[i] === false;
-      const partner = (inA ? m.teamA : m.teamB).filter(p => p !== playerName).join(" & ");
-      const opp = (inA ? m.teamB : m.teamA).join(" & ");
-      return `<div class="whatif-row${excluded ? " wi-excluded" : ""}${flipped ? " wi-flipped" : ""}">
+  matchesEl.innerHTML =
+    `<div class="whatif-list">` +
+    playerMatches
+      .slice(-20)
+      .reverse()
+      .map(({ m, i }) => {
+        const inA = (m.teamA || []).includes(playerName);
+        const baseWon =
+          (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
+        const flipped = !!_whatIfFlips[i];
+        const effectiveWon = flipped ? !baseWon : baseWon;
+        const excluded = _whatIfToggles[i] === false;
+        const partner = (inA ? m.teamA : m.teamB)
+          .filter((p) => p !== playerName)
+          .join(" & ");
+        const opp = (inA ? m.teamB : m.teamA).join(" & ");
+        return `<div class="whatif-row${excluded ? " wi-excluded" : ""}${flipped ? " wi-flipped" : ""}">
         <div class="wi-outcome-dot" style="background:${effectiveWon ? "var(--green)" : "var(--red)"}"></div>
         <div class="wi-match-info">
           <span class="wi-date">${fmtDate(m.date)}</span>
@@ -8891,12 +10165,14 @@ function _renderWhatIfRows(playerName, playerMatches) {
           <button class="wi-btn wi-excl${excluded ? " active" : ""}" title="${excluded ? "Re-include" : "Exclude match"}" onclick="toggleWhatIfMatch(${i})">✕</button>
         </div>
       </div>`;
-    }).join("") + `</div>
+      })
+      .join("") +
+    `</div>
     <button class="btn-go" style="width:100%;font-size:11px;margin-top:8px" onclick="recomputeWhatIfElo()">SIMULATE ▶</button>`;
 }
 
 function toggleWhatIfMatch(idx) {
-  _whatIfToggles[idx] = (_whatIfToggles[idx] === false) ? true : false;
+  _whatIfToggles[idx] = _whatIfToggles[idx] === false ? true : false;
   if (_whatIfToggles[idx] === false) _whatIfFlips[idx] = false; // can't flip excluded
   _refreshWhatIfRows();
 }
@@ -8918,15 +10194,21 @@ function whatIfFlipAllLosses() {
 }
 
 function whatIfReset() {
-  Object.keys(_whatIfToggles).forEach(i => { _whatIfToggles[i] = true; _whatIfFlips[i] = false; });
+  Object.keys(_whatIfToggles).forEach((i) => {
+    _whatIfToggles[i] = true;
+    _whatIfFlips[i] = false;
+  });
   _refreshWhatIfRows();
   document.getElementById("whatif-result").innerHTML = "";
 }
 
 function _refreshWhatIfRows() {
   if (!_whatIfPlayer) return;
-  const playerMatches = allMatches.map((m, i) => ({ m, i }))
-    .filter(({ m }) => [...(m.teamA || []), ...(m.teamB || [])].includes(_whatIfPlayer));
+  const playerMatches = allMatches
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) =>
+      [...(m.teamA || []), ...(m.teamB || [])].includes(_whatIfPlayer),
+    );
   _renderWhatIfRows(_whatIfPlayer, playerMatches);
 }
 
@@ -8936,7 +10218,7 @@ function recomputeWhatIfElo() {
   // Build the modified match list
   const whatIfMatches = allMatches
     .filter((m, i) => _whatIfToggles[i] !== false)
-    .map(m => {
+    .map((m) => {
       const i = allMatches.indexOf(m);
       if (_whatIfFlips[i]) {
         // Flip: swap scores so the outcome reverses
@@ -8947,20 +10229,36 @@ function recomputeWhatIfElo() {
   const actualElo = computeElo(allMatches)[_whatIfPlayer] || 1000;
   const whatIfElo = computeElo(whatIfMatches)[_whatIfPlayer] || 1000;
   const diff = whatIfElo - actualElo;
-  const col = diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
+  const col =
+    diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
   const sign = diff > 0 ? "+" : "";
   // Rank change
-  const actualRanked = Object.entries(computeElo(allMatches)).sort((a,b) => b[1]-a[1]);
-  const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort((a,b) => b[1]-a[1]);
+  const actualRanked = Object.entries(computeElo(allMatches)).sort(
+    (a, b) => b[1] - a[1],
+  );
+  const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort(
+    (a, b) => b[1] - a[1],
+  );
   const actualRank = actualRanked.findIndex(([n]) => n === _whatIfPlayer) + 1;
   const whatIfRank = whatIfRanked.findIndex(([n]) => n === _whatIfPlayer) + 1;
   const rankDiff = actualRank - whatIfRank;
-  const rankStr = rankDiff > 0 ? `▲${rankDiff}` : rankDiff < 0 ? `▼${Math.abs(rankDiff)}` : "—";
-  const rankCol = rankDiff > 0 ? "var(--green)" : rankDiff < 0 ? "var(--red)" : "var(--muted)";
-  const excluded = Object.values(_whatIfToggles).filter(v => !v).length;
-  const flipped  = Object.values(_whatIfFlips).filter(v => v).length;
+  const rankStr =
+    rankDiff > 0
+      ? `▲${rankDiff}`
+      : rankDiff < 0
+        ? `▼${Math.abs(rankDiff)}`
+        : "—";
+  const rankCol =
+    rankDiff > 0
+      ? "var(--green)"
+      : rankDiff < 0
+        ? "var(--red)"
+        : "var(--muted)";
+  const excluded = Object.values(_whatIfToggles).filter((v) => !v).length;
+  const flipped = Object.values(_whatIfFlips).filter((v) => v).length;
   const eloPillCls = diff > 0 ? "positive" : diff < 0 ? "negative" : "neutral";
-  const rankPillCls = rankDiff > 0 ? "positive" : rankDiff < 0 ? "negative" : "neutral";
+  const rankPillCls =
+    rankDiff > 0 ? "positive" : rankDiff < 0 ? "negative" : "neutral";
   resultEl.innerHTML = `<div class="whatif-result-card">
     <div class="wi-res-row">
       <div class="wi-res-cell">
@@ -8990,13 +10288,22 @@ function recomputeWhatIfElo() {
 
 function _buildPowerRankingsHtml() {
   const rankings = computePowerRankings(allMatches);
-  if (!rankings.length) return '<div class="sub" style="padding:8px">Need more data.</div>';
-  const rows = rankings.map((p, i) => {
-    const col = i === 0 ? "var(--gold)" : i === 1 ? "var(--theme)" : i === 2 ? "var(--green)" : "var(--muted)";
-    const bar = `<div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.06);margin-top:4px"><div style="height:100%;width:${p.score}%;background:${col};border-radius:2px;transition:width 0.6s"></div></div>`;
-    const avatar = `<div style="width:28px;height:28px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>`;
-    return `<div class="pr-row">
-      <div style="font-size:13px;font-weight:900;color:${col};width:24px;text-align:center">#${i+1}</div>
+  if (!rankings.length)
+    return '<div class="sub" style="padding:8px">Need more data.</div>';
+  const rows = rankings
+    .map((p, i) => {
+      const col =
+        i === 0
+          ? "var(--gold)"
+          : i === 1
+            ? "var(--theme)"
+            : i === 2
+              ? "var(--green)"
+              : "var(--muted)";
+      const bar = `<div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.06);margin-top:4px"><div style="height:100%;width:${p.score}%;background:${col};border-radius:2px;transition:width 0.6s"></div></div>`;
+      const avatar = `<div style="width:28px;height:28px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>`;
+      return `<div class="pr-row">
+      <div style="font-size:13px;font-weight:900;color:${col};width:24px;text-align:center">#${i + 1}</div>
       ${avatar}
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
@@ -9007,7 +10314,8 @@ function _buildPowerRankingsHtml() {
         <div style="font-size:8px;color:var(--muted);font-weight:700">${p.formEmoji} ${p.winPct}%W · ELO ${p.elo}</div>
       </div>
     </div>`;
-  }).join("");
+    })
+    .join("");
   return `<div class="ana-card" style="padding:10px 12px">
     <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Composite: ELO 40% · Form 30% · Win Quality 20% · Activity 10%</div>
     ${rows}
@@ -9016,12 +10324,15 @@ function _buildPowerRankingsHtml() {
 
 function _buildChemistryLeaderboardHtml() {
   const scores = computeChemistryScores(allMatches);
-  if (!scores.length) return '<div class="sub" style="padding:8px">Need at least 3 matches per pair.</div>';
-  const rows = scores.slice(0, 20).map((p, i) => {
-    const col = playerColor(p.players[0]);
-    const col2 = playerColor(p.players[1]);
-    return `<div class="chem-ldr-row">
-      <div style="font-size:12px;font-weight:800;color:var(--muted);width:20px">#${i+1}</div>
+  if (!scores.length)
+    return '<div class="sub" style="padding:8px">Need at least 3 matches per pair.</div>';
+  const rows = scores
+    .slice(0, 20)
+    .map((p, i) => {
+      const col = playerColor(p.players[0]);
+      const col2 = playerColor(p.players[1]);
+      return `<div class="chem-ldr-row">
+      <div style="font-size:12px;font-weight:800;color:var(--muted);width:20px">#${i + 1}</div>
       <div style="display:flex;gap:-4px;flex-shrink:0">
         <div style="width:24px;height:24px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff">${playerInitials(p.players[0])}</div>
         <div style="width:24px;height:24px;border-radius:50%;background:${col2};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;margin-left:-6px">${playerInitials(p.players[1])}</div>
@@ -9035,20 +10346,35 @@ function _buildChemistryLeaderboardHtml() {
         <div style="font-size:10px;font-weight:900;color:${p.tierColor}">${p.tier}-Tier</div>
       </div>
     </div>`;
-  }).join("");
+    })
+    .join("");
   return `<div class="ana-card" style="padding:10px 12px">
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-      ${[["S","var(--gold)","≥8.5"],["A","var(--green)","7–8.5"],["B","var(--theme)","5.5–7"],["C","var(--muted)","<5.5"]].map(([t,c,r]) => `<span style="font-size:9px;font-weight:800;color:${c};background:rgba(255,255,255,0.05);border-radius:6px;padding:2px 7px">${t} ${r}</span>`).join("")}
+      ${[
+        ["S", "var(--gold)", "≥8.5"],
+        ["A", "var(--green)", "7–8.5"],
+        ["B", "var(--theme)", "5.5–7"],
+        ["C", "var(--muted)", "<5.5"],
+      ]
+        .map(
+          ([t, c, r]) =>
+            `<span style="font-size:9px;font-weight:800;color:${c};background:rgba(255,255,255,0.05);border-radius:6px;padding:2px 7px">${t} ${r}</span>`,
+        )
+        .join("")}
     </div>
     ${rows}
   </div>`;
 }
 
-let _predictPlayerA = "", _predictPlayerB = "", _predictPartnerA = "", _predictPartnerB = "";
+let _predictPlayerA = "",
+  _predictPlayerB = "",
+  _predictPartnerA = "",
+  _predictPartnerB = "";
 
 function _buildMatchPredictHtml() {
-  const players = computeStats(allMatches).map(p => p.name);
-  if (players.length < 2) return '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
+  const players = computeStats(allMatches).map((p) => p.name);
+  if (players.length < 2)
+    return '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
   return `<div class="ana-card" style="padding:12px">
     <div style="font-size:10px;color:var(--muted);margin-bottom:12px">Pick two teams — get win probability, expected score, and chemistry rating.</div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
@@ -9087,16 +10413,32 @@ function openPredictSheet(slot) {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const taken = [_predictPlayerA, _predictPartnerA, _predictPlayerB, _predictPartnerB]
-    .filter((v, i) => v && ["a1","a2","b1","b2"][i] !== slot);
-  const players = computeStats(allMatches).map(s => s.name);
-  const selected = slot === "a1" ? _predictPlayerA : slot === "a2" ? _predictPartnerA : slot === "b1" ? _predictPlayerB : _predictPartnerB;
-  list.innerHTML = `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
-    players.map(p => {
-      const dis = taken.includes(p) ? ' style="opacity:0.3;pointer-events:none"' : "";
-      const sel = p === selected ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem('${p.replace(/'/g,"\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`;
-    }).join("");
+  const taken = [
+    _predictPlayerA,
+    _predictPartnerA,
+    _predictPlayerB,
+    _predictPartnerB,
+  ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
+  const players = computeStats(allMatches).map((s) => s.name);
+  const selected =
+    slot === "a1"
+      ? _predictPlayerA
+      : slot === "a2"
+        ? _predictPartnerA
+        : slot === "b1"
+          ? _predictPlayerB
+          : _predictPartnerB;
+  list.innerHTML =
+    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
+    players
+      .map((p) => {
+        const dis = taken.includes(p)
+          ? ' style="opacity:0.3;pointer-events:none"'
+          : "";
+        const sel = p === selected ? " live-sheet-item-selected" : "";
+        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`;
+      })
+      .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
   const sheet = document.getElementById("filter-sheet");
   if (overlay) overlay.classList.add("live-sheet-open");
@@ -9109,44 +10451,70 @@ function runMatchPrediction() {
   const res = document.getElementById("predict-result");
   if (!res) return;
   if (!teamA.length || !teamB.length) {
-    res.innerHTML = '<div style="color:var(--red);font-size:11px;padding:4px">Select at least one player per team.</div>';
+    res.innerHTML =
+      '<div style="color:var(--red);font-size:11px;padding:4px">Select at least one player per team.</div>';
     return;
   }
   const eloMap = computeElo(allMatches);
-  const avgA = teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
-  const avgB = teamB.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamB.length;
+  const avgA =
+    teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
+  const avgB =
+    teamB.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamB.length;
   const probA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-  const pctA = Math.round(probA * 100), pctB = 100 - pctA;
-  const colA = playerColor(teamA[0]), colB = playerColor(teamB[0]);
+  const pctA = Math.round(probA * 100),
+    pctB = 100 - pctA;
+  const colA = playerColor(teamA[0]),
+    colB = playerColor(teamB[0]);
 
   // Chemistry tiers
-  const chemA = computeChemistryScores(allMatches).find(c =>
-    c.players.every(p => teamA.includes(p)) || teamA.length === 1 ? true : false
+  const chemA = computeChemistryScores(allMatches).find((c) =>
+    c.players.every((p) => teamA.includes(p)) || teamA.length === 1
+      ? true
+      : false,
   );
-  const chemB = computeChemistryScores(allMatches).find(c =>
-    c.players.every(p => teamB.includes(p)) || teamB.length === 1 ? true : false
+  const chemB = computeChemistryScores(allMatches).find((c) =>
+    c.players.every((p) => teamB.includes(p)) || teamB.length === 1
+      ? true
+      : false,
   );
 
   // H2H between these exact teams
-  const tkA = [...teamA].sort().join("|"), tkB = [...teamB].sort().join("|");
-  let h2hA = 0, h2hB = 0;
-  allMatches.forEach(m => {
-    const pmA = [...(m.teamA||[])].sort().join("|"), pmB = [...(m.teamB||[])].sort().join("|");
-    const fwd = pmA === tkA && pmB === tkB, rev = pmA === tkB && pmB === tkA;
+  const tkA = [...teamA].sort().join("|"),
+    tkB = [...teamB].sort().join("|");
+  let h2hA = 0,
+    h2hB = 0;
+  allMatches.forEach((m) => {
+    const pmA = [...(m.teamA || [])].sort().join("|"),
+      pmB = [...(m.teamB || [])].sort().join("|");
+    const fwd = pmA === tkA && pmB === tkB,
+      rev = pmA === tkB && pmB === tkA;
     if (!fwd && !rev) return;
     const aWon = m.scoreA > m.scoreB;
-    if (fwd) { aWon ? h2hA++ : h2hB++; } else { aWon ? h2hB++ : h2hA++; }
+    if (fwd) {
+      aWon ? h2hA++ : h2hB++;
+    } else {
+      aWon ? h2hB++ : h2hA++;
+    }
   });
 
   // Expected score based on avg score in their matches
-  const relevantMs = allMatches.filter(m => {
-    const players = [...(m.teamA||[]),...(m.teamB||[])];
-    return teamA.some(p => players.includes(p)) && teamB.some(p => players.includes(p));
+  const relevantMs = allMatches.filter((m) => {
+    const players = [...(m.teamA || []), ...(m.teamB || [])];
+    return (
+      teamA.some((p) => players.includes(p)) &&
+      teamB.some((p) => players.includes(p))
+    );
   });
-  const avgScore = relevantMs.length > 2
-    ? Math.round(relevantMs.reduce((s,m) => s + Math.max(m.scoreA,m.scoreB),0) / relevantMs.length)
-    : 4;
-  const upsetFlag = (pctA < 40 || pctA > 60) && (eloMap[teamA[0]]||1000) < (eloMap[teamB[0]]||1000) - 80;
+  const avgScore =
+    relevantMs.length > 2
+      ? Math.round(
+          relevantMs.reduce((s, m) => s + Math.max(m.scoreA, m.scoreB), 0) /
+            relevantMs.length,
+        )
+      : 4;
+  const upsetFlag =
+    (pctA < 40 || pctA > 60) &&
+    (eloMap[teamA[0]] || 1000) < (eloMap[teamB[0]] || 1000) - 80;
 
   res.innerHTML = `
     <div style="border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);padding:12px;margin-top:4px">
@@ -9164,11 +10532,11 @@ function runMatchPrediction() {
           <div style="font-size:8px;color:var(--muted)">H2H</div>
         </div>
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px">
-          <div style="font-size:13px;font-weight:800">${pctA > pctB ? avgScore : (Math.max(pctB-pctA,0)>20?Math.max(avgScore-1,1):avgScore)}–${pctA > pctB ? (Math.max(pctA-pctB,0)>20?Math.max(avgScore-1,1):avgScore) : avgScore}</div>
+          <div style="font-size:13px;font-weight:800">${pctA > pctB ? avgScore : Math.max(pctB - pctA, 0) > 20 ? Math.max(avgScore - 1, 1) : avgScore}–${pctA > pctB ? (Math.max(pctA - pctB, 0) > 20 ? Math.max(avgScore - 1, 1) : avgScore) : avgScore}</div>
           <div style="font-size:8px;color:var(--muted)">EXP. SCORE</div>
         </div>
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px">
-          <div style="font-size:10px;font-weight:800;color:${chemA ? chemA.tierColor : "var(--muted)"}">${chemA ? chemA.tier+"-Tier" : "—"}</div>
+          <div style="font-size:10px;font-weight:800;color:${chemA ? chemA.tierColor : "var(--muted)"}">${chemA ? chemA.tier + "-Tier" : "—"}</div>
           <div style="font-size:8px;color:var(--muted)">CHEM A</div>
         </div>
       </div>
@@ -9178,22 +10546,32 @@ function runMatchPrediction() {
 
 function _buildStoryFeedHtml() {
   const stories = computeMatchStories(allMatches);
-  if (!stories.length) return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
-  const cards = stories.slice(0, 20).map(s => `
+  if (!stories.length)
+    return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
+  const cards = stories
+    .slice(0, 20)
+    .map(
+      (s) => `
     <div class="story-card">
       <div class="story-icon">${s.icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;font-weight:700;color:var(--fg);line-height:1.4">${s.text}</div>
         ${s.date ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${fmtDate(s.date)} · ${s.score}</div>` : `<div style="font-size:9px;color:var(--muted);margin-top:2px">${s.score}</div>`}
       </div>
-    </div>`).join("");
+    </div>`,
+    )
+    .join("");
   return `<div class="ana-card" style="padding:10px 12px">${cards}</div>`;
 }
 
 function _buildSeasonModeHtml() {
   const seasons = computeSeasons(allMatches);
-  if (!seasons.length) return '<div class="sub" style="padding:8px">No seasons found.</div>';
-  const cards = seasons.slice(0, 6).map(s => `
+  if (!seasons.length)
+    return '<div class="sub" style="padding:8px">No seasons found.</div>';
+  const cards = seasons
+    .slice(0, 6)
+    .map(
+      (s) => `
     <div class="season-card" onclick="this.classList.toggle('season-open')">
       <div class="season-card-header">
         <div>
@@ -9203,26 +10581,40 @@ function _buildSeasonModeHtml() {
         <div style="font-size:11px;color:var(--muted)">▼</div>
       </div>
       <div class="season-card-body">
-        ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${s.mvp.name}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw/s.mvp.mp)*100)}%</div></div></div>` : ""}
+        ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${s.mvp.name}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw / s.mvp.mp) * 100)}%</div></div></div>` : ""}
         ${s.topPair ? `<div class="season-award"><span class="season-award-icon">🤝</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">TOP PAIR</div><div style="font-size:12px;font-weight:800">${s.topPair.players.join(" & ")}</div><div style="font-size:9px;color:var(--muted)">${s.topPair.wins}W ${s.topPair.played}P ${s.topPair.winPct}%</div></div></div>` : ""}
         ${s.ironMan ? `<div class="season-award"><span class="season-award-icon">💪</span><div><div style="font-size:9px;color:var(--green);font-weight:700">IRON MAN</div><div style="font-size:12px;font-weight:800">${s.ironMan.name}</div><div style="font-size:9px;color:var(--muted)">${s.ironMan.mp} matches</div></div></div>` : ""}
         <div style="margin-top:8px;font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">STANDINGS</div>
-        ${s.players.slice(0,5).map((p,i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-          <div style="font-size:11px;font-weight:800;color:var(--muted);width:16px">#${i+1}</div>
+        ${s.players
+          .slice(0, 5)
+          .map(
+            (
+              p,
+              i,
+            ) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="font-size:11px;font-weight:800;color:var(--muted);width:16px">#${i + 1}</div>
           <div style="width:20px;height:20px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${playerInitials(p.name)}</div>
           <div style="flex:1;font-size:11px;font-weight:700">${p.name}</div>
-          <div style="font-size:11px;font-weight:800;color:var(--muted)">${p.mw}W ${Math.round((p.mw/p.mp)*100)}%</div>
-        </div>`).join("")}
+          <div style="font-size:11px;font-weight:800;color:var(--muted)">${p.mw}W ${Math.round((p.mw / p.mp) * 100)}%</div>
+        </div>`,
+          )
+          .join("")}
       </div>
-    </div>`).join("");
+    </div>`,
+    )
+    .join("");
   return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${cards}</div>`;
 }
 
-let _replayIdx = 0, _replayTimer = null;
+let _replayIdx = 0,
+  _replayTimer = null;
 
 function _buildLeaderboardReplayHtml() {
-  const sorted = [...allMatches].sort((a,b) => (a.date||"").localeCompare(b.date||""));
-  if (sorted.length < 5) return '<div class="sub" style="padding:8px">Need at least 5 matches for replay.</div>';
+  const sorted = [...allMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  if (sorted.length < 5)
+    return '<div class="sub" style="padding:8px">Need at least 5 matches for replay.</div>';
   _replayIdx = sorted.length;
   return `<div class="ana-card" style="padding:12px">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -9237,22 +10629,34 @@ function _buildLeaderboardReplayHtml() {
 
 function _replayUpdate(idx) {
   _replayIdx = parseInt(idx);
-  const sorted = [...allMatches].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  const sorted = [...allMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   const slice = sorted.slice(0, _replayIdx);
   const eloMap = computeElo(slice);
   const stats = computeStats(slice, eloMap).slice(0, 8);
-  const maxElo = Math.max(...stats.map(s => eloMap[s.name] || 1000), 1000);
+  const maxElo = Math.max(...stats.map((s) => eloMap[s.name] || 1000), 1000);
   const board = document.getElementById("replay-board");
   const lbl = document.getElementById("replay-label");
   const slider = document.getElementById("replay-slider");
-  if (lbl) lbl.textContent = `Match ${_replayIdx} of ${sorted.length} · ${sorted[_replayIdx-1]?.date || ""}`;
+  if (lbl)
+    lbl.textContent = `Match ${_replayIdx} of ${sorted.length} · ${sorted[_replayIdx - 1]?.date || ""}`;
   if (slider) slider.value = _replayIdx;
-  if (board) board.innerHTML = stats.map((p, i) => {
-    const elo = eloMap[p.name] || 1000;
-    const barW = Math.round((elo / maxElo) * 100);
-    const col = i === 0 ? "var(--gold)" : i === 1 ? "var(--theme)" : i === 2 ? "var(--green)" : "var(--accent)";
-    return `<div style="display:flex;align-items:center;gap:6px">
-      <div style="font-size:10px;font-weight:800;color:${col};width:18px">#${i+1}</div>
+  if (board)
+    board.innerHTML = stats
+      .map((p, i) => {
+        const elo = eloMap[p.name] || 1000;
+        const barW = Math.round((elo / maxElo) * 100);
+        const col =
+          i === 0
+            ? "var(--gold)"
+            : i === 1
+              ? "var(--theme)"
+              : i === 2
+                ? "var(--green)"
+                : "var(--accent)";
+        return `<div style="display:flex;align-items:center;gap:6px">
+      <div style="font-size:10px;font-weight:800;color:${col};width:18px">#${i + 1}</div>
       <div style="width:26px;height:26px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:10px;font-weight:700;margin-bottom:2px">${p.name}</div>
@@ -9262,24 +10666,41 @@ function _replayUpdate(idx) {
       </div>
       <div style="font-size:11px;font-weight:800;color:${col};width:36px;text-align:right">${elo}</div>
     </div>`;
-  }).join("");
+      })
+      .join("");
 }
 
 function _replayPlay() {
-  const sorted = [...allMatches].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  const sorted = [...allMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   const btn = document.getElementById("replay-play-btn");
-  if (_replayTimer) { clearInterval(_replayTimer); _replayTimer = null; if (btn) btn.textContent = "▶ PLAY"; return; }
-  if (_replayIdx >= sorted.length) { _replayIdx = 4; }
+  if (_replayTimer) {
+    clearInterval(_replayTimer);
+    _replayTimer = null;
+    if (btn) btn.textContent = "▶ PLAY";
+    return;
+  }
+  if (_replayIdx >= sorted.length) {
+    _replayIdx = 4;
+  }
   if (btn) btn.textContent = "⏸ PAUSE";
   _replayTimer = setInterval(() => {
     _replayIdx = Math.min(_replayIdx + 1, sorted.length);
     _replayUpdate(_replayIdx);
-    if (_replayIdx >= sorted.length) { clearInterval(_replayTimer); _replayTimer = null; if (btn) btn.textContent = "▶ PLAY"; }
+    if (_replayIdx >= sorted.length) {
+      clearInterval(_replayTimer);
+      _replayTimer = null;
+      if (btn) btn.textContent = "▶ PLAY";
+    }
   }, 400);
 }
 
 function _replayReset() {
-  if (_replayTimer) { clearInterval(_replayTimer); _replayTimer = null; }
+  if (_replayTimer) {
+    clearInterval(_replayTimer);
+    _replayTimer = null;
+  }
   const btn = document.getElementById("replay-play-btn");
   if (btn) btn.textContent = "▶ PLAY";
   const sorted = allMatches.sort ? allMatches : [];
@@ -9581,7 +11002,11 @@ function renderAnalyticsPage() {
                 ? "var(--red)"
                 : "var(--muted)";
           const lbl =
-            p.score >= 1050 ? "💎 ELITE" : p.score <= 980 ? "📉 EASY" : "⚖️ MID";
+            p.score >= 1050
+              ? "💎 ELITE"
+              : p.score <= 980
+                ? "📉 EASY"
+                : "⚖️ MID";
           return `<div class="lrace-row" style="${qualGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}</div><div class="lrace-delta" style="color:${col}">${p.score} <span style="font-size:8px">${lbl}</span></div></div>`;
         })
         .join("")
@@ -9946,7 +11371,12 @@ function renderAnalyticsPage() {
           : p.delta < 0
             ? `<span style="color:var(--red)">▼${Math.abs(p.delta)}</span>`
             : `<span style="color:var(--muted)">—</span>`;
-      const rankColor = p.rAll === 1 ? "var(--gold)" : p.rAll <= 3 ? "var(--theme)" : "var(--accent)";
+      const rankColor =
+        p.rAll === 1
+          ? "var(--gold)"
+          : p.rAll <= 3
+            ? "var(--theme)"
+            : "var(--accent)";
       const avatar = `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>`;
       return `<div class="lrace-row">
         <div class="lrace-rank" style="color:${rankColor}">#${p.rAll}</div>
@@ -10085,17 +11515,28 @@ function renderAnalyticsPage() {
   });
   synergyRows.sort((a, b) => b.delta - a.delta);
   const synergyHtml = (() => {
-    if (!synergyRows.length) return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    if (!synergyRows.length)
+      return '<div class="sub" style="padding:8px">Not enough data.</div>';
     const SYN_LIMIT = 10;
     const rowHtml = (r) => {
-      const col = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
+      const col =
+        r.delta > 5
+          ? "var(--green)"
+          : r.delta < -5
+            ? "var(--red)"
+            : "var(--muted)";
       const sign = r.delta >= 0 ? "+" : "";
       return `<div class="bpair-row"><div class="bpair-player">${r.player}</div><div class="bpair-partner">+ ${r.partner.split(" ")[0]}</div><div class="bpair-pct" style="color:${col}">${sign}${r.delta.toFixed(0)}%</div></div>`;
     };
     const visible = synergyRows.slice(0, SYN_LIMIT).map(rowHtml).join("");
     const hidden = synergyRows.slice(SYN_LIMIT);
     if (!hidden.length) return visible;
-    const extraHtml = hidden.map(r => `<div class="synergy-extra" style="display:none">${rowHtml(r)}</div>`).join("");
+    const extraHtml = hidden
+      .map(
+        (r) =>
+          `<div class="synergy-extra" style="display:none">${rowHtml(r)}</div>`,
+      )
+      .join("");
     const btn = `<div style="text-align:center;padding:6px 0"><button onclick="_toggleSynergyMore(this)" data-expanded="0" style="font-size:10px;font-weight:700;color:var(--theme);background:transparent;border:none;cursor:pointer;padding:4px 8px">Show ${hidden.length} more ▼</button></div>`;
     return visible + extraHtml + btn;
   })();
@@ -10111,28 +11552,43 @@ function renderAnalyticsPage() {
           const tkB = v.teamB.join(" & ");
           const wA = v.wins[tkA] || 0;
           const wB = v.wins[tkB] || 0;
-          const colA = wA > wB ? "var(--green)" : wA < wB ? "var(--red)" : "var(--muted)";
-          const colB = wB > wA ? "var(--green)" : wB < wA ? "var(--red)" : "var(--muted)";
-          const shortA = v.teamA.map(p => p.split(" ")[0]).join(" & ");
-          const shortB = v.teamB.map(p => p.split(" ")[0]).join(" & ");
+          const colA =
+            wA > wB ? "var(--green)" : wA < wB ? "var(--red)" : "var(--muted)";
+          const colB =
+            wB > wA ? "var(--green)" : wB < wA ? "var(--red)" : "var(--muted)";
+          const shortA = v.teamA.map((p) => p.split(" ")[0]).join(" & ");
+          const shortB = v.teamB.map((p) => p.split(" ")[0]).join(" & ");
           const leader = wA > wB ? tkA : wB > wA ? tkB : null;
           const shortLeader = wA > wB ? shortA : wB > wA ? shortB : null;
           const leadsBy = Math.abs(wA - wB);
           // Detailed match list for popup
-          const matchList = (v.matches || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(m => {
-            const aWon = m.scoreA > m.scoreB;
-            const mtkA = m.teamA.sort().join(" & ");
-            const isVtkA = mtkA === v.teamA.slice().sort().join(" & ");
-            const winnerSide = aWon ? (isVtkA ? "A" : "B") : (isVtkA ? "B" : "A");
-            const winName = winnerSide === "A" ? shortA : shortB;
-            const scoreStr = isVtkA ? `${m.scoreA}–${m.scoreB}` : `${m.scoreB}–${m.scoreA}`;
-            return `<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+          const matchList = (v.matches || [])
+            .slice()
+            .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+            .map((m) => {
+              const aWon = m.scoreA > m.scoreB;
+              const mtkA = m.teamA.sort().join(" & ");
+              const isVtkA = mtkA === v.teamA.slice().sort().join(" & ");
+              const winnerSide = aWon
+                ? isVtkA
+                  ? "A"
+                  : "B"
+                : isVtkA
+                  ? "B"
+                  : "A";
+              const winName = winnerSide === "A" ? shortA : shortB;
+              const scoreStr = isVtkA
+                ? `${m.scoreA}–${m.scoreB}`
+                : `${m.scoreB}–${m.scoreA}`;
+              return `<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
               <span style="color:var(--muted)">${fmtDate(m.date)}</span>
-              <span style="font-weight:700;color:${winnerSide==="A"?colA:colB}">${winName}</span>
+              <span style="font-weight:700;color:${winnerSide === "A" ? colA : colB}">${winName}</span>
               <span style="font-weight:700">${scoreStr}</span>
             </div>`;
-          }).join("");
-          const avgScoreA = wA > 0 ? (v.gamesWonByTeam?.[tkA] / wA).toFixed(1) : "—";
+            })
+            .join("");
+          const avgScoreA =
+            wA > 0 ? (v.gamesWonByTeam?.[tkA] / wA).toFixed(1) : "—";
           return `<div style="border-bottom:1px solid var(--border)">
             <div style="display:flex;align-items:center;padding:8px 0;cursor:pointer;gap:8px" onclick="this.parentElement.querySelector('.ph2h-detail').style.display=this.parentElement.querySelector('.ph2h-detail').style.display==='none'?'block':'none'">
               <div style="flex:1;min-width:0">
@@ -10164,7 +11620,8 @@ function renderAnalyticsPage() {
   const pairEloRankMap = new Map();
   const pairAvgEloArr = [...Object.entries(partnerships)].map(([key, p]) => ({
     key,
-    avgElo: p.players.reduce((s, n) => s + (eloMap[n] || 1000), 0) / p.players.length,
+    avgElo:
+      p.players.reduce((s, n) => s + (eloMap[n] || 1000), 0) / p.players.length,
   }));
   pairAvgEloArr
     .slice()
@@ -10172,8 +11629,12 @@ function renderAnalyticsPage() {
     .forEach(({ key }, i) => pairEloRankMap.set(key, i + 1));
 
   // Pair chemistry score = 60% win% + 40% ELO-normalized
-  const _minPairElo = pairAvgEloArr.length ? Math.min(...pairAvgEloArr.map(x => x.avgElo)) : 1000;
-  const _maxPairElo = pairAvgEloArr.length ? Math.max(...pairAvgEloArr.map(x => x.avgElo)) : 1000;
+  const _minPairElo = pairAvgEloArr.length
+    ? Math.min(...pairAvgEloArr.map((x) => x.avgElo))
+    : 1000;
+  const _maxPairElo = pairAvgEloArr.length
+    ? Math.max(...pairAvgEloArr.map((x) => x.avgElo))
+    : 1000;
   const _pairEloRange = Math.max(1, _maxPairElo - _minPairElo);
   const pairChemMap = new Map();
   pairAvgEloArr.forEach(({ key, avgElo }) => {
@@ -10294,24 +11755,38 @@ function renderAnalyticsPage() {
   }
 
   // ── SESSIONS ───────────────────────────────────────────
-  const allSessionEntries = Object.entries(sessionMap).sort((a, b) => b[0].localeCompare(a[0]));
+  const allSessionEntries = Object.entries(sessionMap).sort((a, b) =>
+    b[0].localeCompare(a[0]),
+  );
   const totalSessions = allSessionEntries.length;
   const allSessionDates = allSessionEntries.map(([d]) => d);
   let longestGap = 0;
   for (let i = 0; i < allSessionDates.length - 1; i++) {
-    const gap = Math.round((new Date(allSessionDates[i] + "T00:00:00") - new Date(allSessionDates[i+1] + "T00:00:00")) / 86400000);
+    const gap = Math.round(
+      (new Date(allSessionDates[i] + "T00:00:00") -
+        new Date(allSessionDates[i + 1] + "T00:00:00")) /
+        86400000,
+    );
     if (gap > longestGap) longestGap = gap;
   }
-  const avgMatchesPerSession = totalSessions ? (allMatches.length / totalSessions).toFixed(1) : 0;
-  const maxPlayersSession = allSessionEntries.reduce((max, [, d]) => Math.max(max, d.players.size), 0);
-  const sessionSummaryHtml = totalSessions ? `<div class="sess-summary-grid">
+  const avgMatchesPerSession = totalSessions
+    ? (allMatches.length / totalSessions).toFixed(1)
+    : 0;
+  const maxPlayersSession = allSessionEntries.reduce(
+    (max, [, d]) => Math.max(max, d.players.size),
+    0,
+  );
+  const sessionSummaryHtml = totalSessions
+    ? `<div class="sess-summary-grid">
     <div class="sess-summary-cell"><div class="sess-summary-val">${totalSessions}</div><div class="sess-summary-lbl">TOTAL SESSIONS</div></div>
     <div class="sess-summary-cell"><div class="sess-summary-val">${avgMatchesPerSession}</div><div class="sess-summary-lbl">AVG MATCHES</div></div>
     <div class="sess-summary-cell"><div class="sess-summary-val">${longestGap}d</div><div class="sess-summary-lbl">LONGEST GAP</div></div>
     <div class="sess-summary-cell"><div class="sess-summary-val">${maxPlayersSession}</div><div class="sess-summary-lbl">MAX PLAYERS</div></div>
-  </div>` : "";
+  </div>`
+    : "";
   const sessHtml = sessions.length
-    ? sessionSummaryHtml + sessions
+    ? sessionSummaryHtml +
+      sessions
         .map(
           (s) =>
             `<div class="session-card" onclick="openSessionHighlights('${s.date}')" style="cursor:pointer"><div class="session-date">${fmtDate(s.date)}</div><div class="session-stats"><span>${s.matches.length} match${s.matches.length > 1 ? "es" : ""}</span><span>${s.players.length} players</span></div>${s.mvp ? `<div class="session-mvp">🏆 MVP: <strong>${s.mvp[0]}</strong> · ${s.mvp[1]}W</div>` : ""}<div class="session-players">${s.players.map((p) => `<span class="session-chip">${p}</span>`).join("")}</div><div class="session-tap-hint">Tap for highlights →</div></div>`,
@@ -10349,25 +11824,51 @@ function renderAnalyticsPage() {
                 ? `<span style="color:var(--red)">${change}</span>`
                 : `<span style="color:var(--muted)">—</span>`;
           const preWkRankIdx = preWkRanked.findIndex(([n]) => n === pname);
-          const rankChange = preWkRankIdx >= 0 ? (preWkRankIdx + 1) - (i + 1) : null;
-          const rankArrow = rankChange === null ? "" : rankChange > 0
-            ? `<span class="elo-rank-arrow elo-rank-up">▲${rankChange}</span>`
-            : rankChange < 0
-              ? `<span class="elo-rank-arrow elo-rank-down">▼${Math.abs(rankChange)}</span>`
-              : `<span class="elo-rank-arrow elo-rank-same">—</span>`;
-          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(0);
-          const col = ev >= 1100 ? "var(--green)" : ev <= 900 ? "var(--red)" : "var(--theme)";
+          const rankChange =
+            preWkRankIdx >= 0 ? preWkRankIdx + 1 - (i + 1) : null;
+          const rankArrow =
+            rankChange === null
+              ? ""
+              : rankChange > 0
+                ? `<span class="elo-rank-arrow elo-rank-up">▲${rankChange}</span>`
+                : rankChange < 0
+                  ? `<span class="elo-rank-arrow elo-rank-down">▼${Math.abs(rankChange)}</span>`
+                  : `<span class="elo-rank-arrow elo-rank-same">—</span>`;
+          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(
+            0,
+          );
+          const col =
+            ev >= 1100
+              ? "var(--green)"
+              : ev <= 900
+                ? "var(--red)"
+                : "var(--theme)";
           const peak = eloPeaks[pname] || ev;
           const fromPeak = ev - peak;
-          const fromPeakStr = fromPeak === 0
-            ? `<span style="color:var(--green);font-size:8px">▲ PEAK</span>`
-            : `<span style="color:var(--red);font-size:8px">${fromPeak}</span>`;
+          const fromPeakStr =
+            fromPeak === 0
+              ? `<span style="color:var(--green);font-size:8px">▲ PEAK</span>`
+              : `<span style="color:var(--red);font-size:8px">${fromPeak}</span>`;
           // Last 5 momentum dots
           const pts5 = (eloHistoryAll[pname] || []).slice(-5);
-          const dots5 = pts5.map((pt) => `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"};margin-right:1px"></span>`).join("");
+          const dots5 = pts5
+            .map(
+              (pt) =>
+                `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"};margin-right:1px"></span>`,
+            )
+            .join("");
           const momDeltas = pts5.map((pt) => pt.delta);
-          const momAvg = momDeltas.length ? Math.round(momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length) : 0;
-          const momStr = momAvg > 0 ? `<span style="color:var(--green);font-size:8px">↑${momAvg}</span>` : momAvg < 0 ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(momAvg)}</span>` : `<span style="color:var(--muted);font-size:8px">→</span>`;
+          const momAvg = momDeltas.length
+            ? Math.round(
+                momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length,
+              )
+            : 0;
+          const momStr =
+            momAvg > 0
+              ? `<span style="color:var(--green);font-size:8px">↑${momAvg}</span>`
+              : momAvg < 0
+                ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(momAvg)}</span>`
+                : `<span style="color:var(--muted);font-size:8px">→</span>`;
           return `<div class="elo-row" style="gap:5px;align-items:center">
             <div class="elo-rank-col"><div class="elo-rank">#${i + 1}</div>${rankArrow}</div>
             <div style="flex:1;min-width:0">
@@ -10394,8 +11895,9 @@ function renderAnalyticsPage() {
     : '<div class="sub" style="padding:8px">No data yet.</div>';
 
   // ── ELO WIN PROBABILITY ────────────────────────────────
-  const eloWinProbHtml = playersByMatches.length >= 2
-    ? `<div class="ana-card" style="padding:10px 12px">
+  const eloWinProbHtml =
+    playersByMatches.length >= 2
+      ? `<div class="ana-card" style="padding:10px 12px">
         <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Pick two players to see win probability based on current ELO ratings.</div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <button class="h2h-slot-btn" id="eloProb-slot-p1" onclick="openEloProbSheet('p1')" style="flex:1">
@@ -10410,27 +11912,50 @@ function renderAnalyticsPage() {
         </div>
         <div id="elo-prob-result" style="margin-top:4px"></div>
       </div>`
-    : '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
+      : '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
 
   // ── ELO VOLATILITY ─────────────────────────────────────
   const eloVolatilityHtml = (() => {
-    const players = Object.keys(eloHistoryAll).filter((p) => eloHistoryAll[p].length >= 3);
-    if (!players.length) return '<div class="sub" style="padding:8px">Need more matches.</div>';
-    const rows = players.map((p) => {
-      const deltas = eloHistoryAll[p].map((pt) => pt.delta);
-      const mean = deltas.reduce((s, d) => s + d, 0) / deltas.length;
-      const stdDev = Math.sqrt(deltas.reduce((s, d) => s + Math.pow(d - mean, 2), 0) / deltas.length);
-      return { name: p, stdDev, matches: deltas.length, avgDelta: mean };
-    }).sort((a, b) => a.stdDev - b.stdDev);
+    const players = Object.keys(eloHistoryAll).filter(
+      (p) => eloHistoryAll[p].length >= 3,
+    );
+    if (!players.length)
+      return '<div class="sub" style="padding:8px">Need more matches.</div>';
+    const rows = players
+      .map((p) => {
+        const deltas = eloHistoryAll[p].map((pt) => pt.delta);
+        const mean = deltas.reduce((s, d) => s + d, 0) / deltas.length;
+        const stdDev = Math.sqrt(
+          deltas.reduce((s, d) => s + Math.pow(d - mean, 2), 0) / deltas.length,
+        );
+        return { name: p, stdDev, matches: deltas.length, avgDelta: mean };
+      })
+      .sort((a, b) => a.stdDev - b.stdDev);
     const maxStd = rows[rows.length - 1]?.stdDev || 1;
     return `<div class="ana-card" style="padding:10px 12px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Lower deviation = more consistent ELO swings per match.</div>
-      ${rows.map((r, i) => {
-        const barW = Math.max(5, (r.stdDev / maxStd) * 100).toFixed(0);
-        const label = r.stdDev < 10 ? "🪨 Rock" : r.stdDev < 14 ? "✅ Steady" : r.stdDev < 18 ? "⚡ Variable" : "🎲 Volatile";
-        const avgStr = r.avgDelta > 0 ? `+${r.avgDelta.toFixed(1)}` : r.avgDelta.toFixed(1);
-        const avgCol = r.avgDelta > 0 ? "var(--green)" : r.avgDelta < 0 ? "var(--red)" : "var(--muted)";
-        return `<div class="elo-row">
+      ${rows
+        .map((r, i) => {
+          const barW = Math.max(5, (r.stdDev / maxStd) * 100).toFixed(0);
+          const label =
+            r.stdDev < 10
+              ? "🪨 Rock"
+              : r.stdDev < 14
+                ? "✅ Steady"
+                : r.stdDev < 18
+                  ? "⚡ Variable"
+                  : "🎲 Volatile";
+          const avgStr =
+            r.avgDelta > 0
+              ? `+${r.avgDelta.toFixed(1)}`
+              : r.avgDelta.toFixed(1);
+          const avgCol =
+            r.avgDelta > 0
+              ? "var(--green)"
+              : r.avgDelta < 0
+                ? "var(--red)"
+                : "var(--muted)";
+          return `<div class="elo-row">
           <div class="elo-rank">#${i + 1}</div>
           <div class="elo-name">${r.name}</div>
           <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:var(--theme);opacity:0.7"></div></div>
@@ -10438,7 +11963,8 @@ function renderAnalyticsPage() {
           <div style="font-size:9px;min-width:30px;text-align:right;color:${avgCol}">${avgStr}</div>
           <div style="font-size:8px;color:var(--muted);min-width:56px;text-align:right">${label}</div>
         </div>`;
-      }).join("")}
+        })
+        .join("")}
     </div>`;
   })();
 
@@ -10707,34 +12233,37 @@ function renderAnalyticsPage() {
   // ── DAY-OF-WEEK ANALYSIS ───────────────────────────────
   const dowHtml = (() => {
     const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const counts = Array(7).fill(0), wins = Array(7).fill(0);
-    sortedM.forEach(m => {
+    const counts = Array(7).fill(0),
+      wins = Array(7).fill(0);
+    sortedM.forEach((m) => {
       if (!m.date) return;
       const d = new Date(m.date + "T00:00:00").getDay();
       counts[d]++;
       const aWon = m.scoreA > m.scoreB;
-      [...(m.teamA || []), ...(m.teamB || [])].forEach(p => {}); // just count matches
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {}); // just count matches
       counts[d]; // already counted
     });
     // Count actual matches per day
     const dayCounts = Array(7).fill(0);
-    sortedM.forEach(m => {
+    sortedM.forEach((m) => {
       if (!m.date) return;
       dayCounts[new Date(m.date + "T00:00:00").getDay()]++;
     });
     const maxCount = Math.max(...dayCounts, 1);
     const totalMatches = dayCounts.reduce((s, c) => s + c, 0) || 1;
     const topDay = dayCounts.indexOf(Math.max(...dayCounts));
-    const rows = dayCounts.map((cnt, d) => {
-      const pct = Math.round((cnt / maxCount) * 100);
-      const share = Math.round((cnt / totalMatches) * 100);
-      const isTop = d === topDay && cnt > 0;
-      return `<div class="dow-row${isTop ? " dow-top" : ""}">
+    const rows = dayCounts
+      .map((cnt, d) => {
+        const pct = Math.round((cnt / maxCount) * 100);
+        const share = Math.round((cnt / totalMatches) * 100);
+        const isTop = d === topDay && cnt > 0;
+        return `<div class="dow-row${isTop ? " dow-top" : ""}">
         <span class="dow-day">${DAY_NAMES[d]}</span>
         <div class="dow-bar-wrap"><div class="dow-bar" style="width:${pct}%;background:${isTop ? "var(--accent)" : "rgba(var(--theme-rgb),0.5)"}"></div></div>
         <span class="dow-count">${cnt} <span style="color:var(--muted);font-size:9px">(${share}%)</span></span>
       </div>`;
-    }).join("");
+      })
+      .join("");
     return `<div class="ana-card" style="padding:12px">
       <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Most active day: <strong style="color:var(--accent)">${DAY_NAMES[topDay]}</strong> (${dayCounts[topDay]} matches)</div>
       <div class="dow-table">${rows}</div>
@@ -10744,66 +12273,90 @@ function renderAnalyticsPage() {
   // ── CARRY FACTOR ───────────────────────────────────────
   const carryHtml = (() => {
     const eloMapFull = computeElo(allMatches);
-    const playerList = computeStats(allMatches).map(p => p.name);
-    if (playerList.length < 2) return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
-    const rows = playerList.map(name => {
-      const withP = {}, withoutP = {};
-      sortedM.forEach(m => {
-        const aWon = m.scoreA > m.scoreB;
-        const inA = (m.teamA || []).includes(name);
-        const inB = (m.teamB || []).includes(name);
-        if (!inA && !inB) {
-          // Match without the player — tally for opponents
-          [...(m.teamA || []), ...(m.teamB || [])].forEach(p => {
-            if (!withoutP[p]) withoutP[p] = { w: 0, p: 0 };
-            withoutP[p].p++;
-            const pInA = (m.teamA || []).includes(p);
-            if ((pInA && aWon) || (!pInA && !aWon)) withoutP[p].w++;
-          });
-        } else {
-          const myTeam = inA ? m.teamA : m.teamB;
-          const myWon = (inA && aWon) || (inB && !aWon);
-          myTeam.filter(p => p !== name).forEach(p => {
-            if (!withP[p]) withP[p] = { w: 0, p: 0 };
-            withP[p].p++;
-            if (myWon) withP[p].w++;
-          });
-        }
-      });
-      const pmates = Object.keys(withP).filter(p => withP[p].p >= 2);
-      if (!pmates.length) return null;
-      const avgWithMe = pmates.reduce((s, p) => s + withP[p].w / withP[p].p, 0) / pmates.length;
-      const avgWithout = pmates.reduce((s, p) => {
-        const wo = withoutP[p];
-        return s + (wo ? wo.w / wo.p : 0.5);
-      }, 0) / pmates.length;
-      const delta = Math.round((avgWithMe - avgWithout) * 100);
-      const partnerList = pmates.map(p => {
-        const wp = withP[p];
-        const wo = withoutP[p];
-        const wPct = Math.round((wp.w / wp.p) * 100);
-        const woPct = wo && wo.p ? Math.round((wo.w / wo.p) * 100) : 50;
-        return { p, wPct, woPct, diff: wPct - woPct, played: wp.p };
-      }).sort((a, b) => b.diff - a.diff);
-      return { name, delta, avgWithMe: Math.round(avgWithMe * 100), avgWithout: Math.round(avgWithout * 100), partnerList };
-    }).filter(Boolean).sort((a, b) => b.delta - a.delta);
-    if (!rows.length) return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
+    const playerList = computeStats(allMatches).map((p) => p.name);
+    if (playerList.length < 2)
+      return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
+    const rows = playerList
+      .map((name) => {
+        const withP = {},
+          withoutP = {};
+        sortedM.forEach((m) => {
+          const aWon = m.scoreA > m.scoreB;
+          const inA = (m.teamA || []).includes(name);
+          const inB = (m.teamB || []).includes(name);
+          if (!inA && !inB) {
+            // Match without the player — tally for opponents
+            [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+              if (!withoutP[p]) withoutP[p] = { w: 0, p: 0 };
+              withoutP[p].p++;
+              const pInA = (m.teamA || []).includes(p);
+              if ((pInA && aWon) || (!pInA && !aWon)) withoutP[p].w++;
+            });
+          } else {
+            const myTeam = inA ? m.teamA : m.teamB;
+            const myWon = (inA && aWon) || (inB && !aWon);
+            myTeam
+              .filter((p) => p !== name)
+              .forEach((p) => {
+                if (!withP[p]) withP[p] = { w: 0, p: 0 };
+                withP[p].p++;
+                if (myWon) withP[p].w++;
+              });
+          }
+        });
+        const pmates = Object.keys(withP).filter((p) => withP[p].p >= 2);
+        if (!pmates.length) return null;
+        const avgWithMe =
+          pmates.reduce((s, p) => s + withP[p].w / withP[p].p, 0) /
+          pmates.length;
+        const avgWithout =
+          pmates.reduce((s, p) => {
+            const wo = withoutP[p];
+            return s + (wo ? wo.w / wo.p : 0.5);
+          }, 0) / pmates.length;
+        const delta = Math.round((avgWithMe - avgWithout) * 100);
+        const partnerList = pmates
+          .map((p) => {
+            const wp = withP[p];
+            const wo = withoutP[p];
+            const wPct = Math.round((wp.w / wp.p) * 100);
+            const woPct = wo && wo.p ? Math.round((wo.w / wo.p) * 100) : 50;
+            return { p, wPct, woPct, diff: wPct - woPct, played: wp.p };
+          })
+          .sort((a, b) => b.diff - a.diff);
+        return {
+          name,
+          delta,
+          avgWithMe: Math.round(avgWithMe * 100),
+          avgWithout: Math.round(avgWithout * 100),
+          partnerList,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.delta - a.delta);
+    if (!rows.length)
+      return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     return `<div class="ana-card" style="padding:12px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:10px">How much a player lifts their partners' win rate vs. without them. Tap row to see partner breakdown.</div>
-      ${rows.map(r => {
-        const col = r.delta >= 0 ? "var(--green)" : "var(--red)";
-        const sign = r.delta >= 0 ? "+" : "";
-        const bkd = r.partnerList || [];
-        const bkdHtml = bkd.length ? bkd.map(b => {
-          const dc = b.diff >= 0 ? "var(--green)" : "var(--red)";
-          const ds = b.diff >= 0 ? "+" : "";
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:10px">
+      ${rows
+        .map((r) => {
+          const col = r.delta >= 0 ? "var(--green)" : "var(--red)";
+          const sign = r.delta >= 0 ? "+" : "";
+          const bkd = r.partnerList || [];
+          const bkdHtml = bkd.length
+            ? bkd
+                .map((b) => {
+                  const dc = b.diff >= 0 ? "var(--green)" : "var(--red)";
+                  const ds = b.diff >= 0 ? "+" : "";
+                  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:10px">
             <span style="color:var(--muted)">${b.p}</span>
             <span style="color:${dc};font-weight:700">${b.wPct}% with (${ds}${b.diff}%)</span>
             <span style="color:var(--muted);font-size:9px">${b.played}g</span>
           </div>`;
-        }).join("") : "";
-        return `<div class="carry-row" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer">
+                })
+                .join("")
+            : "";
+          return `<div class="carry-row" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer">
           <span class="carry-name">${r.name}</span>
           <div class="carry-bars">
             <div class="carry-bar-bg"><div class="carry-bar-fill" style="width:${r.avgWithMe}%;background:${col}"></div></div>
@@ -10811,21 +12364,35 @@ function renderAnalyticsPage() {
           <span class="carry-delta" style="color:${col}">${sign}${r.delta}%</span>
         </div>
         <div style="display:none;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 10px;margin-bottom:4px">${bkdHtml || '<div style="font-size:10px;color:var(--muted)">No partner data</div>'}</div>`;
-      }).join("")}
+        })
+        .join("")}
     </div>`;
   })();
 
   // ── CLUTCH TRENDS ──────────────────────────────────────
   const clutchTrendHtml = (() => {
-    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const playerList = computeStats(allMatches).map(p => p.name);
+    const MONTHS = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const playerList = computeStats(allMatches).map((p) => p.name);
     const byPlayer = {};
-    sortedM.forEach(m => {
+    sortedM.forEach((m) => {
       if (!m.date || Math.abs(m.scoreA - m.scoreB) > 1) return;
       const yrmo = m.date.slice(0, 7);
       const aWon = m.scoreA > m.scoreB;
       const process = (players, won) => {
-        players.forEach(p => {
+        players.forEach((p) => {
           if (!byPlayer[p]) byPlayer[p] = {};
           if (!byPlayer[p][yrmo]) byPlayer[p][yrmo] = { w: 0, p: 0 };
           byPlayer[p][yrmo].p++;
@@ -10835,25 +12402,43 @@ function renderAnalyticsPage() {
       process(m.teamA || [], aWon);
       process(m.teamB || [], !aWon);
     });
-    const allMonths = [...new Set(sortedM.filter(m => m.date).map(m => m.date.slice(0, 7)))].sort().slice(-6);
-    if (!allMonths.length) return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
-    const topPlayers = playerList.filter(p => byPlayer[p] && Object.values(byPlayer[p]).some(d => d.p >= 1));
-    if (!topPlayers.length) return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
+    const allMonths = [
+      ...new Set(sortedM.filter((m) => m.date).map((m) => m.date.slice(0, 7))),
+    ]
+      .sort()
+      .slice(-6);
+    if (!allMonths.length)
+      return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
+    const topPlayers = playerList.filter(
+      (p) => byPlayer[p] && Object.values(byPlayer[p]).some((d) => d.p >= 1),
+    );
+    if (!topPlayers.length)
+      return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% in close matches (margin ≤1) per month</div>
       <table style="width:100%;border-collapse:collapse;font-size:10px">
-        <tr><th style="text-align:left;color:var(--muted);font-weight:600;padding-bottom:6px">Player</th>${allMonths.map(m => `<th style="color:var(--muted);font-weight:600;padding:0 4px 6px;text-align:center">${MONTHS[parseInt(m.slice(5))-1]}</th>`).join("")}</tr>
-        ${topPlayers.map(p => {
-          const pCol = playerColor(p);
-          const cells = allMonths.map(mo => {
-            const d = byPlayer[p]?.[mo];
-            if (!d || !d.p) return `<td style="text-align:center;color:var(--muted)">—</td>`;
-            const pct = Math.round((d.w / d.p) * 100);
-            const col = pct >= 60 ? "var(--green)" : pct >= 40 ? "var(--gold)" : "var(--red)";
-            return `<td style="text-align:center;color:${col};font-weight:700">${pct}%</td>`;
-          }).join("");
-          return `<tr><td style="padding:4px 0;color:${pCol};font-weight:700">${p}</td>${cells}</tr>`;
-        }).join("")}
+        <tr><th style="text-align:left;color:var(--muted);font-weight:600;padding-bottom:6px">Player</th>${allMonths.map((m) => `<th style="color:var(--muted);font-weight:600;padding:0 4px 6px;text-align:center">${MONTHS[parseInt(m.slice(5)) - 1]}</th>`).join("")}</tr>
+        ${topPlayers
+          .map((p) => {
+            const pCol = playerColor(p);
+            const cells = allMonths
+              .map((mo) => {
+                const d = byPlayer[p]?.[mo];
+                if (!d || !d.p)
+                  return `<td style="text-align:center;color:var(--muted)">—</td>`;
+                const pct = Math.round((d.w / d.p) * 100);
+                const col =
+                  pct >= 60
+                    ? "var(--green)"
+                    : pct >= 40
+                      ? "var(--gold)"
+                      : "var(--red)";
+                return `<td style="text-align:center;color:${col};font-weight:700">${pct}%</td>`;
+              })
+              .join("");
+            return `<tr><td style="padding:4px 0;color:${pCol};font-weight:700">${p}</td>${cells}</tr>`;
+          })
+          .join("")}
       </table>
     </div>`;
   })();
@@ -10929,64 +12514,85 @@ function renderAnalyticsPage() {
 
   const allSecs = [
     { key: "digest", cat: "activity", title: "📋 Digest", body: digestHtml },
-    { key: "predacc", cat: "records", title: "🔮 Prediction Accuracy", body: predAccHtml },
-    { key: "simulator", cat: "records", title: "🎮 Match Simulator", body: simulatorHtml },
     {
-      key: "pvp", cat: "players",
+      key: "predacc",
+      cat: "records",
+      title: "🔮 Prediction Accuracy",
+      body: predAccHtml,
+    },
+    {
+      key: "simulator",
+      cat: "records",
+      title: "🎮 Match Simulator",
+      body: simulatorHtml,
+    },
+    {
+      key: "pvp",
+      cat: "players",
       title: "⚔️ Player vs Player Matrix",
       body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
     },
     {
-      key: "awards", cat: "records",
+      key: "awards",
+      cat: "records",
       title: "🏅 Awards Board",
       body: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
     },
     {
-      key: "form", cat: "players",
+      key: "form",
+      cat: "players",
       title: "⚡ Current Form",
       body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>${ftHtml}</div>`,
     },
     {
-      key: "lrace", cat: "players",
+      key: "lrace",
+      cat: "players",
       title: "🏎️ Leaderboard Race",
       body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
     },
     {
-      key: "clutchrank", cat: "players",
+      key: "clutchrank",
+      cat: "players",
       title: "🎯 Clutch Rankings",
       body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}</div>`,
     },
     {
-      key: "consistency", cat: "players",
+      key: "consistency",
+      cat: "players",
       title: "📐 Consistency Rankings",
       body: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
     },
     {
-      key: "qualitywins", cat: "players",
+      key: "qualitywins",
+      cat: "players",
       title: "💎 Quality Wins",
       body: `<div class="ana-card" style="padding:8px 12px">${qualityRankHtml}</div>`,
     },
     ...(uniqueMonths.length >= 2
       ? [
           {
-            key: "winrate", cat: "activity",
+            key: "winrate",
+            cat: "activity",
             title: "📈 Win Rate Over Time",
             body: `<div class="ana-card">${winChartHtml}</div>`,
           },
         ]
       : []),
     {
-      key: "heatmap", cat: "activity",
+      key: "heatmap",
+      cat: "activity",
       title: "📅 Activity Heatmap",
       body: `<div class="ana-card">${heatHtml}</div>`,
     },
     {
-      key: "score", cat: "activity",
+      key: "score",
+      cat: "activity",
       title: "📊 Score Distribution",
       body: `<div class="ana-card">${sdHtml}</div>`,
     },
     {
-      key: "partnership", cat: "pairs",
+      key: "partnership",
+      cat: "pairs",
       title: "🤝 Partnership Analytics",
       body: `<div class="partner-tabs">
         <button class="partner-tab active" onclick="_partnerTab(this,'chemistry')">Chemistry</button>
@@ -11012,57 +12618,139 @@ function renderAnalyticsPage() {
       </div>`,
     },
     {
-      key: "rivalry", cat: "players",
+      key: "rivalry",
+      cat: "players",
       title: "🔥 Rivalry Spotlight",
       body: `<div class="ana-card">${rivalHtml}</div>`,
     },
-    { key: "session", cat: "activity", title: "📋 Session Stats", body: sessHtml },
-    { key: "dayofweek", cat: "activity", title: "📅 Day-of-Week Analysis", body: dowHtml },
-    { key: "carryfactor", cat: "players", title: "🏋️ Carry Factor", body: carryHtml },
-    { key: "clutchtrend", cat: "players", title: "🎯 Clutch Trends", body: clutchTrendHtml },
-    { key: "whatif", cat: "elo", title: "🔄 What-If Simulator", body: whatIfHtml },
     {
-      key: "pairs", cat: "pairs",
+      key: "session",
+      cat: "activity",
+      title: "📋 Session Stats",
+      body: sessHtml,
+    },
+    {
+      key: "dayofweek",
+      cat: "activity",
+      title: "📅 Day-of-Week Analysis",
+      body: dowHtml,
+    },
+    {
+      key: "carryfactor",
+      cat: "players",
+      title: "🏋️ Carry Factor",
+      body: carryHtml,
+    },
+    {
+      key: "clutchtrend",
+      cat: "players",
+      title: "🎯 Clutch Trends",
+      body: clutchTrendHtml,
+    },
+    {
+      key: "whatif",
+      cat: "elo",
+      title: "🔄 What-If Simulator",
+      body: whatIfHtml,
+    },
+    {
+      key: "pairs",
+      cat: "pairs",
       title: "🤝 All Pairs",
       body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`,
     },
     {
-      key: "pairedh2h", cat: "pairs",
+      key: "pairedh2h",
+      cat: "pairs",
       title: "⚔️ Paired H2H Records",
       body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
     },
     { key: "elo", cat: "elo", title: "⚡ ELO Rankings", body: eloHtml },
-    { key: "eloTimeline", cat: "elo", title: "📈 ELO History Chart", body: buildEloTimelineHtml("all") },
-    { key: "eloWinProb", cat: "elo", title: "🎯 ELO Win Probability", body: eloWinProbHtml },
-    { key: "eloVolatility", cat: "elo", title: "📊 ELO Volatility / Consistency", body: eloVolatilityHtml },
     {
-      key: "pairmatrix", cat: "pairs",
+      key: "eloTimeline",
+      cat: "elo",
+      title: "📈 ELO History Chart",
+      body: buildEloTimelineHtml("all"),
+    },
+    {
+      key: "eloWinProb",
+      cat: "elo",
+      title: "🎯 ELO Win Probability",
+      body: eloWinProbHtml,
+    },
+    {
+      key: "eloVolatility",
+      cat: "elo",
+      title: "📊 ELO Volatility / Consistency",
+      body: eloVolatilityHtml,
+    },
+    {
+      key: "pairmatrix",
+      cat: "pairs",
       title: "🧪 Pair Chemistry Matrix",
       body: pairMatrixHtml,
     },
     {
-      key: "monthlyawards", cat: "records",
+      key: "monthlyawards",
+      cat: "records",
       title: "🏆 Monthly Awards",
       body: monthlyAwardsHtml,
     },
     {
-      key: "personalbests", cat: "players",
+      key: "personalbests",
+      cat: "players",
       title: "🏅 Personal Bests",
       body: personalBestsHtml,
     },
-    { key: "milestones", cat: "records", title: "🎖️ Milestone History", body: milestoneHtml },
     {
-      key: "calendar", cat: "activity",
+      key: "milestones",
+      cat: "records",
+      title: "🎖️ Milestone History",
+      body: milestoneHtml,
+    },
+    {
+      key: "calendar",
+      cat: "activity",
       title: "📅 Match Calendar",
       body: `<div id="match-calendar" class="match-calendar"></div>`,
     },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
-    { key: "powerrankings", cat: "players", title: "⚡ Power Rankings", body: _buildPowerRankingsHtml() },
-    { key: "chemistryleader", cat: "pairs", title: "🧪 Chemistry Leaderboard", body: _buildChemistryLeaderboardHtml() },
-    { key: "matchpredict", cat: "records", title: "🔮 Match Prediction", body: _buildMatchPredictHtml() },
-    { key: "storyfeed", cat: "records", title: "📰 Match Stories", body: _buildStoryFeedHtml() },
-    { key: "seasonmode", cat: "records", title: "🏆 Season Mode", body: _buildSeasonModeHtml() },
-    { key: "lreplay", cat: "players", title: "▶️ Leaderboard Replay", body: _buildLeaderboardReplayHtml() },
+    {
+      key: "powerrankings",
+      cat: "players",
+      title: "⚡ Power Rankings",
+      body: _buildPowerRankingsHtml(),
+    },
+    {
+      key: "chemistryleader",
+      cat: "pairs",
+      title: "🧪 Chemistry Leaderboard",
+      body: _buildChemistryLeaderboardHtml(),
+    },
+    {
+      key: "matchpredict",
+      cat: "records",
+      title: "🔮 Match Prediction",
+      body: _buildMatchPredictHtml(),
+    },
+    {
+      key: "storyfeed",
+      cat: "records",
+      title: "📰 Match Stories",
+      body: _buildStoryFeedHtml(),
+    },
+    {
+      key: "seasonmode",
+      cat: "records",
+      title: "🏆 Season Mode",
+      body: _buildSeasonModeHtml(),
+    },
+    {
+      key: "lreplay",
+      cat: "players",
+      title: "▶️ Leaderboard Replay",
+      body: _buildLeaderboardReplayHtml(),
+    },
   ];
 
   const storedOrder = getAnaOrder();
@@ -11089,43 +12777,31 @@ function renderAnalyticsPage() {
   // If no saved order, use default base list as-is (no appending — avoids duplicates).
   const _catLabels = pillOrder.length
     ? [
-        ...pillOrder.map(id => _catBase.find(c => c.id === id)).filter(Boolean),
-        ..._catBase.filter(c => !pillOrder.includes(c.id)),
+        ...pillOrder
+          .map((id) => _catBase.find((c) => c.id === id))
+          .filter(Boolean),
+        ..._catBase.filter((c) => !pillOrder.includes(c.id)),
       ]
     : _catBase;
-  const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row" oncontextmenu="event.preventDefault()">${
-    _catLabels.map(c =>
-      `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}"
+  const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row" oncontextmenu="event.preventDefault()">${_catLabels
+    .map(
+      (c) =>
+        `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}"
         data-cat="${c.id}"
         onpointerdown="_pillPointerDown(event,'${c.id}')"
-        oncontextmenu="event.preventDefault()">${c.label}</button>`
-    ).join("")
-  }</div>`;
+        oncontextmenu="event.preventDefault()">${c.label}</button>`,
+    )
+    .join("")}</div>`;
 
-  const searchBarHtml = `<div class="ana-search-wrap">
-    <div class="ana-search-box">
-      <svg class="ana-search-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="7.5"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>
-      </svg>
-      <input type="text" id="ana-search-input" class="ana-search-input"
-        placeholder="Search sections or players"
-        oninput="anaSearchInput(this.value)"
-        onblur="setTimeout(anaSearchClose, 160)"
-        autocomplete="off" spellcheck="false">
-      <button id="ana-search-clear" class="ana-search-clear" onclick="anaSearchClear()" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="9" height="9"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div id="ana-search-results" class="ana-search-results" style="display:none"></div>
-  </div>`;
-
-  container.innerHTML = searchBarHtml + filterPillsHtml + orderedKeys
-    .map((key) => {
-      const def = allSecs.find((s) => s.key === key);
-      if (!def) return "";
-      return makeSec(key, def.title, def.body, collapsed.has(key), def.cat);
-    })
-    .join("");
+  container.innerHTML =
+    filterPillsHtml +
+    orderedKeys
+      .map((key) => {
+        const def = allSecs.find((s) => s.key === key);
+        if (!def) return "";
+        return makeSec(key, def.title, def.body, collapsed.has(key), def.cat);
+      })
+      .join("");
 
   // Re-apply active category filter after re-render
   if (_anaActiveCat !== "all") anaFilterCategory(_anaActiveCat, true);
@@ -11134,7 +12810,10 @@ function renderAnalyticsPage() {
     requestAnimationFrame(() => renderMatchCalendar());
 
   // Animate cards and section titles as they scroll into view
-  if (_anaObserver) { _anaObserver.disconnect(); _anaObserver = null; }
+  if (_anaObserver) {
+    _anaObserver.disconnect();
+    _anaObserver = null;
+  }
   _anaObserver = new IntersectionObserver(
     (entries) => {
       let stagger = 0;
@@ -11272,7 +12951,9 @@ loadCloudData();
 loadScheduledMatches();
 loadDeletedMatches();
 scheduleAutoEmail();
-setTimeout(() => { renderEloConfigCard(); }, 0);
+setTimeout(() => {
+  renderEloConfigCard();
+}, 0);
 
 // Expose globals
 Object.assign(window, {
@@ -11350,15 +13031,11 @@ Object.assign(window, {
   filterEloTimeline,
   showEloMatchDetail,
   calcEloWinProb,
-  anaSearchInput,
-  anaSearchSelect,
-  anaSearchClose,
   _togglePairForm,
   _toggleSynergyMore,
   anaFilterCategory,
   toggleAnaFav,
   _pillPointerDown,
-  anaSearchClear,
   setHistoryDateFilter,
   openPlayerCompare,
   renderCompareSelector,
@@ -11474,7 +13151,8 @@ function isMatchWithinDateFilter(match, filterValue) {
 }
 
 // ── LIVE SCORING MODE ──────────────────────────────────────
-let _liveScoreA = 0, _liveScoreB = 0;
+let _liveScoreA = 0,
+  _liveScoreB = 0;
 const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
 let _liveActiveSlot = null;
 let _livePoints = []; // 5B: point history for momentum graph
@@ -11492,7 +13170,7 @@ function openLiveMode() {
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveMomentum();
-  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   goTo("live");
 }
 
@@ -11520,26 +13198,32 @@ function _renderLiveSlot(slot) {
 function openLivePlayerSheet(slot) {
   _liveActiveSlot = slot;
   const overlay = document.getElementById("live-sheet-overlay");
-  const sheet   = document.getElementById("live-sheet");
-  const list    = document.getElementById("live-sheet-list");
-  const title   = document.getElementById("live-sheet-title");
+  const sheet = document.getElementById("live-sheet");
+  const list = document.getElementById("live-sheet-list");
+  const title = document.getElementById("live-sheet-title");
   if (!overlay || !sheet || !list) return;
   const corner = slot.startsWith("a") ? "RED CORNER" : "BLUE CORNER";
-  const pos    = slot.endsWith("1") ? "PLAYER 1" : "PLAYER 2";
+  const pos = slot.endsWith("1") ? "PLAYER 1" : "PLAYER 2";
   if (title) title.textContent = `${corner} — ${pos}`;
-  const taken = Object.entries(_liveSlots).filter(([k, v]) => k !== slot && v).map(([, v]) => v);
-  const players = computeStats(allMatches).map(p => p.name).sort();
-  list.innerHTML = players.map(p => {
-    const isTaken = taken.includes(p);
-    const isCurrent = _liveSlots[slot] === p;
-    return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
+  const taken = Object.entries(_liveSlots)
+    .filter(([k, v]) => k !== slot && v)
+    .map(([, v]) => v);
+  const players = computeStats(allMatches)
+    .map((p) => p.name)
+    .sort();
+  list.innerHTML = players
+    .map((p) => {
+      const isTaken = taken.includes(p);
+      const isCurrent = _liveSlots[slot] === p;
+      return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
       onclick="${isTaken ? "" : `selectLivePlayer('${p.replace(/'/g, "\\'")}','${slot}')`}"
       ${isTaken ? "disabled" : ""}>
       <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
       <span class="live-sheet-item-name">${p}</span>
       ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
-  }).join("");
+    })
+    .join("");
   overlay.classList.add("live-sheet-open");
   sheet.classList.add("live-sheet-open");
 }
@@ -11551,7 +13235,9 @@ function selectLivePlayer(name, slot) {
 }
 
 function closeLivePlayerSheet() {
-  document.getElementById("live-sheet-overlay")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("live-sheet-overlay")
+    ?.classList.remove("live-sheet-open");
   document.getElementById("live-sheet")?.classList.remove("live-sheet-open");
   _liveActiveSlot = null;
 }
@@ -11561,11 +13247,15 @@ function _updateLiveDisplay() {
   const sb = document.getElementById("live-score-b");
   if (sa) {
     sa.textContent = _liveScoreA;
-    sa.className = "live-score-giant" + (_liveScoreA > _liveScoreB ? " live-score-lead" : "");
+    sa.className =
+      "live-score-giant" +
+      (_liveScoreA > _liveScoreB ? " live-score-lead" : "");
   }
   if (sb) {
     sb.textContent = _liveScoreB;
-    sb.className = "live-score-giant" + (_liveScoreB > _liveScoreA ? " live-score-lead" : "");
+    sb.className =
+      "live-score-giant" +
+      (_liveScoreB > _liveScoreA ? " live-score-lead" : "");
   }
 }
 
@@ -11595,7 +13285,8 @@ function _updateLiveWinProb() {
   const baseProb = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
   // Tilt probability toward leading team based on score gap
   const total = _liveScoreA + _liveScoreB;
-  const scoreTilt = total > 0 ? (_liveScoreA - _liveScoreB) / (total + 4) * 0.25 : 0;
+  const scoreTilt =
+    total > 0 ? ((_liveScoreA - _liveScoreB) / (total + 4)) * 0.25 : 0;
   const probA = Math.min(0.97, Math.max(0.03, baseProb + scoreTilt));
   const probB = 1 - probA;
   const pA = Math.round(probA * 100);
@@ -11607,11 +13298,26 @@ function _updateLiveWinProb() {
   const fill = document.getElementById("live-prob-fill");
   if (barA) barA.textContent = `${pA}%`;
   if (barB) barB.textContent = `${pB}%`;
-  if (lblA) lblA.textContent = (a1.split(" ")[0] + " & " + a2.split(" ")[0]).toUpperCase();
-  if (lblB) lblB.textContent = (b1.split(" ")[0] + " & " + b2.split(" ")[0]).toUpperCase();
+  if (lblA)
+    lblA.textContent = (
+      a1.split(" ")[0] +
+      " & " +
+      a2.split(" ")[0]
+    ).toUpperCase();
+  if (lblB)
+    lblB.textContent = (
+      b1.split(" ")[0] +
+      " & " +
+      b2.split(" ")[0]
+    ).toUpperCase();
   if (fill) {
     fill.style.width = pA + "%";
-    const col = pA > 55 ? "var(--live-red)" : pA < 45 ? "var(--live-blue)" : "var(--theme)";
+    const col =
+      pA > 55
+        ? "var(--live-red)"
+        : pA < 45
+          ? "var(--live-blue)"
+          : "var(--theme)";
     fill.style.background = col;
   }
 }
@@ -11620,12 +13326,17 @@ function _updateLiveWinProb() {
 function _updateLiveMomentum() {
   const wrap = document.getElementById("live-momentum-wrap");
   if (!wrap) return;
-  if (_livePoints.length < 2) { wrap.style.display = "none"; return; }
+  if (_livePoints.length < 2) {
+    wrap.style.display = "none";
+    return;
+  }
   wrap.style.display = "";
-  const W = 280, H = 60, mid = H / 2;
+  const W = 280,
+    H = 60,
+    mid = H / 2;
   const pts = _livePoints;
   const n = pts.length;
-  const maxAdv = Math.max(...pts.map(p => Math.abs(p.a - p.b)), 1);
+  const maxAdv = Math.max(...pts.map((p) => Math.abs(p.a - p.b)), 1);
   const scale = (mid - 6) / maxAdv;
   const xStep = W / Math.max(n - 1, 1);
   let path = `M 0 ${mid}`;
@@ -11636,11 +13347,16 @@ function _updateLiveMomentum() {
   });
   const lastPt = pts[n - 1];
   const lastAdv = lastPt.a - lastPt.b;
-  const lineCol = lastAdv > 0 ? "var(--live-red)" : lastAdv < 0 ? "var(--live-blue)" : "var(--theme)";
+  const lineCol =
+    lastAdv > 0
+      ? "var(--live-red)"
+      : lastAdv < 0
+        ? "var(--live-blue)"
+        : "var(--theme)";
   const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
     <path d="${path}" fill="none" stroke="${lineCol}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${((n-1)*xStep).toFixed(1)}" cy="${(mid - lastAdv * scale).toFixed(1)}" r="4" fill="${lineCol}"/>
+    <circle cx="${((n - 1) * xStep).toFixed(1)}" cy="${(mid - lastAdv * scale).toFixed(1)}" r="4" fill="${lineCol}"/>
   </svg>`;
   const chart = document.getElementById("live-momentum-chart");
   if (chart) chart.innerHTML = svg;
@@ -11648,19 +13364,39 @@ function _updateLiveMomentum() {
 
 function endLiveMatch() {
   const { a1, a2, b1, b2 } = _liveSlots;
-  const date = document.getElementById("live-date")?.value || new Date().toISOString().slice(0, 10);
+  const date =
+    document.getElementById("live-date")?.value ||
+    new Date().toISOString().slice(0, 10);
   const notes = document.getElementById("live-notes")?.value.trim() || "";
-  if (!a1 || !a2 || !b1 || !b2) { showToast("Select all 4 players first", "❌"); return; }
-  if (new Set([a1, a2, b1, b2]).size < 4) { showToast("All 4 players must be different", "❌"); return; }
-  if (_liveScoreA === 0 && _liveScoreB === 0) { showToast("Score must be > 0", "❌"); return; }
-  const match = { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, date };
+  if (!a1 || !a2 || !b1 || !b2) {
+    showToast("Select all 4 players first", "❌");
+    return;
+  }
+  if (new Set([a1, a2, b1, b2]).size < 4) {
+    showToast("All 4 players must be different", "❌");
+    return;
+  }
+  if (_liveScoreA === 0 && _liveScoreB === 0) {
+    showToast("Score must be > 0", "❌");
+    return;
+  }
+  const match = {
+    teamA: [a1, a2],
+    teamB: [b1, b2],
+    scoreA: _liveScoreA,
+    scoreB: _liveScoreB,
+    date,
+  };
   if (notes) match.notes = escHtml(notes);
   allMatches.push(match);
   saveCloudData();
   renderHome();
   renderCompact();
   renderModernMatches();
-  showToast(`Saved! ${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`, "🎾");
+  showToast(
+    `Saved! ${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`,
+    "🎾",
+  );
   goTo("home");
 }
 
@@ -11670,20 +13406,25 @@ function openMatchIntro(idx) {
   if (!m) return;
 
   const priorElo = computeElo(allMatches.slice(0, idx));
-  const afterElo  = computeElo(allMatches.slice(0, idx + 1));
+  const afterElo = computeElo(allMatches.slice(0, idx + 1));
   const aWon = m.scoreA > m.scoreB;
 
   // Pre-match individual and pair ranks
   const indivRanked = Object.entries(priorElo).sort((a, b) => b[1] - a[1]);
-  const allPairs    = getPairStats();
-  const pairsByElo  = allPairs
-    .map((p) => ({ key: p.key, avg: p.players.reduce((s, n) => s + (priorElo[n] || 1000), 0) / p.players.length }))
+  const allPairs = getPairStats();
+  const pairsByElo = allPairs
+    .map((p) => ({
+      key: p.key,
+      avg:
+        p.players.reduce((s, n) => s + (priorElo[n] || 1000), 0) /
+        p.players.length,
+    }))
     .sort((a, b) => b.avg - a.avg);
 
   const mkRankLabel = (players) => {
     if (players.length >= 2) {
       const key = getPairKey(players);
-      const i   = pairsByElo.findIndex((p) => p.key === key);
+      const i = pairsByElo.findIndex((p) => p.key === key);
       return i >= 0 ? `PAIR #${i + 1}` : "";
     }
     const i = indivRanked.findIndex(([n]) => n === players[0]);
@@ -11691,12 +13432,17 @@ function openMatchIntro(idx) {
   };
 
   const avgElo = (players) =>
-    Math.round(players.reduce((s, p) => s + (priorElo[p] || 1000), 0) / Math.max(players.length, 1));
+    Math.round(
+      players.reduce((s, p) => s + (priorElo[p] || 1000), 0) /
+        Math.max(players.length, 1),
+    );
 
   const nameA = m.teamA.map((p) => normPlayer(p)).join(" & ");
   const nameB = m.teamB.map((p) => normPlayer(p)).join(" & ");
 
-  document.getElementById("mio-date-bar").textContent = fmtDate(m.date).toUpperCase();
+  document.getElementById("mio-date-bar").textContent = fmtDate(
+    m.date,
+  ).toUpperCase();
 
   const rankA = mkRankLabel(m.teamA);
   const rankB = mkRankLabel(m.teamB);
@@ -11707,14 +13453,24 @@ function openMatchIntro(idx) {
   rankBEl.textContent = rankB;
   rankBEl.style.visibility = rankB ? "visible" : "hidden";
 
-  document.getElementById("mio-name-a").innerHTML = nameA.replace(" & ", "<br>& ");
-  document.getElementById("mio-name-b").innerHTML = nameB.replace(" & ", "<br>& ");
+  document.getElementById("mio-name-a").innerHTML = nameA.replace(
+    " & ",
+    "<br>& ",
+  );
+  document.getElementById("mio-name-b").innerHTML = nameB.replace(
+    " & ",
+    "<br>& ",
+  );
   const teamAvgLvl = (players) => {
-    const levels = players.map((p) => getPlayerLevel(computePlayerXP(normPlayer(p))).level);
+    const levels = players.map(
+      (p) => getPlayerLevel(computePlayerXP(normPlayer(p))).level,
+    );
     return Math.round(levels.reduce((s, l) => s + l, 0) / levels.length);
   };
-  document.getElementById("mio-elo-a").textContent = `ELO ${avgElo(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
-  document.getElementById("mio-elo-b").textContent = `ELO ${avgElo(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
+  document.getElementById("mio-elo-a").textContent =
+    `ELO ${avgElo(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
+  document.getElementById("mio-elo-b").textContent =
+    `ELO ${avgElo(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
 
   const scoreAEl = document.getElementById("mio-score-a");
   const scoreBEl = document.getElementById("mio-score-b");
@@ -11724,14 +13480,15 @@ function openMatchIntro(idx) {
   scoreBEl.className = "mio-score-num" + (!aWon ? " win" : "");
 
   const winner = aWon ? nameA : nameB;
-  document.getElementById("mio-result-line").textContent = `${winner.toUpperCase()} WIN`;
+  document.getElementById("mio-result-line").textContent =
+    `${winner.toUpperCase()} WIN`;
 
   // ELO delta pills
   const deltaPills = [...m.teamA, ...m.teamB]
     .map((p) => {
       const delta = (afterElo[p] || 1000) - (priorElo[p] || 1000);
       const sign = delta >= 0 ? "+" : "";
-      const cls  = delta >= 0 ? "gain" : "loss";
+      const cls = delta >= 0 ? "gain" : "loss";
       return `<span class="mio-delta-pill ${cls}">${normPlayer(p)} ${sign}${delta}</span>`;
     })
     .join("");
@@ -11740,16 +13497,22 @@ function openMatchIntro(idx) {
   // H2H data between the two teams (all prior matches)
   const tkA = [...m.teamA].sort().join("|");
   const tkB = [...m.teamB].sort().join("|");
-  let h2hWinsA = 0, h2hWinsB = 0;
-  allMatches.slice(0, idx).forEach(pm => {
+  let h2hWinsA = 0,
+    h2hWinsB = 0;
+  allMatches.slice(0, idx).forEach((pm) => {
     const pmA = [...(pm.teamA || [])].sort().join("|");
     const pmB = [...(pm.teamB || [])].sort().join("|");
     const fwd = pmA === tkA && pmB === tkB;
     const rev = pmA === tkB && pmB === tkA;
     if (!fwd && !rev) return;
     const pmAWon = pm.scoreA > pm.scoreB;
-    if (fwd) { if (pmAWon) h2hWinsA++; else h2hWinsB++; }
-    else { if (pmAWon) h2hWinsB++; else h2hWinsA++; }
+    if (fwd) {
+      if (pmAWon) h2hWinsA++;
+      else h2hWinsB++;
+    } else {
+      if (pmAWon) h2hWinsB++;
+      else h2hWinsA++;
+    }
   });
   const h2hTotal = h2hWinsA + h2hWinsB;
   // After this match
@@ -11761,12 +13524,12 @@ function openMatchIntro(idx) {
     const colB = !aWon ? "var(--green)" : "var(--red)";
     h2hEl.innerHTML = `
       <div class="mio-h2h-cell">
-        <div class="mio-h2h-num" style="color:${colA}">${h2hAfterA}${aWon ? '<span class="mio-h2h-plus">+1</span>' : ''}</div>
+        <div class="mio-h2h-num" style="color:${colA}">${h2hAfterA}${aWon ? '<span class="mio-h2h-plus">+1</span>' : ""}</div>
         <div class="mio-h2h-lbl">${nameA}</div>
       </div>
       <div class="mio-h2h-sep">${h2hTotal === 0 ? "FIRST<br>MEETING" : "H2H"}</div>
       <div class="mio-h2h-cell">
-        <div class="mio-h2h-num" style="color:${colB}">${h2hAfterB}${!aWon ? '<span class="mio-h2h-plus">+1</span>' : ''}</div>
+        <div class="mio-h2h-num" style="color:${colB}">${h2hAfterB}${!aWon ? '<span class="mio-h2h-plus">+1</span>' : ""}</div>
         <div class="mio-h2h-lbl">${nameB}</div>
       </div>`;
   }
@@ -11777,24 +13540,37 @@ function openMatchIntro(idx) {
     const priorMatches = allMatches.slice(0, idx);
     const [p1, p2] = m.teamA.map(normPlayer);
     const [p3, p4] = m.teamB.map(normPlayer);
-    const crossPairs = [[p1, p3], [p1, p4], [p2, p3], [p2, p4]];
-    const pvpRows = crossPairs.map(([pa, pb]) => {
-      let wA = 0, wB = 0;
-      priorMatches.forEach(pm => {
-        const aP = [...(pm.teamA || [])].map(normPlayer);
-        const bP = [...(pm.teamB || [])].map(normPlayer);
-        const mAWon = pm.scoreA > pm.scoreB;
-        if (aP.includes(pa) && bP.includes(pb)) { if (mAWon) wA++; else wB++; }
-        else if (aP.includes(pb) && bP.includes(pa)) { if (mAWon) wB++; else wA++; }
-      });
-      const newWA = wA + (aWon ? 1 : 0);
-      const newWB = wB + (!aWon ? 1 : 0);
-      return `<div class="mio-pvp-row">
-        <span class="mio-pvp-name ${aWon ? 'mio-pvp-winner' : ''}">${pa}${aWon ? ' <span class="mio-pvp-plus">+1</span>' : ''}</span>
+    const crossPairs = [
+      [p1, p3],
+      [p1, p4],
+      [p2, p3],
+      [p2, p4],
+    ];
+    const pvpRows = crossPairs
+      .map(([pa, pb]) => {
+        let wA = 0,
+          wB = 0;
+        priorMatches.forEach((pm) => {
+          const aP = [...(pm.teamA || [])].map(normPlayer);
+          const bP = [...(pm.teamB || [])].map(normPlayer);
+          const mAWon = pm.scoreA > pm.scoreB;
+          if (aP.includes(pa) && bP.includes(pb)) {
+            if (mAWon) wA++;
+            else wB++;
+          } else if (aP.includes(pb) && bP.includes(pa)) {
+            if (mAWon) wB++;
+            else wA++;
+          }
+        });
+        const newWA = wA + (aWon ? 1 : 0);
+        const newWB = wB + (!aWon ? 1 : 0);
+        return `<div class="mio-pvp-row">
+        <span class="mio-pvp-name ${aWon ? "mio-pvp-winner" : ""}">${pa}${aWon ? ' <span class="mio-pvp-plus">+1</span>' : ""}</span>
         <span class="mio-pvp-rec">${newWA}–${newWB}</span>
-        <span class="mio-pvp-name mio-pvp-right ${!aWon ? 'mio-pvp-winner' : ''}">${!aWon ? '<span class="mio-pvp-plus">+1</span> ' : ''}${pb}</span>
+        <span class="mio-pvp-name mio-pvp-right ${!aWon ? "mio-pvp-winner" : ""}">${!aWon ? '<span class="mio-pvp-plus">+1</span> ' : ""}${pb}</span>
       </div>`;
-    }).join("");
+      })
+      .join("");
     pvpEl.innerHTML = `<div class="mio-pvp-label">PLAYER H2H</div>${pvpRows}`;
   } else if (pvpEl) {
     pvpEl.innerHTML = "";
@@ -11802,9 +13578,12 @@ function openMatchIntro(idx) {
 
   // Event badges
   const badges = [];
-  if (isFireMatch(m))       badges.push(`<span class="event-badge fire">🔥 FIRE</span>`);
-  if (isDominatingMatch(m)) badges.push(`<span class="event-badge dominate">💀 DOMINATING</span>`);
-  if (isZeroMatch(m))       badges.push(`<span class="event-badge zero">😂 ZERO</span>`);
+  if (isFireMatch(m))
+    badges.push(`<span class="event-badge fire">🔥 FIRE</span>`);
+  if (isDominatingMatch(m))
+    badges.push(`<span class="event-badge dominate">💀 DOMINATING</span>`);
+  if (isZeroMatch(m))
+    badges.push(`<span class="event-badge zero">😂 ZERO</span>`);
   document.getElementById("mio-badges").innerHTML = badges.join("");
 
   // Note (if present)
@@ -11876,25 +13655,49 @@ document.addEventListener("keydown", (e) => {
     setTimeout(() => card.classList.remove("tilt-reset"), 460);
   }
 
-  document.addEventListener("touchstart", (e) => {
-    const card = e.target.closest(".pc");
-    if (card) _tc = card;
-  }, { passive: true });
+  document.addEventListener(
+    "touchstart",
+    (e) => {
+      const card = e.target.closest(".pc");
+      if (card) _tc = card;
+    },
+    { passive: true },
+  );
 
-  document.addEventListener("touchmove", (e) => {
-    if (!_tc || _nd.active) {
-      if (_tc) { _tReset(_tc); _tc = null; }
-      return;
-    }
-    _tApply(_tc, e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: true });
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!_tc || _nd.active) {
+        if (_tc) {
+          _tReset(_tc);
+          _tc = null;
+        }
+        return;
+      }
+      _tApply(_tc, e.touches[0].clientX, e.touches[0].clientY);
+    },
+    { passive: true },
+  );
 
-  document.addEventListener("touchend", () => {
-    if (_tc) { _tReset(_tc); _tc = null; }
-  }, { passive: true });
+  document.addEventListener(
+    "touchend",
+    () => {
+      if (_tc) {
+        _tReset(_tc);
+        _tc = null;
+      }
+    },
+    { passive: true },
+  );
 
-  document.addEventListener("touchcancel", () => {
-    if (_tc) { _tReset(_tc); _tc = null; }
-  }, { passive: true });
-
+  document.addEventListener(
+    "touchcancel",
+    () => {
+      if (_tc) {
+        _tReset(_tc);
+        _tc = null;
+      }
+    },
+    { passive: true },
+  );
 })();
