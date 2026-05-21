@@ -8058,6 +8058,7 @@ function toggleAnaSection(key) {
     el.querySelectorAll(
       ".ana-card, .award-card, .awards-grid, .pair-stats-card, .h2h-cascade-item",
     ).forEach((card) => {
+      card.style.opacity = "";  // clear inline opacity so remove+readd doesn't flash invisible
       card.classList.remove("card-anim");
       void card.offsetWidth;
       card.style.animationDelay = `${stagger * 55}ms`;
@@ -12969,6 +12970,19 @@ function renderAnalyticsPage() {
       el.style.opacity = "0";
       _anaObserver.observe(el);
     });
+
+  // JS-driven hover — reliable on all browsers/devices, bypasses CSS :hover issues
+  if (!container._hoverBound) {
+    container._hoverBound = true;
+    container.addEventListener("mouseover", (e) => {
+      const hdr = e.target.closest(".ana-sec-hdr");
+      if (hdr) hdr.classList.add("ana-sec-hovered");
+    });
+    container.addEventListener("mouseout", (e) => {
+      const hdr = e.target.closest(".ana-sec-hdr");
+      if (hdr) hdr.classList.remove("ana-sec-hovered");
+    });
+  }
 }
 
 // Keep showAnalytics as alias for backward compat

@@ -12148,6 +12148,22 @@ select:focus,
   72%  { transform: scale(1.03) translateY(-1.5px); }
   100% { transform: scale(1.04) translateY(-2px); }
 }
+/* JS-driven hover state (.ana-sec-hovered added via mouseover) */
+.ana-sec-hdr.ana-sec-hovered {
+  animation: ana-hdr-spring 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+  background: linear-gradient(
+    105deg,
+    rgba(var(--theme-rgb), 0.22) 0%,
+    rgba(var(--theme-rgb), 0.08) 48%,
+    rgba(255,255,255,0.03) 100%
+  ) !important;
+  border-color: rgba(var(--theme-rgb), 0.45) !important;
+  border-left-color: var(--theme) !important;
+  box-shadow:
+    0 5px 28px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 28px rgba(var(--theme-rgb), 0.14) !important;
+}
 
 /* ══ History filters — Premium uniform pills ══ */
 .compact-select,
