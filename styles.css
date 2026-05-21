@@ -7213,6 +7213,10 @@ table.cmp thead th {
   padding-bottom: 4px !important;
 }
 
+table.cmp thead th:last-child {
+  box-shadow: 9999px 0 0 0 #0c1020;
+}
+
 table.cmp tbody tr {
   transition:
     background 0.22s ease,
