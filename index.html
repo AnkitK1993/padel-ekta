@@ -76,7 +76,22 @@
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item hmenu-item--full">
+            <button onclick="openGlobalSearch();closeHamburgerMenu()" class="hmenu-action-btn hmenu-action-btn--full">🔍 SEARCH</button>
+          </div>
+          <div class="hmenu-divider"></div>
+          <div class="hmenu-item hmenu-item--full">
             <button onclick="openLiveMode();closeHamburgerMenu()" class="hmenu-action-btn hmenu-action-btn--full">🎾 LIVE SCORING</button>
+          </div>
+        </div>
+
+        <!-- Global search overlay -->
+        <div class="gs-overlay" id="gs-overlay" onclick="if(event.target.id==='gs-overlay')closeGlobalSearch()">
+          <div class="gs-panel">
+            <div class="gs-header">
+              <input type="text" id="gs-input" class="gs-input" placeholder="Search players, scores (6-2), dates…" oninput="_globalSearchInput(this.value)" autocomplete="off">
+              <button class="gs-close" onclick="closeGlobalSearch()">✕</button>
+            </div>
+            <div class="gs-results" id="gs-results"></div>
           </div>
         </div>
         <div class="home-header"></div>
