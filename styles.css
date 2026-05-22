@@ -16531,6 +16531,11 @@ body.midnight-oled-mode #themeBtn {
 .pd-report-btn { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: var(--fg); font-size: 15px; padding: 5px 9px; cursor: pointer; transition: background 0.15s; }
 .pd-report-btn:active { background: rgba(255,255,255,0.14); }
 
+/* ── PLAYER DETAIL GUEST BUTTON ──────────── */
+.pd-guest-btn { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: var(--muted); font-size: 10px; font-weight: 800; padding: 5px 9px; cursor: pointer; letter-spacing: 0.06em; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.pd-guest-btn:active { background: rgba(255,255,255,0.14); }
+.pd-guest-active { background: rgba(255,160,0,0.15); border-color: rgba(255,160,0,0.5); color: var(--gold); }
+
 /* ── LIVE MATCH CARD (DETAILED PAGE) ────── */
 .lmc-card { background: linear-gradient(135deg, rgba(255,60,60,0.12) 0%, rgba(30,30,50,0.95) 60%, rgba(60,80,255,0.12) 100%); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 11px 14px 12px; position: relative; overflow: hidden; }
 .lmc-card::before { content:""; position:absolute; inset:0; border-radius:14px; background: linear-gradient(90deg, rgba(255,60,60,0.06), transparent 50%, rgba(60,80,255,0.06)); pointer-events:none; }

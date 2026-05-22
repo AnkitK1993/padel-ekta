@@ -608,6 +608,7 @@ let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
 let guestPlayers = [];
+let _excludeGuestMatches = localStorage.getItem("padel_exclude_guests") === "1";
 let photoMap = {};
 let calYear = new Date().getFullYear(),
   calMonth = new Date().getMonth();
@@ -1505,6 +1506,11 @@ function updateAdminUI(user) {
   // Show Live Scoring button only for admin
   const liveHmenu = document.getElementById("live-scoring-hmenu");
   if (liveHmenu) liveHmenu.style.display = window.isAdmin ? "" : "none";
+  // Sync exclude-guest toggle
+  const excToggle = document.getElementById("excludeGuestToggle");
+  if (excToggle) excToggle.checked = _excludeGuestMatches;
+  const excLabel = document.getElementById("excludeGuestLabel");
+  if (excLabel) excLabel.textContent = _excludeGuestMatches ? "GUEST MATCHES EXCLUDED" : "GUEST MATCHES COUNTED";
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
@@ -2321,6 +2327,10 @@ function playerAvatar(name, size = 26) {
 }
 
 // ── FILTER ─────────────────────────────────────────────────
+function _matchHasGuest(m) {
+  return [...(m.teamA || []), ...(m.teamB || [])].some(p => guestPlayers.includes(p));
+}
+
 function filterMatches(f, from, to) {
   const t = todayISO(),
     sw = weekISO(),
@@ -2329,6 +2339,7 @@ function filterMatches(f, from, to) {
     wr = weekendRange(),
     lwr = lastWeekRange();
   return allMatches.filter((m) => {
+    if (_excludeGuestMatches && guestPlayers.length && _matchHasGuest(m)) return false;
     if (f === "all") return true;
     if (f === "today") return m.date === t;
     if (f === "week") return m.date >= sw && m.date <= swe;
@@ -6863,6 +6874,7 @@ function openPlayerDetail(name) {
               <div class="analytics-header">
                 <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}${window.isAdmin ? `<button class="pd-photo-btn" onclick="savePlayerPhoto(${jsArg(name)})" title="Upload photo">📷</button>` : ""}${window.isAdmin && photoMap[name] ? `<button class="pd-photo-remove" onclick="removePlayerPhoto(${jsArg(name)})" title="Remove photo">✕</button>` : ""}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${escHtml(name)}</span>${eloTierBadge(playerElo)}</div></div>
                 <div style="display:flex;align-items:center;gap:8px">
+                  ${window.isAdmin ? `<button class="pd-guest-btn${guestPlayers.includes(name) ? " pd-guest-active" : ""}" onclick="toggleGuestPlayer(${jsArg(name)})" title="Toggle guest">${guestPlayers.includes(name) ? "👤 GUEST" : "👤 GUEST?"}</button>` : ""}
                   <button class="pd-report-btn" onclick="openPlayerReportCard(${jsArg(name)})" title="Share report card">📊</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
                 </div>
@@ -16363,9 +16375,25 @@ function toggleGuestPlayer(name) {
   if (idx === -1) guestPlayers.push(name);
   else guestPlayers.splice(idx, 1);
   saveCloudData();
+  _invalidateEloMemo();
   renderHome();
   renderCompact();
+  renderGuestPlayersAdmin();
+  if (document.getElementById("player-detail-modal")) openPlayerDetail(name);
 }
+
+function toggleExcludeGuests(val) {
+  _excludeGuestMatches = !!val;
+  localStorage.setItem("padel_exclude_guests", _excludeGuestMatches ? "1" : "0");
+  _invalidateEloMemo();
+  renderHome();
+  renderCompact();
+  renderModernMatches();
+  const label = document.getElementById("excludeGuestLabel");
+  if (label) label.textContent = _excludeGuestMatches ? "GUEST MATCHES EXCLUDED" : "GUEST MATCHES COUNTED";
+}
+
+window.toggleExcludeGuests = toggleExcludeGuests;
 
 // ── SESSION RSVP ─────────────────────────────────────────────
 let _rsvpPendingSessionId = null;
