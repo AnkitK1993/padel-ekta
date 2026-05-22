@@ -7470,8 +7470,24 @@ function _animEloCounts() {
 
 let _shareBlob = null, _shareLabel = "";
 
-async function openSummaryShare() {
+function openSummaryShare() {
   if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
+  const askFilters = new Set(["week", "lastweek", "weekend"]);
+  if (askFilters.has(cmpFilter)) {
+    document.getElementById("screenshot-choice-overlay")?.classList.add("live-sheet-open");
+    document.getElementById("screenshot-choice-sheet")?.classList.add("live-sheet-open");
+  } else {
+    doSummaryScreenshot(true);
+  }
+}
+
+function closeScreenshotChoiceSheet() {
+  document.getElementById("screenshot-choice-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("screenshot-choice-sheet")?.classList.remove("live-sheet-open");
+}
+
+async function doSummaryScreenshot(includeMatches) {
+  closeScreenshotChoiceSheet();
   showToast("Capturing…", "📸");
   const captureEl = document.querySelector("#pg-compact .cmp-body-scroll");
   if (!captureEl) { showToast("No data to capture", "❌"); return; }
@@ -7486,12 +7502,27 @@ async function openSummaryShare() {
     el.textContent = el.dataset.final;
   });
 
-  // Hide HIGHLIGHTS card — not needed in the screenshot
+  // Always hide HIGHLIGHTS card
   const highlights = captureEl.querySelectorAll(".hist-summary-card");
   highlights.forEach(el => el.style.display = "none");
 
+  // Optionally hide matches section
+  const matchesHeader = captureEl.querySelector(".cmp-matches-header");
+  const matchesBody = document.getElementById("cmpMatches");
+  if (!includeMatches) {
+    if (matchesHeader) matchesHeader.style.display = "none";
+    if (matchesBody) matchesBody.style.display = "none";
+  }
+
   const fnameMap = { all: "AllTime", today: "Today", week: "ThisWeek", lastweek: "LastWeek", weekend: "Weekend", month: "ThisMonth", range: "Custom" };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
+  const restore = () => {
+    highlights.forEach(el => el.style.display = "");
+    if (!includeMatches) {
+      if (matchesHeader) matchesHeader.style.display = "";
+      if (matchesBody) matchesBody.style.display = "";
+    }
+  };
   try {
     const canvas = await window.html2canvas(captureEl, {
       backgroundColor: "#030309",
@@ -7501,7 +7532,7 @@ async function openSummaryShare() {
       height: captureEl.scrollHeight,
       windowHeight: captureEl.scrollHeight,
     });
-    highlights.forEach(el => el.style.display = "");
+    restore();
     canvas.toBlob((blob) => {
       _shareBlob = blob;
       const prevImg = document.getElementById("share-preview-img");
@@ -7510,7 +7541,7 @@ async function openSummaryShare() {
       document.getElementById("share-preview-sheet").classList.add("open");
     }, "image/png");
   } catch (e) {
-    highlights.forEach(el => el.style.display = "");
+    restore();
     showToast("Capture failed", "❌");
   }
 }
@@ -15171,6 +15202,8 @@ Object.assign(window, {
   openShareCard,
   openWeeklyDigest,
   openSummaryShare,
+  closeScreenshotChoiceSheet,
+  doSummaryScreenshot,
   closeSharePreview,
   doShareWhatsApp,
   doShareDownload,

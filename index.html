@@ -1074,5 +1074,22 @@ Parthiv - Par"
       <div class="live-sheet-title" id="h2h-sheet-title">SELECT PLAYER</div>
       <div class="live-sheet-list" id="h2h-sheet-list"></div>
     </div>
+
+    <!-- Screenshot content choice sheet -->
+    <div class="live-sheet-overlay" id="screenshot-choice-overlay" onclick="closeScreenshotChoiceSheet()"></div>
+    <div class="live-sheet" id="screenshot-choice-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title">SCREENSHOT</div>
+      <div class="live-sheet-list">
+        <div class="live-sheet-item" onclick="doSummaryScreenshot(true)">
+          <span style="font-size:20px;width:28px;text-align:center">📋</span>
+          <span>Leaderboard + Matches Played</span>
+        </div>
+        <div class="live-sheet-item" onclick="doSummaryScreenshot(false)">
+          <span style="font-size:20px;width:28px;text-align:center">🏆</span>
+          <span>Leaderboard Only</span>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
