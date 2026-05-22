@@ -7560,16 +7560,32 @@ function closeSharePreview() {
 
 async function doShareWhatsApp() {
   if (!_shareBlob) return;
-  const file = new File([_shareBlob], `EktaPadel-${_shareLabel}.png`, { type: "image/png" });
+  const fname = `EktaPadel-${_shareLabel}.png`;
+
+  // Try 1: copy image to clipboard + open WhatsApp directly (no OS share sheet)
+  if (window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": _shareBlob })]);
+      window.location.href = "whatsapp://send";
+      showToast("Open a chat and paste the image 📋", "💬");
+      return;
+    } catch (_) {}
+  }
+
+  // Try 2: native file share (OS share sheet — user selects WhatsApp)
+  const file = new File([_shareBlob], fname, { type: "image/png" });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share({ files: [file], title: "Ekta Padel", text: `${_shareLabel} Leaderboard` }).catch(() => {});
-  } else {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(_shareBlob);
-    a.download = `EktaPadel-${_shareLabel}.png`;
-    a.click();
-    showToast("Saved! Open WhatsApp and send from gallery.", "💬");
+    return;
   }
+
+  // Try 3: download image + open WhatsApp
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(_shareBlob);
+  a.download = fname;
+  a.click();
+  setTimeout(() => { window.location.href = "whatsapp://send"; }, 400);
+  showToast("Image saved — attach from Downloads in WhatsApp 📎", "💬");
 }
 
 function doShareDownload() {
