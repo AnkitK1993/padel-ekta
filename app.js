@@ -1502,6 +1502,9 @@ function updateAdminUI(user) {
   if (window.isAdmin) {
     prefillMatchTADate();
   }
+  // Show Live Scoring button only for admin
+  const liveHmenu = document.getElementById("live-scoring-hmenu");
+  if (liveHmenu) liveHmenu.style.display = window.isAdmin ? "" : "none";
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
@@ -15158,6 +15161,7 @@ renderNamesTable();
 loadCloudData();
 loadPhotos();
 loadScheduledMatches();
+loadLiveData();
 loadDeletedMatches();
 scheduleAutoEmail();
 setTimeout(() => {
@@ -15349,6 +15353,16 @@ Object.assign(window, {
   liveUndoPoint,
   setLiveGameMode,
   endLiveMatch,
+  openSessionSetup,
+  closeSessionSetup,
+  sessionSetupSelectAll,
+  sessionSetupSelectNone,
+  confirmSessionStart,
+  endLiveSession,
+  openAddPlayerSheet,
+  closeAddPlayerSheet,
+  addPlayerToSession,
+  renderLiveMatchCard,
   openRivalryScreen,
   openShareMatchPoster,
   openHomeFilterSheet,
@@ -15383,6 +15397,7 @@ let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 
 function openLiveMode() {
+  if (!window.isAdmin) { showToast("Live Scoring is admin only", "🔒"); return; }
   _liveScoreA = 0;
   _liveScoreB = 0;
   _livePoints = [];
@@ -15405,6 +15420,7 @@ function openLiveMode() {
   _updateLiveMomentum();
   _liveSyncGameDisplay();
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
+  _syncLiveSessionBar();
   goTo("live");
 }
 
@@ -15560,6 +15576,7 @@ function _liveWinGame(team) {
   _updateLiveWinProb();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
+  _publishLiveMatch();
 }
 
 function _liveCheckMatchWin() {
@@ -15625,7 +15642,10 @@ function openLivePlayerSheet(slot) {
   const taken = Object.entries(_liveSlots)
     .filter(([k, v]) => k !== slot && v)
     .map(([, v]) => v);
-  const players = Object.keys(aliasMap).sort((a, b) =>
+  const sessionPlayers = _liveSessionData?.sessionActive && (_liveSessionData?.sessionPlayers?.length >= 2)
+    ? _liveSessionData.sessionPlayers
+    : null;
+  const players = (sessionPlayers || Object.keys(aliasMap)).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" }),
   );
   list.innerHTML = players
@@ -15649,6 +15669,8 @@ function selectLivePlayer(name, slot) {
   _liveSlots[slot] = name;
   _renderLiveSlot(slot);
   closeLivePlayerSheet();
+  const { a1, a2, b1, b2 } = _liveSlots;
+  if (a1 && a2 && b1 && b2) _startLiveMatchPublish();
 }
 
 function closeLivePlayerSheet() {
@@ -15703,6 +15725,7 @@ function liveAdjustScore(team, delta) {
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveMomentum();
+  _publishLiveMatch();
 }
 
 // 5A: Live Win Probability Meter
@@ -15825,15 +15848,28 @@ function endLiveMatch() {
   };
   if (notes) match.note = notes;
   allMatches.push(match);
+  // Clear the live match from Firestore and emit event before saving
+  const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
+  if (_liveSessionData?.sessionActive) {
+    clearTimeout(_livePublishTimer);
+    setDoc(doc(db, "padel", "live"), {
+      currentMatch: null,
+      lastEvent: { type: "match_end", msg: `Match saved: ${eventMsg}`, at: new Date().toISOString() }
+    }, { merge: true }).catch(() => {});
+    _liveMatchPublishedAt = null;
+  }
   saveCloudData();
   renderHome();
   renderCompact();
   renderModernMatches();
-  showToast(
-    `Saved! ${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`,
-    "🎾",
-  );
-  goTo("home");
+  showToast(`Saved! ${eventMsg}`, "🎾");
+  // Reset scores for next match but keep players
+  _liveScoreA = 0; _liveScoreB = 0;
+  _liveGamePtsA = 0; _liveGamePtsB = 0;
+  _liveAdv = null; _liveMatchEnded = false;
+  _livePoints = []; _livePointUndoStack = [];
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  goTo("live");
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -16413,4 +16449,234 @@ async function openPlayerReportCard(name) {
   } catch (e) {
     showToast("Capture failed", "❌");
   }
+}
+
+// ── LIVE SESSION ──────────────────────────────────────────────
+let _liveSessionData = null;
+let _livePublishTimer = null;
+let _liveMatchPublishedAt = null;
+let _liveLastEventAt = null;
+let _sessionSetupSelected = new Set();
+
+function loadLiveData() {
+  try {
+    onSnapshot(doc(db, "padel", "live"), (snap) => {
+      _liveSessionData = snap.exists() ? snap.data() : null;
+      renderLiveMatchCard();
+      _syncLiveSessionBar();
+      const evAt = _liveSessionData?.lastEvent?.at;
+      if (evAt && evAt !== _liveLastEventAt) {
+        if (_liveLastEventAt !== null) {
+          _notifyLiveEvent(_liveSessionData.lastEvent.type, _liveSessionData.lastEvent.msg);
+        }
+        _liveLastEventAt = evAt;
+      }
+    });
+  } catch (e) {}
+}
+
+function renderLiveMatchCard() {
+  const el = document.getElementById("live-match-card");
+  if (!el) return;
+  const d = _liveSessionData;
+  if (!d?.sessionActive) { el.style.display = "none"; return; }
+  const cm = d.currentMatch;
+  if (cm?.teamA?.length && cm?.teamB?.length) {
+    const aWin = cm.scoreA > cm.scoreB;
+    const bWin = cm.scoreB > cm.scoreA;
+    el.style.display = "";
+    el.innerHTML = `<div class="lmc-card">
+      <div class="lmc-header">
+        <span class="lmc-live-badge"><span class="live-dot"></span>LIVE MATCH</span>
+        <span class="lmc-session-count">${(d.sessionPlayers||[]).length} in session</span>
+      </div>
+      <div class="lmc-match">
+        <div class="lmc-team">
+          <div class="lmc-names">${cm.teamA.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
+          <div class="lmc-score${aWin ? " lmc-score-lead" : ""}">${cm.scoreA}</div>
+        </div>
+        <div class="lmc-colon">:</div>
+        <div class="lmc-team lmc-team-right">
+          <div class="lmc-score${bWin ? " lmc-score-lead" : ""}">${cm.scoreB}</div>
+          <div class="lmc-names">${cm.teamB.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    const players = d.sessionPlayers || [];
+    el.style.display = "";
+    el.innerHTML = `<div class="lmc-card lmc-card-idle">
+      <div class="lmc-header">
+        <span class="lmc-live-badge lmc-badge-idle"><span class="live-dot"></span>SESSION ACTIVE</span>
+        <span class="lmc-session-count">${players.length} players</span>
+      </div>
+      <div class="lmc-players">${players.map(p => `<span class="lmc-player-chip">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
+    </div>`;
+  }
+}
+
+function _syncLiveSessionBar() {
+  const d = _liveSessionData;
+  const active = !!d?.sessionActive;
+  const sessionBar = document.getElementById("live-session-bar");
+  const startBar = document.getElementById("live-start-session-bar");
+  if (sessionBar) sessionBar.style.display = active ? "" : "none";
+  if (startBar) startBar.style.display = active ? "none" : "";
+  if (active) {
+    const chipsEl = document.getElementById("live-session-players");
+    if (chipsEl) {
+      chipsEl.innerHTML = (d.sessionPlayers || []).map(p =>
+        `<span class="live-session-chip">${escHtml(p.split(" ")[0])}</span>`
+      ).join("");
+    }
+  }
+}
+
+function openSessionSetup() {
+  _sessionSetupSelected = new Set(Object.keys(aliasMap));
+  const list = document.getElementById("session-setup-list");
+  if (!list) return;
+  const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  list.innerHTML = players.map(p => `
+    <label class="tb-player-chip">
+      <input type="checkbox" checked onchange="window._sspToggle(${jsArg(p)}, this.checked)">
+      <span class="tb-chip-name">${escHtml(p)}</span>
+    </label>`).join("");
+  document.getElementById("session-setup-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("session-setup-sheet")?.classList.add("live-sheet-open");
+}
+
+window._sspToggle = function(name, checked) {
+  if (checked) _sessionSetupSelected.add(name);
+  else _sessionSetupSelected.delete(name);
+};
+
+function sessionSetupSelectAll() {
+  _sessionSetupSelected = new Set(Object.keys(aliasMap));
+  document.querySelectorAll("#session-setup-list input[type=checkbox]").forEach(cb => { cb.checked = true; });
+}
+
+function sessionSetupSelectNone() {
+  _sessionSetupSelected = new Set();
+  document.querySelectorAll("#session-setup-list input[type=checkbox]").forEach(cb => { cb.checked = false; });
+}
+
+function closeSessionSetup() {
+  document.getElementById("session-setup-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("session-setup-sheet")?.classList.remove("live-sheet-open");
+}
+
+async function confirmSessionStart() {
+  const players = [..._sessionSetupSelected];
+  if (players.length < 2) { showToast("Select at least 2 players", "❌"); return; }
+  closeSessionSetup();
+  const now = new Date().toISOString();
+  try {
+    await setDoc(doc(db, "padel", "live"), {
+      sessionActive: true,
+      sessionPlayers: players,
+      sessionStartedAt: now,
+      currentMatch: null,
+      lastEvent: { type: "session_start", msg: `Session started · ${players.length} players`, at: now }
+    });
+    _requestNotifPermission();
+    _liveHaptic([20, 50, 20]);
+  } catch (e) {
+    showToast("Failed to start session", "❌");
+  }
+}
+
+async function endLiveSession() {
+  if (!confirm("End the current session?")) return;
+  clearTimeout(_livePublishTimer);
+  _liveMatchPublishedAt = null;
+  const now = new Date().toISOString();
+  try {
+    await setDoc(doc(db, "padel", "live"), {
+      sessionActive: false,
+      sessionPlayers: [],
+      sessionStartedAt: null,
+      currentMatch: null,
+      lastEvent: { type: "session_end", msg: "Session ended", at: now }
+    });
+    _liveHaptic([30, 60, 30]);
+  } catch (e) {
+    showToast("Failed to end session", "❌");
+  }
+}
+
+function openAddPlayerSheet() {
+  const list = document.getElementById("add-player-list");
+  if (!list) return;
+  const current = _liveSessionData?.sessionPlayers || [];
+  const available = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })).filter(p => !current.includes(p));
+  if (!available.length) { showToast("All players already in session", "✅"); return; }
+  list.innerHTML = available.map(p => `
+    <button class="live-sheet-item" onclick="addPlayerToSession(${jsArg(p)})">
+      <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      <span class="live-sheet-item-name">${escHtml(p)}</span>
+    </button>`).join("");
+  document.getElementById("add-player-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("add-player-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeAddPlayerSheet() {
+  document.getElementById("add-player-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("add-player-sheet")?.classList.remove("live-sheet-open");
+}
+
+async function addPlayerToSession(name) {
+  closeAddPlayerSheet();
+  const players = [...(_liveSessionData?.sessionPlayers || [])];
+  if (players.includes(name)) return;
+  players.push(name);
+  const now = new Date().toISOString();
+  try {
+    await setDoc(doc(db, "padel", "live"), {
+      sessionPlayers: players,
+      lastEvent: { type: "player_added", msg: `${name} joined the session`, at: now }
+    }, { merge: true });
+    showToast(`${name} added`, "✅");
+  } catch (e) {
+    showToast("Failed to add player", "❌");
+  }
+}
+
+function _startLiveMatchPublish() {
+  if (!window.isAdmin || !_liveSessionData?.sessionActive) return;
+  const { a1, a2, b1, b2 } = _liveSlots;
+  if (!a1 || !a2 || !b1 || !b2) return;
+  _liveMatchPublishedAt = new Date().toISOString();
+  const eventMsg = `${a1} & ${a2} vs ${b1} & ${b2}`;
+  setDoc(doc(db, "padel", "live"), {
+    currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: 0, scoreB: 0, startedAt: _liveMatchPublishedAt, mode: _liveGameMode },
+    lastEvent: { type: "match_start", msg: `Match started: ${eventMsg}`, at: _liveMatchPublishedAt }
+  }, { merge: true }).catch(() => {});
+}
+
+function _publishLiveMatch() {
+  if (!window.isAdmin || !_liveSessionData?.sessionActive) return;
+  const { a1, a2, b1, b2 } = _liveSlots;
+  if (!a1 || !a2 || !b1 || !b2) return;
+  clearTimeout(_livePublishTimer);
+  _livePublishTimer = setTimeout(() => {
+    setDoc(doc(db, "padel", "live"), {
+      currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, startedAt: _liveMatchPublishedAt || new Date().toISOString(), mode: _liveGameMode }
+    }, { merge: true }).catch(() => {});
+  }, 1200);
+}
+
+function _notifyLiveEvent(type, msg) {
+  const isEnd = type === "match_end" || type === "session_end";
+  _liveHaptic(isEnd ? [30, 60, 30] : [15, 30, 15]);
+  const icons = { session_start: "🎾", session_end: "🏁", match_start: "▶️", match_end: "✅", player_added: "➕" };
+  showToast(msg, icons[type] || "🎾", 3500);
+  if (document.visibilityState !== "visible" && "Notification" in window && Notification.permission === "granted") {
+    try { new Notification("Ekta Padel 🎾", { body: msg, icon: "/icons/icon.svg" }); } catch (e) {}
+  }
+}
+
+function _requestNotifPermission() {
+  if (!("Notification" in window) || Notification.permission !== "default") return;
+  Notification.requestPermission().catch(() => {});
 }

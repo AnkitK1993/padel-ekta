@@ -74,6 +74,26 @@ async function checkForUpdates() {
   }
 }
 
+self.addEventListener("push", (e) => {
+  const data = e.data ? e.data.json() : {};
+  const title = data.title || "Ekta Padel 🎾";
+  const body = data.body || "Live session update";
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: BASE + "icons/icon.svg",
+      badge: BASE + "icons/icon.svg",
+      data: { url: BASE },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || BASE;
+  e.waitUntil(clients.openWindow(url));
+});
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   const isHttp = url.protocol === "http:" || url.protocol === "https:";

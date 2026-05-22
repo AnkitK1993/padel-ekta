@@ -16530,3 +16530,48 @@ body.midnight-oled-mode #themeBtn {
 /* ── PLAYER REPORT CARD BUTTON ───────────── */
 .pd-report-btn { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: var(--fg); font-size: 15px; padding: 5px 9px; cursor: pointer; transition: background 0.15s; }
 .pd-report-btn:active { background: rgba(255,255,255,0.14); }
+
+/* ── LIVE MATCH CARD (DETAILED PAGE) ────── */
+.lmc-card { background: linear-gradient(135deg, rgba(255,60,60,0.12) 0%, rgba(30,30,50,0.95) 60%, rgba(60,80,255,0.12) 100%); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 11px 14px 12px; position: relative; overflow: hidden; }
+.lmc-card::before { content:""; position:absolute; inset:0; border-radius:14px; background: linear-gradient(90deg, rgba(255,60,60,0.06), transparent 50%, rgba(60,80,255,0.06)); pointer-events:none; }
+.lmc-card-idle { background: rgba(255,255,255,0.04); }
+.lmc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.lmc-live-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:800; letter-spacing:0.08em; color:#ff4040; background:rgba(255,60,60,0.15); border:1px solid rgba(255,60,60,0.3); border-radius:20px; padding:3px 9px 3px 7px; }
+.lmc-badge-idle { color:var(--accent); background:rgba(30,200,150,0.1); border-color:rgba(30,200,150,0.25); }
+.lmc-session-count { font-size:10px; color:var(--text-muted); font-weight:600; }
+.lmc-match { display:flex; align-items:center; gap:10px; }
+.lmc-team { flex:1; display:flex; align-items:center; gap:8px; }
+.lmc-team-right { flex-direction:row-reverse; }
+.lmc-names { display:flex; flex-direction:column; gap:1px; flex:1; }
+.lmc-name { font-size:12px; font-weight:700; color:var(--fg); letter-spacing:0.02em; text-transform:uppercase; }
+.lmc-team-right .lmc-names { text-align:right; }
+.lmc-score { font-size:40px; font-weight:900; color:var(--text-muted); font-variant-numeric:tabular-nums; line-height:1; letter-spacing:-0.02em; min-width:36px; text-align:center; }
+.lmc-score-lead { color:#fff; text-shadow:0 0 18px rgba(255,255,255,0.4); }
+.lmc-colon { font-size:28px; font-weight:900; color:rgba(255,255,255,0.2); }
+.lmc-players { display:flex; flex-wrap:wrap; gap:5px; margin-top:2px; }
+.lmc-player-chip { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700; color:var(--fg); }
+
+/* ── LIVE SESSION BAR (SCORING PAGE) ────── */
+.live-session-bar { background: rgba(255,60,60,0.1); border-bottom:1px solid rgba(255,60,60,0.25); padding:10px 14px 8px; }
+.live-start-session-bar { background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.07); padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.live-no-session-msg { font-size:11px; color:var(--text-muted); font-weight:600; }
+.live-start-session-btn { background:var(--accent); border:none; border-radius:20px; color:#fff; font-size:12px; font-weight:800; padding:8px 18px; cursor:pointer; letter-spacing:0.04em; }
+.live-start-session-btn:active { opacity:0.85; }
+.live-session-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.live-session-info { display:flex; align-items:center; gap:6px; }
+.live-session-label { font-size:10px; font-weight:800; letter-spacing:0.08em; color:#ff4040; }
+.live-add-player-btn { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:16px; color:var(--fg); font-size:11px; font-weight:700; padding:5px 12px; cursor:pointer; }
+.live-end-session-btn { background:rgba(255,60,60,0.2); border:1px solid rgba(255,60,60,0.4); border-radius:16px; color:#ff6060; font-size:11px; font-weight:800; padding:5px 12px; cursor:pointer; }
+.live-end-session-btn:active { background:rgba(255,60,60,0.35); }
+.live-session-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.live-session-chip { background:rgba(255,255,255,0.08); border-radius:20px; padding:3px 10px; font-size:10px; font-weight:700; color:var(--fg); }
+
+/* ── SESSION SETUP / PLAYER CHIP ─────────── */
+.tb-player-chip { display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:8px 10px; cursor:pointer; transition:background 0.15s; }
+.tb-player-chip input[type=checkbox] { width:14px; height:14px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+.tb-chip-name { font-size:12px; font-weight:700; color:var(--fg); flex:1; text-transform:uppercase; letter-spacing:0.04em; }
+.tb-btn { padding:9px 14px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.06); color:var(--fg); border-radius:10px; font-size:11px; font-weight:800; cursor:pointer; letter-spacing:0.05em; transition:background 0.15s; }
+.tb-btn:active { background:rgba(255,255,255,0.12); }
+.tb-btn-balance { background:var(--accent); border-color:var(--accent); color:#fff; }
+.tb-btn-balance:active { opacity:0.85; }
+.tb-btn-all, .tb-btn-none { font-size:10px; padding:9px 10px; }

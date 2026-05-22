@@ -126,12 +126,9 @@
             </button>
           </div>
           <div class="hmenu-divider"></div>
-          <div class="hmenu-item hmenu-item--full">
+          <div class="hmenu-item hmenu-item--full" id="live-scoring-hmenu" style="display:none">
             <button
-              onclick="
-                openLiveMode();
-                closeHamburgerMenu();
-              "
+              onclick="openLiveMode();closeHamburgerMenu()"
               class="hmenu-action-btn hmenu-action-btn--full"
             >
               🎾 LIVE SCORING
@@ -231,6 +228,7 @@
           style="display: none; padding: 0 11px 4px"
         ></div>
         <div id="absence-banner"></div>
+        <div id="live-match-card" style="display:none;padding:0 11px 6px"></div>
         <div
           id="session-streak-badge"
           style="display: none; padding: 0 11px 6px"
@@ -1079,6 +1077,25 @@ Parthiv - Par"
 
     <!-- Live Scoring Mode -->
     <div class="page" id="pg-live">
+      <!-- Session Control Bar -->
+      <div id="live-session-bar" class="live-session-bar" style="display:none">
+        <div class="live-session-header">
+          <div class="live-session-info">
+            <span class="live-dot"></span>
+            <span class="live-session-label">SESSION ACTIVE</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="live-add-player-btn" onclick="openAddPlayerSheet()">+ PLAYER</button>
+            <button class="live-end-session-btn" onclick="endLiveSession()">END SESSION</button>
+          </div>
+        </div>
+        <div id="live-session-players" class="live-session-chips"></div>
+      </div>
+      <div id="live-start-session-bar" class="live-start-session-bar">
+        <div class="live-no-session-msg">No active session</div>
+        <button class="live-start-session-btn" onclick="openSessionSetup()">🎾 START SESSION</button>
+      </div>
+
       <div class="live-ufc-wrap">
         <!-- Header -->
         <div class="live-ufc-header">
@@ -1254,6 +1271,8 @@ Parthiv - Par"
         </button>
       </div>
 
+      </div><!-- end .live-ufc-wrap -->
+
       <!-- Player select bottom sheet -->
       <div
         class="live-sheet-overlay"
@@ -1264,6 +1283,30 @@ Parthiv - Par"
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title" id="live-sheet-title">SELECT PLAYER</div>
         <div class="live-sheet-list" id="live-sheet-list"></div>
+      </div>
+
+      <!-- Session Setup Sheet -->
+      <div class="live-sheet-overlay" id="session-setup-overlay" onclick="closeSessionSetup()"></div>
+      <div class="live-sheet" id="session-setup-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">START SESSION</div>
+        <div style="padding:2px 14px 8px;font-size:12px;color:var(--text-muted);text-align:center">Select players present today</div>
+        <div id="session-setup-list" style="padding:0 14px;max-height:42vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+        <div style="padding:10px 14px 4px;display:flex;gap:8px">
+          <button class="tb-btn tb-btn-all" onclick="sessionSetupSelectAll()">ALL</button>
+          <button class="tb-btn tb-btn-none" onclick="sessionSetupSelectNone()">NONE</button>
+          <button class="tb-btn tb-btn-balance" onclick="confirmSessionStart()" style="flex:1">🎾 START</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
+      <!-- Add Player Mid-Session Sheet -->
+      <div class="live-sheet-overlay" id="add-player-overlay" onclick="closeAddPlayerSheet()"></div>
+      <div class="live-sheet" id="add-player-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">ADD PLAYER</div>
+        <div id="add-player-list" style="padding:0 14px;max-height:50vh;overflow-y:auto"></div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
     </div>
 
