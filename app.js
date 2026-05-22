@@ -3558,7 +3558,7 @@ function animateSrVal(el, delay = 200) {
   const target = parseFloat(el.dataset.final);
   if (isNaN(target)) return;
   let cur = 0;
-  const step = target / 45;
+  const step = target / 15;
   const tick = () => {
     cur = Math.min(cur + step, target);
     el.textContent = cur.toFixed(2);
@@ -6948,11 +6948,11 @@ function openPlayerDetail(name) {
           </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
 
-  // shared ticker helper — 45 steps over ~1s (22ms each)
+  // shared ticker helper — 15 steps over ~330ms (22ms each)
   const pdTick = (el, target, format, delay = 200) => {
     if (!el || !target) return;
     let cur = 0;
-    const step = target / 45;
+    const step = target / 15;
     const tick = () => {
       cur = Math.min(cur + step, target);
       el.textContent = format(cur);
@@ -7468,7 +7468,7 @@ function _animEloCounts() {
       const from = parseInt(el.dataset.from, 10);
       const to = parseInt(el.dataset.to, 10);
       if (from === to) return;
-      const dur = 700;
+      const dur = 233;
       const delay = 350 + i * 60;
       setTimeout(() => {
         const startTime = performance.now();
