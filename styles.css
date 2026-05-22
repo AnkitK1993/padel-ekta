@@ -16513,3 +16513,60 @@ body.midnight-oled-mode #themeBtn {
 .mqs-btn:active { background: rgba(255,255,255,0.12); }
 .mqs-btn-danger { color: var(--red); }
 .mqs-btn-cancel { color: var(--muted); background: transparent; border: 1px solid rgba(255,255,255,0.12); }
+
+/* ── SESSION LIVE FEED ───────────────────── */
+.sf-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 11px 13px 10px; cursor: pointer; transition: background 0.15s; margin-bottom: 4px; }
+.sf-card:active { background: rgba(255,255,255,0.09); }
+.sf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.sf-title { font-size: 11px; font-weight: 800; letter-spacing: 0.07em; color: var(--accent); }
+.sf-count { font-size: 10px; color: var(--text-muted); font-weight: 600; background: rgba(255,255,255,0.07); border-radius: 20px; padding: 2px 8px; }
+.sf-leader { font-size: 12px; color: var(--fg); margin-bottom: 4px; }
+.sf-last { font-size: 11px; color: var(--text-muted); }
+.sf-win { color: var(--green); }
+.sf-loss { color: var(--red); }
+
+/* ── FORM DOTS (SUMMARY COMPACT ROWS) ────── */
+.cmp-form-dots { display: inline-flex; gap: 3px; align-items: center; margin-left: 5px; vertical-align: middle; }
+
+/* ── GUEST BADGE ─────────────────────────── */
+.guest-badge-sm { display: inline-block; font-size: 9px; font-weight: 900; color: #fff; background: var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.04em; }
+
+/* ── DELETE BUTTON ON MATCH ROWS ─────────── */
+.cmr-del-btn { background: none; border: none; color: var(--red); font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 6px; line-height: 1; opacity: 0.7; transition: opacity 0.15s; }
+.cmr-del-btn:active { opacity: 1; background: rgba(240,79,79,0.15); }
+
+/* ── TEAM BALANCER ───────────────────────── */
+.tb-player-chip { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 8px 10px; cursor: pointer; transition: background 0.15s; font-size: 0; }
+.tb-player-chip input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.tb-player-chip:has(input:checked) { background: rgba(var(--accent-rgb, 30,200,150), 0.12); border-color: rgba(var(--accent-rgb, 30,200,150), 0.35); }
+.tb-chip-name { font-size: 12px; font-weight: 700; color: var(--fg); flex: 1; text-transform: uppercase; letter-spacing: 0.04em; }
+.tb-chip-elo { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+.tb-player-chip--btn { border: none; font-size: 0; background: rgba(255,255,255,0.06); text-align: left; }
+.tb-player-chip--btn .tb-chip-name { font-size: 12px; }
+.tb-chip-selected { background: rgba(var(--accent-rgb, 30,200,150), 0.18) !important; border-color: var(--accent) !important; }
+.tb-btn { padding: 9px 14px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: var(--fg); border-radius: 10px; font-size: 11px; font-weight: 800; cursor: pointer; letter-spacing: 0.05em; transition: background 0.15s; }
+.tb-btn:active { background: rgba(255,255,255,0.12); }
+.tb-btn-balance { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tb-btn-balance:active { opacity: 0.85; }
+.tb-btn-all, .tb-btn-none { font-size: 10px; padding: 9px 10px; }
+.tb-teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: start; margin-top: 10px; }
+.tb-team { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 10px 12px; }
+.tb-team-a { border-top: 3px solid var(--accent); }
+.tb-team-b { border-top: 3px solid var(--gold, #f5c842); }
+.tb-team-label { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 6px; }
+.tb-team-player { font-size: 12px; font-weight: 700; color: var(--fg); display: flex; justify-content: space-between; padding: 3px 0; }
+.tb-team-elo { color: var(--text-muted); font-weight: 600; font-size: 11px; }
+.tb-team-avg { font-size: 10px; color: var(--text-muted); margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 5px; }
+.tb-team-win { font-size: 11px; font-weight: 800; margin-top: 3px; }
+.tb-vs { font-size: 11px; font-weight: 900; color: var(--text-muted); align-self: center; text-align: center; }
+.tb-diff { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+
+/* ── RSVP BUTTON ─────────────────────────── */
+.sched-rsvp-row { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.sched-rsvp-btn { padding: 6px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 20px; color: var(--fg); font-size: 11px; font-weight: 800; cursor: pointer; letter-spacing: 0.04em; }
+.sched-rsvp-btn--in { background: rgba(30,200,120,0.2); border-color: var(--green); color: var(--green); }
+.sched-rsvp-count { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+
+/* ── PLAYER REPORT CARD BUTTON ───────────── */
+.pd-report-btn { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: var(--fg); font-size: 15px; padding: 5px 9px; cursor: pointer; transition: background 0.15s; }
+.pd-report-btn:active { background: rgba(255,255,255,0.14); }
