@@ -12114,84 +12114,6 @@ function _buildRivalryHoFHtml() {
     .join("")}</div>`;
 }
 
-function _buildPersonalBestsHtml() {
-  const players = new Set();
-  allMatches.forEach((m) =>
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => players.add(p)),
-  );
-  if (!players.size)
-    return '<div class="sub" style="padding:8px">No matches yet.</div>';
-  const history = computeEloHistory(allMatches);
-  const pbList = [...players]
-    .map((name) => {
-      const playerMatches = allMatches
-        .filter((m) =>
-          [...(m.teamA || []), ...(m.teamB || [])].includes(name),
-        )
-        .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-      if (!playerMatches.length) return null;
-      let curStreak = 0,
-        longestStreak = 0;
-      playerMatches.forEach((m) => {
-        const inA = (m.teamA || []).includes(name);
-        const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-        if (won) {
-          curStreak++;
-          longestStreak = Math.max(longestStreak, curStreak);
-        } else curStreak = 0;
-      });
-      let biggestWinScore = "",
-        biggestMargin = -1;
-      playerMatches.forEach((m) => {
-        const inA = (m.teamA || []).includes(name);
-        const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-        if (!won) return;
-        const margin = Math.abs(m.scoreA - m.scoreB);
-        if (margin > biggestMargin) {
-          biggestMargin = margin;
-          biggestWinScore = `${Math.max(m.scoreA, m.scoreB)}-${Math.min(m.scoreA, m.scoreB)}`;
-        }
-      });
-      const peakElo = (history[name] || []).reduce(
-        (m, p) => Math.max(m, p.elo || 1000),
-        1000,
-      );
-      const dayCount = {};
-      playerMatches.forEach((m) => {
-        dayCount[m.date] = (dayCount[m.date] || 0) + 1;
-      });
-      const maxDay = Math.max(0, ...Object.values(dayCount));
-      return {
-        name,
-        longestStreak,
-        biggestWinScore,
-        peakElo,
-        maxDay,
-        played: playerMatches.length,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.peakElo - a.peakElo);
-  return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${pbList
-    .map(
-      (pb) => `
-    <div class="ana-card pb-card">
-      <div class="pb-head">
-        <div class="pb-av" style="background:${playerColor(pb.name)}">${playerInitials(pb.name)}</div>
-        <div class="pb-name">${pb.name}</div>
-        <div class="pb-sub">${pb.played} matches played</div>
-      </div>
-      <div class="pb-grid">
-        <div class="pb-cell"><div class="pb-val">${pb.longestStreak}</div><div class="pb-lbl">Win Streak</div></div>
-        <div class="pb-cell"><div class="pb-val">${pb.biggestWinScore || "—"}</div><div class="pb-lbl">Biggest Win</div></div>
-        <div class="pb-cell"><div class="pb-val">${pb.peakElo}</div><div class="pb-lbl">Peak ELO</div></div>
-        <div class="pb-cell"><div class="pb-val">${pb.maxDay}</div><div class="pb-lbl">Most/Day</div></div>
-      </div>
-    </div>`,
-    )
-    .join("")}</div>`;
-}
-
 const _REPLAY_MIN = 5;
 const _REPLAY_BASE_MS = 400;
 let _replayIdx = 0,
@@ -14912,12 +14834,6 @@ function renderAnalyticsPage() {
       cat: "pairs",
       title: "⚔️ Rivalry Hall of Fame",
       body: _buildRivalryHoFHtml(),
-    },
-    {
-      key: "personalbests",
-      cat: "players",
-      title: "🏅 Personal Bests",
-      body: _buildPersonalBestsHtml(),
     },
   ];
 
