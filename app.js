@@ -3490,14 +3490,37 @@ function renderHome() {
     return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
-  board.innerHTML = cardHtmls.join("");
-  runSpeedometerSweep();
-  setTimeout(animateGauges, 50);
-  board
-    .querySelectorAll(".sr-val[data-final]")
-    .forEach((el) => animateSrVal(el, 300));
-  board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
-  board.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 300));
+  if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
+    board.innerHTML = "";
+    const gen = ++_renderHomeGen;
+    cardHtmls.forEach((html, i) => {
+      setTimeout(() => {
+        if (_renderHomeGen !== gen) return;
+        const tmp = document.createElement("div");
+        tmp.innerHTML = html;
+        const card = tmp.firstChild;
+        board.appendChild(card);
+        const srEl = card.querySelector(".sr-val[data-final]");
+        if (srEl) animateSrVal(srEl, 300);
+        const xpRow = card.querySelector(".xp-row");
+        if (xpRow) animateXpRow(xpRow, 300);
+        card.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 220 + i * 60));
+        if (i === cardHtmls.length - 1) {
+          runSpeedometerSweep();
+          setTimeout(animateGauges, 50);
+        }
+      }, i * 100);
+    });
+  } else {
+    board.innerHTML = cardHtmls.join("");
+    runSpeedometerSweep();
+    setTimeout(animateGauges, 50);
+    board
+      .querySelectorAll(".sr-val[data-final]")
+      .forEach((el) => animateSrVal(el, 300));
+    board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
+    board.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 300));
+  }
 }
 
 function animateXpRow(el, delay = 300) {
@@ -3667,25 +3690,83 @@ function renderCompact() {
   const cmpMatchesEl = document.getElementById("cmpMatches");
   const matchesHeader = cmpMatchesEl.previousElementSibling;
 
-  matchesHeader.style.cssText = "";
-  tbody.innerHTML = leaderRowHtmls.join("");
-  tbody
-    .querySelectorAll(".sr-pill-val[data-final]")
-    .forEach((el) => animateSrVal(el, 0));
-  const reversedFiltered = [...filtered].reverse();
-  const _nc = document.body.classList.contains("no-cascade");
-  const initRows = reversedFiltered.map((m, i) =>
-    i < 10 && !_nc
-      ? buildMatchRowHtml(m, " card-anim", null, allMatches.indexOf(m))
-      : buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
-  );
-  if (initRows.length) {
-    cmpMatchesEl.innerHTML =
-      `<table class="cmp-match-rows"><tbody>${initRows.join("")}</tbody></table>` +
-      buildHistorySummary(filtered, cmpFilter);
-    setTimeout(_animEloCounts, 80);
+  if (splashDone && !document.body.classList.contains("no-cascade")) {
+    tbody.innerHTML = "";
+    cmpMatchesEl.innerHTML = "";
+    matchesHeader.style.opacity = "0";
+    matchesHeader.style.transform = "translateY(14px)";
+    matchesHeader.style.transition =
+      "opacity 0.38s cubic-bezier(0.22,1,0.36,1), transform 0.38s cubic-bezier(0.22,1,0.36,1)";
+
+    leaderRowHtmls.forEach((html, i) => {
+      setTimeout(() => {
+        tbody.insertAdjacentHTML("beforeend", html);
+        const srEl = tbody.lastElementChild.querySelector(".sr-pill-val[data-final]");
+        if (srEl) animateSrVal(srEl, 50);
+      }, i * 100);
+    });
+
+    const matchStartDelay = leaderRowHtmls.length * 100;
+    setTimeout(() => {
+      matchesHeader.style.opacity = "1";
+      matchesHeader.style.transform = "translateY(0)";
+    }, matchStartDelay);
+
+    if (matchRowHtmls.length) {
+      const table = document.createElement("table");
+      table.className = "cmp-match-rows";
+      const matchTbody = document.createElement("tbody");
+      table.appendChild(matchTbody);
+      setTimeout(() => cmpMatchesEl.appendChild(table), matchStartDelay);
+      const animCount = Math.min(10, reversedMatches.length);
+      const animRows = reversedMatches
+        .slice(0, animCount)
+        .map((m) => buildMatchRowHtml(m, " card-anim", null, allMatches.indexOf(m)));
+      const restRows = reversedMatches
+        .slice(animCount)
+        .map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)));
+      animRows.forEach((html, i) => {
+        setTimeout(() => {
+          matchTbody.insertAdjacentHTML("beforeend", html);
+        }, matchStartDelay + i * 100);
+      });
+      if (restRows.length) {
+        setTimeout(() => {
+          matchTbody.insertAdjacentHTML("beforeend", restRows.join(""));
+        }, matchStartDelay + animCount * 100);
+      }
+      const summaryHtml = buildHistorySummary(filtered, cmpFilter);
+      if (summaryHtml) {
+        setTimeout(() => {
+          cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
+          setTimeout(_animEloCounts, 80);
+        }, matchStartDelay + animCount * 100 + 100);
+      }
+    } else {
+      setTimeout(() => {
+        cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+      }, matchStartDelay);
+    }
   } else {
-    cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+    matchesHeader.style.cssText = "";
+    tbody.innerHTML = leaderRowHtmls.join("");
+    tbody
+      .querySelectorAll(".sr-pill-val[data-final]")
+      .forEach((el) => animateSrVal(el, 0));
+    const _nc = document.body.classList.contains("no-cascade");
+    const initRows = reversedMatches.map((m, i) =>
+      i < 10 && !_nc
+        ? buildMatchRowHtml(m, " card-anim", null, allMatches.indexOf(m))
+        : buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
+    );
+    if (initRows.length) {
+      cmpMatchesEl.innerHTML =
+        `<table class="cmp-match-rows"><tbody>${initRows.join("")}</tbody></table>` +
+        buildHistorySummary(filtered, cmpFilter);
+      setTimeout(_animEloCounts, 80);
+    } else {
+      cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+    }
   }
 }
 
