@@ -101,96 +101,6 @@ body.paused-animations *{
 /* ══════════════════════════════════════ */
 
 (function () {
-        function injectVisibleFeatures() {
-          // SUMMARY TAB FEATURE
-          const summary =
-            document.querySelector("#summary") ||
-            document.querySelector(".summary-page");
-
-          if (summary && !summary.querySelector(".nextgen-live-banner")) {
-            const banner = document.createElement("div");
-            banner.className = "nextgen-live-banner";
-
-            banner.innerHTML = `
-      <div class="nextgen-banner-track">
-        <div class="nextgen-banner-item">🔥 Ankit on 7-match streak</div>
-        <div class="nextgen-banner-item">👑 Pair Power: Ankit & Rahul M</div>
-        <div class="nextgen-banner-item">⚔️ Rivalry heating up: Rahul M vs Rahul G</div>
-        <div class="nextgen-banner-item">🚀 Fastest finish this week: 21-4</div>
-        <div class="nextgen-banner-item">🧊 Sachin defensive form rising</div>
-        <div class="nextgen-banner-item">🔥 Ankit on 7-match streak</div>
-      </div>
-    `;
-
-            summary.prepend(banner);
-          }
-
-          // ANALYTICS TAB FEATURES
-          const analytics =
-            document.querySelector("#analytics") ||
-            document.querySelector(".analytics-page");
-
-          if (analytics) {
-            // AI CARD
-            if (!analytics.querySelector(".nextgen-ai-card")) {
-              const ai = document.createElement("div");
-              ai.className = "nextgen-ai-card";
-
-              ai.innerHTML = `
-        <div class="nextgen-ai-title">AI PERFORMANCE INSIGHT</div>
-        <div class="nextgen-ai-main">ANKIT PEAKING</div>
-        <div class="nextgen-ai-sub">
-          Momentum analysis predicts continued SR growth.
-          Current dominance trend exceeds season average by 18%.
-        </div>
-      `;
-
-              analytics.prepend(ai);
-            }
-
-            // HEATMAP
-            if (!analytics.querySelector(".nextgen-heatmap")) {
-              const heatmap = document.createElement("div");
-              heatmap.className = "nextgen-heatmap";
-
-              const vals = [
-                "hot",
-                "hot",
-                "mid",
-                "cold",
-                "hot",
-                "mid",
-                "hot",
-                "mid",
-                "cold",
-                "hot",
-                "hot",
-                "mid",
-                "hot",
-                "cold",
-              ];
-
-              vals.forEach((v) => {
-                const cell = document.createElement("div");
-                cell.className = "nextgen-heat " + v;
-                heatmap.appendChild(cell);
-              });
-
-              analytics.appendChild(heatmap);
-            }
-          }
-        }
-
-        window.addEventListener("load", injectVisibleFeatures);
-
-        setTimeout(injectVisibleFeatures, 300);
-        setTimeout(injectVisibleFeatures, 1000);
-        setTimeout(injectVisibleFeatures, 2000);
-      })();
-
-/* ══════════════════════════════════════ */
-
-(function () {
         const CACHE_KEY = "padel_cache_v4";
         const CACHE_TTL = 1000 * 60 * 60 * 24;
         const mem = {};
@@ -249,11 +159,11 @@ body.paused-animations *{
           }, 320);
         };
 
-        // Hard fallback: ALWAYS dismiss after 4 seconds no matter what
+        // Hard fallback: dismiss splash after 8s if data never loads (e.g. offline)
         document.addEventListener("DOMContentLoaded", function () {
           setTimeout(function () {
             window.dismissSplash("Ready");
-          }, 4000);
+          }, 8000);
         });
       })();
 
