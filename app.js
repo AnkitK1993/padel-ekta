@@ -5137,6 +5137,8 @@ function selectFilterItem(value) {
         value || "SELECT PLAYER";
       btn.classList.toggle("filter-fab-active", !!value);
     }
+  } else if (mode === "eloTLOverlay") {
+    _eloTLSetOverlay(value);
   } else if (mode === "eloprobp1") {
     _eloProbP1 = value;
     _updateEloProbSlots();
@@ -11242,17 +11244,8 @@ function buildEloTimelineHtml(filterKey) {
       <div id="elo-tl-detail"></div>`;
   }
   // Build overlay selector
-  const overlayOpts =
-    '<option value="">+ COMPARE WITH…</option>' +
-    players
-      .filter((p) => p !== name)
-      .map(
-        (p) =>
-          `<option value="${escHtml(p)}"${p === _eloTLOverlay ? " selected" : ""}>${escHtml(p)}</option>`,
-      )
-      .join("");
   const overlaySelector = `<div style="display:flex;align-items:center;gap:6px;margin:6px 0">
-    <select class="elo-tl-overlay" onchange="_eloTLSetOverlay(this.value)">${overlayOpts}</select>
+    <button class="filter-fab-btn${_eloTLOverlay ? " filter-fab-active" : ""}" onclick="openEloTLOverlaySheet()" style="flex:1;text-align:left"><span>${_eloTLOverlay || "+ COMPARE WITH…"}</span></button>
     ${_eloTLOverlay ? `<button class="elo-tl-clear" onclick="_eloTLSetOverlay('')">✕</button>` : ""}
   </div>`;
   return `<div class="ana-card" style="padding:10px 12px">
@@ -11266,6 +11259,28 @@ function buildEloTimelineHtml(filterKey) {
 function _eloTLSetOverlay(name) {
   _eloTLOverlay = name || "";
   _rerenderEloTLSection();
+}
+
+function openEloTLOverlaySheet() {
+  _filterSheetMode = "eloTLOverlay";
+  const el = document.getElementById("filter-sheet-title");
+  if (el) el.textContent = "COMPARE WITH";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const history = computeEloHistory(allMatches);
+  const players = Object.keys(history)
+    .filter((p) => p !== _eloTLPlayer)
+    .sort((a, b) => a.localeCompare(b));
+  list.innerHTML =
+    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
+    players.map((p) => {
+      const sel = p === _eloTLOverlay ? " live-sheet-item-selected" : "";
+      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
+    }).join("");
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet = document.getElementById("filter-sheet");
+  if (overlay) overlay.classList.add("live-sheet-open");
+  if (sheet) sheet.classList.add("live-sheet-open");
 }
 
 function _rerenderEloTLSection() {
@@ -15283,6 +15298,7 @@ Object.assign(window, {
   streakCalDayClick,
   _h2hSetSort,
   _eloTLSetOverlay,
+  openEloTLOverlaySheet,
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,
