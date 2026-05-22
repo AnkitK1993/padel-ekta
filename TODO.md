@@ -5,46 +5,55 @@
 ## 1. STATISTICS PAGE — Enhancements to Existing Sections
 
 ### 1a. Player Stats Table (main leaderboard section)
+
 - [ ] Add **Avg Games Scored** column — total games scored ÷ matches played
 - [ ] Add **Shutout Rate** column — % of wins that were clean-sheet (opponent scored 0)
 - [ ] Add **Partner Diversity** column — count of unique partners played with
 - [ ] Add **Avg Margin** column — average winning/losing margin per match (signed)
 
 ### 1b. Partnerships Table
+
 - [ ] Show **top 10 pairs** (currently shows only the best pair as a callout)
 - [ ] Add **current win streak** per pair
 - [ ] Add **"Against Quality"** column — average ELO of opponents they've faced together
 - [ ] Add **total games played together** alongside win/loss count
 
 ### 1c. Monthly Stats
-- [ ] Add **"Player of the Month"** callout per month (highest win rate, min 2 matches)
+
+- [ ] Add **"Player of the Month"** callout per month (highest win rate, min 5 matches)
 - [ ] Add **trend arrow** next to each player (↑ improving / ↓ declining vs previous month)
 - [ ] Colour-code cells by win rate (dark green ≥ 70%, amber 40–69%, red < 40%)
 
 ### 1d. Score Distribution
+
 - [ ] Add **most common winning score** callout ("4-2 is the most common result")
 - [ ] Add **average margin** stat
 - [ ] Replace plain list with a **horizontal bar chart** showing relative frequencies
 
 ### 1e. Clutch Performance Table
+
 - [ ] Add **"Anti-Clutch"** bottom section — worst performers in close matches
 - [ ] Show explicit **close-match W–L record** alongside the %, not just %
 - [ ] Add a minimum-match filter control (currently hard-coded at ≥ 3)
 
 ### 1f. H2H Matrix
+
 - [ ] **Colour-code cells** by win rate — green > 60%, red < 40%, neutral 40–60%
 - [ ] **Tap a row** to highlight all cells in that row (dim others)
 - [ ] Show **total matches** in each cell as a subscript alongside the W–L
 
 ### 1g. Form Table (last 10 matches per player)
+
 - [ ] Add a **trend sparkline** mini-chart alongside the W/L dots (already computed in `getFormSparkline`)
 - [ ] Add **current streak count** badge at end of each row
 
 ### 1h. Consistency Rankings
+
 - [ ] Add **"Most Volatile"** bottom section (highest std-dev = most unpredictable player)
 - [ ] Show the actual std-dev value alongside the rank
 
 ### 1i. Quality Wins
+
 - [ ] Add **"Hardest Win"** callout — single match with highest combined opponent ELO
 - [ ] Show average opponent ELO rather than just a ranking
 
@@ -95,8 +104,7 @@ Currently shows: Form engine, Archetype, Radar (6 axes: Win Rate, ELO, Clutch, F
 - [ ] **Match notes field in Add Match modal** — free-text box saved with each match (the `m.note` field exists in the data model; just add the UI input)
 - [ ] **"Jump to date" button on History page** — tap a date chip to scroll to that date in the match list
 - [ ] **Long-press match card** → quick-action sheet (Share, Edit, Delete) on History page
-- [ ] **Filter presets** — save the current History filter combo as a named shortcut (e.g. "Weekday Evenings")
 
 ---
 
-*Review this list and confirm which items to implement.*
+_Review this list and confirm which items to implement._
