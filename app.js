@@ -15570,7 +15570,8 @@ function _liveWinGame(team) {
   // Match-win check
   if (_liveCheckMatchWin()) {
     _liveMatchEnded = true;
-    showToast("Match over — tap SAVE", "🎾", 4500);
+    _liveHaptic([50, 80, 50]);
+    openMatchSaveSheet();
   }
   _updateLiveDisplay();
   _updateLiveWinProb();
@@ -15648,7 +15649,11 @@ function openLivePlayerSheet(slot) {
   const players = (sessionPlayers || Object.keys(aliasMap)).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" }),
   );
-  list.innerHTML = players
+  const clearBtn = `<button class="live-sheet-item live-sheet-item-clear" onclick="selectLivePlayer(null,${jsArg(slot)})">
+      <span class="live-sheet-item-av" style="background:rgba(255,70,70,0.18);color:#ff5555">✕</span>
+      <span class="live-sheet-item-name">CLEAR SLOT</span>
+    </button>`;
+  list.innerHTML = clearBtn + players
     .map((p) => {
       const isTaken = taken.includes(p);
       const isCurrent = _liveSlots[slot] === p;
@@ -15670,7 +15675,7 @@ function selectLivePlayer(name, slot) {
   _renderLiveSlot(slot);
   closeLivePlayerSheet();
   const { a1, a2, b1, b2 } = _liveSlots;
-  if (a1 && a2 && b1 && b2) _startLiveMatchPublish();
+  if (a1 && a2 && b1 && b2) openMatchConfirmSheet();
 }
 
 function closeLivePlayerSheet() {
@@ -15854,7 +15859,7 @@ function endLiveMatch() {
     clearTimeout(_livePublishTimer);
     setDoc(doc(db, "padel", "live"), {
       currentMatch: null,
-      lastEvent: { type: "match_end", msg: `Match saved: ${eventMsg}`, at: new Date().toISOString() }
+      lastEvent: { type: "match_end", msg: `Match saved: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, at: new Date().toISOString() }
     }, { merge: true }).catch(() => {});
     _liveMatchPublishedAt = null;
   }
@@ -16468,11 +16473,18 @@ function loadLiveData() {
       if (evAt && evAt !== _liveLastEventAt) {
         if (_liveLastEventAt !== null) {
           _notifyLiveEvent(_liveSessionData.lastEvent.type, _liveSessionData.lastEvent.msg);
+          _showLiveEventBanner(_liveSessionData.lastEvent);
         }
         _liveLastEventAt = evAt;
       }
     });
   } catch (e) {}
+}
+
+function _gpLabel(pts, adv, side) {
+  if (adv === side) return "ADV";
+  if (adv && adv !== side) return "40";
+  return ["0", "15", "30", "40"][pts] ?? "0";
 }
 
 function renderLiveMatchCard() {
@@ -16484,8 +16496,11 @@ function renderLiveMatchCard() {
   if (cm?.teamA?.length && cm?.teamB?.length) {
     const aWin = cm.scoreA > cm.scoreB;
     const bWin = cm.scoreB > cm.scoreA;
+    const gA = cm.gamePtsA != null ? _gpLabel(cm.gamePtsA, cm.gameAdv, "a") : "";
+    const gB = cm.gamePtsB != null ? _gpLabel(cm.gamePtsB, cm.gameAdv, "b") : "";
+    const isDeuce = cm.gamePtsA === 3 && cm.gamePtsB === 3 && !cm.gameAdv;
     el.style.display = "";
-    el.innerHTML = `<div class="lmc-card">
+    el.innerHTML = `<div class="lmc-card" onclick="openLiveSessionDetail()">
       <div class="lmc-header">
         <span class="lmc-live-badge"><span class="live-dot"></span>LIVE MATCH</span>
         <span class="lmc-session-count">${(d.sessionPlayers||[]).length} in session</span>
@@ -16494,23 +16509,27 @@ function renderLiveMatchCard() {
         <div class="lmc-team">
           <div class="lmc-names">${cm.teamA.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
           <div class="lmc-score${aWin ? " lmc-score-lead" : ""}">${cm.scoreA}</div>
+          ${gA ? `<div class="lmc-gpts${aWin ? " lmc-gpts-lead" : ""}">${isDeuce ? "DEUCE" : gA}</div>` : ""}
         </div>
         <div class="lmc-colon">:</div>
         <div class="lmc-team lmc-team-right">
+          ${gB && !isDeuce ? `<div class="lmc-gpts${bWin ? " lmc-gpts-lead" : ""}">${gB}</div>` : ""}
           <div class="lmc-score${bWin ? " lmc-score-lead" : ""}">${cm.scoreB}</div>
           <div class="lmc-names">${cm.teamB.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
         </div>
       </div>
+      <div class="lmc-tap-hint">Tap for details →</div>
     </div>`;
   } else {
     const players = d.sessionPlayers || [];
     el.style.display = "";
-    el.innerHTML = `<div class="lmc-card lmc-card-idle">
+    el.innerHTML = `<div class="lmc-card lmc-card-idle" onclick="openLiveSessionDetail()">
       <div class="lmc-header">
         <span class="lmc-live-badge lmc-badge-idle"><span class="live-dot"></span>SESSION ACTIVE</span>
         <span class="lmc-session-count">${players.length} players</span>
       </div>
       <div class="lmc-players">${players.map(p => `<span class="lmc-player-chip">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
+      <div class="lmc-tap-hint">Tap for details →</div>
     </div>`;
   }
 }
@@ -16649,8 +16668,8 @@ function _startLiveMatchPublish() {
   _liveMatchPublishedAt = new Date().toISOString();
   const eventMsg = `${a1} & ${a2} vs ${b1} & ${b2}`;
   setDoc(doc(db, "padel", "live"), {
-    currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: 0, scoreB: 0, startedAt: _liveMatchPublishedAt, mode: _liveGameMode },
-    lastEvent: { type: "match_start", msg: `Match started: ${eventMsg}`, at: _liveMatchPublishedAt }
+    currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: 0, scoreB: 0, gamePtsA: 0, gamePtsB: 0, gameAdv: null, startedAt: _liveMatchPublishedAt, mode: _liveGameMode },
+    lastEvent: { type: "match_start", msg: `Match started: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], at: _liveMatchPublishedAt }
   }, { merge: true }).catch(() => {});
 }
 
@@ -16661,7 +16680,7 @@ function _publishLiveMatch() {
   clearTimeout(_livePublishTimer);
   _livePublishTimer = setTimeout(() => {
     setDoc(doc(db, "padel", "live"), {
-      currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, startedAt: _liveMatchPublishedAt || new Date().toISOString(), mode: _liveGameMode }
+      currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, gamePtsA: _liveGamePtsA, gamePtsB: _liveGamePtsB, gameAdv: _liveAdv, startedAt: _liveMatchPublishedAt || new Date().toISOString(), mode: _liveGameMode }
     }, { merge: true }).catch(() => {});
   }, 1200);
 }
@@ -16680,3 +16699,256 @@ function _requestNotifPermission() {
   if (!("Notification" in window) || Notification.permission !== "default") return;
   Notification.requestPermission().catch(() => {});
 }
+
+// ── MATCH CONFIRM SHEET ────────────────────────────────────
+function openMatchConfirmSheet() {
+  const { a1, a2, b1, b2 } = _liveSlots;
+  const el = document.getElementById("match-confirm-matchup");
+  if (el) {
+    el.innerHTML = `<div class="mcm-wrap">
+      <div class="mcm-corner mcm-corner-a">
+        <div class="mcm-label">RED CORNER</div>
+        <div class="mcm-name">${escHtml(a1?.split(" ")[0] || "—")}</div>
+        <div class="mcm-name">${escHtml(a2?.split(" ")[0] || "—")}</div>
+      </div>
+      <div class="mcm-vs">VS</div>
+      <div class="mcm-corner mcm-corner-b">
+        <div class="mcm-label">BLUE CORNER</div>
+        <div class="mcm-name">${escHtml(b1?.split(" ")[0] || "—")}</div>
+        <div class="mcm-name">${escHtml(b2?.split(" ")[0] || "—")}</div>
+      </div>
+    </div>`;
+  }
+  document.getElementById("match-confirm-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("match-confirm-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeMatchConfirmSheet() {
+  document.getElementById("match-confirm-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("match-confirm-sheet")?.classList.remove("live-sheet-open");
+}
+
+function confirmStartMatch() {
+  closeMatchConfirmSheet();
+  _startLiveMatchPublish();
+}
+
+// ── MATCH SAVE SHEET (race-to-N prompt) ───────────────────
+function openMatchSaveSheet() {
+  const el = document.getElementById("match-save-result");
+  const { a1, a2, b1, b2 } = _liveSlots;
+  if (el) {
+    const aWon = _liveScoreA > _liveScoreB;
+    const winner = aWon
+      ? `${a1?.split(" ")[0] || "?"} & ${a2?.split(" ")[0] || "?"}`
+      : `${b1?.split(" ")[0] || "?"} & ${b2?.split(" ")[0] || "?"}`;
+    el.innerHTML = `<div class="msr-result">
+      <div class="msr-score">${_liveScoreA} — ${_liveScoreB}</div>
+      <div class="msr-winner">🏆 ${escHtml(winner)}</div>
+    </div>`;
+  }
+  document.getElementById("match-save-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("match-save-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeMatchSaveSheet() {
+  document.getElementById("match-save-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("match-save-sheet")?.classList.remove("live-sheet-open");
+}
+
+function confirmSaveMatch() {
+  closeMatchSaveSheet();
+  endLiveMatch();
+}
+
+function keepPlayingMatch() {
+  closeMatchSaveSheet();
+  _liveMatchEnded = false;
+  showToast("Keep playing!", "🎾");
+}
+
+// ── LIVE BANNER (full-page, session/match events) ─────────
+let _liveBannerTimer = null;
+
+function showLiveBanner(type, title, subtitle, data) {
+  const el = document.getElementById("live-banner-overlay");
+  if (!el) return;
+  clearTimeout(_liveBannerTimer);
+  el.className = `live-banner-overlay live-banner-${type}`;
+  el.innerHTML = _buildBannerContent(type, title, subtitle, data);
+  el.style.display = "flex";
+  _liveBannerTimer = setTimeout(() => closeLiveBanner(), 5000);
+}
+
+function _buildBannerContent(type, title, subtitle, data) {
+  if ((type === "match_start" || type === "match_end_ufc") && data?.teamA) {
+    const { teamA, teamB, scoreA, scoreB } = data;
+    const isEnd = type === "match_end_ufc";
+    const aWon = isEnd ? scoreA > scoreB : null;
+    return `<div class="live-banner-ufc">
+      <div class="live-banner-corner-a${isEnd && !aWon ? " live-banner-corner-dim" : ""}">
+        <div class="live-banner-corner-label">RED CORNER${isEnd && aWon ? " 🏆" : ""}</div>
+        ${teamA.map(p => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${isEnd ? `<div class="live-banner-corner-score">${scoreA}</div>` : ""}
+      </div>
+      <div class="live-banner-vs-col">
+        <div class="live-banner-event-label">${isEnd ? "MATCH OVER" : "MATCH STARTING"}</div>
+        <div class="live-banner-vs-text">VS</div>
+        ${isEnd ? `<div class="live-banner-event-label">${scoreA}–${scoreB}</div>` : ""}
+      </div>
+      <div class="live-banner-corner-b${isEnd && aWon ? " live-banner-corner-dim" : ""}">
+        <div class="live-banner-corner-label">BLUE CORNER${isEnd && !aWon ? " 🏆" : ""}</div>
+        ${teamB.map(p => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${isEnd ? `<div class="live-banner-corner-score">${scoreB}</div>` : ""}
+      </div>
+      <div class="live-banner-tap">TAP TO DISMISS</div>
+    </div>`;
+  }
+  const icons = { session_start: "🎾", session_end: "🏁" };
+  return `<div class="live-banner-session">
+    <div class="live-banner-icon-big">${icons[type] || "🎾"}</div>
+    <div class="live-banner-title">${escHtml(title)}</div>
+    ${subtitle ? `<div class="live-banner-subtitle">${escHtml(subtitle)}</div>` : ""}
+    <div class="live-banner-tap">TAP TO DISMISS</div>
+  </div>`;
+}
+
+function closeLiveBanner() {
+  clearTimeout(_liveBannerTimer);
+  const el = document.getElementById("live-banner-overlay");
+  if (!el) return;
+  el.classList.add("live-banner-out");
+  setTimeout(() => {
+    el.style.display = "none";
+    el.classList.remove("live-banner-out");
+  }, 350);
+}
+
+function _showLiveEventBanner(event) {
+  const { type, msg } = event;
+  const onLivePage = document.getElementById("pg-live")?.classList.contains("active");
+  if (type === "match_start") {
+    const cm = _liveSessionData?.currentMatch;
+    if (cm?.teamA && !onLivePage) {
+      showLiveBanner("match_start", "MATCH STARTING", msg, { teamA: cm.teamA, teamB: cm.teamB });
+    }
+    return;
+  }
+  if (type === "match_end") {
+    if (!onLivePage && event.teamA) {
+      showLiveBanner("match_end_ufc", "MATCH OVER", msg, { teamA: event.teamA, teamB: event.teamB, scoreA: event.scoreA, scoreB: event.scoreB });
+    }
+    return;
+  }
+  if (type === "session_start") {
+    showLiveBanner("session_start", "SESSION STARTED!", msg);
+    return;
+  }
+  if (type === "session_end") {
+    showLiveBanner("session_end", "SESSION ENDED", msg);
+    return;
+  }
+}
+
+// ── LIVE SESSION DETAIL (full-page UFC overlay) ───────────
+function openLiveSessionDetail() {
+  const el = document.getElementById("live-session-detail");
+  if (!el) return;
+  _renderLiveSessionDetail();
+  el.style.display = "flex";
+  requestAnimationFrame(() => el.classList.add("lsd-open"));
+}
+
+function closeLiveSessionDetail() {
+  const el = document.getElementById("live-session-detail");
+  if (!el) return;
+  el.classList.remove("lsd-open");
+  setTimeout(() => { el.style.display = "none"; }, 320);
+}
+
+function _renderLiveSessionDetail() {
+  const content = document.getElementById("lsd-content");
+  if (!content) return;
+  const d = _liveSessionData;
+  if (!d?.sessionActive) {
+    content.innerHTML = `<div class="lsd-empty">No active session</div>`;
+    return;
+  }
+  const today = todayISO();
+  const todayMatches = allMatches.filter(m => m.date === today);
+  const stats = {};
+  const initStat = name => { if (!stats[name]) stats[name] = { w: 0, l: 0 }; };
+  todayMatches.forEach(m => {
+    [...m.teamA, ...m.teamB].forEach(initStat);
+    const aWon = m.scoreA > m.scoreB;
+    (aWon ? m.teamA : m.teamB).forEach(p => { stats[p].w++; });
+    (aWon ? m.teamB : m.teamA).forEach(p => { stats[p].l++; });
+  });
+  const sessionPlayers = d.sessionPlayers || [];
+  const leaderboard = sessionPlayers
+    .map(p => ({ name: p, ...(stats[p] || { w: 0, l: 0 }) }))
+    .sort((a, b) => (b.w - b.l) - (a.w - a.l) || b.w - a.w);
+
+  const cm = d.currentMatch;
+  let liveMatchHtml = "";
+  if (cm?.teamA?.length && cm?.teamB?.length) {
+    const aWin = cm.scoreA > cm.scoreB;
+    const bWin = cm.scoreB > cm.scoreA;
+    const isDeuce = cm.gamePtsA === 3 && cm.gamePtsB === 3 && !cm.gameAdv;
+    const gA = cm.gamePtsA != null ? (isDeuce ? "DEUCE" : _gpLabel(cm.gamePtsA, cm.gameAdv, "a")) : "";
+    const gB = cm.gamePtsB != null ? (isDeuce ? "" : _gpLabel(cm.gamePtsB, cm.gameAdv, "b")) : "";
+    liveMatchHtml = `<div class="lsd-live-match">
+      <div class="lsd-section-label"><span class="live-dot"></span> LIVE MATCH</div>
+      <div class="lsd-match-row">
+        <div class="lsd-team-a">
+          <div class="lsd-team-names">${cm.teamA.map(p => `<span>${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
+          <div class="lsd-match-score${aWin ? " lsd-score-lead" : ""}">${cm.scoreA}</div>
+          ${gA ? `<div class="lsd-game-pts${aWin ? " lsd-gpts-lead" : ""}">${gA}</div>` : ""}
+        </div>
+        <div class="lsd-colon">:</div>
+        <div class="lsd-team-b">
+          ${gB ? `<div class="lsd-game-pts${bWin ? " lsd-gpts-lead" : ""}">${gB}</div>` : ""}
+          <div class="lsd-match-score${bWin ? " lsd-score-lead" : ""}">${cm.scoreB}</div>
+          <div class="lsd-team-names">${cm.teamB.map(p => `<span>${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const lbHtml = leaderboard.length ? `<div class="lsd-section">
+    <div class="lsd-section-label">TODAY'S LEADERBOARD</div>
+    ${leaderboard.map((p, i) => `<div class="lsd-lb-row">
+      <span class="lsd-lb-rank">${i + 1}</span>
+      <span class="lsd-lb-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</span>
+      <span class="lsd-lb-name">${escHtml(p.name.split(" ")[0])}</span>
+      <span class="lsd-lb-record">${p.w}W · ${p.l}L</span>
+    </div>`).join("")}
+  </div>` : "";
+
+  const histHtml = todayMatches.length ? `<div class="lsd-section">
+    <div class="lsd-section-label">TODAY'S MATCHES</div>
+    ${[...todayMatches].reverse().map(m => {
+      const aWon = m.scoreA > m.scoreB;
+      return `<div class="lsd-hist-row">
+        <div class="lsd-hist-team${aWon ? " lsd-hist-winner" : ""}">${m.teamA.map(p => p.split(" ")[0]).join(" & ")}</div>
+        <div class="lsd-hist-score">${m.scoreA}–${m.scoreB}</div>
+        <div class="lsd-hist-team lsd-hist-right${!aWon ? " lsd-hist-winner" : ""}">${m.teamB.map(p => p.split(" ")[0]).join(" & ")}</div>
+      </div>`;
+    }).join("")}
+  </div>` : "";
+
+  content.innerHTML = liveMatchHtml + lbHtml + histHtml ||
+    `<div class="lsd-empty">No matches played today yet</div>`;
+}
+
+window.openLiveSessionDetail = openLiveSessionDetail;
+window.closeLiveSessionDetail = closeLiveSessionDetail;
+window.openMatchConfirmSheet = openMatchConfirmSheet;
+window.closeMatchConfirmSheet = closeMatchConfirmSheet;
+window.confirmStartMatch = confirmStartMatch;
+window.openMatchSaveSheet = openMatchSaveSheet;
+window.closeMatchSaveSheet = closeMatchSaveSheet;
+window.confirmSaveMatch = confirmSaveMatch;
+window.keepPlayingMatch = keepPlayingMatch;
+window.showLiveBanner = showLiveBanner;
+window.closeLiveBanner = closeLiveBanner;

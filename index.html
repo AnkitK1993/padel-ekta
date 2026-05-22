@@ -1308,6 +1308,44 @@ Parthiv - Par"
         <div id="add-player-list" style="padding:0 14px;max-height:50vh;overflow-y:auto"></div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
+
+      <!-- Match Confirm Sheet (shown after all 4 players selected) -->
+      <div class="live-sheet-overlay" id="match-confirm-overlay" onclick="closeMatchConfirmSheet()"></div>
+      <div class="live-sheet" id="match-confirm-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">MATCH READY</div>
+        <div id="match-confirm-matchup" class="match-confirm-matchup"></div>
+        <div style="padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px">
+          <button class="live-start-session-btn" onclick="confirmStartMatch()">▶️ START MATCH</button>
+          <button class="tb-btn" onclick="closeMatchConfirmSheet()" style="padding:12px;font-size:13px">✏️ MAKE CHANGES</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
+      <!-- Match Save Sheet (shown when match is won) -->
+      <div class="live-sheet-overlay" id="match-save-overlay" onclick="closeMatchSaveSheet()"></div>
+      <div class="live-sheet" id="match-save-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">MATCH OVER 🎾</div>
+        <div id="match-save-result" class="match-save-result"></div>
+        <div style="padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px">
+          <button class="live-start-session-btn" onclick="confirmSaveMatch()">✅ SAVE MATCH</button>
+          <button class="tb-btn" onclick="keepPlayingMatch()" style="padding:12px;font-size:13px">🔄 KEEP PLAYING</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+    </div>
+
+    <!-- Full-page Live Event Banner (session/match start/end) -->
+    <div id="live-banner-overlay" class="live-banner-overlay" onclick="closeLiveBanner()" style="display:none"></div>
+
+    <!-- Live Session Detail Full-Page -->
+    <div id="live-session-detail" class="live-session-detail" style="display:none">
+      <div class="lsd-header">
+        <button class="lsd-close-btn" onclick="closeLiveSessionDetail()">✕ CLOSE</button>
+        <div class="lsd-title"><span class="live-dot"></span>&nbsp;SESSION LIVE</div>
+      </div>
+      <div id="lsd-content" class="lsd-content"></div>
     </div>
 
     <!-- FAB — only visible on add page -->
