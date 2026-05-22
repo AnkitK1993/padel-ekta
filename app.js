@@ -2934,7 +2934,7 @@ function undoLastAdd() {
 
 // ── NAMES ──────────────────────────────────────────────────
 function saveNames() {
-  const raw = document.getElementById("namesTA").value;
+  const raw = document.getElementById("namesTA").value.trim();
   const eEl = document.getElementById("nErr"),
     oEl = document.getElementById("nOk");
   eEl.classList.remove("show");
@@ -2942,34 +2942,58 @@ function saveNames() {
   const nm = {},
     am = {},
     errs = [];
-  raw.split("\n").forEach((line, i) => {
-    const t = line.trim();
-    if (!t) return;
-    const idx = t.indexOf("-");
-    if (idx < 1) {
-      errs.push(`Line ${i + 1}`);
+
+  // Detect JSON nameMap format: {"alias":"DisplayName",...} or {"nameMap":{...}}
+  if (raw.startsWith("{")) {
+    try {
+      let parsed = JSON.parse(raw);
+      // Support both {"nameMap":{...}} wrapper and bare {"alias":"Display",...}
+      if (parsed.nameMap && typeof parsed.nameMap === "object") parsed = parsed.nameMap;
+      Object.entries(parsed).forEach(([alias, display]) => {
+        if (typeof alias !== "string" || typeof display !== "string") return;
+        const a = alias.trim(), d = display.trim();
+        if (!a || !d) return;
+        nm[a] = d;
+        if (!am[d]) am[d] = [];
+        if (!am[d].includes(a)) am[d].push(a);
+      });
+    } catch (e) {
+      eEl.innerHTML = "Invalid JSON — check format";
+      eEl.classList.add("show");
       return;
     }
-    const display = t.slice(0, idx).trim();
-    const aliases = t
-      .slice(idx + 1)
-      .split(",")
-      .map((a) => a.trim())
-      .filter(Boolean);
-    if (!display || !aliases.length) {
-      errs.push(`Line ${i + 1}`);
-      return;
+  } else {
+    // Line-by-line format: DisplayName - alias1, alias2
+    raw.split("\n").forEach((line, i) => {
+      const t = line.trim();
+      if (!t) return;
+      const idx = t.indexOf("-");
+      if (idx < 1) {
+        errs.push(`Line ${i + 1}`);
+        return;
+      }
+      const display = t.slice(0, idx).trim();
+      const aliases = t
+        .slice(idx + 1)
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+      if (!display || !aliases.length) {
+        errs.push(`Line ${i + 1}`);
+        return;
+      }
+      aliases.forEach((a) => (nm[a] = display));
+      am[display] = aliases;
+    });
+    if (errs.length) {
+      eEl.innerHTML = `${errs.length} line(s) skipped`;
+      eEl.classList.add("show");
     }
-    aliases.forEach((a) => (nm[a] = display));
-    am[display] = aliases;
-  });
-  if (errs.length) {
-    eEl.innerHTML = `${errs.length} line(s) skipped`;
-    eEl.classList.add("show");
   }
+
   nameMap = nm;
   aliasMap = am;
-  saveCloudData(); // now includes nameMap + aliasMap
+  saveCloudData();
   oEl.textContent = `Saved ${Object.keys(am).length} player mappings.`;
   oEl.classList.add("show");
   setTimeout(() => oEl.classList.remove("show"), 2500);
