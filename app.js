@@ -3664,7 +3664,7 @@ function renderCompact() {
     const ratingClass = getSRRatingClass(normalizedSR);
     const momentumBadge = getMomentumBadge(p.name);
     const pillW = Math.round((normalizedSR / 10) * 100);
-    const animClass = splashDone ? " row-reveal-anim" : "";
+    const animClass = splashDone && !document.body.classList.contains("no-cascade") ? " row-reveal-anim" : "";
     const prevRank = prevRankMap[p.name];
     const curRank = i + 1;
     let rankDelta = "";
@@ -3767,14 +3767,10 @@ function renderCompact() {
       .querySelectorAll(".sr-pill-val[data-final]")
       .forEach((el) => animateSrVal(el, 0));
     const reversedFiltered = [...filtered].reverse();
+    const _nc = document.body.classList.contains("no-cascade");
     const initRows = reversedFiltered.map((m, i) =>
-      i < 10
-        ? buildMatchRowHtml(
-            m,
-            " row-reveal-anim",
-            i * 100,
-            allMatches.indexOf(m),
-          )
+      i < 10 && !_nc
+        ? buildMatchRowHtml(m, " row-reveal-anim", i * 100, allMatches.indexOf(m))
         : buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
     );
     if (initRows.length) {
