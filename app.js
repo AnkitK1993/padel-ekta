@@ -44,6 +44,19 @@ function escHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+function jsArg(value) {
+  return escHtml(JSON.stringify(String(value ?? "")));
+}
+
+function toLocalISODate(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 // ── DATE FORMATTER ────────────────────────────────────────────
 const MONTHS_SHORT = [
   "Jan",
@@ -435,7 +448,7 @@ function _globalSearchInput(q) {
     .slice(0, 8)
     .forEach((p) => {
       out.push(
-        `<button class="gs-result" onclick="closeGlobalSearch();openPlayerDetail('${p.replace(/'/g, "\\'")}')">
+        `<button class="gs-result" onclick="closeGlobalSearch();openPlayerDetail(${jsArg(p)})">
           <span class="gs-result-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
           <span class="gs-result-name">${escHtml(p)}</span>
           <span class="gs-result-tag">PLAYER</span>
@@ -623,6 +636,7 @@ let _eloTLOverlay = "";
 let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
+let _emailTimer = null;
 window.isAdmin = false;
 let scheduledMatches = [];
 let deletedMatches = [];
@@ -630,6 +644,7 @@ const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
   try {
     deletedMatches = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
+    if (!Array.isArray(deletedMatches)) deletedMatches = [];
   } catch (e) {
     deletedMatches = [];
   }
@@ -637,7 +652,7 @@ function loadDeletedMatches() {
 function saveDeletedMatches() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffISO = cutoff.toISOString().slice(0, 10);
+  const cutoffISO = toLocalISODate(cutoff);
   deletedMatches = deletedMatches.filter(
     (d) => (d.deletedAt || "") >= cutoffISO,
   );
@@ -711,7 +726,9 @@ function renderEloConfigCard() {
 }
 function resetEloConfig() {
   saveEloConfig(ELO_DEFAULTS);
+  _invalidateEloMemo();
   renderEloConfigCard();
+  renderAnalyticsPage();
   showToast("Reset to defaults", "↺");
 }
 function applyEloConfig() {
@@ -729,6 +746,7 @@ function applyEloConfig() {
     return;
   }
   saveEloConfig({ perWeek, graceDays, maxDecay, floor });
+  _invalidateEloMemo();
   const msg = document.getElementById("elo-cfg-msg");
   if (msg) {
     msg.style.display = "block";
@@ -736,28 +754,54 @@ function applyEloConfig() {
     msg.textContent = "Config saved!";
     setTimeout(() => (msg.style.display = "none"), 2000);
   }
+  renderAnalyticsPage();
   showToast("ELO decay config saved", "⚡");
 }
 
 // ── ELO MEMO ───────────────────────────────────────────────
 let _eloMemo = null,
-  _eloMemoLen = -1,
+  _eloMemoKey = "",
   _eloMemoDecay = false;
+const _ELO_CACHE_MAX = 48;
+const _eloCalcCache = new Map();
+
+function _matchesFingerprintForCache(matches) {
+  return (matches || [])
+    .map(
+      (m) =>
+        `${m.date || ""}|${(m.teamA || []).join(",")}|${(m.teamB || []).join(",")}|${m.scoreA ?? ""}|${m.scoreB ?? ""}|${m.note || ""}`,
+    )
+    .join("~");
+}
+
+function _rememberElo(cacheKey, elo) {
+  if (_eloCalcCache.has(cacheKey)) _eloCalcCache.delete(cacheKey);
+  _eloCalcCache.set(cacheKey, elo);
+  while (_eloCalcCache.size > _ELO_CACHE_MAX) {
+    _eloCalcCache.delete(_eloCalcCache.keys().next().value);
+  }
+}
+
+function _eloCacheKey(matches, applyDecay) {
+  const decayKey = applyDecay
+    ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() })
+    : "";
+  return `${applyDecay ? "decay" : "raw"}|${decayKey}|${_matchesFingerprintForCache(matches)}`;
+}
+
 function _memoElo(decay = false) {
-  if (
-    _eloMemoLen !== allMatches.length ||
-    _eloMemoDecay !== decay ||
-    !_eloMemo
-  ) {
-    _eloMemoLen = allMatches.length;
+  const key = _eloCacheKey(allMatches, decay);
+  if (_eloMemoKey !== key || _eloMemoDecay !== decay || !_eloMemo) {
+    _eloMemoKey = key;
     _eloMemoDecay = decay;
     _eloMemo = computeElo(allMatches, decay);
   }
   return _eloMemo;
 }
 function _invalidateEloMemo() {
-  _eloMemoLen = -1;
+  _eloMemoKey = "";
   _eloMemo = null;
+  _eloCalcCache.clear();
 }
 
 let _anaObserver = null;
@@ -838,6 +882,10 @@ function savePlayerPhoto(name) {
       renderHome();
       if (document.getElementById("player-detail-modal")) openPlayerDetail(name);
       showToast("Photo saved");
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      showToast("Could not read image", "❌");
     };
     img.src = url;
   };
@@ -920,7 +968,7 @@ function renderScheduledBanner() {
         <span class="sched-banner-icon">${isToday ? "🏓" : "📅"}</span>
         <div>
           <div class="sched-banner-date">${isToday ? "🔔 NEXT SESSION — TODAY" : `NEXT SESSION · ${dateLabel}`}${next.time ? " · " + next.time : ""}</div>
-          <div class="sched-banner-team">${teamLabel}</div>
+          <div class="sched-banner-team">${escHtml(teamLabel)}</div>
           ${next.note && (next.teamA || next.teamB) ? `<div class="sched-banner-note">${escHtml(next.note)}</div>` : ""}
         </div>
       </div>
@@ -950,7 +998,7 @@ function renderScheduledAdmin() {
       return `<div class="sched-item${isPast ? " sched-past" : ""}">
       <div class="sched-item-body">
         <div class="sched-item-date">${fmtDate(s.date)}${s.time ? " · " + s.time : ""}${isPast ? " · past" : ""}</div>
-        <div class="sched-item-team">${teamLabel}</div>
+        <div class="sched-item-team">${escHtml(teamLabel)}</div>
         ${s.note ? `<div class="sched-item-note">${escHtml(s.note)}</div>` : ""}
       </div>
       <button class="sched-del-btn" onclick="deleteScheduled(${i})">✕</button>
@@ -973,7 +1021,7 @@ function openScheduleModal() {
   }
   const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b));
   const opts = players
-    .map((p) => `<option value="${p}">${p}</option>`)
+    .map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`)
     .join("");
   const el = document.createElement("div");
   el.id = "schedule-inline";
@@ -1028,6 +1076,10 @@ function saveScheduled() {
   if (time) entry.time = time;
   const teamA = [a1, a2].filter(Boolean);
   const teamB = [b1, b2].filter(Boolean);
+  if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length) {
+    showToast("Scheduled players must be different", "❌");
+    return;
+  }
   if (teamA.length) entry.teamA = teamA;
   if (teamB.length) entry.teamB = teamB;
   if (note) entry.note = note;
@@ -1125,7 +1177,7 @@ function computeSessionStreak() {
     const d = new Date(dateStr + "T00:00:00");
     const dow = d.getDay();
     d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
-    return d.toISOString().slice(0, 10);
+    return toLocalISODate(d);
   };
   const weeks = [
     ...new Set(allMatches.filter((m) => m.date).map((m) => getMonday(m.date))),
@@ -1199,7 +1251,7 @@ function autoSaveWeeklySnap() {
   const dow = now.getDay();
   const monday = new Date(now);
   monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
-  const weekOf = monday.toISOString().slice(0, 10);
+  const weekOf = toLocalISODate(monday);
   const existing = getWeeklySnaps().find((s) => s.weekOf === weekOf);
   if (existing) return; // already snapped this week
   const stats = computeStats(allMatches, computeElo(allMatches));
@@ -1220,24 +1272,28 @@ function loadCloudData() {
   let fired = false;
   let lastDataFingerprint = null;
 
-  function dataFingerprint(matches) {
-    if (!matches || !matches.length) return "empty";
+  function dataFingerprint(matches, aMap, nMap) {
+    const rows = Array.isArray(matches) ? matches : [];
     try {
-      const last = matches[matches.length - 1];
-      return (
-        matches.length +
-        "|" +
-        (last && last.date ? last.date : "") +
-        "|" +
-        (last && last.scoreA !== undefined ? last.scoreA : "")
-      );
+      const matchPart = rows
+        .map(
+          (m) =>
+            `${m.date || ""}|${(m.teamA || []).join(",")}|${(m.teamB || []).join(",")}|${m.scoreA ?? ""}|${m.scoreB ?? ""}|${m.note || ""}`,
+        )
+        .join("~");
+      const mapPart = (obj) =>
+        Object.entries(obj || {})
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${k}:${Array.isArray(v) ? v.join(",") : v}`)
+          .join("~");
+      return `${rows.length}::${matchPart}::${mapPart(aMap)}::${mapPart(nMap)}`;
     } catch (e) {
-      return String(matches.length);
+      return JSON.stringify({ matches: rows, aMap: aMap || {}, nMap: nMap || {} });
     }
   }
 
   function onData(matches, aMap, nMap, skipConflict = false) {
-    const fp = dataFingerprint(matches);
+    const fp = dataFingerprint(matches, aMap, nMap);
     const isFirstLoad = !fired;
 
     // If this is a Firestore update that matches the cache we already rendered, skip re-render
@@ -1378,6 +1434,11 @@ onAuthStateChanged(auth, (user) => {
   const wasAdmin = window.isAdmin;
   window.isAdmin = !!user && user.email === ADMIN_EMAIL;
   updateAdminUI(user);
+  if (window.isAdmin) scheduleAutoEmail();
+  else if (_emailTimer) {
+    clearTimeout(_emailTimer);
+    _emailTimer = null;
+  }
   // Skip re-render on the initial auth state resolution at startup —
   // loadCloudData() already handles the first render. Only re-render
   // when auth genuinely changes (user logs in or out mid-session).
@@ -2040,19 +2101,19 @@ function refreshManage() {
 
 // ── DATE HELPERS ───────────────────────────────────────────
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalISODate();
 }
 function weekISO() {
   const d = new Date(),
     day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day; // Monday
   d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 }
 function weekEndISO() {
   const s = new Date(weekISO());
   s.setDate(s.getDate() + 6);
-  return s.toISOString().slice(0, 10);
+  return toLocalISODate(s);
 }
 function weekendRange() {
   const now = new Date(),
@@ -2062,14 +2123,14 @@ function weekendRange() {
   const sun = new Date(sat);
   sun.setDate(sat.getDate() + 1);
   return {
-    from: sat.toISOString().slice(0, 10),
-    to: sun.toISOString().slice(0, 10),
+    from: toLocalISODate(sat),
+    to: toLocalISODate(sun),
   };
 }
 function monthISO() {
   const d = new Date();
   d.setDate(1);
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 }
 function lastWeekRange() {
   const d = new Date(),
@@ -2082,8 +2143,8 @@ function lastWeekRange() {
   const lastSunday = new Date(thisMonday);
   lastSunday.setDate(thisMonday.getDate() - 1);
   return {
-    from: lastMonday.toISOString().slice(0, 10),
-    to: lastSunday.toISOString().slice(0, 10),
+    from: toLocalISODate(lastMonday),
+    to: toLocalISODate(lastSunday),
   };
 }
 
@@ -2094,26 +2155,40 @@ function parseDateHdr(s) {
   if (y.length === 2) y = "20" + y;
   return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
-const resolve = (a) => nameMap[a] || a;
+function resolve(a) {
+  const raw = String(a || "").trim();
+  if (!raw) return raw;
+  if (nameMap[raw]) return nameMap[raw];
+  const hit = Object.entries(nameMap).find(
+    ([alias]) => alias.toLowerCase() === raw.toLowerCase(),
+  );
+  return hit ? hit[1] : raw;
+}
 
 // Resolve a 2-char initial like "Ni" → full name from aliasMap or nameMap
 function resolveInitial(init) {
-  const key = init.toLowerCase();
-  // Check aliasMap first (exact alias match)
-  if (aliasMap[key]) return aliasMap[key];
-  if (aliasMap[init]) return aliasMap[init];
-  // Check nameMap keys
-  const nm = Object.entries(nameMap).find(([k]) => k.toLowerCase() === key);
-  if (nm) return nm[1];
-  // Fallback: match any known player whose name starts with these 2 chars
-  const allNames = [
-    ...new Set([
-      ...Object.values(nameMap),
-      ...Object.keys(aliasMap).map((k) => aliasMap[k]),
-    ]),
-  ];
-  const hit = allNames.find((n) => n.toLowerCase().startsWith(key));
-  return hit || null;
+  const key = String(init || "").trim().toLowerCase();
+  if (!key) return null;
+
+  const aliasExact = Object.entries(nameMap).find(
+    ([alias]) => alias.toLowerCase() === key,
+  );
+  if (aliasExact) return aliasExact[1];
+
+  const displayExact = Object.keys(aliasMap).find(
+    (name) => name.toLowerCase() === key,
+  );
+  if (displayExact) return displayExact;
+
+  const aliasPrefix = Object.entries(nameMap).find(([alias]) =>
+    alias.toLowerCase().startsWith(key),
+  );
+  if (aliasPrefix) return aliasPrefix[1];
+
+  const displayPrefix = Object.keys(aliasMap).find((name) =>
+    name.toLowerCase().startsWith(key),
+  );
+  return displayPrefix || null;
 }
 
 function parseMatchLine(line) {
@@ -2921,13 +2996,13 @@ function renderNamesTable() {
                     .map(
                       ([name, aliases]) => `
                     <tr style="border-bottom: 1px solid var(--border);">
-                      <td style="padding: 8px; color: var(--accent); font-weight: 500; text-transform: uppercase;">${name}</td>
-                      <td style="padding: 8px; color: var(--muted); text-transform: uppercase;">${aliases.join(", ")}</td>
+                      <td style="padding: 8px; color: var(--accent); font-weight: 500; text-transform: uppercase;">${escHtml(name)}</td>
+                      <td style="padding: 8px; color: var(--muted); text-transform: uppercase;">${escHtml((aliases || []).join(", "))}</td>
                       <td style="padding: 8px; text-align: right;">
                         <button
                           class="action-btn edit-btn"
                           style="padding: 6px 10px; font-size: 11px;"
-                          onclick="editNameEntry('${name.replace(/'/g, "\\'")}')"
+                          onclick="editNameEntry(${jsArg(name)})"
                         >
                           Edit
                         </button>
@@ -2965,6 +3040,7 @@ function clearNames() {
   aliasMap = {};
   saveCloudData();
   refreshManage();
+  renderNamesTable();
 }
 function exportData() {
   navigator.clipboard
@@ -3092,9 +3168,7 @@ function renderAbsenceBanner() {
     return;
   }
 
-  // Get today's date as ISO string
   const today = new Date();
-  const todayISO = today.toISOString().slice(0, 10);
 
   // Find each player's last match date
   const lastSeen = {};
@@ -3112,10 +3186,11 @@ function renderAbsenceBanner() {
     });
   });
 
-  const THRESHOLD = parseInt(
+  const savedThreshold = parseInt(
     localStorage.getItem("absence_threshold") || "7",
     10,
   );
+  const THRESHOLD = Number.isFinite(savedThreshold) ? savedThreshold : 7;
   const absent = Object.entries(lastSeen)
     .filter(([p]) => matchCounts[p] >= 3)
     .map(([p, lastDate]) => {
@@ -3135,8 +3210,8 @@ function renderAbsenceBanner() {
     .map((a) => {
       const weeks = Math.floor(a.days / 7);
       const label = weeks >= 2 ? `${weeks}w` : `${a.days}d`;
-      return `<div class="absence-chip" title="Last played ${a.lastDate}">
-                <span class="absence-name">${a.name}</span>
+      return `<div class="absence-chip" title="Last played ${escHtml(a.lastDate)}">
+                <span class="absence-name">${escHtml(a.name)}</span>
                 <span class="absence-days">${label} away</span>
               </div>`;
     })
@@ -3145,7 +3220,7 @@ function renderAbsenceBanner() {
   banner.innerHTML = `<div class="absence-banner">
               <div class="absence-header">
                 <span class="absence-title">👻 Missing in Action</span>
-                <span class="absence-sub">${absent.length} player${absent.length > 1 ? "s" : ""} MIA 7+ days</span>
+                <span class="absence-sub">${absent.length} player${absent.length > 1 ? "s" : ""} MIA ${THRESHOLD}+ days</span>
               </div>
               <div class="absence-chips">${chips}</div>
             </div>`;
@@ -3376,17 +3451,16 @@ function renderHome() {
     const sparklineHtml = hasRowData
       ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
       : "";
-    const playerBadges = computeBadges(p.name, p, homeEloMap, filtered);
+    const playerBadges = computeBadges(p.name, p, homeEloMap, filtered, stats);
     const badgePillsHtml = playerBadges.length
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
     if (document.body.classList.contains("holo-mode")) {
-      const safeName = p.name.replace(/'/g, "\\'");
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail('${safeName}')">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${p.name}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${p.name}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
   if (document.body.classList.contains("splash-done")) {
@@ -3575,7 +3649,7 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail('${p.name.replace(/'/g, "\\'")}')"><td>${ri}</td><td>${p.name.toUpperCase()}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -4544,8 +4618,6 @@ function renderModernMatches() {
           ? "var(--red)"
           : "var(--text)";
     const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
-    const escA = h2hFilterA.replace(/'/g, "\\'");
-    const escB = h2hFilterB.replace(/'/g, "\\'");
     const h2hEloHist = computeEloHistory(allMatches);
     const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) =>
       pt.opponent.split(" & ").includes(h2hFilterB),
@@ -4561,12 +4633,12 @@ function renderModernMatches() {
         : n < 0
           ? `<span style="color:var(--red)">${n}</span>`
           : `<span style="color:var(--muted)">0</span>`;
-    summary = `<div class="pair-stats-card" style="margin-bottom:10px" onclick="openH2HDetail('${escA}','${escB}')">
+    summary = `<div class="pair-stats-card" style="margin-bottom:10px" onclick="openH2HDetail(${jsArg(h2hFilterA)},${jsArg(h2hFilterB)})">
             <div class="psc-header"><span class="psc-badge">⚔️ Head-to-Head</span><span class="psc-tap">Full stats →</span></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <div style="font-size:15px;font-weight:900;color:var(--text);text-transform:uppercase">${h2hFilterA}</div>
+              <div style="font-size:15px;font-weight:900;color:var(--text);text-transform:uppercase">${escHtml(h2hFilterA)}</div>
               <div style="font-size:11px;font-weight:800;color:var(--muted)">VS</div>
-              <div style="font-size:15px;font-weight:900;color:var(--text);text-align:right;text-transform:uppercase">${h2hFilterB}</div>
+              <div style="font-size:15px;font-weight:900;color:var(--text);text-align:right;text-transform:uppercase">${escHtml(h2hFilterB)}</div>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
               <div style="font-size:26px;font-weight:900;color:${aCol};min-width:32px">${h2h.aWins}</div>
@@ -4578,23 +4650,23 @@ function renderModernMatches() {
             <div class="psc-stats">
               <div class="psc-stat"><div class="psc-sv">${total}</div><div class="psc-sl">Played</div></div>
               <div class="psc-divider"></div>
-              <div class="psc-stat"><div class="psc-sv" style="color:${aCol}">${aWinPct}%</div><div class="psc-sl">${h2hFilterA.split(" ")[0]} Win%</div></div>
+              <div class="psc-stat"><div class="psc-sv" style="color:${aCol}">${aWinPct}%</div><div class="psc-sl">${escHtml(h2hFilterA.split(" ")[0])} Win%</div></div>
               <div class="psc-divider"></div>
               <div class="psc-stat"><div class="psc-sv ${h2h.diff >= 0 ? "p" : "n"}">${diffStr}</div><div class="psc-sl">Game Diff</div></div>
               <div class="psc-divider"></div>
-              <div class="psc-stat"><div class="psc-sv" style="color:${bCol}">${bWinPct}%</div><div class="psc-sl">${h2hFilterB.split(" ")[0]} Win%</div></div>
+              <div class="psc-stat"><div class="psc-sv" style="color:${bCol}">${bWinPct}%</div><div class="psc-sl">${escHtml(h2hFilterB.split(" ")[0])} Win%</div></div>
             </div>
             <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)" onclick="event.stopPropagation()">
               <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">ELO IMPACT FROM THIS RIVALRY</div>
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <div>
                   <div style="font-size:16px;font-weight:900">${fmtEloImpact(h2hP1Impact)}</div>
-                  <div style="font-size:9px;color:var(--muted)">${h2hFilterA.toUpperCase()}</div>
+                  <div style="font-size:9px;color:var(--muted)">${escHtml(h2hFilterA.toUpperCase())}</div>
                 </div>
                 <div style="font-size:9px;color:var(--muted)">ELO GAINED / LOST</div>
                 <div style="text-align:right">
                   <div style="font-size:16px;font-weight:900">${fmtEloImpact(h2hP2Impact)}</div>
-                  <div style="font-size:9px;color:var(--muted)">${h2hFilterB.toUpperCase()}</div>
+                  <div style="font-size:9px;color:var(--muted)">${escHtml(h2hFilterB.toUpperCase())}</div>
                 </div>
               </div>
             </div>
@@ -4623,16 +4695,15 @@ function renderModernMatches() {
       const diffStr = diff >= 0 ? `+${diff}` : `${diff}`;
       const col =
         wpct >= 60 ? "var(--green)" : wpct <= 40 ? "var(--red)" : "var(--text)";
-      const escKey = histPairFilter.replace(/'/g, "\\'");
       const gpct = Math.round((pgw / (pgw + pgl || 1)) * 100);
       summary =
-        `<div class="pair-stats-card" onclick="openPairDetail('${escKey}')">
+        `<div class="pair-stats-card" onclick="openPairDetail(${jsArg(histPairFilter)})">
               <div class="psc-header">
                 <span class="psc-badge">🤝 Pair Stats</span>
                 <span class="psc-tap">Full stats →</span>
               </div>
               <div class="psc-hero">
-                <div class="psc-name">${histPairFilter}</div>
+                <div class="psc-name">${escHtml(histPairFilter)}</div>
                 <div class="psc-winrate" style="color:${col}">${wpct}%</div>
               </div>
               <div class="psc-bar-wrap"><div class="psc-bar" style="width:${wpct}%;background:${col}"></div></div>
@@ -4841,7 +4912,7 @@ function populateHistoryAdvancedFilters() {
   const data = document.getElementById("player-suggestions");
   if (data) {
     data.innerHTML = getAllPlayerNamesFromMatches()
-      .map((player) => `<option value="${player}">`)
+      .map((player) => `<option value="${escHtml(player)}">`)
       .join("");
   }
 }
@@ -4932,9 +5003,9 @@ function openFilterSheet(mode) {
       </button>`,
       ...sorted.map((p) => {
         const cur = p === histPlayerFilter;
-        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p)})">
           <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
-          <span class="live-sheet-item-name">${p}</span>
+          <span class="live-sheet-item-name">${escHtml(p)}</span>
           ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
         </button>`;
       }),
@@ -4949,8 +5020,8 @@ function openFilterSheet(mode) {
       </button>`,
       ...pairs.map((p) => {
         const cur = p.key === histPairFilter;
-        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${p.key.replace(/'/g, "\\'")}')">
-          <span class="live-sheet-item-name">${p.key}</span>
+        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p.key)})">
+          <span class="live-sheet-item-name">${escHtml(p.key)}</span>
           <span style="font-size:10px;color:var(--muted);margin-left:auto">${p.wins}W–${p.losses}L</span>
           ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
         </button>`;
@@ -5136,10 +5207,10 @@ function openH2HSheet(slot) {
       const isTaken = p === taken;
       const isCurrent = p === selected;
       return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
-      onclick="${isTaken ? "" : `selectH2HPlayer('${p.replace(/'/g, "\\'")}')`}"
+      onclick="${isTaken ? "" : `selectH2HPlayer(${jsArg(p)})`}"
       ${isTaken ? "disabled" : ""}>
       <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
-      <span class="live-sheet-item-name">${p}</span>
+      <span class="live-sheet-item-name">${escHtml(p)}</span>
       ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
     })
@@ -5251,6 +5322,7 @@ function renderAddMatches() {
 
 function deleteMatchByIndex(i) {
   const removed = allMatches.splice(i, 1)[0];
+  if (!removed) return;
   removed.deletedAt = todayISO();
   deletedMatches.unshift(removed);
   saveDeletedMatches();
@@ -5276,6 +5348,7 @@ function deleteMatchByIndex(i) {
 
 function restoreMatch(i) {
   const m = deletedMatches.splice(i, 1)[0];
+  if (!m) return;
   delete m.deletedAt;
   allMatches.push(m);
   saveDeletedMatches();
@@ -5355,7 +5428,7 @@ function editMatchByIndex(i, btn) {
     players
       .map(
         (p) =>
-          `<option value="${p}"${p === val ? " selected" : ""}>${p}</option>`,
+          `<option value="${escHtml(p)}"${p === val ? " selected" : ""}>${escHtml(p)}</option>`,
       )
       .join("");
   const el = document.createElement("div");
@@ -5433,6 +5506,8 @@ function saveMatchEdit(i) {
   const teamB = [b1, b2].filter(Boolean);
   if (teamA.length !== teamB.length)
     return show("Both teams must have the same size.");
+  if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
+    return show("All players in a match must be different.");
   m.date = date || m.date;
   m.teamA = teamA;
   m.teamB = teamB;
@@ -5512,7 +5587,7 @@ function openPlayerPicker(slotId, label) {
       ? `<img src="${photo}" alt="${escHtml(name)}">`
       : playerInitials(name);
     const cls = `player-picker-chip${isTaken ? " taken" : ""}${isSelected ? " selected" : ""}`;
-    return `<button class="${cls}" onclick="pickPlayer('${name.replace(/'/g, "\\'")}')">
+    return `<button class="${cls}" onclick="pickPlayer(${jsArg(name)})">
       <div class="pp-chip-av" style="background:${photo ? "none" : playerColor(name)}">${avInner}</div>
       <span class="pp-chip-name">${escHtml(name)}</span>
     </button>`;
@@ -5613,7 +5688,7 @@ function saveQuickName() {
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean)
-    : [];
+    : [display];
 
   // Add to textarea format
   const currentText = document.getElementById("namesTA").value;
@@ -5706,7 +5781,7 @@ function _buildStreakCalendarHtml(name) {
   while (cur <= endOfWeek) {
     const week = [];
     for (let d = 0; d < 7; d++) {
-      const iso = cur.toISOString().slice(0, 10);
+      const iso = toLocalISODate(cur);
       const isFuture = cur > today;
       week.push({
         iso,
@@ -5760,9 +5835,9 @@ function _buildStreakCalendarHtml(name) {
             ? `${d.iso} · ${d.count} match${d.count > 1 ? "es" : ""}`
             : d.iso;
           const click = d.count
-            ? `onclick="streakCalDayClick('${d.iso}', '${name.replace(/'/g, "\\'")}')"`
+            ? `onclick="streakCalDayClick(${jsArg(d.iso)}, ${jsArg(name)})"`
             : "";
-          return `<div class="sc-cell sc-b${b}" title="${ttl}" ${click}></div>`;
+          return `<div class="sc-cell sc-b${b}" title="${escHtml(ttl)}" ${click}></div>`;
         })
         .join("");
       return `<div class="sc-col">${cells}</div>`;
@@ -6705,9 +6780,9 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}${window.isAdmin ? `<button class="pd-photo-btn" onclick="savePlayerPhoto('${name.replace(/'/g, "\\'")}')" title="Upload photo">📷</button>` : ""}${window.isAdmin && photoMap[name] ? `<button class="pd-photo-remove" onclick="removePlayerPhoto('${name.replace(/'/g, "\\'")}')" title="Remove photo">✕</button>` : ""}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${name}</span>${eloTierBadge(playerElo)}</div></div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}${window.isAdmin ? `<button class="pd-photo-btn" onclick="savePlayerPhoto(${jsArg(name)})" title="Upload photo">📷</button>` : ""}${window.isAdmin && photoMap[name] ? `<button class="pd-photo-remove" onclick="removePlayerPhoto(${jsArg(name)})" title="Remove photo">✕</button>` : ""}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${escHtml(name)}</span>${eloTierBadge(playerElo)}</div></div>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <button class="share-card-btn" onclick="openShareCard('${name.replace(/'/g, "\\'")}')">⬆ Share</button>
+                  <button class="share-card-btn" onclick="openShareCard(${jsArg(name)})">⬆ Share</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
                 </div>
               </div>
@@ -7693,7 +7768,7 @@ function _digestMatches(filter, player) {
   const { from: mFrom } = (() => {
     const d = new Date();
     d.setDate(1);
-    return { from: d.toISOString().slice(0, 10) };
+    return { from: toLocalISODate(d) };
   })();
   let base;
   if (filter === "week") {
@@ -7740,7 +7815,7 @@ function _buildDigestContent(filter, player) {
               ? (() => {
                   const d = new Date();
                   d.setDate(1);
-                  return d.toISOString().slice(0, 10);
+                  return toLocalISODate(d);
                 })()
               : "0000-00-00";
       return (m.date || "") < base;
@@ -7814,7 +7889,7 @@ function openDigestPlayerSheet() {
     players
       .map(
         (p) =>
-          `<div class="live-sheet-item" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`,
+          `<div class="live-sheet-item" onclick="selectFilterItem(${jsArg(p)})"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`,
       )
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -8056,8 +8131,7 @@ function _pairsSortedRows() {
         p.eloRank < 9999
           ? `<div class="chem-elo-rank" style="color:${p.eloRank <= 3 ? "var(--accent)" : "var(--muted)"}">#${p.eloRank}</div>`
           : `<div class="chem-elo-rank">—</div>`;
-      const escKey = p.key.replace(/'/g, "\\'");
-      return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail('${escKey}')"><div class="chem-rank">#${i + 1}</div>${eloRankHtml}<div class="chem-names">${p.players.join(" & ")}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${p.chem}</div></div>`;
+      return `<div class="chem-row" style="cursor:pointer" onclick="openPairDetail(${jsArg(p.key)})"><div class="chem-rank">#${i + 1}</div>${eloRankHtml}<div class="chem-names">${escHtml(p.players.join(" & "))}</div><div class="chem-wl">${p.wins}–${p.played - p.wins}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div><div class="pair-chem-badge" style="color:${chemCol}">⚡${p.chem}</div></div>`;
     })
     .join("");
   const showMoreHtml =
@@ -8524,13 +8598,11 @@ function buildH2HMatrixCompact(players) {
           const pct = Math.round((d.wins / d.total) * 100);
           const cls =
             pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
-          const escA2 = a.replace(/'/g, "\\'");
-          const escB2 = b.replace(/'/g, "\\'");
-          return `<td class="pvp-td ${cls} pvp-td-click" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L" onclick="openRivalryScreen('${escA2}','${escB2}')">${pct}%<sub class="pvp-total">${d.total}</sub></td>`;
+          return `<td class="pvp-td ${cls} pvp-td-click" title="${escHtml(`${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L`)}" onclick="openRivalryScreen(${jsArg(a)},${jsArg(b)})">${pct}%<sub class="pvp-total">${d.total}</sub></td>`;
         })
         .join("");
       // Row label: use same alias as column header; click to highlight/dim row
-      return `<tr><td class="pvp-row-hdr pvp-row-hdr-click" title="${a}" onclick="_h2hHighlightRow(this.closest('tr'))">${getMatrixAlias(aliasMap[a])}</td>${cells}</tr>`;
+      return `<tr><td class="pvp-row-hdr pvp-row-hdr-click" title="${escHtml(a)}" onclick="_h2hHighlightRow(this.closest('tr'))">${escHtml(getMatrixAlias(aliasMap[a]))}</td>${cells}</tr>`;
     })
     .join("");
 
@@ -8538,7 +8610,7 @@ function buildH2HMatrixCompact(players) {
   const legend = players
     .map(
       (p) =>
-        `<span class="pvp-legend-item"><strong>${getMatrixAlias(aliasMap[p])}</strong> ${p.toUpperCase()}</span>`,
+        `<span class="pvp-legend-item"><strong>${escHtml(getMatrixAlias(aliasMap[p]))}</strong> ${escHtml(p.toUpperCase())}</span>`,
     )
     .join("");
 
@@ -8602,12 +8674,10 @@ function buildH2HMatrix(players) {
           const pct = Math.round((d.wins / d.total) * 100);
           const cls =
             pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
-          const escA3 = a.replace(/'/g, "\\'");
-          const escB3 = b.replace(/'/g, "\\'");
-          return `<td class="pvp-td ${cls} pvp-td-click" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L" onclick="openRivalryScreen('${escA3}','${escB3}')">${pct}%</td>`;
+          return `<td class="pvp-td ${cls} pvp-td-click" title="${escHtml(`${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L`)}" onclick="openRivalryScreen(${jsArg(a)},${jsArg(b)})">${pct}%</td>`;
         })
         .join("");
-      return `<tr><td class="pvp-row-hdr" title="${a}">${short(a)}</td>${cells}</tr>`;
+      return `<tr><td class="pvp-row-hdr" title="${escHtml(a)}">${escHtml(short(a))}</td>${cells}</tr>`;
     })
     .join("");
 
@@ -8666,9 +8736,9 @@ function openCmpSheet(slot) {
       const disabled =
         p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
       const sel = p === selected ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">
       <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
-      <span>${p}</span></div>`;
+      <span>${escHtml(p)}</span></div>`;
     })
     .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -8829,10 +8899,10 @@ function renderCompareSelector() {
     .sort((a, b) => a.localeCompare(b));
   const opts =
     `<option value="">P1</option>` +
-    players.map((p) => `<option value="${p}">${p}</option>`).join("");
+    players.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
   const optsB =
     `<option value="">P2</option>` +
-    players.map((p) => `<option value="${p}">${p}</option>`).join("");
+    players.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
   _cmpPlayerA = "";
   _cmpPlayerB = "";
   _cmpDateFilter = "all";
@@ -9527,6 +9597,10 @@ function _pillOnUp(e) {
 }
 
 function computeElo(matches, applyDecay = false) {
+  const cacheKey = _eloCacheKey(matches, applyDecay);
+  const cached = _eloCalcCache.get(cacheKey);
+  if (cached) return cached;
+
   const elo = {};
   const g = (n) => {
     if (!(n in elo)) elo[n] = 1000;
@@ -9576,6 +9650,7 @@ function computeElo(matches, applyDecay = false) {
       }
     });
   }
+  _rememberElo(cacheKey, elo);
   return elo;
 }
 
@@ -9725,9 +9800,9 @@ function computeEloPeaks(matches) {
   return peaks;
 }
 
-function computeBadges(name, stats, eloMap, allMatchesArr) {
+function computeBadges(name, stats, eloMap, allMatchesArr, precomputedStats) {
   const badges = [];
-  const allStats = computeStats(allMatchesArr);
+  const allStats = precomputedStats || computeStats(allMatchesArr);
   const sr = allStats;
 
   // 👑 King: ranked #1 by SR
@@ -10709,7 +10784,7 @@ function computeAchievements(name, matches) {
   // Climber — rise 5+ ranks in a month
   const monthAgo = new Date();
   monthAgo.setDate(monthAgo.getDate() - 30);
-  const monthAgoStr = monthAgo.toISOString().slice(0, 10);
+  const monthAgoStr = toLocalISODate(monthAgo);
   const oldMs = matches.filter((m) => (m.date || "") < monthAgoStr);
   const oldRank = computeStats(oldMs).findIndex((p) => p.name === name) + 1;
   const curRank = allStats.findIndex((p) => p.name === name) + 1;
@@ -10977,33 +11052,33 @@ function buildEloTimelineHtml(filterKey) {
   const name = _eloTLPlayer;
   let pts = [...(history[name] || [])];
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = toLocalISODate(now);
   const dayOfWeek = now.getDay();
   const daysToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const thisMonday = new Date(now);
   thisMonday.setDate(now.getDate() + daysToMon);
-  const thisMondayStr = thisMonday.toISOString().slice(0, 10);
+  const thisMondayStr = toLocalISODate(thisMonday);
   const lastMonday = new Date(thisMonday);
   lastMonday.setDate(thisMonday.getDate() - 7);
-  const lastMondayStr = lastMonday.toISOString().slice(0, 10);
-  const lastSundayStr = new Date(thisMonday.getTime() - 86400000)
-    .toISOString()
-    .slice(0, 10);
+  const lastMondayStr = toLocalISODate(lastMonday);
+  const lastSundayStr = toLocalISODate(
+    new Date(thisMonday.getTime() - 86400000),
+  );
 
   if (filterKey === "3m") {
     const c = new Date(now);
     c.setMonth(c.getMonth() - 3);
-    const cs = c.toISOString().slice(0, 10);
+    const cs = toLocalISODate(c);
     pts = pts.filter((p) => (p.date || "") >= cs);
   } else if (filterKey === "1m") {
     const c = new Date(now);
     c.setMonth(c.getMonth() - 1);
-    const cs = c.toISOString().slice(0, 10);
+    const cs = toLocalISODate(c);
     pts = pts.filter((p) => (p.date || "") >= cs);
   } else if (filterKey === "1w") {
     const c = new Date(now);
     c.setDate(c.getDate() - 7);
-    const cs = c.toISOString().slice(0, 10);
+    const cs = toLocalISODate(c);
     pts = pts.filter((p) => (p.date || "") >= cs);
   } else if (filterKey === "thisweek") {
     pts = pts.filter((p) => (p.date || "") >= thisMondayStr);
@@ -11018,7 +11093,7 @@ function buildEloTimelineHtml(filterKey) {
   const chips = players
     .map(
       (p) =>
-        `<button class="elo-tl-chip${p === name ? " active" : ""}" onclick="selectEloTLPlayer('${p.replace(/'/g, "\\'")}')">${p}</button>`,
+        `<button class="elo-tl-chip${p === name ? " active" : ""}" onclick="selectEloTLPlayer(${jsArg(p)})">${escHtml(p)}</button>`,
     )
     .join("");
   const pills = [
@@ -11119,17 +11194,17 @@ function buildEloTimelineHtml(filterKey) {
       if (filterKey === "3m") {
         const c = new Date(now);
         c.setMonth(c.getMonth() - 3);
-        const cs = c.toISOString().slice(0, 10);
+        const cs = toLocalISODate(c);
         opts = opts.filter((p) => (p.date || "") >= cs);
       } else if (filterKey === "1m") {
         const c = new Date(now);
         c.setMonth(c.getMonth() - 1);
-        const cs = c.toISOString().slice(0, 10);
+        const cs = toLocalISODate(c);
         opts = opts.filter((p) => (p.date || "") >= cs);
       } else if (filterKey === "1w") {
         const c = new Date(now);
         c.setDate(c.getDate() - 7);
-        const cs = c.toISOString().slice(0, 10);
+        const cs = toLocalISODate(c);
         opts = opts.filter((p) => (p.date || "") >= cs);
       } else if (filterKey === "thisweek") {
         opts = opts.filter((p) => (p.date || "") >= thisMondayStr);
@@ -11271,9 +11346,9 @@ function openEloProbSheet(slot) {
       const disabled =
         p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
       const sel = p === selected ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">
       <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
-      <span>${p}</span></div>`;
+      <span>${escHtml(p)}</span></div>`;
     })
     .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -11292,9 +11367,9 @@ function openWhatIfPlayerSheet() {
   list.innerHTML = players
     .map((p) => {
       const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')">
+      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">
       <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
-      <span>${p}</span></div>`;
+      <span>${escHtml(p)}</span></div>`;
     })
     .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -11722,7 +11797,7 @@ function openPredictSheet(slot) {
           ? ' style="opacity:0.3;pointer-events:none"'
           : "";
         const sel = p === selected ? " live-sheet-item-selected" : "";
-        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem('${p.replace(/'/g, "\\'")}')"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${p}</span></div>`;
+        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
       })
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -12114,7 +12189,7 @@ function _buildLeaderboardReplayHtml() {
   const uniqDates = [...new Set(sorted.map((m) => m.date).filter(Boolean))].sort();
   const dateOpts =
     '<option value="">— Jump to date —</option>' +
-    uniqDates.map((d) => `<option value="${d}">${d}</option>`).join("");
+    uniqDates.map((d) => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join("");
   const topPlayers = computeStats(sorted, computeElo(sorted)).slice(0, 8);
   const spotlightOpts =
     '<option value="">No spotlight</option>' +
@@ -12956,7 +13031,7 @@ function renderAnalyticsPage() {
     const hCells = [];
     const cur = new Date(refDate);
     while (cur <= todayD) {
-      const ds = cur.toISOString().substring(0, 10);
+      const ds = toLocalISODate(cur);
       hCells.push({ ds, c: dateCounts[ds] || 0 });
       cur.setDate(cur.getDate() + 1);
     }
@@ -13507,7 +13582,7 @@ function renderAnalyticsPage() {
 
   // ── H2H DEEP DIVE ──────────────────────────────────────
   const opts = playersByMatches
-    .map((p) => `<option value="${p}">${p.toUpperCase()}</option>`)
+    .map((p) => `<option value="${escHtml(p)}">${escHtml(p.toUpperCase())}</option>`)
     .join("");
   const placeholder = `<option value="" disabled selected>Select player</option>`;
   const h2hHtml = `<div class="h2h-form"><div class="h2h-selects h2h-cascade-item"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select></div><button class="btn-go h2h-cascade-item" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
@@ -13921,7 +13996,7 @@ function renderAnalyticsPage() {
     .sort((a, b) => a.localeCompare(b));
   const simOpts = (ph) =>
     `<option value="">${ph}</option>` +
-    simPlayers.map((p) => `<option value="${p}">${p}</option>`).join("");
+    simPlayers.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
   const simulatorHtml = `
     <div class="ana-card sim-card">
       <div class="sim-teams">
@@ -14922,13 +14997,12 @@ const emailConfig = {
   templateId: "ekta_padel_template_id",
   publicKey: "_DebI6XI8p5DhoR4F",
 };
-let _emailTimer = null;
 
 function renderEmailStatus() {
   const el = document.getElementById("email-status");
   if (!el) return;
   const last = localStorage.getItem("padel_last_email");
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayISO();
   const sentText =
     last === today
       ? "✅ Sent today"
@@ -14949,7 +15023,7 @@ async function sendBackupEmail(isAuto = false) {
     return false;
   }
   try {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = todayISO();
     const jsonData = JSON.stringify({ allMatches, aliasMap, nameMap }, null, 2);
 
     await emailjs.send(
@@ -14983,10 +15057,11 @@ function scheduleAutoEmail() {
     clearTimeout(_emailTimer);
     _emailTimer = null;
   }
+  if (!window.isAdmin) return;
   if (!emailConfig.serviceId || !emailConfig.recipientEmail) return;
 
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
+  const today = todayISO();
   const target = new Date(now);
   target.setHours(13, 0, 0, 0);
 
@@ -15113,6 +15188,7 @@ Object.assign(window, {
   toggleAnaFav,
   _pillPointerDown,
   setHistoryDateFilter,
+  histJumpToDate,
   openPlayerCompare,
   renderCompareSelector,
   triggerCompare,
@@ -15233,7 +15309,7 @@ function openLiveMode() {
   _liveMatchEnded = false;
   _livePointUndoStack = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const dateEl = document.getElementById("live-date");
   if (dateEl) dateEl.value = today;
   const notesEl = document.getElementById("live-notes");
@@ -15474,10 +15550,10 @@ function openLivePlayerSheet(slot) {
       const isTaken = taken.includes(p);
       const isCurrent = _liveSlots[slot] === p;
       return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
-      onclick="${isTaken ? "" : `selectLivePlayer('${p.replace(/'/g, "\\'")}','${slot}')`}"
+      onclick="${isTaken ? "" : `selectLivePlayer(${jsArg(p)},${jsArg(slot)})`}"
       ${isTaken ? "disabled" : ""}>
       <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
-      <span class="live-sheet-item-name">${p}</span>
+      <span class="live-sheet-item-name">${escHtml(p)}</span>
       ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
     })
@@ -15643,7 +15719,7 @@ function endLiveMatch() {
   const { a1, a2, b1, b2 } = _liveSlots;
   const date =
     document.getElementById("live-date")?.value ||
-    new Date().toISOString().slice(0, 10);
+    todayISO();
   const notes = document.getElementById("live-notes")?.value.trim() || "";
   if (!a1 || !a2 || !b1 || !b2) {
     showToast("Select all 4 players first", "❌");
@@ -16060,6 +16136,12 @@ function openMatchIntro(idx) {
 }
 
 function closeMatchIntro() {
+  _mioTimers.forEach((id) => clearTimeout(id));
+  _mioTimers = [];
+  _mioFinalize = null;
+  document
+    .querySelectorAll(".mio-float-plus")
+    .forEach((el) => el.remove());
   document.getElementById("match-intro-overlay").classList.remove("active");
 }
 

@@ -118,13 +118,17 @@ body.paused-animations *{
             } catch (e) {}
           },
           load: function () {
-            if (mem.data) return mem.data;
+            if (mem.data) {
+              if (Date.now() - mem.data.ts <= CACHE_TTL) return mem.data;
+              mem.data = null;
+            }
             try {
               var raw = localStorage.getItem(CACHE_KEY);
               if (!raw) return null;
               var p = JSON.parse(raw);
               if (Date.now() - p.ts > CACHE_TTL) {
                 localStorage.removeItem(CACHE_KEY);
+                mem.data = null;
                 return null;
               }
               mem.data = p;

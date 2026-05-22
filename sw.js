@@ -1,4 +1,5 @@
-const CACHE = "ekta-padel-v3";
+const STATIC_CACHE = "ekta-padel-static-v4";
+const RUNTIME_CACHE = "ekta-padel-runtime-v1";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
 const STATIC = [
@@ -7,53 +8,79 @@ const STATIC = [
   BASE + "styles.css",
   BASE + "app.js",
   BASE + "utils.js",
-  BASE + "icons/icon.svg"
+  BASE + "icons/icon.svg",
 ];
+const RUNTIME_MAX_ENTRIES = 40;
 
-self.addEventListener("install", e => {
+async function cacheStaticAssets(buildVersion) {
+  const cache = await caches.open(STATIC_CACHE);
+  await cache.addAll(STATIC);
+  if (buildVersion !== undefined) {
+    await cache.put(BUILD_KEY, new Response(String(buildVersion)));
+  }
+}
+
+self.addEventListener("install", (e) => {
+  e.waitUntil(cacheStaticAssets().then(() => self.skipWaiting()));
+});
+
+self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(STATIC))
-      .then(() => self.skipWaiting())
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== STATIC_CACHE && k !== RUNTIME_CACHE)
+            .map((k) => caches.delete(k)),
+        ),
+      )
+      .then(() => self.clients.claim()),
   );
 });
 
-self.addEventListener("activate", e => {
-  // Delete ALL caches with a different name — wipes any stale "ekta-padel" or "ekta-padel-v2"
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
+async function trimRuntimeCache() {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const keys = await cache.keys();
+  if (keys.length <= RUNTIME_MAX_ENTRIES) return;
+  await Promise.all(
+    keys.slice(0, keys.length - RUNTIME_MAX_ENTRIES).map((key) => cache.delete(key)),
   );
-});
+}
+
+async function putRuntime(request, response) {
+  if (!response || response.status !== 200 || request.method !== "GET") return;
+  const cache = await caches.open(RUNTIME_CACHE);
+  await cache.put(request, response.clone());
+  await trimRuntimeCache();
+}
 
 // Fetch buildinfo.json from network, compare to stored version.
-// If changed: wipe and re-cache all static files, return true.
+// If changed: wipe and re-cache static files, return true.
 async function checkForUpdates() {
   try {
     const res = await fetch(BASE + "buildinfo.json", { cache: "no-store" });
     const { v } = await res.json();
-    const c = await caches.open(CACHE);
-    const stored = await c.match(BUILD_KEY);
+    const cache = await caches.open(STATIC_CACHE);
+    const stored = await cache.match(BUILD_KEY);
     const storedV = stored ? await stored.text() : null;
     if (storedV === String(v)) return false;
-    // New build detected — replace entire cache
-    await caches.delete(CACHE);
-    const fresh = await caches.open(CACHE);
-    await fresh.addAll(STATIC);
-    await fresh.put(BUILD_KEY, new Response(String(v)));
+    await caches.delete(STATIC_CACHE);
+    await caches.delete(RUNTIME_CACHE);
+    await cacheStaticAssets(v);
     return true;
   } catch {
     return false;
   }
 }
 
-self.addEventListener("fetch", e => {
+self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
+  const isHttp = url.protocol === "http:" || url.protocol === "https:";
 
-  // Network-first for Firebase / Firestore
+  if (!isHttp) return;
+
+  // Network-first for Firebase / Firestore.
   if (
     url.hostname.includes("firestore.googleapis.com") ||
     url.hostname.includes("firebase") ||
@@ -63,35 +90,38 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // On page navigation: always serve cache immediately so there is never a blank error page.
-  // checkForUpdates() runs in the background — if buildinfo.json changed it re-caches all
-  // static files and sends NEW_BUILD → the client reloads automatically with fresh code.
   if (e.request.mode === "navigate") {
     e.respondWith(
-      caches.match(e.request, { ignoreSearch: true }).then(cached => {
-        checkForUpdates().then(updated => {
+      caches.match(e.request, { ignoreSearch: true }).then((cached) => {
+        checkForUpdates().then((updated) => {
           if (updated) {
-            self.clients.matchAll().then(clients =>
-              clients.forEach(c => c.postMessage({ type: "NEW_BUILD" }))
-            );
+            self.clients
+              .matchAll()
+              .then((clients) =>
+                clients.forEach((client) =>
+                  client.postMessage({ type: "NEW_BUILD" }),
+                ),
+              );
           }
         });
         return cached || fetch(e.request);
-      })
+      }),
     );
     return;
   }
 
-  // Cache-first for static assets
+  if (e.request.method !== "GET") {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
   e.respondWith(
-    caches.match(e.request).then(cached => {
+    caches.match(e.request).then((cached) => {
       if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res && res.status === 200 && e.request.method === "GET") {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        }
+      return fetch(e.request).then((res) => {
+        putRuntime(e.request, res).catch(() => {});
         return res;
       });
-    })
+    }),
   );
 });
