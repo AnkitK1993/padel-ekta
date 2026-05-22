@@ -11111,16 +11111,43 @@ function buildEloTimelineHtml(filterKey) {
     chartHtml =
       '<div class="sub" style="padding:16px 0;text-align:center">Not enough data for selected period.</div>';
   } else {
+    // Pre-compute overlay pts so Y range includes both players
+    let overlayPts = [];
+    if (_eloTLOverlay && _eloTLOverlay !== name && history[_eloTLOverlay]) {
+      let rawOpts = [...history[_eloTLOverlay]];
+      if (filterKey === "3m") {
+        const c = new Date(now); c.setMonth(c.getMonth() - 3);
+        rawOpts = rawOpts.filter((p) => (p.date || "") >= toLocalISODate(c));
+      } else if (filterKey === "1m") {
+        const c = new Date(now); c.setMonth(c.getMonth() - 1);
+        rawOpts = rawOpts.filter((p) => (p.date || "") >= toLocalISODate(c));
+      } else if (filterKey === "1w") {
+        const c = new Date(now); c.setDate(c.getDate() - 7);
+        rawOpts = rawOpts.filter((p) => (p.date || "") >= toLocalISODate(c));
+      } else if (filterKey === "thisweek") {
+        rawOpts = rawOpts.filter((p) => (p.date || "") >= thisMondayStr);
+      } else if (filterKey === "lastweek") {
+        rawOpts = rawOpts.filter((p) => (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr);
+      } else if (filterKey === "today") {
+        rawOpts = rawOpts.filter((p) => p.date === todayStr);
+      }
+      if (rawOpts.length >= 2) overlayPts = rawOpts;
+    }
+
     const W = 320,
-      H = 100,
       pl = 38,
       pr = 10,
       pt = 10,
       pb = 20;
+    const allElos = [...pts.map((p) => p.elo), ...overlayPts.map((p) => p.elo)];
+    const rawMin = Math.min(...allElos);
+    const rawMax = Math.max(...allElos);
+    const combinedRange = rawMax - rawMin;
+    const H = Math.max(100, Math.min(220, pt + pb + Math.round(combinedRange * 0.6)));
     const cW = W - pl - pr,
       cH = H - pt - pb;
-    const minE = Math.min(...pts.map((p) => p.elo)) - 15;
-    const maxE = Math.max(...pts.map((p) => p.elo)) + 15;
+    const minE = rawMin - 15;
+    const maxE = rawMax + 15;
     const eRange = Math.max(1, maxE - minE);
     const toX = (i) => pl + (i / Math.max(pts.length - 1, 1)) * cW;
     const toY = (e) => pt + (1 - (e - minE) / eRange) * cH;
@@ -11183,43 +11210,15 @@ function buildEloTimelineHtml(filterKey) {
         ? annot(peakIdx, "▲", "var(--gold)") + annot(troughIdx, "▼", "var(--red)")
         : "";
 
-    // Overlay: 2nd player line
+    // Overlay: 2nd player line (uses pre-computed overlayPts)
     let overlayHtml = "";
-    if (_eloTLOverlay && _eloTLOverlay !== name && history[_eloTLOverlay]) {
-      let opts = [...history[_eloTLOverlay]];
-      if (filterKey === "3m") {
-        const c = new Date(now);
-        c.setMonth(c.getMonth() - 3);
-        const cs = toLocalISODate(c);
-        opts = opts.filter((p) => (p.date || "") >= cs);
-      } else if (filterKey === "1m") {
-        const c = new Date(now);
-        c.setMonth(c.getMonth() - 1);
-        const cs = toLocalISODate(c);
-        opts = opts.filter((p) => (p.date || "") >= cs);
-      } else if (filterKey === "1w") {
-        const c = new Date(now);
-        c.setDate(c.getDate() - 7);
-        const cs = toLocalISODate(c);
-        opts = opts.filter((p) => (p.date || "") >= cs);
-      } else if (filterKey === "thisweek") {
-        opts = opts.filter((p) => (p.date || "") >= thisMondayStr);
-      } else if (filterKey === "lastweek") {
-        opts = opts.filter(
-          (p) => (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr,
-        );
-      } else if (filterKey === "today") {
-        opts = opts.filter((p) => p.date === todayStr);
-      }
-      if (opts.length >= 2) {
-        // Map opts onto same horizontal scale (by index ratio of main pts) for visual comparison
-        const overlayCol = playerColor(_eloTLOverlay);
-        const overlayPoly = opts
-          .map((p, i) => `${toX((i / Math.max(opts.length - 1, 1)) * (pts.length - 1)).toFixed(1)},${toY(p.elo).toFixed(1)}`)
-          .join(" ");
-        overlayHtml = `<polyline points="${overlayPoly}" fill="none" stroke="${overlayCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3" opacity="0.85"/>
-          <text x="${(toX(pts.length - 1) - 4).toFixed(1)}" y="${(toY(opts[opts.length - 1].elo) - 5).toFixed(1)}" text-anchor="end" font-size="9" font-weight="800" fill="${overlayCol}">${_eloTLOverlay}</text>`;
-      }
+    if (overlayPts.length >= 2) {
+      const overlayCol = playerColor(_eloTLOverlay);
+      const overlayPoly = overlayPts
+        .map((p, i) => `${toX((i / Math.max(overlayPts.length - 1, 1)) * (pts.length - 1)).toFixed(1)},${toY(p.elo).toFixed(1)}`)
+        .join(" ");
+      overlayHtml = `<polyline points="${overlayPoly}" fill="none" stroke="${overlayCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3" opacity="0.85"/>
+        <text x="${(toX(pts.length - 1) - 4).toFixed(1)}" y="${(toY(overlayPts[overlayPts.length - 1].elo) - 5).toFixed(1)}" text-anchor="end" font-size="9" font-weight="800" fill="${overlayCol}">${_eloTLOverlay}</text>`;
     }
 
     chartHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px">
