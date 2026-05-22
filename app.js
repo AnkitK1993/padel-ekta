@@ -16059,7 +16059,8 @@ function openMatchIntro(idx) {
     // Relative performance vs team averages
     const teamAvgScore = (players) => {
       const ms = allMatches.slice(0, idx).filter((pm) =>
-        players.every((p) => [...(pm.teamA || []), ...(pm.teamB || [])].includes(p))
+        players.every((p) => (pm.teamA || []).includes(p)) ||
+        players.every((p) => (pm.teamB || []).includes(p))
       );
       if (!ms.length) return null;
       const totals = ms.map((pm) => {
