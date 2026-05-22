@@ -361,6 +361,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
+  min-height: 48px;
   gap: 12px;
 }
 .hmenu-label {

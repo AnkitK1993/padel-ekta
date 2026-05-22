@@ -8,7 +8,10 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="Ekta Padel" />
     <meta name="theme-color" content="#09090f" />
     <link rel="manifest" href="manifest.json" />
@@ -44,64 +47,121 @@
       <div class="page-body-scroll">
         <div class="nav">
           <!-- left: hamburger -->
-          <div style="display:flex;align-items:center;flex:1">
-            <button id="hamburgerBtn" class="hamburger-btn" onclick="toggleHamburgerMenu()" aria-label="Menu">
+          <div style="display: flex; align-items: center; flex: 1">
+            <button
+              id="hamburgerBtn"
+              class="hamburger-btn"
+              onclick="toggleHamburgerMenu()"
+              aria-label="Menu"
+            >
               <span></span><span></span><span></span>
             </button>
           </div>
 
           <!-- centre: title -->
           <div class="nav-title nav-title-inline">
-            EKTA <span>PADEL</span> STATISTICS<span class="nav-inline-sub"></span>
+            EKTA <span>PADEL</span> STATISTICS<span
+              class="nav-inline-sub"
+            ></span>
           </div>
 
           <!-- right: balanced spacer -->
-          <div style="flex:1"></div>
+          <div style="flex: 1"></div>
         </div>
 
         <!-- hamburger dropdown (anchored left) -->
         <div id="hamburger-menu" class="hamburger-menu hamburger-menu--left">
           <div class="hmenu-item">
             <span class="hmenu-label">Theme</span>
-            <button id="themeBtn" onclick="cycleTheme()" title="Change theme color" class="hmenu-theme-btn"></button>
+            <button
+              id="themeBtn"
+              onclick="cycleTheme()"
+              title="Change theme color"
+              class="hmenu-theme-btn"
+            ></button>
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item">
-            <span class="hmenu-label">✨ Cascade animations</span>
+            <span class="hmenu-label">Animations</span>
             <label class="mng-toggle">
-              <input type="checkbox" id="cascadeAnimToggle" onchange="setCascadeAnimSetting(this.checked)" checked>
+              <input
+                type="checkbox"
+                id="cascadeAnimToggle"
+                onchange="setCascadeAnimSetting(this.checked)"
+                checked
+              />
               <span class="mng-toggle-slider"></span>
             </label>
           </div>
           <div class="hmenu-divider"></div>
-          <div class="hmenu-item" id="pwa-install-btn" style="display:none">
+          <div class="hmenu-item" id="pwa-install-btn" style="display: none">
             <span class="hmenu-label">Install App</span>
-            <button onclick="triggerInstall()" class="hmenu-action-btn">📲 Add</button>
+            <button onclick="triggerInstall()" class="hmenu-action-btn">
+              📲 Add
+            </button>
           </div>
-          <div class="hmenu-divider" id="pwa-install-divider" style="display:none"></div>
+          <div
+            class="hmenu-divider"
+            id="pwa-install-divider"
+            style="display: none"
+          ></div>
           <div class="hmenu-item hmenu-item--full">
-            <button id="loginBtn" class="hmenu-action-btn hmenu-action-btn--full">Login</button>
+            <button
+              id="loginBtn"
+              class="hmenu-action-btn hmenu-action-btn--full"
+            >
+              Login
+            </button>
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item hmenu-item--full">
-            <button onclick="openGlobalSearch();closeHamburgerMenu()" class="hmenu-action-btn hmenu-action-btn--full">🔍 SEARCH</button>
+            <button
+              onclick="
+                openGlobalSearch();
+                closeHamburgerMenu();
+              "
+              class="hmenu-action-btn hmenu-action-btn--full"
+            >
+              🔍 SEARCH
+            </button>
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item hmenu-item--full">
-            <button onclick="openLiveMode();closeHamburgerMenu()" class="hmenu-action-btn hmenu-action-btn--full">🎾 LIVE SCORING</button>
+            <button
+              onclick="
+                openLiveMode();
+                closeHamburgerMenu();
+              "
+              class="hmenu-action-btn hmenu-action-btn--full"
+            >
+              🎾 LIVE SCORING
+            </button>
           </div>
         </div>
 
         <!-- Pull-to-refresh indicator -->
         <div id="ptr-indicator" class="ptr-indicator">
           <svg class="ptr-spinner" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="60 100"></circle>
+            <circle
+              cx="18"
+              cy="18"
+              r="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="60 100"
+            ></circle>
           </svg>
           <span class="ptr-label" id="ptr-label">PULL TO REFRESH</span>
         </div>
 
         <!-- Theme picker overlay -->
-        <div class="tp-overlay" id="tp-overlay" onclick="if(event.target.id==='tp-overlay')closeThemePicker()">
+        <div
+          class="tp-overlay"
+          id="tp-overlay"
+          onclick="if (event.target.id === 'tp-overlay') closeThemePicker();"
+        >
           <div class="tp-panel">
             <div class="tp-header">
               <div class="tp-title">PICK A THEME</div>
@@ -112,10 +172,21 @@
         </div>
 
         <!-- Global search overlay -->
-        <div class="gs-overlay" id="gs-overlay" onclick="if(event.target.id==='gs-overlay')closeGlobalSearch()">
+        <div
+          class="gs-overlay"
+          id="gs-overlay"
+          onclick="if (event.target.id === 'gs-overlay') closeGlobalSearch();"
+        >
           <div class="gs-panel">
             <div class="gs-header">
-              <input type="text" id="gs-input" class="gs-input" placeholder="Search players, scores (6-2), dates…" oninput="_globalSearchInput(this.value)" autocomplete="off">
+              <input
+                type="text"
+                id="gs-input"
+                class="gs-input"
+                placeholder="Search players, scores (6-2), dates…"
+                oninput="_globalSearchInput(this.value)"
+                autocomplete="off"
+              />
               <button class="gs-close" onclick="closeGlobalSearch()">✕</button>
             </div>
             <div class="gs-results" id="gs-results"></div>
@@ -123,10 +194,20 @@
         </div>
         <div class="home-header"></div>
         <div class="home-filter-bar">
-          <button class="home-date-fab" id="homeFilterFab" onclick="openHomeFilterSheet()">
-            <span class="home-date-fab-label" id="homeFilterLabel">ALL TIME</span>
+          <button
+            class="home-date-fab"
+            id="homeFilterFab"
+            onclick="openHomeFilterSheet()"
+          >
+            <span class="home-date-fab-label" id="homeFilterLabel"
+              >ALL TIME</span
+            >
           </button>
-          <select id="homeFilterSel" onchange="onHomeFilterChange(this.value)" style="display:none">
+          <select
+            id="homeFilterSel"
+            onchange="onHomeFilterChange(this.value)"
+            style="display: none"
+          >
             <option value="all" selected>ALL TIME</option>
             <option value="today">TODAY</option>
             <option value="week">THIS WEEK</option>
@@ -135,7 +216,9 @@
             <option value="month">THIS MONTH</option>
             <option value="range">DATE RANGE</option>
           </select>
-          <button onclick="renderCompareSelector()" class="compare-btn">⚡ COMPARE</button>
+          <button onclick="renderCompareSelector()" class="compare-btn">
+            ⚡ COMPARE
+          </button>
         </div>
         <div class="home-dr-row" id="homeDrRow">
           <input type="date" id="drFrom" placeholder="From" />
@@ -143,10 +226,16 @@
           <input type="date" id="drTo" placeholder="To" />
           <button class="btn-go" onclick="applyRange('home')">Go</button>
         </div>
-        <div id="scheduled-banner" style="display:none;padding:0 11px 4px"></div>
+        <div
+          id="scheduled-banner"
+          style="display: none; padding: 0 11px 4px"
+        ></div>
         <div id="absence-banner"></div>
-        <div id="session-streak-badge" style="display:none;padding:0 11px 6px"></div>
-        <div id="compare-card" style="display:none"></div>
+        <div
+          id="session-streak-badge"
+          style="display: none; padding: 0 11px 6px"
+        ></div>
+        <div id="compare-card" style="display: none"></div>
         <div id="board" style="padding: 9px 11px 110px"></div>
       </div>
       <!-- Main tabs -->
@@ -192,15 +281,26 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
-          <button class="ss-snap-btn" onclick="openSummaryShare()">📸 Screenshot</button>
+          <button class="ss-snap-btn" onclick="openSummaryShare()">
+            📸 Screenshot
+          </button>
         </div>
         <!-- Filter bar — FAB date picker -->
         <div class="summary-filter-bar">
-          <button class="cmp-date-fab" id="cmpDateFab" onclick="openCmpDateSheet()">
+          <button
+            class="cmp-date-fab"
+            id="cmpDateFab"
+            onclick="openCmpDateSheet()"
+          >
             <span class="cmp-date-fab-label" id="cmpDateLabel">TODAY</span>
           </button>
         </div>
-        <select class="cmp-sel" id="cmpSel" onchange="onCmpFilter()" style="display:none">
+        <select
+          class="cmp-sel"
+          id="cmpSel"
+          onchange="onCmpFilter()"
+          style="display: none"
+        >
           <option value="all">ALL TIME</option>
           <option value="today" selected>TODAY</option>
           <option value="week">THIS WEEK</option>
@@ -253,7 +353,11 @@
               <tbody id="cmpBody"></tbody>
             </table>
           </div>
-          <div class="cmp-matches-header" onclick="toggleMatchesSection()" style="cursor:pointer;user-select:none">
+          <div
+            class="cmp-matches-header"
+            onclick="toggleMatchesSection()"
+            style="cursor: pointer; user-select: none"
+          >
             <div class="t1">MATCHES <span>PLAYED</span></div>
             <span class="cmp-matches-chevron" id="cmpMatchesChevron">▼</span>
           </div>
@@ -300,12 +404,74 @@
     <!-- ══════════ HISTORY PAGE ══════════ -->
     <div class="page" id="pg-history">
       <div class="page-body-scroll">
-        <div class="history-nav" style="display:flex;align-items:center;justify-content:space-between;padding-right:12px">
+        <div
+          class="history-nav"
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-right: 12px;
+          "
+        >
           <div class="history-nav-title">MATCHES <span>PLAYED</span></div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <input type="date" id="hist-jump-date" title="Jump to date" onchange="histJumpToDate(this.value)" style="height:26px;padding:0 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:var(--text);font-size:10px;cursor:pointer">
-            <span id="hist-filter-badge" style="display:none;background:rgba(var(--theme-rgb),0.2);color:var(--theme);border:1px solid rgba(var(--theme-rgb),0.4);border-radius:20px;font-size:10px;font-weight:800;padding:2px 8px;min-width:22px;justify-content:center"></span>
-            <button id="hist-filter-clear" onclick="clearAllHistFilters()" style="display:none;height:26px;padding:0 12px;border-radius:20px;border:1.5px solid #c89b30;background:linear-gradient(135deg,rgba(245,200,66,0.18),rgba(200,155,48,0.12));color:#f5c842;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:0.5px;line-height:1;align-items:center;justify-content:center">Clear ✕</button>
+          <div style="display: flex; align-items: center; gap: 6px">
+            <input
+              type="date"
+              id="hist-jump-date"
+              title="Jump to date"
+              onchange="histJumpToDate(this.value)"
+              style="
+                height: 26px;
+                padding: 0 8px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                background: rgba(255, 255, 255, 0.06);
+                color: var(--text);
+                font-size: 10px;
+                cursor: pointer;
+              "
+            />
+            <span
+              id="hist-filter-badge"
+              style="
+                display: none;
+                background: rgba(var(--theme-rgb), 0.2);
+                color: var(--theme);
+                border: 1px solid rgba(var(--theme-rgb), 0.4);
+                border-radius: 20px;
+                font-size: 10px;
+                font-weight: 800;
+                padding: 2px 8px;
+                min-width: 22px;
+                justify-content: center;
+              "
+            ></span>
+            <button
+              id="hist-filter-clear"
+              onclick="clearAllHistFilters()"
+              style="
+                display: none;
+                height: 26px;
+                padding: 0 12px;
+                border-radius: 20px;
+                border: 1.5px solid #c89b30;
+                background: linear-gradient(
+                  135deg,
+                  rgba(245, 200, 66, 0.18),
+                  rgba(200, 155, 48, 0.12)
+                );
+                color: #f5c842;
+                font-size: 10px;
+                font-weight: 800;
+                cursor: pointer;
+                letter-spacing: 0.5px;
+                line-height: 1;
+                align-items: center;
+                justify-content: center;
+              "
+            >
+              Clear ✕
+            </button>
           </div>
         </div>
         <div class="dr-wrap" id="matchDr">
@@ -338,7 +504,11 @@
             </div>
 
             <div class="compact-filter-item compact-player">
-              <button class="filter-fab-btn" id="hist-player-btn" onclick="openFilterSheet('player')">
+              <button
+                class="filter-fab-btn"
+                id="hist-player-btn"
+                onclick="openFilterSheet('player')"
+              >
                 <span id="hist-player-label">ALL PLAYERS</span>
               </button>
             </div>
@@ -372,7 +542,11 @@
           <div class="hist-filter-row compact-row bottom-filter-row">
             <!-- PAIR -->
             <div class="compact-filter-item compact-pair">
-              <button class="filter-fab-btn" id="hist-pair-btn" onclick="openFilterSheet('pair')">
+              <button
+                class="filter-fab-btn"
+                id="hist-pair-btn"
+                onclick="openFilterSheet('pair')"
+              >
                 <span id="hist-pair-label">ALL PAIRS</span>
               </button>
             </div>
@@ -380,14 +554,28 @@
             <!-- H2H -->
             <div class="compact-filter-item compact-h2h">
               <div class="h2h-slots-wrap">
-                <button class="h2h-slot-btn" id="h2h-slot-a" onclick="openH2HSheet('a')">
+                <button
+                  class="h2h-slot-btn"
+                  id="h2h-slot-a"
+                  onclick="openH2HSheet('a')"
+                >
                   <span id="h2h-slot-a-label">P1</span>
                 </button>
                 <span class="h2h-vs-sep">VS</span>
-                <button class="h2h-slot-btn" id="h2h-slot-b" onclick="openH2HSheet('b')">
+                <button
+                  class="h2h-slot-btn"
+                  id="h2h-slot-b"
+                  onclick="openH2HSheet('b')"
+                >
                   <span id="h2h-slot-b-label">P2</span>
                 </button>
-                <button class="h2h-slot-clear" id="h2h-slot-clear" onclick="clearHeadToHeadFilter()">✕</button>
+                <button
+                  class="h2h-slot-clear"
+                  id="h2h-slot-clear"
+                  onclick="clearHeadToHeadFilter()"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           </div>
@@ -446,17 +634,52 @@
     <!-- ══════════ ANALYTICS PAGE ══════════ -->
     <div class="page" id="pg-analytics">
       <div class="page-body-scroll">
-        <div class="nav" style="position:relative">
+        <div class="nav" style="position: relative">
           <div class="history-nav-title">STAT<span>ISTICS</span></div>
-          <button class="ana-search-btn" onclick="openAnaSearch()" aria-label="Search sections">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+          <button
+            class="ana-search-btn"
+            onclick="openAnaSearch()"
+            aria-label="Search sections"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              width="17"
+              height="17"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
           </button>
         </div>
         <!-- Search overlay -->
         <div class="ana-search-overlay" id="ana-search-overlay">
           <div class="ana-search-overlay-bar">
-            <svg class="ana-sov-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
-            <input class="ana-sov-input" id="ana-sov-input" placeholder="Search sections…" autocomplete="off" spellcheck="false" oninput="anaSearchInput(this.value)" onkeydown="anaSearchKey(event)">
+            <svg
+              class="ana-sov-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
+            <input
+              class="ana-sov-input"
+              id="ana-sov-input"
+              placeholder="Search sections…"
+              autocomplete="off"
+              spellcheck="false"
+              oninput="anaSearchInput(this.value)"
+              onkeydown="anaSearchKey(event)"
+            />
             <button class="ana-sov-close" onclick="closeAnaSearch()">✕</button>
           </div>
           <div class="ana-sov-results" id="ana-sov-results"></div>
@@ -581,104 +804,167 @@ Parthiv - Par"
           <div id="names-table" style="margin-top: 10px"></div>
         </div>
         <div class="panel" id="ip-manage">
-          <div style="display:flex;justify-content:flex-end;padding:0 0 8px">
-            <button onclick="toggleManageReorder()" id="mng-reorder-btn" style="font-size:10px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--muted);cursor:pointer;letter-spacing:0.04em">⠿ REORDER</button>
+          <div
+            style="display: flex; justify-content: flex-end; padding: 0 0 8px"
+          >
+            <button
+              onclick="toggleManageReorder()"
+              id="mng-reorder-btn"
+              style="
+                font-size: 10px;
+                font-weight: 700;
+                padding: 5px 12px;
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(255, 255, 255, 0.04);
+                color: var(--muted);
+                cursor: pointer;
+                letter-spacing: 0.04em;
+              "
+            >
+              ⠿ REORDER
+            </button>
           </div>
           <div id="mng-cards-container">
-
-          <!-- Storage Info -->
-          <div class="mng-card" data-card-id="storage">
-            <div class="mng-card-header">
-              <span class="mng-card-drag-handle">⠿</span>
-              <span class="mng-card-icon">📊</span>
-              <span class="mng-card-title">Storage</span>
+            <!-- Storage Info -->
+            <div class="mng-card" data-card-id="storage">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">📊</span>
+                <span class="mng-card-title">Storage</span>
+              </div>
+              <div class="manage-stat" id="manageInfo">Loading...</div>
             </div>
-            <div class="manage-stat" id="manageInfo">Loading...</div>
+
+            <!-- Settings -->
+            <div class="mng-card" data-card-id="settings">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">⚙️</span>
+                <span class="mng-card-title">Settings</span>
+              </div>
+              <div class="mng-setting-row">
+                <span class="mng-setting-label"
+                  >Absence alert after (days)</span
+                >
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  id="absenceThresholdInput"
+                  class="mng-setting-input"
+                  oninput="setAbsenceThreshold(this.value)"
+                  value="7"
+                />
+              </div>
+              <div class="mng-setting-row" style="margin-top: 10px">
+                <span class="mng-setting-label"
+                  >📸 Screenshot — ask content choice</span
+                >
+                <label class="mng-toggle">
+                  <input
+                    type="checkbox"
+                    id="screenshotChoiceToggle"
+                    onchange="setScreenshotChoiceSetting(this.checked)"
+                  />
+                  <span class="mng-toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Sessions -->
+            <div class="mng-card" data-card-id="sessions">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">📅</span>
+                <span class="mng-card-title">Upcoming Sessions</span>
+              </div>
+              <div id="scheduled-admin-list"></div>
+              <button
+                class="btn-p"
+                id="schedule-session-btn"
+                onclick="openScheduleModal()"
+                style="width: 100%; margin-top: 4px"
+              >
+                📅 Schedule Session
+              </button>
+            </div>
+
+            <!-- Email Backup -->
+            <div class="mng-card" data-card-id="email">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">📧</span>
+                <span class="mng-card-title">Email Backup</span>
+              </div>
+              <div id="email-status" class="mng-email-status"></div>
+              <button
+                class="btn-p"
+                onclick="sendBackupEmail(false)"
+                style="width: 100%; margin-top: 8px"
+              >
+                📧 Send Backup Now
+              </button>
+            </div>
+
+            <!-- Data Actions -->
+            <div class="mng-card" data-card-id="data">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">💾</span>
+                <span class="mng-card-title">Data</span>
+              </div>
+              <div class="mng-actions-grid">
+                <button class="btn-p" onclick="exportData()">
+                  📤 Export JSON
+                </button>
+                <button class="btn-p" onclick="exportCSV()">
+                  📊 Export CSV
+                </button>
+              </div>
+              <button
+                class="btn-p"
+                onclick="importData()"
+                style="width: 100%; margin-top: 8px"
+              >
+                📥 Import JSON
+              </button>
+              <div class="msg ok" id="expOk"></div>
+            </div>
+
+            <!-- Trash / Soft Delete -->
+            <div class="mng-card" data-card-id="trash">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">🗑️</span>
+                <span class="mng-card-title">Trash</span>
+                <span
+                  style="font-size: 10px; color: var(--muted); margin-left: 4px"
+                  >(30-day recovery)</span
+                >
+              </div>
+              <div id="trash-list"></div>
+              <button
+                id="trash-purge-btn"
+                onclick="purgeTrash()"
+                class="btn-danger"
+                style="width: 100%; margin-top: 8px; display: none"
+              >
+                Empty Trash
+              </button>
+            </div>
+
+            <!-- ELO Decay Config -->
+            <div class="mng-card" data-card-id="elo-decay">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">⚡</span>
+                <span class="mng-card-title">ELO Decay Settings</span>
+              </div>
+              <div id="elo-decay-config"></div>
+            </div>
           </div>
-
-          <!-- Settings -->
-          <div class="mng-card" data-card-id="settings">
-            <div class="mng-card-header">
-              <span class="mng-card-drag-handle">⠿</span>
-              <span class="mng-card-icon">⚙️</span>
-              <span class="mng-card-title">Settings</span>
-            </div>
-            <div class="mng-setting-row">
-              <span class="mng-setting-label">Absence alert after (days)</span>
-              <input type="number" min="1" max="365" id="absenceThresholdInput"
-                class="mng-setting-input"
-                oninput="setAbsenceThreshold(this.value)"
-                value="7">
-            </div>
-            <div class="mng-setting-row" style="margin-top:10px">
-              <span class="mng-setting-label">📸 Screenshot — ask content choice</span>
-              <label class="mng-toggle">
-                <input type="checkbox" id="screenshotChoiceToggle" onchange="setScreenshotChoiceSetting(this.checked)">
-                <span class="mng-toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Sessions -->
-          <div class="mng-card" data-card-id="sessions">
-            <div class="mng-card-header">
-              <span class="mng-card-drag-handle">⠿</span>
-              <span class="mng-card-icon">📅</span>
-              <span class="mng-card-title">Upcoming Sessions</span>
-            </div>
-            <div id="scheduled-admin-list"></div>
-            <button class="btn-p" id="schedule-session-btn" onclick="openScheduleModal()" style="width:100%;margin-top:4px">📅 Schedule Session</button>
-          </div>
-
-          <!-- Email Backup -->
-          <div class="mng-card" data-card-id="email">
-            <div class="mng-card-header">
-              <span class="mng-card-drag-handle">⠿</span>
-              <span class="mng-card-icon">📧</span>
-              <span class="mng-card-title">Email Backup</span>
-            </div>
-            <div id="email-status" class="mng-email-status"></div>
-            <button class="btn-p" onclick="sendBackupEmail(false)" style="width:100%;margin-top:8px">📧 Send Backup Now</button>
-          </div>
-
-          <!-- Data Actions -->
-          <div class="mng-card" data-card-id="data">
-            <div class="mng-card-header">
-              <span class="mng-card-drag-handle">⠿</span>
-              <span class="mng-card-icon">💾</span>
-              <span class="mng-card-title">Data</span>
-            </div>
-            <div class="mng-actions-grid">
-              <button class="btn-p" onclick="exportData()">📤 Export JSON</button>
-              <button class="btn-p" onclick="exportCSV()">📊 Export CSV</button>
-            </div>
-            <button class="btn-p" onclick="importData()" style="width:100%;margin-top:8px">📥 Import JSON</button>
-            <div class="msg ok" id="expOk"></div>
-          </div>
-
-          <!-- Trash / Soft Delete -->
-          <div class="mng-card" data-card-id="trash">
-            <div class="mng-card-header">
-              <span class="mng-card-drag-handle">⠿</span>
-              <span class="mng-card-icon">🗑️</span>
-              <span class="mng-card-title">Trash</span>
-              <span style="font-size:10px;color:var(--muted);margin-left:4px">(30-day recovery)</span>
-            </div>
-            <div id="trash-list"></div>
-            <button id="trash-purge-btn" onclick="purgeTrash()" class="btn-danger" style="width:100%;margin-top:8px;display:none">Empty Trash</button>
-          </div>
-
-          <!-- ELO Decay Config -->
-          <div class="mng-card" data-card-id="elo-decay">
-            <div class="mng-card-header">
-              <span class="mng-card-drag-handle">⠿</span>
-              <span class="mng-card-icon">⚡</span>
-              <span class="mng-card-title">ELO Decay Settings</span>
-            </div>
-            <div id="elo-decay-config"></div>
-          </div>
-
-          </div><!-- /mng-cards-container -->
+          <!-- /mng-cards-container -->
 
           <!-- Danger Zone -->
           <div class="mng-danger-card">
@@ -687,11 +973,14 @@ Parthiv - Par"
               <span class="mng-card-title mng-danger-title">Danger Zone</span>
             </div>
             <div class="mng-actions-grid">
-              <button class="btn-danger" onclick="clearMatches()">🗑 Clear Matches</button>
-              <button class="btn-danger" onclick="clearNames()">🗑 Clear Aliases</button>
+              <button class="btn-danger" onclick="clearMatches()">
+                🗑 Clear Matches
+              </button>
+              <button class="btn-danger" onclick="clearNames()">
+                🗑 Clear Aliases
+              </button>
             </div>
           </div>
-
         </div>
       </div>
       <div class="tabbar">
@@ -736,17 +1025,25 @@ Parthiv - Par"
       <div class="share-preview-panel">
         <div class="share-preview-header">
           <span class="share-preview-title">SHARE SNAPSHOT</span>
-          <button class="share-preview-close-btn" onclick="closeSharePreview()">✕</button>
+          <button class="share-preview-close-btn" onclick="closeSharePreview()">
+            ✕
+          </button>
         </div>
         <div class="share-preview-img-wrap">
           <img id="share-preview-img" class="share-preview-img" alt="" />
         </div>
         <div class="share-preview-actions">
           <button class="share-wa-btn" onclick="doShareWhatsApp()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+              />
+            </svg>
             Share on WhatsApp
           </button>
-          <button class="share-dl-btn" onclick="doShareDownload()">⬇ Save Image</button>
+          <button class="share-dl-btn" onclick="doShareDownload()">
+            ⬇ Save Image
+          </button>
         </div>
       </div>
     </div>
@@ -756,7 +1053,9 @@ Parthiv - Par"
       <div class="snap-header">
         <button class="snap-back-btn" onclick="closeSnapshot()">← Back</button>
         <span class="snap-title">🎾 EKTA PADEL</span>
-        <button class="snap-send-btn" onclick="shareSnapshot()">📤 Send Screenshot</button>
+        <button class="snap-send-btn" onclick="shareSnapshot()">
+          📤 Send Screenshot
+        </button>
       </div>
       <div class="snap-content" id="snap-content"></div>
     </div>
@@ -764,23 +1063,30 @@ Parthiv - Par"
     <!-- Live Scoring Mode -->
     <div class="page" id="pg-live">
       <div class="live-ufc-wrap">
-
         <!-- Header -->
         <div class="live-ufc-header">
           <button class="live-back-btn" onclick="goBack()">← BACK</button>
           <div class="live-live-badge"><span class="live-dot"></span>LIVE</div>
-          <input id="live-date" type="date" class="live-date-input">
+          <input id="live-date" type="date" class="live-date-input" />
         </div>
 
         <!-- Fight Card -->
         <div class="live-fight-card">
           <div class="live-corner live-corner-a">
             <div class="live-corner-label">RED CORNER</div>
-            <button class="live-player-slot" id="live-slot-a1" onclick="openLivePlayerSheet('a1')">
+            <button
+              class="live-player-slot"
+              id="live-slot-a1"
+              onclick="openLivePlayerSheet('a1')"
+            >
               <div class="live-slot-avatar" id="live-avatar-a1">?</div>
               <div class="live-slot-name" id="live-name-a1">TAP TO SELECT</div>
             </button>
-            <button class="live-player-slot" id="live-slot-a2" onclick="openLivePlayerSheet('a2')">
+            <button
+              class="live-player-slot"
+              id="live-slot-a2"
+              onclick="openLivePlayerSheet('a2')"
+            >
               <div class="live-slot-avatar" id="live-avatar-a2">?</div>
               <div class="live-slot-name" id="live-name-a2">TAP TO SELECT</div>
             </button>
@@ -790,11 +1096,19 @@ Parthiv - Par"
 
           <div class="live-corner live-corner-b">
             <div class="live-corner-label">BLUE CORNER</div>
-            <button class="live-player-slot" id="live-slot-b1" onclick="openLivePlayerSheet('b1')">
+            <button
+              class="live-player-slot"
+              id="live-slot-b1"
+              onclick="openLivePlayerSheet('b1')"
+            >
               <div class="live-slot-avatar" id="live-avatar-b1">?</div>
               <div class="live-slot-name" id="live-name-b1">TAP TO SELECT</div>
             </button>
-            <button class="live-player-slot" id="live-slot-b2" onclick="openLivePlayerSheet('b2')">
+            <button
+              class="live-player-slot"
+              id="live-slot-b2"
+              onclick="openLivePlayerSheet('b2')"
+            >
               <div class="live-slot-avatar" id="live-avatar-b2">?</div>
               <div class="live-slot-name" id="live-name-b2">TAP TO SELECT</div>
             </button>
@@ -804,23 +1118,43 @@ Parthiv - Par"
         <!-- Tennis Mode Toggle -->
         <div class="live-mode-bar">
           <span class="live-mode-lbl">RACE TO</span>
-          <button class="live-mode-btn active" data-mode="4" onclick="setLiveGameMode(4)">4 <span class="live-mode-sub">NO DIFF</span></button>
-          <button class="live-mode-btn" data-mode="6" onclick="setLiveGameMode(6)">6 <span class="live-mode-sub">±2 / TB</span></button>
+          <button
+            class="live-mode-btn active"
+            data-mode="4"
+            onclick="setLiveGameMode(4)"
+          >
+            4 <span class="live-mode-sub">NO DIFF</span>
+          </button>
+          <button
+            class="live-mode-btn"
+            data-mode="6"
+            onclick="setLiveGameMode(6)"
+          >
+            6 <span class="live-mode-sub">±2 / TB</span>
+          </button>
         </div>
 
         <!-- Current Game Points (Tennis scoring) -->
         <div class="live-game-pts-wrap">
-          <button class="live-game-pt live-game-pt-a" onclick="liveAddPoint('a')">
+          <button
+            class="live-game-pt live-game-pt-a"
+            onclick="liveAddPoint('a')"
+          >
             <div class="live-pt-val" id="live-pt-val-a">0</div>
             <div class="live-pt-hint">TAP +</div>
           </button>
-          <button class="live-game-pt live-game-pt-b" onclick="liveAddPoint('b')">
+          <button
+            class="live-game-pt live-game-pt-b"
+            onclick="liveAddPoint('b')"
+          >
             <div class="live-pt-val" id="live-pt-val-b">0</div>
             <div class="live-pt-hint">TAP +</div>
           </button>
         </div>
         <div class="live-game-state" id="live-game-state"></div>
-        <button class="live-undo-pt" onclick="liveUndoPoint()">↶ UNDO POINT</button>
+        <button class="live-undo-pt" onclick="liveUndoPoint()">
+          ↶ UNDO POINT
+        </button>
 
         <!-- Scoreboard (GAMES) -->
         <div class="live-games-label">GAMES</div>
@@ -828,50 +1162,87 @@ Parthiv - Par"
           <div class="live-score-panel live-panel-a">
             <div class="live-score-giant" id="live-score-a">0</div>
             <div class="live-score-btns">
-              <button class="live-adj-huge" onclick="liveAdjustScore('a',-1)">−</button>
-              <button class="live-adj-huge live-adj-plus" onclick="liveAdjustScore('a',1)">+</button>
+              <button class="live-adj-huge" onclick="liveAdjustScore('a', -1)">
+                −
+              </button>
+              <button
+                class="live-adj-huge live-adj-plus"
+                onclick="liveAdjustScore('a', 1)"
+              >
+                +
+              </button>
             </div>
           </div>
           <div class="live-score-colon">:</div>
           <div class="live-score-panel live-panel-b">
             <div class="live-score-giant" id="live-score-b">0</div>
             <div class="live-score-btns">
-              <button class="live-adj-huge" onclick="liveAdjustScore('b',-1)">−</button>
-              <button class="live-adj-huge live-adj-plus" onclick="liveAdjustScore('b',1)">+</button>
+              <button class="live-adj-huge" onclick="liveAdjustScore('b', -1)">
+                −
+              </button>
+              <button
+                class="live-adj-huge live-adj-plus"
+                onclick="liveAdjustScore('b', 1)"
+              >
+                +
+              </button>
             </div>
           </div>
         </div>
 
         <!-- 5A: Win Probability Bar -->
-        <div class="live-prob-wrap" id="live-prob-wrap" style="display:none">
+        <div class="live-prob-wrap" id="live-prob-wrap" style="display: none">
           <div class="live-prob-team" id="live-prob-lbl-a">RED CORNER</div>
           <div class="live-prob-track">
-            <div class="live-prob-fill" id="live-prob-fill" style="width:50%"></div>
-            <div class="live-prob-pct live-prob-pct-a" id="live-prob-bar-a">50%</div>
-            <div class="live-prob-pct live-prob-pct-b" id="live-prob-bar-b">50%</div>
+            <div
+              class="live-prob-fill"
+              id="live-prob-fill"
+              style="width: 50%"
+            ></div>
+            <div class="live-prob-pct live-prob-pct-a" id="live-prob-bar-a">
+              50%
+            </div>
+            <div class="live-prob-pct live-prob-pct-b" id="live-prob-bar-b">
+              50%
+            </div>
           </div>
-          <div class="live-prob-team live-prob-team-b" id="live-prob-lbl-b">BLUE CORNER</div>
+          <div class="live-prob-team live-prob-team-b" id="live-prob-lbl-b">
+            BLUE CORNER
+          </div>
         </div>
 
         <!-- 5B: Momentum Chart -->
-        <div class="live-momentum-wrap" id="live-momentum-wrap" style="display:none">
+        <div
+          class="live-momentum-wrap"
+          id="live-momentum-wrap"
+          style="display: none"
+        >
           <div class="live-momentum-label">MOMENTUM</div>
           <div class="live-momentum-chart" id="live-momentum-chart"></div>
         </div>
 
         <!-- Notes -->
         <div class="live-notes-wrap">
-          <textarea id="live-notes" class="live-notes-ta" placeholder="Match notes…" rows="2"></textarea>
+          <textarea
+            id="live-notes"
+            class="live-notes-ta"
+            placeholder="Match notes…"
+            rows="2"
+          ></textarea>
         </div>
 
         <!-- Save -->
         <button class="live-end-btn" onclick="endLiveMatch()">
-          <span>SAVE MATCH</span><span style="font-size:16px">🎾</span>
+          <span>SAVE MATCH</span><span style="font-size: 16px">🎾</span>
         </button>
       </div>
 
       <!-- Player select bottom sheet -->
-      <div class="live-sheet-overlay" id="live-sheet-overlay" onclick="closeLivePlayerSheet()"></div>
+      <div
+        class="live-sheet-overlay"
+        id="live-sheet-overlay"
+        onclick="closeLivePlayerSheet()"
+      ></div>
       <div class="live-sheet" id="live-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title" id="live-sheet-title">SELECT PLAYER</div>
@@ -884,11 +1255,19 @@ Parthiv - Par"
 
     <!-- Quick-add modal -->
     <!-- Player Picker bottom sheet -->
-    <div id="player-picker-overlay" class="player-picker-overlay" onclick="closePlayerPickerBackdrop(event)">
+    <div
+      id="player-picker-overlay"
+      class="player-picker-overlay"
+      onclick="closePlayerPickerBackdrop(event)"
+    >
       <div class="player-picker-sheet">
         <div class="player-picker-header">
-          <span id="player-picker-title" class="player-picker-title">Select Player</span>
-          <button class="player-picker-close" onclick="closePlayerPicker()">✕</button>
+          <span id="player-picker-title" class="player-picker-title"
+            >Select Player</span
+          >
+          <button class="player-picker-close" onclick="closePlayerPicker()">
+            ✕
+          </button>
         </div>
         <div id="player-picker-grid" class="player-picker-grid"></div>
       </div>
@@ -898,16 +1277,24 @@ Parthiv - Par"
       <div class="modern-sheet">
         <div class="sheet-title">Quick Add Match</div>
         <div class="fab-team-row">
-          <button class="player-slot" id="slot-modern-team-a-p1" onclick="openPlayerPicker('modern-team-a-p1','Team A — P1')">
+          <button
+            class="player-slot"
+            id="slot-modern-team-a-p1"
+            onclick="openPlayerPicker('modern-team-a-p1', 'Team A — P1')"
+          >
             <span class="slot-av-placeholder">+</span>
             <span class="slot-label">Team A — P1</span>
           </button>
-          <input type="hidden" id="modern-team-a-p1" value="">
-          <button class="player-slot" id="slot-modern-team-a-p2" onclick="openPlayerPicker('modern-team-a-p2','Team A — P2')">
+          <input type="hidden" id="modern-team-a-p1" value="" />
+          <button
+            class="player-slot"
+            id="slot-modern-team-a-p2"
+            onclick="openPlayerPicker('modern-team-a-p2', 'Team A — P2')"
+          >
             <span class="slot-av-placeholder">+</span>
             <span class="slot-label">Team A — P2</span>
           </button>
-          <input type="hidden" id="modern-team-a-p2" value="">
+          <input type="hidden" id="modern-team-a-p2" value="" />
         </div>
         <input
           id="modern-score-a"
@@ -918,16 +1305,24 @@ Parthiv - Par"
           max="9"
         />
         <div class="fab-team-row">
-          <button class="player-slot" id="slot-modern-team-b-p1" onclick="openPlayerPicker('modern-team-b-p1','Team B — P1')">
+          <button
+            class="player-slot"
+            id="slot-modern-team-b-p1"
+            onclick="openPlayerPicker('modern-team-b-p1', 'Team B — P1')"
+          >
             <span class="slot-av-placeholder">+</span>
             <span class="slot-label">Team B — P1</span>
           </button>
-          <input type="hidden" id="modern-team-b-p1" value="">
-          <button class="player-slot" id="slot-modern-team-b-p2" onclick="openPlayerPicker('modern-team-b-p2','Team B — P2')">
+          <input type="hidden" id="modern-team-b-p1" value="" />
+          <button
+            class="player-slot"
+            id="slot-modern-team-b-p2"
+            onclick="openPlayerPicker('modern-team-b-p2', 'Team B — P2')"
+          >
             <span class="slot-av-placeholder">+</span>
             <span class="slot-label">Team B — P2</span>
           </button>
-          <input type="hidden" id="modern-team-b-p2" value="">
+          <input type="hidden" id="modern-team-b-p2" value="" />
         </div>
         <datalist id="player-suggestions"></datalist>
         <input
@@ -1013,14 +1408,14 @@ Parthiv - Par"
           navigator.serviceWorker.register("sw.js").catch(() => {});
         });
         // When SW detects a new build, reload once to get fresh files
-        navigator.serviceWorker.addEventListener("message", e => {
+        navigator.serviceWorker.addEventListener("message", (e) => {
           if (e.data?.type === "NEW_BUILD") window.location.reload();
         });
       }
 
       // In-app install prompt
       let _deferredInstall = null;
-      window.addEventListener("beforeinstallprompt", e => {
+      window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault();
         _deferredInstall = e;
         const btn = document.getElementById("pwa-install-btn");
@@ -1038,7 +1433,9 @@ Parthiv - Par"
       window.triggerInstall = () => {
         if (!_deferredInstall) return;
         _deferredInstall.prompt();
-        _deferredInstall.userChoice.then(() => { _deferredInstall = null; });
+        _deferredInstall.userChoice.then(() => {
+          _deferredInstall = null;
+        });
       };
     </script>
 
@@ -1070,12 +1467,20 @@ Parthiv - Par"
       <div class="mio-pvp-section" id="mio-pvp-section"></div>
       <div class="mio-badges" id="mio-badges"></div>
       <div class="mio-note" id="mio-note"></div>
-      <div id="mio-context-extras" class="mio-context-extras" style="display:none"></div>
+      <div
+        id="mio-context-extras"
+        class="mio-context-extras"
+        style="display: none"
+      ></div>
     </div>
-  <div id="swipe-blur-overlay"></div>
+    <div id="swipe-blur-overlay"></div>
 
     <!-- History filter bottom sheet (player / pair) -->
-    <div class="live-sheet-overlay" id="filter-sheet-overlay" onclick="closeFilterSheet()"></div>
+    <div
+      class="live-sheet-overlay"
+      id="filter-sheet-overlay"
+      onclick="closeFilterSheet()"
+    ></div>
     <div class="live-sheet" id="filter-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="filter-sheet-title">SELECT</div>
@@ -1083,7 +1488,11 @@ Parthiv - Par"
     </div>
 
     <!-- H2H player select bottom sheet -->
-    <div class="live-sheet-overlay" id="h2h-sheet-overlay" onclick="closeH2HSheet()"></div>
+    <div
+      class="live-sheet-overlay"
+      id="h2h-sheet-overlay"
+      onclick="closeH2HSheet()"
+    ></div>
     <div class="live-sheet" id="h2h-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="h2h-sheet-title">SELECT PLAYER</div>
@@ -1091,17 +1500,25 @@ Parthiv - Par"
     </div>
 
     <!-- Screenshot content choice sheet -->
-    <div class="live-sheet-overlay" id="screenshot-choice-overlay" onclick="closeScreenshotChoiceSheet()"></div>
+    <div
+      class="live-sheet-overlay"
+      id="screenshot-choice-overlay"
+      onclick="closeScreenshotChoiceSheet()"
+    ></div>
     <div class="live-sheet" id="screenshot-choice-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">SCREENSHOT</div>
       <div class="live-sheet-list">
         <div class="live-sheet-item" onclick="doSummaryScreenshot(true)">
-          <span style="font-size:20px;width:28px;text-align:center">📋</span>
+          <span style="font-size: 20px; width: 28px; text-align: center"
+            >📋</span
+          >
           <span>Leaderboard + Matches Played</span>
         </div>
         <div class="live-sheet-item" onclick="doSummaryScreenshot(false)">
-          <span style="font-size:20px;width:28px;text-align:center">🏆</span>
+          <span style="font-size: 20px; width: 28px; text-align: center"
+            >🏆</span
+          >
           <span>Leaderboard Only</span>
         </div>
       </div>
