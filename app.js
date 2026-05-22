@@ -638,6 +638,7 @@ let prevPage = "home";
 let lastMatchSnapshot = null;
 let _emailTimer = null;
 window.isAdmin = false;
+if (localStorage.getItem("cascade_anim") === "0") document.body.classList.add("no-cascade");
 let scheduledMatches = [];
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
@@ -1457,6 +1458,8 @@ function updateAdminUI(user) {
   if (absInp) absInp.value = localStorage.getItem("absence_threshold") || "7";
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle) scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
+  const cascadeToggle = document.getElementById("cascadeAnimToggle");
+  if (cascadeToggle) cascadeToggle.checked = localStorage.getItem("cascade_anim") !== "0";
   const fab = document.getElementById("fab");
   // Show/hide admin tabs in all tabbars
   document.querySelectorAll(".admin-tab").forEach((tab) => {
@@ -3042,6 +3045,11 @@ function setAbsenceThreshold(val) {
 
 function setScreenshotChoiceSetting(val) {
   localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
+}
+
+function setCascadeAnimSetting(val) {
+  localStorage.setItem("cascade_anim", val ? "1" : "0");
+  document.body.classList.toggle("no-cascade", !val);
 }
 
 function clearMatches() {
@@ -7542,7 +7550,10 @@ async function doSummaryScreenshot(includeMatches) {
     restore();
     canvas.toBlob((blob) => {
       _shareBlob = blob;
-      doShareWhatsApp();
+      const prevImg = document.getElementById("share-preview-img");
+      if (prevImg.src.startsWith("blob:")) URL.revokeObjectURL(prevImg.src);
+      prevImg.src = URL.createObjectURL(blob);
+      document.getElementById("share-preview-sheet").classList.add("open");
     }, "image/png");
   } catch (e) {
     restore();
@@ -7560,32 +7571,17 @@ function closeSharePreview() {
 
 async function doShareWhatsApp() {
   if (!_shareBlob) return;
-  const fname = `EktaPadel-${_shareLabel}.png`;
-
-  // Try 1: copy image to clipboard + open WhatsApp directly (no OS share sheet)
-  if (window.ClipboardItem && navigator.clipboard?.write) {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": _shareBlob })]);
-      window.location.href = "whatsapp://send";
-      showToast("Open a chat and paste the image 📋", "💬");
-      return;
-    } catch (_) {}
-  }
-
-  // Try 2: native file share (OS share sheet — user selects WhatsApp)
-  const file = new File([_shareBlob], fname, { type: "image/png" });
+  const file = new File([_shareBlob], `EktaPadel-${_shareLabel}.png`, { type: "image/png" });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share({ files: [file], title: "Ekta Padel", text: `${_shareLabel} Leaderboard` }).catch(() => {});
-    return;
+  } else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(_shareBlob);
+    a.download = `EktaPadel-${_shareLabel}.png`;
+    a.click();
+    showToast("Saved! Open WhatsApp and send from gallery.", "💬");
   }
-
-  // Try 3: download image + open WhatsApp
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(_shareBlob);
-  a.download = fname;
-  a.click();
-  setTimeout(() => { window.location.href = "whatsapp://send"; }, 400);
-  showToast("Image saved — attach from Downloads in WhatsApp 📎", "💬");
+  closeSharePreview();
 }
 
 function doShareDownload() {
@@ -15140,6 +15136,7 @@ Object.assign(window, {
   exportCSV,
   setAbsenceThreshold,
   setScreenshotChoiceSetting,
+  setCascadeAnimSetting,
   renderHome,
   renderCompact,
   setCmpSort,

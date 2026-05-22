@@ -2481,6 +2481,29 @@ textarea:focus {
 .mng-toggle input:checked + .mng-toggle-slider::before {
   transform: translateX(20px);
 }
+/* ── Cascade animations disabled ──────────────────────────────── */
+body.no-cascade .card-anim,
+body.no-cascade .section-anim,
+body.no-cascade .hsum-card-anim,
+body.no-cascade .hsum-cascade,
+body.no-cascade .ana-sec.ana-cascade-in,
+body.no-cascade .h2h-cascade-item,
+body.no-cascade table.cmp tbody tr,
+body.no-cascade .manage-stat,
+body.no-cascade .mng-card,
+body.no-cascade .mng-danger-card,
+body.no-cascade .ana-card,
+body.no-cascade .analytics-card,
+body.no-cascade .holo-pc {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+body.no-cascade .pc {
+  /* Keep continuous holo-border/glow; only suppress entrance transform */
+  opacity: 1 !important;
+  transform: none !important;
+}
 .mng-input-stack {
   display: flex;
   flex-direction: column;
