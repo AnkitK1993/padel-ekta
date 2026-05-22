@@ -1,4 +1,4 @@
-const CACHE = "ekta-padel";
+const CACHE = "ekta-padel-v3";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
 const STATIC = [
@@ -19,7 +19,14 @@ self.addEventListener("install", e => {
 });
 
 self.addEventListener("activate", e => {
-  e.waitUntil(self.clients.claim());
+  // Delete ALL caches with a different name — wipes any stale "ekta-padel" or "ekta-padel-v2"
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+  );
 });
 
 // Fetch buildinfo.json from network, compare to stored version.
