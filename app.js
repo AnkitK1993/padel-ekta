@@ -7542,10 +7542,7 @@ async function doSummaryScreenshot(includeMatches) {
     restore();
     canvas.toBlob((blob) => {
       _shareBlob = blob;
-      const prevImg = document.getElementById("share-preview-img");
-      if (prevImg.src.startsWith("blob:")) URL.revokeObjectURL(prevImg.src);
-      prevImg.src = URL.createObjectURL(blob);
-      document.getElementById("share-preview-sheet").classList.add("open");
+      doShareWhatsApp();
     }, "image/png");
   } catch (e) {
     restore();
