@@ -108,3 +108,20 @@ Currently shows: Form engine, Archetype, Radar (6 axes: Win Rate, ELO, Clutch, F
 ---
 
 _All items complete._
+
+---
+
+## Where to find all features
+
+**Live app:** https://ankitk1993.github.io/padel-ekta/
+
+| Feature area | Where to find it |
+|---|---|
+| Player Stats Deep Dive, Dominance Index, Partner Chemistry | **Stats page** → "Players" tab |
+| Pair Leaderboard Top 10, One-Sided Rivalries | **Stats page** → "Pairs" tab |
+| Peak ELO Tracker | **Stats page** → "ELO" tab |
+| Monthly Stats, Day-of-Week Win Rates, Score Margin Trend, Score Heatmap, Player Activity & Absence | **Stats page** → "Activity" tab |
+| H2H Matrix (row highlight, subscript totals), Form streaks, Consistency/Volatile, Quality Wins, Clutch/Anti-Clutch, Score Distribution | **Stats page** → scroll through all sections |
+| Match number, streak context, ELO tier cross, last meeting, relative performance | **Any match card** → tap to open popup |
+| Recent log, vs Opponents, All Partners, Personal Records, Sparkline, Strength tags | **Any player name** → tap to open player detail modal |
+| Jump-to-date, long-press quick-action sheet | **History page** → date input top-right / long-press any match card |
