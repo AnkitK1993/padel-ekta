@@ -16496,9 +16496,11 @@ function renderLiveMatchCard() {
   if (cm?.teamA?.length && cm?.teamB?.length) {
     const aWin = cm.scoreA > cm.scoreB;
     const bWin = cm.scoreB > cm.scoreA;
-    const gA = cm.gamePtsA != null ? _gpLabel(cm.gamePtsA, cm.gameAdv, "a") : "";
-    const gB = cm.gamePtsB != null ? _gpLabel(cm.gamePtsB, cm.gameAdv, "b") : "";
-    const isDeuce = cm.gamePtsA === 3 && cm.gamePtsB === 3 && !cm.gameAdv;
+    const gpA = cm.gamePtsA ?? 0;
+    const gpB = cm.gamePtsB ?? 0;
+    const isDeuce = gpA === 3 && gpB === 3 && !cm.gameAdv;
+    const gA = isDeuce ? "DEUCE" : _gpLabel(gpA, cm.gameAdv, "a");
+    const gB = isDeuce ? "" : _gpLabel(gpB, cm.gameAdv, "b");
     el.style.display = "";
     el.innerHTML = `<div class="lmc-card" onclick="openLiveSessionDetail()">
       <div class="lmc-header">
@@ -16509,14 +16511,18 @@ function renderLiveMatchCard() {
         <div class="lmc-team">
           <div class="lmc-names">${cm.teamA.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
           <div class="lmc-score${aWin ? " lmc-score-lead" : ""}">${cm.scoreA}</div>
-          ${gA ? `<div class="lmc-gpts${aWin ? " lmc-gpts-lead" : ""}">${isDeuce ? "DEUCE" : gA}</div>` : ""}
         </div>
         <div class="lmc-colon">:</div>
         <div class="lmc-team lmc-team-right">
-          ${gB && !isDeuce ? `<div class="lmc-gpts${bWin ? " lmc-gpts-lead" : ""}">${gB}</div>` : ""}
           <div class="lmc-score${bWin ? " lmc-score-lead" : ""}">${cm.scoreB}</div>
           <div class="lmc-names">${cm.teamB.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
         </div>
+      </div>
+      <div class="lmc-gpts-row">
+        ${isDeuce
+          ? `<span class="lmc-gpts-deuce">DEUCE</span>`
+          : `<span class="lmc-gpts-val${cm.gameAdv === "a" ? " lmc-gpts-adv" : (aWin ? " lmc-gpts-lead" : "")}">${gA}</span><span class="lmc-gpts-sep"> · </span><span class="lmc-gpts-val${cm.gameAdv === "b" ? " lmc-gpts-adv" : (bWin ? " lmc-gpts-lead" : "")}">${gB}</span>`
+        }
       </div>
       <div class="lmc-tap-hint">Tap for details →</div>
     </div>`;
@@ -16777,7 +16783,7 @@ function showLiveBanner(type, title, subtitle, data) {
   el.className = `live-banner-overlay live-banner-${type}`;
   el.innerHTML = _buildBannerContent(type, title, subtitle, data);
   el.style.display = "flex";
-  _liveBannerTimer = setTimeout(() => closeLiveBanner(), 5000);
+  _liveBannerTimer = setTimeout(() => closeLiveBanner(), 3000);
 }
 
 function _buildBannerContent(type, title, subtitle, data) {
@@ -16785,31 +16791,39 @@ function _buildBannerContent(type, title, subtitle, data) {
     const { teamA, teamB, scoreA, scoreB } = data;
     const isEnd = type === "match_end_ufc";
     const aWon = isEnd ? scoreA > scoreB : null;
+    const aAvatars = teamA.map(p => `<div class="lbf-avatar" style="background:${playerColor(p)}">${playerInitials(p)}</div>`).join("");
+    const bAvatars = teamB.map(p => `<div class="lbf-avatar" style="background:${playerColor(p)}">${playerInitials(p)}</div>`).join("");
     return `<div class="live-banner-ufc">
       <div class="live-banner-corner-a${isEnd && !aWon ? " live-banner-corner-dim" : ""}">
-        <div class="live-banner-corner-label">RED CORNER${isEnd && aWon ? " 🏆" : ""}</div>
+        <div class="live-banner-corner-label">RED CORNER</div>
+        <div class="lbf-avatars">${aAvatars}</div>
         ${teamA.map(p => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
-        ${isEnd ? `<div class="live-banner-corner-score">${scoreA}</div>` : ""}
+        ${isEnd ? `<div class="live-banner-corner-score${aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreA}</div>` : ""}
+        ${isEnd && aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
       <div class="live-banner-vs-col">
-        <div class="live-banner-event-label">${isEnd ? "MATCH OVER" : "MATCH STARTING"}</div>
+        <div class="lbf-event-top">${isEnd ? "FINAL" : "🎾"}</div>
         <div class="live-banner-vs-text">VS</div>
-        ${isEnd ? `<div class="live-banner-event-label">${scoreA}–${scoreB}</div>` : ""}
+        <div class="live-banner-event-label">${isEnd ? `${scoreA}–${scoreB}` : "MATCH STARTING"}</div>
+        <div class="live-banner-tap-inline">TAP TO CLOSE</div>
       </div>
       <div class="live-banner-corner-b${isEnd && aWon ? " live-banner-corner-dim" : ""}">
-        <div class="live-banner-corner-label">BLUE CORNER${isEnd && !aWon ? " 🏆" : ""}</div>
+        <div class="live-banner-corner-label">BLUE CORNER</div>
+        <div class="lbf-avatars">${bAvatars}</div>
         ${teamB.map(p => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
-        ${isEnd ? `<div class="live-banner-corner-score">${scoreB}</div>` : ""}
+        ${isEnd ? `<div class="live-banner-corner-score${!aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreB}</div>` : ""}
+        ${isEnd && !aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
-      <div class="live-banner-tap">TAP TO DISMISS</div>
     </div>`;
   }
-  const icons = { session_start: "🎾", session_end: "🏁" };
-  return `<div class="live-banner-session">
-    <div class="live-banner-icon-big">${icons[type] || "🎾"}</div>
+  const isStart = type === "session_start";
+  return `<div class="live-banner-session live-banner-session-${type}">
+    <div class="lbs-particles">${Array.from({length:12},(_,i)=>`<div class="lbs-particle lbs-p${i}"></div>`).join("")}</div>
+    <div class="lbs-ring"></div>
+    <div class="live-banner-icon-big">${isStart ? "🎾" : "🏁"}</div>
     <div class="live-banner-title">${escHtml(title)}</div>
     ${subtitle ? `<div class="live-banner-subtitle">${escHtml(subtitle)}</div>` : ""}
-    <div class="live-banner-tap">TAP TO DISMISS</div>
+    <div class="live-banner-tap-inline">TAP TO CLOSE</div>
   </div>`;
 }
 
@@ -16894,23 +16908,29 @@ function _renderLiveSessionDetail() {
   if (cm?.teamA?.length && cm?.teamB?.length) {
     const aWin = cm.scoreA > cm.scoreB;
     const bWin = cm.scoreB > cm.scoreA;
-    const isDeuce = cm.gamePtsA === 3 && cm.gamePtsB === 3 && !cm.gameAdv;
-    const gA = cm.gamePtsA != null ? (isDeuce ? "DEUCE" : _gpLabel(cm.gamePtsA, cm.gameAdv, "a")) : "";
-    const gB = cm.gamePtsB != null ? (isDeuce ? "" : _gpLabel(cm.gamePtsB, cm.gameAdv, "b")) : "";
+    const gpA = cm.gamePtsA ?? 0;
+    const gpB = cm.gamePtsB ?? 0;
+    const isDeuce = gpA === 3 && gpB === 3 && !cm.gameAdv;
+    const gA = isDeuce ? "DEUCE" : _gpLabel(gpA, cm.gameAdv, "a");
+    const gB = isDeuce ? "" : _gpLabel(gpB, cm.gameAdv, "b");
     liveMatchHtml = `<div class="lsd-live-match">
       <div class="lsd-section-label"><span class="live-dot"></span> LIVE MATCH</div>
       <div class="lsd-match-row">
         <div class="lsd-team-a">
           <div class="lsd-team-names">${cm.teamA.map(p => `<span>${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
           <div class="lsd-match-score${aWin ? " lsd-score-lead" : ""}">${cm.scoreA}</div>
-          ${gA ? `<div class="lsd-game-pts${aWin ? " lsd-gpts-lead" : ""}">${gA}</div>` : ""}
         </div>
         <div class="lsd-colon">:</div>
         <div class="lsd-team-b">
-          ${gB ? `<div class="lsd-game-pts${bWin ? " lsd-gpts-lead" : ""}">${gB}</div>` : ""}
           <div class="lsd-match-score${bWin ? " lsd-score-lead" : ""}">${cm.scoreB}</div>
           <div class="lsd-team-names">${cm.teamB.map(p => `<span>${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
         </div>
+      </div>
+      <div class="lsd-gpts-row">
+        ${isDeuce
+          ? `<span class="lsd-gpts-deuce">DEUCE</span>`
+          : `<span class="lsd-gpts-val${cm.gameAdv === "a" ? " lsd-gpts-adv" : (aWin ? " lsd-gpts-lead" : "")}">${gA}</span><span class="lsd-gpts-sep"> · </span><span class="lsd-gpts-val${cm.gameAdv === "b" ? " lsd-gpts-adv" : (bWin ? " lsd-gpts-lead" : "")}">${gB}</span>`
+        }
       </div>
     </div>`;
   }
