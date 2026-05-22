@@ -4756,6 +4756,62 @@ function _updateHistFilterBadge() {
   }
 }
 
+// Jump-to-date: scroll history list to a date group
+function histJumpToDate(dateStr) {
+  if (!dateStr) return;
+  // Make sure history tab is showing all-time or a range that includes the date
+  filterMatchTab("range");
+  const fromEl = document.getElementById("matchFrom");
+  const toEl = document.getElementById("matchTo");
+  if (fromEl) fromEl.value = dateStr;
+  if (toEl) toEl.value = dateStr;
+  renderModernMatches();
+  // Scroll to the date group after render
+  requestAnimationFrame(() => {
+    const groups = document.querySelectorAll(".match-date-group");
+    const target = [...groups].find((g) => g.dataset.date === dateStr || g.querySelector(`[data-date="${dateStr}"]`));
+    const firstCard = document.querySelector(`.match-card[data-date="${dateStr}"]`);
+    const scrollTarget = target || firstCard;
+    if (scrollTarget) scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+// Long-press match card → quick-action sheet (Share, Edit, Delete)
+let _lpTimer = null, _lpCard = null;
+document.addEventListener("pointerdown", (e) => {
+  const card = e.target.closest(".match-card");
+  if (!card || e.target.closest("button, .swipe-delete-reveal")) return;
+  _lpCard = card;
+  _lpTimer = setTimeout(() => {
+    const idx2 = parseInt(card.dataset.matchIdx, 10);
+    if (!isNaN(idx2)) _openMatchQuickActions(idx2, card);
+  }, 600);
+});
+document.addEventListener("pointerup", () => { clearTimeout(_lpTimer); _lpCard = null; });
+document.addEventListener("pointermove", (e) => {
+  if (_lpCard) { clearTimeout(_lpTimer); _lpCard = null; }
+});
+
+function _openMatchQuickActions(idx2, cardEl) {
+  document.getElementById("match-quick-sheet")?.remove();
+  const m = allMatches[idx2];
+  if (!m) return;
+  const sheet = document.createElement("div");
+  sheet.id = "match-quick-sheet";
+  sheet.className = "match-quick-sheet";
+  sheet.innerHTML = `
+    <div class="mqs-backdrop" onclick="document.getElementById('match-quick-sheet').remove()"></div>
+    <div class="mqs-panel">
+      <div class="mqs-title">${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} · ${m.scoreA}–${m.scoreB}</div>
+      <button class="mqs-btn" onclick="openMatchIntro(${idx2});document.getElementById('match-quick-sheet').remove()">👁 View Details</button>
+      ${window.isAdmin ? `<button class="mqs-btn" onclick="openEditMatch(${idx2});document.getElementById('match-quick-sheet').remove()">✏️ Edit Match</button>` : ""}
+      ${window.isAdmin ? `<button class="mqs-btn mqs-btn-danger" onclick="deleteModernMatch(${idx2});document.getElementById('match-quick-sheet').remove()">🗑 Delete Match</button>` : ""}
+      <button class="mqs-btn mqs-btn-cancel" onclick="document.getElementById('match-quick-sheet').remove()">Cancel</button>
+    </div>`;
+  document.body.appendChild(sheet);
+  requestAnimationFrame(() => sheet.querySelector(".mqs-panel").classList.add("open"));
+}
+
 function clearAllHistFilters() {
   histPlayerFilter = "";
   histOutcomeFilter = "all";
@@ -6473,6 +6529,178 @@ function openPlayerDetail(name) {
     })
     .join("");
 
+  // ── RECENT MATCH LOG MINI-TABLE ──────────────────────────
+  const pdEloFull = computeElo(allMatches);
+  const pdSortedAll = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const pdPlayerMs = pdSortedAll.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+  const recentMiniTable = (() => {
+    const last8 = pdPlayerMs.slice(-8).reverse();
+    if (!last8.length) return "";
+    const runElo2 = {};
+    const eloAfterEach = {};
+    pdSortedAll.forEach((m) => {
+      const allP2 = [...(m.teamA || []), ...(m.teamB || [])];
+      allP2.forEach((p) => { if (!(p in runElo2)) runElo2[p] = 1000; });
+      const aWon3 = m.scoreA > m.scoreB;
+      const avgA3 = m.teamA.reduce((s, p) => s + runElo2[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB3 = m.teamB.reduce((s, p) => s + runElo2[p], 0) / Math.max(m.teamB.length, 1);
+      const expA3 = 1 / (1 + Math.pow(10, (avgB3 - avgA3) / 400));
+      const dA3 = Math.round(32 * ((aWon3 ? 1 : 0) - expA3));
+      const dB3 = Math.round(32 * ((aWon3 ? 0 : 1) - (1 - expA3)));
+      m.teamA.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dA3; });
+      m.teamB.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dB3; });
+      if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
+        const inA4 = (m.teamA || []).includes(name);
+        eloAfterEach[pdSortedAll.indexOf(m)] = { elo: runElo2[name], delta: inA4 ? dA3 : dB3 };
+      }
+    });
+    const rows4 = last8.map((m) => {
+      const inA4 = (m.teamA || []).includes(name);
+      const won4 = inA4 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      const partner = (inA4 ? m.teamA : m.teamB).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(",") || "—";
+      const opp = (inA4 ? m.teamB : m.teamA).map((p) => p.split(" ")[0]).join(" & ");
+      const score = inA4 ? `${m.scoreA}–${m.scoreB}` : `${m.scoreB}–${m.scoreA}`;
+      const idx2 = pdSortedAll.indexOf(m);
+      const eld = eloAfterEach[idx2];
+      const eloDeltaStr = eld ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}` : "—";
+      const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
+      return `<tr><td>${fmtDate(m.date).replace(/\s\d{4}$/, "")}</td><td>${partner}</td><td style="color:var(--muted);font-size:9px">${opp}</td><td style="font-weight:700;color:${won4?"var(--green)":"var(--red)"}">${score}</td><td style="font-weight:700;color:${eloDeltaCol}">${eloDeltaStr}</td></tr>`;
+    }).join("");
+    return `<div class="ana-card" style="padding:10px 12px"><span class="badge">Recent Match Log</span><div style="overflow-x:auto;margin-top:8px"><table class="pd-recent-table"><thead><tr><th>Date</th><th>Partner</th><th>vs</th><th>Score</th><th>ELO</th></tr></thead><tbody>${rows4}</tbody></table></div></div>`;
+  })();
+
+  // ── VS-ALL-OPPONENTS BREAKDOWN ───────────────────────────
+  const vsOpponentsHtml = (() => {
+    const vsData = {};
+    pdPlayerMs.forEach((m) => {
+      const inA5 = (m.teamA || []).includes(name);
+      const won5 = inA5 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      const opp5 = inA5 ? m.teamB : m.teamA;
+      const own5 = inA5 ? (m.scoreA) : (m.scoreB);
+      const oppS5 = inA5 ? m.scoreB : m.scoreA;
+      opp5.forEach((o) => {
+        if (!vsData[o]) vsData[o] = { w: 0, p: 0, margin: 0 };
+        vsData[o].p++;
+        if (won5) vsData[o].w++;
+        vsData[o].margin += (own5 - oppS5);
+      });
+    });
+    const rows5 = Object.entries(vsData)
+      .filter(([, d]) => d.p >= 1)
+      .sort((a, b) => b[1].p - a[1].p)
+      .map(([opp, d]) => {
+        const pct = Math.round(d.w / d.p * 100);
+        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+        const avgM2 = (d.margin / d.p).toFixed(1);
+        const mc2 = d.margin > 0 ? "var(--green)" : d.margin < 0 ? "var(--red)" : "var(--muted)";
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${opp}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p-d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2>0?"+":""}${avgM2}</span></div></div>`;
+      }).join("");
+    if (!rows5) return "";
+    return `<div class="ana-card"><span class="badge">vs All Opponents</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows5}</div></div>`;
+  })();
+
+  // ── ALL-PARTNERS RANKED ──────────────────────────────────
+  const allPartnersHtml = (() => {
+    const pData = {};
+    pdPlayerMs.forEach((m) => {
+      const inA6 = (m.teamA || []).includes(name);
+      const won6 = inA6 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      const team6 = inA6 ? m.teamA : m.teamB;
+      team6.filter((p) => p !== name).forEach((p) => {
+        if (!pData[p]) pData[p] = { w: 0, p: 0 };
+        pData[p].p++;
+        if (won6) pData[p].w++;
+      });
+    });
+    const rows6 = Object.entries(pData)
+      .filter(([, d]) => d.p >= 1)
+      .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p || b[1].p - a[1].p)
+      .map(([partner, d]) => {
+        const pct = Math.round(d.w / d.p * 100);
+        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:10px"><span style="font-size:10px;color:var(--muted)">${d.p}g</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
+      }).join("");
+    if (!rows6) return "";
+    return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
+  })();
+
+  // ── PERSONAL RECORDS CAREER HIGHS ────────────────────────
+  const personalRecordsHtml = (() => {
+    if (!pdPlayerMs.length) return "";
+    let biggestWin2 = null, biggestWinM = 0;
+    let worstLoss2 = null, worstLossM = 0;
+    let longestWS = 0, longestLS = 0, curWS = 0, curLS = 0;
+    const byDate2 = {};
+    pdPlayerMs.forEach((m) => {
+      const inA7 = (m.teamA || []).includes(name);
+      const own7 = inA7 ? m.scoreA : m.scoreB;
+      const opp7 = inA7 ? m.scoreB : m.scoreA;
+      const won7 = own7 > opp7;
+      const margin7 = own7 - opp7;
+      if (won7 && margin7 > biggestWinM) { biggestWinM = margin7; biggestWin2 = `${own7}–${opp7}`; }
+      if (!won7 && -margin7 > worstLossM) { worstLossM = -margin7; worstLoss2 = `${own7}–${opp7}`; }
+      if (won7) { curWS++; curLS = 0; if (curWS > longestWS) longestWS = curWS; }
+      else { curLS++; curWS = 0; if (curLS > longestLS) longestLS = curLS; }
+      if (!m.date) return;
+      if (!byDate2[m.date]) byDate2[m.date] = { w: 0, p: 0 };
+      byDate2[m.date].p++;
+      if (won7) byDate2[m.date].w++;
+    });
+    const bestDay2 = Object.entries(byDate2).sort((a, b) => b[1].w - a[1].w || b[1].p - a[1].p)[0];
+    const peakEloVal = eloPeaks[name] || playerElo;
+    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
+  })();
+
+  // ── MONTHLY WIN-RATE SPARKLINE ────────────────────────────
+  const monthlySparklineHtml = (() => {
+    const moMap2 = {};
+    pdPlayerMs.forEach((m) => {
+      const mo = (m.date || "").slice(0, 7);
+      if (!mo) return;
+      const inA8 = (m.teamA || []).includes(name);
+      const won8 = inA8 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      if (!moMap2[mo]) moMap2[mo] = { w: 0, p: 0 };
+      moMap2[mo].p++;
+      if (won8) moMap2[mo].w++;
+    });
+    const moKeys = Object.keys(moMap2).sort().slice(-8);
+    if (moKeys.length < 3) return "";
+    const moN4 = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const pts2 = moKeys.map((mo, i) => ({
+      mo, pct: moMap2[mo].p ? (moMap2[mo].w / moMap2[mo].p) * 100 : 0, i
+    }));
+    const W2 = 300, H2 = 70, pl2 = 8, pr2 = 8, pt3 = 8, pb2 = 18, cW2 = W2 - pl2 - pr2, cH2 = H2 - pt3 - pb2;
+    const toX3 = (i) => pl2 + (i / (pts2.length - 1 || 1)) * cW2;
+    const toY3 = (v) => pt3 + (1 - v / 100) * cH2;
+    const col2 = playerColor(name);
+    const polyline3 = pts2.map((p) => `${toX3(p.i).toFixed(1)},${toY3(p.pct).toFixed(1)}`).join(" ");
+    const circles3 = pts2.map((p) => {
+      const c = p.pct >= 60 ? "var(--green)" : p.pct <= 40 ? "var(--red)" : "var(--gold)";
+      return `<circle cx="${toX3(p.i).toFixed(1)}" cy="${toY3(p.pct).toFixed(1)}" r="2.5" fill="${c}"><title>${p.mo}: ${p.pct.toFixed(0)}%</title></circle>`;
+    }).join("");
+    const xLbls2 = pts2.map((p) => `<text x="${toX3(p.i).toFixed(1)}" y="${H2 - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN4[parseInt(p.mo.slice(5))]}</text>`).join("");
+    const area2 = `M${toX3(0).toFixed(1)},${(H2 - pb2).toFixed(1)} ` + pts2.map((p) => `L${toX3(p.i).toFixed(1)},${toY3(p.pct).toFixed(1)}`).join(" ") + ` L${toX3(pts2.length-1).toFixed(1)},${(H2-pb2).toFixed(1)} Z`;
+    return `<div class="ana-card"><span class="badge">Monthly Win Rate</span><div style="overflow-x:auto;margin-top:8px"><svg viewBox="0 0 ${W2} ${H2}" width="100%" style="max-width:${W2}px;display:block;overflow:visible"><defs><linearGradient id="mwrg_${name.replace(/\s/g,"")}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col2}" stop-opacity="0.2"/><stop offset="100%" stop-color="${col2}" stop-opacity="0"/></linearGradient></defs><path d="${area2}" fill="url(#mwrg_${name.replace(/\s/g,"")})"/><polyline points="${polyline3}" fill="none" stroke="${col2}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${circles3}${xLbls2}</svg></div></div>`;
+  })();
+
+  // ── STRENGTHS / WEAKNESSES TAGS ───────────────────────────
+  const strengthTagsHtml = (() => {
+    const tags = [];
+    if (s.winPct >= 65) tags.push({ t: "💪 Consistent Winner", c: "var(--green)" });
+    else if (s.winPct <= 35) tags.push({ t: "📈 Room to Grow", c: "var(--muted)" });
+    if (form && form.momentumLabel === "RISING") tags.push({ t: "🔥 On the Rise", c: "var(--accent)" });
+    else if (form && form.momentumLabel === "DECLINING") tags.push({ t: "📉 Declining Form", c: "var(--red)" });
+    if (closePlayed >= 3 && clutchPct > 60) tags.push({ t: "⚔️ Clutch Performer", c: "var(--green)" });
+    else if (closePlayed >= 3 && clutchPct < 40) tags.push({ t: "😰 Struggles in Close Matches", c: "var(--red)" });
+    const allStats2 = computeStats(allMatches, computeElo(allMatches));
+    const ps2 = allStats2.find((p) => p.name === name);
+    if (ps2?.avgMargin > 2) tags.push({ t: "💥 Dominant in wins", c: "var(--green)" });
+    if (ps2?.consistency != null && ps2.consistency <= 2) tags.push({ t: "🪨 Rock Solid", c: "var(--gold)" });
+    else if (ps2?.consistency != null && ps2.consistency >= 5) tags.push({ t: "🎲 Unpredictable", c: "var(--muted)" });
+    if (tags.length === 0) return "";
+    return `<div class="ana-card"><span class="badge">Profile Tags</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tags.map((t) => `<span style="background:rgba(255,255,255,0.07);border-radius:20px;padding:4px 10px;font-size:10px;font-weight:700;color:${t.c}">${t.t}</span>`).join("")}</div></div>`;
+  })();
+
   const html = `
           <div id="player-detail-modal">
             <div class="analytics-inner">
@@ -6591,9 +6819,19 @@ function openPlayerDetail(name) {
 
                 ${badgesHtml}
 
+                ${personalRecordsHtml}
+
+                ${strengthTagsHtml}
+
+                ${monthlySparklineHtml}
+
+                ${vsOpponentsHtml}
+
+                ${allPartnersHtml}
+
               </div>
               <div style="margin-top:20px;font-size:13px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Matches</div>
-              <div class="analytics-cards">${recentCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
+              <div class="analytics-cards">${recentMiniTable}${recentCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
             </div>
           </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
@@ -8288,11 +8526,11 @@ function buildH2HMatrixCompact(players) {
             pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
           const escA2 = a.replace(/'/g, "\\'");
           const escB2 = b.replace(/'/g, "\\'");
-          return `<td class="pvp-td ${cls} pvp-td-click" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L" onclick="openRivalryScreen('${escA2}','${escB2}')">${pct}%</td>`;
+          return `<td class="pvp-td ${cls} pvp-td-click" title="${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L" onclick="openRivalryScreen('${escA2}','${escB2}')">${pct}%<sub class="pvp-total">${d.total}</sub></td>`;
         })
         .join("");
-      // Row label: use same alias as column header
-      return `<tr><td class="pvp-row-hdr" title="${a}">${getMatrixAlias(aliasMap[a])}</td>${cells}</tr>`;
+      // Row label: use same alias as column header; click to highlight/dim row
+      return `<tr><td class="pvp-row-hdr pvp-row-hdr-click" title="${a}" onclick="_h2hHighlightRow(this.closest('tr'))">${getMatrixAlias(aliasMap[a])}</td>${cells}</tr>`;
     })
     .join("");
 
@@ -8311,6 +8549,18 @@ function buildH2HMatrixCompact(players) {
               </table>
               <div class="pvp-legend">${legend}</div>
             </div>`;
+}
+
+function _h2hHighlightRow(tr) {
+  const table = tr?.closest("table");
+  if (!table) return;
+  const all = table.querySelectorAll("tbody tr");
+  const isHighlighted = tr.classList.contains("pvp-row-highlight");
+  all.forEach((r) => { r.classList.remove("pvp-row-highlight", "pvp-dimmed"); });
+  if (!isHighlighted) {
+    tr.classList.add("pvp-row-highlight");
+    all.forEach((r) => { if (r !== tr) r.classList.add("pvp-dimmed"); });
+  }
 }
 
 // ── P VS P MATRIX ──────────────────────────────────────────
@@ -12349,6 +12599,17 @@ function renderAnalyticsPage() {
         .join("")
     : '<div class="sub" style="padding:8px">Need 3+ close matches per player.</div>';
 
+  const _antiClutchRows = [...clutchRankedAll]
+    .sort((a, b) => a.pct - b.pct)
+    .slice(0, 3)
+    .filter((p) => p.pct < 50);
+  const _antiClutchHtml = _antiClutchRows.length >= 2
+    ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">😰 ANTI-CLUTCH</div>` +
+      _antiClutchRows.map((p, i) =>
+        `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:var(--red)">${p.pct}% <span style="font-size:9px">CHOKER</span></div></div>`
+      ).join("") + `</div>`
+    : "";
+
   // ── CONSISTENCY RANKINGS ─────────────────────────────────
   // grid: Rank | Player | Matches | Consistency
   const conGrid = "grid-template-columns:40px 1fr 56px 86px";
@@ -12374,7 +12635,13 @@ function renderAnalyticsPage() {
                 : "ERRATIC";
           return `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:${col}">±${p.consistency} <span style="font-size:9px">${lbl}</span></div></div>`;
         })
-        .join("")
+        .join("") +
+      (consistencyStats.length >= 3
+        ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">⚡ MOST VOLATILE</div>` +
+          [...consistencyStats].reverse().slice(0, 3).map((p, i) =>
+            `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:var(--red)">±${p.consistency} <span style="font-size:9px">VOLATILE</span></div></div>`
+          ).join("") + `</div>`
+        : "")
     : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
 
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
@@ -12400,6 +12667,22 @@ function renderAnalyticsPage() {
       wins: v.count,
     }))
     .sort((a, b) => b.score - a.score);
+
+  // Hardest single win = match with highest combined opponent ELO
+  let _hardestWinMatch = null, _hardestCombinedElo = 0;
+  allMatches.forEach((m) => {
+    const _aw = m.scoreA > m.scoreB;
+    const _losers2 = _aw ? m.teamB : m.teamA;
+    const _combElo = _losers2.reduce((s, p) => s + (eloMapFull[p] || 1000), 0);
+    if (_combElo > _hardestCombinedElo) { _hardestCombinedElo = _combElo; _hardestWinMatch = m; }
+  });
+  const _hardestWinCallout = _hardestWinMatch ? (() => {
+    const _aw2 = _hardestWinMatch.scoreA > _hardestWinMatch.scoreB;
+    const _w = (_aw2 ? _hardestWinMatch.teamA : _hardestWinMatch.teamB).join(" & ");
+    const _l = (_aw2 ? _hardestWinMatch.teamB : _hardestWinMatch.teamA).join(" & ");
+    return `<div style="background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.18);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:5px">💎 HARDEST WIN · OPP ELO ${_hardestCombinedElo}</div><div style="font-size:12px;font-weight:800">${_w} <span style="color:var(--green)">beat</span> ${_l}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtDate(_hardestWinMatch.date)} · ${_hardestWinMatch.scoreA}–${_hardestWinMatch.scoreB}</div></div>`;
+  })() : "";
+
   // grid: Rank | Player | Wins | Avg Opp ELO
   const qualGrid = "grid-template-columns:40px 1fr 44px 72px";
   const qualityRankHtml = qualityRanked.length
@@ -12501,11 +12784,16 @@ function renderAnalyticsPage() {
         if (won) w++;
         return won ? "W" : "L";
       });
+      let strk = 0;
+      const lastDot = dots.length ? dots[dots.length - 1] : null;
+      if (lastDot) for (let si = dots.length - 1; si >= 0 && dots[si] === lastDot; si--) strk++;
       return {
         name,
         dots,
         pct: Math.round((w / pm.length) * 100),
         n: pm.length,
+        streak: strk,
+        streakType: lastDot,
       };
     })
     .filter(Boolean)
@@ -12752,6 +13040,14 @@ function renderAnalyticsPage() {
   })();
 
   // ── SCORE DISTRIBUTION ─────────────────────────────────
+  const _topScore = scoreDistSorted[0];
+  const _allMarginsRaw = sortedM.map((m) => Math.abs(m.scoreA - m.scoreB));
+  const _avgMarginOverall = _allMarginsRaw.length
+    ? (_allMarginsRaw.reduce((s, v) => s + v, 0) / _allMarginsRaw.length).toFixed(1)
+    : "—";
+  const _sdCallout = _topScore
+    ? `<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">MOST COMMON SCORE</div><div style="font-size:20px;font-weight:900;color:var(--theme)">${_topScore[0]}</div><div style="font-size:9px;color:var(--muted)">${_topScore[1]}× · ${Math.round(_topScore[1] / allMatches.length * 100)}%</div></div><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">AVG MARGIN</div><div style="font-size:20px;font-weight:900;color:var(--accent)">${_avgMarginOverall}</div><div style="font-size:9px;color:var(--muted)">games per match</div></div></div>`
+    : "";
   const sdHtml = scoreDistSorted
     .map(
       ([s, c]) =>
@@ -12769,7 +13065,10 @@ function renderAnalyticsPage() {
             : p.pct <= 40
               ? "var(--red)"
               : "var(--text)";
-        return `<div class="ftable-row"><div class="ftable-rank">${i + 1}</div><div class="ftable-name">${p.name}</div><div class="ftable-dots">${fdots(p.dots)}</div><div class="ftable-pct" style="color:${pc}">${p.pct}%</div></div>`;
+        const skBadge = p.streak >= 2
+          ? `<span class="ft-streak-badge ${p.streakType === "W" ? "ft-sk-w" : "ft-sk-l"}">${p.streak}${p.streakType}</span>`
+          : `<span class="ft-streak-badge ft-sk-n">—</span>`;
+        return `<div class="ftable-row"><div class="ftable-rank">${i + 1}</div><div class="ftable-name">${p.name}</div><div class="ftable-dots">${fdots(p.dots)}</div><div class="ftable-pct" style="color:${pc}">${p.pct}%</div>${skBadge}</div>`;
       })
       .join("") ||
     '<div class="sub" style="padding:8px">Not enough data.</div>';
@@ -13905,6 +14204,307 @@ function renderAnalyticsPage() {
     return `<div class="ana-card mlog-card">${rows}</div>`;
   })();
 
+  // ── NEW SECTIONS DATA ──────────────────────────────────
+
+  // 1a: Player Stats Table
+  const _playerStatsTableHtml = (() => {
+    if (!compList.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    const pg = "grid-template-columns:1fr 44px 60px 54px 60px";
+    return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span>Player</span><span>Avg G</span><span>Shutout%</span><span>Partners</span><span>Avg Margin</span></div>` +
+      compList.filter((p) => p.mp >= 1).map((p) => {
+        const avgG = (p.gw / p.mp).toFixed(1);
+        const shutRate = stats[p.name]?.wins > 0
+          ? Math.round(((shutoutWins[p.name] || 0) / stats[p.name].wins) * 100) + "%"
+          : "—";
+        const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
+        const avgM = p.avgMargin != null ? (p.avgMargin >= 0 ? "+" : "") + p.avgMargin.toFixed(1) : "—";
+        const mc = p.avgMargin > 0 ? "var(--green)" : p.avgMargin < 0 ? "var(--red)" : "var(--muted)";
+        return `<div class="lrace-row" style="${pg}"><div class="lrace-name">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${shutRate}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
+      }).join("") + `</div>`;
+  })();
+
+  // 1b: Pair Leaderboard Top 10 with streak + against quality
+  const _pairLeaderboardHtml = (() => {
+    const pairAQ = {}, pairStrk = {};
+    sortedM.forEach((m) => {
+      if (m.teamA.length !== 2 || m.teamB.length !== 2) return;
+      const tkA = [...m.teamA].sort().join(" & "), tkB = [...m.teamB].sort().join(" & ");
+      [tkA, tkB].forEach((tk, ti) => {
+        const opp = ti === 0 ? m.teamB : m.teamA;
+        if (!pairAQ[tk]) pairAQ[tk] = { t: 0, c: 0 };
+        pairAQ[tk].t += opp.reduce((s, p) => s + (eloMap[p] || 1000), 0) / opp.length;
+        pairAQ[tk].c++;
+      });
+    });
+    Object.entries(partnerships).forEach(([key, pd]) => {
+      const pms = sortedM.filter((m) => {
+        if (m.teamA.length !== 2 || m.teamB.length !== 2) return false;
+        const ak = [...m.teamA].sort().join(" & "), bk = [...m.teamB].sort().join(" & ");
+        return ak === key || bk === key;
+      });
+      let sk = 0, st = null;
+      for (let i = pms.length - 1; i >= 0; i--) {
+        const m = pms[i];
+        const ak = [...m.teamA].sort().join(" & ");
+        const won = ak === key ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+        if (st === null) { st = won ? "W" : "L"; sk = 1; }
+        else if ((won && st === "W") || (!won && st === "L")) sk++;
+        else break;
+      }
+      pairStrk[key] = { sk, st };
+    });
+    const top10 = Object.entries(partnerships)
+      .filter(([, pd]) => pd.played >= 2)
+      .sort((a, b) => b[1].wins / b[1].played - a[1].wins / a[1].played || b[1].played - a[1].played)
+      .slice(0, 10);
+    if (!top10.length) return '<div class="sub" style="padding:8px">Need 2+ games per pair.</div>';
+    const pg2 = "grid-template-columns:1fr 44px 52px 54px 54px";
+    return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg2}"><span>Pair</span><span>Played</span><span>Win%</span><span>vs ELO</span><span>Streak</span></div>` +
+      top10.map(([key, pd], i) => {
+        const pct = Math.round(pd.wins / pd.played * 100);
+        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+        const aq = pairAQ[key] ? Math.round(pairAQ[key].t / pairAQ[key].c) : "—";
+        const s = pairStrk[key];
+        const sStr = s?.sk >= 1 ? `${s.sk}${s.st}` : "—";
+        const sCol = s?.st === "W" ? "var(--green)" : s?.st === "L" ? "var(--red)" : "var(--muted)";
+        const shortKey = pd.players.map((p) => p.split(" ")[0]).join(" & ");
+        return `<div class="lrace-row" style="${pg2}"><div class="lrace-name" style="font-size:10px">#${i + 1} ${shortKey}</div><div style="text-align:center;font-weight:700">${pd.played}</div><div style="text-align:center;font-weight:700;color:${col}">${pct}%</div><div style="text-align:center;font-weight:700;font-size:10px">${aq}</div><div style="text-align:center;font-weight:700;color:${sCol}">${sStr}</div></div>`;
+      }).join("") + `</div>`;
+  })();
+
+  // 1c: Monthly Stats Table
+  const _monthlyStatsTableHtml = (() => {
+    if (!uniqueMonths.length) return '<div class="sub" style="padding:8px">No monthly data yet.</div>';
+    const moN2 = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const lastMos = uniqueMonths.slice(-6);
+    const potmMap = {};
+    lastMos.forEach((mo) => {
+      const ps2 = Object.entries(monthlyStats[mo] || {}).filter(([, d]) => d.m >= 5);
+      if (!ps2.length) return;
+      const top = ps2.sort((a, b) => b[1].w / b[1].m - a[1].w / a[1].m)[0];
+      if (top) potmMap[mo] = { name: top[0], pct: Math.round(top[1].w / top[1].m * 100) };
+    });
+    const trendArrows = {};
+    if (lastMos.length >= 2) {
+      playersByMatches.forEach((p) => {
+        const [prev, curr] = lastMos.slice(-2).map((mo) => monthlyStats[mo]?.[p]);
+        if (prev?.m >= 2 && curr?.m >= 2) {
+          const d = curr.w / curr.m - prev.w / prev.m;
+          trendArrows[p] = d > 0.1 ? "↑" : d < -0.1 ? "↓" : "→";
+        }
+      });
+    }
+    const activePs = playersByMatches.filter((p) => lastMos.some((mo) => monthlyStats[mo]?.[p]?.m > 0));
+    if (!activePs.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    const potmHtml2 = Object.keys(potmMap).length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">` +
+        Object.entries(potmMap).map(([mo, d]) =>
+          `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}%</div></div>`
+        ).join("") + `</div>`
+      : "";
+    const hdrs = lastMos.map((mo) => `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${moN2[parseInt(mo.slice(5))]}</th>`).join("");
+    const bodyRows2 = activePs.map((p) => {
+      const cells2 = lastMos.map((mo) => {
+        const d = monthlyStats[mo]?.[p];
+        if (!d || !d.m) return `<td style="text-align:center;color:var(--muted);font-size:10px">—</td>`;
+        const pct = Math.round(d.w / d.m * 100);
+        const col = pct >= 70 ? "var(--green)" : pct >= 40 ? "var(--gold)" : "var(--red)";
+        const bg = pct >= 70 ? "rgba(54,212,126,0.12)" : pct >= 40 ? "rgba(241,196,15,0.1)" : "rgba(240,79,79,0.12)";
+        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%</td>`;
+      }).join("");
+      const arr = trendArrows[p];
+      const arrCol = arr === "↑" ? "var(--green)" : arr === "↓" ? "var(--red)" : "var(--muted)";
+      const arrSpan = arr ? `<span style="font-size:10px;color:${arrCol};margin-left:3px">${arr}</span>` : "";
+      return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}${arrSpan}</td>${cells2}</tr>`;
+    }).join("");
+    return `<div class="ana-card" style="padding:12px;overflow-x:auto">${potmHtml2}<table style="width:100%;border-collapse:collapse;font-size:10px;border-spacing:2px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs}</tr></thead><tbody>${bodyRows2}</tbody></table></div>`;
+  })();
+
+  // 2: Peak ELO Tracker
+  const _peakEloHtml = (() => {
+    if (!eloRanked.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    const pg3 = "grid-template-columns:40px 1fr 58px 58px 64px";
+    return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg3}"><span>Rank</span><span>Player</span><span>Peak</span><span>Current</span><span>From Peak</span></div>` +
+      eloRanked.map(([pname, ev], i) => {
+        const peak = eloPeaks[pname] || ev;
+        const diff = ev - peak;
+        const diffStr = diff === 0
+          ? `<span style="color:var(--green);font-size:9px;font-weight:800">AT PEAK</span>`
+          : `<span style="color:var(--red)">${diff}</span>`;
+        return `<div class="lrace-row" style="${pg3}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${pname}</div><div style="text-align:center;font-weight:800;color:var(--gold)">${peak}</div><div style="text-align:center;font-weight:700">${ev}</div><div style="text-align:center;font-size:10px">${diffStr}</div></div>`;
+      }).join("") + `</div>`;
+  })();
+
+  // 2: Per-player Day-of-Week win rate grid
+  const _dowPlayerHtml = (() => {
+    const DAY2 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const byP = {};
+    sortedM.forEach((m) => {
+      if (!m.date) return;
+      const d = new Date(m.date + "T00:00:00").getDay();
+      const aWon2 = m.scoreA > m.scoreB;
+      [...m.teamA, ...m.teamB].forEach((p) => {
+        if (!byP[p]) byP[p] = Array.from({ length: 7 }, () => ({ w: 0, p: 0 }));
+        byP[p][d].p++;
+        const inA = (m.teamA || []).includes(p);
+        if ((inA && aWon2) || (!inA && !aWon2)) byP[p][d].w++;
+      });
+    });
+    const activeDays = [0,1,2,3,4,5,6].filter((d) => Object.values(byP).some((v) => v[d].p > 0));
+    if (!activeDays.length) return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    const hdrs2 = activeDays.map((d) => `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${DAY2[d]}</th>`).join("");
+    const rows2 = playersByMatches.filter((p) => byP[p]).map((p) => {
+      const cells3 = activeDays.map((d) => {
+        const dd = byP[p][d];
+        if (!dd.p) return `<td style="text-align:center;color:var(--muted);font-size:10px">—</td>`;
+        const pct = Math.round(dd.w / dd.p * 100);
+        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--gold)";
+        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col}" title="${dd.w}W–${dd.p-dd.w}L">${pct}%</td>`;
+      }).join("");
+      return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}</td>${cells3}</tr>`;
+    }).join("");
+    return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % per player per day of week</div><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs2}</tr></thead><tbody>${rows2}</tbody></table></div>`;
+  })();
+
+  // 2: Score Margin Trend (avg margin per month)
+  const _scoreMargTrendHtml = (() => {
+    if (uniqueMonths.length < 2) return '<div class="sub" style="padding:8px">Need matches across 2+ months.</div>';
+    const moMargins = {};
+    sortedM.forEach((m) => {
+      const mo = (m.date || "").slice(0, 7);
+      if (!mo) return;
+      if (!moMargins[mo]) moMargins[mo] = { total: 0, count: 0 };
+      moMargins[mo].total += Math.abs(m.scoreA - m.scoreB);
+      moMargins[mo].count++;
+    });
+    const moN3 = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const pts = uniqueMonths.map((mo) => ({
+      mo,
+      avg: moMargins[mo] ? moMargins[mo].total / moMargins[mo].count : null,
+    })).filter((p) => p.avg !== null);
+    if (pts.length < 2) return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    const W = 300, H = 90, pl = 30, pr = 8, pt2 = 8, pb = 18, cW = W - pl - pr, cH = H - pt2 - pb;
+    const maxA = Math.max(...pts.map((p) => p.avg)) + 0.5;
+    const minA = Math.max(0, Math.min(...pts.map((p) => p.avg)) - 0.5);
+    const toX2 = (i) => pl + (i / (pts.length - 1 || 1)) * cW;
+    const toY2 = (v) => pt2 + (1 - (v - minA) / (maxA - minA || 1)) * cH;
+    const polyline2 = pts.map((p, i) => `${toX2(i).toFixed(1)},${toY2(p.avg).toFixed(1)}`).join(" ");
+    const xLbls = pts.map((p, i) => `<text x="${toX2(i).toFixed(1)}" y="${H - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN3[parseInt(p.mo.slice(5))]}</text>`).join("");
+    const circles2 = pts.map((p, i) => `<circle cx="${toX2(i).toFixed(1)}" cy="${toY2(p.avg).toFixed(1)}" r="2.5" fill="var(--theme)"><title>${p.mo}: ${p.avg.toFixed(1)}</title></circle>`).join("");
+    const lastAvg = pts[pts.length - 1].avg, prevAvg = pts[pts.length - 2]?.avg;
+    const trend = lastAvg < prevAvg - 0.1 ? "getting tighter" : lastAvg > prevAvg + 0.1 ? "more one-sided" : "steady";
+    return `<div class="ana-card" style="padding:12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">Average score margin per month — ${trend}</div><div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible"><polyline points="${polyline2}" fill="none" stroke="var(--theme)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${circles2}${xLbls}</svg></div></div>`;
+  })();
+
+  // 2: Dominance Index
+  const _dominanceHtml = (() => {
+    const beaten = {};
+    sortedM.forEach((m) => {
+      const aWon2 = m.scoreA > m.scoreB;
+      const winners = aWon2 ? m.teamA : m.teamB;
+      const losers = aWon2 ? m.teamB : m.teamA;
+      winners.forEach((w) => {
+        if (!beaten[w]) beaten[w] = new Set();
+        losers.forEach((l) => beaten[w].add(l));
+      });
+    });
+    const rows3 = Object.entries(beaten)
+      .map(([p, opp]) => ({ name: p, count: opp.size, opp: [...opp] }))
+      .sort((a, b) => b.count - a.count);
+    if (!rows3.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    const pg4 = "grid-template-columns:40px 1fr 60px";
+    return `<div class="ana-card" style="padding:8px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Number of distinct opponents beaten at least once</div><div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opponents</span></div>` +
+      rows3.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${r.name}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("") + `</div>`;
+  })();
+
+  // 2: Most One-Sided Rivalries
+  const _oneSidedHtml = (() => {
+    const rivalries = Object.entries(teamMatchups)
+      .filter(([, v]) => v.played >= 3)
+      .map(([, v]) => {
+        const tkA = v.teamA.join(" & "), tkB = v.teamB.join(" & ");
+        const wA = v.wins[tkA] || 0, wB = v.wins[tkB] || 0;
+        const dom = Math.max(wA, wB), sub = Math.min(wA, wB);
+        const domTeam = wA >= wB ? v.teamA : v.teamB;
+        const subTeam = wA >= wB ? v.teamB : v.teamA;
+        return { domTeam, subTeam, dom, sub, played: v.played };
+      })
+      .filter((r) => r.dom > r.sub)
+      .sort((a, b) => b.dom / b.played - a.dom / a.played || b.dom - a.dom)
+      .slice(0, 5);
+    if (!rivalries.length) return '<div class="sub" style="padding:8px">Need 3+ meetings between same teams with a clear leader.</div>';
+    return `<div class="ana-card" style="padding:10px 12px">` +
+      rivalries.map((r) => {
+        const domPct = Math.round(r.dom / r.played * 100);
+        const short = (t) => t.map((p) => p.split(" ")[0]).join(" & ");
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><div><div style="font-size:11px;font-weight:700">${short(r.domTeam)} <span style="color:var(--green)">dominate</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px">vs ${short(r.subTeam)}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:var(--green)">${r.dom}–${r.sub}</div><div style="font-size:9px;color:var(--muted)">${r.played}g · ${domPct}%</div></div></div>`;
+      }).join("") + `</div>`;
+  })();
+
+  // 2: Score Heatmap Grid (scored vs conceded)
+  const _scoreHeatmapHtml = (() => {
+    const scores = [0,1,2,3,4,5,6];
+    const grid3 = {};
+    sortedM.forEach((m) => {
+      const key1 = `${m.scoreA}_${m.scoreB}`;
+      const key2 = `${m.scoreB}_${m.scoreA}`;
+      grid3[key1] = (grid3[key1] || 0) + 1;
+      if (key1 !== key2) grid3[key2] = (grid3[key2] || 0) + 1;
+    });
+    const maxG = Math.max(...Object.values(grid3), 1);
+    const header = `<tr><th style="font-size:8px;color:var(--muted);padding:0 4px 4px 0">Scored↓ \ Given→</th>${scores.map((s) => `<th style="font-size:8px;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 4px">${s}</th>`).join("")}</tr>`;
+    const bodyRows3 = scores.map((rs) => {
+      const cells4 = scores.map((cs) => {
+        const cnt = grid3[`${rs}_${cs}`] || 0;
+        const bg = cnt === 0 ? "rgba(255,255,255,0.04)" : `rgba(var(--theme-rgb),${Math.max(0.12, cnt / maxG * 0.8).toFixed(2)})`;
+        return `<td style="text-align:center;background:${bg};border-radius:3px;padding:4px;font-size:9px;font-weight:700;color:${cnt?'var(--text)':'transparent'}">${cnt || ""}</td>`;
+      }).join("");
+      return `<tr><td style="font-size:9px;color:var(--muted);font-weight:700;padding:2px 6px 2px 0">${rs}</td>${cells4}</tr>`;
+    }).join("");
+    return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">How often each exact score occurred (both perspectives). Darker = more frequent.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
+  })();
+
+  // 2: Longest Absence / Active Streak
+  const _absenceStreakHtml = (() => {
+    const allDates = Object.keys(dateCounts).sort();
+    if (!allDates.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    const lastDate = allDates[allDates.length - 1];
+    const todayStr2 = todayISO();
+    const daysSinceLast = Math.round((new Date(todayStr2 + "T00:00:00") - new Date(lastDate + "T00:00:00")) / 86400000);
+    // Per-player: last played date + active session streak
+    const playerLastDate = {}, playerSessions = {};
+    allDates.forEach((d) => {
+      sortedM.filter((m) => m.date === d).forEach((m) => {
+        [...m.teamA, ...m.teamB].forEach((p) => {
+          playerLastDate[p] = d;
+          if (!playerSessions[p]) playerSessions[p] = [];
+          if (!playerSessions[p].includes(d)) playerSessions[p].push(d);
+        });
+      });
+    });
+    // Longest absence per player
+    const absRows = Object.entries(playerLastDate)
+      .map(([p, last]) => {
+        const days2 = Math.round((new Date(todayStr2 + "T00:00:00") - new Date(last + "T00:00:00")) / 86400000);
+        return { name: p, last, days: days2 };
+      })
+      .sort((a, b) => b.days - a.days);
+    // Active consecutive session streak (sessions without a gap > 14 days)
+    const activeRows = Object.entries(playerSessions).map(([p, dates]) => {
+      const sorted2 = [...dates].sort();
+      let streak2 = 1;
+      for (let i = sorted2.length - 1; i > 0; i--) {
+        const gap = Math.round((new Date(sorted2[i] + "T00:00:00") - new Date(sorted2[i - 1] + "T00:00:00")) / 86400000);
+        if (gap <= 21) streak2++;
+        else break;
+      }
+      return { name: p, streak: streak2, sessions: sorted2.length };
+    }).sort((a, b) => b.streak - a.streak);
+    const pg5 = "grid-template-columns:1fr 80px 80px";
+    return `<div class="ana-card" style="padding:10px 12px"><div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;color:var(--muted);margin-bottom:3px">Last session: <strong>${fmtDate(lastDate)}</strong> · ${daysSinceLast === 0 ? "Today" : daysSinceLast + "d ago"}</div></div><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">PLAYER ACTIVITY</div><div class="lrace-header" style="${pg5}"><span>Player</span><span>Last Played</span><span>Sessions</span></div>` +
+      absRows.map((r) => `<div class="lrace-row" style="${pg5}"><div class="lrace-name">${r.name}</div><div style="font-size:10px;text-align:right;color:${r.days===0?"var(--green)":r.days<=7?"var(--muted)":"var(--red)"}">${r.days === 0 ? "Today" : r.days + "d ago"}</div><div style="text-align:right;font-weight:700;font-size:10px">${playerSessions[r.name]?.length || 0}</div></div>`).join("") + `</div>`;
+  })();
+
   // ── RENDER ─────────────────────────────────────────────
   const favKeys = getAnaFavs();
   const makeSec = (key, title, body, col, cat) => {
@@ -13954,7 +14554,7 @@ function renderAnalyticsPage() {
       key: "form",
       cat: "players",
       title: "⚡ Current Form",
-      body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span></div>${ftHtml}</div>`,
+      body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
     },
     {
       key: "lrace",
@@ -13966,7 +14566,7 @@ function renderAnalyticsPage() {
       key: "clutchrank",
       cat: "players",
       title: "🎯 Clutch Rankings",
-      body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}</div>`,
+      body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>`,
     },
     {
       key: "consistency",
@@ -13978,7 +14578,7 @@ function renderAnalyticsPage() {
       key: "qualitywins",
       cat: "players",
       title: "💎 Quality Wins",
-      body: `<div class="ana-card" style="padding:8px 12px">${qualityRankHtml}</div>`,
+      body: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
     },
     ...(uniqueMonths.length >= 2
       ? [
@@ -14000,7 +14600,7 @@ function renderAnalyticsPage() {
       key: "score",
       cat: "activity",
       title: "📊 Score Distribution",
-      body: `<div class="ana-card">${sdHtml}</div>`,
+      body: `<div class="ana-card">${_sdCallout}${sdHtml}</div>`,
     },
     {
       key: "partnership",
@@ -14126,6 +14726,17 @@ function renderAnalyticsPage() {
       title: "📅 Match Calendar",
       body: `<div id="match-calendar" class="match-calendar"></div>`,
     },
+    // ── TODO BATCH: Statistics enhancements ────────────────────
+    { key: "playerstats", cat: "players", title: "📊 Player Stats Deep Dive", body: _playerStatsTableHtml },
+    { key: "pairleaderboard", cat: "pairs", title: "🏆 Pair Leaderboard Top 10", body: _pairLeaderboardHtml },
+    ...(uniqueMonths.length >= 1 ? [{ key: "monthlystats", cat: "activity", title: "📅 Monthly Stats", body: _monthlyStatsTableHtml }] : []),
+    { key: "peakelo", cat: "elo", title: "🏔️ Peak ELO Tracker", body: _peakEloHtml },
+    { key: "dowplayer", cat: "activity", title: "📆 Day-of-Week Win Rates", body: _dowPlayerHtml },
+    { key: "scoremargtrend", cat: "activity", title: "📉 Score Margin Trend", body: _scoreMargTrendHtml },
+    { key: "dominance", cat: "players", title: "🦁 Dominance Index", body: _dominanceHtml },
+    { key: "onesided", cat: "pairs", title: "⚔️ One-Sided Rivalries", body: _oneSidedHtml },
+    { key: "scoreheatmap", cat: "activity", title: "🟦 Score Heatmap", body: _scoreHeatmapHtml },
+    { key: "absencestreak", cat: "activity", title: "📆 Player Activity & Absence", body: _absenceStreakHtml },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
     {
       key: "powerrankings",
@@ -15126,9 +15737,11 @@ function openMatchIntro(idx) {
   const nameA = m.teamA.map((p) => normPlayer(p)).join(" & ");
   const nameB = m.teamB.map((p) => normPlayer(p)).join(" & ");
 
-  document.getElementById("mio-date-bar").textContent = fmtDate(
-    m.date,
-  ).toUpperCase();
+  // Match number (chronological position in all matches)
+  const _sortedForNum = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const _matchNum = _sortedForNum.indexOf(m) + 1;
+  document.getElementById("mio-date-bar").textContent =
+    `${fmtDate(m.date).toUpperCase()} · MATCH #${_matchNum}`;
 
   const rankA = mkRankLabel(m.teamA);
   const rankB = mkRankLabel(m.teamB);
@@ -15314,6 +15927,86 @@ function openMatchIntro(idx) {
   if (noteEl) {
     noteEl.textContent = m.note || "";
     noteEl.style.display = m.note ? "block" : "none";
+  }
+
+  // ── Context extras ──────────────────────────────────────────
+  const ctxEl = document.getElementById("mio-context-extras");
+  if (ctxEl) {
+    const ctxParts = [];
+
+    // Streak context: did this extend or end a notable streak?
+    const priorMs = allMatches.slice(0, idx);
+    [...m.teamA, ...m.teamB].forEach((p) => {
+      const pPrior = priorMs.filter((pm) => [...(pm.teamA || []), ...(pm.teamB || [])].includes(p));
+      if (!pPrior.length) return;
+      let sk = 0, st = null;
+      for (let i = pPrior.length - 1; i >= 0; i--) {
+        const pm = pPrior[i];
+        const inA2 = (pm.teamA || []).includes(p);
+        const won2 = inA2 ? pm.scoreA > pm.scoreB : pm.scoreB > pm.scoreA;
+        if (st === null) { st = won2; sk = 1; }
+        else if (won2 === st) sk++;
+        else break;
+      }
+      const inA3 = (m.teamA || []).includes(p);
+      const won3 = inA3 ? aWon : !aWon;
+      if (st !== null && won3 === st && sk >= 2) {
+        ctxParts.push(`🔥 ${normPlayer(p)}'s ${st ? "win" : "loss"} streak → ${sk + 1}`);
+      } else if (st !== null && won3 !== st && sk >= 3) {
+        ctxParts.push(`💥 ${normPlayer(p)}'s ${sk}-${st ? "W" : "L"} streak ended`);
+      }
+    });
+
+    // ELO tier cross: check if any player crossed a tier boundary
+    const ELO_TIERS = [{ t: 900, n: "BRONZE" }, { t: 1000, n: "SILVER" }, { t: 1100, n: "GOLD" }, { t: 1200, n: "PLATINUM" }];
+    [...m.teamA, ...m.teamB].forEach((p) => {
+      const pre = priorElo[p] || 1000;
+      const post = afterElo[p] || 1000;
+      ELO_TIERS.forEach(({ t, n }) => {
+        if (pre < t && post >= t) ctxParts.push(`⭐ ${normPlayer(p)} reached ${n}`);
+        else if (pre >= t && post < t) ctxParts.push(`📉 ${normPlayer(p)} dropped below ${n}`);
+      });
+    });
+
+    // Last meeting reminder
+    const tkA2 = [...m.teamA].sort().join("|");
+    const tkB2 = [...m.teamB].sort().join("|");
+    const lastMeeting = [...allMatches.slice(0, idx)].reverse().find((pm) => {
+      const pmA2 = [...(pm.teamA || [])].sort().join("|");
+      const pmB2 = [...(pm.teamB || [])].sort().join("|");
+      return (pmA2 === tkA2 && pmB2 === tkB2) || (pmA2 === tkB2 && pmB2 === tkA2);
+    });
+    if (lastMeeting) {
+      const lmAWon = lastMeeting.scoreA > lastMeeting.scoreB;
+      const lmA = [...lastMeeting.teamA].sort().join("|");
+      const lastWinnerName = lmA === tkA2 ? nameA : nameB;
+      ctxParts.push(`📅 Last meeting: ${fmtDate(lastMeeting.date)} · ${lastMeeting.scoreA}–${lastMeeting.scoreB} (${lastWinnerName.split("<br>").join(" ")} won)`);
+    }
+
+    // Relative performance vs team averages
+    const teamAvgScore = (players) => {
+      const ms = allMatches.slice(0, idx).filter((pm) =>
+        players.every((p) => [...(pm.teamA || []), ...(pm.teamB || [])].includes(p))
+      );
+      if (!ms.length) return null;
+      const totals = ms.map((pm) => {
+        const tk = [...players].sort().join("|");
+        const pmA3 = [...(pm.teamA || [])].sort().join("|");
+        return pmA3 === tk ? pm.scoreA : pm.scoreB;
+      });
+      return totals.reduce((s, v) => s + v, 0) / totals.length;
+    };
+    const avgA2 = teamAvgScore(m.teamA);
+    const avgB2 = teamAvgScore(m.teamB);
+    if (avgA2 !== null && m.scoreA > avgA2 + 0.4) ctxParts.push(`📈 ${nameA.split("<br>").join(" ")} above avg (${avgA2.toFixed(1)})`);
+    else if (avgA2 !== null && m.scoreA < avgA2 - 0.4) ctxParts.push(`📉 ${nameA.split("<br>").join(" ")} below avg (${avgA2.toFixed(1)})`);
+    if (avgB2 !== null && m.scoreB > avgB2 + 0.4) ctxParts.push(`📈 ${nameB.split("<br>").join(" ")} above avg (${avgB2.toFixed(1)})`);
+    else if (avgB2 !== null && m.scoreB < avgB2 - 0.4) ctxParts.push(`📉 ${nameB.split("<br>").join(" ")} below avg (${avgB2.toFixed(1)})`);
+
+    ctxEl.innerHTML = ctxParts.length
+      ? ctxParts.map((t) => `<div class="mio-ctx-line">${t}</div>`).join("")
+      : "";
+    ctxEl.style.display = ctxParts.length ? "block" : "none";
   }
 
   // Show overlay
