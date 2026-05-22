@@ -604,6 +604,9 @@ function checkMilestones(prevMatches, newMatches) {
 let allMatches = [];
 let nameMap = {};
 let aliasMap = {};
+let _dataVersion = 0;
+let _homeRenderedVersion = -1, _homeRenderedFilter = "";
+let _compactRenderedVersion = -1, _compactRenderedFilter = "";
 let photoMap = {};
 let calYear = new Date().getFullYear(),
   calMonth = new Date().getMonth();
@@ -1323,6 +1326,7 @@ function loadCloudData() {
     }
 
     lastDataFingerprint = fp;
+    _dataVersion++;
 
     allMatches = matches;
     aliasMap = aMap;
@@ -1500,8 +1504,14 @@ function goTo(id) {
   document.getElementById("pg-" + id).classList.add("active");
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
-  if (id === "home") renderHome();
-  if (id === "compact") renderCompact();
+  if (id === "home") {
+    const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
+    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
+  }
+  if (id === "compact") {
+    const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
+    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk) renderCompact();
+  }
   if (id === "history") {
     renderModernMatches();
   }
@@ -1592,9 +1602,15 @@ function switchMainTab(id, skipAnim = false) {
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
 
-  // Render content for the new page
-  if (id === "home") renderHome();
-  if (id === "compact") renderCompact();
+  // Render content for the new page — skip if data + filter haven't changed
+  if (id === "home") {
+    const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
+    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
+  }
+  if (id === "compact") {
+    const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
+    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk) renderCompact();
+  }
   if (id === "history") {
     renderModernMatches();
     populateHistoryPlayerChips();
@@ -3409,6 +3425,8 @@ function buildHudGaugeSvg(sr, ratingClass) {
 
 let _renderHomeGen = 0;
 function renderHome() {
+  _homeRenderedVersion = _dataVersion;
+  _homeRenderedFilter = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
   renderAbsenceBanner();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   const homeEloMapFull = computeElo(filtered);
@@ -3580,6 +3598,8 @@ function runSpeedometerSweep() {
 }
 
 function renderCompact() {
+  _compactRenderedVersion = _dataVersion;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
     const _cmpLblMap = {
