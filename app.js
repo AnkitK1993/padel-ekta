@@ -4020,9 +4020,8 @@ function buildMatchCards(matches, showAdmin) {
                     <button class="action-btn edit-btn" onclick="editMatchByIndex(${realIdx}, this)">✏ Edit</button>
                     <button class="action-btn delete-btn" onclick="deleteMatchByIndex(${realIdx})">🗑 Del</button>
                     <button class="action-btn rematch-btn" onclick="quickRematch(${realIdx})">⚡ Rematch</button>
-                    <button class="action-btn share-match-btn" onclick="openShareMatchPoster(${realIdx})">⬆ Share</button>
                   </div>`
-                      : `<div class="match-actions"><button class="action-btn share-match-btn" onclick="openShareMatchPoster(${realIdx})">⬆ Share</button></div>`
+                      : ``
                   }
                 </div>
                 </div>
@@ -6782,7 +6781,6 @@ function openPlayerDetail(name) {
               <div class="analytics-header">
                 <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}${window.isAdmin ? `<button class="pd-photo-btn" onclick="savePlayerPhoto(${jsArg(name)})" title="Upload photo">📷</button>` : ""}${window.isAdmin && photoMap[name] ? `<button class="pd-photo-remove" onclick="removePlayerPhoto(${jsArg(name)})" title="Remove photo">✕</button>` : ""}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${escHtml(name)}</span>${eloTierBadge(playerElo)}</div></div>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <button class="share-card-btn" onclick="openShareCard(${jsArg(name)})">⬆ Share</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
                 </div>
               </div>
@@ -8059,7 +8057,6 @@ function openWeeklyDigest() {
       ${card}
       <div style="display:flex;gap:8px;width:100%;max-width:340px">
         <button class="share-close-btn" style="flex:1" onclick="document.getElementById('share-card-overlay').remove()">Close</button>
-        <button class="share-close-btn" style="flex:1;background:rgba(24,215,255,0.15);border-color:rgba(24,215,255,0.5);color:#18d7ff" onclick="_shareDigest()">Share 📤</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
