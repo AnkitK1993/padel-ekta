@@ -607,7 +607,6 @@ let aliasMap = {};
 let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
-let guestPlayers = [];
 let photoMap = {};
 let calYear = new Date().getFullYear(),
   calMonth = new Date().getMonth();
@@ -823,7 +822,7 @@ function setSplashStatus(msg) {
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
 async function saveCloudData() {
   _invalidateEloMemo();
-  const payload = { matches: allMatches, aliasMap, nameMap, guests: guestPlayers };
+  const payload = { matches: allMatches, aliasMap, nameMap };
   if (window.appCache) window.appCache.save(allMatches, aliasMap, nameMap);
   try {
     if (auth.currentUser && window.isAdmin) {
@@ -1308,7 +1307,7 @@ function loadCloudData() {
     }
   }
 
-  function onData(matches, aMap, nMap, guests, skipConflict = false) {
+  function onData(matches, aMap, nMap, skipConflict = false) {
     const fp = dataFingerprint(matches, aMap, nMap);
     const isFirstLoad = !fired;
 
@@ -1329,7 +1328,7 @@ function loadCloudData() {
           localOnly,
           (resolved, rAMap, rNMap, save) => {
             lastDataFingerprint = null; // force reprocess
-            onData(resolved, rAMap, rNMap, guestPlayers, true);
+            onData(resolved, rAMap, rNMap, true);
             if (save) saveCloudData();
           },
         );
@@ -1343,7 +1342,6 @@ function loadCloudData() {
     allMatches = matches;
     aliasMap = aMap;
     nameMap = nMap;
-    if (Array.isArray(guests)) guestPlayers = guests;
     _invalidateEloMemo();
     autoSaveWeeklySnap();
     if (window.appCache) window.appCache.save(allMatches, aliasMap, nameMap);
@@ -1384,7 +1382,7 @@ function loadCloudData() {
   try {
     const cached = window.appCache && window.appCache.load();
     if (cached && Array.isArray(cached.matches) && cached.matches.length) {
-      onData(cached.matches, cached.aliasMap || {}, cached.nameMap || {}, cached.guests || []);
+      onData(cached.matches, cached.aliasMap || {}, cached.nameMap || {});
     }
   } catch (e) {}
 
@@ -1398,7 +1396,7 @@ function loadCloudData() {
           return;
         }
         const d = snap.data();
-        onData(d.matches || [], d.aliasMap || {}, d.nameMap || {}, d.guests || []);
+        onData(d.matches || [], d.aliasMap || {}, d.nameMap || {});
       },
       function (err) {
         console.error("Firestore error:", err);
@@ -3065,28 +3063,6 @@ function renderNamesTable() {
               </table>
             `;
   table.innerHTML = html;
-  renderGuestPlayersAdmin();
-}
-
-function renderGuestPlayersAdmin() {
-  const el = document.getElementById("guest-players-admin");
-  if (!el || !window.isAdmin) return;
-  const eloMap = computeElo(allMatches);
-  const stats = computeStats(allMatches, eloMap);
-  if (!stats.length) { el.innerHTML = ""; return; }
-  const rows = stats.map((p) => {
-    const isGuest = guestPlayers.includes(p.name);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-      <span style="font-size:13px;font-weight:700;color:var(--fg)">${escHtml(p.name)}${isGuest ? ' <span class="guest-badge-sm">G</span>' : ""}</span>
-      <label class="mng-toggle" style="margin:0">
-        <input type="checkbox" ${isGuest ? "checked" : ""} onchange="toggleGuestPlayer(${jsArg(p.name)})">
-        <span class="mng-toggle-slider"></span>
-      </label>
-    </div>`;
-  }).join("");
-  el.innerHTML = `<div class="slbl" style="margin-bottom:8px">Guest Players</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Toggle guest status — guests show a G badge</div>
-    ${rows}`;
 }
 
 function setAbsenceThreshold(val) {
@@ -3539,12 +3515,11 @@ function renderHome() {
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
-    const guestBadge = guestPlayers.includes(p.name) ? `<span class="guest-badge-sm">G</span>` : "";
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}${guestBadge}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}${guestBadge}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
   if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
@@ -3735,8 +3710,7 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
-    const guestBadgeCmp = guestPlayers.includes(p.name) ? `<span class="guest-badge-sm">G</span>` : "";
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${guestBadgeCmp}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -15369,8 +15343,6 @@ Object.assign(window, {
   openCmpDateSheet,
   savePlayerPhoto,
   removePlayerPhoto,
-  toggleGuestPlayer,
-  renderGuestPlayersAdmin,
   rsvpSession,
   openMyNamePicker,
   closeMyNamePicker,
@@ -16356,16 +16328,6 @@ document.addEventListener("keydown", (e) => {
     { passive: true },
   );
 })();
-
-// ── GUEST PLAYER SUPPORT ──────────────────────────────────────
-function toggleGuestPlayer(name) {
-  const idx = guestPlayers.indexOf(name);
-  if (idx === -1) guestPlayers.push(name);
-  else guestPlayers.splice(idx, 1);
-  saveCloudData();
-  renderHome();
-  renderCompact();
-}
 
 // ── SESSION RSVP ─────────────────────────────────────────────
 let _rsvpPendingSessionId = null;

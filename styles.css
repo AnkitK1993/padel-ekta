@@ -16514,9 +16514,6 @@ body.midnight-oled-mode #themeBtn {
 .mqs-btn-danger { color: var(--red); }
 .mqs-btn-cancel { color: var(--muted); background: transparent; border: 1px solid rgba(255,255,255,0.12); }
 
-/* ── GUEST BADGE ─────────────────────────── */
-.guest-badge-sm { display: inline-block; font-size: 9px; font-weight: 900; color: #fff; background: var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.04em; }
-
 /* ── DELETE BUTTON ON MATCH ROWS ─────────── */
 .cmr-del-btn { background: none; border: none; color: var(--red); font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 6px; line-height: 1; opacity: 0.7; transition: opacity 0.15s; }
 .cmr-del-btn:active { opacity: 1; background: rgba(240,79,79,0.15); }
