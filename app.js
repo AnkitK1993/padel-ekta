@@ -7625,48 +7625,27 @@ function closeSnapshot() {
 }
 
 async function shareSnapshot() {
-  if (!window.html2canvas) {
-    showToast("Capture not available", "❌");
-    return;
-  }
+  if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
   showToast("Capturing…", "📸");
   const snapEl = document.getElementById("snap-content");
   if (!snapEl) return;
-  const fname = {
-    all: "AllTime",
-    today: "Today",
-    week: "ThisWeek",
-    lastweek: "LastWeek",
-    weekend: "Weekend",
-    month: "ThisMonth",
-    range: "Custom",
-  };
-  const label = fname[cmpFilter] || "Summary";
+  const fnameMap = { all: "AllTime", today: "Today", week: "ThisWeek", lastweek: "LastWeek", weekend: "Weekend", month: "ThisMonth", range: "Custom" };
+  _shareLabel = fnameMap[cmpFilter] || "Summary";
   try {
     const canvas = await window.html2canvas(snapEl, {
       backgroundColor: "#030309",
       scale: 2,
       useCORS: true,
       allowTaint: true,
+      height: snapEl.scrollHeight,
+      windowHeight: snapEl.scrollHeight,
     });
-    canvas.toBlob(async (blob) => {
-      const file = new File([blob], `EktaPadel-${label}.png`, {
-        type: "image/png",
-      });
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({ files: [file] })
-      ) {
-        await navigator
-          .share({ files: [file], title: "Ekta Padel", text: `${label} Leaderboard` })
-          .catch(() => {});
-      } else {
-        const a = document.createElement("a");
-        a.href = canvas.toDataURL("image/png");
-        a.download = `EktaPadel-${label}.png`;
-        a.click();
-      }
+    canvas.toBlob((blob) => {
+      _shareBlob = blob;
+      const prevImg = document.getElementById("share-preview-img");
+      if (prevImg.src.startsWith("blob:")) URL.revokeObjectURL(prevImg.src);
+      prevImg.src = URL.createObjectURL(blob);
+      document.getElementById("share-preview-sheet").classList.add("open");
     }, "image/png");
   } catch (e) {
     showToast("Capture failed", "❌");
