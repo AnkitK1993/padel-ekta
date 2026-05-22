@@ -12240,11 +12240,11 @@ function _buildLeaderboardReplayHtml() {
     .join("");
   const uniqDates = [...new Set(sorted.map((m) => m.date).filter(Boolean))].sort();
   const dateOpts =
-    '<option value="">— Jump to date —</option>' +
-    uniqDates.map((d) => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join("");
+    '<option value="" disabled selected>📅 Jump to date</option>' +
+    uniqDates.map((d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`).join("");
   const topPlayers = computeStats(sorted, computeElo(sorted)).slice(0, 8);
   const spotlightOpts =
-    '<option value="">No spotlight</option>' +
+    '<option value="">👁 Spotlight: All</option>' +
     topPlayers
       .map(
         (p) =>

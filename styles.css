@@ -13991,6 +13991,13 @@ select:focus,
   border-color: rgba(var(--theme-rgb), 0.45);
   color: var(--text);
 }
+.lr-jumps select option {
+  background: var(--surface2);
+  color: var(--text);
+}
+.lr-jumps select option:disabled {
+  color: var(--muted);
+}
 .lr-caption {
   font-size: 10px;
   color: var(--muted);
