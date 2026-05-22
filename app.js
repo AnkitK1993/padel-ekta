@@ -1034,7 +1034,7 @@ function openScheduleModal() {
     closeScheduleModal();
     return;
   }
-  const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b));
+  const players = getAllPlayerNamesFromMatches();
   const opts = players
     .map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`)
     .join("");
@@ -5478,7 +5478,7 @@ function editMatchByIndex(i, btn) {
     return;
   }
   closeMatchEdit();
-  const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b));
+  const players = getAllPlayerNamesFromMatches();
   const opts = (val) =>
     players
       .map(
@@ -5631,9 +5631,7 @@ function openPlayerPicker(slotId, label) {
     .map((id) => document.getElementById(id)?.value || "")
     .filter(Boolean);
   const currentVal = document.getElementById(slotId)?.value || "";
-  const displayNames = Object.keys(aliasMap).sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" }),
-  );
+  const displayNames = getAllPlayerNamesFromMatches();
   grid.innerHTML = displayNames.map((name) => {
     const isTaken = taken.includes(name);
     const isSelected = name === currentVal;
@@ -15618,9 +15616,7 @@ function openLivePlayerSheet(slot) {
   const sessionPlayers = _liveSessionData?.sessionActive && (_liveSessionData?.sessionPlayers?.length >= 2)
     ? _liveSessionData.sessionPlayers
     : null;
-  const players = (sessionPlayers || Object.keys(aliasMap)).sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" }),
-  );
+  const players = (sessionPlayers || getAllPlayerNamesFromMatches());
   const clearBtn = `<button class="live-sheet-item live-sheet-item-clear" onclick="selectLivePlayer(null,${jsArg(slot)})">
       <span class="live-sheet-item-av" style="background:rgba(255,70,70,0.18);color:#ff5555">✕</span>
       <span class="live-sheet-item-name">CLEAR SLOT</span>
@@ -16520,10 +16516,10 @@ function _syncLiveSessionBar() {
 }
 
 function openSessionSetup() {
-  _sessionSetupSelected = new Set(Object.keys(aliasMap));
+  const players = getAllPlayerNamesFromMatches();
+  _sessionSetupSelected = new Set(players);
   const list = document.getElementById("session-setup-list");
   if (!list) return;
-  const players = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   list.innerHTML = players.map(p => `
     <label class="tb-player-chip">
       <input type="checkbox" checked onchange="window._sspToggle(${jsArg(p)}, this.checked)">
@@ -16539,7 +16535,7 @@ window._sspToggle = function(name, checked) {
 };
 
 function sessionSetupSelectAll() {
-  _sessionSetupSelected = new Set(Object.keys(aliasMap));
+  _sessionSetupSelected = new Set(getAllPlayerNamesFromMatches());
   document.querySelectorAll("#session-setup-list input[type=checkbox]").forEach(cb => { cb.checked = true; });
 }
 
