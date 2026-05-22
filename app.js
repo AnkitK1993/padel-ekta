@@ -2310,6 +2310,16 @@ function filterMatches(f, from, to) {
   });
 }
 
+// ── SCORE NORMALISATION (cap max side to 4) ────────────────
+// Returns [normA, normB] scaled so max(A,B) = 4.
+// Scores already ≤ 4 are unchanged.
+function _normScores(sA, sB) {
+  const mx = Math.max(sA, sB, 1);
+  if (mx <= 4) return [sA, sB];
+  const f = 4 / mx;
+  return [sA * f, sB * f];
+}
+
 // ── COMPUTE STATS ──────────────────────────────────────────
 function eloToSr(elo) {
   return parseFloat(Math.min(10, Math.max(0, (elo - 700) / 60)).toFixed(2));
@@ -2325,6 +2335,7 @@ function computeStats(matches, eloMap = {}) {
         mw: 0,
         gw: 0,
         gl: 0,
+        ngw: 0,
         results: [],
         partnerPlayed: {},
         partnerWins: {},
@@ -2338,11 +2349,13 @@ function computeStats(matches, eloMap = {}) {
   );
   sorted.forEach((m) => {
     const aWon = m.scoreA > m.scoreB;
+    const [_nsA, _nsB] = _normScores(m.scoreA, m.scoreB);
     m.teamA.forEach((p) => {
       const pl = g(p);
       pl.mp++;
       pl.gw += m.scoreA;
       pl.gl += m.scoreB;
+      pl.ngw += _nsA;
       if (aWon) pl.mw++;
       pl.results.push({ won: aWon, margin: m.scoreA - m.scoreB });
       m.teamA.forEach((partner) => {
@@ -2362,6 +2375,7 @@ function computeStats(matches, eloMap = {}) {
       pl.mp++;
       pl.gw += m.scoreB;
       pl.gl += m.scoreA;
+      pl.ngw += _nsB;
       if (!aWon) pl.mw++;
       pl.results.push({ won: !aWon, margin: m.scoreB - m.scoreA });
       m.teamB.forEach((partner) => {
@@ -14331,7 +14345,7 @@ function renderAnalyticsPage() {
     const pg = "grid-template-columns:1fr 44px 60px 54px 60px";
     return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span>Player</span><span>Avg G</span><span>Shutout%</span><span>Partners</span><span>Avg Margin</span></div>` +
       compList.filter((p) => p.mp >= 1).map((p) => {
-        const avgG = (p.gw / p.mp).toFixed(1);
+        const avgG = (p.ngw / p.mp).toFixed(1);
         const shutRate = stats[p.name]?.wins > 0
           ? Math.round(((shutoutWins[p.name] || 0) / stats[p.name].wins) * 100) + "%"
           : "—";
@@ -16114,7 +16128,10 @@ function openMatchIntro(idx) {
       const totals = ms.map((pm) => {
         const tk = [...players].sort().join("|");
         const pmA3 = [...(pm.teamA || [])].sort().join("|");
-        return pmA3 === tk ? pm.scoreA : pm.scoreB;
+        const ownScore = pmA3 === tk ? pm.scoreA : pm.scoreB;
+        const oppScore = pmA3 === tk ? pm.scoreB : pm.scoreA;
+        const [normOwn] = _normScores(ownScore, oppScore);
+        return normOwn;
       });
       return totals.reduce((s, v) => s + v, 0) / totals.length;
     };
