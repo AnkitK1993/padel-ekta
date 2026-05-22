@@ -5743,8 +5743,10 @@ function saveQuickName() {
         .filter(Boolean)
     : [display];
 
-  // Add to textarea format
-  const currentText = document.getElementById("namesTA").value;
+  // Build from aliasMap (source of truth) then append new entry
+  const currentText = Object.entries(aliasMap)
+    .map(([n, a]) => `${n} - ${a.join(", ")}`)
+    .join("\n");
   const newEntry = `${display} - ${aliases.join(", ")}`;
   document.getElementById("namesTA").value = currentText
     ? currentText + "\n" + newEntry
