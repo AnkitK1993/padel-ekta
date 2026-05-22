@@ -7473,23 +7473,35 @@ let _shareBlob = null, _shareLabel = "";
 async function openSummaryShare() {
   if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
   showToast("Capturing…", "📸");
-  const pageEl = document.getElementById("pg-compact");
-  if (!pageEl) return;
+  const captureEl = document.querySelector("#pg-compact .cmp-body-scroll");
+  if (!captureEl) { showToast("No data to capture", "❌"); return; }
+
+  // Flush staggered leaderboard rows if animation still in progress
+  if (_cmpLeaderHtmls.length) {
+    const tbody = document.getElementById("cmpBody");
+    if (tbody) tbody.innerHTML = _cmpLeaderHtmls.join("");
+  }
+  // Flush SR pill counter animations to final values
+  captureEl.querySelectorAll(".sr-pill-val[data-final]").forEach(el => {
+    el.textContent = el.dataset.final;
+  });
+
+  // Hide HIGHLIGHTS card — not needed in the screenshot
+  const highlights = captureEl.querySelectorAll(".hist-summary-card");
+  highlights.forEach(el => el.style.display = "none");
+
+  const fnameMap = { all: "AllTime", today: "Today", week: "ThisWeek", lastweek: "LastWeek", weekend: "Weekend", month: "ThisMonth", range: "Custom" };
+  _shareLabel = fnameMap[cmpFilter] || "Summary";
   try {
-    const scrollEl = pageEl.querySelector(".page-body-scroll");
-    const savedOver = scrollEl ? scrollEl.style.overflow : null;
-    if (scrollEl) scrollEl.style.overflow = "visible";
-    const canvas = await window.html2canvas(pageEl, {
+    const canvas = await window.html2canvas(captureEl, {
       backgroundColor: "#030309",
       scale: 2,
       useCORS: true,
       allowTaint: true,
-      height: scrollEl ? scrollEl.scrollHeight + 80 : pageEl.scrollHeight,
-      windowHeight: scrollEl ? scrollEl.scrollHeight + 80 : pageEl.scrollHeight,
+      height: captureEl.scrollHeight,
+      windowHeight: captureEl.scrollHeight,
     });
-    if (scrollEl) scrollEl.style.overflow = savedOver;
-    const fnameMap = { all: "AllTime", today: "Today", week: "ThisWeek", lastweek: "LastWeek", weekend: "Weekend", month: "ThisMonth", range: "Custom" };
-    _shareLabel = fnameMap[cmpFilter] || "Summary";
+    highlights.forEach(el => el.style.display = "");
     canvas.toBlob((blob) => {
       _shareBlob = blob;
       const prevImg = document.getElementById("share-preview-img");
@@ -7498,6 +7510,7 @@ async function openSummaryShare() {
       document.getElementById("share-preview-sheet").classList.add("open");
     }, "image/png");
   } catch (e) {
+    highlights.forEach(el => el.style.display = "");
     showToast("Capture failed", "❌");
   }
 }
