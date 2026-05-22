@@ -2515,7 +2515,7 @@ function computeStats(matches, eloMap = {}) {
         consistency,
       };
     })
-    .sort((a, b) => b.sr - a.sr);
+    .sort((a, b) => b.sr - a.sr || b.gamePct - a.gamePct);
 }
 
 // ── MOMENTUM BADGE ─────────────────────────────────────────
@@ -3600,7 +3600,7 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    sr: (a, b) => a.sr - b.sr,
+    sr: (a, b) => a.sr - b.sr || a.gamePct - b.gamePct,
   };
   const sorted = [...stats].sort((a, b) => {
     const cmp = sortFns[cmpSortKey](a, b);
