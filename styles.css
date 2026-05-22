@@ -13949,17 +13949,47 @@ select:focus,
   gap: 6px;
   margin-bottom: 10px;
   flex-wrap: wrap;
+  align-items: center;
 }
-.lr-jumps input,
+.lr-jumps input[type="number"],
+.lr-jumps select {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 0.06em;
+  outline: none;
+}
+.lr-jumps input[type="number"] {
+  flex: 0 0 76px;
+  text-align: center;
+  cursor: text;
+  -moz-appearance: textfield;
+}
+.lr-jumps input[type="number"]::-webkit-inner-spin-button,
+.lr-jumps input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
 .lr-jumps select {
   flex: 1;
-  min-width: 90px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.3);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 11px;
+  min-width: 110px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.28)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 22px;
+}
+.lr-jumps input[type="number"]:focus,
+.lr-jumps select:focus {
+  border-color: rgba(var(--theme-rgb), 0.45);
+  color: var(--text);
 }
 .lr-caption {
   font-size: 10px;
