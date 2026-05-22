@@ -5149,6 +5149,13 @@ function selectFilterItem(value) {
   } else if (mode === "cmpplayerB") {
     _cmpPlayerB = value;
     _updateCmpSlots();
+  } else if (mode && mode.startsWith("sim_")) {
+    const slot = mode.split("_")[1];
+    if (slot === "a1") _simA1 = value;
+    else if (slot === "a2") _simA2 = value;
+    else if (slot === "b1") _simB1 = value;
+    else if (slot === "b2") _simB2 = value;
+    _simUpdateSlots();
   } else if (mode && mode.startsWith("predict_")) {
     const slot = mode.split("_")[1];
     if (slot === "a1") _predictPlayerA = value;
@@ -10945,33 +10952,21 @@ function _partnerTab(btn, tab) {
   btn.classList.add("active");
 }
 
-function _simSync(changed) {
-  const ids = ["simA1", "simA2", "simB1", "simB2"];
-  const selected = ids
-    .map((id) => document.getElementById(id)?.value)
-    .filter(Boolean);
-  ids.forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el || el === changed) return;
-    const cur = el.value;
-    const otherSelected = ids
-      .filter((i) => i !== id)
-      .map((i) => document.getElementById(i)?.value)
-      .filter(Boolean);
-    Array.from(el.options).forEach((opt) => {
-      opt.disabled = opt.value && otherSelected.includes(opt.value);
-    });
-    if (otherSelected.includes(cur)) {
-      el.value = "";
-    }
+function _simUpdateSlots() {
+  const slots = { a1: _simA1, a2: _simA2, b1: _simB1, b2: _simB2 };
+  Object.entries(slots).forEach(([k, v]) => {
+    const lbl = document.getElementById(`sim-label-${k}`);
+    const btn = document.getElementById(`sim-slot-${k}`);
+    if (lbl) lbl.textContent = v || "—";
+    if (btn) btn.classList.toggle("h2h-slot-filled", !!v);
   });
 }
 
 function runMatchSimulator() {
-  const a1 = document.getElementById("simA1")?.value;
-  const a2 = document.getElementById("simA2")?.value;
-  const b1 = document.getElementById("simB1")?.value;
-  const b2 = document.getElementById("simB2")?.value;
+  const a1 = _simA1;
+  const a2 = _simA2;
+  const b1 = _simB1;
+  const b2 = _simB2;
   const result = document.getElementById("sim-result");
   if (!result) return;
 
@@ -11729,6 +11724,8 @@ let _predictPlayerA = "",
   _predictPartnerA = "",
   _predictPartnerB = "";
 
+let _simA1 = "", _simA2 = "", _simB1 = "", _simB2 = "";
+
 function _buildMatchPredictHtml() {
   const players = computeStats(allMatches).map((p) => p.name);
   if (players.length < 2)
@@ -11794,6 +11791,34 @@ function openPredictSheet(slot) {
           ? ' style="opacity:0.3;pointer-events:none"'
           : "";
         const sel = p === selected ? " live-sheet-item-selected" : "";
+        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
+      })
+      .join("");
+  const overlay = document.getElementById("filter-sheet-overlay");
+  const sheet = document.getElementById("filter-sheet");
+  if (overlay) overlay.classList.add("live-sheet-open");
+  if (sheet) sheet.classList.add("live-sheet-open");
+}
+
+function openSimSheet(slot) {
+  _filterSheetMode = "sim_" + slot;
+  const el = document.getElementById("filter-sheet-title");
+  if (el) el.textContent = "SELECT PLAYER";
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const taken = { a1: _simA1, a2: _simA2, b1: _simB1, b2: _simB2 };
+  const current = taken[slot];
+  const others = Object.entries(taken)
+    .filter(([k]) => k !== slot)
+    .map(([, v]) => v)
+    .filter(Boolean);
+  const players = computeStats(allMatches).map((s) => s.name);
+  list.innerHTML =
+    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
+    players
+      .map((p) => {
+        const dis = others.includes(p) ? ' style="opacity:0.3;pointer-events:none"' : "";
+        const sel = p === current ? " live-sheet-item-selected" : "";
         return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
       })
       .join("");
@@ -13988,25 +14013,31 @@ function renderAnalyticsPage() {
   })();
 
   // ── MATCH SIMULATOR ────────────────────────────────────
-  const simPlayers = computeStats(allMatches)
-    .map((s) => s.name)
-    .sort((a, b) => a.localeCompare(b));
-  const simOpts = (ph) =>
-    `<option value="">${ph}</option>` +
-    simPlayers.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
   const simulatorHtml = `
     <div class="ana-card sim-card">
-      <div class="sim-teams">
-        <div class="sim-team">
-          <div class="sim-team-label" style="color:var(--green)">TEAM A</div>
-          <select id="simA1" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 1")}</select>
-          <select id="simA2" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 2")}</select>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
+        <div>
+          <div class="sim-team-label" style="color:var(--green);font-size:9px;font-weight:700;margin-bottom:4px">TEAM A</div>
+          <button class="h2h-slot-btn${_simA1 ? " h2h-slot-filled" : ""}" id="sim-slot-a1" onclick="openSimSheet('a1')" style="width:100%;margin-bottom:6px">
+            <span style="font-size:9px;color:var(--muted);display:block">P1</span>
+            <span id="sim-label-a1" style="font-size:11px;font-weight:800">${_simA1 || "—"}</span>
+          </button>
+          <button class="h2h-slot-btn${_simA2 ? " h2h-slot-filled" : ""}" id="sim-slot-a2" onclick="openSimSheet('a2')" style="width:100%">
+            <span style="font-size:9px;color:var(--muted);display:block">P2</span>
+            <span id="sim-label-a2" style="font-size:11px;font-weight:800">${_simA2 || "—"}</span>
+          </button>
         </div>
         <div class="sim-vs">VS</div>
-        <div class="sim-team">
-          <div class="sim-team-label" style="color:var(--red)">TEAM B</div>
-          <select id="simB1" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 1")}</select>
-          <select id="simB2" class="sim-sel" onchange="_simSync(this)">${simOpts("Player 2")}</select>
+        <div>
+          <div class="sim-team-label" style="color:var(--red);font-size:9px;font-weight:700;margin-bottom:4px">TEAM B</div>
+          <button class="h2h-slot-btn${_simB1 ? " h2h-slot-filled" : ""}" id="sim-slot-b1" onclick="openSimSheet('b1')" style="width:100%;margin-bottom:6px">
+            <span style="font-size:9px;color:var(--muted);display:block">P1</span>
+            <span id="sim-label-b1" style="font-size:11px;font-weight:800">${_simB1 || "—"}</span>
+          </button>
+          <button class="h2h-slot-btn${_simB2 ? " h2h-slot-filled" : ""}" id="sim-slot-b2" onclick="openSimSheet('b2')" style="width:100%">
+            <span style="font-size:9px;color:var(--muted);display:block">P2</span>
+            <span id="sim-label-b2" style="font-size:11px;font-weight:800">${_simB2 || "—"}</span>
+          </button>
         </div>
       </div>
       <button class="sim-btn" onclick="runMatchSimulator()">SIMULATE</button>
@@ -15206,7 +15237,7 @@ Object.assign(window, {
   applyEloConfig,
   resetEloConfig,
   runMatchSimulator,
-  _simSync,
+  openSimSheet,
   _showAllPairs,
   openSessionHighlights,
   _partnerTab,
