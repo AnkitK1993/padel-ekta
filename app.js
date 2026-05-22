@@ -1397,13 +1397,12 @@ function loadCloudData() {
 function animateGauges() {
   const gauges = document.querySelectorAll(".sr-ring");
 
+  const noCascade = document.body.classList.contains("no-cascade");
   gauges.forEach((g, i) => {
     const target = getComputedStyle(g).getPropertyValue("--target-angle");
-
-    // delay each row slightly for stagger effect
     setTimeout(() => {
       g.style.setProperty("--speed-angle", target);
-    }, i * 80); // 80ms stagger
+    }, noCascade ? 0 : i * 80);
   });
 }
 
@@ -3491,7 +3490,7 @@ function renderHome() {
     return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname">${escHtml(p.name)}</div><div class="ct-meta"><div class="elo-tier-row">${eloTierBadge(homeEloMap[p.name] || 1000)}</div>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
-  if (document.body.classList.contains("splash-done")) {
+  if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
     board.innerHTML = "";
     const gen = ++_renderHomeGen;
     cardHtmls.forEach((html, i) => {
@@ -3691,7 +3690,7 @@ function renderCompact() {
   const cmpMatchesEl = document.getElementById("cmpMatches");
   const matchesHeader = cmpMatchesEl.previousElementSibling;
 
-  if (splashDone) {
+  if (splashDone && !document.body.classList.contains("no-cascade")) {
     tbody.innerHTML = "";
     cmpMatchesEl.innerHTML = "";
     matchesHeader.style.opacity = "0";
@@ -4780,13 +4779,14 @@ function renderModernMatches() {
   const allAnimated = [...featureCards, ...matchCards.slice(0, 10)];
   const instant = matchCards.slice(10);
 
+  const _noCascade = document.body.classList.contains("no-cascade");
   allAnimated.forEach((el, i) => {
     el.style.opacity = "0";
     el.style.animation = "none";
     setTimeout(() => {
       el.style.animation = "";
       el.style.opacity = "";
-      el.classList.add("card-anim");
+      if (!_noCascade) el.classList.add("card-anim");
       histList.appendChild(el);
       el.querySelectorAll(
         ".team-score[data-final], .motd-score[data-final]",
@@ -4805,7 +4805,7 @@ function renderModernMatches() {
           scoreEl.textContent = scoreEl.dataset.final || "0";
         }
       });
-    }, i * 100);
+    }, _noCascade ? 0 : i * 100);
   });
 
   if (instant.length) {
@@ -9231,16 +9231,19 @@ function toggleAnaSection(key) {
     renderMatchCalendar();
   if (!el.classList.contains("collapsed")) {
     // Staggered card slide-in for all content in the newly expanded section
+    const skipAnim = document.body.classList.contains("no-cascade");
     let stagger = 0;
     el.querySelectorAll(
       ".ana-card, .award-card, .awards-grid, .pair-stats-card, .h2h-cascade-item",
     ).forEach((card) => {
-      card.style.opacity = "";  // clear inline opacity so remove+readd doesn't flash invisible
+      card.style.opacity = "";
       card.classList.remove("card-anim");
-      void card.offsetWidth;
-      card.style.animationDelay = `${stagger * 55}ms`;
-      card.classList.add("card-anim");
-      stagger++;
+      if (!skipAnim) {
+        void card.offsetWidth;
+        card.style.animationDelay = `${stagger * 55}ms`;
+        card.classList.add("card-anim");
+        stagger++;
+      }
     });
     // Re-trigger ELO bars
     if (key === "elo") {
@@ -14947,35 +14950,37 @@ function renderAnalyticsPage() {
     _anaObserver.disconnect();
     _anaObserver = null;
   }
-  _anaObserver = new IntersectionObserver(
-    (entries) => {
-      let stagger = 0;
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        const el = entry.target;
-        el.style.animationDelay = `${stagger * 60}ms`;
-        el.classList.add(
-          el.classList.contains("ana-section-title")
-            ? "section-anim"
-            : "card-anim",
-        );
-        stagger++;
-        _anaObserver.unobserve(el);
-      });
-    },
-    { threshold: 0.08, rootMargin: "0px 0px -20px 0px" },
-  );
+  if (!document.body.classList.contains("no-cascade")) {
+    _anaObserver = new IntersectionObserver(
+      (entries) => {
+        let stagger = 0;
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          el.style.animationDelay = `${stagger * 60}ms`;
+          el.classList.add(
+            el.classList.contains("ana-section-title")
+              ? "section-anim"
+              : "card-anim",
+          );
+          stagger++;
+          _anaObserver.unobserve(el);
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -20px 0px" },
+    );
 
-  container
-    .querySelectorAll(
-      ".ana-card, .award-card, .awards-grid, .ana-section-title, .pair-stats-card, .h2h-cascade-item",
-    )
-    .forEach((el) => {
-      // Skip elements inside collapsed sections — they animate when the section expands
-      if (el.closest(".ana-sec.collapsed")) return;
-      el.style.opacity = "0";
-      _anaObserver.observe(el);
-    });
+    container
+      .querySelectorAll(
+        ".ana-card, .award-card, .awards-grid, .ana-section-title, .pair-stats-card, .h2h-cascade-item",
+      )
+      .forEach((el) => {
+        // Skip elements inside collapsed sections — they animate when the section expands
+        if (el.closest(".ana-sec.collapsed")) return;
+        el.style.opacity = "0";
+        _anaObserver.observe(el);
+      });
+  }
 
   // JS-driven hover — reliable on all browsers/devices, bypasses CSS :hover issues
   if (!container._hoverBound) {
