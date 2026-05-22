@@ -66,6 +66,14 @@
             <button id="themeBtn" onclick="cycleTheme()" title="Change theme color" class="hmenu-theme-btn"></button>
           </div>
           <div class="hmenu-divider"></div>
+          <div class="hmenu-item">
+            <span class="hmenu-label">✨ Cascade animations</span>
+            <label class="mng-toggle">
+              <input type="checkbox" id="cascadeAnimToggle" onchange="setCascadeAnimSetting(this.checked)" checked>
+              <span class="mng-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="hmenu-divider"></div>
           <div class="hmenu-item" id="pwa-install-btn" style="display:none">
             <span class="hmenu-label">Install App</span>
             <button onclick="triggerInstall()" class="hmenu-action-btn">📲 Add</button>
@@ -606,13 +614,6 @@ Parthiv - Par"
               <span class="mng-setting-label">📸 Screenshot — ask content choice</span>
               <label class="mng-toggle">
                 <input type="checkbox" id="screenshotChoiceToggle" onchange="setScreenshotChoiceSetting(this.checked)">
-                <span class="mng-toggle-slider"></span>
-              </label>
-            </div>
-            <div class="mng-setting-row" style="margin-top:10px">
-              <span class="mng-setting-label">✨ Cascade animations</span>
-              <label class="mng-toggle">
-                <input type="checkbox" id="cascadeAnimToggle" onchange="setCascadeAnimSetting(this.checked)" checked>
                 <span class="mng-toggle-slider"></span>
               </label>
             </div>
