@@ -3562,7 +3562,7 @@ function animateSrVal(el, delay = 200) {
   const tick = () => {
     cur = Math.min(cur + step, target);
     el.textContent = cur.toFixed(2);
-    if (cur < target) setTimeout(tick, 22);
+    if (cur < target) setTimeout(tick, 33);
   };
   setTimeout(tick, delay);
 }
@@ -6956,7 +6956,7 @@ function openPlayerDetail(name) {
     const tick = () => {
       cur = Math.min(cur + step, target);
       el.textContent = format(cur);
-      if (cur < target) setTimeout(tick, 22);
+      if (cur < target) setTimeout(tick, 33);
     };
     setTimeout(tick, delay);
   };
@@ -7468,7 +7468,7 @@ function _animEloCounts() {
       const from = parseInt(el.dataset.from, 10);
       const to = parseInt(el.dataset.to, 10);
       if (from === to) return;
-      const dur = 233;
+      const dur = 350;
       const delay = 350 + i * 60;
       setTimeout(() => {
         const startTime = performance.now();
