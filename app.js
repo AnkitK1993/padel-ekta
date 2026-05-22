@@ -1455,6 +1455,8 @@ onAuthStateChanged(auth, (user) => {
 function updateAdminUI(user) {
   const absInp = document.getElementById("absenceThresholdInput");
   if (absInp) absInp.value = localStorage.getItem("absence_threshold") || "7";
+  const scToggle = document.getElementById("screenshotChoiceToggle");
+  if (scToggle) scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
   const fab = document.getElementById("fab");
   // Show/hide admin tabs in all tabbars
   document.querySelectorAll(".admin-tab").forEach((tab) => {
@@ -3036,6 +3038,10 @@ function setAbsenceThreshold(val) {
   if (isNaN(n) || n < 1) return;
   localStorage.setItem("absence_threshold", n);
   renderHome();
+}
+
+function setScreenshotChoiceSetting(val) {
+  localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
 }
 
 function clearMatches() {
@@ -7472,12 +7478,13 @@ let _shareBlob = null, _shareLabel = "";
 
 function openSummaryShare() {
   if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
-  const askFilters = new Set(["week", "lastweek", "weekend"]);
-  if (askFilters.has(cmpFilter)) {
+  const askChoice = localStorage.getItem("screenshot_ask_choice") === "1";
+  if (askChoice) {
     document.getElementById("screenshot-choice-overlay")?.classList.add("live-sheet-open");
     document.getElementById("screenshot-choice-sheet")?.classList.add("live-sheet-open");
   } else {
-    doSummaryScreenshot(true);
+    // Default: TODAY → leaderboard + matches; all other filters → leaderboard only
+    doSummaryScreenshot(cmpFilter === "today");
   }
 }
 
@@ -15119,6 +15126,7 @@ Object.assign(window, {
   exportData,
   exportCSV,
   setAbsenceThreshold,
+  setScreenshotChoiceSetting,
   renderHome,
   renderCompact,
   setCmpSort,
