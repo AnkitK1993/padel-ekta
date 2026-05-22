@@ -94,21 +94,6 @@
             </label>
           </div>
           <div class="hmenu-divider"></div>
-          <div class="hmenu-item">
-            <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-              <span class="hmenu-label">Exclude Guests</span>
-              <span id="excludeGuestLabel" style="font-size:9px;color:var(--muted);letter-spacing:0.06em;font-weight:700">GUEST MATCHES COUNTED</span>
-            </div>
-            <label class="mng-toggle">
-              <input
-                type="checkbox"
-                id="excludeGuestToggle"
-                onchange="toggleExcludeGuests(this.checked)"
-              />
-              <span class="mng-toggle-slider"></span>
-            </label>
-          </div>
-          <div class="hmenu-divider"></div>
           <div class="hmenu-item" id="pwa-install-btn" style="display: none">
             <span class="hmenu-label">Install App</span>
             <button onclick="triggerInstall()" class="hmenu-action-btn">
