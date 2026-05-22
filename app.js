@@ -7468,12 +7468,11 @@ function _animEloCounts() {
     });
 }
 
+let _shareBlob = null, _shareLabel = "";
+
 async function openSummaryShare() {
-  if (!window.html2canvas) {
-    showToast("Share not available", "❌");
-    return;
-  }
-  showToast("Capturing...", "📸");
+  if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
+  showToast("Capturing…", "📸");
   const pageEl = document.getElementById("pg-compact");
   if (!pageEl) return;
   try {
@@ -7489,41 +7488,49 @@ async function openSummaryShare() {
       windowHeight: scrollEl ? scrollEl.scrollHeight + 80 : pageEl.scrollHeight,
     });
     if (scrollEl) scrollEl.style.overflow = savedOver;
-    const fname = {
-      all: "AllTime",
-      today: "Today",
-      week: "Week",
-      lastweek: "LastWeek",
-      weekend: "Weekend",
-      month: "Month",
-    };
-    const label = fname[cmpFilter] || "Summary";
-    canvas.toBlob(async (blob) => {
-      const file = new File([blob], `EktaPadel-${label}.png`, {
-        type: "image/png",
-      });
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({ files: [file] })
-      ) {
-        await navigator
-          .share({
-            files: [file],
-            title: "Ekta Padel",
-            text: `${label} Leaderboard`,
-          })
-          .catch(() => {});
-      } else {
-        const a = document.createElement("a");
-        a.href = canvas.toDataURL("image/png");
-        a.download = `EktaPadel-${label}.png`;
-        a.click();
-      }
+    const fnameMap = { all: "AllTime", today: "Today", week: "ThisWeek", lastweek: "LastWeek", weekend: "Weekend", month: "ThisMonth", range: "Custom" };
+    _shareLabel = fnameMap[cmpFilter] || "Summary";
+    canvas.toBlob((blob) => {
+      _shareBlob = blob;
+      const prevImg = document.getElementById("share-preview-img");
+      if (prevImg.src.startsWith("blob:")) URL.revokeObjectURL(prevImg.src);
+      prevImg.src = URL.createObjectURL(blob);
+      document.getElementById("share-preview-sheet").classList.add("open");
     }, "image/png");
   } catch (e) {
     showToast("Capture failed", "❌");
   }
+}
+
+function closeSharePreview() {
+  const sheet = document.getElementById("share-preview-sheet");
+  if (sheet) sheet.classList.remove("open");
+  const img = document.getElementById("share-preview-img");
+  if (img && img.src.startsWith("blob:")) { URL.revokeObjectURL(img.src); img.src = ""; }
+  _shareBlob = null;
+}
+
+async function doShareWhatsApp() {
+  if (!_shareBlob) return;
+  const file = new File([_shareBlob], `EktaPadel-${_shareLabel}.png`, { type: "image/png" });
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: "Ekta Padel", text: `${_shareLabel} Leaderboard` }).catch(() => {});
+  } else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(_shareBlob);
+    a.download = `EktaPadel-${_shareLabel}.png`;
+    a.click();
+    showToast("Saved! Open WhatsApp and send from gallery.", "💬");
+  }
+}
+
+function doShareDownload() {
+  if (!_shareBlob) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(_shareBlob);
+  a.download = `EktaPadel-${_shareLabel}.png`;
+  a.click();
+  closeSharePreview();
 }
 
 function openSummaryScreenshot() {
@@ -15172,6 +15179,9 @@ Object.assign(window, {
   openShareCard,
   openWeeklyDigest,
   openSummaryShare,
+  closeSharePreview,
+  doShareWhatsApp,
+  doShareDownload,
   openSummaryScreenshot,
   closeSnapshot,
   shareSnapshot,
