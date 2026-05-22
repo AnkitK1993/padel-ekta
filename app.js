@@ -8619,10 +8619,12 @@ function buildH2HMatrixCompact(players) {
     .join("");
 
   return `<div class="pvp-wrap">
-              <table class="pvp-table">
-                <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
+              <div class="pvp-scroll-wrap">
+                <table class="pvp-table">
+                  <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
               <div class="pvp-legend">${legend}</div>
             </div>`;
 }

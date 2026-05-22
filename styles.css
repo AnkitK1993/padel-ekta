@@ -4651,49 +4651,67 @@ textarea:focus {
 
 .pvp-wrap {
   width: 100%;
-  overflow: hidden;
+}
+.pvp-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .pvp-table {
   border-collapse: separate;
   border-spacing: 2px;
-  width: 100%;
-  table-layout: fixed;
 }
 
 .pvp-corner {
-  width: 26px;
+  width: 62px;
+  min-width: 62px;
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  background: var(--surface2);
 }
 .pvp-row-hdr {
-  width: 26px;
-  font-size: 8px;
+  width: 62px;
+  min-width: 62px;
+  font-size: 9px;
   font-weight: 800;
   color: var(--muted);
-  padding: 3px 3px 3px 0;
+  padding: 3px 4px 3px 0;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
   text-transform: uppercase;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   vertical-align: middle;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface2);
 }
 
 .pvp-th {
-  padding: 3px 1px 5px;
+  min-width: 52px;
+  padding: 5px 4px 6px;
   text-align: center;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   white-space: nowrap;
-  overflow: hidden;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface2);
 }
 
 .pvp-td {
   text-align: center;
-  padding: 3px 1px;
-  font-size: 8px;
+  min-width: 52px;
+  padding: 4px 3px;
+  font-size: 9px;
   font-weight: 700;
   border-radius: 3px;
   white-space: nowrap;
