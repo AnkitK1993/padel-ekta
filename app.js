@@ -3459,34 +3459,10 @@ function buildHudGaugeSvg(sr, ratingClass) {
 }
 
 let _renderHomeGen = 0;
-function renderSessionFeed() {
-  const el = document.getElementById("session-feed");
-  if (!el) return;
-  const todayMatches = filterMatches("today");
-  if (!todayMatches.length) { el.style.display = "none"; return; }
-  const stats = computeStats(todayMatches);
-  if (!stats.length) { el.style.display = "none"; return; }
-  const leader = stats.reduce((a, b) => (b.mw > a.mw || (b.mw === a.mw && b.winPct > a.winPct)) ? b : a);
-  const last = todayMatches[todayMatches.length - 1];
-  const aWon = last.scoreA > last.scoreB;
-  const lastStr = `${escHtml((last.teamA||[]).join(" & "))} <strong class="${aWon?"sf-win":"sf-loss"}">${last.scoreA}–${last.scoreB}</strong> ${escHtml((last.teamB||[]).join(" & "))}`;
-  const streak = leader.curStreak > 1 ? ` · ${leader.curStreak}${leader.curType === "W" ? "🔥" : "❄️"}` : "";
-  el.style.display = "block";
-  el.innerHTML = `<div class="sf-card" onclick="switchMainTab('compact')">
-    <div class="sf-header">
-      <span class="sf-title">🏓 TODAY'S SESSION</span>
-      <span class="sf-count">${todayMatches.length} match${todayMatches.length !== 1 ? "es" : ""}</span>
-    </div>
-    <div class="sf-leader">🏆 <strong>${escHtml(leader.name)}</strong> leading — ${leader.mw}W ${leader.ml}L${streak}</div>
-    <div class="sf-last">Last: ${lastStr}</div>
-  </div>`;
-}
-
 function renderHome() {
   _homeRenderedVersion = _dataVersion;
   _homeRenderedFilter = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
   renderAbsenceBanner();
-  renderSessionFeed();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   const homeEloMapFull = computeElo(filtered);
   const stats = computeStats(filtered, homeEloMapFull);
@@ -3756,11 +3732,8 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
-    const cmpFormDots = p.form && p.form.length
-      ? `<span class="cmp-form-dots">${p.form.slice(0, 5).map(r => `<span class="s5-dot ${r === "W" ? "s5-w" : "s5-l"}"></span>`).join("")}</span>`
-      : "";
     const guestBadgeCmp = guestPlayers.includes(p.name) ? `<span class="guest-badge-sm">G</span>` : "";
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${guestBadgeCmp}${rankDelta}${cmpFormDots}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${guestBadgeCmp}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -15382,11 +15355,6 @@ Object.assign(window, {
   openCmpDateSheet,
   savePlayerPhoto,
   removePlayerPhoto,
-  openTeamBalancer,
-  closeTeamBalancer,
-  tbSelectAll,
-  tbSelectNone,
-  runTeamBalancer,
   toggleGuestPlayer,
   renderGuestPlayersAdmin,
   rsvpSession,
@@ -16347,113 +16315,6 @@ document.addEventListener("keydown", (e) => {
     { passive: true },
   );
 })();
-
-// ── TEAM BALANCER ─────────────────────────────────────────────
-let _tbSelected = new Set();
-
-function openTeamBalancer() {
-  const eloMap = computeElo(allMatches);
-  const stats = computeStats(allMatches, eloMap);
-  const players = stats.filter((p) => p.mp >= 1).sort((a, b) => a.name.localeCompare(b.name));
-  _tbSelected = new Set(players.map((p) => p.name));
-  const list = document.getElementById("tb-player-list");
-  if (!list) return;
-  list.innerHTML = players.map((p) => {
-    const elo = Math.round(eloMap[p.name] || 1000);
-    return `<label class="tb-player-chip" id="tb-chip-${escHtml(p.name.replace(/\W/g, "_"))}">
-      <input type="checkbox" checked onchange="window._tbToggle(${jsArg(p.name)},this.checked)">
-      <span class="tb-chip-name">${escHtml(p.name)}</span>
-      <span class="tb-chip-elo">${elo}</span>
-    </label>`;
-  }).join("");
-  document.getElementById("tb-result").innerHTML = "";
-  const overlay = document.getElementById("tb-overlay");
-  const sheet = document.getElementById("tb-sheet");
-  if (overlay) overlay.classList.add("live-sheet-open");
-  if (sheet) sheet.classList.add("live-sheet-open");
-}
-
-window._tbToggle = function(name, checked) {
-  if (checked) _tbSelected.add(name);
-  else _tbSelected.delete(name);
-};
-
-function tbSelectAll() {
-  _tbSelected = new Set();
-  document.querySelectorAll("#tb-player-list input[type=checkbox]").forEach((cb) => {
-    cb.checked = true;
-    const label = cb.closest("label");
-    const name = label?.querySelector(".tb-chip-name")?.textContent;
-    if (name) _tbSelected.add(name);
-  });
-}
-
-function tbSelectNone() {
-  _tbSelected = new Set();
-  document.querySelectorAll("#tb-player-list input[type=checkbox]").forEach((cb) => { cb.checked = false; });
-}
-
-function closeTeamBalancer() {
-  document.getElementById("tb-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("tb-sheet")?.classList.remove("live-sheet-open");
-}
-
-function runTeamBalancer() {
-  const names = [..._tbSelected];
-  if (names.length < 4) { showToast("Select at least 4 players", "⚖️"); return; }
-  if (names.length > 8) { showToast("Select at most 8 players", "⚖️"); return; }
-  const eloMap = computeElo(allMatches);
-  const elos = names.map((n) => ({ name: n, elo: eloMap[n] || 1000 }));
-  const { teamA, teamB, diff } = findBestSplit(elos);
-  const sumA = teamA.reduce((s, p) => s + p.elo, 0);
-  const sumB = teamB.reduce((s, p) => s + p.elo, 0);
-  const avgA = Math.round(sumA / teamA.length);
-  const avgB = Math.round(sumB / teamB.length);
-  const pctA = Math.round((1 / (1 + Math.pow(10, (avgB - avgA) / 400))) * 100);
-  const pctB = 100 - pctA;
-  const res = document.getElementById("tb-result");
-  if (!res) return;
-  res.innerHTML = `
-    <div class="tb-teams">
-      <div class="tb-team tb-team-a">
-        <div class="tb-team-label">TEAM A</div>
-        ${teamA.map((p) => `<div class="tb-team-player">${escHtml(p.name)} <span class="tb-team-elo">${Math.round(p.elo)}</span></div>`).join("")}
-        <div class="tb-team-avg">Avg ELO: ${avgA}</div>
-        <div class="tb-team-win" style="color:${pctA>50?"var(--green)":pctA<50?"var(--red)":"var(--muted)"}">${pctA}% win chance</div>
-      </div>
-      <div class="tb-vs">VS</div>
-      <div class="tb-team tb-team-b">
-        <div class="tb-team-label">TEAM B</div>
-        ${teamB.map((p) => `<div class="tb-team-player">${escHtml(p.name)} <span class="tb-team-elo">${Math.round(p.elo)}</span></div>`).join("")}
-        <div class="tb-team-avg">Avg ELO: ${avgB}</div>
-        <div class="tb-team-win" style="color:${pctB>50?"var(--green)":pctB<50?"var(--red)":"var(--muted)"}">${pctB}% win chance</div>
-      </div>
-    </div>
-    <div class="tb-diff">ELO diff: ${diff} pts</div>`;
-}
-
-function findBestSplit(elos) {
-  const n = elos.length;
-  const half = Math.floor(n / 2);
-  let bestDiff = Infinity, bestA = [], bestB = [];
-  const indices = elos.map((_, i) => i);
-  function combo(start, current) {
-    if (current.length === half) {
-      const a = current.map((i) => elos[i]);
-      const b = indices.filter((i) => !current.includes(i)).map((i) => elos[i]);
-      const sumA = a.reduce((s, p) => s + p.elo, 0);
-      const sumB = b.reduce((s, p) => s + p.elo, 0);
-      const diff = Math.abs(sumA / a.length - sumB / b.length);
-      if (diff < bestDiff) { bestDiff = Math.round(diff); bestA = a; bestB = b; }
-      return;
-    }
-    for (let i = start; i <= n - (half - current.length); i++) {
-      combo(i + 1, [...current, i]);
-    }
-  }
-  combo(0, []);
-  return { teamA: bestA, teamB: bestB, diff: bestDiff };
-}
 
 // ── GUEST PLAYER SUPPORT ──────────────────────────────────────
 function toggleGuestPlayer(name) {
