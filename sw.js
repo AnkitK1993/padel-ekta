@@ -56,22 +56,12 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // On page navigation: respect hard refresh (cache:"reload"), otherwise serve cache + background update
+  // On page navigation: always serve cache immediately so there is never a blank error page.
+  // checkForUpdates() runs in the background — if buildinfo.json changed it re-caches all
+  // static files and sends NEW_BUILD → the client reloads automatically with fresh code.
   if (e.request.mode === "navigate") {
-    // Hard refresh sends cache:"reload" — bypass SW cache, fetch fresh, then re-cache
-    if (e.request.cache === "reload") {
-      e.respondWith(
-        fetch(e.request).then(res => {
-          if (res && res.status === 200) {
-            caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-          }
-          return res;
-        }).catch(() => caches.match(e.request))
-      );
-      return;
-    }
     e.respondWith(
-      caches.match(e.request).then(cached => {
+      caches.match(e.request, { ignoreSearch: true }).then(cached => {
         checkForUpdates().then(updated => {
           if (updated) {
             self.clients.matchAll().then(clients =>
@@ -85,19 +75,7 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // Cache-first for all other static assets (hard refresh bypasses for these too)
-  if (e.request.cache === "reload") {
-    e.respondWith(
-      fetch(e.request).then(res => {
-        if (res && res.status === 200 && e.request.method === "GET") {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        }
-        return res;
-      }).catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
+  // Cache-first for static assets
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
