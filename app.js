@@ -7888,13 +7888,13 @@ function openDigestPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(allMatches).map((s) => s.name);
+  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML =
-    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
+    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
     players
       .map(
         (p) =>
-          `<div class="live-sheet-item" onclick="selectFilterItem(${jsArg(p)})"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`,
+          `<div class="live-sheet-item" onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`,
       )
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -8741,7 +8741,7 @@ function openCmpSheet(slot) {
         p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
       const sel = p === selected ? " live-sheet-item-selected" : "";
       return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">
-      <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
+      <div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div>
       <span>${escHtml(p)}</span></div>`;
     })
     .join("");
@@ -11332,14 +11332,14 @@ function openEloProbSheet(slot) {
   if (!list) return;
   const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
   const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
-  const players = computeStats(allMatches).map((s) => s.name);
+  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML = players
     .map((p) => {
       const disabled =
         p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
       const sel = p === selected ? " live-sheet-item-selected" : "";
       return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">
-      <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
+      <div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div>
       <span>${escHtml(p)}</span></div>`;
     })
     .join("");
@@ -11355,12 +11355,12 @@ function openWhatIfPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(allMatches).map((s) => s.name);
+  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML = players
     .map((p) => {
       const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
       return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">
-      <div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div>
+      <div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div>
       <span>${escHtml(p)}</span></div>`;
     })
     .join("");
@@ -11774,7 +11774,7 @@ function openPredictSheet(slot) {
     _predictPlayerB,
     _predictPartnerB,
   ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
-  const players = computeStats(allMatches).map((s) => s.name);
+  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   const selected =
     slot === "a1"
       ? _predictPlayerA
@@ -11784,14 +11784,14 @@ function openPredictSheet(slot) {
           ? _predictPlayerB
           : _predictPartnerB;
   list.innerHTML =
-    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
+    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
       .map((p) => {
         const dis = taken.includes(p)
           ? ' style="opacity:0.3;pointer-events:none"'
           : "";
         const sel = p === selected ? " live-sheet-item-selected" : "";
-        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
+        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
       })
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -11812,14 +11812,14 @@ function openSimSheet(slot) {
     .filter(([k]) => k !== slot)
     .map(([, v]) => v)
     .filter(Boolean);
-  const players = computeStats(allMatches).map((s) => s.name);
+  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML =
-    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
+    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
       .map((p) => {
         const dis = others.includes(p) ? ' style="opacity:0.3;pointer-events:none"' : "";
         const sel = p === current ? " live-sheet-item-selected" : "";
-        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:32px;height:32px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
+        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
       })
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");

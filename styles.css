@@ -11702,8 +11702,8 @@ body::after {
 .live-sheet-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 5px 10px;
   border-radius: 12px;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.04);
@@ -11727,13 +11727,13 @@ body::after {
   opacity: 0.3;
 }
 .live-sheet-item-av {
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 9px;
   font-weight: 900;
   color: #fff;
   flex-shrink: 0;
