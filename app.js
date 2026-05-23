@@ -3375,7 +3375,7 @@ function _updateExcludeBtn() {
   if (!btn) return;
   const n = _excludedPlayers.size;
   btn.classList.toggle("ss-eq-btn-on", n > 0);
-  btn.innerHTML = n > 0 ? `🚫 Exclude <span class="ss-exc-badge">${n}</span>` : "🚫 Exclude";
+  btn.innerHTML = n > 0 ? `🚫<span class="ss-exc-badge">${n}</span>` : "🚫";
 }
 
 function openExcludeSheet() {
