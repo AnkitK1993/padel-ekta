@@ -1595,24 +1595,12 @@ select.cmp-sel option,
   gap: 4px;
 }
 .summary-nav::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(var(--theme-rgb), 0.4),
-    transparent
-  );
+  display: none;
 }
 
 .summary-filter-bar {
   flex-shrink: 0;
   background: transparent;
-  border-bottom: 1px solid rgba(var(--theme-rgb), 0.08);
   padding: 10px 14px;
   position: relative;
   display: flex;
@@ -1620,18 +1608,7 @@ select.cmp-sel option,
   gap: 8px;
 }
 .summary-filter-bar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(var(--theme-rgb), 0.15),
-    transparent
-  );
+  display: none;
 }
 
 .summary-filter-row {
@@ -1742,24 +1719,11 @@ select.cmp-sel:focus {
     rgba(7, 7, 12, 1) 0%,
     rgba(9, 9, 15, 1) 100%
   );
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   position: relative;
 }
 
 .cmp-matches-header::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 11px;
-  right: 11px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(var(--theme-rgb), 0.18),
-    transparent
-  );
+  display: none;
 }
 .cmp-matches-header {
   display: flex;
@@ -1807,10 +1771,6 @@ select.cmp-sel:focus {
   transition: transform 0.25s ease;
   -webkit-user-select: none;
   user-select: none;
-  border-bottom: 1px solid var(--border);
-}
-.smr-wrap:last-child .smr-inner {
-  border-bottom: none;
 }
 .smr-wrap:nth-child(even) .smr-inner {
   background: rgba(255, 255, 255, 0.012);
@@ -1855,7 +1815,6 @@ table.cmp {
 }
 table.cmp thead tr {
   background: transparent;
-  border-bottom: 2px solid var(--border);
 }
 table.cmp thead th {
   padding: 2px 4px;
@@ -1911,7 +1870,6 @@ table.cmp tbody td:nth-child(9) {
 }
 
 table.cmp tbody tr {
-  border-bottom: 1px solid var(--border);
   height: auto;
   vertical-align: middle;
 }
