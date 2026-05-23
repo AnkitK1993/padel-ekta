@@ -3774,7 +3774,14 @@ function renderCompact() {
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const stats = computeStats(filtered, computeElo(filtered));
-  if (_cmpEqualized) stats.forEach(p => { p.eqSR = p.mwr * 6.25 + p.gwr * 3.75; });
+  if (_cmpEqualized) {
+    stats.forEach(p => {
+      const c = p.mp / (p.mp + 5);
+      const wScore = p.mwr * c + 0.5 * (1 - c);
+      const gScore = p.gwr * c + 0.5 * (1 - c);
+      p.eqSR = (wScore * 0.65 + gScore * 0.35) * 10;
+    });
+  }
   const sortFns = {
     name: (a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
