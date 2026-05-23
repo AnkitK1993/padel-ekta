@@ -117,7 +117,7 @@ body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  background: var(--surface);
+  background: transparent;
   border-bottom: 1px solid var(--border);
   padding: env(safe-area-inset-top) 4px 0;
   height: calc(46px + env(safe-area-inset-top));
@@ -162,7 +162,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
+  background: transparent;
   border-bottom: 1px solid rgba(var(--theme-rgb), 0.1);
   padding: 14px 16px 12px;
   position: relative;
@@ -459,7 +459,7 @@ body {
   justify-content: center;
   align-items: center;
   text-align: center;
-  background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
+  background: transparent;
 }
 
 .detailed-header-title {
@@ -471,7 +471,7 @@ body {
 
 .home-header {
   flex-shrink: 0;
-  background: linear-gradient(160deg, #0d0c18, #0f0e1a, #09090f);
+  background: transparent;
   padding: 14px 18px 10px;
   text-align: center;
   position: relative;
@@ -1588,7 +1588,7 @@ select.cmp-sel option,
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, #06060e 0%, #0a0b16 100%);
+  background: transparent;
   padding: 14px 16px 14px;
   position: relative;
   overflow: hidden;
@@ -1611,7 +1611,7 @@ select.cmp-sel option,
 
 .summary-filter-bar {
   flex-shrink: 0;
-  background: linear-gradient(180deg, #08080f 0%, #0c0d1a 100%);
+  background: transparent;
   border-bottom: 1px solid rgba(var(--theme-rgb), 0.08);
   padding: 10px 14px;
   position: relative;
@@ -1731,11 +1731,7 @@ select.cmp-sel:focus {
   height: auto;
   margin-bottom: 0;
   padding-bottom: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(9, 9, 15, 1) 0%,
-    rgba(7, 7, 12, 1) 100%
-  );
+  background: transparent;
 }
 .cmp-matches-header {
   flex-shrink: 0;
@@ -7656,8 +7652,8 @@ table.cmp tbody td:nth-child(2) {
 .summary-filter-bar {
   background: linear-gradient(
     180deg,
-    rgba(10, 12, 22, 0.98),
-    rgba(8, 10, 18, 1)
+    rgba(10, 12, 22, 0.50),
+    rgba(8, 10, 18, 0.60)
   ) !important;
 
   border-bottom: 1px solid rgba(var(--theme-rgb), 0.12) !important;
@@ -7791,8 +7787,8 @@ body::after {
 .home-header {
   background: linear-gradient(
     180deg,
-    rgba(10, 14, 26, 0.94),
-    rgba(7, 10, 18, 0.98)
+    rgba(10, 14, 26, 0.50),
+    rgba(7, 10, 18, 0.60)
   ) !important;
 
   backdrop-filter: blur(26px) saturate(1.4) !important;
@@ -11085,8 +11081,8 @@ body::after {
 .nav {
   background: linear-gradient(
     180deg,
-    rgba(9, 9, 18, 0.97) 0%,
-    rgba(14, 14, 24, 0.96) 100%
+    rgba(9, 9, 18, 0.50) 0%,
+    rgba(14, 14, 24, 0.55) 100%
   );
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -11103,8 +11099,8 @@ body::after {
 .tabbar {
   background: linear-gradient(
     180deg,
-    rgba(11, 11, 19, 0.98) 0%,
-    rgba(7, 7, 14, 0.99) 100%
+    rgba(11, 11, 19, 0.55) 0%,
+    rgba(7, 7, 14, 0.65) 100%
   );
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -11216,7 +11212,7 @@ body::after {
 
 /* ── Home header — cinematic banner ── */
 .home-header {
-  background: linear-gradient(160deg, #070610 0%, #0e0c1e 45%, #09090f 100%);
+  background: transparent;
   border-bottom: 1px solid rgba(var(--theme-rgb), 0.14);
 }
 .home-header::before {
@@ -11509,7 +11505,7 @@ body::after {
 
 /* ── Live Scoring Mode — UFC Style ──────────────────────────── */
 #pg-live {
-  background: #030309;
+  background: transparent;
   overflow: hidden;
 }
 .live-ufc-wrap {
@@ -12805,8 +12801,8 @@ body::before {
 .home-header {
   background: linear-gradient(
     180deg,
-    rgba(4, 4, 10, 0.97),
-    rgba(3, 3, 9, 0.99)
+    rgba(4, 4, 10, 0.50),
+    rgba(3, 3, 9, 0.60)
   ) !important;
   backdrop-filter: blur(28px) saturate(1.2) !important;
   border-color: rgba(255, 255, 255, 0.05) !important;
