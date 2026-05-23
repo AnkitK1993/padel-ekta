@@ -17908,3 +17908,13 @@ body:not(.holo-mode) .smr-wrap:nth-child(even) .smr-inner {
   background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
 }
 
+/* ── Statistics: explicit dark base so grid is always visible ── */
+body:not(.holo-mode) #pg-analytics .page-body-scroll {
+  background-color: rgba(4, 4, 10, 1) !important;
+}
+
+/* ── Live Scoring: solid background to remove carbon fibre grid ── */
+#pg-live {
+  background: rgb(3, 3, 9) !important;
+}
+
