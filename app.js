@@ -3150,8 +3150,9 @@ function renderNamesTable() {
         .join("")
         .toUpperCase()
         .slice(0, 2);
-      const avatar = p.image
-        ? `<img src="${escHtml(p.image)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`
+      const photo = photoMap[p.name];
+      const avatar = photo
+        ? `<img src="${photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`
         : `<div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#000;flex-shrink:0">${escHtml(initials)}</div>`;
       const guestBadge = p.isGuest
         ? `<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(255,165,0,0.15);color:orange;font-weight:700;letter-spacing:0.05em">GUEST</span>`
@@ -5848,7 +5849,6 @@ function saveQuickName() {
   const display = document.getElementById("name-display").value.trim();
   const aliasesText = document.getElementById("name-aliases").value.trim();
   const email = document.getElementById("name-email")?.value.trim() || "";
-  const image = document.getElementById("name-image")?.value.trim() || "";
   const isGuest = document.getElementById("name-guest")?.checked || false;
 
   if (!display) { alert("Display name is required"); return; }
@@ -5858,7 +5858,7 @@ function saveQuickName() {
     : [];
 
   const id = nextPlayerId++;
-  players[id] = { id, name: display, email, image, isGuest };
+  players[id] = { id, name: display, email, isGuest };
   playerAliasMap[id] = aliases;
   rebuildNameMaps();
   saveCloudData();
@@ -5868,7 +5868,6 @@ function saveQuickName() {
   document.getElementById("name-display").value = "";
   document.getElementById("name-aliases").value = "";
   if (document.getElementById("name-email")) document.getElementById("name-email").value = "";
-  if (document.getElementById("name-image")) document.getElementById("name-image").value = "";
   if (document.getElementById("name-guest")) document.getElementById("name-guest").checked = false;
 }
 
@@ -16804,7 +16803,7 @@ let _editingPlayerId = null;
 function openPlayerEditSheet(id) {
   _editingPlayerId = id || null;
   const isNew = !id;
-  const p = isNew ? { name: "", email: "", image: "", isGuest: false } : (players[id] || {});
+  const p = isNew ? { name: "", email: "", isGuest: false } : (players[id] || {});
   const aliases = isNew ? [] : (playerAliasMap[id] || []);
   const { first, last } = isNew ? { first: null, last: null } : getPlayerDateRange(p.name);
 
@@ -16812,7 +16811,6 @@ function openPlayerEditSheet(id) {
   document.getElementById("pes-name").value = p.name || "";
   document.getElementById("pes-aliases").value = aliases.join(", ");
   document.getElementById("pes-email").value = p.email || "";
-  document.getElementById("pes-image").value = p.image || "";
   document.getElementById("pes-guest").checked = !!p.isGuest;
   document.getElementById("pes-first").textContent = first ? fmtDate(first) : "—";
   document.getElementById("pes-last").textContent = last ? fmtDate(last) : "—";
@@ -16835,7 +16833,6 @@ function savePlayerEdit() {
   const name = document.getElementById("pes-name").value.trim();
   const aliasesRaw = document.getElementById("pes-aliases").value.trim();
   const email = document.getElementById("pes-email").value.trim();
-  const image = document.getElementById("pes-image").value.trim();
   const isGuest = document.getElementById("pes-guest").checked;
 
   if (!name) { alert("Display name is required"); return; }
@@ -16845,7 +16842,8 @@ function savePlayerEdit() {
     : [];
 
   const id = _editingPlayerId || nextPlayerId++;
-  players[id] = { id, name, email, image, isGuest };
+  const existing = players[id] || {};
+  players[id] = { ...existing, id, name, email, isGuest };
   playerAliasMap[id] = aliases;
   rebuildNameMaps();
   saveCloudData();
