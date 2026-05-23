@@ -1338,6 +1338,19 @@ Parthiv - Par, PM
       </div>
     </div>
 
+    <!-- Duplicate match confirmation sheet (global) -->
+    <div class="live-sheet-overlay" id="dup-confirm-overlay" onclick="closeDupConfirmSheet()"></div>
+    <div class="live-sheet" id="dup-confirm-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title">DUPLICATE MATCH</div>
+      <div id="dup-confirm-msg" style="padding:0 16px 12px;font-size:13px;color:var(--muted);line-height:1.5;text-align:center"></div>
+      <div style="padding:4px 14px;display:flex;flex-direction:column;gap:8px">
+        <button class="live-start-session-btn" id="dup-confirm-yes">✅ YES, ADD ANYWAY</button>
+        <button class="tb-btn" onclick="closeDupConfirmSheet()" style="padding:12px;font-size:13px">✕ CANCEL</button>
+      </div>
+      <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+    </div>
+
     <!-- Full-page Live Event Banner (session/match start/end) -->
     <div id="live-banner-overlay" class="live-banner-overlay" onclick="closeLiveBanner()" style="display:none"></div>
 

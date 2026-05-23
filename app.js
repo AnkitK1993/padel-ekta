@@ -2915,18 +2915,8 @@ function addMatches() {
     ),
   );
 
-  if (sameDayDups.length) {
-    const preview = sameDayDups
-      .slice(0, 3)
-      .map((m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} on ${m.date}`)
-      .join("\n");
-    const more = sameDayDups.length > 3 ? `\n…and ${sameDayDups.length - 3} more` : "";
-    if (!confirm(`${sameDayDups.length} match(es) already exist with the same teams on the same day:\n${preview}${more}\n\nAdd anyway?`)) {
-      return;
-    }
-  }
-
-  if (toAdd.length) {
+  function _doAdd() {
+    if (!toAdd.length) return;
     const prevSnapshot = [...allMatches];
     lastMatchSnapshot = prevSnapshot;
     let step = [...prevSnapshot];
@@ -2948,6 +2938,20 @@ function addMatches() {
     renderCompact();
     renderModernMatches();
     renderAddMatches();
+  }
+
+  if (sameDayDups.length) {
+    const preview = sameDayDups
+      .slice(0, 3)
+      .map((m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`)
+      .join("\n");
+    const more = sameDayDups.length > 3 ? `\n…and ${sameDayDups.length - 3} more` : "";
+    showDupConfirmSheet(
+      `${sameDayDups.length} match(es) with the same teams already exist on that day:\n${preview}${more}`,
+      _doAdd,
+    );
+  } else {
+    _doAdd();
   }
 }
 
@@ -5841,31 +5845,39 @@ function saveModernMatch() {
   const teamA = [p1a, p2a];
   const teamB = [p1b, p2b];
   const candidate = { teamA, teamB, scoreA: sA, scoreB: sB, date };
+
+  function _doSave() {
+    const prevSnapshot = [...allMatches];
+    lastMatchSnapshot = prevSnapshot;
+    if (note) candidate.note = note;
+    allMatches.push(candidate);
+    checkMilestones(prevSnapshot, allMatches);
+    _lastLocalSaveTime = Date.now();
+    saveCloudData();
+    closeModernAddModal();
+    renderModernMatches();
+    renderAddMatches();
+    renderHome();
+    renderCompact();
+  }
+
   // Exact duplicate
   if (allMatches.some((old) => sameMatch(old, candidate))) {
-    if (!confirm("This match already exists. Add anyway?")) return;
-  } else {
-    // Same-day same-teams (different score)
-    const sameDayConflict = allMatches.some(
-      (old) =>
-        old.date === candidate.date &&
-        [...(old.teamA || [])].sort().join("|") === [...teamA].sort().join("|") &&
-        [...(old.teamB || [])].sort().join("|") === [...teamB].sort().join("|"),
-    );
-    if (sameDayConflict && !confirm("These teams already played on this date. Add anyway?")) return;
+    showDupConfirmSheet("This match already exists. Add anyway?", _doSave);
+    return;
   }
-  const prevSnapshot = [...allMatches];
-  lastMatchSnapshot = prevSnapshot;
-  if (note) candidate.note = note;
-  allMatches.push(candidate);
-  checkMilestones(prevSnapshot, allMatches);
-  _lastLocalSaveTime = Date.now();
-  saveCloudData();
-  closeModernAddModal();
-  renderModernMatches();
-  renderAddMatches();
-  renderHome();
-  renderCompact();
+  // Same-day same-teams (different score)
+  const sameDayConflict = allMatches.some(
+    (old) =>
+      old.date === candidate.date &&
+      [...(old.teamA || [])].sort().join("|") === [...teamA].sort().join("|") &&
+      [...(old.teamB || [])].sort().join("|") === [...teamB].sort().join("|"),
+  );
+  if (sameDayConflict) {
+    showDupConfirmSheet("These teams already played on this date. Add anyway?", _doSave);
+    return;
+  }
+  _doSave();
 }
 
 function _buildStreakCalendarHtml(name) {
@@ -16738,6 +16750,29 @@ function _requestNotifPermission() {
 }
 
 // ── MATCH CONFIRM SHEET ────────────────────────────────────
+// ── DUPLICATE MATCH CONFIRM SHEET ────────────────────────────
+let _dupConfirmCallback = null;
+function showDupConfirmSheet(msg, onYes) {
+  _dupConfirmCallback = onYes;
+  const msgEl = document.getElementById("dup-confirm-msg");
+  if (msgEl) msgEl.textContent = msg;
+  const yesBtn = document.getElementById("dup-confirm-yes");
+  if (yesBtn) {
+    yesBtn.onclick = () => {
+      closeDupConfirmSheet();
+      if (typeof _dupConfirmCallback === "function") _dupConfirmCallback();
+    };
+  }
+  document.getElementById("dup-confirm-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("dup-confirm-sheet")?.classList.add("live-sheet-open");
+}
+function closeDupConfirmSheet() {
+  document.getElementById("dup-confirm-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("dup-confirm-sheet")?.classList.remove("live-sheet-open");
+  _dupConfirmCallback = null;
+}
+window.closeDupConfirmSheet = closeDupConfirmSheet;
+
 function openMatchConfirmSheet() {
   const { a1, a2, b1, b2 } = _liveSlots;
   const el = document.getElementById("match-confirm-matchup");
