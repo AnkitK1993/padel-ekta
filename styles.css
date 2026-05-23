@@ -9945,6 +9945,13 @@ select.cmp-sel option {
   flex-shrink: 0;
 }
 
+/* ── Exclude sheet divider ──────────────── */
+.exc-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 16px;
+}
+
 /* ── Exclude badge + clear button ──────────────── */
 .ss-exc-badge {
   display: inline-flex;

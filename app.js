@@ -612,6 +612,7 @@ let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
 let _excludedPlayers = new Set((() => { try { return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]"); } catch(e) { return []; } })());
+let _sessionGuestUnexcluded = new Set(); // guests temporarily re-included this Summary session
 let photoMap = {};
 let calYear = new Date().getFullYear(),
   calMonth = new Date().getMonth();
@@ -1543,7 +1544,9 @@ function goTo(id) {
     alert("Only admin can add data");
     return;
   }
-  prevPage = document.querySelector(".page.active").id.replace("pg-", "");
+  const _leavingPage = document.querySelector(".page.active")?.id;
+  if (_leavingPage === "pg-compact" && id !== "compact") _sessionGuestUnexcluded.clear();
+  prevPage = (_leavingPage || "pg-home").replace("pg-", "");
   document
     .querySelectorAll(".page")
     .forEach((p) => p.classList.remove("active"));
@@ -2364,7 +2367,9 @@ function sheetAvSm(name) {
 // ── GUEST FILTER ────────────────────────────────────────────
 function activeMatches() {
   const excluded = new Set([
-    ...Object.values(players).filter(p => p.isGuest).map(p => p.name),
+    ...Object.values(players)
+      .filter(p => p.isGuest && !_sessionGuestUnexcluded.has(p.name))
+      .map(p => p.name),
     ..._excludedPlayers,
   ]);
   if (!excluded.size) return allMatches;
@@ -3373,7 +3378,8 @@ function _saveExcludedPlayers() {
 function _updateExcludeBtn() {
   const btn = document.getElementById("cmpExcludeBtn");
   if (!btn) return;
-  const n = _excludedPlayers.size;
+  const guestCount = Object.values(players).filter(p => p.isGuest && !_sessionGuestUnexcluded.has(p.name)).length;
+  const n = guestCount + _excludedPlayers.size;
   btn.classList.toggle("ss-eq-btn-on", n > 0);
   btn.innerHTML = n > 0 ? `🚫<span class="ss-exc-badge">${n}</span>` : "🚫";
 }
@@ -3384,33 +3390,55 @@ function openExcludeSheet() {
   const list = document.getElementById("exclude-sheet-list");
   if (!overlay || !sheet || !list) return;
   const guestNames = new Set(Object.values(players).filter(p => p.isGuest).map(p => p.name));
-  const names = new Set();
-  allMatches.forEach(m => [...(m.teamA || []), ...(m.teamB || [])].forEach(p => { const n = nameMap[p] || p; if (!guestNames.has(n)) names.add(n); }));
-  Object.values(players).forEach(p => { if (!p.isGuest) names.add(nameMap[p.name] || p.name); });
-  const sorted = [...names].filter(n => n).sort((a, b) => a.localeCompare(b));
-  list.innerHTML = sorted.map(p => {
-    const on = _excludedPlayers.has(p);
+  // Collect all names — guests first (pre-checked), then non-guests
+  const guestSorted = [...guestNames].sort((a, b) => a.localeCompare(b));
+  const nonGuestNames = new Set();
+  allMatches.forEach(m => [...(m.teamA || []), ...(m.teamB || [])].forEach(p => {
+    const n = nameMap[p] || p;
+    if (!guestNames.has(n)) nonGuestNames.add(n);
+  }));
+  Object.values(players).forEach(p => { if (!p.isGuest) nonGuestNames.add(nameMap[p.name] || p.name); });
+  const nonGuestSorted = [...nonGuestNames].filter(n => n).sort((a, b) => a.localeCompare(b));
+
+  const makeItem = (p, isGuest) => {
+    const on = isGuest ? !_sessionGuestUnexcluded.has(p) : _excludedPlayers.has(p);
+    const guestTag = isGuest ? `<span style="font-size:9px;color:var(--muted);margin-left:auto;padding-right:4px;flex-shrink:0">GUEST</span>` : "";
     return `<button class="live-sheet-item${on ? " live-sheet-item-selected" : ""}" onclick="toggleExcludePlayer(${jsArg(p)})">
       ${sheetAv(p)}
       <span class="live-sheet-item-name">${escHtml(p)}</span>
+      ${guestTag}
       ${on ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
-  }).join("");
+  };
+
+  const rows = [
+    ...guestSorted.map(p => makeItem(p, true)),
+    ...(guestSorted.length && nonGuestSorted.length ? [`<div class="exc-divider"></div>`] : []),
+    ...nonGuestSorted.map(p => makeItem(p, false)),
+  ];
+  list.innerHTML = rows.join("");
   overlay.classList.add("live-sheet-open");
   sheet.classList.add("live-sheet-open");
 }
 
 function toggleExcludePlayer(name) {
-  if (_excludedPlayers.has(name)) _excludedPlayers.delete(name);
-  else _excludedPlayers.add(name);
-  _saveExcludedPlayers();
-  // refresh the item in the list
+  const isGuest = Object.values(players).some(p => p.isGuest && p.name === name);
+  if (isGuest) {
+    // Session-only toggle — guests default to excluded, override to re-include
+    if (_sessionGuestUnexcluded.has(name)) _sessionGuestUnexcluded.delete(name);
+    else _sessionGuestUnexcluded.add(name);
+  } else {
+    if (_excludedPlayers.has(name)) _excludedPlayers.delete(name);
+    else _excludedPlayers.add(name);
+    _saveExcludedPlayers();
+  }
+  // Refresh the tapped item in the sheet list
   const list = document.getElementById("exclude-sheet-list");
   if (list) {
     list.querySelectorAll(".live-sheet-item").forEach(btn => {
       const nameEl = btn.querySelector(".live-sheet-item-name");
       if (!nameEl || nameEl.textContent !== name) return;
-      const on = _excludedPlayers.has(name);
+      const on = isGuest ? !_sessionGuestUnexcluded.has(name) : _excludedPlayers.has(name);
       btn.classList.toggle("live-sheet-item-selected", on);
       const existing = btn.querySelector(".live-sheet-check");
       if (on && !existing) btn.insertAdjacentHTML("beforeend", '<span class="live-sheet-check">✓</span>');
@@ -3424,6 +3452,8 @@ function toggleExcludePlayer(name) {
 function clearExcludedPlayers() {
   _excludedPlayers.clear();
   _saveExcludedPlayers();
+  // Also session-unexclude all guests so "CLEAR ALL" truly shows everyone
+  Object.values(players).filter(p => p.isGuest).forEach(p => _sessionGuestUnexcluded.add(p.name));
   _updateExcludeBtn();
   renderCompact();
   closeExcludeSheet();
