@@ -889,7 +889,7 @@ function savePlayerPhoto(name) {
       photoMap[name] = canvas.toDataURL("image/jpeg", 0.78);
       _savePhotosToCloud();
       renderHome();
-      if (document.getElementById("player-detail-modal")) openPlayerDetail(name);
+      renderNamesTable();
       showToast("Photo saved");
     };
     img.onerror = () => {
@@ -906,7 +906,7 @@ function removePlayerPhoto(name) {
   delete photoMap[name];
   _savePhotosToCloud();
   renderHome();
-  if (document.getElementById("player-detail-modal")) openPlayerDetail(name);
+  renderNamesTable();
   showToast("Photo removed");
 }
 
@@ -3151,9 +3151,16 @@ function renderNamesTable() {
         .toUpperCase()
         .slice(0, 2);
       const photo = photoMap[p.name];
-      const avatar = photo
+      const avatarImg = photo
         ? `<img src="${photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`
-        : `<div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#000;flex-shrink:0">${escHtml(initials)}</div>`;
+        : `<div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#000">${escHtml(initials)}</div>`;
+      const photoControls = window.isAdmin
+        ? `<div style="display:flex;gap:4px;margin-top:4px;justify-content:center">
+            <button onclick="savePlayerPhoto(${jsArg(p.name)})" title="Upload photo" style="font-size:14px;background:none;border:none;cursor:pointer;padding:0;line-height:1">📷</button>
+            ${photo ? `<button onclick="removePlayerPhoto(${jsArg(p.name)})" title="Remove photo" style="font-size:11px;background:none;border:none;cursor:pointer;padding:0;color:var(--muted);line-height:1">✕</button>` : ""}
+          </div>`
+        : "";
+      const avatar = `<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">${avatarImg}${photoControls}</div>`;
       const guestBadge = p.isGuest
         ? `<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(255,165,0,0.15);color:orange;font-weight:700;letter-spacing:0.05em">GUEST</span>`
         : "";
@@ -6964,7 +6971,7 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}${window.isAdmin ? `<button class="pd-photo-btn" onclick="savePlayerPhoto(${jsArg(name)})" title="Upload photo">📷</button>` : ""}${window.isAdmin && photoMap[name] ? `<button class="pd-photo-remove" onclick="removePlayerPhoto(${jsArg(name)})" title="Remove photo">✕</button>` : ""}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${escHtml(name)}</span>${eloTierBadge(playerElo)}</div></div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${escHtml(name)}</span>${eloTierBadge(playerElo)}</div></div>
                 <div style="display:flex;align-items:center;gap:8px">
                   <button class="pd-report-btn" onclick="openPlayerReportCard(${jsArg(name)})" title="Share report card">📊</button>
                   <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
