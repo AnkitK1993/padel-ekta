@@ -15961,14 +15961,14 @@ function endLiveMatch() {
   allMatches.push(match);
   // Clear the live match from Firestore and emit event before saving
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
-  if (_liveSessionData?.sessionActive) {
+  if (_liveSessionData?.sessionActive && _liveEnabled) {
     clearTimeout(_livePublishTimer);
     setDoc(doc(db, "padel", "live"), {
       currentMatch: null,
       lastEvent: { type: "match_end", msg: `Match saved: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, at: new Date().toISOString() }
     }, { merge: true }).catch(() => {});
-    _liveMatchPublishedAt = null;
   }
+  _liveMatchPublishedAt = null;
   saveCloudData();
   renderHome();
   renderCompact();
@@ -16557,6 +16557,29 @@ let _liveSessionData = null;
 let _livePublishTimer = null;
 let _liveMatchPublishedAt = null;
 let _liveLastEventAt = null;
+let _liveEnabled = true; // when false: no live-doc writes, no banners
+
+function toggleLiveEnabled() {
+  _liveEnabled = !_liveEnabled;
+  _syncLiveBadge();
+  if (!_liveEnabled) clearTimeout(_livePublishTimer);
+  showToast(_liveEnabled ? "Live broadcasting ON" : "Live broadcasting OFF", _liveEnabled ? "📡" : "📴", 2000);
+}
+window.toggleLiveEnabled = toggleLiveEnabled;
+
+function _syncLiveBadge() {
+  const badge = document.getElementById("live-live-badge");
+  if (!badge) return;
+  if (_liveEnabled) {
+    badge.innerHTML = `<span class="live-dot"></span>LIVE`;
+    badge.style.opacity = "1";
+    badge.title = "Tap to go offline (stop broadcasting)";
+  } else {
+    badge.innerHTML = `<span class="live-dot" style="background:var(--muted);animation:none"></span>LOCAL`;
+    badge.style.opacity = "0.55";
+    badge.title = "Tap to go live (broadcast scores)";
+  }
+}
 let _sessionSetupSelected = new Set();
 
 function loadLiveData() {
@@ -16567,7 +16590,7 @@ function loadLiveData() {
       _syncLiveSessionBar();
       const evAt = _liveSessionData?.lastEvent?.at;
       if (evAt && evAt !== _liveLastEventAt) {
-        if (_liveLastEventAt !== null) {
+        if (_liveLastEventAt !== null && _liveEnabled) {
           _notifyLiveEvent(_liveSessionData.lastEvent.type, _liveSessionData.lastEvent.msg);
           _showLiveEventBanner(_liveSessionData.lastEvent);
         }
@@ -16692,6 +16715,13 @@ async function confirmSessionStart() {
   if (players.length < 2) { showToast("Select at least 2 players", "❌"); return; }
   closeSessionSetup();
   const now = new Date().toISOString();
+  if (!_liveEnabled) {
+    _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
+    renderLiveMatchCard();
+    _syncLiveSessionBar();
+    _liveHaptic([20, 50, 20]);
+    return;
+  }
   try {
     await setDoc(doc(db, "padel", "live"), {
       sessionActive: true,
@@ -16711,6 +16741,13 @@ async function endLiveSession() {
   if (!confirm("End the current session?")) return;
   clearTimeout(_livePublishTimer);
   _liveMatchPublishedAt = null;
+  if (!_liveEnabled) {
+    _liveSessionData = null;
+    renderLiveMatchCard();
+    _syncLiveSessionBar();
+    _liveHaptic([30, 60, 30]);
+    return;
+  }
   const now = new Date().toISOString();
   try {
     await setDoc(doc(db, "padel", "live"), {
@@ -16751,6 +16788,12 @@ async function addPlayerToSession(name) {
   const players = [...(_liveSessionData?.sessionPlayers || [])];
   if (players.includes(name)) return;
   players.push(name);
+  if (!_liveEnabled) {
+    _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
+    _syncLiveSessionBar();
+    showToast(`${name} added`, "✅");
+    return;
+  }
   const now = new Date().toISOString();
   try {
     await setDoc(doc(db, "padel", "live"), {
@@ -16764,7 +16807,7 @@ async function addPlayerToSession(name) {
 }
 
 function _startLiveMatchPublish() {
-  if (!window.isAdmin || !_liveSessionData?.sessionActive) return;
+  if (!window.isAdmin || !_liveSessionData?.sessionActive || !_liveEnabled) return;
   const { a1, a2, b1, b2 } = _liveSlots;
   if (!a1 || !a2 || !b1 || !b2) return;
   _liveMatchPublishedAt = new Date().toISOString();
@@ -16776,7 +16819,7 @@ function _startLiveMatchPublish() {
 }
 
 function _publishLiveMatch() {
-  if (!window.isAdmin || !_liveSessionData?.sessionActive) return;
+  if (!window.isAdmin || !_liveSessionData?.sessionActive || !_liveEnabled) return;
   const { a1, a2, b1, b2 } = _liveSlots;
   if (!a1 || !a2 || !b1 || !b2) return;
   clearTimeout(_livePublishTimer);
