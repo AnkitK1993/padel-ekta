@@ -649,13 +649,12 @@ body {
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  background:
-    repeating-linear-gradient(0deg,   rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, #03050d 0%, #050811 50%, #060914 100%);
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100%;
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 4px);
+  background-size: 4px 4px;
 }
 
 .page-body-scroll .scroll {
