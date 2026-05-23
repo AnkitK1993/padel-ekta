@@ -6780,26 +6780,10 @@ function openPlayerDetail(name) {
     </div>`;
   })();
 
-  const recentCards = detail.recent
-    .slice()
-    .reverse()
-    .map((m) => {
-      const scoreColor = m.won ? "var(--green)" : "var(--red)";
-      return `<div class="ana-card det-match-card">
-              <div class="det-match-result" style="color:${scoreColor}">${m.won ? "W" : "L"}</div>
-              <div class="det-match-body">
-                <div class="det-match-score">${m.score}</div>
-                <div class="sub">${fmtDate(m.date)} · vs ${m.opponents.toUpperCase()}</div>
-              </div>
-            </div>`;
-    })
-    .join("");
-
-  // ── RECENT MATCH LOG MINI-TABLE ──────────────────────────
-  const pdEloFull = computeElo(allMatches);
+  // ── RECENT MATCH CARDS (from match log with ELO delta) ───
   const pdSortedAll = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const pdPlayerMs = pdSortedAll.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
-  const recentMiniTable = (() => {
+  const recentMatchCards = (() => {
     const last8 = pdPlayerMs.slice(-8).reverse();
     if (!last8.length) return "";
     const runElo2 = {};
@@ -6817,22 +6801,28 @@ function openPlayerDetail(name) {
       m.teamB.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dB3; });
       if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
         const inA4 = (m.teamA || []).includes(name);
-        eloAfterEach[pdSortedAll.indexOf(m)] = { elo: runElo2[name], delta: inA4 ? dA3 : dB3 };
+        eloAfterEach[pdSortedAll.indexOf(m)] = { delta: inA4 ? dA3 : dB3 };
       }
     });
-    const rows4 = last8.map((m) => {
+    return last8.map((m) => {
       const inA4 = (m.teamA || []).includes(name);
       const won4 = inA4 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const partner = (inA4 ? m.teamA : m.teamB).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(",") || "—";
+      const partner = (inA4 ? m.teamA : m.teamB).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(" & ") || "—";
       const opp = (inA4 ? m.teamB : m.teamA).map((p) => p.split(" ")[0]).join(" & ");
       const score = inA4 ? `${m.scoreA}–${m.scoreB}` : `${m.scoreB}–${m.scoreA}`;
-      const idx2 = pdSortedAll.indexOf(m);
-      const eld = eloAfterEach[idx2];
-      const eloDeltaStr = eld ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}` : "—";
+      const eld = eloAfterEach[pdSortedAll.indexOf(m)];
+      const eloDeltaStr = eld ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}` : "";
       const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
-      return `<tr><td>${fmtDate(m.date).replace(/\s\d{4}$/, "")}</td><td>${partner}</td><td style="color:var(--muted);font-size:9px">${opp}</td><td style="font-weight:700;color:${won4?"var(--green)":"var(--red)"}">${score}</td><td style="font-weight:700;color:${eloDeltaCol}">${eloDeltaStr}</td></tr>`;
+      const scoreColor = won4 ? "var(--green)" : "var(--red)";
+      return `<div class="ana-card det-match-card">
+        <div class="det-match-result" style="color:${scoreColor}">${won4 ? "W" : "L"}</div>
+        <div class="det-match-body">
+          <div class="det-match-score">${score}</div>
+          <div class="sub">${fmtDate(m.date).replace(/\s\d{4}$/, "")} · w/ ${escHtml(partner)} · vs ${escHtml(opp)}</div>
+        </div>
+        ${eld ? `<div style="font-size:11px;font-weight:700;color:${eloDeltaCol};flex-shrink:0">${eloDeltaStr}</div>` : ""}
+      </div>`;
     }).join("");
-    return `<div class="ana-card" style="padding:10px 12px"><span class="badge">Recent Match Log</span><div style="overflow-x:auto;margin-top:8px"><table class="pd-recent-table"><thead><tr><th>Date</th><th>Partner</th><th>vs</th><th>Score</th><th>ELO</th></tr></thead><tbody>${rows4}</tbody></table></div></div>`;
   })();
 
   // ── VS-ALL-OPPONENTS BREAKDOWN ───────────────────────────
@@ -6972,10 +6962,7 @@ function openPlayerDetail(name) {
             <div class="analytics-inner">
               <div class="analytics-header">
                 <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${escHtml(name)}</span>${eloTierBadge(playerElo)}</div></div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <button class="pd-report-btn" onclick="openPlayerReportCard(${jsArg(name)})" title="Share report card">📊</button>
-                  <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
-                </div>
+                <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
               </div>
               <div class="analytics-cards">
 
@@ -7097,10 +7084,16 @@ function openPlayerDetail(name) {
 
               </div>
               <div style="margin-top:20px;font-size:13px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Matches</div>
-              <div class="analytics-cards">${recentMiniTable}${recentCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
+              <div class="analytics-cards">${recentMatchCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
             </div>
           </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
+
+  // Scroll activity calendar so current month (rightmost column) is visible
+  requestAnimationFrame(() => {
+    const sc = document.querySelector("#player-detail-modal .sc-scroll");
+    if (sc) sc.scrollLeft = sc.scrollWidth;
+  });
 
   // shared ticker helper — 15 steps over ~330ms (22ms each)
   const pdTick = (el, target, format, delay = 200) => {
