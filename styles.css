@@ -9914,38 +9914,33 @@ select.cmp-sel option {
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* ── Summary equalized toggle button ──────────────── */
-.ss-eq-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  color: var(--muted);
-  font-size: 18px;
-  line-height: 1;
-  width: 36px;
+/* ── Summary filter-bar pill (shared by date FAB + icon btns) ──── */
+.summary-nav-actions {
+  display: contents; /* children participate directly in filter-bar flex */
+}
+.ss-eq-btn,
+.ss-snap-btn {
+  flex: 1;
+  min-width: 0;
   height: 36px;
   padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  flex-shrink: 0;
   position: relative;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  transition: background 0.18s, border-color 0.18s;
 }
 .ss-eq-btn-on {
   background: rgba(var(--theme-rgb), 0.15);
   border-color: rgba(var(--theme-rgb), 0.5);
-  color: var(--theme);
-}
-
-/* ── Summary nav action group ──────────────── */
-.summary-nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
 }
 
 /* ── Exclude sheet divider ──────────────── */
@@ -9982,23 +9977,6 @@ select.cmp-sel option {
   cursor: pointer;
 }
 
-/* ── Summary screenshot button ──────────────── */
-.ss-snap-btn {
-  background: rgba(var(--theme-rgb), 0.12);
-  border: 1px solid rgba(var(--theme-rgb), 0.3);
-  border-radius: 10px;
-  color: var(--theme);
-  font-size: 18px;
-  line-height: 1;
-  width: 36px;
-  height: 36px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  padding: 0;
-}
 .ss-card-badge {
   font-size: 9px;
   font-weight: 700;
@@ -13325,14 +13303,6 @@ select:focus,
   vertical-align: middle;
 }
 
-/* ── Summary share button ──────────────── */
-.ss-snap-btn {
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.08em !important;
-  width: auto !important;
-  padding: 0 10px !important;
-}
 
 /* ── Share preview sheet ──────────────── */
 .share-preview-sheet {
