@@ -17854,7 +17854,9 @@ body:not(.holo-mode) .smr-wrap:nth-child(even) .smr-inner {
   background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
 }
 
-/* ── Statistics: explicit dark base so grid is always visible ── */
+/* ── Summary + Statistics: explicit dark base for all scroll layers ── */
+body:not(.holo-mode) #pg-compact .page-body-scroll,
+body:not(.holo-mode) #pg-compact .cmp-body-scroll,
 body:not(.holo-mode) #pg-analytics .page-body-scroll {
   background-color: rgba(4, 4, 10, 1) !important;
 }
