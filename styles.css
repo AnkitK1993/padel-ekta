@@ -1280,7 +1280,7 @@ body {
 
 .history-filter-panel {
   flex-shrink: 0;
-  background: linear-gradient(180deg, #08080f 0%, #0c0d1a 100%);
+  background: transparent;
   border-bottom: 1px solid rgba(var(--theme-rgb), 0.08);
   padding: 10px 12px 8px;
   display: flex;
@@ -1710,7 +1710,7 @@ select.cmp-sel:focus {
 .cmp-infobar {
   padding: 1px 11px;
   border-bottom: 1px solid var(--border);
-  background: var(--card);
+  background: transparent;
 }
 .cmp-meta {
   font-size: 9px;
@@ -1844,22 +1844,14 @@ select.cmp-sel:focus {
   height: auto;
   padding: 0 11px 110px;
   margin-top: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(6, 6, 12, 1) 0%,
-    rgba(9, 9, 15, 1) 100%
-  );
+  background: transparent;
 }
 table.cmp {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 0;
   table-layout: fixed;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 10, 18, 0.96),
-    rgba(6, 6, 12, 0.98)
-  );
+  background: transparent;
 }
 table.cmp thead tr {
   background: transparent;
@@ -7544,7 +7536,7 @@ table.cmp {
       rgba(0, 140, 255, 0.08),
       transparent 60%
     ),
-    linear-gradient(180deg, rgba(8, 10, 20, 0.98), rgba(5, 8, 16, 1)) !important;
+    transparent !important;
 
   border: 1px solid rgba(0, 220, 255, 0.18) !important;
   border-radius: 22px !important;
