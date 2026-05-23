@@ -649,6 +649,12 @@ body {
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px);
+  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px;
 }
 
 .page-body-scroll .scroll {
@@ -15126,6 +15132,11 @@ body.holo-mode::before {
     radial-gradient(circle at 50% 100%, rgba(92, 208, 255, 0.04), transparent 35%),
     linear-gradient(180deg, #04101e 0%, #04101e 100%);
   background-size: 100% 100%;
+}
+
+/* Strip carbon fibre texture from scroll container in HOLO HUD */
+body.holo-mode .page-body-scroll {
+  background-image: none;
 }
 
 /* Subtle scanline overlay */
