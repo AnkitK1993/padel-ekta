@@ -16769,8 +16769,9 @@ function showDupConfirmSheet(msg, onYes) {
   const yesBtn = document.getElementById("dup-confirm-yes");
   if (yesBtn) {
     yesBtn.onclick = () => {
+      const cb = _dupConfirmCallback;
       closeDupConfirmSheet();
-      if (typeof _dupConfirmCallback === "function") _dupConfirmCallback();
+      if (typeof cb === "function") cb();
     };
   }
   document.getElementById("dup-confirm-overlay")?.classList.add("live-sheet-open");
