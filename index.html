@@ -223,10 +223,6 @@
           <input type="date" id="drTo" placeholder="To" />
           <button class="btn-go" onclick="applyRange('home')">Go</button>
         </div>
-        <div
-          id="scheduled-banner"
-          style="display: none; padding: 0 11px 4px"
-        ></div>
         <div id="absence-banner"></div>
         <div
           id="session-streak-badge"
@@ -879,24 +875,6 @@ Puneet - Pun, PK
                   <span class="mng-toggle-slider"></span>
                 </label>
               </div>
-            </div>
-
-            <!-- Sessions -->
-            <div class="mng-card" data-card-id="sessions">
-              <div class="mng-card-header">
-                <span class="mng-card-drag-handle">⠿</span>
-                <span class="mng-card-icon">📅</span>
-                <span class="mng-card-title">Upcoming Sessions</span>
-              </div>
-              <div id="scheduled-admin-list"></div>
-              <button
-                class="btn-p"
-                id="schedule-session-btn"
-                onclick="openScheduleModal()"
-                style="width: 100%; margin-top: 4px"
-              >
-                📅 Schedule Session
-              </button>
             </div>
 
             <!-- Email Backup -->
@@ -1656,17 +1634,6 @@ Puneet - Pun, PK
       </div>
     </div>
 
-    <!-- ── MY NAME PICKER SHEET (RSVP) ────────────────────── -->
-    <div class="live-sheet-overlay" id="myname-overlay" onclick="closeMyNamePicker()"></div>
-    <div class="live-sheet" id="myname-sheet">
-      <div class="live-sheet-handle"></div>
-      <div class="live-sheet-title">WHO ARE YOU?</div>
-      <div style="padding:4px 14px 10px;font-size:12px;color:var(--text-muted);text-align:center">Select your name to RSVP for this session</div>
-      <div id="myname-list" style="padding:0 14px;max-height:50vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
-      <div style="padding:10px 14px 16px">
-        <button class="tb-btn tb-btn-balance" style="width:100%" onclick="closeMyNamePicker()">CANCEL</button>
-      </div>
-    </div>
 
   </body>
 </html>

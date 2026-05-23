@@ -650,7 +650,6 @@ let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a loca
 let _emailTimer = null;
 window.isAdmin = false;
 if (localStorage.getItem("cascade_anim") === "0") document.body.classList.add("no-cascade");
-let scheduledMatches = [];
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
@@ -915,212 +914,6 @@ function removePlayerPhoto(name) {
 }
 
 // ── SCHEDULED MATCHES ──────────────────────────────────────
-async function saveScheduledMatches() {
-  try {
-    localStorage.setItem("padel_scheduled", JSON.stringify(scheduledMatches));
-    if (auth.currentUser && window.isAdmin) {
-      await setDoc(
-        doc(db, "padel", "scheduled"),
-        { items: scheduledMatches },
-        { merge: false },
-      );
-    }
-  } catch (e) {
-    console.error("Schedule save failed:", e);
-  }
-}
-
-function loadScheduledMatches() {
-  try {
-    const cached = JSON.parse(localStorage.getItem("padel_scheduled") || "[]");
-    if (Array.isArray(cached)) scheduledMatches = cached;
-  } catch (e) {}
-  try {
-    onSnapshot(doc(db, "padel", "scheduled"), (snap) => {
-      if (!snap.exists()) return;
-      const d = snap.data();
-      if (Array.isArray(d.items)) {
-        scheduledMatches = d.items;
-        try {
-          localStorage.setItem(
-            "padel_scheduled",
-            JSON.stringify(scheduledMatches),
-          );
-        } catch (e) {}
-      }
-      renderScheduledBanner();
-      renderScheduledAdmin();
-    });
-  } catch (e) {}
-  renderScheduledBanner();
-}
-
-function renderScheduledBanner() {
-  const el = document.getElementById("scheduled-banner");
-  if (!el) return;
-  const today = todayISO();
-  const upcoming = scheduledMatches
-    .filter((s) => s.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  if (!upcoming.length) {
-    el.innerHTML = "";
-    el.style.display = "none";
-    return;
-  }
-  const next = upcoming[0];
-  const isToday = next.date === today;
-  const dateLabel = isToday ? "TODAY" : fmtDate(next.date).toUpperCase();
-  const teamLabel =
-    next.teamA && next.teamB
-      ? `${next.teamA.join(" & ")} vs ${next.teamB.join(" & ")}`
-      : next.note || "Session scheduled";
-  const myName = getMyPlayerName();
-  const rsvps = next.rsvps || [];
-  const myRsvpd = myName && rsvps.includes(myName);
-  const rsvpCount = rsvps.length;
-  const rsvpHtml = `<div class="sched-rsvp-row">
-    <button class="sched-rsvp-btn${myRsvpd ? " sched-rsvp-btn--in" : ""}" onclick="rsvpSession(${jsArg(next.id || "")})">
-      ${myRsvpd ? "✅ I'M IN" : "🎾 I'M IN"}
-    </button>
-    ${rsvpCount > 0 ? `<span class="sched-rsvp-count">${rsvpCount} going${rsvps.length <= 4 ? ": " + rsvps.map((r) => r.split(" ")[0]).join(", ") : ""}</span>` : ""}
-  </div>`;
-  el.style.display = "block";
-  el.innerHTML = `
-    <div class="sched-banner">
-      <div class="sched-banner-left">
-        <span class="sched-banner-icon">${isToday ? "🏓" : "📅"}</span>
-        <div>
-          <div class="sched-banner-date">${isToday ? "🔔 NEXT SESSION — TODAY" : `NEXT SESSION · ${dateLabel}`}${next.time ? " · " + next.time : ""}</div>
-          <div class="sched-banner-team">${escHtml(teamLabel)}</div>
-          ${next.note && (next.teamA || next.teamB) ? `<div class="sched-banner-note">${escHtml(next.note)}</div>` : ""}
-          ${rsvpHtml}
-        </div>
-      </div>
-      ${upcoming.length > 1 ? `<div class="sched-banner-more">+${upcoming.length - 1} more</div>` : ""}
-    </div>`;
-}
-
-function renderScheduledAdmin() {
-  const el = document.getElementById("scheduled-admin-list");
-  if (!el) return;
-  const today = todayISO();
-  const sorted = [...scheduledMatches].sort((a, b) =>
-    a.date.localeCompare(b.date),
-  );
-  if (!sorted.length) {
-    el.innerHTML =
-      '<div style="color:var(--muted);font-size:13px;padding:8px 0">No upcoming sessions scheduled.</div>';
-    return;
-  }
-  el.innerHTML = sorted
-    .map((s, i) => {
-      const isPast = s.date < today;
-      const teamLabel =
-        s.teamA && s.teamB
-          ? `${s.teamA.join(" & ")} vs ${s.teamB.join(" & ")}`
-          : "Open session";
-      return `<div class="sched-item${isPast ? " sched-past" : ""}">
-      <div class="sched-item-body">
-        <div class="sched-item-date">${fmtDate(s.date)}${s.time ? " · " + s.time : ""}${isPast ? " · past" : ""}</div>
-        <div class="sched-item-team">${escHtml(teamLabel)}</div>
-        ${s.note ? `<div class="sched-item-note">${escHtml(s.note)}</div>` : ""}
-      </div>
-      <button class="sched-del-btn" onclick="deleteScheduled(${i})">✕</button>
-    </div>`;
-    })
-    .join("");
-}
-
-function closeScheduleModal() {
-  const el = document.getElementById("schedule-inline");
-  if (!el) return;
-  el.classList.remove("open");
-  setTimeout(() => el.remove(), 260);
-}
-
-function openScheduleModal() {
-  if (document.getElementById("schedule-inline")) {
-    closeScheduleModal();
-    return;
-  }
-  const players = getAllPlayerNamesFromMatches();
-  const opts = players
-    .map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`)
-    .join("");
-  const el = document.createElement("div");
-  el.id = "schedule-inline";
-  el.className = "match-edit-inline";
-  el.innerHTML = `
-    <div class="mei-header">
-      <span class="mei-title">📅 SCHEDULE SESSION</span>
-      <button class="mei-close" onclick="closeScheduleModal()">✕</button>
-    </div>
-    <div class="mei-section-lbl">DATE &amp; TIME</div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input id="sched-date" type="date" class="mei-input" style="flex:1" value="${todayISO()}">
-      <input id="sched-time" type="time" class="mei-input" style="flex:1" placeholder="Time (optional)">
-    </div>
-    <div class="mei-section-lbl" style="color:var(--green)">TEAM A <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-    <div class="mei-row">
-      <select id="sched-a1" class="mei-sel"><option value="">P1</option>${opts}</select>
-      <select id="sched-a2" class="mei-sel"><option value="">P2</option>${opts}</select>
-    </div>
-    <div class="mei-section-lbl" style="color:var(--red)">TEAM B <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-    <div class="mei-row">
-      <select id="sched-b1" class="mei-sel"><option value="">P1</option>${opts}</select>
-      <select id="sched-b2" class="mei-sel"><option value="">P2</option>${opts}</select>
-    </div>
-    <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-    <input id="sched-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. court 3, bring balls…">
-    <div class="mei-actions">
-      <button class="mei-cancel" onclick="closeScheduleModal()">Cancel</button>
-      <button class="mei-save" onclick="saveScheduled()">Schedule</button>
-    </div>`;
-  const btn = document.getElementById("schedule-session-btn");
-  if (btn) btn.insertAdjacentElement("afterend", el);
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => el.classList.add("open"));
-  });
-  setTimeout(
-    () => el.scrollIntoView({ behavior: "smooth", block: "nearest" }),
-    60,
-  );
-}
-
-function saveScheduled() {
-  const date = document.getElementById("sched-date")?.value;
-  if (!date) return;
-  const a1 = document.getElementById("sched-a1")?.value;
-  const a2 = document.getElementById("sched-a2")?.value;
-  const b1 = document.getElementById("sched-b1")?.value;
-  const b2 = document.getElementById("sched-b2")?.value;
-  const time = document.getElementById("sched-time")?.value.trim();
-  const note = document.getElementById("sched-note")?.value.trim();
-  const entry = { date, id: Date.now() };
-  if (time) entry.time = time;
-  const teamA = [a1, a2].filter(Boolean);
-  const teamB = [b1, b2].filter(Boolean);
-  if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length) {
-    showToast("Scheduled players must be different", "❌");
-    return;
-  }
-  if (teamA.length) entry.teamA = teamA;
-  if (teamB.length) entry.teamB = teamB;
-  if (note) entry.note = note;
-  scheduledMatches.push(entry);
-  saveScheduledMatches();
-  closeScheduleModal();
-  renderScheduledBanner();
-  renderScheduledAdmin();
-  showToast("Session scheduled!", "📅");
-}
-
-function deleteScheduled(i) {
-  scheduledMatches.splice(i, 1);
-  saveScheduledMatches();
-  renderScheduledBanner();
-  renderScheduledAdmin();
-}
 
 // ── SYNC CONFLICT RESOLUTION ───────────────────────────────
 function _mkMatchKey(m) {
@@ -15452,7 +15245,6 @@ function scheduleAutoEmail() {
 renderNamesTable();
 loadCloudData();
 loadPhotos();
-loadScheduledMatches();
 loadDeletedMatches();
 scheduleAutoEmail();
 setTimeout(() => {
@@ -15576,10 +15368,6 @@ Object.assign(window, {
   openSummaryScreenshot,
   closeSnapshot,
   shareSnapshot,
-  openScheduleModal,
-  closeScheduleModal,
-  saveScheduled,
-  deleteScheduled,
   quickRematch,
   applyEloConfig,
   resetEloConfig,
@@ -15664,10 +15452,6 @@ Object.assign(window, {
   openCmpDateSheet,
   savePlayerPhoto,
   removePlayerPhoto,
-  rsvpSession,
-  openMyNamePicker,
-  closeMyNamePicker,
-  pickMyName,
   openPlayerReportCard,
 });
 
@@ -16157,13 +15941,8 @@ function endLiveMatch() {
   };
   if (notes) match.note = notes;
   allMatches.push(match);
-  // Update session state and emit match_end event to Firestore
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
-    setDoc(doc(db, "padel", "live"), {
-      currentMatch: null,
-      lastEvent: { type: "match_end", msg: `Match saved: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, at: new Date().toISOString() }
-    }, { merge: true }).catch(() => {});
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
   }
   saveCloudData();
@@ -16666,65 +16445,6 @@ document.addEventListener("keydown", (e) => {
   );
 })();
 
-// ── SESSION RSVP ─────────────────────────────────────────────
-let _rsvpPendingSessionId = null;
-const RSVP_KEY = "padel_my_name";
-
-function getMyPlayerName() {
-  return localStorage.getItem(RSVP_KEY) || null;
-}
-
-function setMyPlayerName(name) {
-  localStorage.setItem(RSVP_KEY, name);
-}
-
-function openMyNamePicker(sessionId) {
-  _rsvpPendingSessionId = sessionId || null;
-  const eloMap = computeElo(activeMatches());
-  const stats = computeStats(activeMatches(), eloMap);
-  const players = stats.filter((p) => p.mp >= 1).sort((a, b) => a.name.localeCompare(b.name));
-  const list = document.getElementById("myname-list");
-  if (!list) return;
-  const myName = getMyPlayerName();
-  list.innerHTML = players.map((p) => `
-    <button class="tb-player-chip tb-player-chip--btn${myName === p.name ? " tb-chip-selected" : ""}"
-      onclick="pickMyName(${jsArg(p.name)})">
-      <span class="tb-chip-name">${escHtml(p.name)}</span>
-    </button>`).join("");
-  document.getElementById("myname-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("myname-sheet")?.classList.add("live-sheet-open");
-}
-
-function closeMyNamePicker() {
-  document.getElementById("myname-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("myname-sheet")?.classList.remove("live-sheet-open");
-  _rsvpPendingSessionId = null;
-}
-
-function pickMyName(name) {
-  setMyPlayerName(name);
-  closeMyNamePicker();
-  if (_rsvpPendingSessionId) rsvpSession(_rsvpPendingSessionId, name);
-}
-
-async function rsvpSession(sessionId, playerName) {
-  const myName = playerName || getMyPlayerName();
-  if (!myName) { openMyNamePicker(sessionId); return; }
-  const today = typeof todayISO === "function" ? todayISO() : "";
-  const upcoming = scheduledMatches.filter((s) => s.date >= today).sort((a, b) => a.date.localeCompare(b.date));
-  const target = sessionId
-    ? scheduledMatches.find((s) => s.id === sessionId)
-    : upcoming[0];
-  if (!target) { showToast("No upcoming session found", "❌"); return; }
-  const rsvps = target.rsvps || [];
-  if (!rsvps.includes(myName)) {
-    rsvps.push(myName);
-    target.rsvps = rsvps;
-    await saveScheduledMatches();
-    renderScheduledBanner();
-  }
-  showToast(`${myName} — You're in! 🎾`, "✅");
-}
 
 // ── PLAYER REPORT CARD ────────────────────────────────────────
 async function openPlayerReportCard(name) {

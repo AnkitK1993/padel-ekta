@@ -10176,101 +10176,6 @@ select.cmp-sel option {
   animation-delay: 0.45s;
 }
 
-/* ── Scheduled Matches ─────────────────────────── */
-.sched-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--theme-rgb), 0.12),
-    rgba(var(--theme-rgb), 0.06)
-  );
-  border: 1px solid rgba(var(--theme-rgb), 0.3);
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-  gap: 10px;
-}
-.sched-banner-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
-.sched-banner-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-}
-.sched-banner-date {
-  font-size: 9px;
-  font-weight: 800;
-  color: var(--accent);
-  letter-spacing: 0.1em;
-  margin-bottom: 2px;
-}
-.sched-banner-team {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-}
-.sched-banner-note {
-  font-size: 10px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-.sched-banner-more {
-  font-size: 10px;
-  color: var(--muted);
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.sched-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin-bottom: 6px;
-}
-.sched-item.sched-past {
-  opacity: 0.45;
-}
-.sched-item-body {
-  flex: 1;
-  min-width: 0;
-}
-.sched-item-date {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--accent);
-}
-.sched-item-team {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-}
-.sched-item-note {
-  font-size: 10px;
-  color: var(--muted);
-}
-.sched-del-btn {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 4px;
-  flex-shrink: 0;
-}
-.sched-del-btn:hover {
-  color: var(--red);
-}
-
 /* ── Prediction Accuracy ───────────────────────── */
 .pred-mo-row {
   display: grid;
@@ -16841,35 +16746,6 @@ body.midnight-oled-mode #themeBtn {
 .cmr-del-btn:active {
   opacity: 1;
   background: rgba(240, 79, 79, 0.15);
-}
-
-/* ── RSVP BUTTON ─────────────────────────── */
-.sched-rsvp-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 7px;
-}
-.sched-rsvp-btn {
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  color: var(--fg);
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  letter-spacing: 0.04em;
-}
-.sched-rsvp-btn--in {
-  background: rgba(30, 200, 120, 0.2);
-  border-color: var(--green);
-  color: var(--green);
-}
-.sched-rsvp-count {
-  font-size: 10px;
-  color: var(--text-muted);
-  font-weight: 600;
 }
 
 /* ── PLAYER REPORT CARD BUTTON ───────────── */
