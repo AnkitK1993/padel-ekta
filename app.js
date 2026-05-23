@@ -637,6 +637,7 @@ let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
+let _cmpEqualized = false;
 let _eloTLPlayer = "";
 let _eloTLFilter = "all";
 let _eloTLOverlay = "";
@@ -3339,6 +3340,15 @@ function onHomeFilterChange(val) {
   }
 }
 
+function toggleCmpEqualized() {
+  _cmpEqualized = !_cmpEqualized;
+  const btn = document.getElementById("cmpEqBtn");
+  if (btn) btn.classList.toggle("ss-eq-btn-on", _cmpEqualized);
+  const th = document.getElementById("cmp-sr-th");
+  if (th) th.innerHTML = (_cmpEqualized ? 'EQ <span class="sort-arrow" id="sort-sr"></span>' : 'SR <span class="sort-arrow" id="sort-sr"></span>');
+  renderCompact();
+}
+
 function onCmpFilter() {
   cmpFilter = document.getElementById("cmpSel").value;
   const dr = document.getElementById("cmpDr");
@@ -3763,6 +3773,7 @@ function renderCompact() {
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const stats = computeStats(filtered, computeElo(filtered));
+  if (_cmpEqualized) stats.forEach(p => { p.eqSR = p.mwr * 6.25 + p.gwr * 3.75; });
   const sortFns = {
     name: (a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -3781,7 +3792,7 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    sr: (a, b) => a.sr - b.sr || a.gamePct - b.gamePct,
+    sr: (a, b) => (_cmpEqualized ? (a.eqSR - b.eqSR) : (a.sr - b.sr)) || a.gamePct - b.gamePct,
   };
   const sorted = [...stats].sort((a, b) => {
     const cmp = sortFns[cmpSortKey](a, b);
@@ -3828,7 +3839,8 @@ function renderCompact() {
             : `<span class="rn">${i + 1}</span>`;
     const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
     const gc = p.gamePct >= 50 ? "tp" : "tn";
-    const normalizedSR = Math.max(0, Math.min(10, p.sr));
+    const displaySR = _cmpEqualized ? (p.eqSR ?? p.sr) : p.sr;
+    const normalizedSR = Math.max(0, Math.min(10, displaySR));
     const ratingClass = getSRRatingClass(normalizedSR);
     const momentumBadge = getMomentumBadge(p.name);
     const pillW = Math.round((normalizedSR / 10) * 100);
@@ -3844,7 +3856,7 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -15282,6 +15294,7 @@ Object.assign(window, {
   applyRange,
   renderHome,
   onCmpFilter,
+  toggleCmpEqualized,
   addMatches,
   saveNames,
   loadNames,

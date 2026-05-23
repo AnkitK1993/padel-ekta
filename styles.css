@@ -9860,6 +9860,30 @@ select.cmp-sel option {
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* ── Summary equalized toggle button ──────────────── */
+.ss-eq-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  height: 36px;
+  padding: 0 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+.ss-eq-btn-on {
+  background: rgba(var(--theme-rgb), 0.15);
+  border-color: rgba(var(--theme-rgb), 0.5);
+  color: var(--theme);
+}
+
 /* ── Summary screenshot button ──────────────── */
 .ss-snap-btn {
   background: rgba(var(--theme-rgb), 0.12);

@@ -285,6 +285,9 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
+          <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()">
+            ⚖ Equalized
+          </button>
           <button class="ss-snap-btn" onclick="openSummaryShare()">
             📸 Screenshot
           </button>
@@ -349,7 +352,7 @@
                   <th class="sortable" onclick="setCmpSort('gamePct')">
                     G% <span class="sort-arrow" id="sort-gamePct"></span>
                   </th>
-                  <th class="sortable" onclick="setCmpSort('sr')">
+                  <th class="sortable" onclick="setCmpSort('sr')" id="cmp-sr-th">
                     SR <span class="sort-arrow" id="sort-sr"></span>
                   </th>
                 </tr>
