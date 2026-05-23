@@ -1921,8 +1921,9 @@ let _swipeTouchStartX = 0,
 document.addEventListener(
   "touchstart",
   (e) => {
-    if (!window.isAdmin || e.touches.length !== 1) return;
-    const card = e.target.closest(".match-card");
+    if (e.touches.length !== 1) return;
+    const card = (window.isAdmin ? e.target.closest(".match-card") : null)
+               || e.target.closest(".smr-wrap");
     if (!card) return;
     _swipeTouchStartX = e.touches[0].clientX;
     _swipeTouchStartY = e.touches[0].clientY;
@@ -1946,7 +1947,7 @@ document.addEventListener(
     if (!_swipeActive) return;
     if (dx < 0) {
       const reveal = Math.min(72, Math.abs(dx));
-      const inner = _swipeCard.querySelector(".match-card-inner");
+      const inner = _swipeCard.querySelector(".match-card-inner, .smr-inner");
       if (inner) {
         inner.style.transform = `translateX(${-reveal}px)`;
         _swipeCard.classList.add("swiping");
@@ -1954,7 +1955,7 @@ document.addEventListener(
       if (reveal >= 52) _swipeCard.classList.add("swipe-revealed");
       else _swipeCard.classList.remove("swipe-revealed");
     } else {
-      const inner = _swipeCard.querySelector(".match-card-inner");
+      const inner = _swipeCard.querySelector(".match-card-inner, .smr-inner");
       if (inner) inner.style.transform = "";
       _swipeCard.classList.remove("swipe-revealed", "swiping");
     }
@@ -1969,7 +1970,7 @@ document.addEventListener(
     const card = _swipeCard;
     _swipeCard = null;
     _swipeActive = false;
-    const inner = card.querySelector(".match-card-inner");
+    const inner = card.querySelector(".match-card-inner, .smr-inner");
     if (card.classList.contains("swipe-revealed")) {
       if (inner) {
         inner.style.transition = "transform 0.25s ease";
@@ -3818,7 +3819,7 @@ function renderCompact() {
     _cmpFiltered = filtered;
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
     document.getElementById("cmpMatches").innerHTML =
-      buildCompactMatchRows(filtered);
+      buildSummaryMatchRows(filtered);
     updateSortArrows(sorted);
     return;
   }
@@ -3863,9 +3864,6 @@ function renderCompact() {
   _cmpFiltered = filtered;
 
   const reversedMatches = [...filtered].reverse();
-  const matchRowHtmls = reversedMatches.map((m) =>
-    buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
-  );
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
   const matchesHeader = cmpMatchesEl.previousElementSibling;
@@ -3892,27 +3890,25 @@ function renderCompact() {
       matchesHeader.style.transform = "translateY(0)";
     }, matchStartDelay);
 
-    if (matchRowHtmls.length) {
-      const table = document.createElement("table");
-      table.className = "cmp-match-rows";
-      const matchTbody = document.createElement("tbody");
-      table.appendChild(matchTbody);
-      setTimeout(() => cmpMatchesEl.appendChild(table), matchStartDelay);
+    if (reversedMatches.length) {
+      const list = document.createElement("div");
+      list.className = "smr-list";
+      setTimeout(() => cmpMatchesEl.appendChild(list), matchStartDelay);
       const animCount = Math.min(10, reversedMatches.length);
       const animRows = reversedMatches
         .slice(0, animCount)
-        .map((m) => buildMatchRowHtml(m, " card-anim", null, allMatches.indexOf(m)));
+        .map((m) => buildSummaryMatchRow(m, " card-anim", allMatches.indexOf(m)));
       const restRows = reversedMatches
         .slice(animCount)
-        .map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)));
+        .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m)));
       animRows.forEach((html, i) => {
         setTimeout(() => {
-          matchTbody.insertAdjacentHTML("beforeend", html);
+          list.insertAdjacentHTML("beforeend", html);
         }, matchStartDelay + i * 100);
       });
       if (restRows.length) {
         setTimeout(() => {
-          matchTbody.insertAdjacentHTML("beforeend", restRows.join(""));
+          list.insertAdjacentHTML("beforeend", restRows.join(""));
         }, matchStartDelay + animCount * 100);
       }
       const summaryHtml = buildHistorySummary(filtered, cmpFilter);
@@ -3935,13 +3931,11 @@ function renderCompact() {
       .forEach((el) => animateSrVal(el, 0));
     const _nc = document.body.classList.contains("no-cascade");
     const initRows = reversedMatches.map((m, i) =>
-      i < 10 && !_nc
-        ? buildMatchRowHtml(m, " card-anim", null, allMatches.indexOf(m))
-        : buildMatchRowHtml(m, "", null, allMatches.indexOf(m)),
+      buildSummaryMatchRow(m, i < 10 && !_nc ? " card-anim" : "", allMatches.indexOf(m)),
     );
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
-        `<table class="cmp-match-rows"><tbody>${initRows.join("")}</tbody></table>` +
+        `<div class="smr-list">${initRows.join("")}</div>` +
         buildHistorySummary(filtered, cmpFilter);
       setTimeout(_animEloCounts, 80);
     } else {
@@ -4057,6 +4051,36 @@ function buildCompactMatchRows(matches) {
     .reverse()
     .map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)))
     .join("")}</tbody></table>`;
+}
+
+function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
+  const aWon = m.scoreA > m.scoreB;
+  const winA = aWon ? "cmr-win" : "cmr-loss";
+  const winB = !aWon ? "cmr-win" : "cmr-loss";
+  const teamA = (m.teamA || []).join(" & ");
+  const teamB = (m.teamB || []).join(" & ");
+  const badge = isFireMatch(m)
+    ? `<span class="cmr-badge cmr-fire">🔥</span>`
+    : isDominatingMatch(m)
+      ? `<span class="cmr-badge cmr-dom">💀</span>`
+      : isZeroMatch(m)
+        ? `<span class="cmr-badge cmr-zero">😂</span>`
+        : "";
+  const clickHandler = matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
+  return `<div class="smr-wrap${extraClass}">
+    <div class="smr-inner" ${clickHandler}>
+      <span class="smr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</span>
+      <span class="smr-team ${winA}">${escHtml(teamA)}</span>
+      <div class="smr-score"><span class="cmr-sv ${winA}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${winB}">${m.scoreB}</span></div>
+      <span class="smr-team smr-team-r ${winB}">${escHtml(teamB)}</span>
+      ${badge}
+    </div>
+    ${matchIdx !== null ? `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})">🗑<br><span>Delete</span></div>` : ""}
+  </div>`;
+}
+function buildSummaryMatchRows(matches) {
+  if (!matches.length) return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+  return `<div class="smr-list">${[...matches].reverse().map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m))).join("")}</div>`;
 }
 
 function buildMatchCards(matches, showAdmin) {
@@ -4608,10 +4632,10 @@ function buildHistorySummary(matches, filter = "all") {
 }
 
 function toggleMatchesSection() {
-  const table = document.querySelector("#cmpMatches .cmp-match-rows");
+  const list = document.querySelector("#cmpMatches .smr-list") || document.querySelector("#cmpMatches .cmp-match-rows");
   const chevron = document.getElementById("cmpMatchesChevron");
-  if (!table) return;
-  table.classList.toggle("collapsed");
+  if (!list) return;
+  list.classList.toggle("collapsed");
   chevron?.classList.toggle("collapsed");
 }
 

@@ -1785,8 +1785,69 @@ select.cmp-sel:focus {
 .cmp-matches-chevron.collapsed {
   transform: rotate(-90deg);
 }
-.cmp-match-rows.collapsed {
+.cmp-match-rows.collapsed,
+.smr-list.collapsed {
   display: none;
+}
+
+/* ── Summary swipeable match rows ──────────────────────── */
+.smr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.smr-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.smr-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.25s ease;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.smr-wrap.swiping .smr-inner {
+  transition: none;
+}
+.smr-wrap .swipe-delete-reveal {
+  border-radius: 0 10px 10px 0;
+}
+.smr-wrap.swipe-revealed .swipe-delete-reveal {
+  opacity: 1;
+}
+.smr-date {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  min-width: 44px;
+}
+.smr-team {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.smr-team-r {
+  text-align: right;
+}
+.smr-score {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
 .cmp-matches {
   flex: unset;
