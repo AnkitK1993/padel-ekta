@@ -5232,6 +5232,17 @@ function closeFilterSheet() {
   _filterSheetMode = null;
 }
 
+function _filterDateHint(v) {
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmt = (iso) => { const [,m,d] = iso.split("-"); return `${parseInt(d)} ${MONTHS[parseInt(m)-1]}`; };
+  const today = todayISO();
+  if (v === "week") return `${fmt(weekISO())} – ${fmt(today)}`;
+  if (v === "lastweek") { const {from,to} = lastWeekRange(); return `${fmt(from)} – ${fmt(to)}`; }
+  if (v === "month") return `${fmt(monthISO())} – ${fmt(today)}`;
+  if (v === "today") return fmt(today);
+  return "";
+}
+
 const _CMP_DATE_OPTIONS = [
   { v: "all", l: "ALL TIME", icon: "⏱" },
   { v: "today", l: "TODAY", icon: "📅" },
@@ -5264,12 +5275,17 @@ function openHomeFilterSheet() {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
   list.innerHTML = _HOME_DATE_OPTIONS
-    .map((o) =>
-      `<div class="live-sheet-item${homeFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
-        <span style="font-size:20px;width:28px;text-align:center">${o.icon}</span>
-        <span>${o.l}</span>
+    .map((o) => {
+      const hint = _filterDateHint(o.v);
+      return `<div class="live-sheet-item${homeFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
+        <span style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${o.icon}</span>
+        <span style="display:flex;flex-direction:column;gap:1px">
+          <span>${o.l}</span>
+          ${hint ? `<span style="font-size:9px;font-weight:500;color:var(--muted);letter-spacing:0.02em">${hint}</span>` : ""}
+        </span>
         ${homeFilter === o.v ? '<span class="live-sheet-check">✓<\/span>' : ""}
-      </div>`)
+      </div>`;
+    })
     .join("");
   document.getElementById("filter-sheet-overlay")?.classList.add("live-sheet-open");
   document.getElementById("filter-sheet")?.classList.add("live-sheet-open");
@@ -5282,14 +5298,17 @@ function openCmpDateSheet() {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
   list.innerHTML = _CMP_DATE_OPTIONS
-    .map(
-      (o) =>
-        `<div class="live-sheet-item${cmpFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
-      <span style="font-size:20px;width:28px;text-align:center">${o.icon}</span>
-      <span>${o.l}</span>
-      ${cmpFilter === o.v ? '<span class="live-sheet-check">✓</span>' : ""}
-    </div>`,
-    )
+    .map((o) => {
+      const hint = _filterDateHint(o.v);
+      return `<div class="live-sheet-item${cmpFilter === o.v ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('${o.v}')">
+        <span style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${o.icon}</span>
+        <span style="display:flex;flex-direction:column;gap:1px">
+          <span>${o.l}</span>
+          ${hint ? `<span style="font-size:9px;font-weight:500;color:var(--muted);letter-spacing:0.02em">${hint}</span>` : ""}
+        </span>
+        ${cmpFilter === o.v ? '<span class="live-sheet-check">✓</span>' : ""}
+      </div>`;
+    })
     .join("");
   document
     .getElementById("filter-sheet-overlay")
