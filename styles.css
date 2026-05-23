@@ -7739,19 +7739,6 @@ body::before {
   animation: ambientShift 14s ease-in-out infinite alternate;
 }
 
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-
-  background-image:
-    linear-gradient(rgba(var(--theme-rgb), 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(var(--theme-rgb), 0.055) 1px, transparent 1px);
-
-  background-size: 28px 28px;
-}
 
 @keyframes ambientShift {
   0% {
@@ -11048,20 +11035,6 @@ select.cmp-sel:hover,
    ══════════════════════════════════════════════ */
 
 /* Scan-line texture overlay */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.014) 2px,
-    rgba(0, 0, 0, 0.014) 4px
-  );
-  pointer-events: none;
-  z-index: 9998;
-}
 
 /* ── Nav bar — glass command strip ── */
 .nav {
