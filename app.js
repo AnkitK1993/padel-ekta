@@ -4075,7 +4075,7 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
       <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}</span>
       <span class="cmr-meta">${badge}</span>
     </div>
-    ${matchIdx !== null ? `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})">🗑<br><span>Delete</span></div>` : ""}
+    ${matchIdx !== null ? `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})">🗑</div>` : ""}
   </div>`;
 }
 function buildSummaryMatchRows(matches) {
