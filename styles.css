@@ -15106,7 +15106,7 @@ body.holo-mode {
   background-attachment: fixed !important;
   background-position: center top !important;
 }
-/* No carbon fibre in HOLO — it has its own grid aesthetic */
+/* HOLO HUD overrides body::before with its own ambient colours */
 body.holo-mode::before {
   background:
     radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.1), transparent 30%),
@@ -15114,11 +15114,6 @@ body.holo-mode::before {
     radial-gradient(circle at 50% 100%, rgba(92, 208, 255, 0.04), transparent 35%),
     linear-gradient(180deg, #04101e 0%, #04101e 100%);
   background-size: 100% 100%;
-}
-
-/* Strip carbon fibre from scroll container in HOLO HUD */
-body.holo-mode .page-body-scroll {
-  background: transparent;
 }
 
 /* Subtle scanline overlay */
@@ -17818,54 +17813,4 @@ body.midnight-oled-mode #themeBtn {
   letter-spacing: 0.04em;
 }
 
-/* ── Near-opaque cards, no grid (all themes except HOLO HUD) ── */
-body:not(.holo-mode) .pc {
-  background: linear-gradient(135deg, rgba(5,5,12,0.96) 0%, rgba(8,6,16,0.95) 100%) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-body:not(.holo-mode) .match-card {
-  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-body:not(.holo-mode) .match-card > .match-card-inner {
-  background: transparent !important;
-}
-
-body:not(.holo-mode) .ana-card {
-  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* ── Summary leaderboard table + compact match rows ── */
-body:not(.holo-mode) table.cmp {
-  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-}
-
-body:not(.holo-mode) .smr-inner {
-  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-}
-
-body:not(.holo-mode) .smr-wrap:nth-child(even) .smr-inner {
-  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-}
-
-/* ── Summary + Statistics: explicit dark base for all scroll layers ── */
-body:not(.holo-mode) #pg-compact .page-body-scroll,
-body:not(.holo-mode) #pg-compact .cmp-body-scroll,
-body:not(.holo-mode) #pg-analytics .page-body-scroll {
-  background-color: rgba(4, 4, 10, 1) !important;
-}
-
-/* ── Live Scoring: solid background on both page and scroll layer to block grid ── */
-#pg-live {
-  background: rgb(3, 3, 9) !important;
-}
-#pg-live .live-ufc-wrap {
-  background: rgb(3, 3, 9) !important;
-}
 
