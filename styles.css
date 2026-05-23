@@ -1106,10 +1106,13 @@ body {
 .ct-nameblock .pname { flex: none; }
 .pname-elo-row {
   display: flex;
-  align-items: baseline;
-  gap: 7px;
+  align-items: center;
+  gap: 0;
   flex-wrap: nowrap;
   min-width: 0;
+}
+.pname-elo-row .pname {
+  margin-right: 12px;
 }
 .pname-elo {
   font-family: "Bebas Neue", sans-serif;
@@ -1119,6 +1122,12 @@ body {
   color: var(--accent);
   opacity: 0.75;
   flex-shrink: 0;
+  margin-right: 8px;
+}
+.pname-elo-row .xp-row {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
 }
 .rb {
   width: 30px;
@@ -14178,6 +14187,7 @@ select:focus,
   text-align: center;
   cursor: text;
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 .lr-jumps input[type="number"]::-webkit-inner-spin-button,
 .lr-jumps input[type="number"]::-webkit-outer-spin-button {
