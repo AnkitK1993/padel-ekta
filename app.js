@@ -440,7 +440,7 @@ function _globalSearchInput(q) {
   const out = [];
   // Players
   const players = new Set();
-  allMatches.forEach((m) =>
+  activeMatches().forEach((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => players.add(p)),
   );
   [...players]
@@ -800,11 +800,12 @@ function _eloCacheKey(matches, applyDecay) {
 }
 
 function _memoElo(decay = false) {
-  const key = _eloCacheKey(allMatches, decay);
+  const am = activeMatches();
+  const key = _eloCacheKey(am, decay);
   if (_eloMemoKey !== key || _eloMemoDecay !== decay || !_eloMemo) {
     _eloMemoKey = key;
     _eloMemoDecay = decay;
-    _eloMemo = computeElo(allMatches, decay);
+    _eloMemo = computeElo(am, decay);
   }
   return _eloMemo;
 }
@@ -1203,7 +1204,7 @@ function computeSessionStreak() {
     return toLocalISODate(d);
   };
   const weeks = [
-    ...new Set(allMatches.filter((m) => m.date).map((m) => getMonday(m.date))),
+    ...new Set(activeMatches().filter((m) => m.date).map((m) => getMonday(m.date))),
   ]
     .sort()
     .reverse();
@@ -1277,7 +1278,7 @@ function autoSaveWeeklySnap() {
   const weekOf = toLocalISODate(monday);
   const existing = getWeeklySnaps().find((s) => s.weekOf === weekOf);
   if (existing) return; // already snapped this week
-  const stats = computeStats(allMatches, _memoElo());
+  const stats = computeStats(activeMatches(), _memoElo());
   const rankMap = {};
   stats.forEach((p, i) => {
     rankMap[p.name] = i + 1;
@@ -2359,6 +2360,17 @@ function sheetAvSm(name) {
   return `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${playerInitials(name)}</div>`;
 }
 
+// ── GUEST FILTER ────────────────────────────────────────────
+function activeMatches() {
+  const guests = new Set(
+    Object.values(players).filter(p => p.isGuest).map(p => p.name)
+  );
+  if (!guests.size) return allMatches;
+  return allMatches.filter(m =>
+    ![...(m.teamA || []), ...(m.teamB || [])].some(p => guests.has(p))
+  );
+}
+
 // ── FILTER ─────────────────────────────────────────────────
 function filterMatches(f, from, to) {
   const t = todayISO(),
@@ -2367,7 +2379,7 @@ function filterMatches(f, from, to) {
     sm = monthISO(),
     wr = weekendRange(),
     lwr = lastWeekRange();
-  return allMatches.filter((m) => {
+  return activeMatches().filter((m) => {
     if (f === "all") return true;
     if (f === "today") return m.date === t;
     if (f === "week") return m.date >= sw && m.date <= swe;
@@ -2776,12 +2788,12 @@ function getHeadToHeadStats(a, b, matches = allMatches) {
 }
 
 function getPlayerDetail(name) {
-  const matches = allMatches.filter((m) =>
+  const matches = activeMatches().filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].some(
       (p) => normPlayer(p) === name,
     ),
   );
-  const stats = computeStats(allMatches, computeElo(allMatches)).find(
+  const stats = computeStats(activeMatches(), computeElo(activeMatches())).find(
     (p) => p.name === name,
   );
   const teammateCounts = {};
@@ -2861,7 +2873,7 @@ function getPlayerDetail(name) {
 }
 
 function getAchievements() {
-  const stats = computeStats(allMatches);
+  const stats = computeStats(activeMatches());
   const achievements = [];
   stats.forEach((p) => {
     const detail = getPlayerDetail(p.name);
@@ -3375,7 +3387,7 @@ function renderAbsenceBanner() {
 
   // Find each player's last match date
   const lastSeen = {};
-  allMatches.forEach((m) => {
+  activeMatches().forEach((m) => {
     [...m.teamA, ...m.teamB].forEach((p) => {
       if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
     });
@@ -3383,7 +3395,7 @@ function renderAbsenceBanner() {
 
   // Only flag players who have played at least 3 matches (regulars)
   const matchCounts = {};
-  allMatches.forEach((m) => {
+  activeMatches().forEach((m) => {
     [...m.teamA, ...m.teamB].forEach((p) => {
       matchCounts[p] = (matchCounts[p] || 0) + 1;
     });
@@ -4280,7 +4292,7 @@ function filterMatchTab(f) {
 // ── MATCH OF THE DAY + BIGGEST UPSET ──────────────────────
 function getPlayerRankAtDate(playerName, beforeDate) {
   // Rank based on SR from all matches strictly before this date
-  const prior = allMatches.filter((m) => m.date < beforeDate);
+  const prior = activeMatches().filter((m) => m.date < beforeDate);
   if (!prior.length) return null;
   const stats = computeStats(prior);
   const idx = stats.findIndex((p) => p.name === playerName);
@@ -4542,9 +4554,9 @@ function buildHistorySummary(matches, filter = "all") {
     const periodDates = matches.map((m) => m.date || "").filter(Boolean);
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
     const preElo = computeElo(
-      allMatches.filter((m) => (m.date || "") < firstDate),
+      activeMatches().filter((m) => (m.date || "") < firstDate),
     );
-    const fullElo = computeElo(allMatches);
+    const fullElo = computeElo(activeMatches());
     const periodPlayers = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -4579,9 +4591,9 @@ function buildHistorySummary(matches, filter = "all") {
   if (matches.length) {
     const periodDates = matches.map((m) => m.date || "1970-01-01");
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
-    const eloAfter = computeElo(allMatches);
+    const eloAfter = computeElo(activeMatches());
     const eloBefore = computeElo(
-      allMatches.filter((m) => (m.date || "1970-01-01") < firstDate),
+      activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate),
     );
     const periodPlayers = new Set();
     matches.forEach((m) =>
@@ -4660,9 +4672,10 @@ function renderMatchCalendar() {
   const cal = document.getElementById("match-calendar");
   if (!cal) return;
 
-  const matchDates = new Set(allMatches.map((m) => m.date).filter(Boolean));
+  const _amCal = activeMatches();
+  const matchDates = new Set(_amCal.map((m) => m.date).filter(Boolean));
   const matchCountByDate = {};
-  allMatches.forEach((m) => {
+  _amCal.forEach((m) => {
     if (m.date) matchCountByDate[m.date] = (matchCountByDate[m.date] || 0) + 1;
   });
 
@@ -4895,7 +4908,7 @@ function renderModernMatches() {
           </div>`;
   }
   if (histPairFilter) {
-    const pairMatches = allMatches.filter((m) =>
+    const pairMatches = activeMatches().filter((m) =>
       pairInMatch(m, histPairFilter),
     );
     if (pairMatches.length) {
@@ -5213,7 +5226,7 @@ function openFilterSheet(mode) {
   if (mode === "player") {
     if (title) title.textContent = "SELECT PLAYER";
     const names = new Set();
-    allMatches.forEach((m) =>
+    activeMatches().forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
         names.add(nameMap[p] || p),
       ),
@@ -5450,7 +5463,7 @@ function openH2HSheet(slot) {
   if (title) title.textContent = slot === "a" ? "SELECT P1" : "SELECT P2";
   const taken = slot === "a" ? h2hFilterB : h2hFilterA;
   const selected = slot === "a" ? h2hFilterA : h2hFilterB;
-  const players = computeStats(allMatches)
+  const players = computeStats(activeMatches())
     .map((p) => p.name)
     .sort();
   list.innerHTML = players
@@ -6007,7 +6020,7 @@ function saveModernMatch() {
 function _buildStreakCalendarHtml(name) {
   if (!name) return "";
   // Count matches per day for this player over the last 52 weeks
-  const playerMatches = allMatches.filter((m) =>
+  const playerMatches = activeMatches().filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].includes(name),
   );
   const dayCount = {};
@@ -6126,7 +6139,7 @@ function _buildStreakCalendarHtml(name) {
 }
 
 function streakCalDayClick(date, playerName) {
-  const dayMatches = allMatches.filter(
+  const dayMatches = activeMatches().filter(
     (m) =>
       m.date === date &&
       [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
@@ -6186,8 +6199,8 @@ function openPlayerDetail(name) {
 
   // ── RADAR CHART ──────────────────────────────────────────────
   const radarHtml = (() => {
-    const eloMap = computeElo(allMatches);
-    const allStats = computeStats(allMatches, eloMap);
+    const eloMap = computeElo(activeMatches());
+    const allStats = computeStats(activeMatches(), eloMap);
     const ps = allStats.find((p) => p.name === name);
     if (!ps || ps.mp < 3) return "";
     const allElos = Object.values(eloMap);
@@ -6198,7 +6211,7 @@ function openPlayerDetail(name) {
         ? ((eloMap[name] || 1000) - minElo) / (maxElo - minElo)
         : 0.5;
     const winRateNorm = ps.mp > 0 ? ps.mw / ps.mp : 0;
-    const closeMs = allMatches.filter(
+    const closeMs = activeMatches().filter(
       (m) =>
         [...(m.teamA || []), ...(m.teamB || [])].includes(name) &&
         Math.abs(m.scoreA - m.scoreB) <= 2,
@@ -6237,7 +6250,7 @@ function openPlayerDetail(name) {
         : 0.5,
     );
     const avgClutch = _avg((p) => {
-      const cMs = allMatches.filter(
+      const cMs = activeMatches().filter(
         (m) =>
           [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) &&
           Math.abs(m.scoreA - m.scoreB) <= 2,
@@ -6567,7 +6580,7 @@ function openPlayerDetail(name) {
     pdFireCount = 0,
     pdDomCount = 0,
     pdZeroCount = 0;
-  allMatches.forEach((m) => {
+  activeMatches().forEach((m) => {
     const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
     const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
     if (!inA && !inB) return;
@@ -6612,7 +6625,7 @@ function openPlayerDetail(name) {
     </div>`;
 
   // ELO
-  const eloMap = computeElo(allMatches);
+  const eloMap = computeElo(activeMatches());
   const playerElo = eloMap[name] || 1000;
   const eloChange = playerElo - 1000;
   const eloChangeStr = eloChange > 0 ? `+${eloChange}` : `${eloChange}`;
@@ -6637,7 +6650,7 @@ function openPlayerDetail(name) {
   const streakCalendarHtml = _buildStreakCalendarHtml(name);
 
   // Clutch stats
-  const playerMatchesForClutch = allMatches.filter((m) =>
+  const playerMatchesForClutch = activeMatches().filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].includes(name),
   );
   let closePlayed = 0,
@@ -6665,9 +6678,9 @@ function openPlayerDetail(name) {
 
   // Leaderboard Race stats for this player
   const { from: wkFrom, to: wkTo } = lastWeekRange();
-  const allEloMap = computeElo(allMatches);
-  const allRanked = computeStats(allMatches, allEloMap);
-  const preWkMatches = allMatches.filter((m) => (m.date || "") < wkFrom);
+  const allEloMap = computeElo(activeMatches());
+  const allRanked = computeStats(activeMatches(), allEloMap);
+  const preWkMatches = activeMatches().filter((m) => (m.date || "") < wkFrom);
   const preWkRanked = computeStats(preWkMatches, computeElo(preWkMatches));
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
@@ -7019,7 +7032,7 @@ function openPlayerDetail(name) {
     else if (form && form.momentumLabel === "DECLINING") tags.push({ t: "📉 Declining Form", c: "var(--red)" });
     if (closePlayed >= 3 && clutchPct > 60) tags.push({ t: "⚔️ Clutch Performer", c: "var(--green)" });
     else if (closePlayed >= 3 && clutchPct < 40) tags.push({ t: "😰 Struggles in Close Matches", c: "var(--red)" });
-    const allStats2 = computeStats(allMatches, computeElo(allMatches));
+    const allStats2 = computeStats(activeMatches(), computeElo(activeMatches()));
     const ps2 = allStats2.find((p) => p.name === name);
     if (ps2?.avgMargin > 2) tags.push({ t: "💥 Dominant in wins", c: "var(--green)" });
     if (ps2?.consistency != null && ps2.consistency <= 2) tags.push({ t: "🪨 Rock Solid", c: "var(--gold)" });
@@ -7600,8 +7613,11 @@ function openShareMatchPoster(matchIdx) {
   document.getElementById("share-card-overlay")?.remove();
   const m = allMatches[matchIdx];
   if (!m) return;
-  const eloMap = computeElo(allMatches.slice(0, matchIdx + 1));
-  const eloMapBefore = computeElo(allMatches.slice(0, matchIdx));
+  const _amSlice = activeMatches();
+  const _upToIncl = new Set(allMatches.slice(0, matchIdx + 1));
+  const _upToBefore = new Set(allMatches.slice(0, matchIdx));
+  const eloMap = computeElo(_amSlice.filter(m => _upToIncl.has(m)));
+  const eloMapBefore = computeElo(_amSlice.filter(m => _upToBefore.has(m)));
   const aWon = m.scoreA > m.scoreB;
   const winTeam = aWon ? m.teamA : m.teamB;
   const losTeam = aWon ? m.teamB : m.teamA;
@@ -7937,7 +7953,7 @@ function openShareCard(name) {
   const detail = getPlayerDetail(name);
   if (!detail.stats) return;
   const s = detail.stats;
-  const eloMap = computeElo(allMatches);
+  const eloMap = computeElo(activeMatches());
   const elo = Math.round(eloMap[name] || 1000);
   const col = playerColor(name);
 
@@ -7957,7 +7973,7 @@ function openShareCard(name) {
     )
     .join("");
 
-  const allRanked = computeStats(allMatches, eloMap);
+  const allRanked = computeStats(activeMatches(), eloMap);
   const rank = allRanked.findIndex((p) => p.name === name) + 1;
 
   const bigStat = (val, lbl, color = "#eeeae4") =>
@@ -8057,26 +8073,27 @@ function _digestMatches(filter, player) {
     d.setDate(1);
     return { from: toLocalISODate(d) };
   })();
+  const _amDig = activeMatches();
   let base;
   if (filter === "week") {
     const wStart = weekISO();
-    base = allMatches.filter(
+    base = _amDig.filter(
       (m) => (m.date || "") >= wStart && (m.date || "") <= today,
     );
     if (base.length < 2)
-      base = allMatches.filter(
+      base = _amDig.filter(
         (m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo,
       );
   } else if (filter === "lastweek") {
-    base = allMatches.filter(
+    base = _amDig.filter(
       (m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo,
     );
   } else if (filter === "month") {
-    base = allMatches.filter(
+    base = _amDig.filter(
       (m) => (m.date || "") >= mFrom && (m.date || "") <= today,
     );
   } else {
-    base = allMatches;
+    base = _amDig;
   }
   if (player)
     base = base.filter((m) =>
@@ -8090,9 +8107,9 @@ function _buildDigestContent(filter, player) {
   const accentCol = "var(--theme)";
   if (ms.length < 2)
     return `<div class="sub" style="padding:16px;text-align:center">Not enough matches for selected filter.</div>`;
-  const eloNow = computeElo(allMatches);
+  const eloNow = computeElo(activeMatches());
   const eloAt = computeElo(
-    allMatches.filter((m) => {
+    activeMatches().filter((m) => {
       const base =
         filter === "week"
           ? weekISO()
@@ -8170,7 +8187,7 @@ function openDigestPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
     players
@@ -8188,10 +8205,11 @@ function openDigestPlayerSheet() {
 function openWeeklyDigest() {
   document.getElementById("share-card-overlay")?.remove();
   const { from: wkFrom, to: wkTo } = lastWeekRange();
-  const wkMatches = allMatches.filter(
+  const _amWk = activeMatches();
+  const wkMatches = _amWk.filter(
     (m) => (m.date || "") >= wkFrom && (m.date || "") <= wkTo,
   );
-  const thisWkMatches = allMatches.filter(
+  const thisWkMatches = _amWk.filter(
     (m) => (m.date || "") >= weekISO() && (m.date || "") <= todayISO(),
   );
   const useMatches = thisWkMatches.length >= 3 ? thisWkMatches : wkMatches;
@@ -8201,9 +8219,9 @@ function openWeeklyDigest() {
     return;
   }
 
-  const eloNow = computeElo(allMatches);
+  const eloNow = computeElo(_amWk);
   const eloPre = computeElo(
-    allMatches.filter(
+    _amWk.filter(
       (m) => (m.date || "") < (thisWkMatches.length >= 3 ? weekISO() : wkFrom),
     ),
   );
@@ -8445,7 +8463,7 @@ function sortPairsBy(key) {
 
 function openSessionHighlights(date) {
   document.getElementById("session-highlights-modal")?.remove();
-  const sessionMs = allMatches.filter((m) => m.date === date);
+  const sessionMs = activeMatches().filter((m) => m.date === date);
   if (!sessionMs.length) return;
   const sortedMs = [...sessionMs].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
@@ -8455,8 +8473,9 @@ function openSessionHighlights(date) {
       sortedMs.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]),
     ),
   ];
-  const eloAfter = computeElo(allMatches.filter((m) => (m.date || "") <= date));
-  const eloBefore = computeElo(allMatches.filter((m) => (m.date || "") < date));
+  const _amD = activeMatches();
+  const eloAfter = computeElo(_amD.filter((m) => (m.date || "") <= date));
+  const eloBefore = computeElo(_amD.filter((m) => (m.date || "") < date));
   const gains = players
     .map((p) => ({
       name: p,
@@ -8538,7 +8557,7 @@ function openSessionHighlights(date) {
 function openPairDetail(key) {
   document.getElementById("pair-detail-modal")?.remove();
   const players = key.split(" & ");
-  const matches = allMatches.filter(
+  const matches = activeMatches().filter(
     (m) =>
       m.teamA.length === 2 &&
       m.teamB.length === 2 &&
@@ -8798,13 +8817,13 @@ let _h2hMatrixSort = "matches";
 
 function _h2hSortPlayers(players) {
   if (!Array.isArray(players)) return [];
-  const eloMap = computeElo(allMatches);
+  const eloMap = computeElo(activeMatches());
   const matchCount = {};
   const winPct = {};
   players.forEach((p) => {
     let played = 0,
       wins = 0;
-    allMatches.forEach((m) => {
+    activeMatches().forEach((m) => {
       const inA = (m.teamA || []).includes(p);
       const inB = (m.teamB || []).includes(p);
       if (!inA && !inB) return;
@@ -9016,7 +9035,7 @@ function openCmpSheet(slot) {
   if (!list) return;
   const taken = slot === "A" ? _cmpPlayerB : _cmpPlayerA;
   const selected = slot === "A" ? _cmpPlayerA : _cmpPlayerB;
-  const players = computeStats(allMatches)
+  const players = computeStats(activeMatches())
     .map((s) => s.name)
     .sort((a, b) => a.localeCompare(b));
   list.innerHTML = players
@@ -9180,7 +9199,7 @@ function renderCompareSelector() {
     card.innerHTML = "";
     return;
   }
-  const players = computeStats(allMatches)
+  const players = computeStats(activeMatches())
     .map((s) => s.name)
     .sort((a, b) => a.localeCompare(b));
   const opts =
@@ -9951,7 +9970,7 @@ function xpThreshold(level) {
 
 function computePlayerXP(displayName) {
   let xp = 0;
-  allMatches.forEach((m) => {
+  activeMatches().forEach((m) => {
     const inA = (m.teamA || []).some((p) => normPlayer(p) === displayName);
     const inB = (m.teamB || []).some((p) => normPlayer(p) === displayName);
     if (!inA && !inB) return;
@@ -11266,7 +11285,7 @@ function runMatchSimulator() {
     return;
   }
 
-  const eloMap = computeElo(allMatches);
+  const eloMap = computeElo(activeMatches());
   const e = (p) => eloMap[p] || 1000;
   const avgA = (e(a1) + e(a2)) / 2;
   const avgB = (e(b1) + e(b2)) / 2;
@@ -11319,7 +11338,7 @@ function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || _eloTLFilter || "all";
   _eloTLFilter = filterKey;
   const history = computeEloHistory(allMatches);
-  const eloNow = computeElo(allMatches);
+  const eloNow = computeElo(activeMatches());
   const players = Object.keys(history)
     .filter((p) => (history[p] || []).length >= 2)
     .sort((a, b) => (eloNow[b] || 1000) - (eloNow[a] || 1000));
@@ -11629,7 +11648,7 @@ function openEloProbSheet(slot) {
   if (!list) return;
   const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
   const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
-  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML = players
     .map((p) => {
       const disabled =
@@ -11650,7 +11669,7 @@ function openWhatIfPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML = players
     .map((p) => {
       const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
@@ -11673,7 +11692,7 @@ function calcEloWinProb() {
       '<div class="sub" style="color:var(--red);padding:4px">Select two different players.</div>';
     return;
   }
-  const em = computeElo(allMatches);
+  const em = computeElo(activeMatches());
   const e1 = em[p1] || 1000;
   const e2 = em[p2] || 1000;
   const prob = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
@@ -11789,7 +11808,7 @@ function toggleWhatIfFlip(idx) {
 }
 
 function whatIfFlipAllLosses() {
-  const eloMap = computeElo(allMatches);
+  const eloMap = computeElo(activeMatches());
   allMatches.forEach((m, i) => {
     if (!_whatIfToggles.hasOwnProperty(i)) return;
     const inA = (m.teamA || []).includes(_whatIfPlayer);
@@ -11832,14 +11851,14 @@ function recomputeWhatIfElo() {
       }
       return m;
     });
-  const actualElo = computeElo(allMatches)[_whatIfPlayer] || 1000;
+  const actualElo = computeElo(activeMatches())[_whatIfPlayer] || 1000;
   const whatIfElo = computeElo(whatIfMatches)[_whatIfPlayer] || 1000;
   const diff = whatIfElo - actualElo;
   const col =
     diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
   const sign = diff > 0 ? "+" : "";
   // Rank change
-  const actualRanked = Object.entries(computeElo(allMatches)).sort(
+  const actualRanked = Object.entries(computeElo(activeMatches())).sort(
     (a, b) => b[1] - a[1],
   );
   const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort(
@@ -12020,7 +12039,7 @@ let _predictPlayerA = "",
 let _simA1 = "", _simA2 = "", _simB1 = "", _simB2 = "";
 
 function _buildMatchPredictHtml() {
-  const players = computeStats(allMatches).map((p) => p.name);
+  const players = computeStats(activeMatches()).map((p) => p.name);
   if (players.length < 2)
     return '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
   return `<div class="ana-card" style="padding:12px">
@@ -12067,7 +12086,7 @@ function openPredictSheet(slot) {
     _predictPlayerB,
     _predictPartnerB,
   ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
-  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   const selected =
     slot === "a1"
       ? _predictPlayerA
@@ -12105,7 +12124,7 @@ function openSimSheet(slot) {
     .filter(([k]) => k !== slot)
     .map(([, v]) => v)
     .filter(Boolean);
-  const players = computeStats(allMatches).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
@@ -12131,7 +12150,7 @@ function runMatchPrediction() {
       '<div style="color:var(--red);font-size:11px;padding:4px">Select at least one player per team.</div>';
     return;
   }
-  const eloMap = computeElo(allMatches);
+  const eloMap = computeElo(activeMatches());
   const avgA =
     teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
   const avgB =
@@ -12159,7 +12178,7 @@ function runMatchPrediction() {
     tkB = [...teamB].sort().join("|");
   let h2hA = 0,
     h2hB = 0;
-  allMatches.forEach((m) => {
+  activeMatches().forEach((m) => {
     const pmA = [...(m.teamA || [])].sort().join("|"),
       pmB = [...(m.teamB || [])].sort().join("|");
     const fwd = pmA === tkA && pmB === tkB,
@@ -12174,7 +12193,7 @@ function runMatchPrediction() {
   });
 
   // Expected score based on avg score in their matches
-  const relevantMs = allMatches.filter((m) => {
+  const relevantMs = activeMatches().filter((m) => {
     const players = [...(m.teamA || []), ...(m.teamB || [])];
     return (
       teamA.some((p) => players.includes(p)) &&
@@ -12311,7 +12330,7 @@ function _buildSeasonModeHtml() {
 
 function _buildRivalryHoFHtml() {
   const rivalries = {};
-  allMatches.forEach((m) => {
+  activeMatches().forEach((m) => {
     if (!m.teamA || !m.teamB || m.teamA.length < 2 || m.teamB.length < 2) return;
     const tA = [...m.teamA].map(normPlayer).sort().join("|");
     const tB = [...m.teamB].map(normPlayer).sort().join("|");
@@ -12875,7 +12894,7 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = computeStats(allMatches, computeElo(allMatches));
+  const compList = computeStats(activeMatches(), computeElo(activeMatches()));
   const clutchP = Object.keys(closePlayed)
     .filter((p) => closePlayed[p] >= 3)
     .sort(
@@ -12956,7 +12975,7 @@ function renderAnalyticsPage() {
     : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
 
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
-  const eloMapFull = computeElo(allMatches);
+  const eloMapFull = computeElo(activeMatches());
   const qualityWins = {};
   allMatches.forEach((m) => {
     const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
@@ -13066,7 +13085,7 @@ function renderAnalyticsPage() {
 
   const { from: wkFrom, to: wkTo } = lastWeekRange();
   const rankAll = compList.reduce((o, p, i) => ({ ...o, [p.name]: i + 1 }), {});
-  const _preWkArr = allMatches.filter((m) => (m.date || "") < wkFrom);
+  const _preWkArr = activeMatches().filter((m) => (m.date || "") < wkFrom);
   const rank1wk = computeStats(_preWkArr, computeElo(_preWkArr)).reduce(
     (o, p, i) => ({ ...o, [p.name]: i + 1 }),
     {},
@@ -13826,15 +13845,15 @@ function renderAnalyticsPage() {
   // ── ELO RANKINGS ───────────────────────────────────────
   const { from: wkFromElo } = lastWeekRange();
   const preWkEloMap = computeElo(
-    allMatches.filter((m) => (m.date || "") < wkFromElo),
+    activeMatches().filter((m) => (m.date || "") < wkFromElo),
   );
   const eloRanked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   const preWkRanked = Object.entries(preWkEloMap).sort((a, b) => b[1] - a[1]);
   const maxEloVal = eloRanked[0]?.[1] || 1000;
   const minEloVal = eloRanked[eloRanked.length - 1]?.[1] || 1000;
   const eloRange = Math.max(1, maxEloVal - minEloVal);
-  const eloPeaks = computeEloPeaks(allMatches);
-  const eloHistoryAll = computeEloHistory(allMatches);
+  const eloPeaks = computeEloPeaks(activeMatches());
+  const eloHistoryAll = computeEloHistory(activeMatches());
   const eloHtml = eloRanked.length
     ? `<div class="ana-card elo-leaderboard-card" style="padding:10px 12px">${eloRanked
         .map(([pname, ev], i) => {
@@ -14028,15 +14047,16 @@ function renderAnalyticsPage() {
   // ── MONTHLY AWARDS ─────────────────────────────────────
   const nowDate = new Date();
   const curMonth = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}`;
-  const monthlyMatchList = allMatches.filter((m) =>
+  const _am14 = activeMatches();
+  const monthlyMatchList = _am14.filter((m) =>
     (m.date || "").startsWith(curMonth),
   );
   const monthlyAwardsHtml = (() => {
     if (monthlyMatchList.length < 2)
       return '<div class="sub" style="padding:8px">Not enough matches this month.</div>';
-    const moEloNow = computeElo(allMatches);
+    const moEloNow = computeElo(_am14);
     const moEloPre = computeElo(
-      allMatches.filter((m) => !(m.date || "").startsWith(curMonth)),
+      _am14.filter((m) => !(m.date || "").startsWith(curMonth)),
     );
     const moStats = computeStats(monthlyMatchList);
     // Most Improved
@@ -14085,7 +14105,7 @@ function renderAnalyticsPage() {
 
   // ── PERSONAL BESTS ─────────────────────────────────────
   const personalBestsHtml = (() => {
-    const pbStats = computeStats(allMatches).filter((p) => p.mp >= 3);
+    const pbStats = computeStats(activeMatches()).filter((p) => p.mp >= 3);
     if (!pbStats.length)
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
     const rows = pbStats.map((p) => {
@@ -14300,8 +14320,8 @@ function renderAnalyticsPage() {
 
   // ── CARRY FACTOR ───────────────────────────────────────
   const carryHtml = (() => {
-    const eloMapFull = computeElo(allMatches);
-    const playerList = computeStats(allMatches).map((p) => p.name);
+    const eloMapFull = computeElo(activeMatches());
+    const playerList = computeStats(activeMatches()).map((p) => p.name);
     if (playerList.length < 2)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     const rows = playerList
@@ -14413,7 +14433,7 @@ function renderAnalyticsPage() {
       "Nov",
       "Dec",
     ];
-    const playerList = computeStats(allMatches).map((p) => p.name);
+    const playerList = computeStats(activeMatches()).map((p) => p.name);
     const byPlayer = {};
     sortedM.forEach((m) => {
       if (!m.date || Math.abs(m.scoreA - m.scoreB) > 1) return;
@@ -16079,8 +16099,11 @@ function openMatchIntro(idx) {
   _mioTimers = [];
   _mioFinalize = null;
 
-  const priorElo = computeElo(allMatches.slice(0, idx));
-  const afterElo = computeElo(allMatches.slice(0, idx + 1));
+  const _amE = activeMatches();
+  const _upToInclE = new Set(allMatches.slice(0, idx + 1));
+  const _upToBeforeE = new Set(allMatches.slice(0, idx));
+  const priorElo = computeElo(_amE.filter(m => _upToBeforeE.has(m)));
+  const afterElo = computeElo(_amE.filter(m => _upToInclE.has(m)));
   const aWon = m.scoreA > m.scoreB;
 
   // Pre-match individual and pair ranks
@@ -16175,7 +16198,7 @@ function openMatchIntro(idx) {
   const tkB = [...m.teamB].sort().join("|");
   let h2hWinsA = 0,
     h2hWinsB = 0;
-  allMatches.slice(0, idx).forEach((pm) => {
+  _amE.filter(m => _upToBeforeE.has(m)).forEach((pm) => {
     const pmA = [...(pm.teamA || [])].sort().join("|");
     const pmB = [...(pm.teamB || [])].sort().join("|");
     const fwd = pmA === tkA && pmB === tkB;
@@ -16228,7 +16251,7 @@ function openMatchIntro(idx) {
   // Individual player H2H grid (all 4 cross-matchups)
   const pvpEl = document.getElementById("mio-pvp-section");
   if (pvpEl && m.teamA.length >= 2 && m.teamB.length >= 2) {
-    const priorMatches = allMatches.slice(0, idx);
+    const priorMatches = _amE.filter(m => _upToBeforeE.has(m));
     const [p1, p2] = m.teamA.map(normPlayer);
     const [p3, p4] = m.teamB.map(normPlayer);
     const crossPairs = [
@@ -16312,7 +16335,7 @@ function openMatchIntro(idx) {
     const ctxParts = [];
 
     // Streak context: did this extend or end a notable streak?
-    const priorMs = allMatches.slice(0, idx);
+    const priorMs = _amE.filter(m => _upToBeforeE.has(m));
     [...m.teamA, ...m.teamB].forEach((p) => {
       const pPrior = priorMs.filter((pm) => [...(pm.teamA || []), ...(pm.teamB || [])].includes(p));
       if (!pPrior.length) return;
@@ -16348,7 +16371,7 @@ function openMatchIntro(idx) {
     // Last meeting reminder
     const tkA2 = [...m.teamA].sort().join("|");
     const tkB2 = [...m.teamB].sort().join("|");
-    const lastMeeting = [...allMatches.slice(0, idx)].reverse().find((pm) => {
+    const lastMeeting = [..._amE.filter(m => _upToBeforeE.has(m))].reverse().find((pm) => {
       const pmA2 = [...(pm.teamA || [])].sort().join("|");
       const pmB2 = [...(pm.teamB || [])].sort().join("|");
       return (pmA2 === tkA2 && pmB2 === tkB2) || (pmA2 === tkB2 && pmB2 === tkA2);
@@ -16362,7 +16385,7 @@ function openMatchIntro(idx) {
 
     // Relative performance vs team averages
     const teamAvgScore = (players) => {
-      const ms = allMatches.slice(0, idx).filter((pm) =>
+      const ms = _amE.filter(m => _upToBeforeE.has(m)).filter((pm) =>
         players.every((p) => (pm.teamA || []).includes(p)) ||
         players.every((p) => (pm.teamB || []).includes(p))
       );
@@ -16548,8 +16571,8 @@ function setMyPlayerName(name) {
 
 function openMyNamePicker(sessionId) {
   _rsvpPendingSessionId = sessionId || null;
-  const eloMap = computeElo(allMatches);
-  const stats = computeStats(allMatches, eloMap);
+  const eloMap = computeElo(activeMatches());
+  const stats = computeStats(activeMatches(), eloMap);
   const players = stats.filter((p) => p.mp >= 1).sort((a, b) => a.name.localeCompare(b.name));
   const list = document.getElementById("myname-list");
   if (!list) return;
