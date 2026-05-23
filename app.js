@@ -16615,7 +16615,7 @@ function closeSessionSetup() {
   document.getElementById("session-setup-sheet")?.classList.remove("live-sheet-open");
 }
 
-async function confirmSessionStart() {
+function confirmSessionStart() {
   const players = [..._sessionSetupSelected];
   if (players.length < 2) { showToast("Select at least 2 players", "❌"); return; }
   closeSessionSetup();
@@ -16625,35 +16625,16 @@ async function confirmSessionStart() {
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
   _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
-  try {
-    await setDoc(doc(db, "padel", "live"), {
-      sessionActive: true,
-      sessionPlayers: players,
-      sessionStartedAt: now,
-      currentMatch: null,
-      lastEvent: { type: "session_start", msg: `Session started · ${players.length} players`, at: now }
-    });
-    _requestNotifPermission();
-  } catch (e) {}
+  _requestNotifPermission();
 }
 
-async function endLiveSession() {
+function endLiveSession() {
   if (!confirm("End the current session?")) return;
   _liveSessionData = null;
   _syncLiveSessionBar();
   _liveHaptic([30, 60, 30]);
   _notifyLiveEvent("session_end", "Session ended");
   _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
-  const now = new Date().toISOString();
-  try {
-    await setDoc(doc(db, "padel", "live"), {
-      sessionActive: false,
-      sessionPlayers: [],
-      sessionStartedAt: null,
-      currentMatch: null,
-      lastEvent: { type: "session_end", msg: "Session ended", at: now }
-    });
-  } catch (e) {}
 }
 
 function openAddPlayerSheet() {
@@ -16676,7 +16657,7 @@ function closeAddPlayerSheet() {
   document.getElementById("add-player-sheet")?.classList.remove("live-sheet-open");
 }
 
-async function addPlayerToSession(name) {
+function addPlayerToSession(name) {
   closeAddPlayerSheet();
   const players = [...(_liveSessionData?.sessionPlayers || [])];
   if (players.includes(name)) return;
@@ -16684,13 +16665,6 @@ async function addPlayerToSession(name) {
   _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
   _syncLiveSessionBar();
   showToast(`${name} added`, "✅");
-  const now = new Date().toISOString();
-  try {
-    await setDoc(doc(db, "padel", "live"), {
-      sessionPlayers: players,
-      lastEvent: { type: "player_added", msg: `${name} joined the session`, at: now }
-    }, { merge: true });
-  } catch (e) {}
 }
 
 function _notifyLiveEvent(type, msg) {
