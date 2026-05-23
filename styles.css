@@ -3200,6 +3200,9 @@ body.no-cascade .analytics-card {
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 20px;
+  min-width: 52px;
+  text-align: center;
+  flex-shrink: 0;
 }
 .sr-chip-g {
   background: rgba(54, 212, 126, 0.15);
@@ -3231,6 +3234,7 @@ body.no-cascade .analytics-card {
   font-size: 12px;
   font-weight: 600;
   color: var(--text);
+  flex: 1;
 }
 
 /* ── SESSION STREAK BADGE ─────────────────────────────────── */
@@ -13052,6 +13056,9 @@ select:focus,
   letter-spacing: 0.02em;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  display: inline-block;
+  width: 34px;
+  text-align: right;
 }
 .elo-ba-after,
 .elo-ba-a {
