@@ -2704,9 +2704,17 @@ function getAllPlayerNamesFromMatches() {
       names.add(normPlayer(p)),
     );
   });
-  return [...names]
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  return sortPlayersGuestsLast([...names].filter(Boolean));
+}
+
+// Sort player names alphabetically, guests pushed to end
+function sortPlayersGuestsLast(names) {
+  const guestSet = new Set(Object.values(players).filter(p => p.isGuest).map(p => p.name));
+  return [...names].sort((a, b) => {
+    const ag = guestSet.has(a), bg = guestSet.has(b);
+    if (ag !== bg) return ag ? 1 : -1;
+    return a.localeCompare(b, undefined, { sensitivity: "base" });
+  });
 }
 
 function getPairKey(team) {
@@ -5334,7 +5342,7 @@ function openFilterSheet(mode) {
         names.add(nameMap[p] || p),
       ),
     );
-    const sorted = [...names].sort((a, b) => a.localeCompare(b));
+    const sorted = sortPlayersGuestsLast([...names]);
     list.innerHTML = [
       `<button class="live-sheet-item${!histPlayerFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
         <span class="live-sheet-item-name">ALL PLAYERS</span>
@@ -8290,7 +8298,7 @@ function openDigestPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
     players
@@ -8949,7 +8957,7 @@ function _h2hSortPlayers(players) {
       (a, b) => (winPct[b] || 0) - (winPct[a] || 0) || (matchCount[b] || 0) - (matchCount[a] || 0),
     );
   } else if (_h2hMatrixSort === "name") {
-    sorted.sort((a, b) => a.localeCompare(b));
+    return sortPlayersGuestsLast(sorted);
   }
   return sorted;
 }
@@ -9138,9 +9146,7 @@ function openCmpSheet(slot) {
   if (!list) return;
   const taken = slot === "A" ? _cmpPlayerB : _cmpPlayerA;
   const selected = slot === "A" ? _cmpPlayerA : _cmpPlayerB;
-  const players = computeStats(activeMatches())
-    .map((s) => s.name)
-    .sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
   list.innerHTML = players
     .map((p) => {
       const disabled =
@@ -9302,9 +9308,7 @@ function renderCompareSelector() {
     card.innerHTML = "";
     return;
   }
-  const players = computeStats(activeMatches())
-    .map((s) => s.name)
-    .sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
   const opts =
     `<option value="">P1</option>` +
     players.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
@@ -11670,9 +11674,7 @@ function openEloTLOverlaySheet() {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
   const history = computeEloHistory(activeMatches());
-  const players = Object.keys(history)
-    .filter((p) => p !== _eloTLPlayer)
-    .sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(Object.keys(history).filter((p) => p !== _eloTLPlayer));
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players.map((p) => {
@@ -11751,7 +11753,7 @@ function openEloProbSheet(slot) {
   if (!list) return;
   const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
   const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
-  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
   list.innerHTML = players
     .map((p) => {
       const disabled =
@@ -11772,7 +11774,7 @@ function openWhatIfPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
   list.innerHTML = players
     .map((p) => {
       const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
@@ -12189,7 +12191,7 @@ function openPredictSheet(slot) {
     _predictPlayerB,
     _predictPartnerB,
   ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
-  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
   const selected =
     slot === "a1"
       ? _predictPlayerA
@@ -12227,7 +12229,7 @@ function openSimSheet(slot) {
     .filter(([k]) => k !== slot)
     .map(([, v]) => v)
     .filter(Boolean);
-  const players = computeStats(activeMatches()).map((s) => s.name).sort((a, b) => a.localeCompare(b));
+  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
