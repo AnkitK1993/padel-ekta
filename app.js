@@ -3489,8 +3489,7 @@ function getEloTier(elo) {
 }
 
 function eloTierBadge(elo) {
-  const t = getEloTier(elo);
-  return `<span class="elo-tier-chip" style="color:${t.color};border-color:${t.color}66;background:${t.color}1f">${t.name} · ${elo}</span>`;
+  return `<span class="elo-tier-chip">ELO ${elo}</span>`;
 }
 
 let _hudGaugeId = 0;
@@ -12471,13 +12470,12 @@ function _replayUpdate(idx) {
           eloChip = `<span class="lr-elo-d" style="color:${d > 0 ? "var(--green)" : "var(--red)"}">${s}${d}</span>`;
         }
       }
-      const tier = getEloTier(elo);
       return `<div class="lr-row${dim}${fat}">
         <div class="lr-rank" style="color:${col}">#${i + 1}</div>
         ${rankChip}
         <div class="lr-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>
         <div class="lr-name-wrap">
-          <div class="lr-name">${p.name} <span class="lr-tier-mini" style="color:${tier.color}">${tier.name}</span></div>
+          <div class="lr-name">${p.name}</div>
           <div class="lr-bar"><div class="lr-bar-fill" style="width:${barW}%;background:${col}"></div></div>
         </div>
         <div class="lr-elo" style="color:${col}">${elo}</div>
