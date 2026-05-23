@@ -1104,13 +1104,22 @@ body {
   gap: 2px;
 }
 .ct-nameblock .pname { flex: none; }
-.ct-meta {
+.pname-elo-row {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
-.ct-meta .elo-tier-row { margin: 0; justify-content: flex-start; }
-.ct-meta .xp-row { flex: 1; min-width: 0; }
+.pname-elo {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  opacity: 0.75;
+  flex-shrink: 0;
+}
 .rb {
   width: 30px;
   height: 30px;
