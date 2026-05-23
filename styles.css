@@ -17832,3 +17832,34 @@ body.midnight-oled-mode #themeBtn {
   text-align: center;
   letter-spacing: 0.04em;
 }
+
+/* ── Carbon fibre texture visible behind cards (all themes except HOLO HUD) ── */
+body:not(.holo-mode) .pc {
+  background: linear-gradient(
+    135deg,
+    rgba(10, 10, 20, 0.62) 0%,
+    rgba(15, 13, 26, 0.58) 100%
+  ) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body:not(.holo-mode) .match-card {
+  background: rgba(10, 10, 18, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body:not(.holo-mode) .match-card-inner {
+  background: transparent !important;
+}
+
+body:not(.holo-mode) .ana-card {
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 20, 0.52),
+    rgba(8, 8, 16, 0.48)
+  ) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
