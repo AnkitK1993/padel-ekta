@@ -17877,3 +17877,34 @@ body:not(.holo-mode) .ana-card {
   -webkit-backdrop-filter: none !important;
 }
 
+/* ── Summary leaderboard table + compact match rows ── */
+body:not(.holo-mode) table.cmp {
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
+  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+}
+
+body:not(.holo-mode) .smr-inner {
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
+  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+}
+
+body:not(.holo-mode) .smr-wrap:nth-child(even) .smr-inner {
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
+  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+}
+
