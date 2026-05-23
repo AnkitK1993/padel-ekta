@@ -15271,7 +15271,6 @@ renderNamesTable();
 loadCloudData();
 loadPhotos();
 loadScheduledMatches();
-loadLiveData();
 loadDeletedMatches();
 scheduleAutoEmail();
 setTimeout(() => {
@@ -15472,7 +15471,6 @@ Object.assign(window, {
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
-  renderLiveMatchCard,
   openRivalryScreen,
   openShareMatchPoster,
   openHomeFilterSheet,
@@ -15505,7 +15503,7 @@ let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 
 function openLiveMode() {
-  if (!window.isAdmin) { showToast("Live Scoring is admin only", "🔒"); return; }
+  if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
   _liveScoreA = 0;
   _liveScoreB = 0;
   _livePoints = [];
@@ -15615,28 +15613,6 @@ function _liveSyncGameDisplay() {
     st.textContent = lbl.text;
     st.className = "live-game-state" + (lbl.cls ? " " + lbl.cls : "");
   }
-  _syncDetailGamePts();
-}
-
-// Lightweight detail-page game-pts updater — no stats recomputation, just DOM patch
-function _syncDetailGamePts() {
-  const detail = document.getElementById("live-session-detail");
-  if (!detail?.classList.contains("lsd-open")) return;
-  const row = detail.querySelector(".lsd-gpts-row");
-  if (!row) return;
-  const gpA = _liveGamePtsA, gpB = _liveGamePtsB, adv = _liveAdv;
-  const isDeuce = gpA === 3 && gpB === 3 && !adv;
-  const gA = isDeuce ? "DEUCE" : _gpLabel(gpA, adv, "a");
-  const gB = isDeuce ? "" : _gpLabel(gpB, adv, "b");
-  row.innerHTML = isDeuce
-    ? `<span class="lsd-gpts-deuce">DEUCE</span>`
-    : `<span class="lsd-gpts-val${adv === "a" ? " lsd-gpts-adv" : (gA === "ADV" ? " lsd-gpts-lead" : "")}">${gA}</span><span class="lsd-gpts-sep"> · </span><span class="lsd-gpts-val${adv === "b" ? " lsd-gpts-adv" : (gB === "ADV" ? " lsd-gpts-lead" : "")}">${gB}</span>`;
-}
-
-function _refreshDetailIfOpen() {
-  if (document.getElementById("live-session-detail")?.classList.contains("lsd-open")) {
-    _renderLiveSessionDetail();
-  }
 }
 
 function _liveHaptic(ms) {
@@ -15707,7 +15683,6 @@ function _liveWinGame(team) {
   _updateLiveWinProb();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
-  _publishLiveMatch();
 }
 
 function _liveCheckMatchWin() {
@@ -15829,7 +15804,6 @@ function _updateLiveDisplay() {
       "live-score-giant" +
       (_liveScoreB > _liveScoreA ? " live-score-lead" : "");
   }
-  _refreshDetailIfOpen();
 }
 
 function liveAdjustScore(team, delta) {
@@ -15863,7 +15837,6 @@ function liveAdjustScore(team, delta) {
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveMomentum();
-  _publishLiveMatch();
   // Always prompt to save when win condition is met
   if (actualDelta !== 0 && _liveCheckMatchWin()) {
     _liveMatchEnded = true;
@@ -15992,16 +15965,15 @@ function endLiveMatch() {
   };
   if (notes) match.note = notes;
   allMatches.push(match);
-  // Clear the live match from Firestore and emit event before saving
+  // Update session state and emit match_end event to Firestore
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
-  if (_liveSessionData?.sessionActive && _liveEnabled) {
-    clearTimeout(_livePublishTimer);
+  if (_liveSessionData?.sessionActive) {
     setDoc(doc(db, "padel", "live"), {
       currentMatch: null,
       lastEvent: { type: "match_end", msg: `Match saved: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, at: new Date().toISOString() }
     }, { merge: true }).catch(() => {});
+    _liveSessionData = { ..._liveSessionData, currentMatch: null };
   }
-  _liveMatchPublishedAt = null;
   saveCloudData();
   renderHome();
   renderCompact();
@@ -16588,112 +16560,9 @@ async function openPlayerReportCard(name) {
   }
 }
 
-// ── LIVE SESSION ──────────────────────────────────────────────
+// ── SESSION ──────────────────────────────────────────────────
 let _liveSessionData = null;
-let _livePublishTimer = null;
-let _liveMatchPublishedAt = null;
-let _liveLastEventAt = null;
-let _liveEnabled = true; // when false: no live-doc writes, no banners
-
-function toggleLiveEnabled() {
-  _liveEnabled = !_liveEnabled;
-  _syncLiveBadge();
-  if (!_liveEnabled) clearTimeout(_livePublishTimer);
-  showToast(_liveEnabled ? "Live broadcasting ON" : "Live broadcasting OFF", _liveEnabled ? "📡" : "📴", 2000);
-}
-window.toggleLiveEnabled = toggleLiveEnabled;
-
-function _syncLiveBadge() {
-  const badge = document.getElementById("live-live-badge");
-  if (!badge) return;
-  if (_liveEnabled) {
-    badge.innerHTML = `<span class="live-dot"></span>LIVE`;
-    badge.style.opacity = "1";
-    badge.title = "Tap to go offline (stop broadcasting)";
-  } else {
-    badge.innerHTML = `<span class="live-dot" style="background:var(--muted);animation:none"></span>LOCAL`;
-    badge.style.opacity = "0.55";
-    badge.title = "Tap to go live (broadcast scores)";
-  }
-}
 let _sessionSetupSelected = new Set();
-
-function loadLiveData() {
-  try {
-    onSnapshot(doc(db, "padel", "live"), (snap) => {
-      _liveSessionData = snap.exists() ? snap.data() : null;
-      renderLiveMatchCard();
-      _syncLiveSessionBar();
-      const evAt = _liveSessionData?.lastEvent?.at;
-      if (evAt && evAt !== _liveLastEventAt) {
-        if (_liveLastEventAt !== null && _liveEnabled) {
-          _notifyLiveEvent(_liveSessionData.lastEvent.type, _liveSessionData.lastEvent.msg);
-          _showLiveEventBanner(_liveSessionData.lastEvent);
-        }
-        _liveLastEventAt = evAt;
-      }
-    });
-  } catch (e) {}
-}
-
-function _gpLabel(pts, adv, side) {
-  if (adv === side) return "ADV";
-  if (adv && adv !== side) return "40";
-  return ["0", "15", "30", "40"][pts] ?? "0";
-}
-
-function renderLiveMatchCard() {
-  const el = document.getElementById("live-match-card");
-  if (!el) return;
-  const d = _liveSessionData;
-  if (!d?.sessionActive) { el.style.display = "none"; return; }
-  const cm = d.currentMatch;
-  if (cm?.teamA?.length && cm?.teamB?.length) {
-    const aWin = cm.scoreA > cm.scoreB;
-    const bWin = cm.scoreB > cm.scoreA;
-    const gpA = cm.gamePtsA ?? 0;
-    const gpB = cm.gamePtsB ?? 0;
-    const isDeuce = gpA === 3 && gpB === 3 && !cm.gameAdv;
-    const gA = isDeuce ? "DEUCE" : _gpLabel(gpA, cm.gameAdv, "a");
-    const gB = isDeuce ? "" : _gpLabel(gpB, cm.gameAdv, "b");
-    el.style.display = "";
-    el.innerHTML = `<div class="lmc-card" onclick="openLiveSessionDetail()">
-      <div class="lmc-header">
-        <span class="lmc-live-badge"><span class="live-dot"></span>LIVE MATCH</span>
-        <span class="lmc-session-count">${(d.sessionPlayers||[]).length} in session</span>
-      </div>
-      <div class="lmc-match">
-        <div class="lmc-team">
-          <div class="lmc-names">${cm.teamA.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
-          <div class="lmc-score${aWin ? " lmc-score-lead" : ""}">${cm.scoreA}</div>
-        </div>
-        <div class="lmc-colon">:</div>
-        <div class="lmc-team lmc-team-right">
-          <div class="lmc-score${bWin ? " lmc-score-lead" : ""}">${cm.scoreB}</div>
-          <div class="lmc-names">${cm.teamB.map(p => `<span class="lmc-name">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
-        </div>
-      </div>
-      <div class="lmc-gpts-row">
-        ${isDeuce
-          ? `<span class="lmc-gpts-deuce">DEUCE</span>`
-          : `<span class="lmc-gpts-val${cm.gameAdv === "a" ? " lmc-gpts-adv" : (aWin ? " lmc-gpts-lead" : "")}">${gA}</span><span class="lmc-gpts-sep"> · </span><span class="lmc-gpts-val${cm.gameAdv === "b" ? " lmc-gpts-adv" : (bWin ? " lmc-gpts-lead" : "")}">${gB}</span>`
-        }
-      </div>
-      <div class="lmc-tap-hint">Tap for details →</div>
-    </div>`;
-  } else {
-    const players = d.sessionPlayers || [];
-    el.style.display = "";
-    el.innerHTML = `<div class="lmc-card lmc-card-idle" onclick="openLiveSessionDetail()">
-      <div class="lmc-header">
-        <span class="lmc-live-badge lmc-badge-idle"><span class="live-dot"></span>SESSION ACTIVE</span>
-        <span class="lmc-session-count">${players.length} players</span>
-      </div>
-      <div class="lmc-players">${players.map(p => `<span class="lmc-player-chip">${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
-      <div class="lmc-tap-hint">Tap for details →</div>
-    </div>`;
-  }
-}
 
 function _syncLiveSessionBar() {
   const d = _liveSessionData;
@@ -16751,15 +16620,11 @@ async function confirmSessionStart() {
   if (players.length < 2) { showToast("Select at least 2 players", "❌"); return; }
   closeSessionSetup();
   const now = new Date().toISOString();
-  if (!_liveEnabled) {
-    _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
-    renderLiveMatchCard();
-    _syncLiveSessionBar();
-    _liveHaptic([20, 50, 20]);
-    _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
-    _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
-    return;
-  }
+  _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
+  _syncLiveSessionBar();
+  _liveHaptic([20, 50, 20]);
+  _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
+  _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
   try {
     await setDoc(doc(db, "padel", "live"), {
       sessionActive: true,
@@ -16769,25 +16634,16 @@ async function confirmSessionStart() {
       lastEvent: { type: "session_start", msg: `Session started · ${players.length} players`, at: now }
     });
     _requestNotifPermission();
-    _liveHaptic([20, 50, 20]);
-  } catch (e) {
-    showToast("Failed to start session", "❌");
-  }
+  } catch (e) {}
 }
 
 async function endLiveSession() {
   if (!confirm("End the current session?")) return;
-  clearTimeout(_livePublishTimer);
-  _liveMatchPublishedAt = null;
-  if (!_liveEnabled) {
-    _liveSessionData = null;
-    renderLiveMatchCard();
-    _syncLiveSessionBar();
-    _liveHaptic([30, 60, 30]);
-    _notifyLiveEvent("session_end", "Session ended");
-    _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
-    return;
-  }
+  _liveSessionData = null;
+  _syncLiveSessionBar();
+  _liveHaptic([30, 60, 30]);
+  _notifyLiveEvent("session_end", "Session ended");
+  _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
   const now = new Date().toISOString();
   try {
     await setDoc(doc(db, "padel", "live"), {
@@ -16797,10 +16653,7 @@ async function endLiveSession() {
       currentMatch: null,
       lastEvent: { type: "session_end", msg: "Session ended", at: now }
     });
-    _liveHaptic([30, 60, 30]);
-  } catch (e) {
-    showToast("Failed to end session", "❌");
-  }
+  } catch (e) {}
 }
 
 function openAddPlayerSheet() {
@@ -16828,46 +16681,16 @@ async function addPlayerToSession(name) {
   const players = [...(_liveSessionData?.sessionPlayers || [])];
   if (players.includes(name)) return;
   players.push(name);
-  if (!_liveEnabled) {
-    _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
-    _syncLiveSessionBar();
-    showToast(`${name} added`, "✅");
-    return;
-  }
+  _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
+  _syncLiveSessionBar();
+  showToast(`${name} added`, "✅");
   const now = new Date().toISOString();
   try {
     await setDoc(doc(db, "padel", "live"), {
       sessionPlayers: players,
       lastEvent: { type: "player_added", msg: `${name} joined the session`, at: now }
     }, { merge: true });
-    showToast(`${name} added`, "✅");
-  } catch (e) {
-    showToast("Failed to add player", "❌");
-  }
-}
-
-function _startLiveMatchPublish() {
-  if (!window.isAdmin || !_liveSessionData?.sessionActive || !_liveEnabled) return;
-  const { a1, a2, b1, b2 } = _liveSlots;
-  if (!a1 || !a2 || !b1 || !b2) return;
-  _liveMatchPublishedAt = new Date().toISOString();
-  const eventMsg = `${a1} & ${a2} vs ${b1} & ${b2}`;
-  setDoc(doc(db, "padel", "live"), {
-    currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: 0, scoreB: 0, gamePtsA: 0, gamePtsB: 0, gameAdv: null, startedAt: _liveMatchPublishedAt, mode: _liveGameMode },
-    lastEvent: { type: "match_start", msg: `Match started: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], at: _liveMatchPublishedAt }
-  }, { merge: true }).catch(() => {});
-}
-
-function _publishLiveMatch() {
-  if (!window.isAdmin || !_liveSessionData?.sessionActive || !_liveEnabled) return;
-  const { a1, a2, b1, b2 } = _liveSlots;
-  if (!a1 || !a2 || !b1 || !b2) return;
-  clearTimeout(_livePublishTimer);
-  _livePublishTimer = setTimeout(() => {
-    setDoc(doc(db, "padel", "live"), {
-      currentMatch: { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, gamePtsA: _liveGamePtsA, gamePtsB: _liveGamePtsB, gameAdv: _liveAdv, startedAt: _liveMatchPublishedAt || new Date().toISOString(), mode: _liveGameMode }
-    }, { merge: true }).catch(() => {});
-  }, 1200);
+  } catch (e) {}
 }
 
 function _notifyLiveEvent(type, msg) {
@@ -17007,7 +16830,6 @@ function closeMatchConfirmSheet() {
 
 function confirmStartMatch() {
   closeMatchConfirmSheet();
-  _startLiveMatchPublish();
 }
 
 // ── MATCH SAVE SHEET (race-to-N prompt) ───────────────────
@@ -17135,112 +16957,7 @@ function _showLiveEventBanner(event) {
   }
 }
 
-// ── LIVE SESSION DETAIL (full-page UFC overlay) ───────────
-function openLiveSessionDetail() {
-  const el = document.getElementById("live-session-detail");
-  if (!el) return;
-  _renderLiveSessionDetail();
-  el.style.display = "flex";
-  requestAnimationFrame(() => el.classList.add("lsd-open"));
-}
 
-function closeLiveSessionDetail() {
-  const el = document.getElementById("live-session-detail");
-  if (!el) return;
-  el.classList.remove("lsd-open");
-  setTimeout(() => { el.style.display = "none"; }, 320);
-}
-
-function _renderLiveSessionDetail() {
-  const content = document.getElementById("lsd-content");
-  if (!content) return;
-  const d = _liveSessionData;
-  if (!d?.sessionActive) {
-    content.innerHTML = `<div class="lsd-empty">No active session</div>`;
-    return;
-  }
-  const today = todayISO();
-  const todayMatches = allMatches.filter(m => m.date === today);
-  const sessionPlayers = d.sessionPlayers || [];
-  const allStats = computeStats(todayMatches, computeElo(todayMatches));
-  const leaderboard = allStats
-    .filter(p => sessionPlayers.includes(p.name))
-    .sort((a, b) => b.sr - a.sr || b.winPct - a.winPct || b.mw - a.mw);
-
-  // Use live local vars if we're actively scoring; fall back to Firestore snapshot for viewers
-  const { a1, a2, b1, b2 } = _liveSlots;
-  const cm = (a1 && a2 && b1 && b2)
-    ? { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, gamePtsA: _liveGamePtsA, gamePtsB: _liveGamePtsB, gameAdv: _liveAdv, mode: _liveGameMode }
-    : d?.currentMatch;
-  let liveMatchHtml = "";
-  if (cm?.teamA?.length && cm?.teamB?.length) {
-    const aWin = cm.scoreA > cm.scoreB;
-    const bWin = cm.scoreB > cm.scoreA;
-    const gpA = cm.gamePtsA ?? 0;
-    const gpB = cm.gamePtsB ?? 0;
-    const isDeuce = gpA === 3 && gpB === 3 && !cm.gameAdv;
-    const gA = isDeuce ? "DEUCE" : _gpLabel(gpA, cm.gameAdv, "a");
-    const gB = isDeuce ? "" : _gpLabel(gpB, cm.gameAdv, "b");
-    liveMatchHtml = `<div class="lsd-live-match">
-      <div class="lsd-section-label"><span class="live-dot"></span> LIVE MATCH</div>
-      <div class="lsd-match-row">
-        <div class="lsd-team-a">
-          <div class="lsd-team-names">${cm.teamA.map(p => `<span>${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
-          <div class="lsd-match-score${aWin ? " lsd-score-lead" : ""}">${cm.scoreA}</div>
-        </div>
-        <div class="lsd-colon">:</div>
-        <div class="lsd-team-b">
-          <div class="lsd-match-score${bWin ? " lsd-score-lead" : ""}">${cm.scoreB}</div>
-          <div class="lsd-team-names">${cm.teamB.map(p => `<span>${escHtml(p.split(" ")[0])}</span>`).join("")}</div>
-        </div>
-      </div>
-      <div class="lsd-gpts-row">
-        ${isDeuce
-          ? `<span class="lsd-gpts-deuce">DEUCE</span>`
-          : `<span class="lsd-gpts-val${cm.gameAdv === "a" ? " lsd-gpts-adv" : (aWin ? " lsd-gpts-lead" : "")}">${gA}</span><span class="lsd-gpts-sep"> · </span><span class="lsd-gpts-val${cm.gameAdv === "b" ? " lsd-gpts-adv" : (bWin ? " lsd-gpts-lead" : "")}">${gB}</span>`
-        }
-      </div>
-    </div>`;
-  }
-
-  const lbHtml = leaderboard.length ? `<div class="lsd-section">
-    <div class="lsd-section-label">TODAY'S LEADERBOARD</div>
-    ${leaderboard.map((p, i) => {
-      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `<span style="font-size:11px;font-weight:700;color:var(--muted)">${i+1}</span>`;
-      const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
-      const photo = photoMap[p.name];
-      const av = photo
-        ? `<img src="${photo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-        : `<span class="lsd-lb-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</span>`;
-      return `<div class="lsd-lb-row">
-        <span class="lsd-lb-rank" style="min-width:22px;text-align:center">${medal}</span>
-        ${av}
-        <span class="lsd-lb-name" style="flex:1">${escHtml(p.name.split(" ")[0])}</span>
-        <span class="rec-cell ${mc}" style="font-size:12px;font-weight:700">${p.mw}–${p.ml}</span>
-        <span style="font-size:11px;color:var(--muted);min-width:38px;text-align:right">${p.winPct.toFixed(0)}%</span>
-        <span style="font-size:11px;color:var(--accent);min-width:36px;text-align:right">${p.sr.toFixed(1)}</span>
-      </div>`;
-    }).join("")}
-  </div>` : "";
-
-  const histHtml = todayMatches.length ? `<div class="lsd-section">
-    <div class="lsd-section-label">TODAY'S MATCHES</div>
-    ${[...todayMatches].reverse().map(m => {
-      const aWon = m.scoreA > m.scoreB;
-      return `<div class="lsd-hist-row">
-        <div class="lsd-hist-team${aWon ? " lsd-hist-winner" : ""}">${m.teamA.map(p => p.split(" ")[0]).join(" & ")}</div>
-        <div class="lsd-hist-score">${m.scoreA}–${m.scoreB}</div>
-        <div class="lsd-hist-team lsd-hist-right${!aWon ? " lsd-hist-winner" : ""}">${m.teamB.map(p => p.split(" ")[0]).join(" & ")}</div>
-      </div>`;
-    }).join("")}
-  </div>` : "";
-
-  content.innerHTML = liveMatchHtml + lbHtml + histHtml ||
-    `<div class="lsd-empty">No matches played today yet</div>`;
-}
-
-window.openLiveSessionDetail = openLiveSessionDetail;
-window.closeLiveSessionDetail = closeLiveSessionDetail;
 window.openMatchConfirmSheet = openMatchConfirmSheet;
 window.closeMatchConfirmSheet = closeMatchConfirmSheet;
 window.confirmStartMatch = confirmStartMatch;

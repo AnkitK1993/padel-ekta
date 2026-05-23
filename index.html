@@ -131,7 +131,7 @@
               onclick="openLiveMode();closeHamburgerMenu()"
               class="hmenu-action-btn hmenu-action-btn--full"
             >
-              🎾 LIVE SCORING
+              🎾 CREATE SESSION
             </button>
           </div>
         </div>
@@ -228,7 +228,6 @@
           style="display: none; padding: 0 11px 4px"
         ></div>
         <div id="absence-banner"></div>
-        <div id="live-match-card" style="display:none;padding:0 11px 6px"></div>
         <div
           id="session-streak-badge"
           style="display: none; padding: 0 11px 6px"
@@ -1109,7 +1108,7 @@ Puneet - Pun, PK
         <!-- Header -->
         <div class="live-ufc-header">
           <button class="live-back-btn" onclick="goBack()">← BACK</button>
-          <button id="live-live-badge" class="live-live-badge" onclick="toggleLiveEnabled()" title="Tap to toggle live broadcasting" style="background:none;border:none;cursor:pointer;font-family:inherit;padding:0"><span class="live-dot"></span>LIVE</button>
+          <div id="live-live-badge" class="live-live-badge"><span class="live-dot"></span>SESSION</div>
           <input id="live-date" type="date" class="live-date-input" />
         </div>
 
@@ -1395,15 +1394,6 @@ Puneet - Pun, PK
 
     <!-- Full-page Live Event Banner (session/match start/end) -->
     <div id="live-banner-overlay" class="live-banner-overlay" onclick="closeLiveBanner()" style="display:none"></div>
-
-    <!-- Live Session Detail Full-Page -->
-    <div id="live-session-detail" class="live-session-detail" style="display:none">
-      <div class="lsd-header">
-        <button class="lsd-close-btn" onclick="closeLiveSessionDetail()">✕ CLOSE</button>
-        <div class="lsd-title"><span class="live-dot"></span>&nbsp;SESSION LIVE</div>
-      </div>
-      <div id="lsd-content" class="lsd-content"></div>
-    </div>
 
     <!-- FAB — only visible on add page -->
     <button class="fab-modern" id="fab" onclick="openFabModal()">+</button>
