@@ -6784,7 +6784,7 @@ function openPlayerDetail(name) {
   const pdSortedAll = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const pdPlayerMs = pdSortedAll.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
   const recentMatchCards = (() => {
-    const last8 = pdPlayerMs.slice(-8).reverse();
+    const last8 = pdPlayerMs.slice(-10).reverse();
     if (!last8.length) return "";
     const runElo2 = {};
     const eloAfterEach = {};
