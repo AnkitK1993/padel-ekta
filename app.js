@@ -639,6 +639,7 @@ let _eloTLOverlay = "";
 let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
+let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a local save
 let _emailTimer = null;
 window.isAdmin = false;
 if (localStorage.getItem("cascade_anim") === "0") document.body.classList.add("no-cascade");
@@ -1314,8 +1315,11 @@ function loadCloudData() {
     // If this is a Firestore update that matches the cache we already rendered, skip re-render
     if (!isFirstLoad && fp === lastDataFingerprint) return;
 
-    // Conflict detection: local matches that aren't in the incoming cloud data
-    if (!skipConflict && !isFirstLoad && allMatches.length > 0) {
+    // Conflict detection: local matches that aren't in the incoming cloud data.
+    // Skip for 5 s after a local save — the stale Firestore cache snapshot
+    // hasn't picked up our write yet and would falsely flag new matches.
+    const _recentSave = (Date.now() - _lastLocalSaveTime) < 5000;
+    if (!skipConflict && !isFirstLoad && !_recentSave && allMatches.length > 0) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
       const localOnly = allMatches.filter(
         (m) => !cloudKeys.has(_mkMatchKey(m)),
@@ -2891,20 +2895,52 @@ function addMatches() {
     eEl.innerHTML = errParts.join("<br>");
     eEl.classList.add("show");
   }
-  if (parsed.length) {
+  // Split: exact duplicates (skip), same-day same-teams (warn), genuinely new
+  const exactDups = parsed.filter((m) => allMatches.some((old) => sameMatch(old, m)));
+  const toAdd = parsed.filter((m) => !allMatches.some((old) => sameMatch(old, m)));
+
+  if (exactDups.length) {
+    errParts.push(`Skipped ${exactDups.length} exact duplicate(s).`);
+    eEl.innerHTML = errParts.join("<br>");
+    eEl.classList.add("show");
+  }
+
+  // Same-day same-teams (different score — likely a rematch or data-entry mistake)
+  const sameDayDups = toAdd.filter((m) =>
+    allMatches.some(
+      (old) =>
+        old.date === m.date &&
+        [...(old.teamA || [])].sort().join("|") === [...(m.teamA || [])].sort().join("|") &&
+        [...(old.teamB || [])].sort().join("|") === [...(m.teamB || [])].sort().join("|"),
+    ),
+  );
+
+  if (sameDayDups.length) {
+    const preview = sameDayDups
+      .slice(0, 3)
+      .map((m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} on ${m.date}`)
+      .join("\n");
+    const more = sameDayDups.length > 3 ? `\n…and ${sameDayDups.length - 3} more` : "";
+    if (!confirm(`${sameDayDups.length} match(es) already exist with the same teams on the same day:\n${preview}${more}\n\nAdd anyway?`)) {
+      return;
+    }
+  }
+
+  if (toAdd.length) {
     const prevSnapshot = [...allMatches];
     lastMatchSnapshot = prevSnapshot;
     let step = [...prevSnapshot];
-    for (const m of parsed) {
+    for (const m of toAdd) {
       const next = [...step, m];
       checkMilestones(step, next);
       step = next;
     }
-    allMatches.push(...parsed);
+    allMatches.push(...toAdd);
+    _lastLocalSaveTime = Date.now();
     saveCloudData();
     document.getElementById("matchTA").value = "";
     prefillMatchTADate();
-    oEl.textContent = `Added ${parsed.length} match${parsed.length > 1 ? "es" : ""}.`;
+    oEl.textContent = `Added ${toAdd.length} match${toAdd.length > 1 ? "es" : ""}.`;
     oEl.classList.add("show");
     document.getElementById("undoAddBtn").style.display = "block";
     setTimeout(() => oEl.classList.remove("show"), 2500);
@@ -5805,14 +5841,25 @@ function saveModernMatch() {
   const teamA = [p1a, p2a];
   const teamB = [p1b, p2b];
   const candidate = { teamA, teamB, scoreA: sA, scoreB: sB, date };
+  // Exact duplicate
   if (allMatches.some((old) => sameMatch(old, candidate))) {
-    if (!confirm("This match looks like a duplicate. Add anyway?")) return;
+    if (!confirm("This match already exists. Add anyway?")) return;
+  } else {
+    // Same-day same-teams (different score)
+    const sameDayConflict = allMatches.some(
+      (old) =>
+        old.date === candidate.date &&
+        [...(old.teamA || [])].sort().join("|") === [...teamA].sort().join("|") &&
+        [...(old.teamB || [])].sort().join("|") === [...teamB].sort().join("|"),
+    );
+    if (sameDayConflict && !confirm("These teams already played on this date. Add anyway?")) return;
   }
   const prevSnapshot = [...allMatches];
   lastMatchSnapshot = prevSnapshot;
   if (note) candidate.note = note;
   allMatches.push(candidate);
   checkMilestones(prevSnapshot, allMatches);
+  _lastLocalSaveTime = Date.now();
   saveCloudData();
   closeModernAddModal();
   renderModernMatches();
