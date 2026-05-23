@@ -285,15 +285,8 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
-          <div class="summary-nav-actions">
-            <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()">⚖</button>
-            <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
-            <button class="ss-snap-btn" onclick="openSummaryShare()">
-              📸
-            </button>
-          </div>
         </div>
-        <!-- Filter bar — FAB date picker -->
+        <!-- Filter bar — date FAB + action icons -->
         <div class="summary-filter-bar">
           <button
             class="cmp-date-fab"
@@ -302,6 +295,11 @@
           >
             <span class="cmp-date-fab-label" id="cmpDateLabel">TODAY</span>
           </button>
+          <div class="summary-nav-actions">
+            <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()">⚖</button>
+            <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
+            <button class="ss-snap-btn" onclick="openSummaryShare()">📸</button>
+          </div>
         </div>
         <select
           class="cmp-sel"

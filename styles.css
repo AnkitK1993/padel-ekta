@@ -1615,6 +1615,9 @@ select.cmp-sel option,
   border-bottom: 1px solid rgba(var(--theme-rgb), 0.08);
   padding: 10px 14px;
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .summary-filter-bar::before {
   content: "";
@@ -11952,12 +11955,14 @@ body::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 26px;
+  height: 36px;
   padding: 0 14px;
   background: rgba(var(--theme-rgb), 0.1);
   border: 1px solid rgba(var(--theme-rgb), 0.28);
   border-radius: 999px;
   cursor: pointer;
+  flex: 1;
+  min-width: 0;
   transition:
     background 0.18s,
     border-color 0.18s;
