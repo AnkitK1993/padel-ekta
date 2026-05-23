@@ -6970,7 +6970,7 @@ function openPlayerDetail(name) {
           <div id="player-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}</div><div style="display:flex;flex-direction:column;gap:4px"><span>${escHtml(name)}</span>${eloTierBadge(playerElo)}</div></div>
+                <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}</div><span>${escHtml(name)}</span></div>
                 <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
               </div>
               <div class="analytics-cards">
