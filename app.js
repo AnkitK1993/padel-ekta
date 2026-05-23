@@ -2346,6 +2346,16 @@ function playerAvatar(name, size = 26) {
   }
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
 }
+function sheetAv(name) {
+  const photo = photoMap[name];
+  if (photo) return `<img src="${photo}" class="live-sheet-item-av" style="object-fit:cover" alt="">`;
+  return `<span class="live-sheet-item-av" style="background:${playerColor(name)}">${playerInitials(name)}</span>`;
+}
+function sheetAvSm(name) {
+  const photo = photoMap[name];
+  if (photo) return `<img src="${photo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`;
+  return `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${playerInitials(name)}</div>`;
+}
 
 // ── FILTER ─────────────────────────────────────────────────
 function filterMatches(f, from, to) {
@@ -5174,7 +5184,7 @@ function openFilterSheet(mode) {
       ...sorted.map((p) => {
         const cur = p === histPlayerFilter;
         return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p)})">
-          <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+          ${sheetAv(p)}
           <span class="live-sheet-item-name">${escHtml(p)}</span>
           ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
         </button>`;
@@ -5388,7 +5398,7 @@ function openH2HSheet(slot) {
       return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
       onclick="${isTaken ? "" : `selectH2HPlayer(${jsArg(p)})`}"
       ${isTaken ? "disabled" : ""}>
-      <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      ${sheetAv(p)}
       <span class="live-sheet-item-name">${escHtml(p)}</span>
       ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
@@ -8104,7 +8114,7 @@ function openDigestPlayerSheet() {
     players
       .map(
         (p) =>
-          `<div class="live-sheet-item" onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`,
+          `<div class="live-sheet-item" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`,
       )
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -8952,9 +8962,7 @@ function openCmpSheet(slot) {
       const disabled =
         p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
       const sel = p === selected ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">
-      <div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div>
-      <span>${escHtml(p)}</span></div>`;
+      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
     })
     .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -11485,7 +11493,7 @@ function openEloTLOverlaySheet() {
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players.map((p) => {
       const sel = p === _eloTLOverlay ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
+      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
     }).join("");
   const overlay = document.getElementById("filter-sheet-overlay");
   const sheet = document.getElementById("filter-sheet");
@@ -11565,9 +11573,7 @@ function openEloProbSheet(slot) {
       const disabled =
         p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
       const sel = p === selected ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">
-      <div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div>
-      <span>${escHtml(p)}</span></div>`;
+      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
     })
     .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -11586,9 +11592,7 @@ function openWhatIfPlayerSheet() {
   list.innerHTML = players
     .map((p) => {
       const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">
-      <div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div>
-      <span>${escHtml(p)}</span></div>`;
+      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
     })
     .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -12018,7 +12022,7 @@ function openPredictSheet(slot) {
           ? ' style="opacity:0.3;pointer-events:none"'
           : "";
         const sel = p === selected ? " live-sheet-item-selected" : "";
-        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
+        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
       })
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -12046,7 +12050,7 @@ function openSimSheet(slot) {
       .map((p) => {
         const dis = others.includes(p) ? ' style="opacity:0.3;pointer-events:none"' : "";
         const sel = p === current ? " live-sheet-item-selected" : "";
-        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})"><div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${playerInitials(p)}</div><span>${escHtml(p)}</span></div>`;
+        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
       })
       .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
@@ -13333,7 +13337,7 @@ function renderAnalyticsPage() {
           : p.rAll <= 3
             ? "var(--theme)"
             : "var(--accent)";
-      const avatar = `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>`;
+      const avatar = sheetAvSm(p.name);
       return `<div class="lrace-row">
         <div class="lrace-rank" style="color:${rankColor}">#${p.rAll}</div>
         <div class="lrace-name">${avatar}<span>${p.name}</span></div>
@@ -15754,7 +15758,7 @@ function openLivePlayerSheet(slot) {
       return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
       onclick="${isTaken ? "" : `selectLivePlayer(${jsArg(p)},${jsArg(slot)})`}"
       ${isTaken ? "disabled" : ""}>
-      <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      ${sheetAv(p)}
       <span class="live-sheet-item-name">${escHtml(p)}</span>
       ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
@@ -16641,7 +16645,7 @@ function openAddPlayerSheet() {
   if (!available.length) { showToast("All players already in session", "✅"); return; }
   list.innerHTML = available.map(p => `
     <button class="live-sheet-item" onclick="addPlayerToSession(${jsArg(p)})">
-      <span class="live-sheet-item-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      ${sheetAv(p)}
       <span class="live-sheet-item-name">${escHtml(p)}</span>
     </button>`).join("");
   document.getElementById("add-player-overlay")?.classList.add("live-sheet-open");
