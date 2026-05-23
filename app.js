@@ -1276,7 +1276,7 @@ function autoSaveWeeklySnap() {
   const weekOf = toLocalISODate(monday);
   const existing = getWeeklySnaps().find((s) => s.weekOf === weekOf);
   if (existing) return; // already snapped this week
-  const stats = computeStats(allMatches, computeElo(allMatches));
+  const stats = computeStats(allMatches, _memoElo());
   const rankMap = {};
   stats.forEach((p, i) => {
     rankMap[p.name] = i + 1;
@@ -15615,7 +15615,22 @@ function _liveSyncGameDisplay() {
     st.textContent = lbl.text;
     st.className = "live-game-state" + (lbl.cls ? " " + lbl.cls : "");
   }
-  _refreshDetailIfOpen();
+  _syncDetailGamePts();
+}
+
+// Lightweight detail-page game-pts updater — no stats recomputation, just DOM patch
+function _syncDetailGamePts() {
+  const detail = document.getElementById("live-session-detail");
+  if (!detail?.classList.contains("lsd-open")) return;
+  const row = detail.querySelector(".lsd-gpts-row");
+  if (!row) return;
+  const gpA = _liveGamePtsA, gpB = _liveGamePtsB, adv = _liveAdv;
+  const isDeuce = gpA === 3 && gpB === 3 && !adv;
+  const gA = isDeuce ? "DEUCE" : _gpLabel(gpA, adv, "a");
+  const gB = isDeuce ? "" : _gpLabel(gpB, adv, "b");
+  row.innerHTML = isDeuce
+    ? `<span class="lsd-gpts-deuce">DEUCE</span>`
+    : `<span class="lsd-gpts-val${adv === "a" ? " lsd-gpts-adv" : (gA === "ADV" ? " lsd-gpts-lead" : "")}">${gA}</span><span class="lsd-gpts-sep"> · </span><span class="lsd-gpts-val${adv === "b" ? " lsd-gpts-adv" : (gB === "ADV" ? " lsd-gpts-lead" : "")}">${gB}</span>`;
 }
 
 function _refreshDetailIfOpen() {
@@ -15867,7 +15882,7 @@ function _updateLiveWinProb() {
     return;
   }
   wrap.style.display = "";
-  const eloMap = computeElo(allMatches);
+  const eloMap = _memoElo();
   const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
   const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
   const baseProb = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
