@@ -2895,17 +2895,11 @@ function addMatches() {
     eEl.innerHTML = errParts.join("<br>");
     eEl.classList.add("show");
   }
-  // Split: exact duplicates (skip), same-day same-teams (warn), genuinely new
+  // Split: exact duplicates vs genuinely new
   const exactDups = parsed.filter((m) => allMatches.some((old) => sameMatch(old, m)));
   const toAdd = parsed.filter((m) => !allMatches.some((old) => sameMatch(old, m)));
 
-  if (exactDups.length) {
-    errParts.push(`Skipped ${exactDups.length} exact duplicate(s).`);
-    eEl.innerHTML = errParts.join("<br>");
-    eEl.classList.add("show");
-  }
-
-  // Same-day same-teams (different score — likely a rematch or data-entry mistake)
+  // Same-day same-teams among the non-exact-dup matches
   const sameDayDups = toAdd.filter((m) =>
     allMatches.some(
       (old) =>
@@ -2915,22 +2909,22 @@ function addMatches() {
     ),
   );
 
-  function _doAdd() {
-    if (!toAdd.length) return;
+  function _commit(list) {
+    if (!list.length) return;
     const prevSnapshot = [...allMatches];
     lastMatchSnapshot = prevSnapshot;
     let step = [...prevSnapshot];
-    for (const m of toAdd) {
+    for (const m of list) {
       const next = [...step, m];
       checkMilestones(step, next);
       step = next;
     }
-    allMatches.push(...toAdd);
+    allMatches.push(...list);
     _lastLocalSaveTime = Date.now();
     saveCloudData();
     document.getElementById("matchTA").value = "";
     prefillMatchTADate();
-    oEl.textContent = `Added ${toAdd.length} match${toAdd.length > 1 ? "es" : ""}.`;
+    oEl.textContent = `Added ${list.length} match${list.length > 1 ? "es" : ""}.`;
     oEl.classList.add("show");
     document.getElementById("undoAddBtn").style.display = "block";
     setTimeout(() => oEl.classList.remove("show"), 2500);
@@ -2940,6 +2934,21 @@ function addMatches() {
     renderAddMatches();
   }
 
+  // Exact duplicates → prompt (add all parsed if confirmed)
+  if (exactDups.length) {
+    const preview = exactDups
+      .slice(0, 3)
+      .map((m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`)
+      .join("\n");
+    const more = exactDups.length > 3 ? `\n…and ${exactDups.length - 3} more` : "";
+    showDupConfirmSheet(
+      `${exactDups.length} exact duplicate(s) already exist:\n${preview}${more}\nAdd anyway?`,
+      () => _commit(parsed),
+    );
+    return;
+  }
+
+  // Same-day same-teams → prompt (add non-exact-dups if confirmed)
   if (sameDayDups.length) {
     const preview = sameDayDups
       .slice(0, 3)
@@ -2948,11 +2957,12 @@ function addMatches() {
     const more = sameDayDups.length > 3 ? `\n…and ${sameDayDups.length - 3} more` : "";
     showDupConfirmSheet(
       `${sameDayDups.length} match(es) with the same teams already exist on that day:\n${preview}${more}`,
-      _doAdd,
+      () => _commit(toAdd),
     );
-  } else {
-    _doAdd();
+    return;
   }
+
+  _commit(toAdd);
 }
 
 function undoLastAdd() {
