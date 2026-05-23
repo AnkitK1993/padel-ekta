@@ -17842,7 +17842,7 @@ body:not(.holo-mode) .match-card {
   -webkit-backdrop-filter: none !important;
 }
 
-body:not(.holo-mode) .match-card-inner {
+body:not(.holo-mode) .match-card > .match-card-inner {
   background: transparent !important;
 }
 
