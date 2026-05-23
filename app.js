@@ -604,6 +604,10 @@ function checkMilestones(prevMatches, newMatches) {
 let allMatches = [];
 let nameMap = {};
 let aliasMap = {};
+// Source-of-truth player roster (replaces aliasMap/nameMap as stored data)
+let players = {};        // { [id]: { id, name, email, image, isGuest } }
+let playerAliasMap = {}; // { [id]: [alias1, alias2, ...] }
+let nextPlayerId = 1;
 let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
@@ -823,8 +827,8 @@ function setSplashStatus(msg) {
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
 async function saveCloudData() {
   _invalidateEloMemo();
-  const payload = { matches: allMatches, aliasMap, nameMap };
-  if (window.appCache) window.appCache.save(allMatches, aliasMap, nameMap);
+  const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
+  if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   try {
     if (auth.currentUser && window.isAdmin) {
       await setDoc(doc(db, "padel", "main"), payload);
@@ -1122,8 +1126,9 @@ function _mkMatchKey(m) {
 
 function _showSyncConflict(
   cloudMatches,
-  cloudAMap,
-  cloudNMap,
+  cloudPls,
+  cloudPam,
+  cloudNpid,
   localOnly,
   resolveFn,
 ) {
@@ -1171,14 +1176,15 @@ function _showSyncConflict(
     overlay.remove();
     resolveFn(
       merged,
-      { ...cloudAMap, ...aliasMap },
-      { ...cloudNMap, ...nameMap },
+      { ...cloudPls, ...players },
+      { ...cloudPam, ...playerAliasMap },
+      Math.max(cloudNpid || 1, nextPlayerId),
       true,
     );
   };
   overlay.querySelector("#sc-cloud").onclick = () => {
     overlay.remove();
-    resolveFn(cloudMatches, cloudAMap, cloudNMap, false);
+    resolveFn(cloudMatches, cloudPls, cloudPam, cloudNpid, false);
   };
   overlay.querySelector("#sc-local").onclick = () => {
     overlay.remove();
@@ -1288,7 +1294,7 @@ function loadCloudData() {
   let fired = false;
   let lastDataFingerprint = null;
 
-  function dataFingerprint(matches, aMap, nMap) {
+  function dataFingerprint(matches, pls, pam) {
     const rows = Array.isArray(matches) ? matches : [];
     try {
       const matchPart = rows
@@ -1297,19 +1303,33 @@ function loadCloudData() {
             `${m.date || ""}|${(m.teamA || []).join(",")}|${(m.teamB || []).join(",")}|${m.scoreA ?? ""}|${m.scoreB ?? ""}|${m.note || ""}`,
         )
         .join("~");
-      const mapPart = (obj) =>
-        Object.entries(obj || {})
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([k, v]) => `${k}:${Array.isArray(v) ? v.join(",") : v}`)
-          .join("~");
-      return `${rows.length}::${matchPart}::${mapPart(aMap)}::${mapPart(nMap)}`;
+      const playerPart = Object.values(pls || {})
+        .sort((a, b) => a.id - b.id)
+        .map((p) => `${p.id}:${p.name}:${(pam[p.id] || []).join(",")}`)
+        .join("~");
+      return `${rows.length}::${matchPart}::${playerPart}`;
     } catch (e) {
-      return JSON.stringify({ matches: rows, aMap: aMap || {}, nMap: nMap || {} });
+      return JSON.stringify({ matches: rows, pls: pls || {} });
     }
   }
 
-  function onData(matches, aMap, nMap, skipConflict = false) {
-    const fp = dataFingerprint(matches, aMap, nMap);
+  // Extract new-format player fields from a data object (Firestore doc or cache),
+  // auto-migrating from old aliasMap format when needed.
+  function extractPlayerData(d) {
+    if (d.players && typeof d.players === "object" && Object.keys(d.players).length > 0) {
+      return {
+        pls: d.players,
+        pam: d.playerAliasMap || {},
+        npid: d.nextPlayerId || 1,
+      };
+    }
+    // Old format — migrate on the fly (data not yet saved in new format)
+    const migrated = migrateAliasMapToPlayers(d.aliasMap || {});
+    return { pls: migrated.players, pam: migrated.playerAliasMap, npid: migrated.nextPlayerId };
+  }
+
+  function onData(matches, pls, pam, npid, skipConflict = false) {
+    const fp = dataFingerprint(matches, pls, pam);
     const isFirstLoad = !fired;
 
     // If this is a Firestore update that matches the cache we already rendered, skip re-render
@@ -1327,12 +1347,13 @@ function loadCloudData() {
       if (localOnly.length > 0) {
         _showSyncConflict(
           matches,
-          aMap,
-          nMap,
+          pls,
+          pam,
+          npid,
           localOnly,
-          (resolved, rAMap, rNMap, save) => {
+          (resolved, rPls, rPam, rNpid, save) => {
             lastDataFingerprint = null; // force reprocess
-            onData(resolved, rAMap, rNMap, true);
+            onData(resolved, rPls, rPam, rNpid, true);
             if (save) saveCloudData();
           },
         );
@@ -1344,11 +1365,13 @@ function loadCloudData() {
     _dataVersion++;
 
     allMatches = matches;
-    aliasMap = aMap;
-    nameMap = nMap;
+    players = pls;
+    playerAliasMap = pam;
+    nextPlayerId = npid || 1;
+    rebuildNameMaps();
     _invalidateEloMemo();
     autoSaveWeeklySnap();
-    if (window.appCache) window.appCache.save(allMatches, aliasMap, nameMap);
+    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
 
     if (isFirstLoad) {
       // First render: paint data, then dismiss splash so user sees cards animate in cleanly once
@@ -1386,7 +1409,8 @@ function loadCloudData() {
   try {
     const cached = window.appCache && window.appCache.load();
     if (cached && Array.isArray(cached.matches) && cached.matches.length) {
-      onData(cached.matches, cached.aliasMap || {}, cached.nameMap || {});
+      const { pls, pam, npid } = extractPlayerData(cached);
+      onData(cached.matches, pls, pam, npid);
     }
   } catch (e) {}
 
@@ -1400,7 +1424,8 @@ function loadCloudData() {
           return;
         }
         const d = snap.data();
-        onData(d.matches || [], d.aliasMap || {}, d.nameMap || {});
+        const { pls, pam, npid } = extractPlayerData(d);
+        onData(d.matches || [], pls, pam, npid);
       },
       function (err) {
         console.error("Firestore error:", err);
@@ -2580,6 +2605,46 @@ function normPlayer(name) {
   return (nameMap[name] || name || "").trim();
 }
 
+// Rebuild aliasMap + nameMap from the players/playerAliasMap source-of-truth
+function rebuildNameMaps() {
+  aliasMap = {};
+  nameMap = {};
+  Object.values(players).forEach((p) => {
+    const aliases = playerAliasMap[p.id] || [];
+    aliasMap[p.name] = aliases;
+    aliases.forEach((a) => { nameMap[a] = p.name; });
+  });
+}
+
+// One-time migration from old { aliasMap } format to new players/playerAliasMap
+function migrateAliasMapToPlayers(aMap) {
+  const pls = {};
+  const pam = {};
+  let id = 1;
+  Object.keys(aMap || {})
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((name) => {
+      pls[id] = { id, name, email: "", image: "", isGuest: false };
+      pam[id] = Array.isArray(aMap[name]) ? [...aMap[name]] : [];
+      id++;
+    });
+  return { players: pls, playerAliasMap: pam, nextPlayerId: id };
+}
+
+// Compute first/last played date for a display-name player
+function getPlayerDateRange(playerName) {
+  const dates = allMatches
+    .filter((m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].some(
+        (p) => normPlayer(p) === playerName,
+      ),
+    )
+    .map((m) => m.date)
+    .filter(Boolean)
+    .sort();
+  return { first: dates[0] || null, last: dates[dates.length - 1] || null };
+}
+
 function normalizedScoreline(m) {
   const hi = Math.max(Number(m.scoreA), Number(m.scoreB));
   const lo = Math.min(Number(m.scoreA), Number(m.scoreB));
@@ -2602,7 +2667,7 @@ function sameMatch(a, b) {
 }
 
 function getAllPlayerNamesFromMatches() {
-  const names = new Set(Object.keys(aliasMap));
+  const names = new Set(Object.values(players).map((p) => p.name));
   allMatches.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
       names.add(normPlayer(p)),
@@ -2984,159 +3049,135 @@ function undoLastAdd() {
 
 // ── NAMES ──────────────────────────────────────────────────
 function saveNames() {
-  const raw = document.getElementById("namesTA").value.trim();
+  // Bulk JSON import into the player roster
+  const raw = document.getElementById("namesTA")?.value.trim();
   const eEl = document.getElementById("nErr"),
     oEl = document.getElementById("nOk");
-  eEl.classList.remove("show");
-  oEl.classList.remove("show");
-  const nm = {},
-    am = {},
-    errs = [];
+  if (eEl) eEl.classList.remove("show");
+  if (oEl) oEl.classList.remove("show");
+  if (!raw) return;
 
-  // Detect JSON nameMap format: {"alias":"DisplayName",...} or {"nameMap":{...}}
+  // Collect display→aliases from JSON or line-by-line
+  const importMap = {}; // display → [aliases]
+  const errs = [];
+
   if (raw.startsWith("{")) {
     try {
       let parsed = JSON.parse(raw);
-      // Support both {"nameMap":{...}} wrapper and bare {"alias":"Display",...}
       if (parsed.nameMap && typeof parsed.nameMap === "object") parsed = parsed.nameMap;
       Object.entries(parsed).forEach(([alias, display]) => {
         if (typeof alias !== "string" || typeof display !== "string") return;
         const a = alias.trim(), d = display.trim();
         if (!a || !d) return;
-        nm[a] = d;
-        if (!am[d]) am[d] = [];
-        if (!am[d].includes(a)) am[d].push(a);
+        if (!importMap[d]) importMap[d] = [];
+        if (!importMap[d].includes(a)) importMap[d].push(a);
       });
     } catch (e) {
-      eEl.innerHTML = "Invalid JSON — check format";
-      eEl.classList.add("show");
+      if (eEl) { eEl.innerHTML = "Invalid JSON — check format"; eEl.classList.add("show"); }
       return;
     }
   } else {
-    // Line-by-line format: DisplayName - alias1, alias2
     raw.split("\n").forEach((line, i) => {
       const t = line.trim();
       if (!t) return;
       const idx = t.indexOf("-");
-      if (idx < 1) {
-        errs.push(`Line ${i + 1}`);
-        return;
-      }
+      if (idx < 1) { errs.push(`Line ${i + 1}`); return; }
       const display = t.slice(0, idx).trim();
-      const aliases = t
-        .slice(idx + 1)
-        .split(",")
-        .map((a) => a.trim())
-        .filter(Boolean);
-      if (!display || !aliases.length) {
-        errs.push(`Line ${i + 1}`);
-        return;
-      }
-      aliases.forEach((a) => (nm[a] = display));
-      am[display] = aliases;
+      const aliases = t.slice(idx + 1).split(",").map((a) => a.trim()).filter(Boolean);
+      if (!display || !aliases.length) { errs.push(`Line ${i + 1}`); return; }
+      importMap[display] = aliases;
     });
-    if (errs.length) {
+    if (errs.length && eEl) {
       eEl.innerHTML = `${errs.length} line(s) skipped`;
       eEl.classList.add("show");
     }
   }
 
-  nameMap = nm;
-  aliasMap = am;
+  // Merge into players: update existing by name, add new
+  Object.entries(importMap).forEach(([displayName, aliases]) => {
+    const existing = Object.values(players).find((p) => p.name === displayName);
+    if (existing) {
+      playerAliasMap[existing.id] = aliases;
+    } else {
+      const id = nextPlayerId++;
+      players[id] = { id, name: displayName, email: "", image: "", isGuest: false };
+      playerAliasMap[id] = aliases;
+    }
+  });
+
+  rebuildNameMaps();
   saveCloudData();
-  oEl.textContent = `Saved ${Object.keys(am).length} player mappings.`;
-  oEl.classList.add("show");
-  setTimeout(() => oEl.classList.remove("show"), 2500);
+  if (oEl) {
+    oEl.textContent = `Imported ${Object.keys(importMap).length} player(s).`;
+    oEl.classList.add("show");
+    setTimeout(() => oEl.classList.remove("show"), 2500);
+  }
   renderNamesTable();
 }
 function loadNames() {
-  document.getElementById("namesTA").value = Object.entries(aliasMap)
-    .map(([n, a]) => `${n} - ${a.join(", ")}`)
-    .join("\n");
+  const ta = document.getElementById("namesTA");
+  if (ta) {
+    ta.value = Object.values(players)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((p) => `${p.name} - ${(playerAliasMap[p.id] || []).join(", ")}`)
+      .join("\n");
+  }
 }
 
 function editNameEntry(displayName) {
-  const aliases = aliasMap[displayName] || [];
-  const newDisplay = prompt("Display name", displayName);
-  if (newDisplay === null) return;
-  const cleanedDisplay = newDisplay.trim();
-  if (!cleanedDisplay) {
-    alert("Display name cannot be empty.");
-    return;
-  }
-  const newAliases = prompt("Aliases (comma-separated)", aliases.join(", "));
-  if (newAliases === null) return;
-  const parsed = newAliases
-    .split(",")
-    .map((a) => a.trim())
-    .filter(Boolean);
-  if (!parsed.length) {
-    alert("At least one alias is required.");
-    return;
-  }
-
-  // Remove old mappings for this display name
-  delete aliasMap[displayName];
-  Object.keys(nameMap).forEach((alias) => {
-    if (nameMap[alias] === displayName) delete nameMap[alias];
-  });
-
-  // Add new mapping
-  aliasMap[cleanedDisplay] = parsed;
-  parsed.forEach((alias) => {
-    nameMap[alias] = cleanedDisplay;
-  });
-
-  saveCloudData();
-  renderNamesTable();
-  if (document.querySelector(".itab.on")?.textContent.includes("Names")) {
-    loadNames();
-  }
+  // Legacy shim — find player by name and open the edit sheet
+  const p = Object.values(players).find((x) => x.name === displayName);
+  if (p) openPlayerEditSheet(p.id);
 }
 
 function renderNamesTable() {
   const table = document.getElementById("names-table");
-  if (!Object.keys(aliasMap).length) {
+  const sorted = Object.values(players).sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }),
+  );
+  if (!sorted.length) {
     table.innerHTML =
-      '<p style="color: var(--muted); font-size: 14px;">No names saved yet.</p>';
+      '<p style="color:var(--muted);font-size:14px;text-align:center;padding:24px 0">No players yet. Tap + ADD PLAYER to get started.</p>';
     return;
   }
-  const sortedEntries = Object.entries(aliasMap).sort(([a], [b]) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" }),
-  );
-  const html = `
-              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                <thead>
-                  <tr style="background: var(--surface2);">
-                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Display Name</th>
-                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border); color: var(--text);">Aliases</th>
-                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); width: 88px;">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${sortedEntries
-                    .map(
-                      ([name, aliases]) => `
-                    <tr style="border-bottom: 1px solid var(--border);">
-                      <td style="padding: 8px; color: var(--accent); font-weight: 500; text-transform: uppercase;">${escHtml(name)}</td>
-                      <td style="padding: 8px; color: var(--muted); text-transform: uppercase;">${escHtml((aliases || []).join(", "))}</td>
-                      <td style="padding: 8px; text-align: right;">
-                        <button
-                          class="action-btn edit-btn"
-                          style="padding: 6px 10px; font-size: 11px;"
-                          onclick="editNameEntry(${jsArg(name)})"
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  `,
-                    )
-                    .join("")}
-                </tbody>
-              </table>
-            `;
-  table.innerHTML = html;
+  table.innerHTML = sorted
+    .map((p) => {
+      const aliases = (playerAliasMap[p.id] || []);
+      const { first, last } = getPlayerDateRange(p.name);
+      const initials = (p.name || "?")
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+      const avatar = p.image
+        ? `<img src="${escHtml(p.image)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`
+        : `<div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#000;flex-shrink:0">${escHtml(initials)}</div>`;
+      const guestBadge = p.isGuest
+        ? `<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(255,165,0,0.15);color:orange;font-weight:700;letter-spacing:0.05em">GUEST</span>`
+        : "";
+      const aliasList = aliases.length
+        ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.04em">${escHtml(aliases.join(" · "))}</div>`
+        : "";
+      const dates = (first || last)
+        ? `<div style="font-size:10px;color:var(--muted);margin-top:4px">First: ${first ? fmtDate(first) : "—"} &nbsp;·&nbsp; Last: ${last ? fmtDate(last) : "—"}</div>`
+        : "";
+      const emailLine = p.email
+        ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">✉ ${escHtml(p.email)}</div>`
+        : "";
+      return `<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+        ${avatar}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-weight:700;font-size:14px;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em">${escHtml(p.name)}</span>
+            ${guestBadge}
+          </div>
+          ${aliasList}${dates}${emailLine}
+        </div>
+        <button class="action-btn edit-btn" style="padding:6px 12px;font-size:11px;flex-shrink:0" onclick="openPlayerEditSheet(${p.id})">Edit</button>
+      </div>`;
+    })
+    .join("");
 }
 
 function setAbsenceThreshold(val) {
@@ -3166,9 +3207,11 @@ function clearMatches() {
   refreshManage();
 }
 function clearNames() {
-  if (!confirm("Clear name aliases?")) return;
-  nameMap = {};
-  aliasMap = {};
+  if (!confirm("Clear all players?")) return;
+  players = {};
+  playerAliasMap = {};
+  nextPlayerId = 1;
+  rebuildNameMaps();
   saveCloudData();
   refreshManage();
   renderNamesTable();
@@ -5804,35 +5847,29 @@ document.getElementById("name-add-modal").addEventListener("click", (e) => {
 function saveQuickName() {
   const display = document.getElementById("name-display").value.trim();
   const aliasesText = document.getElementById("name-aliases").value.trim();
+  const email = document.getElementById("name-email")?.value.trim() || "";
+  const image = document.getElementById("name-image")?.value.trim() || "";
+  const isGuest = document.getElementById("name-guest")?.checked || false;
 
-  if (!display) {
-    alert("Display name is required");
-    return;
-  }
+  if (!display) { alert("Display name is required"); return; }
 
   const aliases = aliasesText
-    ? aliasesText
-        .split(",")
-        .map((a) => a.trim())
-        .filter(Boolean)
-    : [display];
+    ? aliasesText.split(",").map((a) => a.trim()).filter(Boolean)
+    : [];
 
-  // Build from aliasMap (source of truth) then append new entry
-  const currentText = Object.entries(aliasMap)
-    .map(([n, a]) => `${n} - ${a.join(", ")}`)
-    .join("\n");
-  const newEntry = `${display} - ${aliases.join(", ")}`;
-  document.getElementById("namesTA").value = currentText
-    ? currentText + "\n" + newEntry
-    : newEntry;
-
-  // Save the names
-  saveNames();
-
-  // Close modal and clear fields
+  const id = nextPlayerId++;
+  players[id] = { id, name: display, email, image, isGuest };
+  playerAliasMap[id] = aliases;
+  rebuildNameMaps();
+  saveCloudData();
   closeNameAddModal();
+  renderNamesTable();
+
   document.getElementById("name-display").value = "";
   document.getElementById("name-aliases").value = "";
+  if (document.getElementById("name-email")) document.getElementById("name-email").value = "";
+  if (document.getElementById("name-image")) document.getElementById("name-image").value = "";
+  if (document.getElementById("name-guest")) document.getElementById("name-guest").checked = false;
 }
 
 function saveModernMatch() {
@@ -16761,6 +16798,75 @@ function _requestNotifPermission() {
 
 // ── MATCH CONFIRM SHEET ────────────────────────────────────
 // ── DUPLICATE MATCH CONFIRM SHEET ────────────────────────────
+// ── PLAYER CRUD ──────────────────────────────────────────────
+let _editingPlayerId = null;
+
+function openPlayerEditSheet(id) {
+  _editingPlayerId = id || null;
+  const isNew = !id;
+  const p = isNew ? { name: "", email: "", image: "", isGuest: false } : (players[id] || {});
+  const aliases = isNew ? [] : (playerAliasMap[id] || []);
+  const { first, last } = isNew ? { first: null, last: null } : getPlayerDateRange(p.name);
+
+  document.getElementById("pes-title").textContent = isNew ? "ADD PLAYER" : "EDIT PLAYER";
+  document.getElementById("pes-name").value = p.name || "";
+  document.getElementById("pes-aliases").value = aliases.join(", ");
+  document.getElementById("pes-email").value = p.email || "";
+  document.getElementById("pes-image").value = p.image || "";
+  document.getElementById("pes-guest").checked = !!p.isGuest;
+  document.getElementById("pes-first").textContent = first ? fmtDate(first) : "—";
+  document.getElementById("pes-last").textContent = last ? fmtDate(last) : "—";
+  document.getElementById("pes-delete-btn").style.display = isNew ? "none" : "block";
+
+  document.getElementById("player-edit-overlay").classList.add("live-sheet-open");
+  document.getElementById("player-edit-sheet").classList.add("live-sheet-open");
+  setTimeout(() => document.getElementById("pes-name").focus(), 120);
+}
+window.openPlayerEditSheet = openPlayerEditSheet;
+
+function closePlayerEditSheet() {
+  document.getElementById("player-edit-overlay").classList.remove("live-sheet-open");
+  document.getElementById("player-edit-sheet").classList.remove("live-sheet-open");
+  _editingPlayerId = null;
+}
+window.closePlayerEditSheet = closePlayerEditSheet;
+
+function savePlayerEdit() {
+  const name = document.getElementById("pes-name").value.trim();
+  const aliasesRaw = document.getElementById("pes-aliases").value.trim();
+  const email = document.getElementById("pes-email").value.trim();
+  const image = document.getElementById("pes-image").value.trim();
+  const isGuest = document.getElementById("pes-guest").checked;
+
+  if (!name) { alert("Display name is required"); return; }
+
+  const aliases = aliasesRaw
+    ? aliasesRaw.split(",").map((a) => a.trim()).filter(Boolean)
+    : [];
+
+  const id = _editingPlayerId || nextPlayerId++;
+  players[id] = { id, name, email, image, isGuest };
+  playerAliasMap[id] = aliases;
+  rebuildNameMaps();
+  saveCloudData();
+  closePlayerEditSheet();
+  renderNamesTable();
+}
+window.savePlayerEdit = savePlayerEdit;
+
+function deletePlayerEntry() {
+  if (!_editingPlayerId) return;
+  const p = players[_editingPlayerId];
+  if (!confirm(`Delete player "${p?.name}"?`)) return;
+  delete players[_editingPlayerId];
+  delete playerAliasMap[_editingPlayerId];
+  rebuildNameMaps();
+  saveCloudData();
+  closePlayerEditSheet();
+  renderNamesTable();
+}
+window.deletePlayerEntry = deletePlayerEntry;
+
 let _dupConfirmCallback = null;
 function showDupConfirmSheet(msg, onYes) {
   _dupConfirmCallback = onYes;

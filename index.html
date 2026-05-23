@@ -798,27 +798,34 @@ Ank RaM vs Nil Tej 4-2"
         </div>
 
         <div class="panel" id="ip-names">
-          <div class="slbl">Name Master</div>
-          <textarea
-            id="namesTA"
-            placeholder='Ankit - Ank, AK
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="slbl" style="margin:0">Player Roster</div>
+            <button class="btn-p" style="padding:7px 14px;font-size:12px" onclick="openPlayerEditSheet(null)">+ ADD PLAYER</button>
+          </div>
+          <div id="names-table"></div>
+
+          <!-- Bulk import (collapsed by default) -->
+          <details style="margin-top:20px">
+            <summary style="font-size:11px;color:var(--muted);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase">Bulk Import (JSON / line format)</summary>
+            <div style="margin-top:10px">
+              <textarea
+                id="namesTA"
+                placeholder='Ankit - Ank, AK
 Puneet - Pun, PK
-Parthiv - Par, PM
 
 — or paste JSON nameMap —
 {"AK":"Ankit","Ank":"Ankit","PK":"Puneet"}'
-          ></textarea>
-          <p class="hint">Line format: <code>Display Name - alias1, alias2</code> &nbsp;·&nbsp; or paste a JSON <code>nameMap</code></p>
-          <div class="msg err" id="nErr"></div>
-          <div class="msg ok" id="nOk"></div>
-          <div class="btn-row">
-            <button class="btn-p" onclick="saveNames()">Save Names</button>
-            <button class="btn-s" onclick="loadNames()">Edit</button>
-          </div>
-          <div class="slbl" style="margin-top: 20px">
-            Existing Names & Aliases
-          </div>
-          <div id="names-table" style="margin-top: 10px"></div>
+                style="height:120px"
+              ></textarea>
+              <p class="hint">Merges into existing roster without overwriting other fields.</p>
+              <div class="msg err" id="nErr"></div>
+              <div class="msg ok" id="nOk"></div>
+              <div class="btn-row">
+                <button class="btn-p" onclick="saveNames()">Import</button>
+                <button class="btn-s" onclick="loadNames()">Load Current</button>
+              </div>
+            </div>
+          </details>
         </div>
         <div class="panel" id="ip-manage">
           <div
@@ -1338,6 +1345,45 @@ Parthiv - Par, PM
       </div>
     </div>
 
+    <!-- Player edit / add sheet -->
+    <div class="live-sheet-overlay" id="player-edit-overlay" onclick="closePlayerEditSheet()"></div>
+    <div class="live-sheet" id="player-edit-sheet" style="max-height:92vh;overflow-y:auto">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title" id="pes-title">EDIT PLAYER</div>
+      <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase">Display Name *</label>
+          <input id="pes-name" class="input-modern" placeholder="e.g. Ankit Konchady" style="margin-top:4px" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase">Aliases (comma-separated)</label>
+          <input id="pes-aliases" class="input-modern" placeholder="e.g. Ank, AK" style="margin-top:4px" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase">Email</label>
+          <input id="pes-email" class="input-modern" type="email" placeholder="e.g. ankit@example.com" style="margin-top:4px" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase">Photo URL</label>
+          <input id="pes-image" class="input-modern" type="url" placeholder="https://…" style="margin-top:4px" />
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input id="pes-guest" type="checkbox" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer" />
+          <label for="pes-guest" style="font-size:13px;color:var(--text);cursor:pointer">Guest player</label>
+        </div>
+        <div style="display:flex;gap:8px;font-size:11px;color:var(--muted)">
+          <span>First played: <strong id="pes-first">—</strong></span>
+          <span style="margin-left:12px">Last played: <strong id="pes-last">—</strong></span>
+        </div>
+      </div>
+      <div style="padding:4px 14px;display:flex;flex-direction:column;gap:8px">
+        <button class="live-start-session-btn" onclick="savePlayerEdit()">SAVE PLAYER</button>
+        <button id="pes-delete-btn" style="padding:12px;font-size:13px;background:rgba(220,50,50,0.12);border:1px solid rgba(220,50,50,0.3);color:#e05555;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit" onclick="deletePlayerEntry()">DELETE PLAYER</button>
+        <button class="tb-btn" onclick="closePlayerEditSheet()" style="padding:12px;font-size:13px">CANCEL</button>
+      </div>
+      <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+    </div>
+
     <!-- Duplicate match confirmation sheet (global) -->
     <div class="live-sheet-overlay" id="dup-confirm-overlay" onclick="closeDupConfirmSheet()"></div>
     <div class="live-sheet" id="dup-confirm-sheet">
@@ -1480,35 +1526,19 @@ Parthiv - Par, PM
     <!-- Quick-add name modal -->
     <div id="name-add-modal" class="modern-modal">
       <div class="modern-sheet">
-        <div class="sheet-title">Quick Add Name</div>
-        <input
-          id="name-display"
-          class="input-modern"
-          placeholder="Display Name (e.g., Ankit)"
-        />
-        <input
-          id="name-aliases"
-          class="input-modern"
-          placeholder="Aliases (e.g., Ank, AK)"
-        />
-        <button class="save-modern-btn" onclick="saveQuickName()">
-          Save Name
-        </button>
+        <div class="sheet-title">Add Player</div>
+        <input id="name-display" class="input-modern" placeholder="Display Name (e.g., Ankit)" />
+        <input id="name-aliases" class="input-modern" placeholder="Aliases (e.g., Ank, AK)" />
+        <input id="name-email" class="input-modern" type="email" placeholder="Email (optional)" />
+        <input id="name-image" class="input-modern" type="url" placeholder="Photo URL (optional)" />
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+          <input id="name-guest" type="checkbox" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer" />
+          <label for="name-guest" style="font-size:13px;color:var(--text);cursor:pointer">Guest player</label>
+        </div>
+        <button class="save-modern-btn" onclick="saveQuickName()">Add Player</button>
         <button
           onclick="closeNameAddModal()"
-          style="
-            width: 100%;
-            margin-top: 10px;
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--muted);
-            padding: 12px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: &quot;DM Sans&quot;, sans-serif;
-          "
+          style="width:100%;margin-top:10px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:12px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:&quot;DM Sans&quot;,sans-serif"
         >
           Cancel
         </button>

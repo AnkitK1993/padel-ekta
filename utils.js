@@ -101,17 +101,18 @@ body.paused-animations *{
 /* ══════════════════════════════════════ */
 
 (function () {
-        const CACHE_KEY = "padel_cache_v4";
+        const CACHE_KEY = "padel_cache_v5";
         const CACHE_TTL = 1000 * 60 * 60 * 24;
         const mem = {};
         window.appCache = {
-          save: function (matches, aliasMap, nameMap) {
+          save: function (matches, players, playerAliasMap, nextPlayerId) {
             try {
               var p = {
                 ts: Date.now(),
                 matches: matches,
-                aliasMap: aliasMap,
-                nameMap: nameMap,
+                players: players,
+                playerAliasMap: playerAliasMap,
+                nextPlayerId: nextPlayerId,
               };
               localStorage.setItem(CACHE_KEY, JSON.stringify(p));
               mem.data = p;
