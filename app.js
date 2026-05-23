@@ -15777,6 +15777,11 @@ function selectLivePlayer(name, slot) {
   _liveSlots[slot] = name;
   _renderLiveSlot(slot);
   closeLivePlayerSheet();
+  _liveScoreA = 0; _liveScoreB = 0;
+  _liveGamePtsA = 0; _liveGamePtsB = 0;
+  _liveAdv = null; _liveMatchEnded = false;
+  _livePoints = []; _livePointUndoStack = [];
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
   const { a1, a2, b1, b2 } = _liveSlots;
   if (a1 && a2 && b1 && b2) openMatchConfirmSheet();
 }
