@@ -649,12 +649,6 @@ body {
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 4px);
-  background-size: 4px 4px;
 }
 
 .page-body-scroll .scroll {
@@ -7736,17 +7730,11 @@ body::before {
   z-index: -2;
 
   background:
-    repeating-linear-gradient(0deg,   rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px),
     radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.1), transparent 30%),
     radial-gradient(circle at 80% 10%, rgba(var(--theme-rgb), 0.08), transparent 28%),
     radial-gradient(circle at 50% 100%, rgba(180, 90, 255, 0.08), transparent 35%),
     linear-gradient(180deg, #03050d 0%, #050811 35%, #060914 100%);
-  background-size:
-    4px 4px, 4px 4px, 4px 4px, 4px 4px,
-    100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
 
   animation: ambientShift 14s ease-in-out infinite alternate;
 }
@@ -12776,17 +12764,11 @@ body {
 }
 body::before {
   background:
-    repeating-linear-gradient(0deg,   rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(0,0,0,0.42) 0px, rgba(0,0,0,0.42) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 1px, transparent 1px, transparent 4px),
     radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.08), transparent 28%),
     radial-gradient(circle at 80% 10%, rgba(var(--theme-rgb), 0.06), transparent 26%),
     radial-gradient(circle at 50% 100%, rgba(180, 90, 255, 0.06), transparent 32%),
     linear-gradient(180deg, #020208 0%, #030309 50%, #04040f 100%) !important;
-  background-size:
-    4px 4px, 4px 4px, 4px 4px, 4px 4px,
-    100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
 }
 
 /* 2. Nav & tabbar — darker, tighter borders */
@@ -17836,27 +17818,15 @@ body.midnight-oled-mode #themeBtn {
   letter-spacing: 0.04em;
 }
 
-/* ── Near-opaque cards with subtle embedded grid (all themes except HOLO HUD) ── */
+/* ── Near-opaque cards, no grid (all themes except HOLO HUD) ── */
 body:not(.holo-mode) .pc {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    linear-gradient(135deg, rgba(5,5,12,0.96) 0%, rgba(8,6,16,0.95) 100%) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+  background: linear-gradient(135deg, rgba(5,5,12,0.96) 0%, rgba(8,6,16,0.95) 100%) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 body:not(.holo-mode) .match-card {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -17866,46 +17836,22 @@ body:not(.holo-mode) .match-card > .match-card-inner {
 }
 
 body:not(.holo-mode) .ana-card {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 /* ── Summary leaderboard table + compact match rows ── */
 body:not(.holo-mode) table.cmp {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
 }
 
 body:not(.holo-mode) .smr-inner {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
 }
 
 body:not(.holo-mode) .smr-wrap:nth-child(even) .smr-inner {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
+  background: linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
 }
 
 /* ── Statistics: explicit dark base so grid is always visible ── */
