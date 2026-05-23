@@ -611,6 +611,7 @@ let nextPlayerId = 1;
 let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
+let _excludedPlayers = new Set((() => { try { return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]"); } catch(e) { return []; } })());
 let photoMap = {};
 let calYear = new Date().getFullYear(),
   calMonth = new Date().getMonth();
@@ -2362,12 +2363,13 @@ function sheetAvSm(name) {
 
 // ── GUEST FILTER ────────────────────────────────────────────
 function activeMatches() {
-  const guests = new Set(
-    Object.values(players).filter(p => p.isGuest).map(p => p.name)
-  );
-  if (!guests.size) return allMatches;
+  const excluded = new Set([
+    ...Object.values(players).filter(p => p.isGuest).map(p => p.name),
+    ..._excludedPlayers,
+  ]);
+  if (!excluded.size) return allMatches;
   return allMatches.filter(m =>
-    ![...(m.teamA || []), ...(m.teamB || [])].some(p => guests.has(p))
+    ![...(m.teamA || []), ...(m.teamB || [])].some(p => excluded.has(p))
   );
 }
 
@@ -3362,6 +3364,73 @@ function toggleCmpEqualized() {
   renderCompact();
 }
 
+function _saveExcludedPlayers() {
+  try { localStorage.setItem("padel-exclude-players", JSON.stringify([..._excludedPlayers])); } catch(e) {}
+}
+
+function _updateExcludeBtn() {
+  const btn = document.getElementById("cmpExcludeBtn");
+  if (!btn) return;
+  const n = _excludedPlayers.size;
+  btn.classList.toggle("ss-eq-btn-on", n > 0);
+  btn.innerHTML = n > 0 ? `🚫 Exclude <span class="ss-exc-badge">${n}</span>` : "🚫 Exclude";
+}
+
+function openExcludeSheet() {
+  const overlay = document.getElementById("exclude-sheet-overlay");
+  const sheet = document.getElementById("exclude-sheet");
+  const list = document.getElementById("exclude-sheet-list");
+  if (!overlay || !sheet || !list) return;
+  const names = new Set();
+  allMatches.forEach(m => [...(m.teamA || []), ...(m.teamB || [])].forEach(p => names.add(nameMap[p] || p)));
+  Object.values(players).forEach(p => names.add(nameMap[p.name] || p.name));
+  const sorted = [...names].filter(n => n).sort((a, b) => a.localeCompare(b));
+  list.innerHTML = sorted.map(p => {
+    const on = _excludedPlayers.has(p);
+    return `<button class="live-sheet-item${on ? " live-sheet-item-selected" : ""}" onclick="toggleExcludePlayer(${jsArg(p)})">
+      ${sheetAv(p)}
+      <span class="live-sheet-item-name">${escHtml(p)}</span>
+      ${on ? '<span class="live-sheet-check">✓</span>' : ""}
+    </button>`;
+  }).join("");
+  overlay.classList.add("live-sheet-open");
+  sheet.classList.add("live-sheet-open");
+}
+
+function toggleExcludePlayer(name) {
+  if (_excludedPlayers.has(name)) _excludedPlayers.delete(name);
+  else _excludedPlayers.add(name);
+  _saveExcludedPlayers();
+  // refresh the item in the list
+  const list = document.getElementById("exclude-sheet-list");
+  if (list) {
+    list.querySelectorAll(".live-sheet-item").forEach(btn => {
+      const nameEl = btn.querySelector(".live-sheet-item-name");
+      if (!nameEl || nameEl.textContent !== name) return;
+      const on = _excludedPlayers.has(name);
+      btn.classList.toggle("live-sheet-item-selected", on);
+      const existing = btn.querySelector(".live-sheet-check");
+      if (on && !existing) btn.insertAdjacentHTML("beforeend", '<span class="live-sheet-check">✓</span>');
+      if (!on && existing) existing.remove();
+    });
+  }
+  _updateExcludeBtn();
+  renderCompact();
+}
+
+function clearExcludedPlayers() {
+  _excludedPlayers.clear();
+  _saveExcludedPlayers();
+  _updateExcludeBtn();
+  renderCompact();
+  closeExcludeSheet();
+}
+
+function closeExcludeSheet() {
+  document.getElementById("exclude-sheet-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("exclude-sheet")?.classList.remove("live-sheet-open");
+}
+
 function onCmpFilter() {
   cmpFilter = document.getElementById("cmpSel").value;
   const dr = document.getElementById("cmpDr");
@@ -3770,7 +3839,8 @@ function runSpeedometerSweep() {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}`;
+  _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
     const _cmpLblMap = {
@@ -15365,6 +15435,10 @@ Object.assign(window, {
   renderHome,
   onCmpFilter,
   toggleCmpEqualized,
+  openExcludeSheet,
+  closeExcludeSheet,
+  toggleExcludePlayer,
+  clearExcludedPlayers,
   addMatches,
   saveNames,
   loadNames,
