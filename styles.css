@@ -17866,3 +17866,13 @@ body:not(.holo-mode) .ana-card {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* ── Summary page — stronger grid foreground ── */
+#pg-compact .page-body-scroll {
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.16) 0px, rgba(255,255,255,0.16) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.16) 0px, rgba(255,255,255,0.16) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 4px);
+  background-size: 4px 4px;
+}
