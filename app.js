@@ -4069,11 +4069,11 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
   const clickHandler = matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
   return `<div class="smr-wrap${extraClass}">
     <div class="smr-inner" ${clickHandler}>
-      <span class="smr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</span>
-      <span class="smr-team ${winA}">${escHtml(teamA)}</span>
-      <div class="smr-score"><span class="cmr-sv ${winA}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${winB}">${m.scoreB}</span></div>
-      <span class="smr-team smr-team-r ${winB}">${escHtml(teamB)}</span>
-      ${badge}
+      <span class="cmr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</span>
+      <span class="cmr-team ${winA}">${escHtml(teamA)}</span>
+      <span class="cmr-sc"><span class="cmr-sv ${winA}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${winB}">${m.scoreB}</span></span>
+      <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}</span>
+      <span class="cmr-meta">${badge}</span>
     </div>
     ${matchIdx !== null ? `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})">🗑<br><span>Delete</span></div>` : ""}
   </div>`;
