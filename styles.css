@@ -38,13 +38,7 @@ body {
 }
 body {
   position: relative;
-  background-color: #07070f;
-  background-image:
-    linear-gradient(rgba(var(--theme-rgb), 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(var(--theme-rgb), 0.04) 1px, transparent 1px),
-    linear-gradient(180deg, #07070f 0%, #09090f 45%, #0b0b12 100%);
-  background-size: 28px 28px, 28px 28px, 100% 100%;
-  background-attachment: fixed;
+  background: linear-gradient(180deg, #07070f 0%, #09090f 45%, #0b0b12 100%);
   color: var(--text);
   font-family: "DM Sans", sans-serif;
   display: flex;
@@ -7748,6 +7742,8 @@ body::before {
   z-index: -2;
 
   background:
+    linear-gradient(rgba(var(--theme-rgb), 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--theme-rgb), 0.08) 1px, transparent 1px),
     radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.1), transparent 30%),
     radial-gradient(
       circle at 80% 10%,
@@ -7760,6 +7756,7 @@ body::before {
       transparent 35%
     ),
     linear-gradient(180deg, #03050d 0%, #050811 35%, #060914 100%);
+  background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
 
   animation: ambientShift 14s ease-in-out infinite alternate;
 }
@@ -12789,6 +12786,8 @@ body {
 }
 body::before {
   background:
+    linear-gradient(rgba(var(--theme-rgb), 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--theme-rgb), 0.08) 1px, transparent 1px),
     radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.08), transparent 28%),
     radial-gradient(
       circle at 80% 10%,
@@ -12801,6 +12800,7 @@ body::before {
       transparent 32%
     ),
     linear-gradient(180deg, #020208 0%, #030309 50%, #04040f 100%) !important;
+  background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
 }
 
 /* 2. Nav & tabbar — darker, tighter borders */
