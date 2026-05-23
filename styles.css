@@ -7742,18 +7742,17 @@ body::before {
   z-index: -2;
 
   background:
+    repeating-linear-gradient(0deg,   rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
     radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.1), transparent 30%),
-    radial-gradient(
-      circle at 80% 10%,
-      rgba(var(--theme-rgb), 0.08),
-      transparent 28%
-    ),
-    radial-gradient(
-      circle at 50% 100%,
-      rgba(180, 90, 255, 0.08),
-      transparent 35%
-    ),
+    radial-gradient(circle at 80% 10%, rgba(var(--theme-rgb), 0.08), transparent 28%),
+    radial-gradient(circle at 50% 100%, rgba(180, 90, 255, 0.08), transparent 35%),
     linear-gradient(180deg, #03050d 0%, #050811 35%, #060914 100%);
+  background-size:
+    4px 4px, 4px 4px, 4px 4px, 4px 4px,
+    100% 100%, 100% 100%, 100% 100%, 100% 100%;
 
   animation: ambientShift 14s ease-in-out infinite alternate;
 }
@@ -12783,18 +12782,17 @@ body {
 }
 body::before {
   background:
+    repeating-linear-gradient(0deg,   rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
     radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.08), transparent 28%),
-    radial-gradient(
-      circle at 80% 10%,
-      rgba(var(--theme-rgb), 0.06),
-      transparent 26%
-    ),
-    radial-gradient(
-      circle at 50% 100%,
-      rgba(180, 90, 255, 0.06),
-      transparent 32%
-    ),
+    radial-gradient(circle at 80% 10%, rgba(var(--theme-rgb), 0.06), transparent 26%),
+    radial-gradient(circle at 50% 100%, rgba(180, 90, 255, 0.06), transparent 32%),
     linear-gradient(180deg, #020208 0%, #030309 50%, #04040f 100%) !important;
+  background-size:
+    4px 4px, 4px 4px, 4px 4px, 4px 4px,
+    100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
 }
 
 /* 2. Nav & tabbar — darker, tighter borders */
@@ -15132,6 +15130,16 @@ body.holo-mode {
   background-attachment: fixed !important;
   background-position: center top !important;
 }
+/* No carbon fibre in HOLO — it has its own grid aesthetic */
+body.holo-mode::before {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(0, 180, 255, 0.1), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(92, 208, 255, 0.08), transparent 28%),
+    radial-gradient(circle at 50% 100%, rgba(92, 208, 255, 0.04), transparent 35%),
+    linear-gradient(180deg, #04101e 0%, #04101e 100%);
+  background-size: 100% 100%;
+}
+
 /* Subtle scanline overlay */
 body.holo-mode::after {
   content: "";
