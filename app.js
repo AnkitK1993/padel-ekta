@@ -4562,7 +4562,7 @@ function buildHistorySummary(matches, filter = "all") {
         const arrow = p.delta > 0 ? "▲" : p.delta < 0 ? "▼" : "·";
         return `<div class="elo-delta-row hsum-cascade" style="animation-delay:${d()}ms">
         <span class="elo-delta-name">${p.name}</span>
-        <span style="display:flex;align-items:center;width:120px;flex-shrink:0;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums">
+        <span style="display:flex;align-items:center;width:200px;flex-shrink:0;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums">
           <span style="display:inline-block;width:36px;text-align:right;color:var(--muted)">${p.bElo}</span>
           <span class="elo-ba-sep" style="margin:0 4px;color:var(--muted)">→</span>
           <span style="display:inline-block;width:36px;text-align:left;color:var(--text)" data-from="${p.bElo}" data-to="${p.aElo}">${p.bElo}</span>
