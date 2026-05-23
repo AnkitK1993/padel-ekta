@@ -15615,6 +15615,13 @@ function _liveSyncGameDisplay() {
     st.textContent = lbl.text;
     st.className = "live-game-state" + (lbl.cls ? " " + lbl.cls : "");
   }
+  _refreshDetailIfOpen();
+}
+
+function _refreshDetailIfOpen() {
+  if (document.getElementById("live-session-detail")?.classList.contains("lsd-open")) {
+    _renderLiveSessionDetail();
+  }
 }
 
 function _liveHaptic(ms) {
@@ -15807,6 +15814,7 @@ function _updateLiveDisplay() {
       "live-score-giant" +
       (_liveScoreB > _liveScoreA ? " live-score-lead" : "");
   }
+  _refreshDetailIfOpen();
 }
 
 function liveAdjustScore(team, delta) {
@@ -15824,8 +15832,7 @@ function liveAdjustScore(team, delta) {
         break;
       }
     }
-    let cA = 0,
-      cB = 0;
+    let cA = 0, cB = 0;
     _livePoints.forEach((p) => {
       if (p.team === "a") cA++;
       else cB++;
@@ -15833,10 +15840,21 @@ function liveAdjustScore(team, delta) {
       p.b = cB;
     });
   }
+  // Reset current-game points whenever the set score changes
+  _liveGamePtsA = 0;
+  _liveGamePtsB = 0;
+  _liveAdv = null;
+  _liveSyncGameDisplay();
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveMomentum();
   _publishLiveMatch();
+  // Always prompt to save when win condition is met
+  if (actualDelta !== 0 && _liveCheckMatchWin()) {
+    _liveMatchEnded = true;
+    _liveHaptic([50, 80, 50]);
+    openMatchSaveSheet();
+  }
 }
 
 // 5A: Live Win Probability Meter
@@ -15974,13 +15992,16 @@ function endLiveMatch() {
   renderCompact();
   renderModernMatches();
   showToast(`Saved! ${eventMsg}`, "🎾");
-  // Reset scores for next match but keep players
+  _showLiveEventBanner({ type: "match_end", msg: `Match saved: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB });
+  // Reset everything for next match including player slots
   _liveScoreA = 0; _liveScoreB = 0;
   _liveGamePtsA = 0; _liveGamePtsB = 0;
   _liveAdv = null; _liveMatchEnded = false;
   _livePoints = []; _livePointUndoStack = [];
+  _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
+  ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
-  goTo("live");
+  // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -16720,6 +16741,8 @@ async function confirmSessionStart() {
     renderLiveMatchCard();
     _syncLiveSessionBar();
     _liveHaptic([20, 50, 20]);
+    _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
+    _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
     return;
   }
   try {
@@ -16746,6 +16769,8 @@ async function endLiveSession() {
     renderLiveMatchCard();
     _syncLiveSessionBar();
     _liveHaptic([30, 60, 30]);
+    _notifyLiveEvent("session_end", "Session ended");
+    _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
     return;
   }
   const now = new Date().toISOString();
@@ -17121,20 +17146,17 @@ function _renderLiveSessionDetail() {
   }
   const today = todayISO();
   const todayMatches = allMatches.filter(m => m.date === today);
-  const stats = {};
-  const initStat = name => { if (!stats[name]) stats[name] = { w: 0, l: 0 }; };
-  todayMatches.forEach(m => {
-    [...m.teamA, ...m.teamB].forEach(initStat);
-    const aWon = m.scoreA > m.scoreB;
-    (aWon ? m.teamA : m.teamB).forEach(p => { stats[p].w++; });
-    (aWon ? m.teamB : m.teamA).forEach(p => { stats[p].l++; });
-  });
   const sessionPlayers = d.sessionPlayers || [];
-  const leaderboard = sessionPlayers
-    .map(p => ({ name: p, ...(stats[p] || { w: 0, l: 0 }) }))
-    .sort((a, b) => (b.w - b.l) - (a.w - a.l) || b.w - a.w);
+  const allStats = computeStats(todayMatches, computeElo(todayMatches));
+  const leaderboard = allStats
+    .filter(p => sessionPlayers.includes(p.name))
+    .sort((a, b) => b.sr - a.sr || b.winPct - a.winPct || b.mw - a.mw);
 
-  const cm = d.currentMatch;
+  // Use live local vars if we're actively scoring; fall back to Firestore snapshot for viewers
+  const { a1, a2, b1, b2 } = _liveSlots;
+  const cm = (a1 && a2 && b1 && b2)
+    ? { teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, gamePtsA: _liveGamePtsA, gamePtsB: _liveGamePtsB, gameAdv: _liveAdv, mode: _liveGameMode }
+    : d?.currentMatch;
   let liveMatchHtml = "";
   if (cm?.teamA?.length && cm?.teamB?.length) {
     const aWin = cm.scoreA > cm.scoreB;
@@ -17168,12 +17190,22 @@ function _renderLiveSessionDetail() {
 
   const lbHtml = leaderboard.length ? `<div class="lsd-section">
     <div class="lsd-section-label">TODAY'S LEADERBOARD</div>
-    ${leaderboard.map((p, i) => `<div class="lsd-lb-row">
-      <span class="lsd-lb-rank">${i + 1}</span>
-      <span class="lsd-lb-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</span>
-      <span class="lsd-lb-name">${escHtml(p.name.split(" ")[0])}</span>
-      <span class="lsd-lb-record">${p.w}W · ${p.l}L</span>
-    </div>`).join("")}
+    ${leaderboard.map((p, i) => {
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `<span style="font-size:11px;font-weight:700;color:var(--muted)">${i+1}</span>`;
+      const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
+      const photo = photoMap[p.name];
+      const av = photo
+        ? `<img src="${photo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<span class="lsd-lb-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</span>`;
+      return `<div class="lsd-lb-row">
+        <span class="lsd-lb-rank" style="min-width:22px;text-align:center">${medal}</span>
+        ${av}
+        <span class="lsd-lb-name" style="flex:1">${escHtml(p.name.split(" ")[0])}</span>
+        <span class="rec-cell ${mc}" style="font-size:12px;font-weight:700">${p.mw}–${p.ml}</span>
+        <span style="font-size:11px;color:var(--muted);min-width:38px;text-align:right">${p.winPct.toFixed(0)}%</span>
+        <span style="font-size:11px;color:var(--accent);min-width:36px;text-align:right">${p.sr.toFixed(1)}</span>
+      </div>`;
+    }).join("")}
   </div>` : "";
 
   const histHtml = todayMatches.length ? `<div class="lsd-section">
