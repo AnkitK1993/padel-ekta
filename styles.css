@@ -13047,8 +13047,10 @@ select:focus,
 .elo-ba-wrap {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  margin: 0 6px;
+  width: 108px;
+  flex-shrink: 0;
 }
 .elo-ba-num {
   font-size: 10px;
@@ -13058,7 +13060,7 @@ select:focus,
   font-variant-numeric: tabular-nums;
   display: inline-block;
   width: 34px;
-  text-align: right;
+  text-align: center;
 }
 .elo-ba-after,
 .elo-ba-a {
