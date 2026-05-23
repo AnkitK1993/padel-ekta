@@ -17836,19 +17836,27 @@ body.midnight-oled-mode #themeBtn {
   letter-spacing: 0.04em;
 }
 
-/* ── Carbon fibre texture visible behind cards (all themes except HOLO HUD) ── */
+/* ── Near-opaque cards with subtle embedded grid (all themes except HOLO HUD) ── */
 body:not(.holo-mode) .pc {
-  background: linear-gradient(
-    135deg,
-    rgba(10, 10, 20, 0.40) 0%,
-    rgba(15, 13, 26, 0.36) 100%
-  ) !important;
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    linear-gradient(135deg, rgba(5,5,12,0.96) 0%, rgba(8,6,16,0.95) 100%) !important;
+  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 body:not(.holo-mode) .match-card {
-  background: rgba(10, 10, 18, 0.32) !important;
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
+  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -17858,54 +17866,11 @@ body:not(.holo-mode) .match-card > .match-card-inner {
 }
 
 body:not(.holo-mode) .ana-card {
-  background: linear-gradient(
-    180deg,
-    rgba(10, 10, 20, 0.38),
-    rgba(8, 8, 16, 0.34)
-  ) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* ── DETAILED + SUMMARY: near-opaque cards with embedded grid ── */
-#pg-home .pc,
-#pg-compact .pc {
   background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    linear-gradient(135deg, rgba(5,5,12,0.96) 0%, rgba(8,6,16,0.95) 100%) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-#pg-home .match-card,
-#pg-compact .match-card {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
-  background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-#pg-home .match-card > .match-card-inner,
-#pg-compact .match-card > .match-card-inner {
-  background: transparent !important;
-}
-
-#pg-home .ana-card,
-#pg-compact .ana-card {
-  background-image:
-    repeating-linear-gradient(0deg,   rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg,  rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(45deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(0deg,   rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg,  rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px),
     linear-gradient(180deg, rgba(5,5,12,0.96), rgba(8,6,16,0.95)) !important;
   background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px, 100% 100% !important;
   backdrop-filter: none !important;
