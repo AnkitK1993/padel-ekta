@@ -9935,6 +9935,14 @@ select.cmp-sel option {
   color: var(--theme);
 }
 
+/* ── Summary nav action group ──────────────── */
+.summary-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* ── Exclude badge + clear button ──────────────── */
 .ss-exc-badge {
   display: inline-flex;

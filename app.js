@@ -2708,7 +2708,8 @@ function getPairKey(team) {
   return [...team].map(normPlayer).sort().join(" & ");
 }
 
-function getPairStats(matches = allMatches) {
+function getPairStats(matches) {
+  if (matches === undefined) matches = activeMatches();
   const pairs = {};
   matches.forEach((m) => {
     const aWon = Number(m.scoreA) > Number(m.scoreB);
@@ -2774,7 +2775,8 @@ function playersOpposed(m, a, b) {
   return (inA1 && inB2) || (inB1 && inA2);
 }
 
-function getHeadToHeadStats(a, b, matches = allMatches) {
+function getHeadToHeadStats(a, b, matches) {
+  if (matches === undefined) matches = activeMatches();
   const rows = matches.filter((m) => playersOpposed(m, a, b));
   let aWins = 0,
     bWins = 0,
@@ -3381,9 +3383,10 @@ function openExcludeSheet() {
   const sheet = document.getElementById("exclude-sheet");
   const list = document.getElementById("exclude-sheet-list");
   if (!overlay || !sheet || !list) return;
+  const guestNames = new Set(Object.values(players).filter(p => p.isGuest).map(p => p.name));
   const names = new Set();
-  allMatches.forEach(m => [...(m.teamA || []), ...(m.teamB || [])].forEach(p => names.add(nameMap[p] || p)));
-  Object.values(players).forEach(p => names.add(nameMap[p.name] || p.name));
+  allMatches.forEach(m => [...(m.teamA || []), ...(m.teamB || [])].forEach(p => { const n = nameMap[p] || p; if (!guestNames.has(n)) names.add(n); }));
+  Object.values(players).forEach(p => { if (!p.isGuest) names.add(nameMap[p.name] || p.name); });
   const sorted = [...names].filter(n => n).sort((a, b) => a.localeCompare(b));
   list.innerHTML = sorted.map(p => {
     const on = _excludedPlayers.has(p);
@@ -4906,7 +4909,7 @@ function renderModernMatches() {
   }
   let summary = "";
   if (h2hFilterA && h2hFilterB) {
-    const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, allMatches);
+    const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, activeMatches());
     const total = h2h.aWins + h2h.bWins || 1;
     const aWinPct = Math.round((h2h.aWins / total) * 100);
     const bWinPct = 100 - aWinPct;
@@ -4923,7 +4926,7 @@ function renderModernMatches() {
           ? "var(--red)"
           : "var(--text)";
     const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
-    const h2hEloHist = computeEloHistory(allMatches);
+    const h2hEloHist = computeEloHistory(activeMatches());
     const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) =>
       pt.opponent.split(" & ").includes(h2hFilterB),
     );
@@ -6233,7 +6236,7 @@ function openPlayerDetail(name) {
   const s = detail.stats;
 
   // ── FORM ENGINE ──────────────────────────────────────────────
-  const form = computePlayerForm(name, allMatches);
+  const form = computePlayerForm(name, activeMatches());
   const formWidgetHtml = form
     ? `
     <div class="ana-card form-engine-card">
@@ -6254,7 +6257,7 @@ function openPlayerDetail(name) {
     : "";
 
   // ── ARCHETYPE ────────────────────────────────────────────────
-  const archetype = computeArchetype(name, allMatches);
+  const archetype = computeArchetype(name, activeMatches());
   const archetypeHtml = archetype
     ? `
     <div class="ana-card" style="display:flex;align-items:center;gap:12px;padding:12px 14px">
@@ -6419,7 +6422,7 @@ function openPlayerDetail(name) {
   })();
 
   // Achievements with progress bars
-  const achievements = computeAchievements(name, allMatches);
+  const achievements = computeAchievements(name, activeMatches());
   const achievementsHtml = achievements.length
     ? (() => {
         const unlocked = achievements.filter((a) => a.unlocked);
@@ -6711,7 +6714,7 @@ function openPlayerDetail(name) {
       .findIndex(([n]) => n === name) + 1;
 
   // Badges
-  const badges = computeBadges(name, s, eloMap, allMatches);
+  const badges = computeBadges(name, s, eloMap, activeMatches());
   const badgesHtml = badges.length
     ? `<div class="ana-card"><span class="badge">Award Badges</span><div class="badge-chips" style="margin-top:10px">${badges.map((b) => `<div class="badge-chip${b.tier ? " badge-tier-" + b.tier : ""}" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span>${b.tier ? `<span class="badge-tier-lbl">${b.tier.toUpperCase()}</span>` : ""}</div>`).join("")}</div></div>`
     : "";
@@ -7057,7 +7060,7 @@ function openPlayerDetail(name) {
       if (won7) byDate2[m.date].w++;
     });
     const bestDay2 = Object.entries(byDate2).sort((a, b) => b[1].w - a[1].w || b[1].p - a[1].p)[0];
-    const peakEloVal = (computeEloPeaks(allMatches))[name] || playerElo;
+    const peakEloVal = (computeEloPeaks(activeMatches()))[name] || playerElo;
     return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
   })();
 
@@ -7310,7 +7313,7 @@ function openPlayerDetail(name) {
 function openH2HDetail(a, b) {
   const existing = document.getElementById("h2h-detail-modal");
   if (existing) existing.remove();
-  const h2h = getHeadToHeadStats(a, b, allMatches);
+  const h2h = getHeadToHeadStats(a, b, activeMatches());
   const total = h2h.aWins + h2h.bWins || 1;
   const aWinPct = Math.round((h2h.aWins / total) * 100);
   const bWinPct = 100 - aWinPct;
@@ -7538,7 +7541,7 @@ function openH2HDetail(a, b) {
           </div>
 
           ${(() => {
-            const rs = computeH2HStreak(a, b, allMatches);
+            const rs = computeH2HStreak(a, b, activeMatches());
             if (!rs.leader || rs.streak < 2) return "";
             const rCol = rs.leader === a ? col1 : col2;
             return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${rs.leader}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
@@ -7557,7 +7560,7 @@ function openH2HDetail(a, b) {
 // 4C: Rivalry Screen — full-screen overlay from H2H matrix cell tap
 function openRivalryScreen(a, b) {
   document.getElementById("rivalry-screen-overlay")?.remove();
-  const h2h = getHeadToHeadStats(a, b, allMatches);
+  const h2h = getHeadToHeadStats(a, b, activeMatches());
   const total = h2h.aWins + h2h.bWins || 1;
   const colA = playerColor(a);
   const colB = playerColor(b);
@@ -7627,7 +7630,7 @@ function openRivalryScreen(a, b) {
     .join("");
 
   // Current rivalry streak
-  const rs = computeH2HStreak(a, b, allMatches);
+  const rs = computeH2HStreak(a, b, activeMatches());
   const rsHtml =
     rs.leader && rs.streak >= 2
       ? `<div class="rivalry-streak-badge" style="color:${rs.leader === a ? colA : colB}">🔥 ${rs.leader.split(" ")[0]} on ${rs.streak}-match streak</div>`
@@ -9422,7 +9425,7 @@ function renderH2HDeepDive() {
       </div>
 
       ${(() => {
-        const rs = computeH2HStreak(p1, p2, allMatches);
+        const rs = computeH2HStreak(p1, p2, activeMatches());
         if (!rs.leader || rs.streak < 2) return "";
         const rCol = rs.leader === p1 ? col1 : col2;
         return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${rs.leader}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
@@ -11407,7 +11410,7 @@ function runMatchSimulator() {
 function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || _eloTLFilter || "all";
   _eloTLFilter = filterKey;
-  const history = computeEloHistory(allMatches);
+  const history = computeEloHistory(activeMatches());
   const eloNow = computeElo(activeMatches());
   const players = Object.keys(history)
     .filter((p) => (history[p] || []).length >= 2)
@@ -11636,7 +11639,7 @@ function openEloTLOverlaySheet() {
   if (el) el.textContent = "COMPARE WITH";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const history = computeEloHistory(allMatches);
+  const history = computeEloHistory(activeMatches());
   const players = Object.keys(history)
     .filter((p) => p !== _eloTLPlayer)
     .sort((a, b) => a.localeCompare(b));
@@ -11982,7 +11985,7 @@ function recomputeWhatIfElo() {
 // ══════════════════════════════════════════════════════════════
 
 function _buildPowerRankingsHtml() {
-  const rankings = computePowerRankings(allMatches);
+  const rankings = computePowerRankings(activeMatches());
   if (!rankings.length)
     return '<div class="sub" style="padding:8px">Need more data.</div>';
   const prevRanks = getPrevWeekRankMap();
@@ -12030,7 +12033,7 @@ function _buildPowerRankingsHtml() {
 }
 
 function _buildChemistryLeaderboardHtml() {
-  const scores = computeChemistryScores(allMatches);
+  const scores = computeChemistryScores(activeMatches());
   if (!scores.length)
     return '<div class="sub" style="padding:8px">Need at least 3 matches per pair.</div>';
   const worst = scores.length > 5 ? scores.slice(-5).reverse() : [];
@@ -12232,12 +12235,12 @@ function runMatchPrediction() {
     colB = playerColor(teamB[0]);
 
   // Chemistry tiers
-  const chemA = computeChemistryScores(allMatches).find((c) =>
+  const chemA = computeChemistryScores(activeMatches()).find((c) =>
     c.players.every((p) => teamA.includes(p)) || teamA.length === 1
       ? true
       : false,
   );
-  const chemB = computeChemistryScores(allMatches).find((c) =>
+  const chemB = computeChemistryScores(activeMatches()).find((c) =>
     c.players.every((p) => teamB.includes(p)) || teamB.length === 1
       ? true
       : false,
@@ -12310,7 +12313,7 @@ function runMatchPrediction() {
 }
 
 function _buildStoryFeedHtml() {
-  const stories = computeMatchStories(allMatches);
+  const stories = computeMatchStories(activeMatches());
   if (!stories.length)
     return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
   const cards = stories
@@ -12357,7 +12360,7 @@ function _storyFilter(filter, btn) {
 }
 
 function _buildSeasonModeHtml() {
-  const seasons = computeSeasons(allMatches);
+  const seasons = computeSeasons(activeMatches());
   if (!seasons.length)
     return '<div class="sub" style="padding:8px">No seasons found.</div>';
   const cards = seasons
@@ -14081,13 +14084,13 @@ function renderAnalyticsPage() {
 
   // ── PAIR CHEMISTRY MATRIX ──────────────────────────────
   const pairMatrixPlayers = [
-    ...new Set(getPairStats(allMatches).flatMap((p) => p.players)),
+    ...new Set(getPairStats(activeMatches()).flatMap((p) => p.players)),
   ].sort();
   const pairMatrixHtml = (() => {
     if (pairMatrixPlayers.length < 2)
       return '<div class="sub" style="padding:8px">Need more pair data.</div>';
     const pairLookup = {};
-    getPairStats(allMatches).forEach((p) => {
+    getPairStats(activeMatches()).forEach((p) => {
       pairLookup[p.key] = p;
     });
     const colHeaders = pairMatrixPlayers
