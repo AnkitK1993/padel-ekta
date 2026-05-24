@@ -17065,6 +17065,7 @@ async function confirmEndSession() {
   _liveHaptic([30, 60, 30]);
   _notifyLiveEvent("session_end", "Session ended");
   _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
+  switchMainTab("compact");
 }
 
 // ── SESSION ──────────────────────────────────────────────────
