@@ -15383,6 +15383,7 @@ Object.assign(window, {
   sessionSetupSelectNone,
   confirmSessionStart,
   endLiveSession,
+  syncSession,
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
