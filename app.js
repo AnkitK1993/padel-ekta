@@ -3561,8 +3561,32 @@ function renderHome() {
     return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
+  const sessionCardHtml = (() => {
+    if (!_liveSessionData?.sessionActive) return "";
+    const players = (_liveSessionData.sessionPlayers || []).join(", ") || "—";
+    const matchCount = _sessionMatchHistory.length;
+    const startedAt = _liveSessionData.sessionStartedAt;
+    let durationStr = "";
+    if (startedAt) {
+      const mins = Math.floor((Date.now() - startedAt) / 60000);
+      durationStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+    }
+    return `<div class="session-active-card" onclick="switchMainTab('live')">
+      <div class="sac-pulse"></div>
+      <div class="sac-body">
+        <div class="sac-title"><span class="sac-dot"></span>SESSION ACTIVE</div>
+        <div class="sac-players">${escHtml(players)}</div>
+        <div class="sac-meta">
+          <span>${matchCount} match${matchCount !== 1 ? "es" : ""} played</span>
+          ${durationStr ? `<span>${durationStr}</span>` : ""}
+          <span class="sac-go">Go to Session →</span>
+        </div>
+      </div>
+    </div>`;
+  })();
+
   if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
-    board.innerHTML = "";
+    board.innerHTML = sessionCardHtml;
     const gen = ++_renderHomeGen;
     cardHtmls.forEach((html, i) => {
       setTimeout(() => {
@@ -3583,7 +3607,7 @@ function renderHome() {
       }, i * 100);
     });
   } else {
-    board.innerHTML = cardHtmls.join("");
+    board.innerHTML = sessionCardHtml + cardHtmls.join("");
     runSpeedometerSweep();
     setTimeout(animateGauges, 50);
     board
@@ -15974,7 +15998,7 @@ function _renderLiveSlot(slot) {
     if (eloEl) {
       const elo = computeElo(activeMatches())[p] || 1000;
       eloEl.textContent = `ELO ${elo}`;
-      eloEl.style.display = "";
+      eloEl.style.display = "block";
     }
   } else {
     nameEl.textContent = "TAP TO SELECT";
