@@ -13264,6 +13264,25 @@ function renderAnalyticsPage() {
     })
     .join("");
 
+  // ── MOST IMPROVED ──────────────────────────────────────
+  const mostImproved = (() => {
+    const pNames = Object.keys(stats).filter((p) => stats[p].matches >= 5);
+    let best = null, bestDiff = -Infinity;
+    for (const p of pNames) {
+      const overall = stats[p].wins / stats[p].matches;
+      const pMatches = sortedM.filter((m) => [...m.teamA, ...m.teamB].includes(p));
+      const recent = pMatches.slice(-10);
+      if (recent.length < 3) continue;
+      const recWins = recent.filter((m) =>
+        (m.scoreA > m.scoreB ? m.teamA : m.teamB).includes(p)
+      ).length;
+      const recentRate = recWins / recent.length;
+      const diff = recentRate - overall;
+      if (diff > bestDiff) { bestDiff = diff; best = p; }
+    }
+    return best ? { name: best, diff: Math.round(bestDiff * 100) } : null;
+  })();
+
   // ── AWARDS ─────────────────────────────────────────────
   const awards = [
     {
@@ -13285,10 +13304,12 @@ function renderAnalyticsPage() {
       s: `${maxLosses} shutout losses`,
     },
     {
-      i: "👑",
-      t: "Dominator",
-      n: destroyer?.name,
-      s: `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`,
+      i: "📈",
+      t: "Most Improved",
+      n: mostImproved?.name || "—",
+      s: mostImproved
+        ? `+${mostImproved.diff}% recent vs overall`
+        : "Needs 5+ matches",
     },
     {
       i: "🎲",
