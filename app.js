@@ -17095,12 +17095,12 @@ function _syncLiveSessionBar() {
 
 function openSessionSetup() {
   const players = getAllPlayerNamesFromMatches();
-  _sessionSetupSelected = new Set(players);
+  _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
   list.innerHTML = players.map(p => `
     <label class="tb-player-chip">
-      <input type="checkbox" checked onchange="window._sspToggle(${jsArg(p)}, this.checked)">
+      <input type="checkbox" onchange="window._sspToggle(${jsArg(p)}, this.checked)">
       <span class="tb-chip-name">${escHtml(p)}</span>
     </label>`).join("");
   document.getElementById("session-setup-overlay")?.classList.add("live-sheet-open");
