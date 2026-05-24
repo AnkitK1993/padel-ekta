@@ -6856,29 +6856,30 @@ function openPlayerDetail(name) {
     if (!last8.length) return "";
     const runElo2 = {};
     const eloAfterEach = {};
-    pdSortedAll.forEach((m) => {
+    pdSortedAll14.forEach((m) => {
       const allP2 = [...(m.teamA || []), ...(m.teamB || [])];
       allP2.forEach((p) => { if (!(p in runElo2)) runElo2[p] = 1000; });
       const aWon3 = m.scoreA > m.scoreB;
-      const avgA3 = m.teamA.reduce((s, p) => s + runElo2[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB3 = m.teamB.reduce((s, p) => s + runElo2[p], 0) / Math.max(m.teamB.length, 1);
+      const tA3 = m.teamA || [], tB3 = m.teamB || [];
+      const avgA3 = tA3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tA3.length, 1);
+      const avgB3 = tB3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tB3.length, 1);
       const expA3 = 1 / (1 + Math.pow(10, (avgB3 - avgA3) / 400));
       const dA3 = Math.round(32 * ((aWon3 ? 1 : 0) - expA3));
       const dB3 = Math.round(32 * ((aWon3 ? 0 : 1) - (1 - expA3)));
-      m.teamA.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dA3; });
-      m.teamB.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dB3; });
+      tA3.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dA3; });
+      tB3.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dB3; });
       if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
         const inA4 = (m.teamA || []).includes(name);
-        eloAfterEach[pdSortedAll.indexOf(m)] = { delta: inA4 ? dA3 : dB3 };
+        eloAfterEach[pdSortedAll14.indexOf(m)] = { delta: inA4 ? dA3 : dB3 };
       }
     });
     return last8.map((m) => {
       const inA4 = (m.teamA || []).includes(name);
       const won4 = inA4 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const partner = (inA4 ? m.teamA : m.teamB).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(" & ") || "—";
-      const opp = (inA4 ? m.teamB : m.teamA).map((p) => p.split(" ")[0]).join(" & ");
+      const partner = (inA4 ? (m.teamA || []) : (m.teamB || [])).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(" & ") || "—";
+      const opp = (inA4 ? (m.teamB || []) : (m.teamA || [])).map((p) => p.split(" ")[0]).join(" & ");
       const score = inA4 ? `${m.scoreA}–${m.scoreB}` : `${m.scoreB}–${m.scoreA}`;
-      const eld = eloAfterEach[pdSortedAll.indexOf(m)];
+      const eld = eloAfterEach[pdSortedAll14.indexOf(m)];
       const eloDeltaStr = eld ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}` : "";
       const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
       const scoreColor = won4 ? "var(--green)" : "var(--red)";
