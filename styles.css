@@ -3319,13 +3319,14 @@ body.no-cascade .analytics-card {
 
 #absence-banner {
   overflow: hidden;
-  max-height: 300px;
-  opacity: 1;
-  transition: opacity 0.35s ease, max-height 0.45s ease 0.25s;
+}
+@keyframes mia-collapse {
+  0%   { opacity: 1; max-height: 300px; }
+  42%  { opacity: 0; max-height: 300px; }
+  100% { opacity: 0; max-height: 0;     }
 }
 #absence-banner.mia-fade-out {
-  opacity: 0;
-  max-height: 0;
+  animation: mia-collapse 0.7s ease forwards;
 }
 .absence-banner {
   flex-shrink: 0;

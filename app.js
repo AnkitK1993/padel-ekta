@@ -3288,6 +3288,7 @@ function renderAbsenceBanner() {
   // Reset any in-progress fade so fresh content starts visible
   if (_miaFadeTimer) { clearTimeout(_miaFadeTimer); _miaFadeTimer = null; }
   banner.classList.remove("mia-fade-out");
+  void banner.offsetHeight; // force reflow so animation resets if it was mid-play
 
   if (!allMatches.length) {
     banner.innerHTML = "";
