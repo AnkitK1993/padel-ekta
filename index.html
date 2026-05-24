@@ -223,7 +223,6 @@
           <input type="date" id="drTo" placeholder="To" />
           <button class="btn-go" onclick="applyRange('home')">Go</button>
         </div>
-        <div id="absence-banner"></div>
         <div
           id="session-streak-badge"
           style="display: none; padding: 0 11px 6px"
@@ -847,20 +846,6 @@ Puneet - Pun, PK
                 <span class="mng-card-drag-handle">⠿</span>
                 <span class="mng-card-icon">⚙️</span>
                 <span class="mng-card-title">Settings</span>
-              </div>
-              <div class="mng-setting-row">
-                <span class="mng-setting-label"
-                  >Absence alert after (days)</span
-                >
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  id="absenceThresholdInput"
-                  class="mng-setting-input"
-                  oninput="setAbsenceThreshold(this.value)"
-                  value="7"
-                />
               </div>
               <div class="mng-setting-row" style="margin-top: 10px">
                 <span class="mng-setting-label"

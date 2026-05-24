@@ -1294,8 +1294,6 @@ onAuthStateChanged(auth, (user) => {
 });
 
 function updateAdminUI(user) {
-  const absInp = document.getElementById("absenceThresholdInput");
-  if (absInp) absInp.value = localStorage.getItem("absence_threshold") || "7";
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle) scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
   const cascadeToggle = document.getElementById("cascadeAnimToggle");
@@ -1349,7 +1347,6 @@ function goTo(id) {
   if (id === "home") {
     const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
     if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
-    else renderAbsenceBanner(); // always re-trigger banner animation on every visit
   }
   if (id === "compact") {
     const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
@@ -3023,13 +3020,6 @@ function renderNamesTable() {
     .join("");
 }
 
-function setAbsenceThreshold(val) {
-  const n = parseInt(val, 10);
-  if (isNaN(n) || n < 1) return;
-  localStorage.setItem("absence_threshold", n);
-  renderHome();
-}
-
 function setScreenshotChoiceSetting(val) {
   localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
 }
@@ -3278,88 +3268,6 @@ function onCmpFilter() {
 
 // home filter handled by onHomeFilterChange dropdown
 
-// ── ABSENCE TRACKER ────────────────────────────────────────
-let _miaFadeTimer = null;
-
-function renderAbsenceBanner() {
-  const banner = document.getElementById("absence-banner");
-  if (!banner) return;
-
-  // Reset any in-progress fade so fresh content starts visible
-  if (_miaFadeTimer) { clearTimeout(_miaFadeTimer); _miaFadeTimer = null; }
-  banner.classList.remove("mia-fade-out");
-  void banner.offsetHeight; // force reflow so animation resets if it was mid-play
-
-  if (!allMatches.length) {
-    banner.innerHTML = "";
-    return;
-  }
-
-  const today = new Date();
-
-  // Find each player's last match date
-  const lastSeen = {};
-  activeMatches().forEach((m) => {
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
-    });
-  });
-
-  // Only flag players who have played at least 3 matches (regulars)
-  const matchCounts = {};
-  activeMatches().forEach((m) => {
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      matchCounts[p] = (matchCounts[p] || 0) + 1;
-    });
-  });
-
-  const savedThreshold = parseInt(
-    localStorage.getItem("absence_threshold") || "7",
-    10,
-  );
-  const THRESHOLD = Number.isFinite(savedThreshold) ? savedThreshold : 7;
-  const absent = Object.entries(lastSeen)
-    .filter(([p]) => matchCounts[p] >= 3)
-    .map(([p, lastDate]) => {
-      const last = new Date(lastDate + "T00:00:00");
-      const days = Math.floor((today - last) / (1000 * 60 * 60 * 24));
-      return { name: p, days, lastDate };
-    })
-    .filter((a) => a.days >= THRESHOLD)
-    .sort((a, b) => b.days - a.days);
-
-  if (!absent.length) {
-    banner.innerHTML = "";
-    return;
-  }
-
-  const chips = absent
-    .map((a) => {
-      const weeks = Math.floor(a.days / 7);
-      const label = weeks >= 2 ? `${weeks}w` : `${a.days}d`;
-      return `<div class="absence-chip" title="Last played ${escHtml(a.lastDate)}">
-                <span class="absence-name">${escHtml(a.name)}</span>
-                <span class="absence-days">${label} away</span>
-              </div>`;
-    })
-    .join("");
-
-  banner.innerHTML = `<div class="absence-banner">
-              <div class="absence-header">
-                <span class="absence-title">👻 Missing in Action</span>
-                <span class="absence-sub">${absent.length} player${absent.length > 1 ? "s" : ""} MIA ${THRESHOLD}+ days</span>
-              </div>
-              <div class="absence-chips">${chips}</div>
-            </div>`;
-
-  // Fade out after 2 seconds, then collapse space so cards slide up
-  _miaFadeTimer = setTimeout(() => {
-    const b = document.getElementById("absence-banner");
-    if (b) b.classList.add("mia-fade-out");
-    _miaFadeTimer = null;
-  }, 2000);
-}
-
 // ── FORM SPARKLINE ─────────────────────────────────────────
 function getFormSparkline(playerName, width = 80, height = 28) {
   // Get all matches involving player, sorted by date
@@ -3517,7 +3425,6 @@ let _renderHomeGen = 0;
 function renderHome() {
   _homeRenderedVersion = _dataVersion;
   _homeRenderedFilter = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
-  renderAbsenceBanner();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   const homeEloMapFull = computeElo(filtered);
   const stats = computeStats(filtered, homeEloMapFull);
@@ -14715,46 +14622,39 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">How often each exact score occurred (both perspectives). Darker = more frequent.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
   })();
 
-  // 2: Longest Absence / Active Streak
-  const _absenceStreakHtml = (() => {
-    const allDates = Object.keys(dateCounts).sort();
-    if (!allDates.length) return '<div class="sub" style="padding:8px">No data.</div>';
-    const lastDate = allDates[allDates.length - 1];
-    const todayStr2 = todayISO();
-    const daysSinceLast = Math.round((new Date(todayStr2 + "T00:00:00") - new Date(lastDate + "T00:00:00")) / 86400000);
-    // Per-player: last played date + active session streak
-    const playerLastDate = {}, playerSessions = {};
-    allDates.forEach((d) => {
-      sortedM.filter((m) => m.date === d).forEach((m) => {
-        [...m.teamA, ...m.teamB].forEach((p) => {
-          playerLastDate[p] = d;
-          if (!playerSessions[p]) playerSessions[p] = [];
-          if (!playerSessions[p].includes(d)) playerSessions[p].push(d);
-        });
+  // ── ABSENCE TRACKER ────────────────────────────────────────
+  const _absenceTrackerHtml = (() => {
+    if (!sortedM.length) return '<div class="sub" style="padding:12px">No data.</div>';
+    const todayStr3 = todayISO();
+    const todayD = new Date(todayStr3 + "T00:00:00");
+    const firstDate3 = {}, lastDate3 = {}, matchCount3 = {};
+    sortedM.forEach((m) => {
+      [...m.teamA, ...m.teamB].forEach((p) => {
+        if (!firstDate3[p] || m.date < firstDate3[p]) firstDate3[p] = m.date;
+        if (!lastDate3[p] || m.date > lastDate3[p]) lastDate3[p] = m.date;
+        matchCount3[p] = (matchCount3[p] || 0) + 1;
       });
     });
-    // Longest absence per player
-    const absRows = Object.entries(playerLastDate)
-      .map(([p, last]) => {
-        const days2 = Math.round((new Date(todayStr2 + "T00:00:00") - new Date(last + "T00:00:00")) / 86400000);
-        return { name: p, last, days: days2 };
+    const rows3 = Object.keys(lastDate3)
+      .map(p => {
+        const days3 = Math.round((todayD - new Date(lastDate3[p] + "T00:00:00")) / 86400000);
+        return { name: p, first: firstDate3[p], last: lastDate3[p], days: days3, matches: matchCount3[p] };
       })
       .sort((a, b) => b.days - a.days);
-    // Active consecutive session streak (sessions without a gap > 14 days)
-    const activeRows = Object.entries(playerSessions).map(([p, dates]) => {
-      const sorted2 = [...dates].sort();
-      let streak2 = 1;
-      for (let i = sorted2.length - 1; i > 0; i--) {
-        const gap = Math.round((new Date(sorted2[i] + "T00:00:00") - new Date(sorted2[i - 1] + "T00:00:00")) / 86400000);
-        if (gap <= 21) streak2++;
-        else break;
-      }
-      return { name: p, streak: streak2, sessions: sorted2.length };
-    }).sort((a, b) => b.streak - a.streak);
-    const pg5 = "grid-template-columns:1fr 80px 80px";
-    return `<div class="ana-card" style="padding:10px 12px"><div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;color:var(--muted);margin-bottom:3px">Last session: <strong>${fmtDate(lastDate)}</strong> · ${daysSinceLast === 0 ? "Today" : daysSinceLast + "d ago"}</div></div><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">PLAYER ACTIVITY</div><div class="lrace-header" style="${pg5}"><span>Player</span><span>Last Played</span><span>Sessions</span></div>` +
-      absRows.map((r) => `<div class="lrace-row" style="${pg5}"><div class="lrace-name">${r.name}</div><div style="font-size:10px;text-align:right;color:${r.days===0?"var(--green)":r.days<=7?"var(--muted)":"var(--red)"}">${r.days === 0 ? "Today" : r.days + "d ago"}</div><div style="text-align:right;font-weight:700;font-size:10px">${playerSessions[r.name]?.length || 0}</div></div>`).join("") + `</div>`;
-  })();
+    const rowsHtml3 = rows3.map((r, i) => {
+      const col = r.days === 0 ? "var(--green)" : r.days <= 7 ? "var(--accent)" : r.days <= 30 ? "#ffb340" : "var(--red)";
+      const lbl = r.days === 0 ? "Today" : r.days === 1 ? "1 day" : r.days + " days";
+      return `<tr class="abt-row">
+        <td class="abt-rank">${i + 1}</td>
+        <td class="abt-name">${escHtml(r.name)}</td>
+        <td class="abt-date">${fmtDate(r.first)}</td>
+        <td class="abt-date">${fmtDate(r.last)}</td>
+        <td class="abt-days" style="color:${col}">${lbl}</td>
+        <td class="abt-matches">${r.matches}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="ana-card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="abt-table"><thead><tr><th>#</th><th>Player</th><th>First Played</th><th>Last Played</th><th>Days Since</th><th>Matches</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div></div>`;
+  })()
 
   // ── RENDER ─────────────────────────────────────────────
   const favKeys = getAnaFavs();
@@ -14987,7 +14887,7 @@ function renderAnalyticsPage() {
     { key: "dominance", cat: "players", title: "🦁 Dominance Index", body: _dominanceHtml },
     { key: "onesided", cat: "pairs", title: "⚔️ One-Sided Rivalries", body: _oneSidedHtml },
     { key: "scoreheatmap", cat: "activity", title: "🟦 Score Heatmap", body: _scoreHeatmapHtml },
-    { key: "absencestreak", cat: "activity", title: "📆 Player Activity & Absence", body: _absenceStreakHtml },
+    { key: "absencetracker", cat: "players", title: "👻 Absence Tracker", body: _absenceTrackerHtml },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
     {
       key: "powerrankings",
@@ -15290,7 +15190,6 @@ Object.assign(window, {
   sendBackupEmail,
   exportData,
   exportCSV,
-  setAbsenceThreshold,
   setScreenshotChoiceSetting,
   setCascadeAnimSetting,
   renderHome,
