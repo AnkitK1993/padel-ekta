@@ -1166,7 +1166,17 @@ function loadCloudData() {
     lastDataFingerprint = fp;
     _dataVersion++;
 
-    allMatches = matches;
+    // If a live session is buffering local matches, re-attach them after the cloud update
+    // so Firestore snapshots can't silently erase unsync'd session matches.
+    if (_sessionBuffering && _sessionPendingCount > 0) {
+      const cloudKeys = new Set(matches.map(_mkMatchKey));
+      const pending = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+      allMatches = pending.length
+        ? [...matches, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+        : matches;
+    } else {
+      allMatches = matches;
+    }
     players = pls;
     playerAliasMap = pam;
     nextPlayerId = npid || 1;
