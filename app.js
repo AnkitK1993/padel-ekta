@@ -1349,6 +1349,7 @@ function goTo(id) {
   if (id === "home") {
     const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
     if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
+    else renderAbsenceBanner(); // always re-trigger banner animation on every visit
   }
   if (id === "compact") {
     const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
