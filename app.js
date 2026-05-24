@@ -14362,32 +14362,9 @@ function renderAnalyticsPage() {
       </div>`;
       })
       .join("");
-    // Enhancement 18: per-player win rate by day
-    const playerWinsByDay = Array(7).fill(0);
-    const playerPlayedByDay = Array(7).fill(0);
-    sortedM.forEach((m) => {
-      if (!m.date) return;
-      const d = new Date(m.date + "T00:00:00").getDay();
-      const allP = [...(m.teamA || []), ...(m.teamB || [])];
-      const aWon18 = m.scoreA > m.scoreB;
-      allP.forEach((p) => {
-        playerPlayedByDay[d]++;
-        const inA = (m.teamA || []).includes(p);
-        if ((inA && aWon18) || (!inA && !aWon18)) playerWinsByDay[d]++;
-      });
-    });
-    const bestPlayDay = dayCounts.reduce((best, cnt, d) => {
-      if (!cnt) return best;
-      const wr = playerPlayedByDay[d] > 0 ? playerWinsByDay[d] / playerPlayedByDay[d] : 0;
-      return (best.d === undefined || wr > best.wr) ? { d, wr } : best;
-    }, {});
-    const bestDayRec = bestPlayDay.d !== undefined
-      ? `<div style="margin-top:10px;padding:8px;background:rgba(var(--theme-rgb),0.08);border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.2)"><span style="font-size:9px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</span><div style="font-size:14px;font-weight:900;color:var(--accent);margin-top:4px">${DAY_NAMES[bestPlayDay.d]} <span style="font-size:10px;font-weight:700;color:var(--green)">(${Math.round(bestPlayDay.wr * 100)}% win rate)</span></div></div>`
-      : "";
     return `<div class="ana-card" style="padding:12px">
       <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Most active day: <strong style="color:var(--accent)">${DAY_NAMES[topDay]}</strong> (${dayCounts[topDay]} matches)</div>
       <div class="dow-table">${rows}</div>
-      ${bestDayRec}
     </div>`;
   })();
 

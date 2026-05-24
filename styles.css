@@ -3590,13 +3590,7 @@ body.no-cascade .analytics-card {
   flex-shrink: 0;
 }
 
-/* Enhancement 19: pair matrix confidence indicator */
-.pvp-conf {
-  font-size: 6px;
-  opacity: 0.6;
-  margin-left: 1px;
-  vertical-align: super;
-}
+
 
 /* Enhancement 21: offline indicator */
 #offline-indicator {
