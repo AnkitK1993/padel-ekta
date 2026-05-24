@@ -540,15 +540,22 @@
           </div>
 
           <div class="hist-filter-row compact-row bottom-filter-row">
-            <!-- PAIR -->
+            <!-- PAIR autocomplete -->
             <div class="compact-filter-item compact-pair">
-              <button
-                class="filter-fab-btn"
-                id="hist-pair-btn"
-                onclick="openFilterSheet('pair')"
-              >
-                <span id="hist-pair-label">ALL PAIRS</span>
-              </button>
+              <div class="hist-pair-ac-wrap" id="hist-pair-ac-wrap">
+                <input
+                  type="text"
+                  id="hist-pair-ac-input"
+                  class="hist-pair-ac-input"
+                  placeholder="ALL PAIRS"
+                  oninput="histPairACInput(this.value)"
+                  onfocus="histPairACFocus()"
+                  onblur="histPairACBlur()"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <div id="hist-pair-ac-drop" class="hist-pair-ac-drop"></div>
+              </div>
             </div>
 
             <!-- H2H -->

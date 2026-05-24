@@ -5101,6 +5101,47 @@ function setHistMargin(val) {
   renderModernMatches();
 }
 
+// ── PAIR AUTOCOMPLETE ──────────────────────────────────────
+function _renderPairACDrop(query) {
+  const drop = document.getElementById("hist-pair-ac-drop");
+  if (!drop) return;
+  const pairs = getPairStats();
+  const q = (query || "").toLowerCase().trim();
+  const filtered = q ? pairs.filter((p) => p.key.toLowerCase().includes(q)) : pairs;
+  const items = (!q
+    ? [`<div class="pair-ac-item${!histPairFilter ? " sel" : ""}" onmousedown="histPairACSelect('')"><span>ALL PAIRS</span></div>`]
+    : []
+  ).concat(
+    filtered.map((p) => {
+      const cur = p.key === histPairFilter;
+      return `<div class="pair-ac-item${cur ? " sel" : ""}" onmousedown="histPairACSelect(${jsArg(p.key)})"><span>${escHtml(p.key)}</span><span class="pair-ac-rec">${p.wins}W–${p.losses}L</span></div>`;
+    })
+  );
+  drop.innerHTML = items.length ? items.join("") : `<div class="pair-ac-empty">No pairs found</div>`;
+  drop.style.display = "block";
+}
+function histPairACInput(val) { _renderPairACDrop(val); }
+function histPairACFocus() {
+  const input = document.getElementById("hist-pair-ac-input");
+  if (input) input.value = "";
+  _renderPairACDrop("");
+}
+function histPairACBlur() {
+  setTimeout(() => {
+    const drop = document.getElementById("hist-pair-ac-drop");
+    if (drop) drop.style.display = "none";
+    const input = document.getElementById("hist-pair-ac-input");
+    if (input) input.value = histPairFilter || "";
+  }, 180);
+}
+function histPairACSelect(key) {
+  setHistPairFilter(key);
+  const input = document.getElementById("hist-pair-ac-input");
+  if (input) input.value = key;
+  const drop = document.getElementById("hist-pair-ac-drop");
+  if (drop) drop.style.display = "none";
+}
+
 function setHistPairFilter(val) {
   histPairFilter = val;
   if (val) {
@@ -5119,18 +5160,16 @@ function setHistScorelineFilter(val) {
 
 function _updateFilterBtnDisplay() {
   const playerBtn = document.getElementById("hist-player-btn");
-  const pairBtn = document.getElementById("hist-pair-btn");
   if (playerBtn) {
     document.getElementById("hist-player-label").textContent = histPlayerFilter
       ? histPlayerFilter.toUpperCase()
       : "ALL PLAYERS";
     playerBtn.classList.toggle("filter-fab-active", !!histPlayerFilter);
   }
-  if (pairBtn) {
-    document.getElementById("hist-pair-label").textContent = histPairFilter
-      ? histPairFilter.toUpperCase()
-      : "ALL PAIRS";
-    pairBtn.classList.toggle("filter-fab-active", !!histPairFilter);
+  const pairInput = document.getElementById("hist-pair-ac-input");
+  if (pairInput) {
+    pairInput.value = histPairFilter || "";
+    pairInput.classList.toggle("pair-ac-active", !!histPairFilter);
   }
 }
 
@@ -15503,6 +15542,10 @@ Object.assign(window, {
   setHistOutcome,
   setHistMargin,
   setHistPairFilter,
+  histPairACInput,
+  histPairACFocus,
+  histPairACBlur,
+  histPairACSelect,
   setHistScorelineFilter,
   openFilterSheet,
   closeFilterSheet,
