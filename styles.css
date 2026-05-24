@@ -3334,7 +3334,7 @@ body.no-cascade .analytics-card {
 }
 .abt-table thead th:first-child { text-align: center; padding-left: 14px; }
 .abt-table thead th:nth-child(5),
-.abt-table thead th:nth-child(6) { text-align: right; padding-right: 14px; }
+.abt-table thead th:nth-child(6) { text-align: right; padding-right: 14px; white-space: nowrap; }
 .abt-row { border-top: 1px solid rgba(255, 255, 255, 0.04); }
 .abt-rank {
   text-align: center;

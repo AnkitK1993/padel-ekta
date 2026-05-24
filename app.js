@@ -14627,18 +14627,18 @@ function renderAnalyticsPage() {
     if (!sortedM.length) return '<div class="sub" style="padding:12px">No data.</div>';
     const todayStr3 = todayISO();
     const todayD = new Date(todayStr3 + "T00:00:00");
-    const firstDate3 = {}, lastDate3 = {}, matchCount3 = {};
+    const firstDate3 = {}, lastDate3 = {};
     sortedM.forEach((m) => {
       [...m.teamA, ...m.teamB].forEach((p) => {
         if (!firstDate3[p] || m.date < firstDate3[p]) firstDate3[p] = m.date;
         if (!lastDate3[p] || m.date > lastDate3[p]) lastDate3[p] = m.date;
-        matchCount3[p] = (matchCount3[p] || 0) + 1;
       });
     });
     const rows3 = Object.keys(lastDate3)
       .map(p => {
         const days3 = Math.round((todayD - new Date(lastDate3[p] + "T00:00:00")) / 86400000);
-        return { name: p, first: firstDate3[p], last: lastDate3[p], days: days3, matches: matchCount3[p] };
+        const missed = sortedM.filter(m => m.date > lastDate3[p]).length;
+        return { name: p, first: firstDate3[p], last: lastDate3[p], days: days3, missed };
       })
       .sort((a, b) => b.days - a.days);
     const rowsHtml3 = rows3.map((r, i) => {
@@ -14650,10 +14650,10 @@ function renderAnalyticsPage() {
         <td class="abt-date">${fmtDate(r.first)}</td>
         <td class="abt-date">${fmtDate(r.last)}</td>
         <td class="abt-days" style="color:${col}">${lbl}</td>
-        <td class="abt-matches">${r.matches}</td>
+        <td class="abt-matches">${r.missed}</td>
       </tr>`;
     }).join('');
-    return `<div class="ana-card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="abt-table"><thead><tr><th>#</th><th>Player</th><th>First Played</th><th>Last Played</th><th>Days Since</th><th>Matches</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div></div>`;
+    return `<div class="ana-card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="abt-table"><thead><tr><th>#</th><th>Player</th><th>First Played</th><th>Last Played</th><th>Days Since</th><th>Matches Missed</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div></div>`;
   })()
 
   // ── RENDER ─────────────────────────────────────────────
