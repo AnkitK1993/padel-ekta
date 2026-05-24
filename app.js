@@ -7010,6 +7010,86 @@ function openPlayerDetail(name) {
     return `<div class="ana-card"><span class="badge">Day of Week</span><div style="margin-top:8px">${rows}</div>${chip}</div>`;
   })();
 
+  // ── ELO PROJECTION CHART ─────────────────────────────────
+  const eloProjectionHtml = (() => {
+    if (pdPlayerMs.length < 5) return "";
+    const eloHist = computeEloHistory(pdSortedAll14);
+    const pts = eloHist[name] || [];
+    if (pts.length < 5) return "";
+
+    const FORM_WIN = Math.min(pts.length, 10);
+    const formPts = pts.slice(-FORM_WIN);
+    const avgDelta = formPts.reduce((s, p) => s + p.delta, 0) / FORM_WIN;
+    const currentElo = pts[pts.length - 1].elo;
+
+    const HIST_SHOW = Math.min(pts.length, 15);
+    const histPts = pts.slice(-HIST_SHOW);
+    const PROJ = 30;
+
+    const allCoords = [
+      ...histPts.map((p, i) => ({ i, elo: p.elo, proj: false })),
+      ...Array.from({ length: PROJ }, (_, k) => ({
+        i: HIST_SHOW + k,
+        elo: Math.round(currentElo + avgDelta * (k + 1)),
+        proj: true,
+      })),
+    ];
+
+    const elos = allCoords.map(c => c.elo);
+    const pad = 18;
+    const minE = Math.min(...elos) - pad, maxE = Math.max(...elos) + pad;
+    const eRange = maxE - minE || 1;
+    const W = 320, H = 88;
+    const toX = i => ((i / (allCoords.length - 1)) * W).toFixed(1);
+    const toY = e => (H - ((e - minE) / eRange) * H).toFixed(1);
+
+    const histPath = histPts.map((p, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(p.elo)}`).join(" ");
+    const joinX = toX(HIST_SHOW - 1);
+    const joinY = toY(histPts[histPts.length - 1].elo);
+    const projCoords = allCoords.filter(c => c.proj);
+    const projPath = `M${joinX},${joinY} ` + projCoords.map(c => `L${toX(c.i)},${toY(c.elo)}`).join(" ");
+
+    const refY = toY(currentElo);
+    const trendUp = avgDelta >= 0;
+    const trendCol = trendUp ? "var(--green)" : "var(--red)";
+    const trendLbl = trendUp ? "↑ CLIMBING" : "↓ DECLINING";
+
+    const mkChip = n => {
+      const proj = Math.round(currentElo + avgDelta * n);
+      const d = proj - currentElo;
+      const col = d >= 0 ? "var(--green)" : "var(--red)";
+      return `<div class="elop-chip">
+        <div class="elop-chip-n">+${n}</div>
+        <div class="elop-chip-elo">${proj}</div>
+        <div class="elop-chip-d" style="color:${col}">${d >= 0 ? "+" : ""}${d}</div>
+      </div>`;
+    };
+
+    const markerDots = [10, 20, 30].map(n => {
+      const coord = allCoords[HIST_SHOW - 1 + n];
+      if (!coord) return "";
+      return `<circle cx="${toX(coord.i)}" cy="${toY(coord.elo)}" r="3.5" fill="${trendCol}" stroke="var(--bg-card,#0c0c16)" stroke-width="1.5"/>`;
+    }).join("");
+
+    return `<div class="ana-card">
+      <span class="badge">ELO Projection</span>
+      <div class="elop-header">
+        <span class="elop-trend" style="color:${trendCol}">${trendLbl}</span>
+        <span class="elop-rate">${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} / match · last ${FORM_WIN}</span>
+      </div>
+      <div class="elop-svg-wrap">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:82px;overflow:visible;display:block">
+          <line x1="0" y1="${refY}" x2="${W}" y2="${refY}" stroke="rgba(255,255,255,0.09)" stroke-width="1" stroke-dasharray="4,4"/>
+          <path d="${histPath}" fill="none" stroke="var(--theme)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="${projPath}" fill="none" stroke="${trendCol}" stroke-width="1.8" stroke-dasharray="6,4" stroke-linecap="round" opacity="0.85"/>
+          ${markerDots}
+          <circle cx="${joinX}" cy="${joinY}" r="3.5" fill="var(--theme)" stroke="var(--bg-card,#0c0c16)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="elop-chips">${[10, 20, 30].map(mkChip).join("")}</div>
+    </div>`;
+  })();
+
   // ── SCORE DISTRIBUTION CHART — Enhancement 16 ───────────
   const scoreDistHtml = (() => {
     if (pdPlayerMs.length < 3) return "";
@@ -7238,6 +7318,8 @@ function openPlayerDetail(name) {
                 ${vsOpponentsHtml}
 
                 ${allPartnersHtml}
+
+                ${eloProjectionHtml}
 
                 ${scoreDistHtml}
 
