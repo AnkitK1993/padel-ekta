@@ -4183,31 +4183,6 @@ function buildMatchCards(matches, showAdmin) {
     .join("");
 }
 
-// Enhancement 9: jump to month in history
-function _buildHistMonthOptions() {
-  const sel = document.getElementById("hist-month-jump");
-  if (!sel) return;
-  const months = [...new Set(allMatches.filter((m) => m.date).map((m) => m.date.slice(0, 7)))].sort().reverse();
-  const mn = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  sel.innerHTML = '<option value="">↪ MONTH</option>' +
-    months.map((m) => {
-      const [y, mo] = m.split("-");
-      return `<option value="${m}">${mn[parseInt(mo, 10)]} ${y}</option>`;
-    }).join("");
-}
-function jumpHistMonth(ym) {
-  if (!ym) return;
-  const el = document.querySelector(`[data-match-month="${ym}"]`);
-  const listEl = document.getElementById("modern-match-list");
-  if (el && listEl) {
-    const offset = el.getBoundingClientRect().top - listEl.getBoundingClientRect().top + listEl.scrollTop;
-    listEl.scrollTo({ top: offset - 12, behavior: "smooth" });
-  } else {
-    showToast(`No matches in ${ym}`, "ℹ️");
-  }
-  const sel = document.getElementById("hist-month-jump");
-  if (sel) sel.value = "";
-}
 
 function filterMatchTab(f) {
   matchTabFilter = f;
@@ -4982,7 +4957,6 @@ function renderModernMatches() {
   populateHistoryPlayerChips();
   populateHistoryAdvancedFilters();
   _updateHistFilterBadge();
-  _buildHistMonthOptions();
 }
 
 function _updateHistFilterBadge() {
@@ -15688,7 +15662,6 @@ Object.assign(window, {
   confirmSessionStart,
   endLiveSession,
   syncSession,
-  jumpHistMonth,
   substituteLivePlayer,
   checkResumeSession,
   resumeSession,
