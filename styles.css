@@ -3317,59 +3317,57 @@ body.no-cascade .analytics-card {
   font-weight: 700;
 }
 
-.absence-banner {
-  flex-shrink: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(98, 182, 255, 0.06),
-    rgba(98, 182, 255, 0.02)
-  );
-  border-bottom: 1px solid rgba(98, 182, 255, 0.2);
-  padding: 8px 12px;
+/* ── ABSENCE TRACKER TABLE (STATISTICS PAGE) ─── */
+.abt-table {
+  width: 100%;
+  border-collapse: collapse;
 }
-.absence-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 7px;
-}
-.absence-title {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent3);
-}
-.absence-sub {
-  font-size: 9px;
-  color: var(--muted);
-}
-.absence-chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.absence-chip {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(9, 9, 15, 0.6);
-  border: 1px solid rgba(98, 182, 255, 0.2);
-  border-radius: 20px;
-  padding: 4px 10px;
-}
-.absence-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text);
-}
-.absence-days {
+.abt-table thead th {
+  padding: 9px 10px;
   font-size: 9px;
   font-weight: 700;
-  color: var(--accent3);
-  background: rgba(98, 182, 255, 0.12);
-  padding: 1px 5px;
-  border-radius: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+}
+.abt-table thead th:first-child { text-align: center; padding-left: 14px; }
+.abt-table thead th:nth-child(5),
+.abt-table thead th:nth-child(6) { text-align: right; padding-right: 14px; white-space: nowrap; }
+.abt-row { border-top: 1px solid rgba(255, 255, 255, 0.04); }
+.abt-rank {
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  padding: 9px 8px 9px 14px;
+  width: 28px;
+}
+.abt-name {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 8px;
+  color: var(--text);
+}
+.abt-date {
+  font-size: 10px;
+  color: var(--muted);
+  padding: 9px 8px;
+  white-space: nowrap;
+}
+.abt-days {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+  padding: 9px 8px;
+  white-space: nowrap;
+}
+.abt-matches {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+  padding: 9px 14px 9px 8px;
+  color: var(--muted);
 }
 
 .spark-row {
@@ -4075,6 +4073,28 @@ body.no-cascade .analytics-card {
   font-size: 12px;
   font-weight: 800;
   text-align: right;
+}
+
+/* ── DOMINANCE INDEX FILTER INPUT ───────────── */
+.dom-threshold-inp {
+  width: 48px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 6px;
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.dom-threshold-inp::-webkit-inner-spin-button,
+.dom-threshold-inp::-webkit-outer-spin-button { opacity: 0.4; }
+.dom-threshold-inp:focus {
+  border-color: rgba(var(--theme-rgb), 0.5);
+  background: rgba(var(--theme-rgb), 0.08);
 }
 
 /* ── LEADERBOARD RACE ────────────────────────── */
@@ -16862,6 +16882,34 @@ body.midnight-oled-mode #themeBtn {
   font-weight: 700;
   padding: 5px 12px;
   cursor: pointer;
+}
+.live-sync-btn {
+  background: rgba(40, 200, 120, 0.15);
+  border: 1px solid rgba(40, 200, 120, 0.35);
+  border-radius: 16px;
+  color: #40e090;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: 0.06em;
+}
+.live-sync-btn:active {
+  background: rgba(40, 200, 120, 0.3);
+}
+.live-sync-badge {
+  background: #40e090;
+  color: #001a0d;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 14px;
 }
 .live-end-session-btn {
   background: rgba(255, 60, 60, 0.2);

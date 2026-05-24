@@ -834,6 +834,7 @@ async function saveCloudData() {
   if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   try {
     if (auth.currentUser && window.isAdmin) {
+      _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the snapshot that echoes this write
       await setDoc(doc(db, "padel", "main"), payload);
     }
   } catch (err) {
@@ -985,6 +986,7 @@ function _showSyncConflict(
   };
   overlay.querySelector("#sc-local").onclick = () => {
     overlay.remove();
+    resolveFn(allMatches, players, playerAliasMap, nextPlayerId, true);
     showToast("Keeping local data", "📱");
   };
 }
@@ -1135,8 +1137,11 @@ function loadCloudData() {
     // Conflict detection: local matches that aren't in the incoming cloud data.
     // Skip for 5 s after a local save — the stale Firestore cache snapshot
     // hasn't picked up our write yet and would falsely flag new matches.
-    const _recentSave = (Date.now() - _lastLocalSaveTime) < 5000;
-    if (!skipConflict && !isFirstLoad && !_recentSave && allMatches.length > 0) {
+    // Also skip while a live session is active — buffered matches are intentionally
+    // local-only until the user taps SYNC or END SESSION.
+    const _recentSave = (Date.now() - _lastLocalSaveTime) < 15000;
+    const _sessionBuffering = !!(_liveSessionData?.sessionActive);
+    if (!skipConflict && !isFirstLoad && !_recentSave && !_sessionBuffering && allMatches.length > 0) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
       const localOnly = allMatches.filter(
         (m) => !cloudKeys.has(_mkMatchKey(m)),
@@ -1161,7 +1166,17 @@ function loadCloudData() {
     lastDataFingerprint = fp;
     _dataVersion++;
 
-    allMatches = matches;
+    // If a live session is buffering local matches, re-attach them after the cloud update
+    // so Firestore snapshots can't silently erase unsync'd session matches.
+    if (_sessionBuffering && _sessionPendingCount > 0) {
+      const cloudKeys = new Set(matches.map(_mkMatchKey));
+      const pending = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+      allMatches = pending.length
+        ? [...matches, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+        : matches;
+    } else {
+      allMatches = matches;
+    }
     players = pls;
     playerAliasMap = pam;
     nextPlayerId = npid || 1;
@@ -1294,8 +1309,6 @@ onAuthStateChanged(auth, (user) => {
 });
 
 function updateAdminUI(user) {
-  const absInp = document.getElementById("absenceThresholdInput");
-  if (absInp) absInp.value = localStorage.getItem("absence_threshold") || "7";
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle) scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
   const cascadeToggle = document.getElementById("cascadeAnimToggle");
@@ -3022,13 +3035,6 @@ function renderNamesTable() {
     .join("");
 }
 
-function setAbsenceThreshold(val) {
-  const n = parseInt(val, 10);
-  if (isNaN(n) || n < 1) return;
-  localStorage.setItem("absence_threshold", n);
-  renderHome();
-}
-
 function setScreenshotChoiceSetting(val) {
   localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
 }
@@ -3277,73 +3283,6 @@ function onCmpFilter() {
 
 // home filter handled by onHomeFilterChange dropdown
 
-// ── ABSENCE TRACKER ────────────────────────────────────────
-function renderAbsenceBanner() {
-  const banner = document.getElementById("absence-banner");
-  if (!banner) return;
-  if (!allMatches.length) {
-    banner.innerHTML = "";
-    return;
-  }
-
-  const today = new Date();
-
-  // Find each player's last match date
-  const lastSeen = {};
-  activeMatches().forEach((m) => {
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
-    });
-  });
-
-  // Only flag players who have played at least 3 matches (regulars)
-  const matchCounts = {};
-  activeMatches().forEach((m) => {
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      matchCounts[p] = (matchCounts[p] || 0) + 1;
-    });
-  });
-
-  const savedThreshold = parseInt(
-    localStorage.getItem("absence_threshold") || "7",
-    10,
-  );
-  const THRESHOLD = Number.isFinite(savedThreshold) ? savedThreshold : 7;
-  const absent = Object.entries(lastSeen)
-    .filter(([p]) => matchCounts[p] >= 3)
-    .map(([p, lastDate]) => {
-      const last = new Date(lastDate + "T00:00:00");
-      const days = Math.floor((today - last) / (1000 * 60 * 60 * 24));
-      return { name: p, days, lastDate };
-    })
-    .filter((a) => a.days >= THRESHOLD)
-    .sort((a, b) => b.days - a.days);
-
-  if (!absent.length) {
-    banner.innerHTML = "";
-    return;
-  }
-
-  const chips = absent
-    .map((a) => {
-      const weeks = Math.floor(a.days / 7);
-      const label = weeks >= 2 ? `${weeks}w` : `${a.days}d`;
-      return `<div class="absence-chip" title="Last played ${escHtml(a.lastDate)}">
-                <span class="absence-name">${escHtml(a.name)}</span>
-                <span class="absence-days">${label} away</span>
-              </div>`;
-    })
-    .join("");
-
-  banner.innerHTML = `<div class="absence-banner">
-              <div class="absence-header">
-                <span class="absence-title">👻 Missing in Action</span>
-                <span class="absence-sub">${absent.length} player${absent.length > 1 ? "s" : ""} MIA ${THRESHOLD}+ days</span>
-              </div>
-              <div class="absence-chips">${chips}</div>
-            </div>`;
-}
-
 // ── FORM SPARKLINE ─────────────────────────────────────────
 function getFormSparkline(playerName, width = 80, height = 28) {
   // Get all matches involving player, sorted by date
@@ -3501,7 +3440,6 @@ let _renderHomeGen = 0;
 function renderHome() {
   _homeRenderedVersion = _dataVersion;
   _homeRenderedFilter = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
-  renderAbsenceBanner();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   const homeEloMapFull = computeElo(filtered);
   const stats = computeStats(filtered, homeEloMapFull);
@@ -14633,23 +14571,48 @@ function renderAnalyticsPage() {
 
   // 2: Dominance Index
   const _dominanceHtml = (() => {
-    const beaten = {};
+    const beatenCounts = {};
     sortedM.forEach((m) => {
       const aWon2 = m.scoreA > m.scoreB;
       const winners = aWon2 ? m.teamA : m.teamB;
-      const losers = aWon2 ? m.teamB : m.teamA;
+      const losers  = aWon2 ? m.teamB : m.teamA;
       winners.forEach((w) => {
-        if (!beaten[w]) beaten[w] = new Set();
-        losers.forEach((l) => beaten[w].add(l));
+        if (!beatenCounts[w]) beatenCounts[w] = {};
+        losers.forEach((l) => { beatenCounts[w][l] = (beatenCounts[w][l] || 0) + 1; });
       });
     });
-    const rows3 = Object.entries(beaten)
-      .map(([p, opp]) => ({ name: p, count: opp.size, opp: [...opp] }))
-      .sort((a, b) => b.count - a.count);
-    if (!rows3.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    if (!Object.keys(beatenCounts).length) return '<div class="sub" style="padding:8px">No data.</div>';
+    window._domCounts = beatenCounts;
+    window._domRebuild = function(minN) {
+      const n = Math.max(1, Math.floor(+minN) || 1);
+      const pg = "grid-template-columns:40px 1fr 60px";
+      const lbl = n === 1 ? "beaten at least once" : `beaten ${n}+ times`;
+      const rows = Object.entries(beatenCounts)
+        .map(([p, opp]) => ({ name: p, count: Object.values(opp).filter(c => c >= n).length }))
+        .filter(r => r.count > 0)
+        .sort((a, b) => b.count - a.count);
+      const el = document.getElementById("dominance-card");
+      if (!el) return;
+      el.querySelector(".dom-desc").textContent = `Distinct opponents ${lbl}`;
+      el.querySelector(".dom-rows").innerHTML = rows.length
+        ? rows.map((r, i) => `<div class="lrace-row" style="${pg}"><div class="lrace-rank">#${i+1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")
+        : `<div style="font-size:11px;color:var(--muted);padding:8px 0">No player has beaten any opponent ${n}+ times.</div>`;
+    };
     const pg4 = "grid-template-columns:40px 1fr 60px";
-    return `<div class="ana-card" style="padding:8px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Number of distinct opponents beaten at least once</div><div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opponents</span></div>` +
-      rows3.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${r.name}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("") + `</div>`;
+    const initRows = Object.entries(beatenCounts)
+      .map(([p, opp]) => ({ name: p, count: Object.keys(opp).length }))
+      .sort((a, b) => b.count - a.count);
+    return `<div class="ana-card" style="padding:8px 12px" id="dominance-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div class="dom-desc" style="font-size:9px;color:var(--muted)">Distinct opponents beaten at least once</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:9px;color:var(--muted);white-space:nowrap">Min wins vs same opp</span>
+          <input type="number" min="1" max="99" value="1" class="dom-threshold-inp" oninput="window._domRebuild(this.value)">
+        </div>
+      </div>
+      <div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opp</span></div>
+      <div class="dom-rows">${initRows.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i+1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")}</div>
+    </div>`;
   })();
 
   // 2: Most One-Sided Rivalries
@@ -14699,46 +14662,39 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">How often each exact score occurred (both perspectives). Darker = more frequent.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
   })();
 
-  // 2: Longest Absence / Active Streak
-  const _absenceStreakHtml = (() => {
-    const allDates = Object.keys(dateCounts).sort();
-    if (!allDates.length) return '<div class="sub" style="padding:8px">No data.</div>';
-    const lastDate = allDates[allDates.length - 1];
-    const todayStr2 = todayISO();
-    const daysSinceLast = Math.round((new Date(todayStr2 + "T00:00:00") - new Date(lastDate + "T00:00:00")) / 86400000);
-    // Per-player: last played date + active session streak
-    const playerLastDate = {}, playerSessions = {};
-    allDates.forEach((d) => {
-      sortedM.filter((m) => m.date === d).forEach((m) => {
-        [...m.teamA, ...m.teamB].forEach((p) => {
-          playerLastDate[p] = d;
-          if (!playerSessions[p]) playerSessions[p] = [];
-          if (!playerSessions[p].includes(d)) playerSessions[p].push(d);
-        });
+  // ── ABSENCE TRACKER ────────────────────────────────────────
+  const _absenceTrackerHtml = (() => {
+    if (!sortedM.length) return '<div class="sub" style="padding:12px">No data.</div>';
+    const todayStr3 = todayISO();
+    const todayD = new Date(todayStr3 + "T00:00:00");
+    const firstDate3 = {}, lastDate3 = {};
+    sortedM.forEach((m) => {
+      [...m.teamA, ...m.teamB].forEach((p) => {
+        if (!firstDate3[p] || m.date < firstDate3[p]) firstDate3[p] = m.date;
+        if (!lastDate3[p] || m.date > lastDate3[p]) lastDate3[p] = m.date;
       });
     });
-    // Longest absence per player
-    const absRows = Object.entries(playerLastDate)
-      .map(([p, last]) => {
-        const days2 = Math.round((new Date(todayStr2 + "T00:00:00") - new Date(last + "T00:00:00")) / 86400000);
-        return { name: p, last, days: days2 };
+    const rows3 = Object.keys(lastDate3)
+      .map(p => {
+        const days3 = Math.round((todayD - new Date(lastDate3[p] + "T00:00:00")) / 86400000);
+        const missed = sortedM.filter(m => m.date > lastDate3[p]).length;
+        return { name: p, first: firstDate3[p], last: lastDate3[p], days: days3, missed };
       })
       .sort((a, b) => b.days - a.days);
-    // Active consecutive session streak (sessions without a gap > 14 days)
-    const activeRows = Object.entries(playerSessions).map(([p, dates]) => {
-      const sorted2 = [...dates].sort();
-      let streak2 = 1;
-      for (let i = sorted2.length - 1; i > 0; i--) {
-        const gap = Math.round((new Date(sorted2[i] + "T00:00:00") - new Date(sorted2[i - 1] + "T00:00:00")) / 86400000);
-        if (gap <= 21) streak2++;
-        else break;
-      }
-      return { name: p, streak: streak2, sessions: sorted2.length };
-    }).sort((a, b) => b.streak - a.streak);
-    const pg5 = "grid-template-columns:1fr 80px 80px";
-    return `<div class="ana-card" style="padding:10px 12px"><div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;color:var(--muted);margin-bottom:3px">Last session: <strong>${fmtDate(lastDate)}</strong> · ${daysSinceLast === 0 ? "Today" : daysSinceLast + "d ago"}</div></div><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">PLAYER ACTIVITY</div><div class="lrace-header" style="${pg5}"><span>Player</span><span>Last Played</span><span>Sessions</span></div>` +
-      absRows.map((r) => `<div class="lrace-row" style="${pg5}"><div class="lrace-name">${r.name}</div><div style="font-size:10px;text-align:right;color:${r.days===0?"var(--green)":r.days<=7?"var(--muted)":"var(--red)"}">${r.days === 0 ? "Today" : r.days + "d ago"}</div><div style="text-align:right;font-weight:700;font-size:10px">${playerSessions[r.name]?.length || 0}</div></div>`).join("") + `</div>`;
-  })();
+    const rowsHtml3 = rows3.map((r, i) => {
+      const col = r.days === 0 ? "var(--green)" : r.days <= 7 ? "var(--accent)" : r.days <= 30 ? "#ffb340" : "var(--red)";
+      const lbl = r.days === 0 ? "Today" : r.days === 1 ? "1 day" : r.days + " days";
+      return `<tr class="abt-row">
+        <td class="abt-rank">${i + 1}</td>
+        <td class="abt-name">${escHtml(r.name)}</td>
+        <td class="abt-date">${fmtDate(r.first)}</td>
+        <td class="abt-date">${fmtDate(r.last)}</td>
+        <td class="abt-days" style="color:${col}">${lbl}</td>
+        <td class="abt-matches">${r.missed}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="ana-card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="abt-table"><thead><tr><th>#</th><th>Player</th><th>First Played</th><th>Last Played</th><th>Days Since</th><th>Matches Missed</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div></div>`;
+  })()
 
   // ── RENDER ─────────────────────────────────────────────
   const favKeys = getAnaFavs();
@@ -14971,7 +14927,7 @@ function renderAnalyticsPage() {
     { key: "dominance", cat: "players", title: "🦁 Dominance Index", body: _dominanceHtml },
     { key: "onesided", cat: "pairs", title: "⚔️ One-Sided Rivalries", body: _oneSidedHtml },
     { key: "scoreheatmap", cat: "activity", title: "🟦 Score Heatmap", body: _scoreHeatmapHtml },
-    { key: "absencestreak", cat: "activity", title: "📆 Player Activity & Absence", body: _absenceStreakHtml },
+    { key: "absencetracker", cat: "players", title: "👻 Absence Tracker", body: _absenceTrackerHtml },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
     {
       key: "powerrankings",
@@ -15274,7 +15230,6 @@ Object.assign(window, {
   sendBackupEmail,
   exportData,
   exportCSV,
-  setAbsenceThreshold,
   setScreenshotChoiceSetting,
   setCascadeAnimSetting,
   renderHome,
@@ -15443,6 +15398,7 @@ Object.assign(window, {
   sessionSetupSelectNone,
   confirmSessionStart,
   endLiveSession,
+  syncSession,
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
@@ -15472,6 +15428,7 @@ let _liveGamePtsB = 0;
 let _liveAdv = null; // 'a' | 'b' | null
 let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
+let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
 
 function openLiveMode() {
   if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
@@ -15944,8 +15901,15 @@ function endLiveMatch() {
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
+    // Buffer locally — don't write to Firestore until SYNC or End Session
+    _sessionPendingCount++;
+    _updateSyncBadge();
+    _invalidateEloMemo();
+    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+    try { localStorage.setItem("padel_matches", JSON.stringify(allMatches)); } catch(e) {}
+  } else {
+    saveCloudData();
   }
-  saveCloudData();
   renderHome();
   renderCompact();
   renderModernMatches();
@@ -15960,6 +15924,26 @@ function endLiveMatch() {
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
+}
+
+function _updateSyncBadge() {
+  const el = document.getElementById("live-sync-count");
+  if (!el) return;
+  if (_sessionPendingCount > 0) {
+    el.textContent = _sessionPendingCount;
+    el.style.display = "";
+  } else {
+    el.style.display = "none";
+  }
+}
+
+async function syncSession() {
+  if (_sessionPendingCount === 0) { showToast("Nothing to sync", "✅"); return; }
+  const count = _sessionPendingCount;
+  await saveCloudData();
+  _sessionPendingCount = 0;
+  _updateSyncBadge();
+  showToast(`Synced ${count} match${count !== 1 ? "es" : ""} to cloud`, "☁️");
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -16536,6 +16520,8 @@ function confirmSessionStart() {
   closeSessionSetup();
   const now = new Date().toISOString();
   _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
+  _sessionPendingCount = 0;
+  _updateSyncBadge();
   _syncLiveSessionBar();
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
@@ -16543,8 +16529,13 @@ function confirmSessionStart() {
   _requestNotifPermission();
 }
 
-function endLiveSession() {
+async function endLiveSession() {
   if (!confirm("End the current session?")) return;
+  if (_sessionPendingCount > 0) {
+    await saveCloudData();
+    _sessionPendingCount = 0;
+    _updateSyncBadge();
+  }
   _liveSessionData = null;
   _syncLiveSessionBar();
   _liveHaptic([30, 60, 30]);
