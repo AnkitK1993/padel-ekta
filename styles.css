@@ -3450,12 +3450,16 @@ body.no-cascade .analytics-card {
 
 /* Enhancement 2: game diff in home card cell */
 .cv-diff {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1;
   margin-left: 2px;
+  opacity: 0.85;
 }
+.cv-diff.p { color: var(--green); }
+.cv-diff.n { color: var(--red); }
+.cv-diff.m { color: var(--muted); }
 
 /* Enhancement 3: partner chip on home card */
 .card-partner-chip {

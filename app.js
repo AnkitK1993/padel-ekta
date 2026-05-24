@@ -3543,18 +3543,11 @@ function renderHome() {
     const streakChip = p.curStreak > 0
       ? `<span class="card-streak-chip ${p.curType === "W" ? "csc-w" : "csc-l"}">${p.curType === "W" ? "🔥" : "❄️"}${p.curStreak}${p.curType}</span>`
       : "";
-    // Enhancement 3: most common partner chip
-    const topPartnerKey = p.partnerPlayed
-      ? (Object.entries(p.partnerPlayed).sort((a, b) => b[1] - a[1])[0]?.[0] || null)
-      : null;
-    const partnerChip = topPartnerKey
-      ? `<span class="card-partner-chip" title="Most common partner">w/ ${escHtml(topPartnerKey.split(" ")[0])}</span>`
-      : "";
     const hasRowData = sparklineSvg || last5DotsHtml || eldHtml;
     const sparklineHtml = hasRowData
-      ? `<div class="spark-row">${streakChip}<span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}${partnerChip}</span><span class="spark-full">Full stats →</span></div>`
+      ? `<div class="spark-row">${streakChip}<span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
       : streakChip
-        ? `<div class="spark-row">${streakChip}${partnerChip}</div>`
+        ? `<div class="spark-row">${streakChip}</div>`
         : "";
     const playerBadges = computeBadges(p.name, p, homeEloMap, filtered, stats);
     const badgePillsHtml = playerBadges.length
@@ -6514,6 +6507,10 @@ function openPlayerDetail(name) {
           </div>`
     : "";
 
+  // Shared match list for enhancements 14-16 and recent cards
+  const pdSortedAll14 = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const pdPlayerMs = pdSortedAll14.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+
   // Enhancement 14: dangerous opponent — opponent with highest win rate AGAINST this player
   const dangerousOppHtml = (() => {
     const oppData = {};
@@ -6854,8 +6851,6 @@ function openPlayerDetail(name) {
   })();
 
   // ── RECENT MATCH CARDS (from match log with ELO delta) ───
-  const pdSortedAll = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const pdPlayerMs = pdSortedAll.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
   const recentMatchCards = (() => {
     const last8 = pdPlayerMs.slice(-10).reverse();
     if (!last8.length) return "";
