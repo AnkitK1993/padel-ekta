@@ -714,7 +714,7 @@ function renderEloConfigCard() {
         <span style="font-size:10px;color:var(--muted);font-weight:700">${label}</span>
         <span style="font-size:9px;color:var(--muted)">default: ${def}</span>
       </div>
-      <input id="${id}" type="number" min="${min}" max="${max}" step="${step || 1}" value="${val}" class="mei-input" style="width:100%">
+      <input id="${id}" type="number" inputmode="numeric" pattern="[0-9]*" min="${min}" max="${max}" step="${step || 1}" value="${val}" class="mei-input" style="width:100%">
       <div style="font-size:9px;color:var(--muted);margin-top:3px">${desc}</div>
     </div>`;
   el.innerHTML = `
@@ -5559,9 +5559,9 @@ function editMatchByIndex(i, btn) {
     </div>
     <div class="mei-section-lbl">SCORE</div>
     <div class="mei-row" style="align-items:center;margin-bottom:10px">
-      <input id="edit-sa" type="number" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
+      <input id="edit-sa" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
       <span style="color:var(--muted);font-weight:900;font-size:18px;padding:0 4px">–</span>
-      <input id="edit-sb" type="number" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
+      <input id="edit-sb" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
     </div>
     <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
     <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${escHtml(m.note || "")}">
@@ -12318,7 +12318,7 @@ function _buildLeaderboardReplayHtml() {
       <input type="range" id="replay-slider" min="${_REPLAY_MIN}" max="${sorted.length}" value="${sorted.length}" step="1" oninput="_replayUpdate(this.value)">
     </div>
     <div class="lr-jumps">
-      <input type="number" id="replay-jump-num" min="${_REPLAY_MIN}" max="${sorted.length}" placeholder="Match #" onchange="_replayJumpToMatch(this.value)">
+      <input type="number" inputmode="numeric" pattern="[0-9]*" id="replay-jump-num" min="${_REPLAY_MIN}" max="${sorted.length}" placeholder="Match #" onchange="_replayJumpToMatch(this.value)">
       <select id="replay-jump-date" onchange="_replayJumpToDate(this.value)">${dateOpts}</select>
       <select id="replay-spotlight" onchange="_replaySetSpotlight(this.value)">${spotlightOpts}</select>
     </div>
@@ -14629,7 +14629,7 @@ function renderAnalyticsPage() {
         <div class="dom-desc" style="font-size:9px;color:var(--muted)">Distinct opponents beaten at least once</div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span style="font-size:9px;color:var(--muted);white-space:nowrap">Min wins vs same opp</span>
-          <input type="number" min="1" max="99" value="1" class="dom-threshold-inp" oninput="window._domRebuild(this.value)">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="99" value="1" class="dom-threshold-inp" oninput="window._domRebuild(this.value)">
         </div>
       </div>
       <div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opp</span></div>
