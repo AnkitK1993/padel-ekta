@@ -17198,6 +17198,7 @@ function confirmSessionStart() {
   _updateSyncBadge();
   _syncLiveSessionBar();
   _startSessionTimer();
+  _saveSessionState();
   _renderSessionActiveCard();
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
@@ -17237,6 +17238,7 @@ function addPlayerToSession(name) {
   _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
   _syncLiveSessionBar();
   _renderSittingOut();
+  _saveSessionState();
   showToast(`${name} added`, "✅");
 }
 
