@@ -3433,6 +3433,196 @@ body.no-cascade .analytics-card {
   color: var(--muted);
 }
 
+/* ── ENHANCEMENTS 1-23 ────────────────────────── */
+
+/* Enhancement 1: streak chip on home card */
+.card-streak-chip {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border-radius: 20px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.csc-w { background: rgba(54, 212, 126, 0.18); color: var(--green); border: 1px solid rgba(54,212,126,0.3); }
+.csc-l { background: rgba(240, 79, 79, 0.15); color: var(--red); border: 1px solid rgba(240,79,79,0.25); }
+
+/* Enhancement 2: game diff in home card cell */
+.cv-diff {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+/* Enhancement 3: partner chip on home card */
+.card-partner-chip {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--muted);
+  background: rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 2px 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: 2px;
+}
+
+/* Enhancement 6: active sort column in SUMMARY */
+#cmpHead th.cmp-th-sort-active {
+  background: rgba(var(--theme-rgb), 0.08);
+  border-radius: 4px;
+}
+
+/* Enhancement 8: H2H pair record badge in HISTORY */
+.match-h2h-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 3px 8px;
+  color: var(--muted);
+}
+.match-pvp-row {
+  padding: 4px 0 0;
+}
+
+/* Enhancement 10: ELO badge in session slots */
+.live-slot-elo {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+  display: none;
+}
+
+/* Enhancement 11: session match history in panel */
+.sess-hist-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin: 10px 0 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.sess-hist-list { display: flex; flex-direction: column; gap: 2px; }
+.sess-hist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 10px;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.sess-hist-last { color: var(--fg); }
+.sess-hist-score { font-weight: 800; }
+.sess-hist-teams { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sess-hist-undo-btn {
+  font-size: 14px;
+  background: none;
+  border: 1px solid rgba(255,200,0,0.3);
+  border-radius: 6px;
+  color: rgba(255,200,0,0.9);
+  padding: 2px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+/* Enhancement 16: score distribution */
+.sd-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+.sd-label {
+  font-size: 10px;
+  font-weight: 800;
+  width: 36px;
+  flex-shrink: 0;
+}
+.sd-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sd-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.sd-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  width: 16px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Enhancement 19: pair matrix confidence indicator */
+.pvp-conf {
+  font-size: 6px;
+  opacity: 0.6;
+  margin-left: 1px;
+  vertical-align: super;
+}
+
+/* Enhancement 21: offline indicator */
+#offline-indicator {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  background: rgba(240, 79, 79, 0.15);
+  border: 1px solid rgba(240,79,79,0.4);
+  color: var(--red);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Session resume banner */
+#session-resume-banner {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,200,0,0.12);
+  border: 1px solid rgba(255,200,0,0.3);
+  color: var(--fg);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin: 8px 12px;
+}
+#session-resume-banner button {
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(255,200,0,0.2);
+  border: 1px solid rgba(255,200,0,0.4);
+  border-radius: 8px;
+  color: #ffd040;
+  padding: 4px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#session-resume-banner span { flex: 1; }
+
 /* ── FEATURES 1-5 CARD ROWS ──────────────────── */
 .row5 {
   display: flex;

@@ -1193,6 +1193,7 @@ function loadCloudData() {
       fired = true;
       window.dismissSplash("Ready ✓");
       setTimeout(_checkAnniversaries, 1800);
+      setTimeout(checkResumeSession, 800); // Enhancement 13: show session resume banner if saved state exists
     } else {
       // Genuine new data from Firestore: fade board out, re-render, fade back in — no blur flash
       const board = document.getElementById("board");
@@ -1286,6 +1287,16 @@ getRedirectResult(auth)
   .catch(console.error);
 
 let _authInitialFired = false;
+// Enhancement 21: offline indicator
+function _updateOfflineIndicator() {
+  const el = document.getElementById("offline-indicator");
+  if (!el) return;
+  el.style.display = navigator.onLine ? "none" : "flex";
+}
+window.addEventListener("online", _updateOfflineIndicator);
+window.addEventListener("offline", _updateOfflineIndicator);
+_updateOfflineIndicator();
+
 onAuthStateChanged(auth, (user) => {
   const wasAdmin = window.isAdmin;
   window.isAdmin = !!user && user.email === ADMIN_EMAIL;
@@ -3128,9 +3139,21 @@ function importData() {
     alert("JSON must include allMatches array and aliasMap object.");
     return;
   }
-  allMatches = data.allMatches || [];
-  aliasMap = data.aliasMap || {};
-  nameMap = data.nameMap || {};
+  // Enhancement 22: auto-merge instead of full replace
+  const incoming = data.allMatches || [];
+  const existingKeys = new Set(allMatches.map((m) => _mkMatchKey(m)));
+  const newMatches = incoming.filter((m) => !existingKeys.has(_mkMatchKey(m)));
+  const merged = [...allMatches, ...newMatches];
+  merged.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  if (newMatches.length === 0) {
+    alert("All matches already exist — nothing new to import.");
+    return;
+  }
+  const confirm = window.confirm(`Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`);
+  if (!confirm) return;
+  allMatches = merged;
+  aliasMap = { ...aliasMap, ...(data.aliasMap || {}) };
+  nameMap = { ...nameMap, ...(data.nameMap || {}) };
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
@@ -3140,7 +3163,7 @@ function importData() {
   renderAddMatches();
   refreshManage();
   renderNamesTable();
-  alert("Data imported successfully.");
+  alert(`Import complete: ${newMatches.length} match${newMatches.length !== 1 ? "es" : ""} added.`);
 }
 
 // ── RENDER HOME ────────────────────────────────────────────
@@ -3476,6 +3499,16 @@ function renderHome() {
     eloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - prevElo);
   });
 
+  // Monthly ELO delta (30-day trend) — Enhancement 4
+  const monthlyEloDeltaMap = {};
+  const _thirtyAgo = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); })();
+  stats.forEach((p) => {
+    const last30 = filtered.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) && (m.date || "") >= _thirtyAgo);
+    if (!last30.length) { monthlyEloDeltaMap[p.name] = null; return; }
+    const without30 = filtered.filter((m) => !last30.includes(m));
+    monthlyEloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - (computeElo(without30)[p.name] || 1000));
+  });
+
   const cardHtmls = stats.map((p, i) => {
     const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
     const ri =
@@ -3500,14 +3533,29 @@ function renderHome() {
       ? `<span class="spark-dots">${p.form.map((r) => `<span class="s5-dot ${r === "W" ? "s5-w" : "s5-l"}"></span>`).join("")}</span>`
       : "";
     const eld = eloDeltaMap[p.name];
-    const eldHtml =
-      eld !== null && eld !== undefined
+    const mEld = monthlyEloDeltaMap[p.name];
+    const eldHtml = mEld !== null && mEld !== undefined
+      ? `<span class="s5-elo ${mEld > 0 ? "s5-pos" : mEld < 0 ? "s5-neg" : "s5-neu"}" title="ELO change (30 days)">${mEld > 0 ? "▲" : mEld < 0 ? "▼" : "–"}${Math.abs(mEld)}</span>`
+      : eld !== null && eld !== undefined
         ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
         : "";
+    // Enhancement 1: streak chip
+    const streakChip = p.curStreak > 0
+      ? `<span class="card-streak-chip ${p.curType === "W" ? "csc-w" : "csc-l"}">${p.curType === "W" ? "🔥" : "❄️"}${p.curStreak}${p.curType}</span>`
+      : "";
+    // Enhancement 3: most common partner chip
+    const topPartnerKey = p.partnerPlayed
+      ? (Object.entries(p.partnerPlayed).sort((a, b) => b[1] - a[1])[0]?.[0] || null)
+      : null;
+    const partnerChip = topPartnerKey
+      ? `<span class="card-partner-chip" title="Most common partner">w/ ${escHtml(topPartnerKey.split(" ")[0])}</span>`
+      : "";
     const hasRowData = sparklineSvg || last5DotsHtml || eldHtml;
     const sparklineHtml = hasRowData
-      ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
-      : "";
+      ? `<div class="spark-row">${streakChip}<span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}${partnerChip}</span><span class="spark-full">Full stats →</span></div>`
+      : streakChip
+        ? `<div class="spark-row">${streakChip}${partnerChip}</div>`
+        : "";
     const playerBadges = computeBadges(p.name, p, homeEloMap, filtered, stats);
     const badgePillsHtml = playerBadges.length
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
@@ -3515,9 +3563,9 @@ function renderHome() {
 
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
   if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
@@ -3835,6 +3883,13 @@ function updateSortArrows() {
       arrow.classList.toggle("active", cmpSortKey === key);
     });
   });
+  // Highlight active TH column — Enhancement 6
+  document.querySelectorAll("#cmpHead th").forEach((th) => th.classList.remove("cmp-th-sort-active"));
+  const activeArrow = document.querySelector(".sort-arrow.active");
+  if (activeArrow) {
+    const th = activeArrow.closest("th");
+    if (th) th.classList.add("cmp-th-sort-active");
+  }
 }
 
 function setCmpSort(key) {
@@ -3879,11 +3934,11 @@ function buildMatchRowHtml(m, extraClass = "", delay = null, matchIdx = null) {
   const teamB = (m.teamB || []).join(" & ");
   const diff = Math.abs(m.scoreA - m.scoreB);
   const badge = isFireMatch(m)
-    ? `<span class="cmr-badge cmr-fire">🔥</span>`
+    ? `<span class="cmr-badge cmr-fire" title="Fire match: margin of 1 game">🔥</span>`
     : isDominatingMatch(m)
-      ? `<span class="cmr-badge cmr-dom">💀</span>`
+      ? `<span class="cmr-badge cmr-dom" title="Dominating: 4-1, 6-1, or 6-2">💀</span>`
       : isZeroMatch(m)
-        ? `<span class="cmr-badge cmr-zero">😂</span>`
+        ? `<span class="cmr-badge cmr-zero" title="Zero match: scored 0 games">😂</span>`
         : "";
   const clickable =
     matchIdx !== null
@@ -3921,11 +3976,11 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
   const teamA = (m.teamA || []).join(" & ");
   const teamB = (m.teamB || []).join(" & ");
   const badge = isFireMatch(m)
-    ? `<span class="cmr-badge cmr-fire">🔥</span>`
+    ? `<span class="cmr-badge cmr-fire" title="Fire match: margin of 1 game">🔥</span>`
     : isDominatingMatch(m)
-      ? `<span class="cmr-badge cmr-dom">💀</span>`
+      ? `<span class="cmr-badge cmr-dom" title="Dominating: 4-1, 6-1, or 6-2">💀</span>`
       : isZeroMatch(m)
-        ? `<span class="cmr-badge cmr-zero">😂</span>`
+        ? `<span class="cmr-badge cmr-zero" title="Zero match: scored 0 games">😂</span>`
         : "";
   const clickHandler = matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
   return `<div class="smr-wrap${extraClass}">
@@ -4036,6 +4091,20 @@ function buildMatchCards(matches, showAdmin) {
     </div>`;
   };
 
+  // Enhancement 8: pre-compute pair-vs-pair H2H records
+  const _pvpMap = {};
+  allMatches.forEach((hm) => {
+    const pa = (hm.teamA || []).slice().sort().join("&");
+    const pb = (hm.teamB || []).slice().sort().join("&");
+    if (!pa || !pb) return;
+    const key = pa <= pb ? `${pa}|${pb}` : `${pb}|${pa}`;
+    if (!_pvpMap[key]) _pvpMap[key] = { a: 0, b: 0, aFirst: pa <= pb };
+    const aWonH = hm.scoreA > hm.scoreB;
+    const paFirst = _pvpMap[key].aFirst;
+    if (paFirst ? aWonH : !aWonH) _pvpMap[key].a++;
+    else _pvpMap[key].b++;
+  });
+
   return [...matches]
     .reverse()
     .map((m, index) => {
@@ -4050,24 +4119,36 @@ function buildMatchCards(matches, showAdmin) {
       const bWon = !aWon;
       const realIdx = allMatches.indexOf(m);
 
-      // Event badges
+      // Event badges — Enhancement 7: title tooltips
       const badges = [];
       if (isFire)
-        badges.push(`<span class="event-badge fire">🔥 FIRE MATCH</span>`);
+        badges.push(`<span class="event-badge fire" title="Close match: margin of 1 game">🔥 FIRE MATCH</span>`);
       if (isDominating)
-        badges.push(`<span class="event-badge dominate">💀 DOMINATING</span>`);
+        badges.push(`<span class="event-badge dominate" title="Dominant performance: 4-1, 6-1, or 6-2">💀 DOMINATING</span>`);
       if (isZero)
-        badges.push(
-          `<span class="event-badge zero">😂 ZERO SE HAAR GAYE!</span>`,
-        );
+        badges.push(`<span class="event-badge zero" title="One team scored 0 games">😂 ZERO SE HAAR GAYE!</span>`);
 
       const delay = Math.min(index * 0.1, 1); // Staggered delay up to 1s
+
+      // Enhancement 8: pair-vs-pair H2H record badge
+      const _pa8 = (m.teamA || []).slice().sort().join("&");
+      const _pb8 = (m.teamB || []).slice().sort().join("&");
+      const _pvpKey = _pa8 <= _pb8 ? `${_pa8}|${_pb8}` : `${_pb8}|${_pa8}`;
+      const _pvp = _pvpMap[_pvpKey];
+      let pvpHtml = "";
+      if (_pvp && (_pvp.a + _pvp.b) >= 2) {
+        const paFirst = _pa8 <= _pb8;
+        const aW8 = paFirst ? _pvp.a : _pvp.b;
+        const bW8 = paFirst ? _pvp.b : _pvp.a;
+        const leader8 = aW8 > bW8 ? "RED" : bW8 > aW8 ? "BLUE" : null;
+        pvpHtml = `<span class="match-h2h-badge" title="Head-to-head: these two pairs have played ${_pvp.a + _pvp.b} times">H2H ${aW8}–${bW8}${leader8 ? ` ${leader8} leads` : " TIED"}</span>`;
+      }
 
       const noteHtml = m.note
         ? `<div class="match-note">📝 ${escHtml(m.note)}</div>`
         : "";
       return `
-              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}" data-margin="${diff}">
+              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}" data-margin="${diff}" data-match-month="${(m.date || "").slice(0, 7)}">
                 <div class="match-card-inner">
                 <div class="match-top">
                   <span class="match-date">📅 ${fmtDate(m.date)}</span>
@@ -4089,6 +4170,7 @@ function buildMatchCards(matches, showAdmin) {
                   return `<div class="match-elo-row"><div class="match-elo-team">${aP}</div><div class="match-elo-vs-gap"></div><div class="match-elo-team">${bP}</div></div>`;
                 })()}
                 ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
+                ${pvpHtml ? `<div class="match-pvp-row">${pvpHtml}</div>` : ""}
                 ${noteHtml}
                 <div class="match-footer" style="margin-top:10px">
                   ${
@@ -4106,6 +4188,32 @@ function buildMatchCards(matches, showAdmin) {
               </div>`;
     })
     .join("");
+}
+
+// Enhancement 9: jump to month in history
+function _buildHistMonthOptions() {
+  const sel = document.getElementById("hist-month-jump");
+  if (!sel) return;
+  const months = [...new Set(allMatches.filter((m) => m.date).map((m) => m.date.slice(0, 7)))].sort().reverse();
+  const mn = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  sel.innerHTML = '<option value="">↪ MONTH</option>' +
+    months.map((m) => {
+      const [y, mo] = m.split("-");
+      return `<option value="${m}">${mn[parseInt(mo, 10)]} ${y}</option>`;
+    }).join("");
+}
+function jumpHistMonth(ym) {
+  if (!ym) return;
+  const el = document.querySelector(`[data-match-month="${ym}"]`);
+  const listEl = document.getElementById("modern-match-list");
+  if (el && listEl) {
+    const offset = el.getBoundingClientRect().top - listEl.getBoundingClientRect().top + listEl.scrollTop;
+    listEl.scrollTo({ top: offset - 12, behavior: "smooth" });
+  } else {
+    showToast(`No matches in ${ym}`, "ℹ️");
+  }
+  const sel = document.getElementById("hist-month-jump");
+  if (sel) sel.value = "";
 }
 
 function filterMatchTab(f) {
@@ -4881,6 +4989,7 @@ function renderModernMatches() {
   populateHistoryPlayerChips();
   populateHistoryAdvancedFilters();
   _updateHistFilterBadge();
+  _buildHistMonthOptions();
 }
 
 function _updateHistFilterBadge() {
@@ -5608,6 +5717,8 @@ function saveMatchEdit(i) {
   if (!a1 || !b1) return show("Select at least P1 for each team.");
   if (isNaN(sa) || isNaN(sb)) return show("Enter valid scores.");
   if (sa === sb) return show("Scores cannot be equal.");
+  // Enhancement 23: block future-dated match edits
+  if (date && date > todayISO()) return show("Match date cannot be in the future.");
   const teamA = [a1, a2].filter(Boolean);
   const teamB = [b1, b2].filter(Boolean);
   if (teamA.length !== teamB.length)
@@ -5815,6 +5926,11 @@ function saveModernMatch() {
   const note = document.getElementById("modern-note")?.value.trim() || "";
   if (!p1a || !p2a || !p1b || !p2b || isNaN(sA) || isNaN(sB) || sA === sB) {
     alert("Invalid match data");
+    return;
+  }
+  // Enhancement 23: block future-dated match entries
+  if (date > todayISO()) {
+    alert("Match date cannot be in the future.");
     return;
   }
   if (new Set([p1a, p2a, p1b, p2b]).size < 4) {
@@ -6398,16 +6514,47 @@ function openPlayerDetail(name) {
           </div>`
     : "";
 
+  // Enhancement 14: dangerous opponent — opponent with highest win rate AGAINST this player
+  const dangerousOppHtml = (() => {
+    const oppData = {};
+    pdPlayerMs.forEach((m) => {
+      const inA = (m.teamA || []).includes(name);
+      const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      const opps = inA ? (m.teamB || []) : (m.teamA || []);
+      opps.forEach((o) => {
+        if (!oppData[o]) oppData[o] = { w: 0, p: 0 };
+        oppData[o].p++;
+        if (!won) oppData[o].w++;
+      });
+    });
+    const best = Object.entries(oppData)
+      .filter(([, d]) => d.p >= 3)
+      .sort((a, b) => (b[1].w / b[1].p) - (a[1].w / a[1].p))[0];
+    if (!best) return "";
+    const [oppName, d] = best;
+    const pct = Math.round(d.w / d.p * 100);
+    if (pct < 55) return "";
+    return `<div class="det-conn">
+      <div class="det-conn-icon">⚠️</div>
+      <div class="det-conn-body">
+        <div class="det-conn-name">${oppName}</div>
+        <div class="det-conn-meta"><span class="n">${pct}% win rate vs me</span> · ${d.p}g</div>
+      </div>
+      <div class="det-conn-tag">Dangerous Opp.</div>
+    </div>`;
+  })();
+
   const connectionsHtml =
     bestPartnerHtml ||
     worstPartnerHtml ||
     nemesisHtml ||
     favOppHtml ||
     mostCommonPartnerHtml ||
-    mostCommonOppHtml
+    mostCommonOppHtml ||
+    dangerousOppHtml
       ? `<div class="ana-card">
               <span class="badge">Connections</span>
-              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}</div>
+              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}${dangerousOppHtml}</div>
             </div>`
       : "";
 
@@ -6781,7 +6928,7 @@ function openPlayerDetail(name) {
     return `<div class="ana-card"><span class="badge">vs All Opponents</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows5}</div></div>`;
   })();
 
-  // ── ALL-PARTNERS RANKED ──────────────────────────────────
+  // ── ALL-PARTNERS RANKED (Enhancement 15: ELO gain per partner) ──
   const allPartnersHtml = (() => {
     const pData = {};
     pdPlayerMs.forEach((m) => {
@@ -6794,16 +6941,72 @@ function openPlayerDetail(name) {
         if (won6) pData[p].w++;
       });
     });
+    // Enhancement 15: compute cumulative ELO delta when paired with each partner
+    const _eloW15 = {};
+    const partnerEloDelta = {};
+    const sortedForElo15 = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    sortedForElo15.forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _eloW15)) _eloW15[p] = 1000; });
+      const aWon15 = m.scoreA > m.scoreB;
+      const avgA15 = m.teamA.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(m.teamA.length, 1);
+      const avgB15 = m.teamB.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(m.teamB.length, 1);
+      const expA15 = 1 / (1 + Math.pow(10, (avgB15 - avgA15) / 400));
+      const dA15 = Math.round(32 * ((aWon15 ? 1 : 0) - expA15));
+      const dB15 = Math.round(32 * ((aWon15 ? 0 : 1) - (1 - expA15)));
+      m.teamA.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dA15; });
+      m.teamB.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dB15; });
+      const inA15 = (m.teamA || []).includes(name);
+      const inB15 = (m.teamB || []).includes(name);
+      if (inA15 || inB15) {
+        const myDelta15 = inA15 ? dA15 : dB15;
+        const myTeam15 = inA15 ? m.teamA : m.teamB;
+        myTeam15.filter((p) => p !== name).forEach((p) => {
+          if (!partnerEloDelta[p]) partnerEloDelta[p] = 0;
+          partnerEloDelta[p] += myDelta15;
+        });
+      }
+    });
     const rows6 = Object.entries(pData)
       .filter(([, d]) => d.p >= 1)
       .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p || b[1].p - a[1].p)
       .map(([partner, d]) => {
         const pct = Math.round(d.w / d.p * 100);
         const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:10px"><span style="font-size:10px;color:var(--muted)">${d.p}g</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
+        const eloDelta = partnerEloDelta[partner];
+        const eloStr = eloDelta !== undefined
+          ? `<span style="font-size:10px;font-weight:700;color:${eloDelta >= 0 ? 'var(--green)' : 'var(--red)'}">${eloDelta >= 0 ? '+' : ''}${eloDelta}</span>`
+          : '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${eloStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
       }).join("");
     if (!rows6) return "";
-    return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
+    return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ELO gained together</div><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
+  })();
+
+  // ── SCORE DISTRIBUTION CHART — Enhancement 16 ───────────
+  const scoreDistHtml = (() => {
+    if (pdPlayerMs.length < 3) return "";
+    const dist = {};
+    pdPlayerMs.forEach((m) => {
+      const inA = (m.teamA || []).includes(name);
+      const own = inA ? m.scoreA : m.scoreB;
+      const opp = inA ? m.scoreB : m.scoreA;
+      const key = `${own}–${opp}`;
+      dist[key] = (dist[key] || 0) + 1;
+    });
+    const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+    const maxCount = Math.max(...entries.map(([, c]) => c), 1);
+    const bars = entries.map(([score, count]) => {
+      const [own] = score.split("–").map(Number);
+      const isWin = own > (parseInt(score.split("–")[1], 10));
+      const pct = Math.round((count / maxCount) * 100);
+      const col = isWin ? "var(--green)" : "var(--red)";
+      return `<div class="sd-row">
+        <div class="sd-label ${isWin ? 'p' : 'n'}">${score}</div>
+        <div class="sd-bar-wrap"><div class="sd-bar" style="width:${pct}%;background:${col}"></div></div>
+        <div class="sd-count">${count}</div>
+      </div>`;
+    }).join("");
+    return `<div class="ana-card"><span class="badge">Score Distribution</span><div style="margin-top:8px">${bars}</div></div>`;
   })();
 
   // ── PERSONAL RECORDS CAREER HIGHS ────────────────────────
@@ -7007,6 +7210,8 @@ function openPlayerDetail(name) {
                 ${vsOpponentsHtml}
 
                 ${allPartnersHtml}
+
+                ${scoreDistHtml}
 
               </div>
               <div style="margin-top:20px;font-size:13px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Matches</div>
@@ -13893,7 +14098,10 @@ function renderAnalyticsPage() {
             const pct = pair.winPct;
             const cls =
               pct > 60 ? "pvp-win" : pct < 40 ? "pvp-loss" : "pvp-even";
-            return `<td class="pvp-td ${cls}" title="${getMatrixAlias(rowP)} & ${getMatrixAlias(colP)}: ${pair.wins}W–${pair.played - pair.wins}L">${pct}%</td>`;
+            // Enhancement 19: confidence indicator based on sample size
+            const conf = pair.played >= 10 ? "●" : pair.played >= 5 ? "◑" : "○";
+            const confTitle = pair.played >= 10 ? "High confidence" : pair.played >= 5 ? "Medium confidence" : "Low confidence";
+            return `<td class="pvp-td ${cls}" title="${getMatrixAlias(rowP)} & ${getMatrixAlias(colP)}: ${pair.wins}W–${pair.played - pair.wins}L (${pair.played} games · ${confTitle})">${pct}%<span class="pvp-conf" title="${confTitle}">${conf}</span></td>`;
           })
           .join("");
         return `<tr><td class="pvp-row-hdr" title="${rowP}">${getMatrixAlias(rowP)}</td>${cells}</tr>`;
@@ -14170,9 +14378,32 @@ function renderAnalyticsPage() {
       </div>`;
       })
       .join("");
+    // Enhancement 18: per-player win rate by day
+    const playerWinsByDay = Array(7).fill(0);
+    const playerPlayedByDay = Array(7).fill(0);
+    sortedM.forEach((m) => {
+      if (!m.date) return;
+      const d = new Date(m.date + "T00:00:00").getDay();
+      const allP = [...(m.teamA || []), ...(m.teamB || [])];
+      const aWon18 = m.scoreA > m.scoreB;
+      allP.forEach((p) => {
+        playerPlayedByDay[d]++;
+        const inA = (m.teamA || []).includes(p);
+        if ((inA && aWon18) || (!inA && !aWon18)) playerWinsByDay[d]++;
+      });
+    });
+    const bestPlayDay = playerPlayedByDay.reduce((best, cnt, d) => {
+      if (cnt < 3) return best;
+      const wr = playerWinsByDay[d] / cnt;
+      return wr > (best.wr || 0) ? { d, wr } : best;
+    }, { d: topDay, wr: 0 });
+    const bestDayRec = bestPlayDay.d !== undefined && playerPlayedByDay[bestPlayDay.d] >= 3
+      ? `<div style="margin-top:10px;padding:8px;background:rgba(var(--theme-rgb),0.08);border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.2)"><span style="font-size:9px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</span><div style="font-size:14px;font-weight:900;color:var(--accent);margin-top:4px">${DAY_NAMES[bestPlayDay.d]} <span style="font-size:10px;font-weight:700;color:var(--green)">(${Math.round(bestPlayDay.wr * 100)}% win rate)</span></div></div>`
+      : "";
     return `<div class="ana-card" style="padding:12px">
       <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Most active day: <strong style="color:var(--accent)">${DAY_NAMES[topDay]}</strong> (${dayCounts[topDay]} matches)</div>
       <div class="dow-table">${rows}</div>
+      ${bestDayRec}
     </div>`;
   })();
 
@@ -14243,7 +14474,11 @@ function renderAnalyticsPage() {
     if (!rows.length)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     return `<div class="ana-card" style="padding:12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">How much a player lifts their partners' win rate vs. without them. Tap row to see partner breakdown.</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">
+        <strong style="color:var(--fg)">Carry Factor</strong> measures how much a player improves their teammates' win rate.<br>
+        <span style="opacity:0.75">e.g. +15% means partners win 15% more matches when paired with this player than without them.</span><br>
+        <span style="opacity:0.6">Requires 2+ games per partner pairing. Tap a row to see the breakdown.</span>
+      </div>
       ${rows
         .map((r) => {
           const col = r.delta >= 0 ? "var(--green)" : "var(--red)";
@@ -14320,7 +14555,42 @@ function renderAnalyticsPage() {
     ).sort((a, b) => a.localeCompare(b));
     if (!topPlayers.length)
       return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
-    return `<div class="ana-card" style="padding:12px;overflow-x:auto">
+    // Enhancement 20: unified clutch summary table
+    const clutchSummary = (() => {
+      const totals = {};
+      sortedM.forEach((m) => {
+        if (Math.abs(m.scoreA - m.scoreB) > 1) return;
+        const aWon20 = m.scoreA > m.scoreB;
+        const process20 = (players, won) => players.forEach((p) => {
+          if (!totals[p]) totals[p] = { w: 0, p: 0 };
+          totals[p].p++;
+          if (won) totals[p].w++;
+        });
+        process20(m.teamA || [], aWon20);
+        process20(m.teamB || [], !aWon20);
+      });
+      const summaryRows = Object.entries(totals)
+        .filter(([, d]) => d.p >= 2)
+        .sort((a, b) => (b[1].w / b[1].p) - (a[1].w / a[1].p))
+        .map(([p, d]) => {
+          const pct = Math.round(d.w / d.p * 100);
+          const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--gold)";
+          const rating = pct >= 60 ? "CLUTCH" : pct <= 40 ? "CHOKER" : "STEADY";
+          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.p}</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
+        }).join("");
+      if (!summaryRows) return "";
+      return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
+        <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:8px">CLUTCH RANKING — ALL TIME (close matches, margin ≤1)</div>
+        <table style="width:100%;border-collapse:collapse"><thead><tr>
+          <th style="text-align:left;font-size:9px;color:var(--muted);padding-bottom:4px">Player</th>
+          <th style="text-align:center;font-size:9px;color:var(--muted)">Played</th>
+          <th style="text-align:center;font-size:9px;color:var(--muted)">Win%</th>
+          <th style="text-align:center;font-size:9px;color:var(--muted)">Rating</th>
+        </tr></thead><tbody>${summaryRows}</tbody></table>
+      </div>`;
+    })();
+
+    return clutchSummary + `<div class="ana-card" style="padding:12px;overflow-x:auto">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% in close matches (margin ≤1) per month</div>
       <table style="width:100%;border-collapse:collapse;font-size:10px">
         <tr><th style="text-align:left;color:var(--muted);font-weight:600;padding-bottom:6px">Player</th>${allMonths.map((m) => `<th style="color:var(--muted);font-weight:600;padding:0 4px 6px;text-align:center">${MONTHS[parseInt(m.slice(5)) - 1]}</th>`).join("")}</tr>
@@ -15421,6 +15691,11 @@ Object.assign(window, {
   confirmSessionStart,
   endLiveSession,
   syncSession,
+  jumpHistMonth,
+  substituteLivePlayer,
+  checkResumeSession,
+  resumeSession,
+  discardResumeSession,
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
@@ -15674,6 +15949,11 @@ function liveUndoPoint() {
   _liveSyncGameDisplay();
 }
 
+// Enhancement 12: substitute player mid-match
+function substituteLivePlayer(slot) {
+  openLivePlayerSheet(slot);
+}
+
 function _renderLiveSlot(slot) {
   const p = _liveSlots[slot];
   const nameEl = document.getElementById(`live-name-${slot}`);
@@ -15686,12 +15966,21 @@ function _renderLiveSlot(slot) {
     avatarEl.style.background = playerColor(p);
     avatarEl.style.color = "#fff";
     slotEl?.classList.add("live-slot-filled");
+    // Enhancement 10: show ELO under name
+    const eloEl = document.getElementById(`live-elo-${slot}`);
+    if (eloEl) {
+      const elo = computeElo(activeMatches())[p] || 1000;
+      eloEl.textContent = `ELO ${elo}`;
+      eloEl.style.display = "";
+    }
   } else {
     nameEl.textContent = "TAP TO SELECT";
     avatarEl.textContent = "?";
     avatarEl.style.background = "rgba(255,255,255,0.06)";
     avatarEl.style.color = "var(--muted)";
     slotEl?.classList.remove("live-slot-filled");
+    const eloEl = document.getElementById(`live-elo-${slot}`);
+    if (eloEl) eloEl.style.display = "none";
   }
 }
 
@@ -15943,6 +16232,7 @@ function endLiveMatch() {
     if (_sessionPanelOpen) _updateSessionPanel();
     const undoBtn = document.getElementById("live-undo-match-btn");
     if (undoBtn) undoBtn.style.display = "";
+    _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
     try { localStorage.setItem("padel_matches", JSON.stringify(allMatches)); } catch(e) {}
@@ -16584,7 +16874,20 @@ function _buildSessionLeaderboard() {
       <div class="sess-ldr-count">×${s.m}</div>
     </div>`;
   }).join('');
-  return fairWarn + rows;
+  // Enhancement 11: full undo stack — show all session matches with undo buttons
+  const histRows = [..._sessionMatchHistory].reverse().map((mt, ri) => {
+    const i = _sessionMatchHistory.length - 1 - ri;
+    const aWon = mt.scoreA > mt.scoreB;
+    const tA = mt.teamA.map(p => p.split(' ')[0]).join(' & ');
+    const tB = mt.teamB.map(p => p.split(' ')[0]).join(' & ');
+    const isLast = i === _sessionMatchHistory.length - 1;
+    return `<div class="sess-hist-row${isLast ? ' sess-hist-last' : ''}">
+      <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? 'p' : 'n'}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
+      ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ''}
+    </div>`;
+  }).join('');
+  const histHtml = histRows ? `<div class="sess-hist-label">MATCH LOG</div><div class="sess-hist-list">${histRows}</div>` : '';
+  return fairWarn + rows + histHtml;
 }
 
 function _updateSessionPanel() {
@@ -16731,6 +17034,7 @@ async function confirmEndSession() {
   _liveSessionData = null;
   _sessionMatchHistory = [];
   _sessionPanelOpen = false;
+  _clearSessionState(); // Enhancement 13: clear persisted session
   _syncLiveSessionBar();
   _liveHaptic([30, 60, 30]);
   _notifyLiveEvent("session_end", "Session ended");
@@ -16795,6 +17099,55 @@ function sessionSetupSelectNone() {
 function closeSessionSetup() {
   document.getElementById("session-setup-overlay")?.classList.remove("live-sheet-open");
   document.getElementById("session-setup-sheet")?.classList.remove("live-sheet-open");
+}
+
+// Enhancement 13: session pause/resume via localStorage
+const _SESSION_SAVE_KEY = "padel_session_state";
+function _saveSessionState() {
+  try {
+    if (!_liveSessionData?.sessionActive) return;
+    localStorage.setItem(_SESSION_SAVE_KEY, JSON.stringify({
+      session: _liveSessionData,
+      history: _sessionMatchHistory,
+      savedAt: new Date().toISOString(),
+    }));
+  } catch (e) {}
+}
+function _clearSessionState() {
+  try { localStorage.removeItem(_SESSION_SAVE_KEY); } catch (e) {}
+}
+function checkResumeSession() {
+  try {
+    const saved = localStorage.getItem(_SESSION_SAVE_KEY);
+    if (!saved) return;
+    const { session, history, savedAt } = JSON.parse(saved);
+    if (!session?.sessionActive) return;
+    const banner = document.getElementById("session-resume-banner");
+    if (!banner) return;
+    const minsAgo = Math.round((Date.now() - new Date(savedAt).getTime()) / 60000);
+    banner.innerHTML = `<span>Resume session from ${minsAgo}m ago? (${session.sessionPlayers?.length || 0} players, ${history?.length || 0} matches)</span><button onclick="resumeSession()">RESUME</button><button onclick="discardResumeSession()" style="opacity:0.6">✕</button>`;
+    banner.style.display = "flex";
+  } catch (e) {}
+}
+function resumeSession() {
+  try {
+    const saved = localStorage.getItem(_SESSION_SAVE_KEY);
+    if (!saved) return;
+    const { session, history } = JSON.parse(saved);
+    _liveSessionData = session;
+    _sessionMatchHistory = history || [];
+    _sessionPendingCount = 0;
+    _sessionPanelOpen = false;
+    document.getElementById("session-resume-banner")?.remove();
+    _syncLiveSessionBar();
+    _startSessionTimer();
+    showToast("Session resumed!", "✅");
+  } catch (e) { showToast("Could not resume session", "❌"); }
+}
+function discardResumeSession() {
+  _clearSessionState();
+  const banner = document.getElementById("session-resume-banner");
+  if (banner) banner.remove();
 }
 
 function confirmSessionStart() {

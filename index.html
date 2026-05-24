@@ -34,6 +34,12 @@
       <div class="amb b4"></div>
       <div class="amb b5"></div>
     </div>
+    <!-- Enhancement 21: offline indicator -->
+    <div id="offline-indicator">📡 OFFLINE</div>
+
+    <!-- Enhancement 13: session resume banner -->
+    <div id="session-resume-banner"></div>
+
     <!-- ══════════ SPLASH SCREEN ══════════ -->
     <div id="app-splash">
       <div>
@@ -291,7 +297,7 @@
             <span class="cmp-date-fab-label" id="cmpDateLabel">TODAY</span>
           </button>
           <div class="summary-nav-actions">
-            <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()">⚖</button>
+            <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()" title="Equalized mode: smooths out stats for players with fewer matches so they're not unfairly penalized for low sample size (Bayesian smoothing toward 50% win rate)">⚖</button>
             <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
             <button class="ss-snap-btn" onclick="openSummaryShare()">📸</button>
           </div>
@@ -543,6 +549,13 @@
               >
                 <span id="hist-pair-label">ALL PAIRS</span>
               </button>
+            </div>
+
+            <!-- Jump to month — Enhancement 9 -->
+            <div class="compact-filter-item">
+              <select class="hist-select compact-select" id="hist-month-jump" onchange="jumpHistMonth(this.value)">
+                <option value="">↪ MONTH</option>
+              </select>
             </div>
 
             <!-- H2H -->
@@ -1082,6 +1095,7 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-a1">?</div>
               <div class="live-slot-name" id="live-name-a1">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-a1"></div>
             </button>
             <button
               class="live-player-slot"
@@ -1090,6 +1104,7 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-a2">?</div>
               <div class="live-slot-name" id="live-name-a2">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-a2"></div>
             </button>
           </div>
 
@@ -1104,6 +1119,7 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-b1">?</div>
               <div class="live-slot-name" id="live-name-b1">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-b1"></div>
             </button>
             <button
               class="live-player-slot"
@@ -1112,6 +1128,7 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-b2">?</div>
               <div class="live-slot-name" id="live-name-b2">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-b2"></div>
             </button>
           </div>
         </div>
