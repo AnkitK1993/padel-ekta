@@ -14085,10 +14085,7 @@ function renderAnalyticsPage() {
             const pct = pair.winPct;
             const cls =
               pct > 60 ? "pvp-win" : pct < 40 ? "pvp-loss" : "pvp-even";
-            // Enhancement 19: confidence indicator based on sample size
-            const conf = pair.played >= 10 ? "●" : pair.played >= 5 ? "◑" : "○";
-            const confTitle = pair.played >= 10 ? "High confidence" : pair.played >= 5 ? "Medium confidence" : "Low confidence";
-            return `<td class="pvp-td ${cls}" title="${getMatrixAlias(rowP)} & ${getMatrixAlias(colP)}: ${pair.wins}W–${pair.played - pair.wins}L (${pair.played} games · ${confTitle})">${pct}%<span class="pvp-conf" title="${confTitle}">${conf}</span></td>`;
+            return `<td class="pvp-td ${cls}" title="${getMatrixAlias(rowP)} & ${getMatrixAlias(colP)}: ${pair.wins}W–${pair.played - pair.wins}L">${pct}%</td>`;
           })
           .join("");
         return `<tr><td class="pvp-row-hdr" title="${rowP}">${getMatrixAlias(rowP)}</td>${cells}</tr>`;
@@ -14379,12 +14376,12 @@ function renderAnalyticsPage() {
         if ((inA && aWon18) || (!inA && !aWon18)) playerWinsByDay[d]++;
       });
     });
-    const bestPlayDay = playerPlayedByDay.reduce((best, cnt, d) => {
-      if (cnt < 3) return best;
-      const wr = playerWinsByDay[d] / cnt;
-      return wr > (best.wr || 0) ? { d, wr } : best;
-    }, { d: topDay, wr: 0 });
-    const bestDayRec = bestPlayDay.d !== undefined && playerPlayedByDay[bestPlayDay.d] >= 3
+    const bestPlayDay = dayCounts.reduce((best, cnt, d) => {
+      if (!cnt) return best;
+      const wr = playerPlayedByDay[d] > 0 ? playerWinsByDay[d] / playerPlayedByDay[d] : 0;
+      return (best.d === undefined || wr > best.wr) ? { d, wr } : best;
+    }, {});
+    const bestDayRec = bestPlayDay.d !== undefined
       ? `<div style="margin-top:10px;padding:8px;background:rgba(var(--theme-rgb),0.08);border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.2)"><span style="font-size:9px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</span><div style="font-size:14px;font-weight:900;color:var(--accent);margin-top:4px">${DAY_NAMES[bestPlayDay.d]} <span style="font-size:10px;font-weight:700;color:var(--green)">(${Math.round(bestPlayDay.wr * 100)}% win rate)</span></div></div>`
       : "";
     return `<div class="ana-card" style="padding:12px">
