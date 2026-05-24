@@ -5101,45 +5101,27 @@ function setHistMargin(val) {
   renderModernMatches();
 }
 
-// ── PAIR AUTOCOMPLETE ──────────────────────────────────────
-function _renderPairACDrop(query) {
-  const drop = document.getElementById("hist-pair-ac-drop");
-  if (!drop) return;
+// ── PAIR SHEET SEARCH ──────────────────────────────────────
+function filterSheetSearch(query) {
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
   const pairs = getPairStats();
   const q = (query || "").toLowerCase().trim();
   const filtered = q ? pairs.filter((p) => p.key.toLowerCase().includes(q)) : pairs;
-  const items = (!q
-    ? [`<div class="pair-ac-item${!histPairFilter ? " sel" : ""}" onmousedown="histPairACSelect('')"><span>ALL PAIRS</span></div>`]
-    : []
-  ).concat(
-    filtered.map((p) => {
+  list.innerHTML = [
+    !q ? `<button class="live-sheet-item${!histPairFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
+      <span class="live-sheet-item-name">ALL PAIRS</span>
+      ${!histPairFilter ? '<span class="live-sheet-check">✓</span>' : ""}
+    </button>` : "",
+    ...filtered.map((p) => {
       const cur = p.key === histPairFilter;
-      return `<div class="pair-ac-item${cur ? " sel" : ""}" onmousedown="histPairACSelect(${jsArg(p.key)})"><span>${escHtml(p.key)}</span><span class="pair-ac-rec">${p.wins}W–${p.losses}L</span></div>`;
-    })
-  );
-  drop.innerHTML = items.length ? items.join("") : `<div class="pair-ac-empty">No pairs found</div>`;
-  drop.style.display = "block";
-}
-function histPairACInput(val) { _renderPairACDrop(val); }
-function histPairACFocus() {
-  const input = document.getElementById("hist-pair-ac-input");
-  if (input) input.value = "";
-  _renderPairACDrop("");
-}
-function histPairACBlur() {
-  setTimeout(() => {
-    const drop = document.getElementById("hist-pair-ac-drop");
-    if (drop) drop.style.display = "none";
-    const input = document.getElementById("hist-pair-ac-input");
-    if (input) input.value = histPairFilter || "";
-  }, 180);
-}
-function histPairACSelect(key) {
-  setHistPairFilter(key);
-  const input = document.getElementById("hist-pair-ac-input");
-  if (input) input.value = key;
-  const drop = document.getElementById("hist-pair-ac-drop");
-  if (drop) drop.style.display = "none";
+      return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p.key)})">
+        <span class="live-sheet-item-name">${escHtml(p.key)}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:auto">${p.wins}W–${p.losses}L</span>
+        ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
+      </button>`;
+    }),
+  ].join("");
 }
 
 function setHistPairFilter(val) {
@@ -5166,10 +5148,10 @@ function _updateFilterBtnDisplay() {
       : "ALL PLAYERS";
     playerBtn.classList.toggle("filter-fab-active", !!histPlayerFilter);
   }
-  const pairInput = document.getElementById("hist-pair-ac-input");
-  if (pairInput) {
-    pairInput.value = histPairFilter || "";
-    pairInput.classList.toggle("pair-ac-active", !!histPairFilter);
+  const pairBtn = document.getElementById("hist-pair-btn");
+  if (pairBtn) {
+    document.getElementById("hist-pair-label").textContent = histPairFilter ? histPairFilter.toUpperCase() : "ALL PAIRS";
+    pairBtn.classList.toggle("filter-fab-active", !!histPairFilter);
   }
 }
 
@@ -5182,6 +5164,8 @@ function openFilterSheet(mode) {
   if (!overlay || !sheet || !list) return;
   if (mode === "player") {
     if (title) title.textContent = "SELECT PLAYER";
+    const sw = document.getElementById("filter-sheet-search-wrap");
+    if (sw) sw.style.display = "none";
     const names = new Set();
     activeMatches().forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -5205,31 +5189,24 @@ function openFilterSheet(mode) {
     ].join("");
   } else if (mode === "pair") {
     if (title) title.textContent = "SELECT PAIR";
-    const pairs = getPairStats();
-    list.innerHTML = [
-      `<button class="live-sheet-item${!histPairFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
-        <span class="live-sheet-item-name">ALL PAIRS</span>
-        ${!histPairFilter ? '<span class="live-sheet-check">✓</span>' : ""}
-      </button>`,
-      ...pairs.map((p) => {
-        const cur = p.key === histPairFilter;
-        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p.key)})">
-          <span class="live-sheet-item-name">${escHtml(p.key)}</span>
-          <span style="font-size:10px;color:var(--muted);margin-left:auto">${p.wins}W–${p.losses}L</span>
-          ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
-        </button>`;
-      }),
-    ].join("");
+    const searchWrap = document.getElementById("filter-sheet-search-wrap");
+    const searchInput = document.getElementById("filter-sheet-search");
+    if (searchWrap) searchWrap.style.display = "block";
+    if (searchInput) searchInput.value = "";
+    filterSheetSearch("");
+    setTimeout(() => searchInput?.focus(), 280);
   }
   overlay.classList.add("live-sheet-open");
   sheet.classList.add("live-sheet-open");
 }
 
 function closeFilterSheet() {
-  document
-    .getElementById("filter-sheet-overlay")
-    ?.classList.remove("live-sheet-open");
+  document.getElementById("filter-sheet-overlay")?.classList.remove("live-sheet-open");
   document.getElementById("filter-sheet")?.classList.remove("live-sheet-open");
+  const searchWrap = document.getElementById("filter-sheet-search-wrap");
+  const searchInput = document.getElementById("filter-sheet-search");
+  if (searchWrap) searchWrap.style.display = "none";
+  if (searchInput) searchInput.value = "";
   _filterSheetMode = null;
 }
 
@@ -15542,10 +15519,7 @@ Object.assign(window, {
   setHistOutcome,
   setHistMargin,
   setHistPairFilter,
-  histPairACInput,
-  histPairACFocus,
-  histPairACBlur,
-  histPairACSelect,
+  filterSheetSearch,
   setHistScorelineFilter,
   openFilterSheet,
   closeFilterSheet,

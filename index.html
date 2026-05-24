@@ -540,22 +540,15 @@
           </div>
 
           <div class="hist-filter-row compact-row bottom-filter-row">
-            <!-- PAIR autocomplete -->
+            <!-- PAIR -->
             <div class="compact-filter-item compact-pair">
-              <div class="hist-pair-ac-wrap" id="hist-pair-ac-wrap">
-                <input
-                  type="text"
-                  id="hist-pair-ac-input"
-                  class="hist-pair-ac-input"
-                  placeholder="ALL PAIRS"
-                  oninput="histPairACInput(this.value)"
-                  onfocus="histPairACFocus()"
-                  onblur="histPairACBlur()"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-                <div id="hist-pair-ac-drop" class="hist-pair-ac-drop"></div>
-              </div>
+              <button
+                class="filter-fab-btn"
+                id="hist-pair-btn"
+                onclick="openFilterSheet('pair')"
+              >
+                <span id="hist-pair-label">ALL PAIRS</span>
+              </button>
             </div>
 
             <!-- H2H -->
@@ -1611,6 +1604,11 @@ Puneet - Pun, PK
     <div class="live-sheet" id="filter-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="filter-sheet-title">SELECT</div>
+      <div class="filter-sheet-search-wrap" id="filter-sheet-search-wrap" style="display:none">
+        <input type="text" id="filter-sheet-search" class="filter-sheet-search"
+          placeholder="Search pairs…" oninput="filterSheetSearch(this.value)"
+          autocomplete="off" spellcheck="false" />
+      </div>
       <div class="live-sheet-list" id="filter-sheet-list"></div>
     </div>
 
