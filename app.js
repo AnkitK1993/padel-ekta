@@ -3278,9 +3278,16 @@ function onCmpFilter() {
 // home filter handled by onHomeFilterChange dropdown
 
 // ── ABSENCE TRACKER ────────────────────────────────────────
+let _miaFadeTimer = null;
+
 function renderAbsenceBanner() {
   const banner = document.getElementById("absence-banner");
   if (!banner) return;
+
+  // Reset any in-progress fade so fresh content starts visible
+  if (_miaFadeTimer) { clearTimeout(_miaFadeTimer); _miaFadeTimer = null; }
+  banner.classList.remove("mia-fade-out");
+
   if (!allMatches.length) {
     banner.innerHTML = "";
     return;
@@ -3342,6 +3349,13 @@ function renderAbsenceBanner() {
               </div>
               <div class="absence-chips">${chips}</div>
             </div>`;
+
+  // Fade out after 2 seconds, then collapse space so cards slide up
+  _miaFadeTimer = setTimeout(() => {
+    const b = document.getElementById("absence-banner");
+    if (b) b.classList.add("mia-fade-out");
+    _miaFadeTimer = null;
+  }, 2000);
 }
 
 // ── FORM SPARKLINE ─────────────────────────────────────────

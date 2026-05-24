@@ -3317,6 +3317,16 @@ body.no-cascade .analytics-card {
   font-weight: 700;
 }
 
+#absence-banner {
+  overflow: hidden;
+  max-height: 300px;
+  opacity: 1;
+  transition: opacity 0.35s ease, max-height 0.45s ease 0.25s;
+}
+#absence-banner.mia-fade-out {
+  opacity: 0;
+  max-height: 0;
+}
 .absence-banner {
   flex-shrink: 0;
   background: linear-gradient(
