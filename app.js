@@ -6969,6 +6969,46 @@ function openPlayerDetail(name) {
     return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ELO gained together</div><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
   })();
 
+  // ── BEST DAY TO PLAY ─────────────────────────────────────
+  const bestDayHtml = (() => {
+    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const played = Array(7).fill(0), won = Array(7).fill(0);
+    pdPlayerMs.forEach((m) => {
+      if (!m.date) return;
+      const d = new Date(m.date + "T00:00:00").getDay();
+      const inA = (m.teamA || []).includes(name);
+      played[d]++;
+      if (inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA) won[d]++;
+    });
+    const rows = DAY.map((label, d) => {
+      if (!played[d]) return "";
+      const wr = Math.round((won[d] / played[d]) * 100);
+      const col = wr >= 60 ? "var(--green)" : wr <= 40 ? "var(--red)" : "var(--muted)";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <span style="font-size:10px;font-weight:700;width:28px;flex-shrink:0">${label}</span>
+        <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px">
+          <div style="height:100%;width:${wr}%;background:${col};border-radius:3px"></div>
+        </div>
+        <span style="font-size:10px;font-weight:800;color:${col};width:32px;text-align:right">${wr}%</span>
+        <span style="font-size:9px;color:var(--muted);width:20px;text-align:right">${played[d]}g</span>
+      </div>`;
+    }).join("");
+    if (!rows.replace(/\s/g, "")) return "";
+    const best = DAY.reduce((b, _, d) => {
+      if (played[d] < 2) return b;
+      const wr = won[d] / played[d];
+      return (b.d === undefined || wr > b.wr) ? { d, wr } : b;
+    }, {});
+    const chip = best.d !== undefined
+      ? `<div style="margin-top:10px;padding:7px 10px;background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">📅</span>
+          <div><div style="font-size:8px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</div>
+          <div style="font-size:13px;font-weight:900;color:var(--accent)">${DAY[best.d]} <span style="font-size:10px;color:var(--green);font-weight:700">${Math.round(best.wr * 100)}% win rate</span></div></div>
+        </div>`
+      : "";
+    return `<div class="ana-card"><span class="badge">Day of Week</span><div style="margin-top:8px">${rows}</div>${chip}</div>`;
+  })();
+
   // ── SCORE DISTRIBUTION CHART — Enhancement 16 ───────────
   const scoreDistHtml = (() => {
     if (pdPlayerMs.length < 3) return "";
@@ -7199,6 +7239,8 @@ function openPlayerDetail(name) {
                 ${allPartnersHtml}
 
                 ${scoreDistHtml}
+
+                ${bestDayHtml}
 
               </div>
               <div style="margin-top:20px;font-size:13px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Matches</div>
