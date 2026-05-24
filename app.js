@@ -3561,32 +3561,10 @@ function renderHome() {
     return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
 
-  const sessionCardHtml = (() => {
-    if (!_liveSessionData?.sessionActive) return "";
-    const players = (_liveSessionData.sessionPlayers || []).join(", ") || "—";
-    const matchCount = _sessionMatchHistory.length;
-    const startedAt = _liveSessionData.sessionStartedAt;
-    let durationStr = "";
-    if (startedAt) {
-      const mins = Math.floor((Date.now() - startedAt) / 60000);
-      durationStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
-    }
-    return `<div class="session-active-card" onclick="switchMainTab('live')">
-      <div class="sac-pulse"></div>
-      <div class="sac-body">
-        <div class="sac-title"><span class="sac-dot"></span>SESSION ACTIVE</div>
-        <div class="sac-players">${escHtml(players)}</div>
-        <div class="sac-meta">
-          <span>${matchCount} match${matchCount !== 1 ? "es" : ""} played</span>
-          ${durationStr ? `<span>${durationStr}</span>` : ""}
-          <span class="sac-go">Go to Session →</span>
-        </div>
-      </div>
-    </div>`;
-  })();
+  _renderSessionActiveCard();
 
   if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
-    board.innerHTML = sessionCardHtml;
+    board.innerHTML = "";
     const gen = ++_renderHomeGen;
     cardHtmls.forEach((html, i) => {
       setTimeout(() => {
@@ -3607,7 +3585,7 @@ function renderHome() {
       }, i * 100);
     });
   } else {
-    board.innerHTML = sessionCardHtml + cardHtmls.join("");
+    board.innerHTML = cardHtmls.join("");
     runSpeedometerSweep();
     setTimeout(animateGauges, 50);
     board
@@ -4187,7 +4165,6 @@ function buildMatchCards(matches, showAdmin) {
                   return `<div class="match-elo-row"><div class="match-elo-team">${aP}</div><div class="match-elo-vs-gap"></div><div class="match-elo-team">${bP}</div></div>`;
                 })()}
                 ${badges.length ? `<div class="match-event-strip">${badges.join("")}</div>` : ""}
-                ${pvpHtml ? `<div class="match-pvp-row">${pvpHtml}</div>` : ""}
                 ${noteHtml}
                 <div class="match-footer" style="margin-top:10px">
                   ${
@@ -15723,6 +15700,7 @@ Object.assign(window, {
   checkResumeSession,
   resumeSession,
   discardResumeSession,
+  _renderSessionActiveCard,
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
@@ -17063,6 +17041,7 @@ async function confirmEndSession() {
   _sessionPanelOpen = false;
   _clearSessionState(); // Enhancement 13: clear persisted session
   _syncLiveSessionBar();
+  _renderSessionActiveCard();
   _liveHaptic([30, 60, 30]);
   _notifyLiveEvent("session_end", "Session ended");
   _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
@@ -17143,17 +17122,48 @@ function _saveSessionState() {
 function _clearSessionState() {
   try { localStorage.removeItem(_SESSION_SAVE_KEY); } catch (e) {}
 }
+function _renderSessionActiveCard() {
+  const wrap = document.getElementById("session-active-wrap");
+  if (!wrap) return;
+  if (!_liveSessionData?.sessionActive) {
+    wrap.innerHTML = "";
+    return;
+  }
+  const players = (_liveSessionData.sessionPlayers || []).join(", ") || "—";
+  const matchCount = _sessionMatchHistory.length;
+  const startedAt = _liveSessionData.sessionStartedAt;
+  let durationStr = "";
+  if (startedAt) {
+    const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
+    durationStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+  wrap.innerHTML = `<div class="session-active-card" onclick="switchMainTab('live')">
+    <div class="sac-pulse"></div>
+    <div class="sac-body">
+      <div class="sac-title"><span class="sac-dot"></span>SESSION ACTIVE</div>
+      <div class="sac-players">${escHtml(players)}</div>
+      <div class="sac-meta">
+        <span>${matchCount} match${matchCount !== 1 ? "es" : ""} played</span>
+        ${durationStr ? `<span>· ${durationStr}</span>` : ""}
+        <span class="sac-go">Go to Session →</span>
+      </div>
+    </div>
+  </div>`;
+}
+
 function checkResumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
     if (!saved) return;
-    const { session, history, savedAt } = JSON.parse(saved);
+    const { session, history } = JSON.parse(saved);
     if (!session?.sessionActive) return;
-    const banner = document.getElementById("session-resume-banner");
-    if (!banner) return;
-    const minsAgo = Math.round((Date.now() - new Date(savedAt).getTime()) / 60000);
-    banner.innerHTML = `<span>Resume session from ${minsAgo}m ago? (${session.sessionPlayers?.length || 0} players, ${history?.length || 0} matches)</span><button onclick="resumeSession()">RESUME</button><button onclick="discardResumeSession()" style="opacity:0.6">✕</button>`;
-    banner.style.display = "flex";
+    _liveSessionData = session;
+    _sessionMatchHistory = history || [];
+    _sessionPendingCount = 0;
+    _sessionPanelOpen = false;
+    _syncLiveSessionBar();
+    _startSessionTimer();
+    _renderSessionActiveCard();
   } catch (e) {}
 }
 function resumeSession() {
@@ -17165,16 +17175,15 @@ function resumeSession() {
     _sessionMatchHistory = history || [];
     _sessionPendingCount = 0;
     _sessionPanelOpen = false;
-    document.getElementById("session-resume-banner")?.remove();
     _syncLiveSessionBar();
     _startSessionTimer();
+    _renderSessionActiveCard();
     showToast("Session resumed!", "✅");
   } catch (e) { showToast("Could not resume session", "❌"); }
 }
 function discardResumeSession() {
   _clearSessionState();
-  const banner = document.getElementById("session-resume-banner");
-  if (banner) banner.remove();
+  _renderSessionActiveCard();
 }
 
 function confirmSessionStart() {
@@ -17189,6 +17198,7 @@ function confirmSessionStart() {
   _updateSyncBadge();
   _syncLiveSessionBar();
   _startSessionTimer();
+  _renderSessionActiveCard();
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
   _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
