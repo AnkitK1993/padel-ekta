@@ -834,6 +834,7 @@ async function saveCloudData() {
   if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   try {
     if (auth.currentUser && window.isAdmin) {
+      _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the snapshot that echoes this write
       await setDoc(doc(db, "padel", "main"), payload);
     }
   } catch (err) {
