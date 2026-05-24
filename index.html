@@ -34,6 +34,10 @@
       <div class="amb b4"></div>
       <div class="amb b5"></div>
     </div>
+    <!-- Enhancement 21: offline indicator -->
+    <div id="offline-indicator">📡 OFFLINE</div>
+
+
     <!-- ══════════ SPLASH SCREEN ══════════ -->
     <div id="app-splash">
       <div>
@@ -228,6 +232,7 @@
           style="display: none; padding: 0 11px 6px"
         ></div>
         <div id="compare-card" style="display: none"></div>
+        <div id="session-active-wrap" style="padding: 0 11px"></div>
         <div id="board" style="padding: 9px 11px 110px">
           <div class="skel-card"><div class="skel-card-top"><div class="skel skel-rank"></div><div class="skel skel-name"></div><div class="skel skel-badge"></div><div class="skel skel-gauge"></div></div><div class="skel skel-bar"></div><div class="skel-stats"><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div></div></div>
           <div class="skel-card"><div class="skel-card-top"><div class="skel skel-rank"></div><div class="skel skel-name"></div><div class="skel skel-badge"></div><div class="skel skel-gauge"></div></div><div class="skel skel-bar"></div><div class="skel-stats"><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div></div></div>
@@ -291,7 +296,7 @@
             <span class="cmp-date-fab-label" id="cmpDateLabel">TODAY</span>
           </button>
           <div class="summary-nav-actions">
-            <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()">⚖</button>
+            <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()" title="Equalized mode: smooths out stats for players with fewer matches so they're not unfairly penalized for low sample size (Bayesian smoothing toward 50% win rate)">⚖</button>
             <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
             <button class="ss-snap-btn" onclick="openSummaryShare()">📸</button>
           </div>
@@ -1039,15 +1044,24 @@ Puneet - Pun, PK
         <div class="live-session-header">
           <div class="live-session-info">
             <span class="live-dot"></span>
-            <span class="live-session-label">SESSION ACTIVE</span>
+            <span class="live-session-label">SESSION</span>
+            <span class="live-session-timer" id="live-session-timer">00:00</span>
           </div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:5px">
             <button class="live-add-player-btn" onclick="openAddPlayerSheet()">+ PLAYER</button>
             <button class="live-sync-btn" id="live-sync-btn" onclick="syncSession()">SYNC<span id="live-sync-count" class="live-sync-badge" style="display:none"></span></button>
-            <button class="live-end-session-btn" onclick="endLiveSession()">END SESSION</button>
+            <button class="live-end-session-btn" onclick="endLiveSession()">END</button>
           </div>
         </div>
         <div id="live-session-players" class="live-session-chips"></div>
+        <div class="live-session-actions">
+          <button class="live-sess-action-btn" onclick="suggestNextMatch()">🎲 SUGGEST</button>
+          <button class="live-sess-action-btn" id="sess-panel-toggle-btn" onclick="toggleSessionPanel()">📊 STATS</button>
+          <button class="live-sess-action-btn live-sess-action-undo" id="live-undo-match-btn" onclick="undoSessionMatch()" style="display:none">↶ UNDO</button>
+        </div>
+        <div id="live-session-panel" class="live-session-panel" style="display:none">
+          <div id="live-session-leaderboard"></div>
+        </div>
       </div>
       <div id="live-start-session-bar" class="live-start-session-bar">
         <div class="live-no-session-msg">No active session</div>
@@ -1059,7 +1073,6 @@ Puneet - Pun, PK
         <div class="live-ufc-header">
           <button class="live-back-btn" onclick="goBack()">← BACK</button>
           <div id="live-live-badge" class="live-live-badge"><span class="live-dot"></span>SESSION</div>
-          <input id="live-date" type="date" class="live-date-input" />
         </div>
 
         <!-- Fight Card -->
@@ -1073,6 +1086,7 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-a1">?</div>
               <div class="live-slot-name" id="live-name-a1">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-a1"></div>
             </button>
             <button
               class="live-player-slot"
@@ -1081,6 +1095,7 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-a2">?</div>
               <div class="live-slot-name" id="live-name-a2">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-a2"></div>
             </button>
           </div>
 
@@ -1095,6 +1110,7 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-b1">?</div>
               <div class="live-slot-name" id="live-name-b1">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-b1"></div>
             </button>
             <button
               class="live-player-slot"
@@ -1103,9 +1119,32 @@ Puneet - Pun, PK
             >
               <div class="live-slot-avatar" id="live-avatar-b2">?</div>
               <div class="live-slot-name" id="live-name-b2">TAP TO SELECT</div>
+              <div class="live-slot-elo" id="live-elo-b2"></div>
             </button>
           </div>
         </div>
+
+        <!-- ELO change preview -->
+        <div class="live-elo-preview" id="live-elo-preview" style="display:none">
+          <div class="lep-side lep-side-a">
+            <span class="lep-label">RED</span>
+            <span class="lep-win" id="lep-win-a"></span>
+            <span class="lep-sep">/</span>
+            <span class="lep-lose" id="lep-lose-a"></span>
+          </div>
+          <div class="lep-center">ELO CHANGE</div>
+          <div class="lep-side lep-side-b">
+            <span class="lep-lose" id="lep-lose-b"></span>
+            <span class="lep-sep">/</span>
+            <span class="lep-win" id="lep-win-b"></span>
+            <span class="lep-label">BLUE</span>
+          </div>
+        </div>
+
+        <!-- Sitting-out strip -->
+        <div id="live-sittingout-strip" class="live-sittingout-strip" style="display:none"></div>
+        <!-- Rematch warning -->
+        <div id="live-rematch-warning" class="live-rematch-warning" style="display:none"></div>
 
         <!-- Tennis Mode Toggle -->
         <div class="live-mode-bar">
@@ -1267,6 +1306,19 @@ Puneet - Pun, PK
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
 
+      <!-- Session Summary Sheet -->
+      <div class="live-sheet-overlay" id="session-summary-overlay" onclick="closeSessionSummary()"></div>
+      <div class="live-sheet live-sheet-tall" id="session-summary-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">SESSION SUMMARY</div>
+        <div id="session-summary-body" style="padding:0 14px;overflow-y:auto;max-height:62vh"></div>
+        <div style="padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px">
+          <button class="live-start-session-btn" onclick="confirmEndSession()">🏁 SAVE &amp; END SESSION</button>
+          <button class="tb-btn" onclick="closeSessionSummary()" style="padding:12px;font-size:13px">← KEEP PLAYING</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
       <!-- Match Confirm Sheet (shown after all 4 players selected) -->
       <div class="live-sheet-overlay" id="match-confirm-overlay" onclick="closeMatchConfirmSheet()"></div>
       <div class="live-sheet" id="match-confirm-sheet">
@@ -1288,6 +1340,7 @@ Puneet - Pun, PK
         <div id="match-save-result" class="match-save-result"></div>
         <div style="padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px">
           <button class="live-start-session-btn" onclick="confirmSaveMatch()">✅ SAVE MATCH</button>
+          <button class="live-start-session-btn live-rematch-save-btn" onclick="saveAndRematch()" id="live-save-rematch-btn" style="display:none;background:rgba(255,200,0,0.2);border:1px solid rgba(255,200,0,0.4);color:#ffd040">⚡ SAVE + REMATCH</button>
           <button class="tb-btn" onclick="keepPlayingMatch()" style="padding:12px;font-size:13px">🔄 KEEP PLAYING</button>
         </div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
@@ -1395,6 +1448,8 @@ Puneet - Pun, PK
           id="modern-score-a"
           class="input-modern"
           type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
           placeholder="Score A"
           min="1"
           max="9"
@@ -1424,6 +1479,8 @@ Puneet - Pun, PK
           id="modern-score-b"
           class="input-modern"
           type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
           placeholder="Score B"
           min="1"
           max="9"
@@ -1562,6 +1619,11 @@ Puneet - Pun, PK
     <div class="live-sheet" id="filter-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="filter-sheet-title">SELECT</div>
+      <div class="filter-sheet-search-wrap" id="filter-sheet-search-wrap" style="display:none">
+        <input type="text" id="filter-sheet-search" class="filter-sheet-search"
+          placeholder="Search pairs…" oninput="filterSheetSearch(this.value)"
+          autocomplete="off" spellcheck="false" />
+      </div>
       <div class="live-sheet-list" id="filter-sheet-list"></div>
     </div>
 

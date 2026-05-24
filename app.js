@@ -714,7 +714,7 @@ function renderEloConfigCard() {
         <span style="font-size:10px;color:var(--muted);font-weight:700">${label}</span>
         <span style="font-size:9px;color:var(--muted)">default: ${def}</span>
       </div>
-      <input id="${id}" type="number" min="${min}" max="${max}" step="${step || 1}" value="${val}" class="mei-input" style="width:100%">
+      <input id="${id}" type="number" inputmode="numeric" pattern="[0-9]*" min="${min}" max="${max}" step="${step || 1}" value="${val}" class="mei-input" style="width:100%">
       <div style="font-size:9px;color:var(--muted);margin-top:3px">${desc}</div>
     </div>`;
   el.innerHTML = `
@@ -1193,6 +1193,7 @@ function loadCloudData() {
       fired = true;
       window.dismissSplash("Ready ✓");
       setTimeout(_checkAnniversaries, 1800);
+      setTimeout(checkResumeSession, 800); // Enhancement 13: show session resume banner if saved state exists
     } else {
       // Genuine new data from Firestore: fade board out, re-render, fade back in — no blur flash
       const board = document.getElementById("board");
@@ -1286,6 +1287,16 @@ getRedirectResult(auth)
   .catch(console.error);
 
 let _authInitialFired = false;
+// Enhancement 21: offline indicator
+function _updateOfflineIndicator() {
+  const el = document.getElementById("offline-indicator");
+  if (!el) return;
+  el.style.display = navigator.onLine ? "none" : "flex";
+}
+window.addEventListener("online", _updateOfflineIndicator);
+window.addEventListener("offline", _updateOfflineIndicator);
+_updateOfflineIndicator();
+
 onAuthStateChanged(auth, (user) => {
   const wasAdmin = window.isAdmin;
   window.isAdmin = !!user && user.email === ADMIN_EMAIL;
@@ -3128,9 +3139,21 @@ function importData() {
     alert("JSON must include allMatches array and aliasMap object.");
     return;
   }
-  allMatches = data.allMatches || [];
-  aliasMap = data.aliasMap || {};
-  nameMap = data.nameMap || {};
+  // Enhancement 22: auto-merge instead of full replace
+  const incoming = data.allMatches || [];
+  const existingKeys = new Set(allMatches.map((m) => _mkMatchKey(m)));
+  const newMatches = incoming.filter((m) => !existingKeys.has(_mkMatchKey(m)));
+  const merged = [...allMatches, ...newMatches];
+  merged.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  if (newMatches.length === 0) {
+    alert("All matches already exist — nothing new to import.");
+    return;
+  }
+  const confirm = window.confirm(`Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`);
+  if (!confirm) return;
+  allMatches = merged;
+  aliasMap = { ...aliasMap, ...(data.aliasMap || {}) };
+  nameMap = { ...nameMap, ...(data.nameMap || {}) };
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
@@ -3140,7 +3163,7 @@ function importData() {
   renderAddMatches();
   refreshManage();
   renderNamesTable();
-  alert("Data imported successfully.");
+  alert(`Import complete: ${newMatches.length} match${newMatches.length !== 1 ? "es" : ""} added.`);
 }
 
 // ── RENDER HOME ────────────────────────────────────────────
@@ -3476,6 +3499,16 @@ function renderHome() {
     eloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - prevElo);
   });
 
+  // Monthly ELO delta (30-day trend) — Enhancement 4
+  const monthlyEloDeltaMap = {};
+  const _thirtyAgo = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); })();
+  stats.forEach((p) => {
+    const last30 = filtered.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) && (m.date || "") >= _thirtyAgo);
+    if (!last30.length) { monthlyEloDeltaMap[p.name] = null; return; }
+    const without30 = filtered.filter((m) => !last30.includes(m));
+    monthlyEloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - (computeElo(without30)[p.name] || 1000));
+  });
+
   const cardHtmls = stats.map((p, i) => {
     const rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
     const ri =
@@ -3500,14 +3533,22 @@ function renderHome() {
       ? `<span class="spark-dots">${p.form.map((r) => `<span class="s5-dot ${r === "W" ? "s5-w" : "s5-l"}"></span>`).join("")}</span>`
       : "";
     const eld = eloDeltaMap[p.name];
-    const eldHtml =
-      eld !== null && eld !== undefined
+    const mEld = monthlyEloDeltaMap[p.name];
+    const eldHtml = mEld !== null && mEld !== undefined
+      ? `<span class="s5-elo ${mEld > 0 ? "s5-pos" : mEld < 0 ? "s5-neg" : "s5-neu"}" title="ELO change (30 days)">${mEld > 0 ? "▲" : mEld < 0 ? "▼" : "–"}${Math.abs(mEld)}</span>`
+      : eld !== null && eld !== undefined
         ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
         : "";
+    // Enhancement 1: streak chip
+    const streakChip = p.curStreak > 0
+      ? `<span class="card-streak-chip ${p.curType === "W" ? "csc-w" : "csc-l"}">${p.curType === "W" ? "🔥" : "❄️"}${p.curStreak}${p.curType}</span>`
+      : "";
     const hasRowData = sparklineSvg || last5DotsHtml || eldHtml;
     const sparklineHtml = hasRowData
-      ? `<div class="spark-row"><span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
-      : "";
+      ? `<div class="spark-row">${streakChip}<span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
+      : streakChip
+        ? `<div class="spark-row">${streakChip}</div>`
+        : "";
     const playerBadges = computeBadges(p.name, p, homeEloMap, filtered, stats);
     const badgePillsHtml = playerBadges.length
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
@@ -3515,10 +3556,12 @@ function renderHome() {
 
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}W–${p.gl}L</div><div class="cl">Games</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
   });
+
+  _renderSessionActiveCard();
 
   if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
     board.innerHTML = "";
@@ -3835,6 +3878,13 @@ function updateSortArrows() {
       arrow.classList.toggle("active", cmpSortKey === key);
     });
   });
+  // Highlight active TH column — Enhancement 6
+  document.querySelectorAll("#cmpHead th").forEach((th) => th.classList.remove("cmp-th-sort-active"));
+  const activeArrow = document.querySelector(".sort-arrow.active");
+  if (activeArrow) {
+    const th = activeArrow.closest("th");
+    if (th) th.classList.add("cmp-th-sort-active");
+  }
 }
 
 function setCmpSort(key) {
@@ -3879,11 +3929,11 @@ function buildMatchRowHtml(m, extraClass = "", delay = null, matchIdx = null) {
   const teamB = (m.teamB || []).join(" & ");
   const diff = Math.abs(m.scoreA - m.scoreB);
   const badge = isFireMatch(m)
-    ? `<span class="cmr-badge cmr-fire">🔥</span>`
+    ? `<span class="cmr-badge cmr-fire" title="Fire match: margin of 1 game">🔥</span>`
     : isDominatingMatch(m)
-      ? `<span class="cmr-badge cmr-dom">💀</span>`
+      ? `<span class="cmr-badge cmr-dom" title="Dominating: 4-1, 6-1, or 6-2">💀</span>`
       : isZeroMatch(m)
-        ? `<span class="cmr-badge cmr-zero">😂</span>`
+        ? `<span class="cmr-badge cmr-zero" title="Zero match: scored 0 games">😂</span>`
         : "";
   const clickable =
     matchIdx !== null
@@ -3921,11 +3971,11 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
   const teamA = (m.teamA || []).join(" & ");
   const teamB = (m.teamB || []).join(" & ");
   const badge = isFireMatch(m)
-    ? `<span class="cmr-badge cmr-fire">🔥</span>`
+    ? `<span class="cmr-badge cmr-fire" title="Fire match: margin of 1 game">🔥</span>`
     : isDominatingMatch(m)
-      ? `<span class="cmr-badge cmr-dom">💀</span>`
+      ? `<span class="cmr-badge cmr-dom" title="Dominating: 4-1, 6-1, or 6-2">💀</span>`
       : isZeroMatch(m)
-        ? `<span class="cmr-badge cmr-zero">😂</span>`
+        ? `<span class="cmr-badge cmr-zero" title="Zero match: scored 0 games">😂</span>`
         : "";
   const clickHandler = matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
   return `<div class="smr-wrap${extraClass}">
@@ -4036,6 +4086,20 @@ function buildMatchCards(matches, showAdmin) {
     </div>`;
   };
 
+  // Enhancement 8: pre-compute pair-vs-pair H2H records
+  const _pvpMap = {};
+  allMatches.forEach((hm) => {
+    const pa = (hm.teamA || []).slice().sort().join("&");
+    const pb = (hm.teamB || []).slice().sort().join("&");
+    if (!pa || !pb) return;
+    const key = pa <= pb ? `${pa}|${pb}` : `${pb}|${pa}`;
+    if (!_pvpMap[key]) _pvpMap[key] = { a: 0, b: 0, aFirst: pa <= pb };
+    const aWonH = hm.scoreA > hm.scoreB;
+    const paFirst = _pvpMap[key].aFirst;
+    if (paFirst ? aWonH : !aWonH) _pvpMap[key].a++;
+    else _pvpMap[key].b++;
+  });
+
   return [...matches]
     .reverse()
     .map((m, index) => {
@@ -4050,24 +4114,36 @@ function buildMatchCards(matches, showAdmin) {
       const bWon = !aWon;
       const realIdx = allMatches.indexOf(m);
 
-      // Event badges
+      // Event badges — Enhancement 7: title tooltips
       const badges = [];
       if (isFire)
-        badges.push(`<span class="event-badge fire">🔥 FIRE MATCH</span>`);
+        badges.push(`<span class="event-badge fire" title="Close match: margin of 1 game">🔥 FIRE MATCH</span>`);
       if (isDominating)
-        badges.push(`<span class="event-badge dominate">💀 DOMINATING</span>`);
+        badges.push(`<span class="event-badge dominate" title="Dominant performance: 4-1, 6-1, or 6-2">💀 DOMINATING</span>`);
       if (isZero)
-        badges.push(
-          `<span class="event-badge zero">😂 ZERO SE HAAR GAYE!</span>`,
-        );
+        badges.push(`<span class="event-badge zero" title="One team scored 0 games">😂 ZERO SE HAAR GAYE!</span>`);
 
       const delay = Math.min(index * 0.1, 1); // Staggered delay up to 1s
+
+      // Enhancement 8: pair-vs-pair H2H record badge
+      const _pa8 = (m.teamA || []).slice().sort().join("&");
+      const _pb8 = (m.teamB || []).slice().sort().join("&");
+      const _pvpKey = _pa8 <= _pb8 ? `${_pa8}|${_pb8}` : `${_pb8}|${_pa8}`;
+      const _pvp = _pvpMap[_pvpKey];
+      let pvpHtml = "";
+      if (_pvp && (_pvp.a + _pvp.b) >= 2) {
+        const paFirst = _pa8 <= _pb8;
+        const aW8 = paFirst ? _pvp.a : _pvp.b;
+        const bW8 = paFirst ? _pvp.b : _pvp.a;
+        const leader8 = aW8 > bW8 ? "RED" : bW8 > aW8 ? "BLUE" : null;
+        pvpHtml = `<span class="match-h2h-badge" title="Head-to-head: these two pairs have played ${_pvp.a + _pvp.b} times">H2H ${aW8}–${bW8}${leader8 ? ` ${leader8} leads` : " TIED"}</span>`;
+      }
 
       const noteHtml = m.note
         ? `<div class="match-note">📝 ${escHtml(m.note)}</div>`
         : "";
       return `
-              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}" data-margin="${diff}">
+              <div class="match-card${isFire ? " fire-card" : ""}${isDominating ? " dominate-card" : ""}${isZero ? " zero-card" : ""}" style="animation-delay: ${delay}s;" data-match-idx="${realIdx}" data-margin="${diff}" data-match-month="${(m.date || "").slice(0, 7)}">
                 <div class="match-card-inner">
                 <div class="match-top">
                   <span class="match-date">📅 ${fmtDate(m.date)}</span>
@@ -4107,6 +4183,7 @@ function buildMatchCards(matches, showAdmin) {
     })
     .join("");
 }
+
 
 function filterMatchTab(f) {
   matchTabFilter = f;
@@ -5025,6 +5102,29 @@ function setHistMargin(val) {
   renderModernMatches();
 }
 
+// ── PAIR SHEET SEARCH ──────────────────────────────────────
+function filterSheetSearch(query) {
+  const list = document.getElementById("filter-sheet-list");
+  if (!list) return;
+  const pairs = getPairStats();
+  const q = (query || "").toLowerCase().trim();
+  const filtered = q ? pairs.filter((p) => p.key.toLowerCase().includes(q)) : pairs;
+  list.innerHTML = [
+    !q ? `<button class="live-sheet-item${!histPairFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
+      <span class="live-sheet-item-name">ALL PAIRS</span>
+      ${!histPairFilter ? '<span class="live-sheet-check">✓</span>' : ""}
+    </button>` : "",
+    ...filtered.map((p) => {
+      const cur = p.key === histPairFilter;
+      return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p.key)})">
+        <span class="live-sheet-item-name">${escHtml(p.key)}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:auto">${p.wins}W–${p.losses}L</span>
+        ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
+      </button>`;
+    }),
+  ].join("");
+}
+
 function setHistPairFilter(val) {
   histPairFilter = val;
   if (val) {
@@ -5043,17 +5143,15 @@ function setHistScorelineFilter(val) {
 
 function _updateFilterBtnDisplay() {
   const playerBtn = document.getElementById("hist-player-btn");
-  const pairBtn = document.getElementById("hist-pair-btn");
   if (playerBtn) {
     document.getElementById("hist-player-label").textContent = histPlayerFilter
       ? histPlayerFilter.toUpperCase()
       : "ALL PLAYERS";
     playerBtn.classList.toggle("filter-fab-active", !!histPlayerFilter);
   }
+  const pairBtn = document.getElementById("hist-pair-btn");
   if (pairBtn) {
-    document.getElementById("hist-pair-label").textContent = histPairFilter
-      ? histPairFilter.toUpperCase()
-      : "ALL PAIRS";
+    document.getElementById("hist-pair-label").textContent = histPairFilter ? histPairFilter.toUpperCase() : "ALL PAIRS";
     pairBtn.classList.toggle("filter-fab-active", !!histPairFilter);
   }
 }
@@ -5067,6 +5165,8 @@ function openFilterSheet(mode) {
   if (!overlay || !sheet || !list) return;
   if (mode === "player") {
     if (title) title.textContent = "SELECT PLAYER";
+    const sw = document.getElementById("filter-sheet-search-wrap");
+    if (sw) sw.style.display = "none";
     const names = new Set();
     activeMatches().forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -5090,31 +5190,24 @@ function openFilterSheet(mode) {
     ].join("");
   } else if (mode === "pair") {
     if (title) title.textContent = "SELECT PAIR";
-    const pairs = getPairStats();
-    list.innerHTML = [
-      `<button class="live-sheet-item${!histPairFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
-        <span class="live-sheet-item-name">ALL PAIRS</span>
-        ${!histPairFilter ? '<span class="live-sheet-check">✓</span>' : ""}
-      </button>`,
-      ...pairs.map((p) => {
-        const cur = p.key === histPairFilter;
-        return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p.key)})">
-          <span class="live-sheet-item-name">${escHtml(p.key)}</span>
-          <span style="font-size:10px;color:var(--muted);margin-left:auto">${p.wins}W–${p.losses}L</span>
-          ${cur ? '<span class="live-sheet-check">✓</span>' : ""}
-        </button>`;
-      }),
-    ].join("");
+    const searchWrap = document.getElementById("filter-sheet-search-wrap");
+    const searchInput = document.getElementById("filter-sheet-search");
+    if (searchWrap) searchWrap.style.display = "block";
+    if (searchInput) searchInput.value = "";
+    filterSheetSearch("");
+    setTimeout(() => searchInput?.focus(), 280);
   }
   overlay.classList.add("live-sheet-open");
   sheet.classList.add("live-sheet-open");
 }
 
 function closeFilterSheet() {
-  document
-    .getElementById("filter-sheet-overlay")
-    ?.classList.remove("live-sheet-open");
+  document.getElementById("filter-sheet-overlay")?.classList.remove("live-sheet-open");
   document.getElementById("filter-sheet")?.classList.remove("live-sheet-open");
+  const searchWrap = document.getElementById("filter-sheet-search-wrap");
+  const searchInput = document.getElementById("filter-sheet-search");
+  if (searchWrap) searchWrap.style.display = "none";
+  if (searchInput) searchInput.value = "";
   _filterSheetMode = null;
 }
 
@@ -5559,9 +5652,9 @@ function editMatchByIndex(i, btn) {
     </div>
     <div class="mei-section-lbl">SCORE</div>
     <div class="mei-row" style="align-items:center;margin-bottom:10px">
-      <input id="edit-sa" type="number" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
+      <input id="edit-sa" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
       <span style="color:var(--muted);font-weight:900;font-size:18px;padding:0 4px">–</span>
-      <input id="edit-sb" type="number" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
+      <input id="edit-sb" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
     </div>
     <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
     <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${escHtml(m.note || "")}">
@@ -5608,6 +5701,8 @@ function saveMatchEdit(i) {
   if (!a1 || !b1) return show("Select at least P1 for each team.");
   if (isNaN(sa) || isNaN(sb)) return show("Enter valid scores.");
   if (sa === sb) return show("Scores cannot be equal.");
+  // Enhancement 23: block future-dated match edits
+  if (date && date > todayISO()) return show("Match date cannot be in the future.");
   const teamA = [a1, a2].filter(Boolean);
   const teamB = [b1, b2].filter(Boolean);
   if (teamA.length !== teamB.length)
@@ -5815,6 +5910,11 @@ function saveModernMatch() {
   const note = document.getElementById("modern-note")?.value.trim() || "";
   if (!p1a || !p2a || !p1b || !p2b || isNaN(sA) || isNaN(sB) || sA === sB) {
     alert("Invalid match data");
+    return;
+  }
+  // Enhancement 23: block future-dated match entries
+  if (date > todayISO()) {
+    alert("Match date cannot be in the future.");
     return;
   }
   if (new Set([p1a, p2a, p1b, p2b]).size < 4) {
@@ -6398,16 +6498,51 @@ function openPlayerDetail(name) {
           </div>`
     : "";
 
+  // Shared match list for enhancements 14-16 and recent cards
+  const pdSortedAll14 = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const pdPlayerMs = pdSortedAll14.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+
+  // Enhancement 14: dangerous opponent — opponent with highest win rate AGAINST this player
+  const dangerousOppHtml = (() => {
+    const oppData = {};
+    pdPlayerMs.forEach((m) => {
+      const inA = (m.teamA || []).includes(name);
+      const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      const opps = inA ? (m.teamB || []) : (m.teamA || []);
+      opps.forEach((o) => {
+        if (!oppData[o]) oppData[o] = { w: 0, p: 0 };
+        oppData[o].p++;
+        if (!won) oppData[o].w++;
+      });
+    });
+    const best = Object.entries(oppData)
+      .filter(([, d]) => d.p >= 3)
+      .sort((a, b) => (b[1].w / b[1].p) - (a[1].w / a[1].p))[0];
+    if (!best) return "";
+    const [oppName, d] = best;
+    const pct = Math.round(d.w / d.p * 100);
+    if (pct < 55) return "";
+    return `<div class="det-conn">
+      <div class="det-conn-icon">⚠️</div>
+      <div class="det-conn-body">
+        <div class="det-conn-name">${oppName}</div>
+        <div class="det-conn-meta"><span class="n">${pct}% win rate vs me</span> · ${d.p}g</div>
+      </div>
+      <div class="det-conn-tag">Dangerous Opp.</div>
+    </div>`;
+  })();
+
   const connectionsHtml =
     bestPartnerHtml ||
     worstPartnerHtml ||
     nemesisHtml ||
     favOppHtml ||
     mostCommonPartnerHtml ||
-    mostCommonOppHtml
+    mostCommonOppHtml ||
+    dangerousOppHtml
       ? `<div class="ana-card">
               <span class="badge">Connections</span>
-              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}</div>
+              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}${dangerousOppHtml}</div>
             </div>`
       : "";
 
@@ -6707,36 +6842,35 @@ function openPlayerDetail(name) {
   })();
 
   // ── RECENT MATCH CARDS (from match log with ELO delta) ───
-  const pdSortedAll = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const pdPlayerMs = pdSortedAll.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
   const recentMatchCards = (() => {
     const last8 = pdPlayerMs.slice(-10).reverse();
     if (!last8.length) return "";
     const runElo2 = {};
     const eloAfterEach = {};
-    pdSortedAll.forEach((m) => {
+    pdSortedAll14.forEach((m) => {
       const allP2 = [...(m.teamA || []), ...(m.teamB || [])];
       allP2.forEach((p) => { if (!(p in runElo2)) runElo2[p] = 1000; });
       const aWon3 = m.scoreA > m.scoreB;
-      const avgA3 = m.teamA.reduce((s, p) => s + runElo2[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB3 = m.teamB.reduce((s, p) => s + runElo2[p], 0) / Math.max(m.teamB.length, 1);
+      const tA3 = m.teamA || [], tB3 = m.teamB || [];
+      const avgA3 = tA3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tA3.length, 1);
+      const avgB3 = tB3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tB3.length, 1);
       const expA3 = 1 / (1 + Math.pow(10, (avgB3 - avgA3) / 400));
       const dA3 = Math.round(32 * ((aWon3 ? 1 : 0) - expA3));
       const dB3 = Math.round(32 * ((aWon3 ? 0 : 1) - (1 - expA3)));
-      m.teamA.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dA3; });
-      m.teamB.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dB3; });
+      tA3.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dA3; });
+      tB3.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dB3; });
       if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
         const inA4 = (m.teamA || []).includes(name);
-        eloAfterEach[pdSortedAll.indexOf(m)] = { delta: inA4 ? dA3 : dB3 };
+        eloAfterEach[pdSortedAll14.indexOf(m)] = { delta: inA4 ? dA3 : dB3 };
       }
     });
     return last8.map((m) => {
       const inA4 = (m.teamA || []).includes(name);
       const won4 = inA4 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const partner = (inA4 ? m.teamA : m.teamB).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(" & ") || "—";
-      const opp = (inA4 ? m.teamB : m.teamA).map((p) => p.split(" ")[0]).join(" & ");
+      const partner = (inA4 ? (m.teamA || []) : (m.teamB || [])).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(" & ") || "—";
+      const opp = (inA4 ? (m.teamB || []) : (m.teamA || [])).map((p) => p.split(" ")[0]).join(" & ");
       const score = inA4 ? `${m.scoreA}–${m.scoreB}` : `${m.scoreB}–${m.scoreA}`;
-      const eld = eloAfterEach[pdSortedAll.indexOf(m)];
+      const eld = eloAfterEach[pdSortedAll14.indexOf(m)];
       const eloDeltaStr = eld ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}` : "";
       const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
       const scoreColor = won4 ? "var(--green)" : "var(--red)";
@@ -6781,7 +6915,7 @@ function openPlayerDetail(name) {
     return `<div class="ana-card"><span class="badge">vs All Opponents</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows5}</div></div>`;
   })();
 
-  // ── ALL-PARTNERS RANKED ──────────────────────────────────
+  // ── ALL-PARTNERS RANKED (Enhancement 15: ELO gain per partner) ──
   const allPartnersHtml = (() => {
     const pData = {};
     pdPlayerMs.forEach((m) => {
@@ -6794,16 +6928,113 @@ function openPlayerDetail(name) {
         if (won6) pData[p].w++;
       });
     });
+    // Enhancement 15: compute cumulative ELO delta when paired with each partner
+    const _eloW15 = {};
+    const partnerEloDelta = {};
+    const sortedForElo15 = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    sortedForElo15.forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _eloW15)) _eloW15[p] = 1000; });
+      const aWon15 = m.scoreA > m.scoreB;
+      const tA15 = m.teamA || [], tB15 = m.teamB || [];
+      const avgA15 = tA15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(tA15.length, 1);
+      const avgB15 = tB15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(tB15.length, 1);
+      const expA15 = 1 / (1 + Math.pow(10, (avgB15 - avgA15) / 400));
+      const dA15 = Math.round(32 * ((aWon15 ? 1 : 0) - expA15));
+      const dB15 = Math.round(32 * ((aWon15 ? 0 : 1) - (1 - expA15)));
+      tA15.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dA15; });
+      tB15.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dB15; });
+      const inA15 = (m.teamA || []).includes(name);
+      const inB15 = (m.teamB || []).includes(name);
+      if (inA15 || inB15) {
+        const myDelta15 = inA15 ? dA15 : dB15;
+        const myTeam15 = inA15 ? m.teamA : m.teamB;
+        myTeam15.filter((p) => p !== name).forEach((p) => {
+          if (!partnerEloDelta[p]) partnerEloDelta[p] = 0;
+          partnerEloDelta[p] += myDelta15;
+        });
+      }
+    });
     const rows6 = Object.entries(pData)
       .filter(([, d]) => d.p >= 1)
       .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p || b[1].p - a[1].p)
       .map(([partner, d]) => {
         const pct = Math.round(d.w / d.p * 100);
         const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:10px"><span style="font-size:10px;color:var(--muted)">${d.p}g</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
+        const eloDelta = partnerEloDelta[partner];
+        const eloStr = eloDelta !== undefined
+          ? `<span style="font-size:10px;font-weight:700;color:${eloDelta >= 0 ? 'var(--green)' : 'var(--red)'}">${eloDelta >= 0 ? '+' : ''}${eloDelta}</span>`
+          : '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${eloStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
       }).join("");
     if (!rows6) return "";
-    return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
+    return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ELO gained together</div><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
+  })();
+
+  // ── BEST DAY TO PLAY ─────────────────────────────────────
+  const bestDayHtml = (() => {
+    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const played = Array(7).fill(0), won = Array(7).fill(0);
+    pdPlayerMs.forEach((m) => {
+      if (!m.date) return;
+      const d = new Date(m.date + "T00:00:00").getDay();
+      const inA = (m.teamA || []).includes(name);
+      played[d]++;
+      if (inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA) won[d]++;
+    });
+    const rows = DAY.map((label, d) => {
+      if (!played[d]) return "";
+      const wr = Math.round((won[d] / played[d]) * 100);
+      const col = wr >= 60 ? "var(--green)" : wr <= 40 ? "var(--red)" : "var(--muted)";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <span style="font-size:10px;font-weight:700;width:28px;flex-shrink:0">${label}</span>
+        <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px">
+          <div style="height:100%;width:${wr}%;background:${col};border-radius:3px"></div>
+        </div>
+        <span style="font-size:10px;font-weight:800;color:${col};width:32px;text-align:right">${wr}%</span>
+        <span style="font-size:9px;color:var(--muted);width:20px;text-align:right">${played[d]}g</span>
+      </div>`;
+    }).join("");
+    if (!rows.replace(/\s/g, "")) return "";
+    const best = DAY.reduce((b, _, d) => {
+      if (played[d] < 2) return b;
+      const wr = won[d] / played[d];
+      return (b.d === undefined || wr > b.wr) ? { d, wr } : b;
+    }, {});
+    const chip = best.d !== undefined
+      ? `<div style="margin-top:10px;padding:7px 10px;background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">📅</span>
+          <div><div style="font-size:8px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</div>
+          <div style="font-size:13px;font-weight:900;color:var(--accent)">${DAY[best.d]} <span style="font-size:10px;color:var(--green);font-weight:700">${Math.round(best.wr * 100)}% win rate</span></div></div>
+        </div>`
+      : "";
+    return `<div class="ana-card"><span class="badge">Day of Week</span><div style="margin-top:8px">${rows}</div>${chip}</div>`;
+  })();
+
+  // ── SCORE DISTRIBUTION CHART — Enhancement 16 ───────────
+  const scoreDistHtml = (() => {
+    if (pdPlayerMs.length < 3) return "";
+    const dist = {};
+    pdPlayerMs.forEach((m) => {
+      const inA = (m.teamA || []).includes(name);
+      const own = inA ? m.scoreA : m.scoreB;
+      const opp = inA ? m.scoreB : m.scoreA;
+      const key = `${own}–${opp}`;
+      dist[key] = (dist[key] || 0) + 1;
+    });
+    const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+    const maxCount = Math.max(...entries.map(([, c]) => c), 1);
+    const bars = entries.map(([score, count]) => {
+      const [own] = score.split("–").map(Number);
+      const isWin = own > (parseInt(score.split("–")[1], 10));
+      const pct = Math.round((count / maxCount) * 100);
+      const col = isWin ? "var(--green)" : "var(--red)";
+      return `<div class="sd-row">
+        <div class="sd-label ${isWin ? 'p' : 'n'}">${score}</div>
+        <div class="sd-bar-wrap"><div class="sd-bar" style="width:${pct}%;background:${col}"></div></div>
+        <div class="sd-count">${count}</div>
+      </div>`;
+    }).join("");
+    return `<div class="ana-card"><span class="badge">Score Distribution</span><div style="margin-top:8px">${bars}</div></div>`;
   })();
 
   // ── PERSONAL RECORDS CAREER HIGHS ────────────────────────
@@ -7007,6 +7238,10 @@ function openPlayerDetail(name) {
                 ${vsOpponentsHtml}
 
                 ${allPartnersHtml}
+
+                ${scoreDistHtml}
+
+                ${bestDayHtml}
 
               </div>
               <div style="margin-top:20px;font-size:13px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Matches</div>
@@ -10631,8 +10866,9 @@ function computeChemistryScores(matches) {
   return pairs
     .map((p) => {
       const [n1, n2] = p.players;
+      const avgMargin = p.played ? (p.gf - p.ga) / p.played : 0;
       const winPctNorm = p.winPct / 100;
-      const marginNorm = Math.min(1, Math.max(0, (p.avgMargin + 5) / 10));
+      const marginNorm = Math.min(1, Math.max(0, (avgMargin + 5) / 10));
       const activityNorm = p.played / maxPlayed;
 
       // vs-strong: wins against above-average ELO opponents
@@ -10680,7 +10916,7 @@ function computeChemistryScores(matches) {
         played: p.played,
         wins: p.wins,
         winPct: p.winPct,
-        avgMargin: p.avgMargin,
+        avgMargin,
         score: score10,
         tier,
         tierColor,
@@ -12317,7 +12553,7 @@ function _buildLeaderboardReplayHtml() {
       <input type="range" id="replay-slider" min="${_REPLAY_MIN}" max="${sorted.length}" value="${sorted.length}" step="1" oninput="_replayUpdate(this.value)">
     </div>
     <div class="lr-jumps">
-      <input type="number" id="replay-jump-num" min="${_REPLAY_MIN}" max="${sorted.length}" placeholder="Match #" onchange="_replayJumpToMatch(this.value)">
+      <input type="number" inputmode="numeric" pattern="[0-9]*" id="replay-jump-num" min="${_REPLAY_MIN}" max="${sorted.length}" placeholder="Match #" onchange="_replayJumpToMatch(this.value)">
       <select id="replay-jump-date" onchange="_replayJumpToDate(this.value)">${dateOpts}</select>
       <select id="replay-spotlight" onchange="_replaySetSpotlight(this.value)">${spotlightOpts}</select>
     </div>
@@ -13264,6 +13500,25 @@ function renderAnalyticsPage() {
     })
     .join("");
 
+  // ── MOST IMPROVED ──────────────────────────────────────
+  const mostImproved = (() => {
+    const pNames = Object.keys(stats).filter((p) => stats[p].matches >= 5);
+    let best = null, bestDiff = -Infinity;
+    for (const p of pNames) {
+      const overall = stats[p].wins / stats[p].matches;
+      const pMatches = sortedM.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p));
+      const recent = pMatches.slice(-10);
+      if (recent.length < 3) continue;
+      const recWins = recent.filter((m) =>
+        (m.scoreA > m.scoreB ? (m.teamA || []) : (m.teamB || [])).includes(p)
+      ).length;
+      const recentRate = recWins / recent.length;
+      const diff = recentRate - overall;
+      if (diff > bestDiff) { bestDiff = diff; best = p; }
+    }
+    return best ? { name: best, diff: Math.round(bestDiff * 100) } : null;
+  })();
+
   // ── AWARDS ─────────────────────────────────────────────
   const awards = [
     {
@@ -13285,10 +13540,12 @@ function renderAnalyticsPage() {
       s: `${maxLosses} shutout losses`,
     },
     {
-      i: "👑",
-      t: "Dominator",
-      n: destroyer?.name,
-      s: `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`,
+      i: "📈",
+      t: "Most Improved",
+      n: mostImproved?.name || "—",
+      s: mostImproved
+        ? `+${mostImproved.diff}% recent vs overall`
+        : "Needs 5+ matches",
     },
     {
       i: "🎲",
@@ -14221,7 +14478,11 @@ function renderAnalyticsPage() {
     if (!rows.length)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     return `<div class="ana-card" style="padding:12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">How much a player lifts their partners' win rate vs. without them. Tap row to see partner breakdown.</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">
+        <strong style="color:var(--fg)">Carry Factor</strong> measures how much a player improves their teammates' win rate.<br>
+        <span style="opacity:0.75">e.g. +15% means partners win 15% more matches when paired with this player than without them.</span><br>
+        <span style="opacity:0.6">Requires 2+ games per partner pairing. Tap a row to see the breakdown.</span>
+      </div>
       ${rows
         .map((r) => {
           const col = r.delta >= 0 ? "var(--green)" : "var(--red)";
@@ -14295,10 +14556,45 @@ function renderAnalyticsPage() {
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     const topPlayers = playerList.filter(
       (p) => byPlayer[p] && Object.values(byPlayer[p]).some((d) => d.p >= 1),
-    );
+    ).sort((a, b) => a.localeCompare(b));
     if (!topPlayers.length)
       return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
-    return `<div class="ana-card" style="padding:12px;overflow-x:auto">
+    // Enhancement 20: unified clutch summary table
+    const clutchSummary = (() => {
+      const totals = {};
+      sortedM.forEach((m) => {
+        if (Math.abs(m.scoreA - m.scoreB) > 1) return;
+        const aWon20 = m.scoreA > m.scoreB;
+        const process20 = (players, won) => players.forEach((p) => {
+          if (!totals[p]) totals[p] = { w: 0, p: 0 };
+          totals[p].p++;
+          if (won) totals[p].w++;
+        });
+        process20(m.teamA || [], aWon20);
+        process20(m.teamB || [], !aWon20);
+      });
+      const summaryRows = Object.entries(totals)
+        .filter(([, d]) => d.p >= 2)
+        .sort((a, b) => (b[1].w / b[1].p) - (a[1].w / a[1].p))
+        .map(([p, d]) => {
+          const pct = Math.round(d.w / d.p * 100);
+          const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--gold)";
+          const rating = pct >= 60 ? "CLUTCH" : pct <= 40 ? "CHOKER" : "STEADY";
+          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.p}</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
+        }).join("");
+      if (!summaryRows) return "";
+      return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
+        <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:8px">CLUTCH RANKING — ALL TIME (close matches, margin ≤1)</div>
+        <table style="width:100%;border-collapse:collapse"><thead><tr>
+          <th style="text-align:left;font-size:9px;color:var(--muted);padding-bottom:4px">Player</th>
+          <th style="text-align:center;font-size:9px;color:var(--muted)">Played</th>
+          <th style="text-align:center;font-size:9px;color:var(--muted)">Win%</th>
+          <th style="text-align:center;font-size:9px;color:var(--muted)">Rating</th>
+        </tr></thead><tbody>${summaryRows}</tbody></table>
+      </div>`;
+    })();
+
+    return clutchSummary + `<div class="ana-card" style="padding:12px;overflow-x:auto">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% in close matches (margin ≤1) per month</div>
       <table style="width:100%;border-collapse:collapse;font-size:10px">
         <tr><th style="text-align:left;color:var(--muted);font-weight:600;padding-bottom:6px">Player</th>${allMonths.map((m) => `<th style="color:var(--muted);font-weight:600;padding:0 4px 6px;text-align:center">${MONTHS[parseInt(m.slice(5)) - 1]}</th>`).join("")}</tr>
@@ -14607,7 +14903,7 @@ function renderAnalyticsPage() {
         <div class="dom-desc" style="font-size:9px;color:var(--muted)">Distinct opponents beaten at least once</div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span style="font-size:9px;color:var(--muted);white-space:nowrap">Min wins vs same opp</span>
-          <input type="number" min="1" max="99" value="1" class="dom-threshold-inp" oninput="window._domRebuild(this.value)">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="99" value="1" class="dom-threshold-inp" oninput="window._domRebuild(this.value)">
         </div>
       </div>
       <div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opp</span></div>
@@ -14681,19 +14977,19 @@ function renderAnalyticsPage() {
         return { name: p, first: firstDate3[p], last: lastDate3[p], days: days3, missed };
       })
       .sort((a, b) => b.days - a.days);
-    const rowsHtml3 = rows3.map((r, i) => {
+    const fmtShort = s => s ? fmtDate(s).replace(/ \d{4}$/, '') : '—';
+    const rowsHtml3 = rows3.map((r) => {
       const col = r.days === 0 ? "var(--green)" : r.days <= 7 ? "var(--accent)" : r.days <= 30 ? "#ffb340" : "var(--red)";
       const lbl = r.days === 0 ? "Today" : r.days === 1 ? "1 day" : r.days + " days";
       return `<tr class="abt-row">
-        <td class="abt-rank">${i + 1}</td>
         <td class="abt-name">${escHtml(r.name)}</td>
-        <td class="abt-date">${fmtDate(r.first)}</td>
-        <td class="abt-date">${fmtDate(r.last)}</td>
+        <td class="abt-date">${fmtShort(r.first)}</td>
+        <td class="abt-date">${fmtShort(r.last)}</td>
         <td class="abt-days" style="color:${col}">${lbl}</td>
         <td class="abt-matches">${r.missed}</td>
       </tr>`;
     }).join('');
-    return `<div class="ana-card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="abt-table"><thead><tr><th>#</th><th>Player</th><th>First Played</th><th>Last Played</th><th>Days Since</th><th>Matches Missed</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div></div>`;
+    return `<div class="ana-card" style="padding:0;overflow:hidden"><table class="abt-table"><thead><tr><th>Player</th><th>First</th><th>Last</th><th>Days</th><th>Missed</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div>`;
   })()
 
   // ── RENDER ─────────────────────────────────────────────
@@ -15240,6 +15536,7 @@ Object.assign(window, {
   setHistOutcome,
   setHistMargin,
   setHistPairFilter,
+  filterSheetSearch,
   setHistScorelineFilter,
   openFilterSheet,
   closeFilterSheet,
@@ -15399,9 +15696,21 @@ Object.assign(window, {
   confirmSessionStart,
   endLiveSession,
   syncSession,
+  substituteLivePlayer,
+  checkResumeSession,
+  resumeSession,
+  discardResumeSession,
+  _renderSessionActiveCard,
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
+  toggleSessionPanel,
+  suggestNextMatch,
+  undoSessionMatch,
+  saveAndRematch,
+  openSessionSummary,
+  closeSessionSummary,
+  confirmEndSession,
   openRivalryScreen,
   openShareMatchPoster,
   openHomeFilterSheet,
@@ -15429,6 +15738,9 @@ let _liveAdv = null; // 'a' | 'b' | null
 let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
+let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
+let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
+let _sessionPanelOpen = false;    // whether the session stats panel is expanded
 
 function openLiveMode() {
   if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
@@ -15450,7 +15762,7 @@ function openLiveMode() {
   _liveGameMode = savedMode === 6 ? 6 : 4;
   _liveSyncModeButtons();
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
@@ -15476,7 +15788,7 @@ function setLiveGameMode(mode) {
   _livePointUndoStack = [];
   _liveSyncModeButtons();
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
@@ -15608,7 +15920,7 @@ function _liveWinGame(team) {
     openMatchSaveSheet();
   }
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
@@ -15637,9 +15949,14 @@ function liveUndoPoint() {
   _livePoints = snap.points;
   _liveHaptic(8);
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
+}
+
+// Enhancement 12: substitute player mid-match
+function substituteLivePlayer(slot) {
+  openLivePlayerSheet(slot);
 }
 
 function _renderLiveSlot(slot) {
@@ -15654,12 +15971,21 @@ function _renderLiveSlot(slot) {
     avatarEl.style.background = playerColor(p);
     avatarEl.style.color = "#fff";
     slotEl?.classList.add("live-slot-filled");
+    // Enhancement 10: show ELO under name
+    const eloEl = document.getElementById(`live-elo-${slot}`);
+    if (eloEl) {
+      const elo = computeElo(activeMatches())[p] || 1000;
+      eloEl.textContent = `ELO ${elo}`;
+      eloEl.style.display = "block";
+    }
   } else {
     nameEl.textContent = "TAP TO SELECT";
     avatarEl.textContent = "?";
     avatarEl.style.background = "rgba(255,255,255,0.06)";
     avatarEl.style.color = "var(--muted)";
     slotEl?.classList.remove("live-slot-filled");
+    const eloEl = document.getElementById(`live-elo-${slot}`);
+    if (eloEl) eloEl.style.display = "none";
   }
 }
 
@@ -15709,7 +16035,9 @@ function selectLivePlayer(name, slot) {
   _liveGamePtsA = 0; _liveGamePtsB = 0;
   _liveAdv = null; _liveMatchEnded = false;
   _livePoints = []; _livePointUndoStack = [];
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _renderSittingOut();
+  _checkRematchWarning();
   const { a1, a2, b1, b2 } = _liveSlots;
   if (a1 && a2 && b1 && b2) openMatchConfirmSheet();
 }
@@ -15768,7 +16096,7 @@ function liveAdjustScore(team, delta) {
   _liveAdv = null;
   _liveSyncGameDisplay();
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   // Always prompt to save when win condition is met
   if (actualDelta !== 0 && _liveCheckMatchWin()) {
@@ -15831,6 +16159,28 @@ function _updateLiveWinProb() {
   }
 }
 
+function _updateLiveEloPreview() {
+  const el = document.getElementById("live-elo-preview");
+  if (!el) return;
+  const { a1, a2, b1, b2 } = _liveSlots;
+  if (!a1 || !a2 || !b1 || !b2) { el.style.display = "none"; return; }
+  const eloMap = _memoElo();
+  const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
+  const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
+  const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+  const expB = 1 - expA;
+  const dAwin  = Math.round(32 * (1 - expA));
+  const dAlose = Math.round(32 * (0 - expA));
+  const dBwin  = Math.round(32 * (1 - expB));
+  const dBlose = Math.round(32 * (0 - expB));
+  el.style.display = "";
+  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  set("lep-win-a",  `+${dAwin}`);
+  set("lep-lose-a", `${dAlose}`);
+  set("lep-win-b",  `+${dBwin}`);
+  set("lep-lose-b", `${dBlose}`);
+}
+
 // 5B: Live Momentum Graph
 function _updateLiveMomentum() {
   const wrap = document.getElementById("live-momentum-wrap");
@@ -15873,9 +16223,7 @@ function _updateLiveMomentum() {
 
 function endLiveMatch() {
   const { a1, a2, b1, b2 } = _liveSlots;
-  const date =
-    document.getElementById("live-date")?.value ||
-    todayISO();
+  const date = todayISO();
   const notes = document.getElementById("live-notes")?.value.trim() || "";
   if (!a1 || !a2 || !b1 || !b2) {
     showToast("Select all 4 players first", "❌");
@@ -15900,10 +16248,16 @@ function endLiveMatch() {
   allMatches.push(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
+    _sessionMatchHistory.push({ teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, date });
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
     // Buffer locally — don't write to Firestore until SYNC or End Session
     _sessionPendingCount++;
     _updateSyncBadge();
+    _syncLiveSessionBar();
+    if (_sessionPanelOpen) _updateSessionPanel();
+    const undoBtn = document.getElementById("live-undo-match-btn");
+    if (undoBtn) undoBtn.style.display = "";
+    _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
     try { localStorage.setItem("padel_matches", JSON.stringify(allMatches)); } catch(e) {}
@@ -15922,7 +16276,9 @@ function endLiveMatch() {
   _livePoints = []; _livePointUndoStack = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _renderSittingOut();
+  _checkRematchWarning();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
 }
 
@@ -16459,6 +16815,259 @@ async function openPlayerReportCard(name) {
   }
 }
 
+// ── SESSION TIMER ────────────────────────────────────────────
+function _startSessionTimer() {
+  _stopSessionTimer();
+  _updateSessionTimer();
+  _sessionTimerInterval = setInterval(_updateSessionTimer, 1000);
+}
+function _stopSessionTimer() {
+  if (_sessionTimerInterval) { clearInterval(_sessionTimerInterval); _sessionTimerInterval = null; }
+}
+function _updateSessionTimer() {
+  const el = document.getElementById("live-session-timer");
+  if (!el || !_liveSessionData?.sessionStartedAt) return;
+  const sec = Math.floor((Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) / 1000);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  el.textContent = h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ── SITTING-OUT STRIP ────────────────────────────────────────
+function _renderSittingOut() {
+  const el = document.getElementById("live-sittingout-strip");
+  if (!el) return;
+  if (!_liveSessionData?.sessionActive) { el.style.display = "none"; return; }
+  const sessionPlayers = _liveSessionData.sessionPlayers || [];
+  const playing = new Set(Object.values(_liveSlots).filter(Boolean));
+  const sitting = sessionPlayers.filter(p => !playing.has(p));
+  if (sitting.length === 0) { el.style.display = "none"; return; }
+  el.style.display = "";
+  el.innerHTML = `<span class="sittingout-label">SITTING OUT</span>` +
+    sitting.map(p => `<span class="sittingout-chip">${escHtml(p.split(" ")[0])}</span>`).join("");
+}
+
+// ── REMATCH WARNING ──────────────────────────────────────────
+function _checkRematchWarning() {
+  const { a1, a2, b1, b2 } = _liveSlots;
+  const el = document.getElementById("live-rematch-warning");
+  if (!el) return;
+  if (!a1 || !a2 || !b1 || !b2) { el.style.display = "none"; return; }
+  const sA = [a1, a2].sort().join("|"), sB = [b1, b2].sort().join("|");
+  const prev = _sessionMatchHistory.find(m => {
+    const mA = [...m.teamA].sort().join("|"), mB = [...m.teamB].sort().join("|");
+    return (mA === sA && mB === sB) || (mA === sB && mB === sA);
+  });
+  if (prev) {
+    el.style.display = "";
+    el.textContent = `⚠️ Rematch — this pairing played ${prev.scoreA}–${prev.scoreB} earlier this session`;
+  } else {
+    el.style.display = "none";
+  }
+}
+
+// ── SESSION STATS PANEL ──────────────────────────────────────
+function _buildSessionLeaderboard() {
+  const sessionPlayers = _liveSessionData?.sessionPlayers || [];
+  if (!sessionPlayers.length || !_sessionMatchHistory.length)
+    return '<div style="font-size:11px;color:var(--muted);padding:8px 0;text-align:center">No matches yet</div>';
+  const stats = {};
+  sessionPlayers.forEach(p => stats[p] = { w: 0, l: 0, m: 0 });
+  _sessionMatchHistory.forEach(mt => {
+    const aWon = mt.scoreA > mt.scoreB;
+    (aWon ? mt.teamA : mt.teamB).forEach(p => { if (stats[p]) { stats[p].w++; stats[p].m++; } });
+    (aWon ? mt.teamB : mt.teamA).forEach(p => { if (stats[p]) { stats[p].l++; stats[p].m++; } });
+  });
+  const sorted = Object.entries(stats).sort((a, b) => {
+    const diff = (b[1].m ? b[1].w / b[1].m : 0) - (a[1].m ? a[1].w / a[1].m : 0);
+    return diff !== 0 ? diff : b[1].m - a[1].m;
+  });
+  const counts = sorted.map(([, s]) => s.m);
+  const maxM = Math.max(...counts), minM = Math.min(...counts);
+  const fairWarn = (maxM - minM) >= 2 && sorted.length >= 3
+    ? `<div class="sess-fairness-warn">⚠️ ${sorted.filter(([,s]) => s.m === maxM).map(([n]) => n.split(' ')[0]).join(', ')} played ${maxM - minM} more than others</div>`
+    : '';
+  const rows = sorted.map(([name, s]) => {
+    const pct = s.m ? Math.round(s.w / s.m * 100) : 0;
+    return `<div class="sess-ldr-row">
+      <div class="sess-ldr-name">${escHtml(name.split(' ')[0])}</div>
+      <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
+      <div class="sess-ldr-barwrap"><div class="sess-ldr-bar" style="width:${pct}%"></div></div>
+      <div class="sess-ldr-count">×${s.m}</div>
+    </div>`;
+  }).join('');
+  // Enhancement 11: full undo stack — show all session matches with undo buttons
+  const histRows = [..._sessionMatchHistory].reverse().map((mt, ri) => {
+    const i = _sessionMatchHistory.length - 1 - ri;
+    const aWon = mt.scoreA > mt.scoreB;
+    const tA = mt.teamA.map(p => p.split(' ')[0]).join(' & ');
+    const tB = mt.teamB.map(p => p.split(' ')[0]).join(' & ');
+    const isLast = i === _sessionMatchHistory.length - 1;
+    return `<div class="sess-hist-row${isLast ? ' sess-hist-last' : ''}">
+      <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? 'p' : 'n'}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
+      ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ''}
+    </div>`;
+  }).join('');
+  const histHtml = histRows ? `<div class="sess-hist-label">MATCH LOG</div><div class="sess-hist-list">${histRows}</div>` : '';
+  return fairWarn + rows + histHtml;
+}
+
+function _updateSessionPanel() {
+  const el = document.getElementById("live-session-leaderboard");
+  if (el) el.innerHTML = _buildSessionLeaderboard();
+}
+
+function toggleSessionPanel() {
+  _sessionPanelOpen = !_sessionPanelOpen;
+  const panel = document.getElementById("live-session-panel");
+  if (!panel) return;
+  panel.style.display = _sessionPanelOpen ? "" : "none";
+  const btn = document.getElementById("sess-panel-toggle-btn");
+  if (btn) btn.classList.toggle("active", _sessionPanelOpen);
+  if (_sessionPanelOpen) _updateSessionPanel();
+}
+
+// ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
+function suggestNextMatch() {
+  const players = _liveSessionData?.sessionPlayers || [];
+  if (players.length < 4) { showToast("Need 4+ players in session", "❌"); return; }
+  const counts = {};
+  players.forEach(p => counts[p] = 0);
+  _sessionMatchHistory.forEach(m => {
+    [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
+  });
+  const sorted = [...players].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
+  const pick4 = sorted.slice(0, 4);
+  // Snake-draft ELO balance: sort desc, pair [0]+[2] vs [1]+[3]
+  // (1st & 3rd vs 2nd & 4th — minimises avg ELO gap between teams)
+  const eloMap = computeElo(activeMatches());
+  pick4.sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
+  _liveSlots.a1 = pick4[0]; _liveSlots.a2 = pick4[2];
+  _liveSlots.b1 = pick4[1]; _liveSlots.b2 = pick4[3];
+  _liveScoreA = 0; _liveScoreB = 0;
+  _liveGamePtsA = 0; _liveGamePtsB = 0;
+  _liveAdv = null; _liveMatchEnded = false;
+  _livePoints = []; _livePointUndoStack = [];
+  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _renderSittingOut();
+  _checkRematchWarning();
+  showToast("Next match suggested 🎲", "✅");
+}
+
+// ── UNDO LAST SESSION MATCH ──────────────────────────────────
+function undoSessionMatch() {
+  if (!_sessionMatchHistory.length) { showToast("No match to undo", "❌"); return; }
+  const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
+  const key = _mkMatchKey(last);
+  const idx = allMatches.findIndex(m => _mkMatchKey(m) === key);
+  if (idx !== -1) allMatches.splice(idx, 1);
+  _sessionMatchHistory.pop();
+  if (_sessionPendingCount > 0) _sessionPendingCount--;
+  _updateSyncBadge();
+  _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
+  _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
+  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  _updateLiveDisplay(); _updateLiveWinProb(); _updateLiveEloPreview();
+  _syncLiveSessionBar();
+  if (_sessionPanelOpen) _updateSessionPanel();
+  _renderSittingOut();
+  _checkRematchWarning();
+  const undoBtn = document.getElementById("live-undo-match-btn");
+  if (undoBtn) undoBtn.style.display = _sessionMatchHistory.length > 0 ? "" : "none";
+  renderHome(); renderCompact(); renderModernMatches();
+  showToast("Last match undone ↶", "✅");
+}
+
+// ── SAVE + REMATCH ───────────────────────────────────────────
+function saveAndRematch() {
+  confirmSaveMatch();
+  // endLiveMatch() pushed to _sessionMatchHistory — restore those players
+  if (_sessionMatchHistory.length > 0) {
+    const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
+    _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
+    _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
+    ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+    _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+    _renderSittingOut();
+    _checkRematchWarning();
+  }
+}
+
+// ── SESSION SUMMARY SHEET ────────────────────────────────────
+function openSessionSummary() {
+  if (!_liveSessionData?.sessionActive) return;
+  const sessionPlayers = _liveSessionData.sessionPlayers || [];
+  const elapsed = _liveSessionData.sessionStartedAt
+    ? Math.floor((Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) / 1000) : 0;
+  const h = Math.floor(elapsed / 3600);
+  const m2 = Math.floor((elapsed % 3600) / 60);
+  const dur = elapsed < 60 ? `<1m` : h > 0 ? `${h}h ${m2}m` : `${m2}m`;
+  const stats = {};
+  sessionPlayers.forEach(p => stats[p] = { w: 0, l: 0 });
+  _sessionMatchHistory.forEach(mt => {
+    const aWon = mt.scoreA > mt.scoreB;
+    (aWon ? mt.teamA : mt.teamB).forEach(p => { if (stats[p]) stats[p].w++; });
+    (aWon ? mt.teamB : mt.teamA).forEach(p => { if (stats[p]) stats[p].l++; });
+  });
+  const sorted = Object.entries(stats).sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l);
+  const mvp = sorted[0];
+  const playersHtml = sorted.map(([name, s]) =>
+    `<div class="sess-sum-player">${sheetAvSm(name)}<span class="sess-sum-pname">${escHtml(name)}</span><span class="sess-sum-wl">${s.w}W–${s.l}L</span></div>`
+  ).join('');
+  const matchesHtml = _sessionMatchHistory.length === 0
+    ? '<div style="font-size:11px;color:var(--muted);padding:8px 0">No matches played</div>'
+    : _sessionMatchHistory.map((mt, i) => {
+        const aWon = mt.scoreA > mt.scoreB;
+        return `<div class="sess-sum-match">
+          <div class="sess-sum-match-num">${i + 1}</div>
+          <div class="sess-sum-match-teams">${escHtml(mt.teamA.join(' & '))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.join(' & '))}</div>
+          <div class="sess-sum-match-score" style="color:${aWon ? 'var(--green)' : 'var(--red)'}">${mt.scoreA}–${mt.scoreB}</div>
+        </div>`;
+      }).join('');
+  const bodyEl = document.getElementById("session-summary-body");
+  if (bodyEl) bodyEl.innerHTML = `
+    <div class="sess-sum-meta">
+      <div class="sess-sum-stat"><div class="sess-sum-val">${_sessionMatchHistory.length}</div><div class="sess-sum-lbl">MATCHES</div></div>
+      <div class="sess-sum-stat"><div class="sess-sum-val">${dur}</div><div class="sess-sum-lbl">DURATION</div></div>
+      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(mvp[0].split(' ')[0])}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ''}
+    </div>
+    <div class="sess-sum-section-title">PLAYERS</div>
+    <div class="sess-sum-players">${playersHtml}</div>
+    <div class="sess-sum-section-title">MATCHES</div>
+    <div class="sess-sum-matches">${matchesHtml}</div>`;
+  document.getElementById("session-summary-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("session-summary-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeSessionSummary() {
+  document.getElementById("session-summary-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("session-summary-sheet")?.classList.remove("live-sheet-open");
+}
+
+async function confirmEndSession() {
+  closeSessionSummary();
+  _stopSessionTimer();
+  if (_sessionPendingCount > 0) {
+    await saveCloudData();
+    _sessionPendingCount = 0;
+    _updateSyncBadge();
+  }
+  _liveSessionData = null;
+  _sessionMatchHistory = [];
+  _sessionPanelOpen = false;
+  _clearSessionState(); // Enhancement 13: clear persisted session
+  _syncLiveSessionBar();
+  _renderSessionActiveCard();
+  _liveHaptic([30, 60, 30]);
+  _notifyLiveEvent("session_end", "Session ended");
+  _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
+  switchMainTab("compact");
+}
+
 // ── SESSION ──────────────────────────────────────────────────
 let _liveSessionData = null;
 let _sessionSetupSelected = new Set();
@@ -16473,8 +17082,13 @@ function _syncLiveSessionBar() {
   if (active) {
     const chipsEl = document.getElementById("live-session-players");
     if (chipsEl) {
+      const counts = {};
+      (d.sessionPlayers || []).forEach(p => counts[p] = 0);
+      _sessionMatchHistory.forEach(m => {
+        [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
+      });
       chipsEl.innerHTML = (d.sessionPlayers || []).map(p =>
-        `<span class="live-session-chip">${escHtml(p.split(" ")[0])}</span>`
+        `<span class="live-session-chip">${escHtml(p.split(" ")[0])}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ''}</span>`
       ).join("");
     }
   }
@@ -16482,12 +17096,12 @@ function _syncLiveSessionBar() {
 
 function openSessionSetup() {
   const players = getAllPlayerNamesFromMatches();
-  _sessionSetupSelected = new Set(players);
+  _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
   list.innerHTML = players.map(p => `
     <label class="tb-player-chip">
-      <input type="checkbox" checked onchange="window._sspToggle(${jsArg(p)}, this.checked)">
+      <input type="checkbox" onchange="window._sspToggle(${jsArg(p)}, this.checked)">
       <span class="tb-chip-name">${escHtml(p)}</span>
     </label>`).join("");
   document.getElementById("session-setup-overlay")?.classList.add("live-sheet-open");
@@ -16514,6 +17128,85 @@ function closeSessionSetup() {
   document.getElementById("session-setup-sheet")?.classList.remove("live-sheet-open");
 }
 
+// Enhancement 13: session pause/resume via localStorage
+const _SESSION_SAVE_KEY = "padel_session_state";
+function _saveSessionState() {
+  try {
+    if (!_liveSessionData?.sessionActive) return;
+    localStorage.setItem(_SESSION_SAVE_KEY, JSON.stringify({
+      session: _liveSessionData,
+      history: _sessionMatchHistory,
+      savedAt: new Date().toISOString(),
+    }));
+  } catch (e) {}
+}
+function _clearSessionState() {
+  try { localStorage.removeItem(_SESSION_SAVE_KEY); } catch (e) {}
+}
+function _renderSessionActiveCard() {
+  const wrap = document.getElementById("session-active-wrap");
+  if (!wrap) return;
+  if (!_liveSessionData?.sessionActive) {
+    wrap.innerHTML = "";
+    return;
+  }
+  const players = (_liveSessionData.sessionPlayers || []).join(", ") || "—";
+  const matchCount = _sessionMatchHistory.length;
+  const startedAt = _liveSessionData.sessionStartedAt;
+  let durationStr = "";
+  if (startedAt) {
+    const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
+    durationStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+  wrap.innerHTML = `<div class="session-active-card" onclick="switchMainTab('live')">
+    <div class="sac-pulse"></div>
+    <div class="sac-body">
+      <div class="sac-title"><span class="sac-dot"></span>SESSION ACTIVE</div>
+      <div class="sac-players">${escHtml(players)}</div>
+      <div class="sac-meta">
+        <span>${matchCount} match${matchCount !== 1 ? "es" : ""} played</span>
+        ${durationStr ? `<span>· ${durationStr}</span>` : ""}
+        <span class="sac-go">Go to Session →</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function checkResumeSession() {
+  try {
+    const saved = localStorage.getItem(_SESSION_SAVE_KEY);
+    if (!saved) return;
+    const { session, history } = JSON.parse(saved);
+    if (!session?.sessionActive) return;
+    _liveSessionData = session;
+    _sessionMatchHistory = history || [];
+    _sessionPendingCount = 0;
+    _sessionPanelOpen = false;
+    _syncLiveSessionBar();
+    _startSessionTimer();
+    _renderSessionActiveCard();
+  } catch (e) {}
+}
+function resumeSession() {
+  try {
+    const saved = localStorage.getItem(_SESSION_SAVE_KEY);
+    if (!saved) return;
+    const { session, history } = JSON.parse(saved);
+    _liveSessionData = session;
+    _sessionMatchHistory = history || [];
+    _sessionPendingCount = 0;
+    _sessionPanelOpen = false;
+    _syncLiveSessionBar();
+    _startSessionTimer();
+    _renderSessionActiveCard();
+    showToast("Session resumed!", "✅");
+  } catch (e) { showToast("Could not resume session", "❌"); }
+}
+function discardResumeSession() {
+  _clearSessionState();
+  _renderSessionActiveCard();
+}
+
 function confirmSessionStart() {
   const players = [..._sessionSetupSelected];
   if (players.length < 2) { showToast("Select at least 2 players", "❌"); return; }
@@ -16521,8 +17214,13 @@ function confirmSessionStart() {
   const now = new Date().toISOString();
   _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
   _sessionPendingCount = 0;
+  _sessionMatchHistory = [];
+  _sessionPanelOpen = false;
   _updateSyncBadge();
   _syncLiveSessionBar();
+  _startSessionTimer();
+  _saveSessionState();
+  _renderSessionActiveCard();
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
   _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
@@ -16530,17 +17228,7 @@ function confirmSessionStart() {
 }
 
 async function endLiveSession() {
-  if (!confirm("End the current session?")) return;
-  if (_sessionPendingCount > 0) {
-    await saveCloudData();
-    _sessionPendingCount = 0;
-    _updateSyncBadge();
-  }
-  _liveSessionData = null;
-  _syncLiveSessionBar();
-  _liveHaptic([30, 60, 30]);
-  _notifyLiveEvent("session_end", "Session ended");
-  _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
+  openSessionSummary();
 }
 
 function openAddPlayerSheet() {
@@ -16570,6 +17258,8 @@ function addPlayerToSession(name) {
   players.push(name);
   _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
   _syncLiveSessionBar();
+  _renderSittingOut();
+  _saveSessionState();
   showToast(`${name} added`, "✅");
 }
 
@@ -16726,6 +17416,8 @@ function openMatchSaveSheet() {
       <div class="msr-winner">🏆 ${escHtml(winner)}</div>
     </div>`;
   }
+  const rematchBtn = document.getElementById("live-save-rematch-btn");
+  if (rematchBtn) rematchBtn.style.display = _liveSessionData?.sessionActive ? "" : "none";
   document.getElementById("match-save-overlay")?.classList.add("live-sheet-open");
   document.getElementById("match-save-sheet")?.classList.add("live-sheet-open");
 }
