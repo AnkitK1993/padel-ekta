@@ -4075,6 +4075,28 @@ body.no-cascade .analytics-card {
   text-align: right;
 }
 
+/* ── DOMINANCE INDEX FILTER INPUT ───────────── */
+.dom-threshold-inp {
+  width: 48px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 6px;
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.dom-threshold-inp::-webkit-inner-spin-button,
+.dom-threshold-inp::-webkit-outer-spin-button { opacity: 0.4; }
+.dom-threshold-inp:focus {
+  border-color: rgba(var(--theme-rgb), 0.5);
+  background: rgba(var(--theme-rgb), 0.08);
+}
+
 /* ── LEADERBOARD RACE ────────────────────────── */
 .lrace-header {
   display: grid;

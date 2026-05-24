@@ -14556,23 +14556,48 @@ function renderAnalyticsPage() {
 
   // 2: Dominance Index
   const _dominanceHtml = (() => {
-    const beaten = {};
+    const beatenCounts = {};
     sortedM.forEach((m) => {
       const aWon2 = m.scoreA > m.scoreB;
       const winners = aWon2 ? m.teamA : m.teamB;
-      const losers = aWon2 ? m.teamB : m.teamA;
+      const losers  = aWon2 ? m.teamB : m.teamA;
       winners.forEach((w) => {
-        if (!beaten[w]) beaten[w] = new Set();
-        losers.forEach((l) => beaten[w].add(l));
+        if (!beatenCounts[w]) beatenCounts[w] = {};
+        losers.forEach((l) => { beatenCounts[w][l] = (beatenCounts[w][l] || 0) + 1; });
       });
     });
-    const rows3 = Object.entries(beaten)
-      .map(([p, opp]) => ({ name: p, count: opp.size, opp: [...opp] }))
-      .sort((a, b) => b.count - a.count);
-    if (!rows3.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    if (!Object.keys(beatenCounts).length) return '<div class="sub" style="padding:8px">No data.</div>';
+    window._domCounts = beatenCounts;
+    window._domRebuild = function(minN) {
+      const n = Math.max(1, Math.floor(+minN) || 1);
+      const pg = "grid-template-columns:40px 1fr 60px";
+      const lbl = n === 1 ? "beaten at least once" : `beaten ${n}+ times`;
+      const rows = Object.entries(beatenCounts)
+        .map(([p, opp]) => ({ name: p, count: Object.values(opp).filter(c => c >= n).length }))
+        .filter(r => r.count > 0)
+        .sort((a, b) => b.count - a.count);
+      const el = document.getElementById("dominance-card");
+      if (!el) return;
+      el.querySelector(".dom-desc").textContent = `Distinct opponents ${lbl}`;
+      el.querySelector(".dom-rows").innerHTML = rows.length
+        ? rows.map((r, i) => `<div class="lrace-row" style="${pg}"><div class="lrace-rank">#${i+1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")
+        : `<div style="font-size:11px;color:var(--muted);padding:8px 0">No player has beaten any opponent ${n}+ times.</div>`;
+    };
     const pg4 = "grid-template-columns:40px 1fr 60px";
-    return `<div class="ana-card" style="padding:8px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Number of distinct opponents beaten at least once</div><div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opponents</span></div>` +
-      rows3.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${r.name}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("") + `</div>`;
+    const initRows = Object.entries(beatenCounts)
+      .map(([p, opp]) => ({ name: p, count: Object.keys(opp).length }))
+      .sort((a, b) => b.count - a.count);
+    return `<div class="ana-card" style="padding:8px 12px" id="dominance-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div class="dom-desc" style="font-size:9px;color:var(--muted)">Distinct opponents beaten at least once</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:9px;color:var(--muted);white-space:nowrap">Min wins vs same opp</span>
+          <input type="number" min="1" max="99" value="1" class="dom-threshold-inp" oninput="window._domRebuild(this.value)">
+        </div>
+      </div>
+      <div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opp</span></div>
+      <div class="dom-rows">${initRows.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i+1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")}</div>
+    </div>`;
   })();
 
   // 2: Most One-Sided Rivalries
