@@ -3323,50 +3323,43 @@ body.no-cascade .analytics-card {
   border-collapse: collapse;
 }
 .abt-table thead th {
-  padding: 9px 10px;
-  font-size: 9px;
+  padding: 8px 5px;
+  font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
   text-align: left;
   background: rgba(255, 255, 255, 0.03);
 }
-.abt-table thead th:first-child { text-align: center; padding-left: 14px; }
-.abt-table thead th:nth-child(5),
-.abt-table thead th:nth-child(6) { text-align: right; padding-right: 14px; white-space: nowrap; }
+.abt-table thead th:first-child { padding-left: 12px; }
+.abt-table thead th:nth-child(4),
+.abt-table thead th:nth-child(5) { text-align: right; padding-right: 12px; white-space: nowrap; }
 .abt-row { border-top: 1px solid rgba(255, 255, 255, 0.04); }
-.abt-rank {
-  text-align: center;
-  font-size: 10px;
-  color: var(--muted);
-  padding: 9px 8px 9px 14px;
-  width: 28px;
-}
 .abt-name {
   font-weight: 600;
-  font-size: 13px;
-  padding: 9px 8px;
+  font-size: 12px;
+  padding: 8px 6px 8px 12px;
   color: var(--text);
 }
 .abt-date {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--muted);
-  padding: 9px 8px;
+  padding: 8px 5px;
   white-space: nowrap;
 }
 .abt-days {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-align: right;
-  padding: 9px 8px;
+  padding: 8px 6px;
   white-space: nowrap;
 }
 .abt-matches {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-align: right;
-  padding: 9px 14px 9px 8px;
+  padding: 8px 12px 8px 6px;
   color: var(--muted);
 }
 

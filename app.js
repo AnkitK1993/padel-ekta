@@ -10631,8 +10631,9 @@ function computeChemistryScores(matches) {
   return pairs
     .map((p) => {
       const [n1, n2] = p.players;
+      const avgMargin = p.played ? (p.gf - p.ga) / p.played : 0;
       const winPctNorm = p.winPct / 100;
-      const marginNorm = Math.min(1, Math.max(0, (p.avgMargin + 5) / 10));
+      const marginNorm = Math.min(1, Math.max(0, (avgMargin + 5) / 10));
       const activityNorm = p.played / maxPlayed;
 
       // vs-strong: wins against above-average ELO opponents
@@ -10680,7 +10681,7 @@ function computeChemistryScores(matches) {
         played: p.played,
         wins: p.wins,
         winPct: p.winPct,
-        avgMargin: p.avgMargin,
+        avgMargin,
         score: score10,
         tier,
         tierColor,
@@ -14316,7 +14317,7 @@ function renderAnalyticsPage() {
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     const topPlayers = playerList.filter(
       (p) => byPlayer[p] && Object.values(byPlayer[p]).some((d) => d.p >= 1),
-    );
+    ).sort((a, b) => a.localeCompare(b));
     if (!topPlayers.length)
       return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">
@@ -14702,19 +14703,19 @@ function renderAnalyticsPage() {
         return { name: p, first: firstDate3[p], last: lastDate3[p], days: days3, missed };
       })
       .sort((a, b) => b.days - a.days);
-    const rowsHtml3 = rows3.map((r, i) => {
+    const fmtShort = s => s ? fmtDate(s).replace(/ \d{4}$/, '') : '—';
+    const rowsHtml3 = rows3.map((r) => {
       const col = r.days === 0 ? "var(--green)" : r.days <= 7 ? "var(--accent)" : r.days <= 30 ? "#ffb340" : "var(--red)";
       const lbl = r.days === 0 ? "Today" : r.days === 1 ? "1 day" : r.days + " days";
       return `<tr class="abt-row">
-        <td class="abt-rank">${i + 1}</td>
         <td class="abt-name">${escHtml(r.name)}</td>
-        <td class="abt-date">${fmtDate(r.first)}</td>
-        <td class="abt-date">${fmtDate(r.last)}</td>
+        <td class="abt-date">${fmtShort(r.first)}</td>
+        <td class="abt-date">${fmtShort(r.last)}</td>
         <td class="abt-days" style="color:${col}">${lbl}</td>
         <td class="abt-matches">${r.missed}</td>
       </tr>`;
     }).join('');
-    return `<div class="ana-card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="abt-table"><thead><tr><th>#</th><th>Player</th><th>First Played</th><th>Last Played</th><th>Days Since</th><th>Matches Missed</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div></div>`;
+    return `<div class="ana-card" style="padding:0;overflow:hidden"><table class="abt-table"><thead><tr><th>Player</th><th>First</th><th>Last</th><th>Days</th><th>Missed</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div>`;
   })()
 
   // ── RENDER ─────────────────────────────────────────────
