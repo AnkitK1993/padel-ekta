@@ -16223,9 +16223,7 @@ function _updateLiveMomentum() {
 
 function endLiveMatch() {
   const { a1, a2, b1, b2 } = _liveSlots;
-  const date =
-    document.getElementById("live-date")?.value ||
-    todayISO();
+  const date = todayISO();
   const notes = document.getElementById("live-notes")?.value.trim() || "";
   if (!a1 || !a2 || !b1 || !b2) {
     showToast("Select all 4 players first", "❌");
