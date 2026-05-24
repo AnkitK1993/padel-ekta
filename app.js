@@ -986,6 +986,7 @@ function _showSyncConflict(
   };
   overlay.querySelector("#sc-local").onclick = () => {
     overlay.remove();
+    resolveFn(allMatches, players, playerAliasMap, nextPlayerId, true);
     showToast("Keeping local data", "📱");
   };
 }
@@ -1136,8 +1137,11 @@ function loadCloudData() {
     // Conflict detection: local matches that aren't in the incoming cloud data.
     // Skip for 5 s after a local save — the stale Firestore cache snapshot
     // hasn't picked up our write yet and would falsely flag new matches.
-    const _recentSave = (Date.now() - _lastLocalSaveTime) < 5000;
-    if (!skipConflict && !isFirstLoad && !_recentSave && allMatches.length > 0) {
+    // Also skip while a live session is active — buffered matches are intentionally
+    // local-only until the user taps SYNC or END SESSION.
+    const _recentSave = (Date.now() - _lastLocalSaveTime) < 15000;
+    const _sessionBuffering = !!(_liveSessionData?.sessionActive);
+    if (!skipConflict && !isFirstLoad && !_recentSave && !_sessionBuffering && allMatches.length > 0) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
       const localOnly = allMatches.filter(
         (m) => !cloudKeys.has(_mkMatchKey(m)),
