@@ -6943,13 +6943,14 @@ function openPlayerDetail(name) {
     sortedForElo15.forEach((m) => {
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _eloW15)) _eloW15[p] = 1000; });
       const aWon15 = m.scoreA > m.scoreB;
-      const avgA15 = m.teamA.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(m.teamA.length, 1);
-      const avgB15 = m.teamB.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(m.teamB.length, 1);
+      const tA15 = m.teamA || [], tB15 = m.teamB || [];
+      const avgA15 = tA15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(tA15.length, 1);
+      const avgB15 = tB15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(tB15.length, 1);
       const expA15 = 1 / (1 + Math.pow(10, (avgB15 - avgA15) / 400));
       const dA15 = Math.round(32 * ((aWon15 ? 1 : 0) - expA15));
       const dB15 = Math.round(32 * ((aWon15 ? 0 : 1) - (1 - expA15)));
-      m.teamA.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dA15; });
-      m.teamB.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dB15; });
+      tA15.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dA15; });
+      tB15.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dB15; });
       const inA15 = (m.teamA || []).includes(name);
       const inB15 = (m.teamB || []).includes(name);
       if (inA15 || inB15) {
