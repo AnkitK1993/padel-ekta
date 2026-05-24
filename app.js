@@ -15472,6 +15472,7 @@ let _liveGamePtsB = 0;
 let _liveAdv = null; // 'a' | 'b' | null
 let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
+let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
 
 function openLiveMode() {
   if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
@@ -15944,8 +15945,15 @@ function endLiveMatch() {
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
+    // Buffer locally — don't write to Firestore until SYNC or End Session
+    _sessionPendingCount++;
+    _updateSyncBadge();
+    _invalidateEloMemo();
+    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+    try { localStorage.setItem("padel_matches", JSON.stringify(allMatches)); } catch(e) {}
+  } else {
+    saveCloudData();
   }
-  saveCloudData();
   renderHome();
   renderCompact();
   renderModernMatches();
@@ -15960,6 +15968,26 @@ function endLiveMatch() {
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
+}
+
+function _updateSyncBadge() {
+  const el = document.getElementById("live-sync-count");
+  if (!el) return;
+  if (_sessionPendingCount > 0) {
+    el.textContent = _sessionPendingCount;
+    el.style.display = "";
+  } else {
+    el.style.display = "none";
+  }
+}
+
+async function syncSession() {
+  if (_sessionPendingCount === 0) { showToast("Nothing to sync", "✅"); return; }
+  const count = _sessionPendingCount;
+  await saveCloudData();
+  _sessionPendingCount = 0;
+  _updateSyncBadge();
+  showToast(`Synced ${count} match${count !== 1 ? "es" : ""} to cloud`, "☁️");
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -16536,6 +16564,8 @@ function confirmSessionStart() {
   closeSessionSetup();
   const now = new Date().toISOString();
   _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
+  _sessionPendingCount = 0;
+  _updateSyncBadge();
   _syncLiveSessionBar();
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
@@ -16543,8 +16573,13 @@ function confirmSessionStart() {
   _requestNotifPermission();
 }
 
-function endLiveSession() {
+async function endLiveSession() {
   if (!confirm("End the current session?")) return;
+  if (_sessionPendingCount > 0) {
+    await saveCloudData();
+    _sessionPendingCount = 0;
+    _updateSyncBadge();
+  }
   _liveSessionData = null;
   _syncLiveSessionBar();
   _liveHaptic([30, 60, 30]);

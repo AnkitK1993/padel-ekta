@@ -16863,6 +16863,34 @@ body.midnight-oled-mode #themeBtn {
   padding: 5px 12px;
   cursor: pointer;
 }
+.live-sync-btn {
+  background: rgba(40, 200, 120, 0.15);
+  border: 1px solid rgba(40, 200, 120, 0.35);
+  border-radius: 16px;
+  color: #40e090;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: 0.06em;
+}
+.live-sync-btn:active {
+  background: rgba(40, 200, 120, 0.3);
+}
+.live-sync-badge {
+  background: #40e090;
+  color: #001a0d;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 14px;
+}
 .live-end-session-btn {
   background: rgba(255, 60, 60, 0.2);
   border: 1px solid rgba(255, 60, 60, 0.4);
