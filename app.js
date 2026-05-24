@@ -15424,6 +15424,13 @@ Object.assign(window, {
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
+  toggleSessionPanel,
+  suggestNextMatch,
+  undoSessionMatch,
+  saveAndRematch,
+  openSessionSummary,
+  closeSessionSummary,
+  confirmEndSession,
   openRivalryScreen,
   openShareMatchPoster,
   openHomeFilterSheet,
@@ -15451,6 +15458,9 @@ let _liveAdv = null; // 'a' | 'b' | null
 let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
+let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
+let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
+let _sessionPanelOpen = false;    // whether the session stats panel is expanded
 
 function openLiveMode() {
   if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
@@ -15732,6 +15742,8 @@ function selectLivePlayer(name, slot) {
   _liveAdv = null; _liveMatchEnded = false;
   _livePoints = []; _livePointUndoStack = [];
   _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _renderSittingOut();
+  _checkRematchWarning();
   const { a1, a2, b1, b2 } = _liveSlots;
   if (a1 && a2 && b1 && b2) openMatchConfirmSheet();
 }
@@ -15922,10 +15934,15 @@ function endLiveMatch() {
   allMatches.push(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
+    _sessionMatchHistory.push({ teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, date });
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
     // Buffer locally — don't write to Firestore until SYNC or End Session
     _sessionPendingCount++;
     _updateSyncBadge();
+    _syncLiveSessionBar();
+    if (_sessionPanelOpen) _updateSessionPanel();
+    const undoBtn = document.getElementById("live-undo-match-btn");
+    if (undoBtn) undoBtn.style.display = "";
     _invalidateEloMemo();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
     try { localStorage.setItem("padel_matches", JSON.stringify(allMatches)); } catch(e) {}
@@ -15945,6 +15962,8 @@ function endLiveMatch() {
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _renderSittingOut();
+  _checkRematchWarning();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
 }
 
@@ -16481,6 +16500,242 @@ async function openPlayerReportCard(name) {
   }
 }
 
+// ── SESSION TIMER ────────────────────────────────────────────
+function _startSessionTimer() {
+  _stopSessionTimer();
+  _updateSessionTimer();
+  _sessionTimerInterval = setInterval(_updateSessionTimer, 1000);
+}
+function _stopSessionTimer() {
+  if (_sessionTimerInterval) { clearInterval(_sessionTimerInterval); _sessionTimerInterval = null; }
+}
+function _updateSessionTimer() {
+  const el = document.getElementById("live-session-timer");
+  if (!el || !_liveSessionData?.sessionStartedAt) return;
+  const sec = Math.floor((Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) / 1000);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  el.textContent = h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ── SITTING-OUT STRIP ────────────────────────────────────────
+function _renderSittingOut() {
+  const el = document.getElementById("live-sittingout-strip");
+  if (!el) return;
+  if (!_liveSessionData?.sessionActive) { el.style.display = "none"; return; }
+  const sessionPlayers = _liveSessionData.sessionPlayers || [];
+  const playing = new Set(Object.values(_liveSlots).filter(Boolean));
+  const sitting = sessionPlayers.filter(p => !playing.has(p));
+  if (sitting.length === 0) { el.style.display = "none"; return; }
+  el.style.display = "";
+  el.innerHTML = `<span class="sittingout-label">SITTING OUT</span>` +
+    sitting.map(p => `<span class="sittingout-chip">${escHtml(p.split(" ")[0])}</span>`).join("");
+}
+
+// ── REMATCH WARNING ──────────────────────────────────────────
+function _checkRematchWarning() {
+  const { a1, a2, b1, b2 } = _liveSlots;
+  const el = document.getElementById("live-rematch-warning");
+  if (!el) return;
+  if (!a1 || !a2 || !b1 || !b2) { el.style.display = "none"; return; }
+  const sA = [a1, a2].sort().join("|"), sB = [b1, b2].sort().join("|");
+  const prev = _sessionMatchHistory.find(m => {
+    const mA = [...m.teamA].sort().join("|"), mB = [...m.teamB].sort().join("|");
+    return (mA === sA && mB === sB) || (mA === sB && mB === sA);
+  });
+  if (prev) {
+    el.style.display = "";
+    el.textContent = `⚠️ Rematch — this pairing played ${prev.scoreA}–${prev.scoreB} earlier this session`;
+  } else {
+    el.style.display = "none";
+  }
+}
+
+// ── SESSION STATS PANEL ──────────────────────────────────────
+function _buildSessionLeaderboard() {
+  const sessionPlayers = _liveSessionData?.sessionPlayers || [];
+  if (!sessionPlayers.length || !_sessionMatchHistory.length)
+    return '<div style="font-size:11px;color:var(--muted);padding:8px 0;text-align:center">No matches yet</div>';
+  const stats = {};
+  sessionPlayers.forEach(p => stats[p] = { w: 0, l: 0, m: 0 });
+  _sessionMatchHistory.forEach(mt => {
+    const aWon = mt.scoreA > mt.scoreB;
+    (aWon ? mt.teamA : mt.teamB).forEach(p => { if (stats[p]) { stats[p].w++; stats[p].m++; } });
+    (aWon ? mt.teamB : mt.teamA).forEach(p => { if (stats[p]) { stats[p].l++; stats[p].m++; } });
+  });
+  const sorted = Object.entries(stats).sort((a, b) => {
+    const diff = (b[1].m ? b[1].w / b[1].m : 0) - (a[1].m ? a[1].w / a[1].m : 0);
+    return diff !== 0 ? diff : b[1].m - a[1].m;
+  });
+  const counts = sorted.map(([, s]) => s.m);
+  const maxM = Math.max(...counts), minM = Math.min(...counts);
+  const fairWarn = (maxM - minM) >= 2 && sorted.length >= 3
+    ? `<div class="sess-fairness-warn">⚠️ ${sorted.filter(([,s]) => s.m === maxM).map(([n]) => n.split(' ')[0]).join(', ')} played ${maxM - minM} more than others</div>`
+    : '';
+  const rows = sorted.map(([name, s]) => {
+    const pct = s.m ? Math.round(s.w / s.m * 100) : 0;
+    return `<div class="sess-ldr-row">
+      <div class="sess-ldr-name">${escHtml(name.split(' ')[0])}</div>
+      <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
+      <div class="sess-ldr-barwrap"><div class="sess-ldr-bar" style="width:${pct}%"></div></div>
+      <div class="sess-ldr-count">×${s.m}</div>
+    </div>`;
+  }).join('');
+  return fairWarn + rows;
+}
+
+function _updateSessionPanel() {
+  const el = document.getElementById("live-session-leaderboard");
+  if (el) el.innerHTML = _buildSessionLeaderboard();
+}
+
+function toggleSessionPanel() {
+  _sessionPanelOpen = !_sessionPanelOpen;
+  const panel = document.getElementById("live-session-panel");
+  if (!panel) return;
+  panel.style.display = _sessionPanelOpen ? "" : "none";
+  const btn = document.getElementById("sess-panel-toggle-btn");
+  if (btn) btn.classList.toggle("active", _sessionPanelOpen);
+  if (_sessionPanelOpen) _updateSessionPanel();
+}
+
+// ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
+function suggestNextMatch() {
+  const players = _liveSessionData?.sessionPlayers || [];
+  if (players.length < 4) { showToast("Need 4+ players in session", "❌"); return; }
+  const counts = {};
+  players.forEach(p => counts[p] = 0);
+  _sessionMatchHistory.forEach(m => {
+    [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
+  });
+  const sorted = [...players].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
+  const pick4 = sorted.slice(0, 4);
+  // Balance teams by ELO: strongest+weakest vs two middles
+  const eloMap = computeElo(activeMatches());
+  pick4.sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
+  _liveSlots.a1 = pick4[0]; _liveSlots.a2 = pick4[3];
+  _liveSlots.b1 = pick4[1]; _liveSlots.b2 = pick4[2];
+  _liveScoreA = 0; _liveScoreB = 0;
+  _liveGamePtsA = 0; _liveGamePtsB = 0;
+  _liveAdv = null; _liveMatchEnded = false;
+  _livePoints = []; _livePointUndoStack = [];
+  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _renderSittingOut();
+  _checkRematchWarning();
+  showToast("Next match suggested 🎲", "✅");
+}
+
+// ── UNDO LAST SESSION MATCH ──────────────────────────────────
+function undoSessionMatch() {
+  if (!_sessionMatchHistory.length) { showToast("No match to undo", "❌"); return; }
+  const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
+  const key = _mkMatchKey(last);
+  const idx = allMatches.findIndex(m => _mkMatchKey(m) === key);
+  if (idx !== -1) allMatches.splice(idx, 1);
+  _sessionMatchHistory.pop();
+  if (_sessionPendingCount > 0) _sessionPendingCount--;
+  _updateSyncBadge();
+  _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
+  _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
+  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  _updateLiveDisplay(); _updateLiveWinProb();
+  _syncLiveSessionBar();
+  if (_sessionPanelOpen) _updateSessionPanel();
+  _renderSittingOut();
+  _checkRematchWarning();
+  const undoBtn = document.getElementById("live-undo-match-btn");
+  if (undoBtn) undoBtn.style.display = _sessionMatchHistory.length > 0 ? "" : "none";
+  renderHome(); renderCompact(); renderModernMatches();
+  showToast("Last match undone ↶", "✅");
+}
+
+// ── SAVE + REMATCH ───────────────────────────────────────────
+function saveAndRematch() {
+  confirmSaveMatch();
+  // endLiveMatch() pushed to _sessionMatchHistory — restore those players
+  if (_sessionMatchHistory.length > 0) {
+    const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
+    _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
+    _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
+    ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+    _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+    _renderSittingOut();
+    _checkRematchWarning();
+  }
+}
+
+// ── SESSION SUMMARY SHEET ────────────────────────────────────
+function openSessionSummary() {
+  if (!_liveSessionData?.sessionActive) return;
+  const sessionPlayers = _liveSessionData.sessionPlayers || [];
+  const elapsed = _liveSessionData.sessionStartedAt
+    ? Math.floor((Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) / 1000) : 0;
+  const h = Math.floor(elapsed / 3600);
+  const m2 = Math.floor((elapsed % 3600) / 60);
+  const dur = elapsed < 60 ? `<1m` : h > 0 ? `${h}h ${m2}m` : `${m2}m`;
+  const stats = {};
+  sessionPlayers.forEach(p => stats[p] = { w: 0, l: 0 });
+  _sessionMatchHistory.forEach(mt => {
+    const aWon = mt.scoreA > mt.scoreB;
+    (aWon ? mt.teamA : mt.teamB).forEach(p => { if (stats[p]) stats[p].w++; });
+    (aWon ? mt.teamB : mt.teamA).forEach(p => { if (stats[p]) stats[p].l++; });
+  });
+  const sorted = Object.entries(stats).sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l);
+  const mvp = sorted[0];
+  const playersHtml = sorted.map(([name, s]) =>
+    `<div class="sess-sum-player">${sheetAvSm(name)}<span class="sess-sum-pname">${escHtml(name)}</span><span class="sess-sum-wl">${s.w}W–${s.l}L</span></div>`
+  ).join('');
+  const matchesHtml = _sessionMatchHistory.length === 0
+    ? '<div style="font-size:11px;color:var(--muted);padding:8px 0">No matches played</div>'
+    : _sessionMatchHistory.map((mt, i) => {
+        const aWon = mt.scoreA > mt.scoreB;
+        return `<div class="sess-sum-match">
+          <div class="sess-sum-match-num">${i + 1}</div>
+          <div class="sess-sum-match-teams">${escHtml(mt.teamA.join(' & '))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.join(' & '))}</div>
+          <div class="sess-sum-match-score" style="color:${aWon ? 'var(--green)' : 'var(--red)'}">${mt.scoreA}–${mt.scoreB}</div>
+        </div>`;
+      }).join('');
+  const bodyEl = document.getElementById("session-summary-body");
+  if (bodyEl) bodyEl.innerHTML = `
+    <div class="sess-sum-meta">
+      <div class="sess-sum-stat"><div class="sess-sum-val">${_sessionMatchHistory.length}</div><div class="sess-sum-lbl">MATCHES</div></div>
+      <div class="sess-sum-stat"><div class="sess-sum-val">${dur}</div><div class="sess-sum-lbl">DURATION</div></div>
+      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(mvp[0].split(' ')[0])}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ''}
+    </div>
+    <div class="sess-sum-section-title">PLAYERS</div>
+    <div class="sess-sum-players">${playersHtml}</div>
+    <div class="sess-sum-section-title">MATCHES</div>
+    <div class="sess-sum-matches">${matchesHtml}</div>`;
+  document.getElementById("session-summary-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("session-summary-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeSessionSummary() {
+  document.getElementById("session-summary-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("session-summary-sheet")?.classList.remove("live-sheet-open");
+}
+
+async function confirmEndSession() {
+  closeSessionSummary();
+  _stopSessionTimer();
+  if (_sessionPendingCount > 0) {
+    await saveCloudData();
+    _sessionPendingCount = 0;
+    _updateSyncBadge();
+  }
+  _liveSessionData = null;
+  _sessionMatchHistory = [];
+  _sessionPanelOpen = false;
+  _syncLiveSessionBar();
+  _liveHaptic([30, 60, 30]);
+  _notifyLiveEvent("session_end", "Session ended");
+  _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
+}
+
 // ── SESSION ──────────────────────────────────────────────────
 let _liveSessionData = null;
 let _sessionSetupSelected = new Set();
@@ -16495,8 +16750,13 @@ function _syncLiveSessionBar() {
   if (active) {
     const chipsEl = document.getElementById("live-session-players");
     if (chipsEl) {
+      const counts = {};
+      (d.sessionPlayers || []).forEach(p => counts[p] = 0);
+      _sessionMatchHistory.forEach(m => {
+        [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
+      });
       chipsEl.innerHTML = (d.sessionPlayers || []).map(p =>
-        `<span class="live-session-chip">${escHtml(p.split(" ")[0])}</span>`
+        `<span class="live-session-chip">${escHtml(p.split(" ")[0])}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ''}</span>`
       ).join("");
     }
   }
@@ -16543,8 +16803,11 @@ function confirmSessionStart() {
   const now = new Date().toISOString();
   _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
   _sessionPendingCount = 0;
+  _sessionMatchHistory = [];
+  _sessionPanelOpen = false;
   _updateSyncBadge();
   _syncLiveSessionBar();
+  _startSessionTimer();
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
   _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
@@ -16552,17 +16815,7 @@ function confirmSessionStart() {
 }
 
 async function endLiveSession() {
-  if (!confirm("End the current session?")) return;
-  if (_sessionPendingCount > 0) {
-    await saveCloudData();
-    _sessionPendingCount = 0;
-    _updateSyncBadge();
-  }
-  _liveSessionData = null;
-  _syncLiveSessionBar();
-  _liveHaptic([30, 60, 30]);
-  _notifyLiveEvent("session_end", "Session ended");
-  _showLiveEventBanner({ type: "session_end", msg: "Session ended" });
+  openSessionSummary();
 }
 
 function openAddPlayerSheet() {
@@ -16748,6 +17001,8 @@ function openMatchSaveSheet() {
       <div class="msr-winner">🏆 ${escHtml(winner)}</div>
     </div>`;
   }
+  const rematchBtn = document.getElementById("live-save-rematch-btn");
+  if (rematchBtn) rematchBtn.style.display = _liveSessionData?.sessionActive ? "" : "none";
   document.getElementById("match-save-overlay")?.classList.add("live-sheet-open");
   document.getElementById("match-save-sheet")?.classList.add("live-sheet-open");
 }
