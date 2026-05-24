@@ -13271,11 +13271,11 @@ function renderAnalyticsPage() {
     let best = null, bestDiff = -Infinity;
     for (const p of pNames) {
       const overall = stats[p].wins / stats[p].matches;
-      const pMatches = sortedM.filter((m) => [...m.teamA, ...m.teamB].includes(p));
+      const pMatches = sortedM.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p));
       const recent = pMatches.slice(-10);
       if (recent.length < 3) continue;
       const recWins = recent.filter((m) =>
-        (m.scoreA > m.scoreB ? m.teamA : m.teamB).includes(p)
+        (m.scoreA > m.scoreB ? (m.teamA || []) : (m.teamB || [])).includes(p)
       ).length;
       const recentRate = recWins / recent.length;
       const diff = recentRate - overall;
@@ -16613,11 +16613,12 @@ function suggestNextMatch() {
   });
   const sorted = [...players].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
   const pick4 = sorted.slice(0, 4);
-  // Balance teams by ELO: strongest+weakest vs two middles
+  // Snake-draft ELO balance: sort desc, pair [0]+[2] vs [1]+[3]
+  // (1st & 3rd vs 2nd & 4th — minimises avg ELO gap between teams)
   const eloMap = computeElo(activeMatches());
   pick4.sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
-  _liveSlots.a1 = pick4[0]; _liveSlots.a2 = pick4[3];
-  _liveSlots.b1 = pick4[1]; _liveSlots.b2 = pick4[2];
+  _liveSlots.a1 = pick4[0]; _liveSlots.a2 = pick4[2];
+  _liveSlots.b1 = pick4[1]; _liveSlots.b2 = pick4[3];
   _liveScoreA = 0; _liveScoreB = 0;
   _liveGamePtsA = 0; _liveGamePtsB = 0;
   _liveAdv = null; _liveMatchEnded = false;
@@ -16845,6 +16846,7 @@ function addPlayerToSession(name) {
   players.push(name);
   _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
   _syncLiveSessionBar();
+  _renderSittingOut();
   showToast(`${name} added`, "✅");
 }
 
