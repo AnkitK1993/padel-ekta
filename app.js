@@ -15762,7 +15762,7 @@ function openLiveMode() {
   _liveGameMode = savedMode === 6 ? 6 : 4;
   _liveSyncModeButtons();
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
@@ -15788,7 +15788,7 @@ function setLiveGameMode(mode) {
   _livePointUndoStack = [];
   _liveSyncModeButtons();
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
@@ -15920,7 +15920,7 @@ function _liveWinGame(team) {
     openMatchSaveSheet();
   }
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
@@ -15949,7 +15949,7 @@ function liveUndoPoint() {
   _livePoints = snap.points;
   _liveHaptic(8);
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
@@ -16035,7 +16035,7 @@ function selectLivePlayer(name, slot) {
   _liveGamePtsA = 0; _liveGamePtsB = 0;
   _liveAdv = null; _liveMatchEnded = false;
   _livePoints = []; _livePointUndoStack = [];
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
   _renderSittingOut();
   _checkRematchWarning();
   const { a1, a2, b1, b2 } = _liveSlots;
@@ -16096,7 +16096,7 @@ function liveAdjustScore(team, delta) {
   _liveAdv = null;
   _liveSyncGameDisplay();
   _updateLiveDisplay();
-  _updateLiveWinProb();
+  _updateLiveWinProb(); _updateLiveEloPreview();
   _updateLiveMomentum();
   // Always prompt to save when win condition is met
   if (actualDelta !== 0 && _liveCheckMatchWin()) {
@@ -16157,6 +16157,28 @@ function _updateLiveWinProb() {
           : "var(--theme)";
     fill.style.background = col;
   }
+}
+
+function _updateLiveEloPreview() {
+  const el = document.getElementById("live-elo-preview");
+  if (!el) return;
+  const { a1, a2, b1, b2 } = _liveSlots;
+  if (!a1 || !a2 || !b1 || !b2) { el.style.display = "none"; return; }
+  const eloMap = _memoElo();
+  const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
+  const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
+  const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+  const expB = 1 - expA;
+  const dAwin  = Math.round(32 * (1 - expA));
+  const dAlose = Math.round(32 * (0 - expA));
+  const dBwin  = Math.round(32 * (1 - expB));
+  const dBlose = Math.round(32 * (0 - expB));
+  el.style.display = "";
+  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  set("lep-win-a",  `+${dAwin}`);
+  set("lep-lose-a", `${dAlose}`);
+  set("lep-win-b",  `+${dBwin}`);
+  set("lep-lose-b", `${dBlose}`);
 }
 
 // 5B: Live Momentum Graph
@@ -16256,7 +16278,7 @@ function endLiveMatch() {
   _livePoints = []; _livePointUndoStack = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
   _renderSittingOut();
   _checkRematchWarning();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
@@ -16932,7 +16954,7 @@ function suggestNextMatch() {
   _liveAdv = null; _liveMatchEnded = false;
   _livePoints = []; _livePointUndoStack = [];
   ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
   _renderSittingOut();
   _checkRematchWarning();
   showToast("Next match suggested 🎲", "✅");
@@ -16951,7 +16973,7 @@ function undoSessionMatch() {
   _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
   _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
   ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-  _updateLiveDisplay(); _updateLiveWinProb();
+  _updateLiveDisplay(); _updateLiveWinProb(); _updateLiveEloPreview();
   _syncLiveSessionBar();
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
@@ -16971,7 +16993,7 @@ function saveAndRematch() {
     _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
     _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
     ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-    _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveMomentum();
+    _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
     _renderSittingOut();
     _checkRematchWarning();
   }

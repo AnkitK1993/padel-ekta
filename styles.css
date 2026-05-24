@@ -12659,6 +12659,44 @@ select.cmp-sel:hover,
   --live-red: rgba(239, 68, 68, 0.9);
   --live-blue: rgba(59, 130, 246, 0.9);
 }
+.live-elo-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  margin: 4px 0 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  gap: 6px;
+}
+.lep-side {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 800;
+}
+.lep-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.lep-side-a .lep-label { color: var(--live-red); }
+.lep-side-b .lep-label { color: var(--live-blue); }
+.lep-win  { color: var(--green); }
+.lep-lose { color: var(--red); }
+.lep-sep  { color: var(--muted); font-size: 11px; opacity: 0.5; }
+.lep-center {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .live-prob-wrap {
   display: flex;
   align-items: center;
