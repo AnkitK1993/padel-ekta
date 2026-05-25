@@ -4610,6 +4610,7 @@ function renderMatchCalendar() {
     year: "numeric",
   });
 
+  const _calMaxCount = Math.max(...Object.values(matchCountByDate), 1);
   let cells = "";
   // Empty cells before first day
   for (let i = 0; i < startDow; i++)
@@ -4619,9 +4620,11 @@ function renderMatchCalendar() {
     const count = matchCountByDate[iso] || 0;
     const isToday = iso === todayStr;
     const hasMatch = count > 0;
-    cells += `<div class="cal-cell${isToday ? " cal-today" : ""}${hasMatch ? " cal-has-match" : ""}" onclick="calDayClick('${iso}')">
+    const heatOpacity = hasMatch ? (0.15 + (count / _calMaxCount) * 0.55).toFixed(2) : "0";
+    const heatStyle = hasMatch ? ` style="background:rgba(var(--theme-rgb),${heatOpacity})"` : "";
+    cells += `<div class="cal-cell${isToday ? " cal-today" : ""}${hasMatch ? " cal-has-match" : ""}"${heatStyle} onclick="calDayClick('${iso}')">
       <span class="cal-day-num">${d}</span>
-      ${hasMatch ? `<span class="cal-dot" title="${count} match${count > 1 ? "es" : ""}"></span>` : ""}
+      ${hasMatch ? `<span class="cal-heat-count">${count}</span>` : ""}
     </div>`;
   }
 
@@ -12444,10 +12447,9 @@ function _buildStoryFeedHtml() {
   if (!stories.length)
     return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
   const cards = stories
-    .slice(0, 30)
     .map(
-      (s) => `
-    <div class="story-card" data-type="${s.type || ""}">
+      (s, i) => `
+    <div class="story-card" data-type="${s.type || ""}" data-idx="${i}" style="${i < 5 ? "" : "display:none"}">
       <div class="story-icon">${s.icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;font-weight:700;color:var(--fg);line-height:1.4">${s.text}</div>
@@ -12468,9 +12470,12 @@ function _buildStoryFeedHtml() {
         `<button class="story-chip${f === "all" ? " active" : ""}" onclick="_storyFilter('${f}', this)">${l}</button>`,
     )
     .join("");
+  const remaining = stories.length - 5;
+  const showMoreBtn = remaining > 0 ? `<button class="story-show-more" onclick="_storyShowMore(this,'all')">Show More (${remaining} more)</button>` : "";
   return `<div class="ana-card" style="padding:10px 12px">
     <div class="story-chips">${chips}</div>
     <div class="story-cards-wrap">${cards}</div>
+    <div class="story-more-wrap">${showMoreBtn}</div>
   </div>`;
 }
 
@@ -12480,10 +12485,28 @@ function _storyFilter(filter, btn) {
     wrap.querySelectorAll(".story-chip").forEach((b) => b.classList.toggle("active", b === btn));
   const card = btn.closest(".ana-card");
   if (!card) return;
-  card.querySelectorAll(".story-card").forEach((c) => {
-    if (filter === "all") c.style.display = "";
-    else c.style.display = c.dataset.type === filter ? "" : "none";
+  const allCards = [...card.querySelectorAll(".story-card")];
+  let shown = 0;
+  allCards.forEach((c) => {
+    const matches = filter === "all" || c.dataset.type === filter;
+    if (matches && shown < 5) { c.style.display = ""; shown++; }
+    else c.style.display = "none";
   });
+  const matching = allCards.filter((c) => filter === "all" || c.dataset.type === filter).length;
+  const moreWrap = card.querySelector(".story-more-wrap");
+  if (moreWrap) {
+    const rem = matching - 5;
+    moreWrap.innerHTML = rem > 0 ? `<button class="story-show-more" onclick="_storyShowMore(this,'${filter}')">Show More (${rem} more)</button>` : "";
+  }
+}
+
+function _storyShowMore(btn, filter) {
+  const card = btn.closest(".ana-card");
+  if (!card) return;
+  card.querySelectorAll(".story-card").forEach((c) => {
+    if (filter === "all" || c.dataset.type === filter) c.style.display = "";
+  });
+  btn.parentElement.innerHTML = "";
 }
 
 function _buildSeasonModeHtml() {
@@ -12491,7 +12514,6 @@ function _buildSeasonModeHtml() {
   if (!seasons.length)
     return '<div class="sub" style="padding:8px">No seasons found.</div>';
   const cards = seasons
-    .slice(0, 6)
     .map(
       (s) => `
     <div class="season-card" onclick="this.classList.toggle('season-open')">
@@ -12646,7 +12668,7 @@ function _buildLeaderboardReplayHtml() {
   const dateOpts =
     '<option value="" disabled selected>📅 Jump to date</option>' +
     uniqDates.map((d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`).join("");
-  const topPlayers = computeStats(sorted, computeElo(sorted)).slice(0, 8);
+  const topPlayers = computeStats(sorted, computeElo(sorted));
   const spotlightOpts =
     '<option value="">👁 Spotlight: All</option>' +
     topPlayers
@@ -14765,7 +14787,7 @@ function renderAnalyticsPage() {
           const pct = Math.round(d.w / d.p * 100);
           const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--gold)";
           const rating = pct >= 60 ? "CLUTCH" : pct <= 40 ? "CHOKER" : "STEADY";
-          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.p}</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
+          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.w}W–${d.p-d.w}L</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
         }).join("");
       if (!summaryRows) return "";
       return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
@@ -14933,10 +14955,13 @@ function renderAnalyticsPage() {
     const lastMos = uniqueMonths.slice(-6);
     const potmMap = {};
     lastMos.forEach((mo) => {
-      const ps2 = Object.entries(monthlyStats[mo] || {}).filter(([, d]) => d.m >= 5);
+      const allEntries = Object.entries(monthlyStats[mo] || {});
+      const maxM = Math.max(...allEntries.map(([, d]) => d.m), 0);
+      const threshold = Math.max(1, Math.round(maxM * 0.3));
+      const ps2 = allEntries.filter(([, d]) => d.m >= threshold);
       if (!ps2.length) return;
       const top = ps2.sort((a, b) => b[1].w / b[1].m - a[1].w / a[1].m)[0];
-      if (top) potmMap[mo] = { name: top[0], pct: Math.round(top[1].w / top[1].m * 100) };
+      if (top) potmMap[mo] = { name: top[0], pct: Math.round(top[1].w / top[1].m * 100), matches: top[1].m };
     });
     const trendArrows = {};
     if (lastMos.length >= 2) {
@@ -14953,7 +14978,7 @@ function renderAnalyticsPage() {
     const potmHtml2 = Object.keys(potmMap).length
       ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">` +
         Object.entries(potmMap).map(([mo, d]) =>
-          `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}%</div></div>`
+          `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}% · ${d.matches}P</div></div>`
         ).join("") + `</div>`
       : "";
     const hdrs = lastMos.map((mo) => `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${moN2[parseInt(mo.slice(5))]}</th>`).join("");
@@ -14964,7 +14989,7 @@ function renderAnalyticsPage() {
         const pct = Math.round(d.w / d.m * 100);
         const col = pct >= 70 ? "var(--green)" : pct >= 40 ? "var(--gold)" : "var(--red)";
         const bg = pct >= 70 ? "rgba(54,212,126,0.12)" : pct >= 40 ? "rgba(241,196,15,0.1)" : "rgba(240,79,79,0.12)";
-        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%</td>`;
+        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%<br><span style="font-size:8px;color:var(--muted);font-weight:600">${d.w}W–${d.m-d.w}L</span></td>`;
       }).join("");
       const arr = trendArrows[p];
       const arrCol = arr === "↑" ? "var(--green)" : arr === "↓" ? "var(--red)" : "var(--muted)";
@@ -15145,27 +15170,29 @@ function renderAnalyticsPage() {
       }).join("") + `</div>`;
   })();
 
-  // 2: Score Heatmap Grid (scored vs conceded)
+  // 2: Score Heatmap Grid (winner vs loser score — symmetric pairs merged)
   const _scoreHeatmapHtml = (() => {
     const scores = [0,1,2,3,4,5,6];
     const grid3 = {};
     sortedM.forEach((m) => {
-      const key1 = `${m.scoreA}_${m.scoreB}`;
-      const key2 = `${m.scoreB}_${m.scoreA}`;
-      grid3[key1] = (grid3[key1] || 0) + 1;
-      if (key1 !== key2) grid3[key2] = (grid3[key2] || 0) + 1;
+      const hi = Math.max(m.scoreA, m.scoreB);
+      const lo = Math.min(m.scoreA, m.scoreB);
+      if (isNaN(hi) || isNaN(lo) || hi < 0) return;
+      const key = `${hi}_${lo}`;
+      grid3[key] = (grid3[key] || 0) + 1;
     });
     const maxG = Math.max(...Object.values(grid3), 1);
-    const header = `<tr><th style="font-size:8px;color:var(--muted);padding:0 4px 4px 0">Scored↓ \ Given→</th>${scores.map((s) => `<th style="font-size:8px;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 4px">${s}</th>`).join("")}</tr>`;
-    const bodyRows3 = scores.map((rs) => {
-      const cells4 = scores.map((cs) => {
-        const cnt = grid3[`${rs}_${cs}`] || 0;
+    const header = `<tr><th style="font-size:8px;color:var(--muted);padding:0 4px 4px 0">Win↓ Loss→</th>${scores.map((s) => `<th style="font-size:8px;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 4px">${s}</th>`).join("")}</tr>`;
+    const bodyRows3 = scores.map((hi) => {
+      const cells4 = scores.map((lo) => {
+        if (lo > hi) return `<td style="background:transparent;padding:4px 5px"></td>`;
+        const cnt = grid3[`${hi}_${lo}`] || 0;
         const bg = cnt === 0 ? "rgba(255,255,255,0.04)" : `rgba(var(--theme-rgb),${Math.max(0.12, cnt / maxG * 0.8).toFixed(2)})`;
         return `<td style="text-align:center;background:${bg};border-radius:3px;padding:4px;font-size:9px;font-weight:700;color:${cnt?'var(--text)':'transparent'}">${cnt || ""}</td>`;
       }).join("");
-      return `<tr><td style="font-size:9px;color:var(--muted);font-weight:700;padding:2px 6px 2px 0">${rs}</td>${cells4}</tr>`;
+      return `<tr><td style="font-size:9px;color:var(--muted);font-weight:700;padding:2px 6px 2px 0">${hi}</td>${cells4}</tr>`;
     }).join("");
-    return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">How often each exact score occurred (both perspectives). Darker = more frequent.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
+    return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Score frequency — win score (row) vs loss score (col). 4-2 and 2-4 counted together.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
   })();
 
   // ── ABSENCE TRACKER ────────────────────────────────────────
@@ -15227,7 +15254,6 @@ function renderAnalyticsPage() {
   };
 
   const allSecs = [
-    { key: "digest", cat: "activity", title: "📋 Digest", body: digestHtml },
     {
       key: "predacc",
       cat: "records",
@@ -15292,12 +15318,6 @@ function renderAnalyticsPage() {
           },
         ]
       : []),
-    {
-      key: "heatmap",
-      cat: "activity",
-      title: "📅 Activity Heatmap",
-      body: `<div class="ana-card">${heatHtml}</div>`,
-    },
     {
       key: "score",
       cat: "activity",

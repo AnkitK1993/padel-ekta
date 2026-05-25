@@ -9945,9 +9945,7 @@ select.cmp-sel option {
 .cal-today {
   border: 1px solid rgba(var(--theme-rgb), 0.4);
 }
-.cal-has-match {
-  background: rgba(var(--theme-rgb), 0.07);
-}
+
 .cal-selected {
   background: rgba(var(--theme-rgb), 0.22) !important;
   border: 1px solid rgba(var(--theme-rgb), 0.6);
@@ -9964,6 +9962,12 @@ select.cmp-sel option {
   border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
+}
+.cal-heat-count {
+  font-size: 9px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1;
 }
 
 /* ── Player Avatars ─────────────────────────────── */
@@ -15216,6 +15220,25 @@ select:focus,
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.story-more-wrap {
+  margin-top: 8px;
+  text-align: center;
+}
+.story-show-more {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  background: rgba(var(--theme-rgb), 0.07);
+  color: var(--theme);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.story-show-more:hover {
+  background: rgba(var(--theme-rgb), 0.15);
 }
 
 /* ── Rivalry Hall of Fame ── */
