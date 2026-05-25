@@ -4610,6 +4610,12 @@ function renderMatchCalendar() {
     year: "numeric",
   });
 
+  let _calMaxCount = 1;
+  for (let d = 1; d <= totalDays; d++) {
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const c = matchCountByDate[iso] || 0;
+    if (c > _calMaxCount) _calMaxCount = c;
+  }
   let cells = "";
   // Empty cells before first day
   for (let i = 0; i < startDow; i++)
@@ -4619,9 +4625,11 @@ function renderMatchCalendar() {
     const count = matchCountByDate[iso] || 0;
     const isToday = iso === todayStr;
     const hasMatch = count > 0;
-    cells += `<div class="cal-cell${isToday ? " cal-today" : ""}${hasMatch ? " cal-has-match" : ""}" onclick="calDayClick('${iso}')">
+    const heatOpacity = hasMatch ? (0.15 + (count / _calMaxCount) * 0.55).toFixed(2) : "0";
+    const heatStyle = hasMatch ? ` style="background:rgba(var(--theme-rgb),${heatOpacity})"` : "";
+    cells += `<div class="cal-cell${isToday ? " cal-today" : ""}${hasMatch ? " cal-has-match" : ""}"${heatStyle} onclick="calDayClick('${iso}')">
       <span class="cal-day-num">${d}</span>
-      ${hasMatch ? `<span class="cal-dot" title="${count} match${count > 1 ? "es" : ""}"></span>` : ""}
+      ${hasMatch ? `<span class="cal-heat-count">${count}</span>` : ""}
     </div>`;
   }
 
@@ -9552,6 +9560,7 @@ const ANA_ORDER_KEY = "ekta_ana_order";
 const ANA_COL_KEY = "ekta_ana_col";
 const ANA_PILL_ORDER_KEY = "ekta_ana_pill_order";
 const ANA_FAV_KEY = "ekta_ana_favs";
+const ANA_HIDDEN_KEY = "ekta_ana_hidden";
 
 function getAnaPillOrder() {
   try {
@@ -9589,6 +9598,28 @@ function toggleAnaFav(key, e) {
   }
   // If currently viewing favs, re-apply filter
   if (_anaActiveCat === "favs") anaFilterCategory("favs", true);
+}
+
+function getAnaHidden() {
+  try { return JSON.parse(localStorage.getItem(ANA_HIDDEN_KEY)) || []; } catch { return []; }
+}
+function saveAnaHidden(a) {
+  localStorage.setItem(ANA_HIDDEN_KEY, JSON.stringify(a));
+}
+function toggleAnaHidden(key, e) {
+  e.stopPropagation();
+  const hidden = getAnaHidden();
+  const idx = hidden.indexOf(key);
+  if (idx === -1) hidden.push(key); else hidden.splice(idx, 1);
+  saveAnaHidden(hidden);
+  const isNowHidden = idx === -1;
+  const sec = document.querySelector(`.ana-sec[data-key="${key}"]`);
+  if (sec) {
+    if (isNowHidden) sec.dataset.hidden = "true"; else delete sec.dataset.hidden;
+    const btn = sec.querySelector(".ana-hide-btn");
+    if (btn) { btn.classList.toggle("active", isNowHidden); btn.title = isNowHidden ? "Unhide" : "Hide"; btn.textContent = isNowHidden ? "+" : "−"; }
+  }
+  anaFilterCategory(_anaActiveCat, true);
 }
 
 function getAnaOrder() {
@@ -9766,13 +9797,16 @@ function anaFilterCategory(cat, skipPillUpdate) {
   document
     .querySelectorAll("#analytics-page-content .ana-sec")
     .forEach((sec) => {
+      const isHidden = sec.dataset.hidden === "true";
       let shouldHide;
-      if (cat === "all") {
-        shouldHide = false;
+      if (cat === "hidden") {
+        shouldHide = !isHidden;
+      } else if (cat === "all") {
+        shouldHide = isHidden;
       } else if (cat === "favs") {
-        shouldHide = !favs.includes(sec.dataset.key);
+        shouldHide = isHidden || !favs.includes(sec.dataset.key);
       } else {
-        shouldHide = sec.dataset.cat !== cat;
+        shouldHide = isHidden || sec.dataset.cat !== cat;
       }
       const wasHidden = sec.classList.contains("ana-cat-hidden");
       sec.classList.toggle("ana-cat-hidden", shouldHide);
@@ -10261,6 +10295,26 @@ function computeEloPeaks(matches) {
     });
   });
   return peaks;
+}
+
+function computeEloLows(matches) {
+  const elo = {};
+  const lows = {};
+  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  sorted.forEach((m) => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      if (!(p in elo)) { elo[p] = 1000; lows[p] = 1000; }
+    });
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    m.teamA.forEach((p) => { elo[p] = (elo[p] || 1000) + dA; if (elo[p] < lows[p]) lows[p] = elo[p]; });
+    m.teamB.forEach((p) => { elo[p] = (elo[p] || 1000) + dB; if (elo[p] < lows[p]) lows[p] = elo[p]; });
+  });
+  return lows;
 }
 
 function computeBadges(name, stats, eloMap, allMatchesArr, precomputedStats) {
@@ -12398,10 +12452,9 @@ function _buildStoryFeedHtml() {
   if (!stories.length)
     return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
   const cards = stories
-    .slice(0, 30)
     .map(
-      (s) => `
-    <div class="story-card" data-type="${s.type || ""}">
+      (s, i) => `
+    <div class="story-card" data-type="${s.type || ""}" data-idx="${i}" style="${i < 5 ? "" : "display:none"}">
       <div class="story-icon">${s.icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;font-weight:700;color:var(--fg);line-height:1.4">${s.text}</div>
@@ -12422,9 +12475,12 @@ function _buildStoryFeedHtml() {
         `<button class="story-chip${f === "all" ? " active" : ""}" onclick="_storyFilter('${f}', this)">${l}</button>`,
     )
     .join("");
+  const remaining = stories.length - 5;
+  const showMoreBtn = remaining > 0 ? `<button class="story-show-more" onclick="_storyShowMore(this,'all')">Show More (${remaining} more)</button>` : "";
   return `<div class="ana-card" style="padding:10px 12px">
     <div class="story-chips">${chips}</div>
     <div class="story-cards-wrap">${cards}</div>
+    <div class="story-more-wrap">${showMoreBtn}</div>
   </div>`;
 }
 
@@ -12434,10 +12490,28 @@ function _storyFilter(filter, btn) {
     wrap.querySelectorAll(".story-chip").forEach((b) => b.classList.toggle("active", b === btn));
   const card = btn.closest(".ana-card");
   if (!card) return;
-  card.querySelectorAll(".story-card").forEach((c) => {
-    if (filter === "all") c.style.display = "";
-    else c.style.display = c.dataset.type === filter ? "" : "none";
+  const allCards = [...card.querySelectorAll(".story-card")];
+  let shown = 0;
+  allCards.forEach((c) => {
+    const matches = filter === "all" || c.dataset.type === filter;
+    if (matches && shown < 5) { c.style.display = ""; shown++; }
+    else c.style.display = "none";
   });
+  const matching = allCards.filter((c) => filter === "all" || c.dataset.type === filter).length;
+  const moreWrap = card.querySelector(".story-more-wrap");
+  if (moreWrap) {
+    const rem = matching - 5;
+    moreWrap.innerHTML = rem > 0 ? `<button class="story-show-more" onclick="_storyShowMore(this,'${filter}')">Show More (${rem} more)</button>` : "";
+  }
+}
+
+function _storyShowMore(btn, filter) {
+  const card = btn.closest(".ana-card");
+  if (!card) return;
+  card.querySelectorAll(".story-card").forEach((c) => {
+    if (filter === "all" || c.dataset.type === filter) c.style.display = "";
+  });
+  btn.parentElement.innerHTML = "";
 }
 
 function _buildSeasonModeHtml() {
@@ -12445,7 +12519,6 @@ function _buildSeasonModeHtml() {
   if (!seasons.length)
     return '<div class="sub" style="padding:8px">No seasons found.</div>';
   const cards = seasons
-    .slice(0, 6)
     .map(
       (s) => `
     <div class="season-card" onclick="this.classList.toggle('season-open')">
@@ -12600,7 +12673,7 @@ function _buildLeaderboardReplayHtml() {
   const dateOpts =
     '<option value="" disabled selected>📅 Jump to date</option>' +
     uniqDates.map((d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`).join("");
-  const topPlayers = computeStats(sorted, computeElo(sorted)).slice(0, 8);
+  const topPlayers = computeStats(sorted, computeElo(sorted));
   const spotlightOpts =
     '<option value="">👁 Spotlight: All</option>' +
     topPlayers
@@ -12836,6 +12909,174 @@ function _replayReset() {
   if (jd) jd.value = "";
   _replayUpdate(_REPLAY_MIN);
 }
+
+window._renderHiLoTable = function() {
+  const el = document.getElementById("hi-lo-elo-body");
+  if (!el || !window._hiLoData) return;
+  const { col, asc } = window._hiLoSort;
+  const pg3 = "grid-template-columns:22px 1fr 44px 44px 48px 44px 48px 46px";
+  const sorted = [...window._hiLoData].sort((a, b) => {
+    const av = col === "name" ? a.name : a[col];
+    const bv = col === "name" ? b.name : b[col];
+    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return asc ? av - bv : bv - av;
+  });
+  el.innerHTML = sorted.map((r, i) => {
+    const fpStr = r.fromPeak === 0
+      ? `<span style="color:var(--green);font-size:9px;font-weight:800">PEAK</span>`
+      : `<span style="color:var(--red)">${r.fromPeak}</span>`;
+    const flStr = r.fromLow === 0
+      ? `<span style="color:var(--muted);font-size:9px">LOW</span>`
+      : `<span style="color:var(--green)">+${r.fromLow}</span>`;
+    const dots = (r.pts5 || []).map(pt =>
+      `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"}"></span>`
+    ).join("");
+    const momStr = r.momAvg > 0
+      ? `<span style="color:var(--green);font-size:8px">↑${r.momAvg}</span>`
+      : r.momAvg < 0
+        ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(r.momAvg)}</span>`
+        : `<span style="color:var(--muted);font-size:8px">→</span>`;
+    return `<div class="lrace-row" style="${pg3};padding:6px 4px">
+      <div class="lrace-rank" style="font-size:10px">#${i + 1}</div>
+      <div class="lrace-name" style="font-size:10px">${r.name}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800">${r.current}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--gold)">${r.peak}</div>
+      <div style="text-align:center;font-size:9px">${fpStr}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--red)">${r.low}</div>
+      <div style="text-align:center;font-size:9px">${flStr}</div>
+      <div style="text-align:center"><div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${dots}</div>${momStr}</div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll(".hilo-hdr").forEach(h => {
+    const c = h.dataset.col;
+    const base = h.title.replace(/^Sort by /, "").toUpperCase();
+    const isActive = c === col;
+    h.style.color = isActive ? "var(--theme)" : "";
+    const arrow = isActive ? (asc ? " ↑" : " ↓") : "";
+    h.textContent = h.textContent.replace(/ [↑↓]$/, "") + arrow;
+  });
+};
+
+window._hiLoSortBy = function(col) {
+  if (!window._hiLoSort) return;
+  if (window._hiLoSort.col === col) {
+    window._hiLoSort.asc = !window._hiLoSort.asc;
+  } else {
+    window._hiLoSort = { col, asc: col === "name" };
+  }
+  window._renderHiLoTable();
+};
+
+// ── ELO PROJECTION ─────────────────────────────────────────────
+window._eloProj = { formN: 10, futureM: 20, histAll: null, eloMap: null, sortCol: "currentRank", sortAsc: true };
+
+window._eloprojAdj = function(type, delta) {
+  const state = window._eloProj;
+  if (!state) return;
+  if (type === "form") {
+    state.formN = Math.max(10, state.formN + delta);
+    const el = document.getElementById("eloproj-form-n");
+    if (el) el.textContent = state.formN;
+  } else {
+    state.futureM = Math.max(10, state.futureM + delta);
+    const el = document.getElementById("eloproj-future-n");
+    if (el) el.textContent = state.futureM;
+  }
+  window._renderEloProjTable();
+};
+
+window._eloprojSort = function(col) {
+  const state = window._eloProj;
+  if (!state) return;
+  if (state.sortCol === col) {
+    state.sortAsc = !state.sortAsc;
+  } else {
+    state.sortCol = col;
+    state.sortAsc = col === "name";
+  }
+  window._renderEloProjTable();
+};
+
+window._renderEloProjTable = function() {
+  const tableEl = document.getElementById("eloproj-table");
+  if (!tableEl) return;
+  const { formN, futureM, histAll, eloMap, sortCol, sortAsc } = window._eloProj;
+  if (!histAll || !eloMap) return;
+
+  const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
+  if (!ranked.length) { tableEl.innerHTML = '<div class="sub" style="padding:8px">No ELO data.</div>'; return; }
+
+  const currentRankMap = {};
+  ranked.forEach(([name], i) => { currentRankMap[name] = i + 1; });
+
+  const projData = ranked.map(([name, currentElo]) => {
+    const hist = histAll[name] || [];
+    const slice = hist.slice(-formN);
+    const avgDelta = slice.length ? slice.reduce((s, p) => s + p.delta, 0) / slice.length : 0;
+    const projElo = Math.round(currentElo + avgDelta * futureM);
+    return { name, currentElo, avgDelta, projElo, currentRank: currentRankMap[name] };
+  });
+
+  const projSorted = [...projData].sort((a, b) => b.projElo - a.projElo);
+  const projRankMap = {};
+  projSorted.forEach((p, i) => { projRankMap[p.name] = i + 1; });
+
+  // Attach projRank and rankDiff then sort display order
+  projData.forEach((p) => {
+    p.projRank = projRankMap[p.name];
+    p.rankDiff = p.currentRank - p.projRank;
+  });
+
+  const sortFn = {
+    currentRank: (a, b) => a.currentRank - b.currentRank,
+    name:        (a, b) => a.name.localeCompare(b.name),
+    currentElo:  (a, b) => b.currentElo - a.currentElo,
+    avgDelta:    (a, b) => b.avgDelta - a.avgDelta,
+    projElo:     (a, b) => b.projElo - a.projElo,
+    projRank:    (a, b) => a.projRank - b.projRank,
+    rankDiff:    (a, b) => b.rankDiff - a.rankDiff,
+  };
+  const cmp = sortFn[sortCol] || sortFn.currentRank;
+  projData.sort(sortAsc ? cmp : (a, b) => cmp(b, a));
+
+  const pg = "grid-template-columns:28px 1fr 50px 52px 70px 36px 40px";
+  const arrow = (col) => sortCol === col ? (sortAsc ? " ▲" : " ▼") : "";
+
+  const rows = projData.map((p) => {
+    const rankEl = p.rankDiff > 0
+      ? `<span class="ep-rank-up">▲${p.rankDiff}</span>`
+      : p.rankDiff < 0
+        ? `<span class="ep-rank-dn">▼${Math.abs(p.rankDiff)}</span>`
+        : `<span class="ep-rank-eq">—</span>`;
+    const avgSign = p.avgDelta >= 0 ? "+" : "";
+    const avgCol = p.avgDelta > 0 ? "var(--green)" : p.avgDelta < 0 ? "var(--red)" : "var(--muted)";
+    const projDiff = p.projElo - p.currentElo;
+    const projSign = projDiff >= 0 ? "+" : "";
+    const projDiffCol = projDiff > 0 ? "var(--green)" : projDiff < 0 ? "var(--red)" : "var(--muted)";
+    const rankColor = p.currentRank === 1 ? "var(--gold)" : p.currentRank <= 3 ? "var(--theme)" : "var(--muted)";
+    const newRankColor = p.projRank === 1 ? "var(--gold)" : p.projRank <= 3 ? "var(--theme)" : "var(--muted)";
+    return `<div class="lrace-row ep-row" style="${pg}">
+      <div class="lrace-rank" style="color:${rankColor}">#${p.currentRank}</div>
+      <div class="lrace-name">${escHtml(p.name)}</div>
+      <div class="ep-cell">${p.currentElo}</div>
+      <div class="ep-cell" style="color:${avgCol}">${avgSign}${p.avgDelta.toFixed(1)}</div>
+      <div class="ep-cell">${p.projElo}<span class="ep-diff" style="color:${projDiffCol}">${projSign}${projDiff}</span></div>
+      <div class="ep-cell" style="color:${newRankColor};font-weight:800">#${p.projRank}</div>
+      <div class="ep-cell">${rankEl}</div>
+    </div>`;
+  }).join("");
+
+  const hdr = `<div class="lrace-header ep-hdr" style="${pg}">
+    <span class="hilo-hdr" onclick="window._eloprojSort('currentRank')">#NOW${arrow("currentRank")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('name')">Player${arrow("name")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('currentElo')">ELO${arrow("currentElo")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('avgDelta')">Avg Δ${arrow("avgDelta")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('projElo')">After ${futureM}${arrow("projElo")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('projRank')">#New${arrow("projRank")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('rankDiff')">Δ Rank${arrow("rankDiff")}</span>
+  </div>`;
+  tableEl.innerHTML = hdr + rows;
+};
 
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
@@ -13244,7 +13485,7 @@ function renderAnalyticsPage() {
     (o, p, i) => ({ ...o, [p.name]: i + 1 }),
     {},
   );
-  const rankRace = compList.slice(0, 10).map((p) => ({
+  const rankRace = compList.map((p) => ({
     name: p.name,
     rAll: rankAll[p.name] || "—",
     r1mo: rank1wk[p.name] || "—",
@@ -14662,7 +14903,7 @@ function renderAnalyticsPage() {
           const pct = Math.round(d.w / d.p * 100);
           const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--gold)";
           const rating = pct >= 60 ? "CLUTCH" : pct <= 40 ? "CHOKER" : "STEADY";
-          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.p}</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
+          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.w}W–${d.p-d.w}L</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
         }).join("");
       if (!summaryRows) return "";
       return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
@@ -14830,10 +15071,13 @@ function renderAnalyticsPage() {
     const lastMos = uniqueMonths.slice(-6);
     const potmMap = {};
     lastMos.forEach((mo) => {
-      const ps2 = Object.entries(monthlyStats[mo] || {}).filter(([, d]) => d.m >= 5);
+      const allEntries = Object.entries(monthlyStats[mo] || {});
+      const maxM = Math.max(...allEntries.map(([, d]) => d.m), 0);
+      const threshold = Math.max(1, Math.round(maxM * 0.3));
+      const ps2 = allEntries.filter(([, d]) => d.m >= threshold);
       if (!ps2.length) return;
       const top = ps2.sort((a, b) => b[1].w / b[1].m - a[1].w / a[1].m)[0];
-      if (top) potmMap[mo] = { name: top[0], pct: Math.round(top[1].w / top[1].m * 100) };
+      if (top) potmMap[mo] = { name: top[0], pct: Math.round(top[1].w / top[1].m * 100), matches: top[1].m };
     });
     const trendArrows = {};
     if (lastMos.length >= 2) {
@@ -14850,7 +15094,7 @@ function renderAnalyticsPage() {
     const potmHtml2 = Object.keys(potmMap).length
       ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">` +
         Object.entries(potmMap).map(([mo, d]) =>
-          `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}%</div></div>`
+          `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}% · ${d.matches}P</div></div>`
         ).join("") + `</div>`
       : "";
     const hdrs = lastMos.map((mo) => `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${moN2[parseInt(mo.slice(5))]}</th>`).join("");
@@ -14861,7 +15105,7 @@ function renderAnalyticsPage() {
         const pct = Math.round(d.w / d.m * 100);
         const col = pct >= 70 ? "var(--green)" : pct >= 40 ? "var(--gold)" : "var(--red)";
         const bg = pct >= 70 ? "rgba(54,212,126,0.12)" : pct >= 40 ? "rgba(241,196,15,0.1)" : "rgba(240,79,79,0.12)";
-        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%</td>`;
+        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%<br><span style="font-size:8px;color:var(--muted);font-weight:600">${d.w}W–${d.m-d.w}L</span></td>`;
       }).join("");
       const arr = trendArrows[p];
       const arrCol = arr === "↑" ? "var(--green)" : arr === "↓" ? "var(--red)" : "var(--muted)";
@@ -14871,19 +15115,44 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">${potmHtml2}<table style="width:100%;border-collapse:collapse;font-size:10px;border-spacing:2px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs}</tr></thead><tbody>${bodyRows2}</tbody></table></div>`;
   })();
 
-  // 2: Peak ELO Tracker
+  // HIGH LOW ELO table
+  const _eloLows = computeEloLows(activeMatches());
+  window._hiLoData = eloRanked.map(([pname, ev]) => {
+    const pts5 = (eloHistoryAll[pname] || []).slice(-5);
+    const momAvg = pts5.length
+      ? Math.round(pts5.reduce((s, p) => s + p.delta, 0) / pts5.length)
+      : 0;
+    return {
+      name: pname,
+      current: ev,
+      peak: eloPeaks[pname] || ev,
+      low: _eloLows[pname] || ev,
+      fromPeak: ev - (eloPeaks[pname] || ev),
+      fromLow: ev - (_eloLows[pname] || ev),
+      pts5,
+      momAvg,
+    };
+  });
+  window._hiLoSort = { col: "current", asc: false };
+
   const _peakEloHtml = (() => {
     if (!eloRanked.length) return '<div class="sub" style="padding:8px">No data.</div>';
-    const pg3 = "grid-template-columns:40px 1fr 58px 58px 64px";
-    return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg3}"><span>Rank</span><span>Player</span><span>Peak</span><span>Current</span><span>From Peak</span></div>` +
-      eloRanked.map(([pname, ev], i) => {
-        const peak = eloPeaks[pname] || ev;
-        const diff = ev - peak;
-        const diffStr = diff === 0
-          ? `<span style="color:var(--green);font-size:9px;font-weight:800">AT PEAK</span>`
-          : `<span style="color:var(--red)">${diff}</span>`;
-        return `<div class="lrace-row" style="${pg3}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${pname}</div><div style="text-align:center;font-weight:800;color:var(--gold)">${peak}</div><div style="text-align:center;font-weight:700">${ev}</div><div style="text-align:center;font-size:10px">${diffStr}</div></div>`;
-      }).join("") + `</div>`;
+    const pg3 = "grid-template-columns:22px 1fr 44px 44px 48px 44px 48px 46px";
+    const mkH = (col, label, tip) =>
+      `<span class="hilo-hdr" data-col="${col}" onclick="_hiLoSortBy('${col}')" title="${tip}" style="text-align:center;cursor:pointer;user-select:none">${label}</span>`;
+    return `<div class="ana-card" style="padding:8px 10px">
+      <div class="lrace-header" style="${pg3};font-size:8px">
+        <span style="color:var(--muted)">#</span>
+        ${mkH('name','PLAYER','Sort by player name')}
+        ${mkH('current','NOW','Sort by current ELO')}
+        ${mkH('peak','PEAK','Sort by peak ELO')}
+        ${mkH('fromPeak','↓PEAK','Sort by distance from peak')}
+        ${mkH('low','LOW','Sort by lowest ELO')}
+        ${mkH('fromLow','↑LOW','Sort by recovery from low')}
+        <span style="text-align:center;color:var(--muted);cursor:default" title="Last 5 form">FORM</span>
+      </div>
+      <div id="hi-lo-elo-body"></div>
+    </div>`;
   })();
 
   // 2: Per-player Day-of-Week win rate grid
@@ -15017,27 +15286,31 @@ function renderAnalyticsPage() {
       }).join("") + `</div>`;
   })();
 
-  // 2: Score Heatmap Grid (scored vs conceded)
+  // 2: Score Heatmap Grid (winner vs loser score — symmetric pairs merged)
   const _scoreHeatmapHtml = (() => {
-    const scores = [0,1,2,3,4,5,6];
     const grid3 = {};
+    let maxScore = 6;
     sortedM.forEach((m) => {
-      const key1 = `${m.scoreA}_${m.scoreB}`;
-      const key2 = `${m.scoreB}_${m.scoreA}`;
-      grid3[key1] = (grid3[key1] || 0) + 1;
-      if (key1 !== key2) grid3[key2] = (grid3[key2] || 0) + 1;
+      const hi = Math.max(m.scoreA, m.scoreB);
+      const lo = Math.min(m.scoreA, m.scoreB);
+      if (isNaN(hi) || isNaN(lo) || hi < 0) return;
+      const key = `${hi}_${lo}`;
+      grid3[key] = (grid3[key] || 0) + 1;
+      if (hi > maxScore) maxScore = hi;
     });
+    const scores = Array.from({ length: maxScore + 1 }, (_, i) => i);
     const maxG = Math.max(...Object.values(grid3), 1);
-    const header = `<tr><th style="font-size:8px;color:var(--muted);padding:0 4px 4px 0">Scored↓ \ Given→</th>${scores.map((s) => `<th style="font-size:8px;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 4px">${s}</th>`).join("")}</tr>`;
-    const bodyRows3 = scores.map((rs) => {
-      const cells4 = scores.map((cs) => {
-        const cnt = grid3[`${rs}_${cs}`] || 0;
+    const header = `<tr><th style="font-size:8px;color:var(--muted);padding:0 4px 4px 0">Win↓ Loss→</th>${scores.map((s) => `<th style="font-size:8px;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 4px">${s}</th>`).join("")}</tr>`;
+    const bodyRows3 = scores.map((hi) => {
+      const cells4 = scores.map((lo) => {
+        if (lo > hi) return `<td style="background:transparent;padding:4px 5px"></td>`;
+        const cnt = grid3[`${hi}_${lo}`] || 0;
         const bg = cnt === 0 ? "rgba(255,255,255,0.04)" : `rgba(var(--theme-rgb),${Math.max(0.12, cnt / maxG * 0.8).toFixed(2)})`;
         return `<td style="text-align:center;background:${bg};border-radius:3px;padding:4px;font-size:9px;font-weight:700;color:${cnt?'var(--text)':'transparent'}">${cnt || ""}</td>`;
       }).join("");
-      return `<tr><td style="font-size:9px;color:var(--muted);font-weight:700;padding:2px 6px 2px 0">${rs}</td>${cells4}</tr>`;
+      return `<tr><td style="font-size:9px;color:var(--muted);font-weight:700;padding:2px 6px 2px 0">${hi}</td>${cells4}</tr>`;
     }).join("");
-    return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">How often each exact score occurred (both perspectives). Darker = more frequent.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
+    return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Score frequency — win score (row) vs loss score (col). 4-2 and 2-4 counted together.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
   })();
 
   // ── ABSENCE TRACKER ────────────────────────────────────────
@@ -15076,15 +15349,20 @@ function renderAnalyticsPage() {
 
   // ── RENDER ─────────────────────────────────────────────
   const favKeys = getAnaFavs();
+  const hiddenKeys = getAnaHidden();
   const makeSec = (key, title, body, col, cat) => {
     const isFav = favKeys.includes(key);
-    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}" data-cat="${cat || "all"}">
+    const isHid = hiddenKeys.includes(key);
+    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}" data-cat="${cat || "all"}"${isHid ? ' data-hidden="true"' : ""}>
       <div class="ana-section-title ana-sec-hdr" onclick="toggleAnaSection('${key}')">
         <span class="ana-sec-drag-handle"
           onpointerdown="anaHandlePointerDown(event,'${key}')"
           onclick="event.stopPropagation()">⠿</span>
         <span class="ana-sec-chev"></span>
         <span class="ana-sec-title-txt">${title}</span>
+        <button class="ana-hide-btn${isHid ? " active" : ""}"
+          onclick="toggleAnaHidden('${key}',event)"
+          title="${isHid ? "Unhide" : "Hide"}">${isHid ? "+" : "−"}</button>
         <button class="ana-fav-btn${isFav ? " active" : ""}"
           onclick="toggleAnaFav('${key}',event)"
           title="${isFav ? "Remove from Favourites" : "Add to Favourites"}">★</button>
@@ -15094,7 +15372,6 @@ function renderAnalyticsPage() {
   };
 
   const allSecs = [
-    { key: "digest", cat: "activity", title: "📋 Digest", body: digestHtml },
     {
       key: "predacc",
       cat: "records",
@@ -15160,12 +15437,6 @@ function renderAnalyticsPage() {
         ]
       : []),
     {
-      key: "heatmap",
-      cat: "activity",
-      title: "📅 Activity Heatmap",
-      body: `<div class="ana-card">${heatHtml}</div>`,
-    },
-    {
       key: "score",
       cat: "activity",
       title: "📊 Score Distribution",
@@ -15176,20 +15447,10 @@ function renderAnalyticsPage() {
       cat: "pairs",
       title: "🤝 Partnership Analytics",
       body: `<div class="partner-tabs">
-        <button class="partner-tab active" onclick="_partnerTab(this,'chemistry')">Chemistry</button>
-        <button class="partner-tab" onclick="_partnerTab(this,'partners')">Partners</button>
-        <button class="partner-tab" onclick="_partnerTab(this,'synergy')">Synergy</button>
+        <button class="partner-tab active" onclick="_partnerTab(this,'synergy')">Synergy</button>
         <button class="partner-tab" onclick="_partnerTab(this,'form')">Form</button>
       </div>
-      <div id="partner-tab-chemistry" class="partner-tab-panel">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div>
-        <div class="ana-card" style="padding:10px 12px">${chemHtml}</div>
-      </div>
-      <div id="partner-tab-partners" class="partner-tab-panel" style="display:none">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div>
-        <div class="ana-card" style="padding:10px 12px">${bpHtml}</div>
-      </div>
-      <div id="partner-tab-synergy" class="partner-tab-panel" style="display:none">
+      <div id="partner-tab-synergy" class="partner-tab-panel">
         <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div>
         <div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div>
       </div>
@@ -15299,11 +15560,10 @@ function renderAnalyticsPage() {
     { key: "playerstats", cat: "players", title: "📊 Player Stats Deep Dive", body: _playerStatsTableHtml },
     { key: "pairleaderboard", cat: "pairs", title: "🏆 Pair Leaderboard Top 10", body: _pairLeaderboardHtml },
     ...(uniqueMonths.length >= 1 ? [{ key: "monthlystats", cat: "activity", title: "📅 Monthly Stats", body: _monthlyStatsTableHtml }] : []),
-    { key: "peakelo", cat: "elo", title: "🏔️ Peak ELO Tracker", body: _peakEloHtml },
+    { key: "peakelo", cat: "elo", title: "📈 High Low ELO", body: _peakEloHtml },
     { key: "dowplayer", cat: "activity", title: "📆 Day-of-Week Win Rates", body: _dowPlayerHtml },
     { key: "scoremargtrend", cat: "activity", title: "📉 Score Margin Trend", body: _scoreMargTrendHtml },
     { key: "dominance", cat: "players", title: "🦁 Dominance Index", body: _dominanceHtml },
-    { key: "onesided", cat: "pairs", title: "⚔️ One-Sided Rivalries", body: _oneSidedHtml },
     { key: "scoreheatmap", cat: "activity", title: "🟦 Score Heatmap", body: _scoreHeatmapHtml },
     { key: "absencetracker", cat: "players", title: "👻 Absence Tracker", body: _absenceTrackerHtml },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
@@ -15344,10 +15604,37 @@ function renderAnalyticsPage() {
       body: _buildLeaderboardReplayHtml(),
     },
     {
-      key: "rivalryhof",
-      cat: "pairs",
-      title: "⚔️ Rivalry Hall of Fame",
-      body: _buildRivalryHoFHtml(),
+      key: "eloproj",
+      cat: "players",
+      title: "🔮 ELO Projection",
+      body: (() => {
+        const formN = window._eloProj?.formN || 10;
+        const futureM = window._eloProj?.futureM || 20;
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div class="ep-controls">
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">FORM WINDOW</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
+                <span class="ep-step-unit">games</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)">+</button>
+              </div>
+            </div>
+            <div class="ep-ctrl-divider"></div>
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">PROJECT AHEAD</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
+                <span class="ep-step-unit">matches</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)">+</button>
+              </div>
+            </div>
+          </div>
+          <div id="eloproj-table"></div>
+        </div>`;
+      })(),
     },
   ];
 
@@ -15369,6 +15656,7 @@ function renderAnalyticsPage() {
     { id: "pairs", label: "PAIRS" },
     { id: "records", label: "RECORDS" },
     { id: "activity", label: "ACTIVITY" },
+    { id: "hidden", label: "HIDDEN" },
   ];
   const pillOrder = getAnaPillOrder();
   // If a saved order exists, use it; append any new base pills not yet in the order.
@@ -15405,10 +15693,23 @@ function renderAnalyticsPage() {
       .join("");
 
   // Re-apply active category filter after re-render
-  if (_anaActiveCat !== "all") anaFilterCategory(_anaActiveCat, true);
+  anaFilterCategory(_anaActiveCat, true);
 
   if (!collapsed.has("calendar"))
     requestAnimationFrame(() => renderMatchCalendar());
+
+  requestAnimationFrame(() => window._renderHiLoTable?.());
+
+  // Seed ELO Projection state (preserve existing formN/futureM across re-renders)
+  window._eloProj = {
+    formN: window._eloProj?.formN || 10,
+    futureM: window._eloProj?.futureM || 20,
+    sortCol: window._eloProj?.sortCol || "currentRank",
+    sortAsc: window._eloProj?.sortAsc ?? true,
+    histAll: eloHistoryAll,
+    eloMap,
+  };
+  requestAnimationFrame(() => window._renderEloProjTable?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {
@@ -15458,6 +15759,18 @@ function renderAnalyticsPage() {
       const hdr = e.target.closest(".ana-sec-hdr");
       if (hdr) hdr.classList.remove("ana-sec-hovered");
     });
+  }
+
+  // Mouse-wheel → horizontal scroll for pills row on desktop
+  const pillRow = document.getElementById("ana-filter-row");
+  if (pillRow && !pillRow._wheelBound) {
+    pillRow._wheelBound = true;
+    pillRow.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        pillRow.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
   }
 }
 
@@ -15682,6 +15995,7 @@ Object.assign(window, {
   anaSearchSelect,
   anaFilterCategory,
   toggleAnaFav,
+  toggleAnaHidden,
   _pillPointerDown,
   setHistoryDateFilter,
   histJumpToDate,
