@@ -10263,6 +10263,26 @@ function computeEloPeaks(matches) {
   return peaks;
 }
 
+function computeEloLows(matches) {
+  const elo = {};
+  const lows = {};
+  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  sorted.forEach((m) => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      if (!(p in elo)) { elo[p] = 1000; lows[p] = 1000; }
+    });
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    m.teamA.forEach((p) => { elo[p] = (elo[p] || 1000) + dA; if (elo[p] < lows[p]) lows[p] = elo[p]; });
+    m.teamB.forEach((p) => { elo[p] = (elo[p] || 1000) + dB; if (elo[p] < lows[p]) lows[p] = elo[p]; });
+  });
+  return lows;
+}
+
 function computeBadges(name, stats, eloMap, allMatchesArr, precomputedStats) {
   const badges = [];
   const allStats = precomputedStats || computeStats(allMatchesArr);
@@ -12837,6 +12857,54 @@ function _replayReset() {
   _replayUpdate(_REPLAY_MIN);
 }
 
+window._renderHiLoTable = function() {
+  const el = document.getElementById("hi-lo-elo-body");
+  if (!el || !window._hiLoData) return;
+  const { col, asc } = window._hiLoSort;
+  const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px";
+  const sorted = [...window._hiLoData].sort((a, b) => {
+    const av = col === "name" ? a.name : a[col];
+    const bv = col === "name" ? b.name : b[col];
+    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return asc ? av - bv : bv - av;
+  });
+  el.innerHTML = sorted.map((r, i) => {
+    const fpStr = r.fromPeak === 0
+      ? `<span style="color:var(--green);font-size:9px;font-weight:800">PEAK</span>`
+      : `<span style="color:var(--red)">${r.fromPeak}</span>`;
+    const flStr = r.fromLow === 0
+      ? `<span style="color:var(--muted);font-size:9px">LOW</span>`
+      : `<span style="color:var(--green)">+${r.fromLow}</span>`;
+    return `<div class="lrace-row" style="${pg3}">
+      <div class="lrace-rank">#${i + 1}</div>
+      <div class="lrace-name">${r.name}</div>
+      <div style="text-align:center;font-weight:800">${r.current}</div>
+      <div style="text-align:center;font-weight:800;color:var(--gold)">${r.peak}</div>
+      <div style="text-align:center;font-size:10px">${fpStr}</div>
+      <div style="text-align:center;font-weight:800;color:var(--red)">${r.low}</div>
+      <div style="text-align:center;font-size:10px">${flStr}</div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll(".hilo-hdr").forEach(h => {
+    const c = h.dataset.col;
+    const base = h.title.replace(/^Sort by /, "").toUpperCase();
+    const isActive = c === col;
+    h.style.color = isActive ? "var(--theme)" : "";
+    const arrow = isActive ? (asc ? " ↑" : " ↓") : "";
+    h.textContent = h.textContent.replace(/ [↑↓]$/, "") + arrow;
+  });
+};
+
+window._hiLoSortBy = function(col) {
+  if (!window._hiLoSort) return;
+  if (window._hiLoSort.col === col) {
+    window._hiLoSort.asc = !window._hiLoSort.asc;
+  } else {
+    window._hiLoSort = { col, asc: col === "name" };
+  }
+  window._renderHiLoTable();
+};
+
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
@@ -14871,19 +14939,35 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">${potmHtml2}<table style="width:100%;border-collapse:collapse;font-size:10px;border-spacing:2px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs}</tr></thead><tbody>${bodyRows2}</tbody></table></div>`;
   })();
 
-  // 2: Peak ELO Tracker
+  // HIGH LOW ELO table
+  const _eloLows = computeEloLows(activeMatches());
+  window._hiLoData = eloRanked.map(([pname, ev]) => ({
+    name: pname,
+    current: ev,
+    peak: eloPeaks[pname] || ev,
+    low: _eloLows[pname] || ev,
+    fromPeak: ev - (eloPeaks[pname] || ev),
+    fromLow: ev - (_eloLows[pname] || ev),
+  }));
+  window._hiLoSort = { col: "current", asc: false };
+
   const _peakEloHtml = (() => {
     if (!eloRanked.length) return '<div class="sub" style="padding:8px">No data.</div>';
-    const pg3 = "grid-template-columns:40px 1fr 58px 58px 64px";
-    return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg3}"><span>Rank</span><span>Player</span><span>Peak</span><span>Current</span><span>From Peak</span></div>` +
-      eloRanked.map(([pname, ev], i) => {
-        const peak = eloPeaks[pname] || ev;
-        const diff = ev - peak;
-        const diffStr = diff === 0
-          ? `<span style="color:var(--green);font-size:9px;font-weight:800">AT PEAK</span>`
-          : `<span style="color:var(--red)">${diff}</span>`;
-        return `<div class="lrace-row" style="${pg3}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${pname}</div><div style="text-align:center;font-weight:800;color:var(--gold)">${peak}</div><div style="text-align:center;font-weight:700">${ev}</div><div style="text-align:center;font-size:10px">${diffStr}</div></div>`;
-      }).join("") + `</div>`;
+    const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px";
+    const mkH = (col, label, tip) =>
+      `<span class="hilo-hdr" data-col="${col}" onclick="_hiLoSortBy('${col}')" title="${tip}" style="text-align:center;cursor:pointer;user-select:none">${label}</span>`;
+    return `<div class="ana-card" style="padding:8px 12px">
+      <div class="lrace-header" style="${pg3}">
+        <span style="color:var(--muted)">#</span>
+        ${mkH('name','PLAYER','Sort by player name')}
+        ${mkH('current','NOW','Sort by current ELO')}
+        ${mkH('peak','PEAK','Sort by peak ELO')}
+        ${mkH('fromPeak','↓PEAK','Sort by distance from peak')}
+        ${mkH('low','LOW','Sort by lowest ELO')}
+        ${mkH('fromLow','↑LOW','Sort by recovery from low')}
+      </div>
+      <div id="hi-lo-elo-body"></div>
+    </div>`;
   })();
 
   // 2: Per-player Day-of-Week win rate grid
@@ -15176,20 +15260,10 @@ function renderAnalyticsPage() {
       cat: "pairs",
       title: "🤝 Partnership Analytics",
       body: `<div class="partner-tabs">
-        <button class="partner-tab active" onclick="_partnerTab(this,'chemistry')">Chemistry</button>
-        <button class="partner-tab" onclick="_partnerTab(this,'partners')">Partners</button>
-        <button class="partner-tab" onclick="_partnerTab(this,'synergy')">Synergy</button>
+        <button class="partner-tab active" onclick="_partnerTab(this,'synergy')">Synergy</button>
         <button class="partner-tab" onclick="_partnerTab(this,'form')">Form</button>
       </div>
-      <div id="partner-tab-chemistry" class="partner-tab-panel">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">CHEMISTRY RANKINGS</div>
-        <div class="ana-card" style="padding:10px 12px">${chemHtml}</div>
-      </div>
-      <div id="partner-tab-partners" class="partner-tab-panel" style="display:none">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">BEST PARTNER PER PLAYER</div>
-        <div class="ana-card" style="padding:10px 12px">${bpHtml}</div>
-      </div>
-      <div id="partner-tab-synergy" class="partner-tab-panel" style="display:none">
+      <div id="partner-tab-synergy" class="partner-tab-panel">
         <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div>
         <div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div>
       </div>
@@ -15299,11 +15373,10 @@ function renderAnalyticsPage() {
     { key: "playerstats", cat: "players", title: "📊 Player Stats Deep Dive", body: _playerStatsTableHtml },
     { key: "pairleaderboard", cat: "pairs", title: "🏆 Pair Leaderboard Top 10", body: _pairLeaderboardHtml },
     ...(uniqueMonths.length >= 1 ? [{ key: "monthlystats", cat: "activity", title: "📅 Monthly Stats", body: _monthlyStatsTableHtml }] : []),
-    { key: "peakelo", cat: "elo", title: "🏔️ Peak ELO Tracker", body: _peakEloHtml },
+    { key: "peakelo", cat: "elo", title: "📈 High Low ELO", body: _peakEloHtml },
     { key: "dowplayer", cat: "activity", title: "📆 Day-of-Week Win Rates", body: _dowPlayerHtml },
     { key: "scoremargtrend", cat: "activity", title: "📉 Score Margin Trend", body: _scoreMargTrendHtml },
     { key: "dominance", cat: "players", title: "🦁 Dominance Index", body: _dominanceHtml },
-    { key: "onesided", cat: "pairs", title: "⚔️ One-Sided Rivalries", body: _oneSidedHtml },
     { key: "scoreheatmap", cat: "activity", title: "🟦 Score Heatmap", body: _scoreHeatmapHtml },
     { key: "absencetracker", cat: "players", title: "👻 Absence Tracker", body: _absenceTrackerHtml },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
@@ -15342,12 +15415,6 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "▶️ Leaderboard Replay",
       body: _buildLeaderboardReplayHtml(),
-    },
-    {
-      key: "rivalryhof",
-      cat: "pairs",
-      title: "⚔️ Rivalry Hall of Fame",
-      body: _buildRivalryHoFHtml(),
     },
   ];
 
@@ -15409,6 +15476,8 @@ function renderAnalyticsPage() {
 
   if (!collapsed.has("calendar"))
     requestAnimationFrame(() => renderMatchCalendar());
+
+  requestAnimationFrame(() => window._renderHiLoTable?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {
