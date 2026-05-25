@@ -12887,7 +12887,7 @@ window._renderHiLoTable = function() {
   const el = document.getElementById("hi-lo-elo-body");
   if (!el || !window._hiLoData) return;
   const { col, asc } = window._hiLoSort;
-  const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px 52px";
+  const pg3 = "grid-template-columns:22px 1fr 44px 44px 48px 44px 48px 46px";
   const sorted = [...window._hiLoData].sort((a, b) => {
     const av = col === "name" ? a.name : a[col];
     const bv = col === "name" ? b.name : b[col];
@@ -12909,14 +12909,14 @@ window._renderHiLoTable = function() {
       : r.momAvg < 0
         ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(r.momAvg)}</span>`
         : `<span style="color:var(--muted);font-size:8px">→</span>`;
-    return `<div class="lrace-row" style="${pg3}">
-      <div class="lrace-rank">#${i + 1}</div>
-      <div class="lrace-name">${r.name}</div>
-      <div style="text-align:center;font-weight:800">${r.current}</div>
-      <div style="text-align:center;font-weight:800;color:var(--gold)">${r.peak}</div>
-      <div style="text-align:center;font-size:10px">${fpStr}</div>
-      <div style="text-align:center;font-weight:800;color:var(--red)">${r.low}</div>
-      <div style="text-align:center;font-size:10px">${flStr}</div>
+    return `<div class="lrace-row" style="${pg3};padding:6px 4px">
+      <div class="lrace-rank" style="font-size:10px">#${i + 1}</div>
+      <div class="lrace-name" style="font-size:10px">${r.name}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800">${r.current}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--gold)">${r.peak}</div>
+      <div style="text-align:center;font-size:9px">${fpStr}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--red)">${r.low}</div>
+      <div style="text-align:center;font-size:9px">${flStr}</div>
       <div style="text-align:center"><div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${dots}</div>${momStr}</div>
     </div>`;
   }).join("");
@@ -14996,11 +14996,11 @@ function renderAnalyticsPage() {
 
   const _peakEloHtml = (() => {
     if (!eloRanked.length) return '<div class="sub" style="padding:8px">No data.</div>';
-    const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px 52px";
+    const pg3 = "grid-template-columns:22px 1fr 44px 44px 48px 44px 48px 46px";
     const mkH = (col, label, tip) =>
       `<span class="hilo-hdr" data-col="${col}" onclick="_hiLoSortBy('${col}')" title="${tip}" style="text-align:center;cursor:pointer;user-select:none">${label}</span>`;
-    return `<div class="ana-card" style="padding:8px 12px">
-      <div class="lrace-header" style="${pg3}">
+    return `<div class="ana-card" style="padding:8px 10px">
+      <div class="lrace-header" style="${pg3};font-size:8px">
         <span style="color:var(--muted)">#</span>
         ${mkH('name','PLAYER','Sort by player name')}
         ${mkH('current','NOW','Sort by current ELO')}
