@@ -4610,7 +4610,12 @@ function renderMatchCalendar() {
     year: "numeric",
   });
 
-  const _calMaxCount = Math.max(...Object.values(matchCountByDate), 1);
+  let _calMaxCount = 1;
+  for (let d = 1; d <= totalDays; d++) {
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const c = matchCountByDate[iso] || 0;
+    if (c > _calMaxCount) _calMaxCount = c;
+  }
   let cells = "";
   // Empty cells before first day
   for (let i = 0; i < startDow; i++)
