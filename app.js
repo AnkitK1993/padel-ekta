@@ -12968,7 +12968,7 @@ window._hiLoSortBy = function(col) {
 };
 
 // ── ELO PROJECTION ─────────────────────────────────────────────
-window._eloProj = { formN: 10, futureM: 20, histAll: null, eloMap: null };
+window._eloProj = { formN: 10, futureM: 20, histAll: null, eloMap: null, sortCol: "currentRank", sortAsc: true };
 
 window._eloprojAdj = function(type, delta) {
   const state = window._eloProj;
@@ -12985,10 +12985,22 @@ window._eloprojAdj = function(type, delta) {
   window._renderEloProjTable();
 };
 
+window._eloprojSort = function(col) {
+  const state = window._eloProj;
+  if (!state) return;
+  if (state.sortCol === col) {
+    state.sortAsc = !state.sortAsc;
+  } else {
+    state.sortCol = col;
+    state.sortAsc = col === "name";
+  }
+  window._renderEloProjTable();
+};
+
 window._renderEloProjTable = function() {
   const tableEl = document.getElementById("eloproj-table");
   if (!tableEl) return;
-  const { formN, futureM, histAll, eloMap } = window._eloProj;
+  const { formN, futureM, histAll, eloMap, sortCol, sortAsc } = window._eloProj;
   if (!histAll || !eloMap) return;
 
   const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
@@ -13009,14 +13021,31 @@ window._renderEloProjTable = function() {
   const projRankMap = {};
   projSorted.forEach((p, i) => { projRankMap[p.name] = i + 1; });
 
+  // Attach projRank and rankDiff then sort display order
+  projData.forEach((p) => {
+    p.projRank = projRankMap[p.name];
+    p.rankDiff = p.currentRank - p.projRank;
+  });
+
+  const sortFn = {
+    currentRank: (a, b) => a.currentRank - b.currentRank,
+    name:        (a, b) => a.name.localeCompare(b.name),
+    currentElo:  (a, b) => b.currentElo - a.currentElo,
+    avgDelta:    (a, b) => b.avgDelta - a.avgDelta,
+    projElo:     (a, b) => b.projElo - a.projElo,
+    rankDiff:    (a, b) => b.rankDiff - a.rankDiff,
+  };
+  const cmp = sortFn[sortCol] || sortFn.currentRank;
+  projData.sort(sortAsc ? cmp : (a, b) => cmp(b, a));
+
   const pg = "grid-template-columns:28px 1fr 50px 52px 76px 42px";
+  const arrow = (col) => sortCol === col ? (sortAsc ? " ▲" : " ▼") : "";
+
   const rows = projData.map((p) => {
-    const projRank = projRankMap[p.name];
-    const rankDiff = p.currentRank - projRank;
-    const rankEl = rankDiff > 0
-      ? `<span class="ep-rank-up">▲${rankDiff}</span>`
-      : rankDiff < 0
-        ? `<span class="ep-rank-dn">▼${Math.abs(rankDiff)}</span>`
+    const rankEl = p.rankDiff > 0
+      ? `<span class="ep-rank-up">▲${p.rankDiff}</span>`
+      : p.rankDiff < 0
+        ? `<span class="ep-rank-dn">▼${Math.abs(p.rankDiff)}</span>`
         : `<span class="ep-rank-eq">—</span>`;
     const avgSign = p.avgDelta >= 0 ? "+" : "";
     const avgCol = p.avgDelta > 0 ? "var(--green)" : p.avgDelta < 0 ? "var(--red)" : "var(--muted)";
@@ -13035,7 +13064,12 @@ window._renderEloProjTable = function() {
   }).join("");
 
   const hdr = `<div class="lrace-header ep-hdr" style="${pg}">
-    <span>#NOW</span><span>Player</span><span>ELO</span><span>Avg Δ</span><span>After ${futureM}</span><span>Rank Δ</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('currentRank')">#NOW${arrow("currentRank")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('name')">Player${arrow("name")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('currentElo')">ELO${arrow("currentElo")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('avgDelta')">Avg Δ${arrow("avgDelta")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('projElo')">After ${futureM}${arrow("projElo")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('rankDiff')">Rank Δ${arrow("rankDiff")}</span>
   </div>`;
   tableEl.innerHTML = hdr + rows;
 };
@@ -15666,6 +15700,8 @@ function renderAnalyticsPage() {
   window._eloProj = {
     formN: window._eloProj?.formN || 10,
     futureM: window._eloProj?.futureM || 20,
+    sortCol: window._eloProj?.sortCol || "currentRank",
+    sortAsc: window._eloProj?.sortAsc ?? true,
     histAll: eloHistoryAll,
     eloMap,
   };
