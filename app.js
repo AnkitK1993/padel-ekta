@@ -12967,6 +12967,79 @@ window._hiLoSortBy = function(col) {
   window._renderHiLoTable();
 };
 
+// ── ELO PROJECTION ─────────────────────────────────────────────
+window._eloProj = { formN: 10, futureM: 20, histAll: null, eloMap: null };
+
+window._eloprojAdj = function(type, delta) {
+  const state = window._eloProj;
+  if (!state) return;
+  if (type === "form") {
+    state.formN = Math.max(10, state.formN + delta);
+    const el = document.getElementById("eloproj-form-n");
+    if (el) el.textContent = state.formN;
+  } else {
+    state.futureM = Math.max(10, state.futureM + delta);
+    const el = document.getElementById("eloproj-future-n");
+    if (el) el.textContent = state.futureM;
+  }
+  window._renderEloProjTable();
+};
+
+window._renderEloProjTable = function() {
+  const tableEl = document.getElementById("eloproj-table");
+  if (!tableEl) return;
+  const { formN, futureM, histAll, eloMap } = window._eloProj;
+  if (!histAll || !eloMap) return;
+
+  const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
+  if (!ranked.length) { tableEl.innerHTML = '<div class="sub" style="padding:8px">No ELO data.</div>'; return; }
+
+  const currentRankMap = {};
+  ranked.forEach(([name], i) => { currentRankMap[name] = i + 1; });
+
+  const projData = ranked.map(([name, currentElo]) => {
+    const hist = histAll[name] || [];
+    const slice = hist.slice(-formN);
+    const avgDelta = slice.length ? slice.reduce((s, p) => s + p.delta, 0) / slice.length : 0;
+    const projElo = Math.round(currentElo + avgDelta * futureM);
+    return { name, currentElo, avgDelta, projElo, currentRank: currentRankMap[name] };
+  });
+
+  const projSorted = [...projData].sort((a, b) => b.projElo - a.projElo);
+  const projRankMap = {};
+  projSorted.forEach((p, i) => { projRankMap[p.name] = i + 1; });
+
+  const pg = "grid-template-columns:28px 1fr 50px 52px 76px 42px";
+  const rows = projData.map((p) => {
+    const projRank = projRankMap[p.name];
+    const rankDiff = p.currentRank - projRank;
+    const rankEl = rankDiff > 0
+      ? `<span class="ep-rank-up">▲${rankDiff}</span>`
+      : rankDiff < 0
+        ? `<span class="ep-rank-dn">▼${Math.abs(rankDiff)}</span>`
+        : `<span class="ep-rank-eq">—</span>`;
+    const avgSign = p.avgDelta >= 0 ? "+" : "";
+    const avgCol = p.avgDelta > 0 ? "var(--green)" : p.avgDelta < 0 ? "var(--red)" : "var(--muted)";
+    const projDiff = p.projElo - p.currentElo;
+    const projSign = projDiff >= 0 ? "+" : "";
+    const projDiffCol = projDiff > 0 ? "var(--green)" : projDiff < 0 ? "var(--red)" : "var(--muted)";
+    const rankColor = p.currentRank === 1 ? "var(--gold)" : p.currentRank <= 3 ? "var(--theme)" : "var(--muted)";
+    return `<div class="lrace-row ep-row" style="${pg}">
+      <div class="lrace-rank" style="color:${rankColor}">#${p.currentRank}</div>
+      <div class="lrace-name">${escHtml(p.name)}</div>
+      <div class="ep-cell">${p.currentElo}</div>
+      <div class="ep-cell" style="color:${avgCol}">${avgSign}${p.avgDelta.toFixed(1)}</div>
+      <div class="ep-cell">${p.projElo}<span class="ep-diff" style="color:${projDiffCol}">${projSign}${projDiff}</span></div>
+      <div class="ep-cell">${rankEl}</div>
+    </div>`;
+  }).join("");
+
+  const hdr = `<div class="lrace-header ep-hdr" style="${pg}">
+    <span>#NOW</span><span>Player</span><span>ELO</span><span>Avg Δ</span><span>After ${futureM}</span><span>Rank Δ</span>
+  </div>`;
+  tableEl.innerHTML = hdr + rows;
+};
+
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
@@ -15492,6 +15565,39 @@ function renderAnalyticsPage() {
       title: "▶️ Leaderboard Replay",
       body: _buildLeaderboardReplayHtml(),
     },
+    {
+      key: "eloproj",
+      cat: "players",
+      title: "🔮 ELO Projection",
+      body: (() => {
+        const formN = window._eloProj?.formN || 10;
+        const futureM = window._eloProj?.futureM || 20;
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div class="ep-controls">
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">FORM WINDOW</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
+                <span class="ep-step-unit">games</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)">+</button>
+              </div>
+            </div>
+            <div class="ep-ctrl-divider"></div>
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">PROJECT AHEAD</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
+                <span class="ep-step-unit">matches</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)">+</button>
+              </div>
+            </div>
+          </div>
+          <div id="eloproj-table"></div>
+        </div>`;
+      })(),
+    },
   ];
 
   const storedOrder = getAnaOrder();
@@ -15555,6 +15661,15 @@ function renderAnalyticsPage() {
     requestAnimationFrame(() => renderMatchCalendar());
 
   requestAnimationFrame(() => window._renderHiLoTable?.());
+
+  // Seed ELO Projection state (preserve existing formN/futureM across re-renders)
+  window._eloProj = {
+    formN: window._eloProj?.formN || 10,
+    futureM: window._eloProj?.futureM || 20,
+    histAll: eloHistoryAll,
+    eloMap,
+  };
+  requestAnimationFrame(() => window._renderEloProjTable?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {
