@@ -9552,6 +9552,7 @@ const ANA_ORDER_KEY = "ekta_ana_order";
 const ANA_COL_KEY = "ekta_ana_col";
 const ANA_PILL_ORDER_KEY = "ekta_ana_pill_order";
 const ANA_FAV_KEY = "ekta_ana_favs";
+const ANA_HIDDEN_KEY = "ekta_ana_hidden";
 
 function getAnaPillOrder() {
   try {
@@ -9589,6 +9590,28 @@ function toggleAnaFav(key, e) {
   }
   // If currently viewing favs, re-apply filter
   if (_anaActiveCat === "favs") anaFilterCategory("favs", true);
+}
+
+function getAnaHidden() {
+  try { return JSON.parse(localStorage.getItem(ANA_HIDDEN_KEY)) || []; } catch { return []; }
+}
+function saveAnaHidden(a) {
+  localStorage.setItem(ANA_HIDDEN_KEY, JSON.stringify(a));
+}
+function toggleAnaHidden(key, e) {
+  e.stopPropagation();
+  const hidden = getAnaHidden();
+  const idx = hidden.indexOf(key);
+  if (idx === -1) hidden.push(key); else hidden.splice(idx, 1);
+  saveAnaHidden(hidden);
+  const isNowHidden = idx === -1;
+  const sec = document.querySelector(`.ana-sec[data-key="${key}"]`);
+  if (sec) {
+    if (isNowHidden) sec.dataset.hidden = "true"; else delete sec.dataset.hidden;
+    const btn = sec.querySelector(".ana-hide-btn");
+    if (btn) { btn.classList.toggle("active", isNowHidden); btn.title = isNowHidden ? "Unhide" : "Hide"; btn.textContent = isNowHidden ? "+" : "−"; }
+  }
+  anaFilterCategory(_anaActiveCat, true);
 }
 
 function getAnaOrder() {
@@ -9766,13 +9789,16 @@ function anaFilterCategory(cat, skipPillUpdate) {
   document
     .querySelectorAll("#analytics-page-content .ana-sec")
     .forEach((sec) => {
+      const isHidden = sec.dataset.hidden === "true";
       let shouldHide;
-      if (cat === "all") {
-        shouldHide = false;
+      if (cat === "hidden") {
+        shouldHide = !isHidden;
+      } else if (cat === "all") {
+        shouldHide = isHidden;
       } else if (cat === "favs") {
-        shouldHide = !favs.includes(sec.dataset.key);
+        shouldHide = isHidden || !favs.includes(sec.dataset.key);
       } else {
-        shouldHide = sec.dataset.cat !== cat;
+        shouldHide = isHidden || sec.dataset.cat !== cat;
       }
       const wasHidden = sec.classList.contains("ana-cat-hidden");
       sec.classList.toggle("ana-cat-hidden", shouldHide);
@@ -15160,15 +15186,20 @@ function renderAnalyticsPage() {
 
   // ── RENDER ─────────────────────────────────────────────
   const favKeys = getAnaFavs();
+  const hiddenKeys = getAnaHidden();
   const makeSec = (key, title, body, col, cat) => {
     const isFav = favKeys.includes(key);
-    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}" data-cat="${cat || "all"}">
+    const isHid = hiddenKeys.includes(key);
+    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}" data-cat="${cat || "all"}"${isHid ? ' data-hidden="true"' : ""}>
       <div class="ana-section-title ana-sec-hdr" onclick="toggleAnaSection('${key}')">
         <span class="ana-sec-drag-handle"
           onpointerdown="anaHandlePointerDown(event,'${key}')"
           onclick="event.stopPropagation()">⠿</span>
         <span class="ana-sec-chev"></span>
         <span class="ana-sec-title-txt">${title}</span>
+        <button class="ana-hide-btn${isHid ? " active" : ""}"
+          onclick="toggleAnaHidden('${key}',event)"
+          title="${isHid ? "Unhide" : "Hide"}">${isHid ? "+" : "−"}</button>
         <button class="ana-fav-btn${isFav ? " active" : ""}"
           onclick="toggleAnaFav('${key}',event)"
           title="${isFav ? "Remove from Favourites" : "Add to Favourites"}">★</button>
@@ -15436,6 +15467,7 @@ function renderAnalyticsPage() {
     { id: "pairs", label: "PAIRS" },
     { id: "records", label: "RECORDS" },
     { id: "activity", label: "ACTIVITY" },
+    { id: "hidden", label: "HIDDEN" },
   ];
   const pillOrder = getAnaPillOrder();
   // If a saved order exists, use it; append any new base pills not yet in the order.
@@ -15751,6 +15783,7 @@ Object.assign(window, {
   anaSearchSelect,
   anaFilterCategory,
   toggleAnaFav,
+  toggleAnaHidden,
   _pillPointerDown,
   setHistoryDateFilter,
   histJumpToDate,

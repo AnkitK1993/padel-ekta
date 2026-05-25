@@ -3939,8 +3939,35 @@ body.no-cascade .analytics-card {
 .ana-sec-drag-handle:active {
   cursor: grabbing;
 }
-.ana-fav-btn {
+.ana-hide-btn {
   margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+  opacity: 0.3;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.ana-sec-hdr:hover .ana-hide-btn { opacity: 0.7; }
+.ana-hide-btn.active {
+  color: var(--green);
+  opacity: 1;
+}
+.ana-filter-pill[data-cat="hidden"] {
+  color: var(--muted);
+  border-color: rgba(255,255,255,0.15);
+}
+.ana-filter-pill[data-cat="hidden"].active {
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  border-color: rgba(255,255,255,0.3);
+}
+.ana-fav-btn {
   background: none;
   border: none;
   cursor: pointer;
