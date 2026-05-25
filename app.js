@@ -13033,12 +13033,13 @@ window._renderEloProjTable = function() {
     currentElo:  (a, b) => b.currentElo - a.currentElo,
     avgDelta:    (a, b) => b.avgDelta - a.avgDelta,
     projElo:     (a, b) => b.projElo - a.projElo,
+    projRank:    (a, b) => a.projRank - b.projRank,
     rankDiff:    (a, b) => b.rankDiff - a.rankDiff,
   };
   const cmp = sortFn[sortCol] || sortFn.currentRank;
   projData.sort(sortAsc ? cmp : (a, b) => cmp(b, a));
 
-  const pg = "grid-template-columns:28px 1fr 50px 52px 76px 42px";
+  const pg = "grid-template-columns:28px 1fr 50px 52px 70px 36px 40px";
   const arrow = (col) => sortCol === col ? (sortAsc ? " ▲" : " ▼") : "";
 
   const rows = projData.map((p) => {
@@ -13053,12 +13054,14 @@ window._renderEloProjTable = function() {
     const projSign = projDiff >= 0 ? "+" : "";
     const projDiffCol = projDiff > 0 ? "var(--green)" : projDiff < 0 ? "var(--red)" : "var(--muted)";
     const rankColor = p.currentRank === 1 ? "var(--gold)" : p.currentRank <= 3 ? "var(--theme)" : "var(--muted)";
+    const newRankColor = p.projRank === 1 ? "var(--gold)" : p.projRank <= 3 ? "var(--theme)" : "var(--muted)";
     return `<div class="lrace-row ep-row" style="${pg}">
       <div class="lrace-rank" style="color:${rankColor}">#${p.currentRank}</div>
       <div class="lrace-name">${escHtml(p.name)}</div>
       <div class="ep-cell">${p.currentElo}</div>
       <div class="ep-cell" style="color:${avgCol}">${avgSign}${p.avgDelta.toFixed(1)}</div>
       <div class="ep-cell">${p.projElo}<span class="ep-diff" style="color:${projDiffCol}">${projSign}${projDiff}</span></div>
+      <div class="ep-cell" style="color:${newRankColor};font-weight:800">#${p.projRank}</div>
       <div class="ep-cell">${rankEl}</div>
     </div>`;
   }).join("");
@@ -13069,7 +13072,8 @@ window._renderEloProjTable = function() {
     <span class="hilo-hdr" onclick="window._eloprojSort('currentElo')">ELO${arrow("currentElo")}</span>
     <span class="hilo-hdr" onclick="window._eloprojSort('avgDelta')">Avg Δ${arrow("avgDelta")}</span>
     <span class="hilo-hdr" onclick="window._eloprojSort('projElo')">After ${futureM}${arrow("projElo")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('rankDiff')">Rank Δ${arrow("rankDiff")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('projRank')">#New${arrow("projRank")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('rankDiff')">Δ Rank${arrow("rankDiff")}</span>
   </div>`;
   tableEl.innerHTML = hdr + rows;
 };
