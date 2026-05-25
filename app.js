@@ -13369,7 +13369,7 @@ function renderAnalyticsPage() {
     (o, p, i) => ({ ...o, [p.name]: i + 1 }),
     {},
   );
-  const rankRace = compList.slice(0, 10).map((p) => ({
+  const rankRace = compList.map((p) => ({
     name: p.name,
     rAll: rankAll[p.name] || "—",
     r1mo: rank1wk[p.name] || "—",
@@ -15597,6 +15597,18 @@ function renderAnalyticsPage() {
       const hdr = e.target.closest(".ana-sec-hdr");
       if (hdr) hdr.classList.remove("ana-sec-hovered");
     });
+  }
+
+  // Mouse-wheel → horizontal scroll for pills row on desktop
+  const pillRow = document.getElementById("ana-filter-row");
+  if (pillRow && !pillRow._wheelBound) {
+    pillRow._wheelBound = true;
+    pillRow.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        pillRow.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
   }
 }
 

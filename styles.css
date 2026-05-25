@@ -9029,6 +9029,24 @@ select.cmp-sel option {
 .ana-filter-row::-webkit-scrollbar {
   display: none;
 }
+@media (pointer: fine) {
+  .ana-filter-row {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--theme-rgb), 0.35) transparent;
+    padding-bottom: 6px;
+  }
+  .ana-filter-row::-webkit-scrollbar {
+    display: block;
+    height: 3px;
+  }
+  .ana-filter-row::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .ana-filter-row::-webkit-scrollbar-thumb {
+    background: rgba(var(--theme-rgb), 0.35);
+    border-radius: 99px;
+  }
+}
 .ana-filter-pill {
   flex-shrink: 0;
   font-size: 10px;
