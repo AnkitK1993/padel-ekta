@@ -15172,15 +15172,17 @@ function renderAnalyticsPage() {
 
   // 2: Score Heatmap Grid (winner vs loser score — symmetric pairs merged)
   const _scoreHeatmapHtml = (() => {
-    const scores = [0,1,2,3,4,5,6];
     const grid3 = {};
+    let maxScore = 6;
     sortedM.forEach((m) => {
       const hi = Math.max(m.scoreA, m.scoreB);
       const lo = Math.min(m.scoreA, m.scoreB);
       if (isNaN(hi) || isNaN(lo) || hi < 0) return;
       const key = `${hi}_${lo}`;
       grid3[key] = (grid3[key] || 0) + 1;
+      if (hi > maxScore) maxScore = hi;
     });
+    const scores = Array.from({ length: maxScore + 1 }, (_, i) => i);
     const maxG = Math.max(...Object.values(grid3), 1);
     const header = `<tr><th style="font-size:8px;color:var(--muted);padding:0 4px 4px 0">Win↓ Loss→</th>${scores.map((s) => `<th style="font-size:8px;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 4px">${s}</th>`).join("")}</tr>`;
     const bodyRows3 = scores.map((hi) => {
