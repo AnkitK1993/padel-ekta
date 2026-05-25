@@ -15693,7 +15693,7 @@ function renderAnalyticsPage() {
       .join("");
 
   // Re-apply active category filter after re-render
-  if (_anaActiveCat !== "all") anaFilterCategory(_anaActiveCat, true);
+  anaFilterCategory(_anaActiveCat, true);
 
   if (!collapsed.has("calendar"))
     requestAnimationFrame(() => renderMatchCalendar());
