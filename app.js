@@ -12887,7 +12887,7 @@ window._renderHiLoTable = function() {
   const el = document.getElementById("hi-lo-elo-body");
   if (!el || !window._hiLoData) return;
   const { col, asc } = window._hiLoSort;
-  const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px";
+  const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px 52px";
   const sorted = [...window._hiLoData].sort((a, b) => {
     const av = col === "name" ? a.name : a[col];
     const bv = col === "name" ? b.name : b[col];
@@ -12901,6 +12901,14 @@ window._renderHiLoTable = function() {
     const flStr = r.fromLow === 0
       ? `<span style="color:var(--muted);font-size:9px">LOW</span>`
       : `<span style="color:var(--green)">+${r.fromLow}</span>`;
+    const dots = (r.pts5 || []).map(pt =>
+      `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"}"></span>`
+    ).join("");
+    const momStr = r.momAvg > 0
+      ? `<span style="color:var(--green);font-size:8px">↑${r.momAvg}</span>`
+      : r.momAvg < 0
+        ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(r.momAvg)}</span>`
+        : `<span style="color:var(--muted);font-size:8px">→</span>`;
     return `<div class="lrace-row" style="${pg3}">
       <div class="lrace-rank">#${i + 1}</div>
       <div class="lrace-name">${r.name}</div>
@@ -12909,6 +12917,7 @@ window._renderHiLoTable = function() {
       <div style="text-align:center;font-size:10px">${fpStr}</div>
       <div style="text-align:center;font-weight:800;color:var(--red)">${r.low}</div>
       <div style="text-align:center;font-size:10px">${flStr}</div>
+      <div style="text-align:center"><div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${dots}</div>${momStr}</div>
     </div>`;
   }).join("");
   document.querySelectorAll(".hilo-hdr").forEach(h => {
@@ -14967,19 +14976,27 @@ function renderAnalyticsPage() {
 
   // HIGH LOW ELO table
   const _eloLows = computeEloLows(activeMatches());
-  window._hiLoData = eloRanked.map(([pname, ev]) => ({
-    name: pname,
-    current: ev,
-    peak: eloPeaks[pname] || ev,
-    low: _eloLows[pname] || ev,
-    fromPeak: ev - (eloPeaks[pname] || ev),
-    fromLow: ev - (_eloLows[pname] || ev),
-  }));
+  window._hiLoData = eloRanked.map(([pname, ev]) => {
+    const pts5 = (eloHistoryAll[pname] || []).slice(-5);
+    const momAvg = pts5.length
+      ? Math.round(pts5.reduce((s, p) => s + p.delta, 0) / pts5.length)
+      : 0;
+    return {
+      name: pname,
+      current: ev,
+      peak: eloPeaks[pname] || ev,
+      low: _eloLows[pname] || ev,
+      fromPeak: ev - (eloPeaks[pname] || ev),
+      fromLow: ev - (_eloLows[pname] || ev),
+      pts5,
+      momAvg,
+    };
+  });
   window._hiLoSort = { col: "current", asc: false };
 
   const _peakEloHtml = (() => {
     if (!eloRanked.length) return '<div class="sub" style="padding:8px">No data.</div>';
-    const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px";
+    const pg3 = "grid-template-columns:28px 1fr 52px 52px 60px 52px 60px 52px";
     const mkH = (col, label, tip) =>
       `<span class="hilo-hdr" data-col="${col}" onclick="_hiLoSortBy('${col}')" title="${tip}" style="text-align:center;cursor:pointer;user-select:none">${label}</span>`;
     return `<div class="ana-card" style="padding:8px 12px">
@@ -14991,6 +15008,7 @@ function renderAnalyticsPage() {
         ${mkH('fromPeak','↓PEAK','Sort by distance from peak')}
         ${mkH('low','LOW','Sort by lowest ELO')}
         ${mkH('fromLow','↑LOW','Sort by recovery from low')}
+        <span style="text-align:center;color:var(--muted);cursor:default" title="Last 5 form">FORM</span>
       </div>
       <div id="hi-lo-elo-body"></div>
     </div>`;
