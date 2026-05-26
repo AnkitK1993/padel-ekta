@@ -835,16 +835,45 @@ async function saveCloudData() {
   const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
   if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   try {
+    localStorage.setItem("padel_matches", JSON.stringify(allMatches));
+  } catch (e) {}
+  if (!navigator.onLine) {
+    _setPendingSync(true);
+    return;
+  }
+  try {
     if (auth.currentUser && window.isAdmin) {
       _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the snapshot that echoes this write
       await setDoc(doc(db, "padel", "main"), payload);
+      _setPendingSync(false);
     }
   } catch (err) {
     console.error("Firestore save failed:", err);
+    _setPendingSync(true);
   }
+}
+
+function _hasPendingSync() {
+  return localStorage.getItem("padel_pending_sync") === "1";
+}
+function _setPendingSync(flag) {
+  if (flag) localStorage.setItem("padel_pending_sync", "1");
+  else localStorage.removeItem("padel_pending_sync");
+  const el = document.getElementById("sync-indicator");
+  if (el) el.style.display = flag ? "flex" : "none";
+}
+async function _trySyncNow() {
+  if (!navigator.onLine || !auth?.currentUser || !window.isAdmin) return;
+  if (!_hasPendingSync()) return;
+  const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
   try {
-    localStorage.setItem("padel_matches", JSON.stringify(allMatches));
-  } catch (e) {}
+    _lastLocalSaveTime = Date.now();
+    await setDoc(doc(db, "padel", "main"), payload);
+    _setPendingSync(false);
+    showToast("Synced to cloud", "☁️");
+  } catch (err) {
+    console.error("Sync retry failed:", err);
+  }
 }
 
 // ── PLAYER PHOTOS ──────────────────────────────────────────
@@ -1291,9 +1320,10 @@ function _updateOfflineIndicator() {
   if (!el) return;
   el.style.display = navigator.onLine ? "none" : "flex";
 }
-window.addEventListener("online", _updateOfflineIndicator);
+window.addEventListener("online", () => { _updateOfflineIndicator(); _trySyncNow(); });
 window.addEventListener("offline", _updateOfflineIndicator);
 _updateOfflineIndicator();
+_setPendingSync(_hasPendingSync());
 
 onAuthStateChanged(auth, (user) => {
   const wasAdmin = window.isAdmin;
@@ -6978,6 +7008,30 @@ function openPlayerDetail(name) {
     return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ELO gained together</div><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
   })();
 
+  // ── PARTNER COMPATIBILITY SCORE ──────────────────────────
+  const partnerCompatHtml = (() => {
+    const pairStats = getPairStats(activeMatches())
+      .filter((ps) => ps.players.map(normPlayer).includes(normPlayer(name)) && ps.played >= 3)
+      .sort((a, b) => b.winPct - a.winPct)
+      .slice(0, 5);
+    if (!pairStats.length) return "";
+    const rows = pairStats.map((ps) => {
+      const partner = ps.players.find((p) => normPlayer(p) !== normPlayer(name)) || ps.players[0];
+      const pct = Math.round(ps.winPct);
+      const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+      const stars = pct >= 70 ? "★★★" : pct >= 55 ? "★★☆" : pct >= 45 ? "★☆☆" : "☆☆☆";
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:11px;font-weight:700">${escHtml(partner)}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:9px;color:var(--muted)">${ps.played}g</span>
+          <span style="font-size:11px;color:var(--gold)">${stars}</span>
+          <span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="ana-card"><span class="badge">Partner Compatibility</span><div style="font-size:9px;color:var(--muted);padding:4px 0 8px">Top pairings by win rate (min 3 games)</div>${rows}</div>`;
+  })();
+
   // ── BEST DAY TO PLAY ─────────────────────────────────────
   const bestDayHtml = (() => {
     const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -7326,6 +7380,8 @@ function openPlayerDetail(name) {
                 ${vsOpponentsHtml}
 
                 ${allPartnersHtml}
+
+                ${partnerCompatHtml}
 
                 ${eloProjectionHtml}
 
@@ -12906,6 +12962,116 @@ window._renderEloProjTable = function() {
   tableEl.innerHTML = hdr + rows;
 };
 
+// ── ROTATION SCHEDULER ─────────────────────────────────────
+window._rotRender = function() {
+  const el = document.getElementById("rot-main");
+  if (!el) return;
+  if (!window._rotState) {
+    const guestNames = new Set(Object.values(players).filter((p) => p.isGuest).map((p) => p.name));
+    const allP = [...new Set(activeMatches().flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]))].filter((n) => !guestNames.has(n)).sort();
+    window._rotState = { selected: new Set(allP), courts: 1, rounds: 6, generated: null };
+  }
+  const st = window._rotState;
+  const eloMap = _memoElo();
+  const guestNames = new Set(Object.values(players).filter((p) => p.isGuest).map((p) => p.name));
+  const allPlayerNames = [...new Set(activeMatches().flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]))].filter((n) => !guestNames.has(n)).sort();
+  const playerCheckboxes = allPlayerNames.map((pn) => {
+    const checked = st.selected.has(pn);
+    const elo = eloMap[pn] || 1000;
+    const safeN = pn.replace(/'/g, "\\'");
+    return `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer"><input type="checkbox" ${checked ? "checked" : ""} onchange="window._rotTogglePlayer('${safeN}')" style="accent-color:var(--accent);width:14px;height:14px"><span style="font-size:11px;font-weight:700">${escHtml(pn)}</span><span style="font-size:9px;color:var(--muted)">${elo}</span></label>`;
+  }).join("");
+  const N = st.selected.size;
+  const playPerRound = st.courts * 4;
+  const numSit = Math.max(0, N - playPerRound);
+  const statusTxt = N < 4
+    ? `<span style="color:var(--red)">Select at least 4 players</span>`
+    : `${N} players · ${st.courts} court${st.courts > 1 ? "s" : ""} · ${playPerRound} play, ${numSit} sit per round`;
+  let roundsHtml = "";
+  if (st.generated) {
+    roundsHtml = `<div style="margin-top:16px">` + st.generated.map((round) => {
+      const cHtml = round.courts.map((c) => {
+        const diff = Math.abs(c.avgA - c.avgB).toFixed(0);
+        return `<div style="margin:4px 0;padding:8px;background:rgba(255,255,255,0.04);border-radius:8px">
+          <div style="font-size:8px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px">COURT ${c.court}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;text-align:center"><div style="font-size:11px;font-weight:800">${escHtml(c.teamA[0])}</div><div style="font-size:10px;font-weight:700;color:var(--muted)">${escHtml(c.teamA[1])}</div><div style="font-size:8px;color:var(--accent);margin-top:2px">${Math.round(c.avgA)}</div></div>
+            <div style="font-size:11px;font-weight:900;color:var(--muted)">VS</div>
+            <div style="flex:1;text-align:center"><div style="font-size:11px;font-weight:800">${escHtml(c.teamB[0])}</div><div style="font-size:10px;font-weight:700;color:var(--muted)">${escHtml(c.teamB[1])}</div><div style="font-size:8px;color:var(--accent);margin-top:2px">${Math.round(c.avgB)}</div></div>
+          </div>${diff > 30 ? `<div style="font-size:8px;color:var(--gold);text-align:center;margin-top:4px">Δ${diff} ELO</div>` : ""}</div>`;
+      }).join("");
+      const sitHtml = round.sitters.length ? `<div style="font-size:9px;color:var(--muted);margin-top:4px">🪑 ${round.sitters.map(escHtml).join(", ")}</div>` : "";
+      return `<div style="margin-bottom:10px"><div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--fg);margin-bottom:3px">ROUND ${round.r}</div>${cHtml}${sitHtml}</div>`;
+    }).join("") + `</div>`;
+  }
+  el.innerHTML = `
+    <div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:8px">SELECT PLAYERS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0 20px">${playerCheckboxes}</div>
+    </div>
+    <div style="display:flex;gap:20px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <div><div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px">COURTS</div>
+        <div class="ep-stepper"><button class="ep-step-btn" onclick="window._rotAdj('courts',-1)">−</button><span class="ep-step-val">${st.courts}</span><button class="ep-step-btn" onclick="window._rotAdj('courts',1)">+</button></div></div>
+      <div><div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px">ROUNDS</div>
+        <div class="ep-stepper"><button class="ep-step-btn" onclick="window._rotAdj('rounds',-1)">−</button><span class="ep-step-val">${st.rounds}</span><button class="ep-step-btn" onclick="window._rotAdj('rounds',1)">+</button></div></div>
+      <div style="flex:1;font-size:10px;color:var(--muted);min-width:120px">${statusTxt}</div>
+    </div>
+    <button onclick="window._rotGenerate()" style="width:100%;padding:10px;background:var(--accent);color:#000;font-size:12px;font-weight:900;border:none;border-radius:8px;cursor:pointer;letter-spacing:0.06em" ${N < 4 ? "disabled" : ""}>⚡ GENERATE ROTATION</button>
+    ${roundsHtml}`;
+};
+
+window._rotTogglePlayer = function(name) {
+  const st = window._rotState;
+  if (!st) return;
+  if (st.selected.has(name)) st.selected.delete(name);
+  else st.selected.add(name);
+  st.generated = null;
+  window._rotRender();
+};
+
+window._rotAdj = function(field, delta) {
+  const st = window._rotState;
+  if (!st) return;
+  if (field === "courts") st.courts = Math.max(1, Math.min(4, st.courts + delta));
+  if (field === "rounds") st.rounds = Math.max(1, Math.min(12, st.rounds + delta));
+  st.generated = null;
+  window._rotRender();
+};
+
+window._rotGenerate = function() {
+  const st = window._rotState;
+  if (!st || st.selected.size < 4) { window._rotRender(); return; }
+  const eloMap = _memoElo();
+  const sortedAll = [...st.selected].sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
+  const N = sortedAll.length;
+  const C = st.courts;
+  const play = C * 4;
+  const sitOutCount = Object.fromEntries(sortedAll.map((p) => [p, 0]));
+  const lastSatOut = Object.fromEntries(sortedAll.map((p) => [p, -Infinity]));
+  const rounds = [];
+  for (let r = 0; r < st.rounds; r++) {
+    const numSit = Math.max(0, N - play);
+    const sitters = numSit > 0
+      ? [...sortedAll].sort((a, b) => sitOutCount[a] !== sitOutCount[b] ? sitOutCount[a] - sitOutCount[b] : lastSatOut[a] - lastSatOut[b]).slice(0, numSit)
+      : [];
+    sitters.forEach((p) => { sitOutCount[p]++; lastSatOut[p] = r; });
+    const playing = sortedAll.filter((p) => !sitters.includes(p));
+    const courtsData = [];
+    for (let c = 0; c < C; c++) {
+      const q = playing.slice(c * 4, c * 4 + 4);
+      if (q.length < 4) break;
+      // Even rounds: rank0+rank3 vs rank1+rank2 (snake); odd rounds: rank0+rank2 vs rank1+rank3 (alt)
+      const teamA = r % 2 === 0 ? [q[0], q[3]] : [q[0], q[2]];
+      const teamB = r % 2 === 0 ? [q[1], q[2]] : [q[1], q[3]];
+      courtsData.push({ court: c + 1, teamA, teamB, avgA: (eloMap[teamA[0]] || 1000 + eloMap[teamA[1]] || 1000) / 2, avgB: (eloMap[teamB[0]] || 1000 + eloMap[teamB[1]] || 1000) / 2 });
+    }
+    if (!courtsData.length) break;
+    rounds.push({ r: r + 1, courts: courtsData, sitters });
+  }
+  st.generated = rounds;
+  window._rotRender();
+};
+
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
@@ -15432,6 +15598,97 @@ function renderAnalyticsPage() {
       body: _buildLeaderboardReplayHtml(),
     },
     {
+      key: "rivalries",
+      cat: "players",
+      title: "⚔️ Rivalries",
+      body: (() => {
+        const enc = {};
+        activeMatches().forEach((m) => {
+          const tA = m.teamA || [], tB = m.teamB || [];
+          const aWon = m.scoreA > m.scoreB;
+          tA.forEach((a) => {
+            tB.forEach((b) => {
+              const sorted = [normPlayer(a), normPlayer(b)].sort();
+              const key = sorted.join(" vs ");
+              if (!enc[key]) enc[key] = { total: 0, wins0: 0, p0: sorted[0], p1: sorted[1] };
+              enc[key].total++;
+              const p0IsA = normPlayer(a) === sorted[0];
+              if ((p0IsA && aWon) || (!p0IsA && !aWon)) enc[key].wins0++;
+            });
+          });
+        });
+        const rivals = Object.values(enc)
+          .filter((r) => r.total >= 5)
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 6);
+        if (!rivals.length)
+          return `<div class="ana-card"><div class="sub" style="padding:8px 0">Need 5+ head-to-head encounters to surface rivalries.</div></div>`;
+        return rivals.map((r) => {
+          const p0w = r.wins0, p1w = r.total - r.wins0;
+          const p0pct = Math.round((p0w / r.total) * 100);
+          const col0 = p0pct >= 60 ? "var(--green)" : p0pct <= 40 ? "var(--red)" : "var(--muted)";
+          const col1 = p0pct <= 40 ? "var(--green)" : p0pct >= 60 ? "var(--red)" : "var(--muted)";
+          return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:800;color:${col0}">${escHtml(r.p0)}</span>
+              <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.06em">${r.total} matches</span>
+              <span style="font-size:12px;font-weight:800;color:${col1}">${escHtml(r.p1)}</span>
+            </div>
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px">
+              <div style="flex:${p0pct};background:var(--accent);border-radius:3px 0 0 3px"></div>
+              <div style="flex:${100 - p0pct};background:rgba(255,255,255,0.15);border-radius:0 3px 3px 0"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px">
+              <span style="font-size:10px;font-weight:700;color:${col0}">${p0w}W (${p0pct}%)</span>
+              <span style="font-size:10px;font-weight:700;color:${col1}">${p1w}W (${100 - p0pct}%)</span>
+            </div>
+          </div>`;
+        }).join("");
+      })(),
+    },
+    {
+      key: "elodow",
+      cat: "elo",
+      title: "📅 ELO Gain by Day",
+      body: (() => {
+        const hist = _memoEloHistory();
+        const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const byDay = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
+        Object.values(hist).forEach((entries) => {
+          entries.forEach((e) => {
+            if (!e.date) return;
+            const d = new Date(e.date + "T00:00:00").getDay();
+            byDay[d].sum += e.delta;
+            byDay[d].count++;
+          });
+        });
+        const avgs = byDay.map((d) => (d.count ? d.sum / d.count : null));
+        const maxAbs = Math.max(...avgs.filter((v) => v !== null).map(Math.abs), 1);
+        const cells = DAY.map((dayName, i) => {
+          const avg = avgs[i];
+          if (avg === null)
+            return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:rgba(255,255,255,0.04);border-radius:8px"><div style="font-size:10px;color:var(--muted)">—</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:4px">${dayName}</div><div style="font-size:7px;color:var(--muted)">0g</div></div>`;
+          const intensity = Math.min(1, Math.abs(avg) / maxAbs);
+          const bg = avg >= 0
+            ? `rgba(72,199,116,${(0.1 + 0.7 * intensity).toFixed(2)})`
+            : `rgba(240,79,79,${(0.1 + 0.7 * intensity).toFixed(2)})`;
+          const col = avg >= 0 ? "var(--green)" : "var(--red)";
+          return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:${bg};border-radius:8px">
+            <div style="font-size:11px;font-weight:800;color:${col}">${avg >= 0 ? "+" : ""}${avg.toFixed(1)}</div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px">${dayName}</div>
+            <div style="font-size:7px;color:rgba(255,255,255,0.35)">${byDay[i].count}g</div>
+          </div>`;
+        }).join("");
+        return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Average ELO Δ per match played on each day</div></div>`;
+      })(),
+    },
+    {
+      key: "rotation",
+      cat: "tools",
+      title: "🔄 Rotation Scheduler",
+      body: `<div id="rot-main" class="ana-card"><div style="text-align:center;color:var(--muted);font-size:11px;padding:12px 0">Loading…</div></div>`,
+    },
+    {
       key: "eloproj",
       cat: "players",
       title: "🔮 ELO Projection",
@@ -15484,6 +15741,7 @@ function renderAnalyticsPage() {
     { id: "pairs", label: "PAIRS" },
     { id: "records", label: "RECORDS" },
     { id: "activity", label: "ACTIVITY" },
+    { id: "tools", label: "⚙️ TOOLS" },
     { id: "hidden", label: "HIDDEN" },
   ];
   const pillOrder = getAnaPillOrder();
@@ -15536,6 +15794,7 @@ function renderAnalyticsPage() {
     sortAsc: window._eloProj?.sortAsc ?? true,
   };
   requestAnimationFrame(() => window._renderEloProjTable?.());
+  requestAnimationFrame(() => window._rotRender?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {
