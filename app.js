@@ -16072,6 +16072,7 @@ Object.assign(window, {
   toggleSessionPanel,
   suggestNextMatch,
   undoSessionMatch,
+  redoSessionMatch,
   saveAndRematch,
   openSessionSummary,
   closeSessionSummary,
@@ -16104,6 +16105,7 @@ let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
 let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
+let _sessionRedoStack = [];       // matches popped by undo, available for redo
 let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
 let _sessionPanelOpen = false;    // whether the session stats panel is expanded
 
@@ -16614,6 +16616,7 @@ function endLiveMatch() {
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
     _sessionMatchHistory.push({ teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, date });
+    _sessionRedoStack = []; // new match invalidates redo history
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
     // Buffer locally — don't write to Firestore until SYNC or End Session
     _sessionPendingCount++;
@@ -16622,6 +16625,8 @@ function endLiveMatch() {
     if (_sessionPanelOpen) _updateSessionPanel();
     const undoBtn = document.getElementById("live-undo-match-btn");
     if (undoBtn) undoBtn.style.display = "";
+    const redoBtn = document.getElementById("live-redo-match-btn");
+    if (redoBtn) redoBtn.style.display = "none";
     _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
@@ -17385,6 +17390,7 @@ function undoSessionMatch() {
   const idx = allMatches.findIndex(m => _mkMatchKey(m) === key);
   if (idx !== -1) allMatches.splice(idx, 1);
   _sessionMatchHistory.pop();
+  _sessionRedoStack.push(last);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
   _updateSyncBadge();
   _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
@@ -17395,10 +17401,33 @@ function undoSessionMatch() {
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
   _checkRematchWarning();
-  const undoBtn = document.getElementById("live-undo-match-btn");
-  if (undoBtn) undoBtn.style.display = _sessionMatchHistory.length > 0 ? "" : "none";
+  document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
+  document.getElementById("live-redo-match-btn")?.style.setProperty("display", "");
   renderHome(); renderCompact(); renderModernMatches();
   showToast("Last match undone ↶", "✅");
+}
+
+// ── REDO LAST UNDONE SESSION MATCH ───────────────────────────
+function redoSessionMatch() {
+  if (!_sessionRedoStack.length) { showToast("Nothing to redo", "❌"); return; }
+  const match = _sessionRedoStack.pop();
+  allMatches.push({ ...match });
+  _sessionMatchHistory.push(match);
+  _sessionPendingCount++;
+  _updateSyncBadge();
+  _liveSlots.a1 = match.teamA[0]; _liveSlots.a2 = match.teamA[1];
+  _liveSlots.b1 = match.teamB[0]; _liveSlots.b2 = match.teamB[1];
+  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  _updateLiveDisplay(); _updateLiveWinProb(); _updateLiveEloPreview();
+  _syncLiveSessionBar();
+  if (_sessionPanelOpen) _updateSessionPanel();
+  _renderSittingOut();
+  _checkRematchWarning();
+  document.getElementById("live-undo-match-btn")?.style.setProperty("display", "");
+  document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+  _invalidateEloMemo();
+  renderHome(); renderCompact(); renderModernMatches();
+  showToast("Match redone ↷", "✅");
 }
 
 // ── SAVE + REMATCH ───────────────────────────────────────────
@@ -17477,6 +17506,7 @@ async function confirmEndSession() {
   }
   _liveSessionData = null;
   _sessionMatchHistory = [];
+  _sessionRedoStack = [];
   _sessionPanelOpen = false;
   _clearSessionState(); // Enhancement 13: clear persisted session
   _syncLiveSessionBar();
@@ -17634,6 +17664,7 @@ function confirmSessionStart() {
   _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
   _sessionPendingCount = 0;
   _sessionMatchHistory = [];
+  _sessionRedoStack = [];
   _sessionPanelOpen = false;
   _updateSyncBadge();
   _syncLiveSessionBar();

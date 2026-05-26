@@ -17383,6 +17383,11 @@ body.midnight-oled-mode #themeBtn {
   color: #ff7070;
   margin-left: auto;
 }
+.live-sess-action-redo {
+  background: rgba(80, 160, 255, 0.1);
+  border-color: rgba(80, 160, 255, 0.3);
+  color: #70b8ff;
+}
 
 /* ── SESSION STATS PANEL ─────────────────── */
 .live-session-panel {
