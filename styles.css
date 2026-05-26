@@ -2660,6 +2660,11 @@ body.no-anim *::after {
   transition-duration: 0ms !important;
   transition-delay: 0ms !important;
 }
+body.no-anim .match-card.fire-card::before,
+body.no-anim .match-card.dominate-card::before,
+body.no-anim .match-card.zero-card::before {
+  display: none;
+}
 
 /* ── Cascade animations disabled ──────────────────────────────── */
 /* .pc, .holo-pc, table.cmp tbody tr, .card-anim keep their cardSlideUp pop */
