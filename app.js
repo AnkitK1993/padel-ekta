@@ -12963,8 +12963,20 @@ window._renderEloProjTable = function() {
 };
 
 // ── ROTATION SCHEDULER ─────────────────────────────────────
+function openRotationSheet() {
+  document.getElementById("rot-sheet-overlay").style.display = "block";
+  document.getElementById("rot-sheet").classList.add("live-sheet-open");
+  requestAnimationFrame(() => window._rotRender?.());
+}
+function closeRotationSheet() {
+  document.getElementById("rot-sheet").classList.remove("live-sheet-open");
+  document.getElementById("rot-sheet-overlay").style.display = "none";
+}
+window.openRotationSheet = openRotationSheet;
+window.closeRotationSheet = closeRotationSheet;
+
 window._rotRender = function() {
-  const el = document.getElementById("rot-main");
+  const el = document.getElementById("rot-sheet-body");
   if (!el) return;
   if (!window._rotState) {
     const guestNames = new Set(Object.values(players).filter((p) => p.isGuest).map((p) => p.name));
@@ -15683,12 +15695,6 @@ function renderAnalyticsPage() {
       })(),
     },
     {
-      key: "rotation",
-      cat: "tools",
-      title: "🔄 Rotation Scheduler",
-      body: `<div id="rot-main" class="ana-card"><div style="text-align:center;color:var(--muted);font-size:11px;padding:12px 0">Loading…</div></div>`,
-    },
-    {
       key: "eloproj",
       cat: "players",
       title: "🔮 ELO Projection",
@@ -15741,7 +15747,6 @@ function renderAnalyticsPage() {
     { id: "pairs", label: "PAIRS" },
     { id: "records", label: "RECORDS" },
     { id: "activity", label: "ACTIVITY" },
-    { id: "tools", label: "⚙️ TOOLS" },
     { id: "hidden", label: "HIDDEN" },
   ];
   const pillOrder = getAnaPillOrder();
@@ -15794,7 +15799,6 @@ function renderAnalyticsPage() {
     sortAsc: window._eloProj?.sortAsc ?? true,
   };
   requestAnimationFrame(() => window._renderEloProjTable?.());
-  requestAnimationFrame(() => window._rotRender?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {
