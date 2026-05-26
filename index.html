@@ -1330,6 +1330,19 @@ Puneet - Pun, PK
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
 
+      <!-- Undo Confirm Sheet -->
+      <div class="live-sheet-overlay" id="undo-confirm-overlay" onclick="closeUndoConfirmSheet()" style="display:none"></div>
+      <div class="live-sheet" id="undo-confirm-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">UNDO MATCH?</div>
+        <div id="undo-confirm-body" style="padding:4px 14px 2px;text-align:center"></div>
+        <div style="padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px">
+          <button onclick="confirmUndoSession()" style="padding:13px;background:rgba(255,80,80,0.2);border:1px solid rgba(255,80,80,0.4);color:#ff7070;font-size:13px;font-weight:900;border-radius:10px;cursor:pointer;letter-spacing:0.04em">↶ YES, UNDO MATCH</button>
+          <button onclick="closeUndoConfirmSheet()" class="tb-btn" style="padding:12px;font-size:13px">CANCEL</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
       <!-- Suggest Next Match Sheet -->
       <div class="live-sheet-overlay" id="suggest-sheet-overlay" onclick="window._closeSuggestSheet()" style="display:none"></div>
       <div class="live-sheet" id="suggest-sheet">

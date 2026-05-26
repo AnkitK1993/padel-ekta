@@ -16073,6 +16073,8 @@ Object.assign(window, {
   suggestNextMatch,
   undoSessionMatch,
   redoSessionMatch,
+  closeUndoConfirmSheet,
+  confirmUndoSession,
   saveAndRematch,
   openSessionSummary,
   closeSessionSummary,
@@ -16623,10 +16625,8 @@ function endLiveMatch() {
     _updateSyncBadge();
     _syncLiveSessionBar();
     if (_sessionPanelOpen) _updateSessionPanel();
-    const undoBtn = document.getElementById("live-undo-match-btn");
-    if (undoBtn) undoBtn.style.display = "";
-    const redoBtn = document.getElementById("live-redo-match-btn");
-    if (redoBtn) redoBtn.style.display = "none";
+    document.getElementById("live-undo-match-btn")?.style.setProperty("display", "");
+    document.getElementById("live-redo-match-btn")?.style.setProperty("display", "none");
     _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
@@ -16668,7 +16668,11 @@ async function syncSession() {
   const count = _sessionPendingCount;
   await saveCloudData();
   _sessionPendingCount = 0;
+  _sessionRedoStack = []; // sync is a checkpoint — redo history is committed and cleared
   _updateSyncBadge();
+  // Hide UNDO/REDO since nothing is pending after the checkpoint
+  document.getElementById("live-undo-match-btn")?.style.setProperty("display", "none");
+  document.getElementById("live-redo-match-btn")?.style.setProperty("display", "none");
   showToast(`Synced ${count} match${count !== 1 ? "es" : ""} to cloud`, "☁️");
 }
 
@@ -17384,7 +17388,32 @@ window._applySuggestion = function(idx) {
 
 // ── UNDO LAST SESSION MATCH ──────────────────────────────────
 function undoSessionMatch() {
+  if (!_sessionPendingCount) { showToast("Nothing to undo — all matches are synced", "🔒"); return; }
   if (!_sessionMatchHistory.length) { showToast("No match to undo", "❌"); return; }
+  const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
+  // Show confirmation sheet with match details
+  const body = document.getElementById("undo-confirm-body");
+  if (body) {
+    body.innerHTML = `
+      <div style="margin:6px 0 14px;font-size:13px;font-weight:800">
+        ${escHtml(last.teamA.join(" & "))}
+        <span style="color:var(--muted);font-weight:700;margin:0 8px">${last.scoreA}–${last.scoreB}</span>
+        ${escHtml(last.teamB.join(" & "))}
+      </div>
+      <div style="font-size:10px;color:var(--muted)">${last.date || ""}</div>`;
+  }
+  document.getElementById("undo-confirm-overlay")?.style.setProperty("display", "block");
+  document.getElementById("undo-confirm-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeUndoConfirmSheet() {
+  document.getElementById("undo-confirm-overlay")?.style.setProperty("display", "none");
+  document.getElementById("undo-confirm-sheet")?.classList.remove("live-sheet-open");
+}
+
+function confirmUndoSession() {
+  closeUndoConfirmSheet();
+  if (!_sessionMatchHistory.length) return;
   const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
   const key = _mkMatchKey(last);
   const idx = allMatches.findIndex(m => _mkMatchKey(m) === key);
@@ -17401,8 +17430,9 @@ function undoSessionMatch() {
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
   _checkRematchWarning();
-  document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
-  document.getElementById("live-redo-match-btn")?.style.setProperty("display", "");
+  document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+  document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+  _invalidateEloMemo();
   renderHome(); renderCompact(); renderModernMatches();
   showToast("Last match undone ↶", "✅");
 }
