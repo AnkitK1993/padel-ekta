@@ -1317,11 +1317,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   }
 });
 
-getRedirectResult(auth)
-  .then((r) => {
-    if (r?.user) console.log("Logged in:", r.user.email);
-  })
-  .catch(console.error);
+getRedirectResult(auth).catch(console.error);
 
 let _authInitialFired = false;
 // Enhancement 21: offline indicator

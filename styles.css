@@ -971,120 +971,6 @@ body {
     opacity: 0;
   }
 }
-@keyframes holoBorderR1 {
-  0%,
-  100% {
-    border-color: rgba(255, 215, 60, 0.7);
-  }
-  25% {
-    border-color: rgba(255, 160, 60, 0.6);
-  }
-  50% {
-    border-color: rgba(255, 240, 120, 0.65);
-  }
-  75% {
-    border-color: rgba(255, 190, 40, 0.55);
-  }
-}
-@keyframes holoGlowR1 {
-  0%,
-  100% {
-    box-shadow:
-      0 10px 32px rgba(0, 0, 0, 0.4),
-      0 0 28px rgba(255, 200, 40, 0.18);
-  }
-  25% {
-    box-shadow:
-      0 10px 32px rgba(0, 0, 0, 0.4),
-      0 0 28px rgba(255, 160, 30, 0.14);
-  }
-  50% {
-    box-shadow:
-      0 10px 32px rgba(0, 0, 0, 0.4),
-      0 0 32px rgba(255, 240, 80, 0.2);
-  }
-  75% {
-    box-shadow:
-      0 10px 32px rgba(0, 0, 0, 0.4),
-      0 0 24px rgba(255, 120, 30, 0.14);
-  }
-}
-@keyframes holoBorderR2 {
-  0%,
-  100% {
-    border-color: rgba(180, 195, 230, 0.5);
-  }
-  25% {
-    border-color: rgba(120, 200, 255, 0.48);
-  }
-  50% {
-    border-color: rgba(200, 210, 240, 0.45);
-  }
-  75% {
-    border-color: rgba(160, 140, 220, 0.42);
-  }
-}
-@keyframes holoGlowR2 {
-  0%,
-  100% {
-    box-shadow:
-      0 8px 28px rgba(0, 0, 0, 0.38),
-      0 0 20px rgba(180, 200, 255, 0.12);
-  }
-  25% {
-    box-shadow:
-      0 8px 28px rgba(0, 0, 0, 0.38),
-      0 0 20px rgba(100, 190, 255, 0.14);
-  }
-  50% {
-    box-shadow:
-      0 8px 28px rgba(0, 0, 0, 0.38),
-      0 0 20px rgba(200, 215, 255, 0.1);
-  }
-  75% {
-    box-shadow:
-      0 8px 28px rgba(0, 0, 0, 0.38),
-      0 0 20px rgba(160, 130, 220, 0.12);
-  }
-}
-@keyframes holoBorderR3 {
-  0%,
-  100% {
-    border-color: rgba(205, 115, 50, 0.55);
-  }
-  25% {
-    border-color: rgba(230, 140, 40, 0.52);
-  }
-  50% {
-    border-color: rgba(200, 90, 30, 0.5);
-  }
-  75% {
-    border-color: rgba(220, 160, 60, 0.48);
-  }
-}
-@keyframes holoGlowR3 {
-  0%,
-  100% {
-    box-shadow:
-      0 8px 26px rgba(0, 0, 0, 0.38),
-      0 0 18px rgba(210, 120, 50, 0.12);
-  }
-  25% {
-    box-shadow:
-      0 8px 26px rgba(0, 0, 0, 0.38),
-      0 0 18px rgba(240, 150, 40, 0.14);
-  }
-  50% {
-    box-shadow:
-      0 8px 26px rgba(0, 0, 0, 0.38),
-      0 0 18px rgba(200, 80, 30, 0.1);
-  }
-  75% {
-    box-shadow:
-      0 8px 26px rgba(0, 0, 0, 0.38),
-      0 0 18px rgba(220, 170, 60, 0.12);
-  }
-}
 @keyframes glowPulse {
   0% {
     filter: hue-rotate(0deg) brightness(1);
@@ -3027,51 +2913,6 @@ body.no-cascade .analytics-card {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
   border-color: rgba(var(--theme-rgb), 0.3);
-}
-.match-card.fire-card {
-  box-shadow: 0 0 20px rgba(255, 179, 0, 0.2);
-  border-color: rgba(255, 179, 0, 0.5);
-  background: linear-gradient(135deg, var(--card), rgba(255, 179, 0, 0.05));
-}
-.match-card.fire-card::before,
-.match-card.dominate-card::before,
-.match-card.zero-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  animation: shimmer 2s ease-in-out infinite;
-}
-.match-card.fire-card::before {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-}
-.match-card.dominate-card {
-  box-shadow: 0 0 24px rgba(200, 120, 255, 0.25);
-  border-color: rgba(200, 120, 255, 0.45);
-  background: linear-gradient(135deg, var(--card), rgba(200, 120, 255, 0.06));
-}
-.match-card.dominate-card::before {
-  background: linear-gradient(
-    90deg,
-    rgba(200, 120, 255, 0.8),
-    rgba(180, 80, 255, 0.3),
-    rgba(200, 120, 255, 0.8)
-  );
-}
-.match-card.zero-card {
-  box-shadow: 0 0 24px rgba(255, 79, 79, 0.25);
-  border-color: rgba(255, 79, 79, 0.5);
-  background: linear-gradient(135deg, var(--card), rgba(255, 79, 79, 0.06));
-}
-.match-card.zero-card::before {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 79, 79, 0.8),
-    rgba(255, 120, 120, 0.3),
-    rgba(255, 79, 79, 0.8)
-  );
 }
 .match-top {
   display: flex;
@@ -7723,21 +7564,6 @@ select.cmp-sel,
   letter-spacing: 0.08em;
 }
 
-.match-card.fire-card {
-  border-color: rgba(255, 190, 0, 0.65) !important;
-
-  box-shadow:
-    0 0 34px rgba(255, 190, 0, 0.18),
-    0 18px 46px rgba(0, 0, 0, 0.52) !important;
-}
-
-.match-card.dominate-card {
-  border-color: rgba(180, 90, 255, 0.62) !important;
-
-  box-shadow:
-    0 0 36px rgba(180, 90, 255, 0.22),
-    0 18px 46px rgba(0, 0, 0, 0.52) !important;
-}
 
 .team-name {
   display: flex !important;
@@ -13257,19 +13083,6 @@ body::before {
   box-shadow:
     0 8px 28px rgba(0, 0, 0, 0.7),
     0 0 24px rgba(var(--theme-rgb), 0.06) !important;
-}
-/* Fire/dominate/zero cards keep their coloured glows */
-.match-card.fire-card {
-  border-color: rgba(239, 140, 0, 0.2) !important;
-  box-shadow:
-    0 2px 18px rgba(0, 0, 0, 0.65),
-    0 0 20px rgba(239, 140, 0, 0.08) !important;
-}
-.match-card.dominate-card {
-  border-color: rgba(var(--theme-rgb), 0.2) !important;
-  box-shadow:
-    0 2px 18px rgba(0, 0, 0, 0.65),
-    0 0 20px rgba(var(--theme-rgb), 0.08) !important;
 }
 
 /* 5. Manage / setting cards */
