@@ -800,20 +800,55 @@ function _eloCacheKey(matches, applyDecay) {
   return `${applyDecay ? "decay" : "raw"}|${decayKey}|${_matchesFingerprintForCache(matches)}`;
 }
 
+function _lightFingerprint(matches) {
+  const arr = matches || [];
+  if (!arr.length) return "0||";
+  const last = arr[arr.length - 1];
+  return `${arr.length}|${last.date || ""}|${last.scoreA ?? ""}|${last.scoreB ?? ""}`;
+}
+
 function _memoElo(decay = false) {
   const am = activeMatches();
-  const key = _eloCacheKey(am, decay);
-  if (_eloMemoKey !== key || _eloMemoDecay !== decay || !_eloMemo) {
+  const decayKey = decay ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() }) : "";
+  const key = `${decay ? "d" : "r"}|${decayKey}|${_lightFingerprint(am)}`;
+  if (_eloMemoKey !== key || !_eloMemo) {
     _eloMemoKey = key;
     _eloMemoDecay = decay;
     _eloMemo = computeElo(am, decay);
   }
   return _eloMemo;
 }
+
+let _eloHistMemo = null, _eloHistKey = "";
+let _eloPeaksMemo = null, _eloPeaksKey = "";
+let _eloLowsMemo = null, _eloLowsKey = "";
+
+function _memoEloHistory() {
+  const am = activeMatches();
+  const key = _lightFingerprint(am);
+  if (_eloHistKey !== key || !_eloHistMemo) { _eloHistKey = key; _eloHistMemo = computeEloHistory(am); }
+  return _eloHistMemo;
+}
+function _memoEloPeaks() {
+  const am = activeMatches();
+  const key = _lightFingerprint(am);
+  if (_eloPeaksKey !== key || !_eloPeaksMemo) { _eloPeaksKey = key; _eloPeaksMemo = computeEloPeaks(am); }
+  return _eloPeaksMemo;
+}
+function _memoEloLows() {
+  const am = activeMatches();
+  const key = _lightFingerprint(am);
+  if (_eloLowsKey !== key || !_eloLowsMemo) { _eloLowsKey = key; _eloLowsMemo = computeEloLows(am); }
+  return _eloLowsMemo;
+}
+
 function _invalidateEloMemo() {
   _eloMemoKey = "";
   _eloMemo = null;
   _eloCalcCache.clear();
+  _eloHistKey = ""; _eloHistMemo = null;
+  _eloPeaksKey = ""; _eloPeaksMemo = null;
+  _eloLowsKey = ""; _eloLowsMemo = null;
 }
 
 let _anaObserver = null;
@@ -2627,7 +2662,7 @@ function getPlayerDetail(name) {
       (p) => normPlayer(p) === name,
     ),
   );
-  const stats = computeStats(activeMatches(), computeElo(activeMatches())).find(
+  const stats = computeStats(activeMatches(), _memoElo()).find(
     (p) => p.name === name,
   );
   const teammateCounts = {};
@@ -4475,7 +4510,7 @@ function buildHistorySummary(matches, filter = "all") {
     const preElo = computeElo(
       activeMatches().filter((m) => (m.date || "") < firstDate),
     );
-    const fullElo = computeElo(activeMatches());
+    const fullElo = _memoElo();
     const periodPlayers = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -4510,7 +4545,7 @@ function buildHistorySummary(matches, filter = "all") {
   if (matches.length) {
     const periodDates = matches.map((m) => m.date || "1970-01-01");
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
-    const eloAfter = computeElo(activeMatches());
+    const eloAfter = _memoElo();
     const eloBefore = computeElo(
       activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate),
     );
@@ -4780,7 +4815,7 @@ function renderModernMatches() {
           ? "var(--red)"
           : "var(--text)";
     const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
-    const h2hEloHist = computeEloHistory(activeMatches());
+    const h2hEloHist = _memoEloHistory();
     const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) =>
       pt.opponent.split(" & ").includes(h2hFilterB),
     );
@@ -6149,7 +6184,7 @@ function openPlayerDetail(name) {
 
   // ── RADAR CHART ──────────────────────────────────────────────
   const radarHtml = (() => {
-    const eloMap = computeElo(activeMatches());
+    const eloMap = _memoElo();
     const allStats = computeStats(activeMatches(), eloMap);
     const ps = allStats.find((p) => p.name === name);
     if (!ps || ps.mp < 3) return "";
@@ -6610,7 +6645,7 @@ function openPlayerDetail(name) {
     </div>`;
 
   // ELO
-  const eloMap = computeElo(activeMatches());
+  const eloMap = _memoElo();
   const playerElo = eloMap[name] || 1000;
   const eloChange = playerElo - 1000;
   const eloChangeStr = eloChange > 0 ? `+${eloChange}` : `${eloChange}`;
@@ -6663,7 +6698,7 @@ function openPlayerDetail(name) {
 
   // Leaderboard Race stats for this player
   const { from: wkFrom, to: wkTo } = lastWeekRange();
-  const allEloMap = computeElo(activeMatches());
+  const allEloMap = _memoElo();
   const allRanked = computeStats(activeMatches(), allEloMap);
   const preWkMatches = activeMatches().filter((m) => (m.date || "") < wkFrom);
   const preWkRanked = computeStats(preWkMatches, computeElo(preWkMatches));
@@ -7148,7 +7183,7 @@ function openPlayerDetail(name) {
       if (won7) byDate2[m.date].w++;
     });
     const bestDay2 = Object.entries(byDate2).sort((a, b) => b[1].w - a[1].w || b[1].p - a[1].p)[0];
-    const peakEloVal = (computeEloPeaks(activeMatches()))[name] || playerElo;
+    const peakEloVal = _memoEloPeaks()[name] || playerElo;
     return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
   })();
 
@@ -7193,7 +7228,7 @@ function openPlayerDetail(name) {
     else if (form && form.momentumLabel === "DECLINING") tags.push({ t: "📉 Declining Form", c: "var(--red)" });
     if (closePlayed >= 3 && clutchPct > 60) tags.push({ t: "⚔️ Clutch Performer", c: "var(--green)" });
     else if (closePlayed >= 3 && clutchPct < 40) tags.push({ t: "😰 Struggles in Close Matches", c: "var(--red)" });
-    const allStats2 = computeStats(activeMatches(), computeElo(activeMatches()));
+    const allStats2 = computeStats(activeMatches(), _memoElo());
     const ps2 = allStats2.find((p) => p.name === name);
     if (ps2?.avgMargin > 2) tags.push({ t: "💥 Dominant in wins", c: "var(--green)" });
     if (ps2?.consistency != null && ps2.consistency <= 2) tags.push({ t: "🪨 Rock Solid", c: "var(--gold)" });
@@ -8120,7 +8155,7 @@ function openShareCard(name) {
   const detail = getPlayerDetail(name);
   if (!detail.stats) return;
   const s = detail.stats;
-  const eloMap = computeElo(activeMatches());
+  const eloMap = _memoElo();
   const elo = Math.round(eloMap[name] || 1000);
   const col = playerColor(name);
 
@@ -8274,7 +8309,7 @@ function _buildDigestContent(filter, player) {
   const accentCol = "var(--theme)";
   if (ms.length < 2)
     return `<div class="sub" style="padding:16px;text-align:center">Not enough matches for selected filter.</div>`;
-  const eloNow = computeElo(activeMatches());
+  const eloNow = _memoElo();
   const eloAt = computeElo(
     activeMatches().filter((m) => {
       const base =
@@ -8984,7 +9019,7 @@ let _h2hMatrixSort = "matches";
 
 function _h2hSortPlayers(players) {
   if (!Array.isArray(players)) return [];
-  const eloMap = computeElo(activeMatches());
+  const eloMap = _memoElo();
   const matchCount = {};
   const winPct = {};
   players.forEach((p) => {
@@ -11408,27 +11443,15 @@ function computeSeasons(matches) {
       const pairs = getPairStats(ms).filter((p) => p.played >= 2);
       const mvp = stats[0] || null;
       const topPair = pairs[0] || null;
+      const priorEloMap = stats.length > 1
+        ? computeElo(sorted.filter((m) => (m.date || "") < month + "-01"))
+        : null;
       const mostImproved =
-        stats.length > 1
-          ? [...stats].sort((a, b) => {
-              const prevEloA =
-                computeElo(
-                  sorted.filter(
-                    (m) => (m.date || "") < month.slice(0, 7) + "-01",
-                  ),
-                )[a.name] || 1000;
-              const prevEloB =
-                computeElo(
-                  sorted.filter(
-                    (m) => (m.date || "") < month.slice(0, 7) + "-01",
-                  ),
-                )[b.name] || 1000;
-              return (
-                (eloMap[b.name] || 1000) -
-                prevEloB -
-                ((eloMap[a.name] || 1000) - prevEloA)
-              );
-            })[0]
+        priorEloMap
+          ? [...stats].sort((a, b) =>
+              (eloMap[b.name] || 1000) - (priorEloMap[b.name] || 1000) -
+              ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000))
+            )[0]
           : null;
       const ironMan = stats.length
         ? [...stats].sort((a, b) => b.mp - a.mp)[0]
@@ -11495,7 +11518,7 @@ function runMatchSimulator() {
     return;
   }
 
-  const eloMap = computeElo(activeMatches());
+  const eloMap = _memoElo();
   const e = (p) => eloMap[p] || 1000;
   const avgA = (e(a1) + e(a2)) / 2;
   const avgB = (e(b1) + e(b2)) / 2;
@@ -11547,8 +11570,8 @@ function runMatchSimulator() {
 function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || _eloTLFilter || "all";
   _eloTLFilter = filterKey;
-  const history = computeEloHistory(activeMatches());
-  const eloNow = computeElo(activeMatches());
+  const history = _memoEloHistory();
+  const eloNow = _memoElo();
   const players = Object.keys(history)
     .filter((p) => (history[p] || []).length >= 2)
     .sort((a, b) => (eloNow[b] || 1000) - (eloNow[a] || 1000));
@@ -11776,7 +11799,7 @@ function openEloTLOverlaySheet() {
   if (el) el.textContent = "COMPARE WITH";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const history = computeEloHistory(activeMatches());
+  const history = _memoEloHistory();
   const players = sortPlayersGuestsLast(Object.keys(history).filter((p) => p !== _eloTLPlayer));
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
@@ -11900,7 +11923,7 @@ function calcEloWinProb() {
       '<div class="sub" style="color:var(--red);padding:4px">Select two different players.</div>';
     return;
   }
-  const em = computeElo(activeMatches());
+  const em = _memoElo();
   const e1 = em[p1] || 1000;
   const e2 = em[p2] || 1000;
   const prob = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
@@ -12016,7 +12039,7 @@ function toggleWhatIfFlip(idx) {
 }
 
 function whatIfFlipAllLosses() {
-  const eloMap = computeElo(activeMatches());
+  const eloMap = _memoElo();
   allMatches.forEach((m, i) => {
     if (!_whatIfToggles.hasOwnProperty(i)) return;
     const inA = (m.teamA || []).includes(_whatIfPlayer);
@@ -12059,14 +12082,14 @@ function recomputeWhatIfElo() {
       }
       return m;
     });
-  const actualElo = computeElo(activeMatches())[_whatIfPlayer] || 1000;
+  const actualElo = _memoElo()[_whatIfPlayer] || 1000;
   const whatIfElo = computeElo(whatIfMatches)[_whatIfPlayer] || 1000;
   const diff = whatIfElo - actualElo;
   const col =
     diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
   const sign = diff > 0 ? "+" : "";
   // Rank change
-  const actualRanked = Object.entries(computeElo(activeMatches())).sort(
+  const actualRanked = Object.entries(_memoElo()).sort(
     (a, b) => b[1] - a[1],
   );
   const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort(
@@ -12358,7 +12381,7 @@ function runMatchPrediction() {
       '<div style="color:var(--red);font-size:11px;padding:4px">Select at least one player per team.</div>';
     return;
   }
-  const eloMap = computeElo(activeMatches());
+  const eloMap = _memoElo();
   const avgA =
     teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
   const avgB =
@@ -12968,7 +12991,7 @@ window._hiLoSortBy = function(col) {
 };
 
 // ── ELO PROJECTION ─────────────────────────────────────────────
-window._eloProj = { formN: 10, futureM: 20, histAll: null, eloMap: null, sortCol: "currentRank", sortAsc: true };
+window._eloProj = { formN: 10, futureM: 20, sortCol: "currentRank", sortAsc: true };
 
 window._eloprojAdj = function(type, delta) {
   const state = window._eloProj;
@@ -13000,7 +13023,9 @@ window._eloprojSort = function(col) {
 window._renderEloProjTable = function() {
   const tableEl = document.getElementById("eloproj-table");
   if (!tableEl) return;
-  const { formN, futureM, histAll, eloMap, sortCol, sortAsc } = window._eloProj;
+  const { formN, futureM, sortCol, sortAsc } = window._eloProj;
+  const eloMap = _memoElo();
+  const histAll = _memoEloHistory();
   if (!histAll || !eloMap) return;
 
   const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
@@ -13289,7 +13314,7 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = computeStats(activeMatches(), computeElo(activeMatches()));
+  const compList = computeStats(activeMatches(), _memoElo());
   const clutchP = Object.keys(closePlayed)
     .filter((p) => closePlayed[p] >= 3)
     .sort(
@@ -13370,7 +13395,7 @@ function renderAnalyticsPage() {
     : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
 
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
-  const eloMapFull = computeElo(activeMatches());
+  const eloMapFull = _memoElo();
   const qualityWins = {};
   allMatches.forEach((m) => {
     const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
@@ -14268,8 +14293,8 @@ function renderAnalyticsPage() {
   const maxEloVal = eloRanked[0]?.[1] || 1000;
   const minEloVal = eloRanked[eloRanked.length - 1]?.[1] || 1000;
   const eloRange = Math.max(1, maxEloVal - minEloVal);
-  const eloPeaks = computeEloPeaks(activeMatches());
-  const eloHistoryAll = computeEloHistory(activeMatches());
+  const eloPeaks = _memoEloPeaks();
+  const eloHistoryAll = _memoEloHistory();
   const eloHtml = eloRanked.length
     ? `<div class="ana-card elo-leaderboard-card" style="padding:10px 12px">${eloRanked
         .map(([pname, ev], i) => {
@@ -14736,7 +14761,7 @@ function renderAnalyticsPage() {
 
   // ── CARRY FACTOR ───────────────────────────────────────
   const carryHtml = (() => {
-    const eloMapFull = computeElo(activeMatches());
+    const eloMapFull = _memoElo();
     const playerList = computeStats(activeMatches()).map((p) => p.name);
     if (playerList.length < 2)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
@@ -15116,7 +15141,7 @@ function renderAnalyticsPage() {
   })();
 
   // HIGH LOW ELO table
-  const _eloLows = computeEloLows(activeMatches());
+  const _eloLows = _memoEloLows();
   window._hiLoData = eloRanked.map(([pname, ev]) => {
     const pts5 = (eloHistoryAll[pname] || []).slice(-5);
     const momAvg = pts5.length
@@ -15706,8 +15731,6 @@ function renderAnalyticsPage() {
     futureM: window._eloProj?.futureM || 20,
     sortCol: window._eloProj?.sortCol || "currentRank",
     sortAsc: window._eloProj?.sortAsc ?? true,
-    histAll: eloHistoryAll,
-    eloMap,
   };
   requestAnimationFrame(() => window._renderEloProjTable?.());
 
@@ -16370,7 +16393,7 @@ function _renderLiveSlot(slot) {
     // Enhancement 10: show ELO under name
     const eloEl = document.getElementById(`live-elo-${slot}`);
     if (eloEl) {
-      const elo = computeElo(activeMatches())[p] || 1000;
+      const elo = _memoElo()[p] || 1000;
       eloEl.textContent = `ELO ${elo}`;
       eloEl.style.display = "block";
     }
@@ -17339,7 +17362,7 @@ function suggestNextMatch() {
   const pick4 = sorted.slice(0, 4);
   // Snake-draft ELO balance: sort desc, pair [0]+[2] vs [1]+[3]
   // (1st & 3rd vs 2nd & 4th — minimises avg ELO gap between teams)
-  const eloMap = computeElo(activeMatches());
+  const eloMap = _memoElo();
   pick4.sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
   _liveSlots.a1 = pick4[0]; _liveSlots.a2 = pick4[2];
   _liveSlots.b1 = pick4[1]; _liveSlots.b2 = pick4[3];
