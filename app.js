@@ -1415,7 +1415,9 @@ function goTo(id) {
   }
 }
 function goBack() {
-  goTo(prevPage === "add" ? "home" : prevPage);
+  const curId = document.querySelector(".page.active")?.id?.replace("pg-", "");
+  const dest = prevPage === "add" ? "home" : prevPage;
+  goTo(dest === curId ? "home" : dest);
 }
 
 function _slideTab(fromPage, toPage, dir) {
@@ -12962,128 +12964,6 @@ window._renderEloProjTable = function() {
   tableEl.innerHTML = hdr + rows;
 };
 
-// ── ROTATION SCHEDULER ─────────────────────────────────────
-function openRotationSheet() {
-  document.getElementById("rot-sheet-overlay").style.display = "block";
-  document.getElementById("rot-sheet").classList.add("live-sheet-open");
-  requestAnimationFrame(() => window._rotRender?.());
-}
-function closeRotationSheet() {
-  document.getElementById("rot-sheet").classList.remove("live-sheet-open");
-  document.getElementById("rot-sheet-overlay").style.display = "none";
-}
-window.openRotationSheet = openRotationSheet;
-window.closeRotationSheet = closeRotationSheet;
-
-window._rotRender = function() {
-  const el = document.getElementById("rot-sheet-body");
-  if (!el) return;
-  if (!window._rotState) {
-    const guestNames = new Set(Object.values(players).filter((p) => p.isGuest).map((p) => p.name));
-    const allP = [...new Set(activeMatches().flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]))].filter((n) => !guestNames.has(n)).sort();
-    window._rotState = { selected: new Set(allP), courts: 1, rounds: 6, generated: null };
-  }
-  const st = window._rotState;
-  const eloMap = _memoElo();
-  const guestNames = new Set(Object.values(players).filter((p) => p.isGuest).map((p) => p.name));
-  const allPlayerNames = [...new Set(activeMatches().flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]))].filter((n) => !guestNames.has(n)).sort();
-  const playerCheckboxes = allPlayerNames.map((pn) => {
-    const checked = st.selected.has(pn);
-    const elo = eloMap[pn] || 1000;
-    const safeN = pn.replace(/'/g, "\\'");
-    return `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer"><input type="checkbox" ${checked ? "checked" : ""} onchange="window._rotTogglePlayer('${safeN}')" style="accent-color:var(--accent);width:14px;height:14px"><span style="font-size:11px;font-weight:700">${escHtml(pn)}</span><span style="font-size:9px;color:var(--muted)">${elo}</span></label>`;
-  }).join("");
-  const N = st.selected.size;
-  const playPerRound = st.courts * 4;
-  const numSit = Math.max(0, N - playPerRound);
-  const statusTxt = N < 4
-    ? `<span style="color:var(--red)">Select at least 4 players</span>`
-    : `${N} players · ${st.courts} court${st.courts > 1 ? "s" : ""} · ${playPerRound} play, ${numSit} sit per round`;
-  let roundsHtml = "";
-  if (st.generated) {
-    roundsHtml = `<div style="margin-top:16px">` + st.generated.map((round) => {
-      const cHtml = round.courts.map((c) => {
-        const diff = Math.abs(c.avgA - c.avgB).toFixed(0);
-        return `<div style="margin:4px 0;padding:8px;background:rgba(255,255,255,0.04);border-radius:8px">
-          <div style="font-size:8px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px">COURT ${c.court}</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="flex:1;text-align:center"><div style="font-size:11px;font-weight:800">${escHtml(c.teamA[0])}</div><div style="font-size:10px;font-weight:700;color:var(--muted)">${escHtml(c.teamA[1])}</div><div style="font-size:8px;color:var(--accent);margin-top:2px">${Math.round(c.avgA)}</div></div>
-            <div style="font-size:11px;font-weight:900;color:var(--muted)">VS</div>
-            <div style="flex:1;text-align:center"><div style="font-size:11px;font-weight:800">${escHtml(c.teamB[0])}</div><div style="font-size:10px;font-weight:700;color:var(--muted)">${escHtml(c.teamB[1])}</div><div style="font-size:8px;color:var(--accent);margin-top:2px">${Math.round(c.avgB)}</div></div>
-          </div>${diff > 30 ? `<div style="font-size:8px;color:var(--gold);text-align:center;margin-top:4px">Δ${diff} ELO</div>` : ""}</div>`;
-      }).join("");
-      const sitHtml = round.sitters.length ? `<div style="font-size:9px;color:var(--muted);margin-top:4px">🪑 ${round.sitters.map(escHtml).join(", ")}</div>` : "";
-      return `<div style="margin-bottom:10px"><div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--fg);margin-bottom:3px">ROUND ${round.r}</div>${cHtml}${sitHtml}</div>`;
-    }).join("") + `</div>`;
-  }
-  el.innerHTML = `
-    <div style="margin-bottom:12px">
-      <div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:8px">SELECT PLAYERS</div>
-      <div style="display:flex;flex-wrap:wrap;gap:0 20px">${playerCheckboxes}</div>
-    </div>
-    <div style="display:flex;gap:20px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-      <div><div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px">COURTS</div>
-        <div class="ep-stepper"><button class="ep-step-btn" onclick="window._rotAdj('courts',-1)">−</button><span class="ep-step-val">${st.courts}</span><button class="ep-step-btn" onclick="window._rotAdj('courts',1)">+</button></div></div>
-      <div><div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px">ROUNDS</div>
-        <div class="ep-stepper"><button class="ep-step-btn" onclick="window._rotAdj('rounds',-1)">−</button><span class="ep-step-val">${st.rounds}</span><button class="ep-step-btn" onclick="window._rotAdj('rounds',1)">+</button></div></div>
-      <div style="flex:1;font-size:10px;color:var(--muted);min-width:120px">${statusTxt}</div>
-    </div>
-    <button onclick="window._rotGenerate()" style="width:100%;padding:10px;background:var(--accent);color:#000;font-size:12px;font-weight:900;border:none;border-radius:8px;cursor:pointer;letter-spacing:0.06em" ${N < 4 ? "disabled" : ""}>⚡ GENERATE ROTATION</button>
-    ${roundsHtml}`;
-};
-
-window._rotTogglePlayer = function(name) {
-  const st = window._rotState;
-  if (!st) return;
-  if (st.selected.has(name)) st.selected.delete(name);
-  else st.selected.add(name);
-  st.generated = null;
-  window._rotRender();
-};
-
-window._rotAdj = function(field, delta) {
-  const st = window._rotState;
-  if (!st) return;
-  if (field === "courts") st.courts = Math.max(1, Math.min(4, st.courts + delta));
-  if (field === "rounds") st.rounds = Math.max(1, Math.min(12, st.rounds + delta));
-  st.generated = null;
-  window._rotRender();
-};
-
-window._rotGenerate = function() {
-  const st = window._rotState;
-  if (!st || st.selected.size < 4) { window._rotRender(); return; }
-  const eloMap = _memoElo();
-  const sortedAll = [...st.selected].sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
-  const N = sortedAll.length;
-  const C = st.courts;
-  const play = C * 4;
-  const sitOutCount = Object.fromEntries(sortedAll.map((p) => [p, 0]));
-  const lastSatOut = Object.fromEntries(sortedAll.map((p) => [p, -Infinity]));
-  const rounds = [];
-  for (let r = 0; r < st.rounds; r++) {
-    const numSit = Math.max(0, N - play);
-    const sitters = numSit > 0
-      ? [...sortedAll].sort((a, b) => sitOutCount[a] !== sitOutCount[b] ? sitOutCount[a] - sitOutCount[b] : lastSatOut[a] - lastSatOut[b]).slice(0, numSit)
-      : [];
-    sitters.forEach((p) => { sitOutCount[p]++; lastSatOut[p] = r; });
-    const playing = sortedAll.filter((p) => !sitters.includes(p));
-    const courtsData = [];
-    for (let c = 0; c < C; c++) {
-      const q = playing.slice(c * 4, c * 4 + 4);
-      if (q.length < 4) break;
-      // Even rounds: rank0+rank3 vs rank1+rank2 (snake); odd rounds: rank0+rank2 vs rank1+rank3 (alt)
-      const teamA = r % 2 === 0 ? [q[0], q[3]] : [q[0], q[2]];
-      const teamB = r % 2 === 0 ? [q[1], q[2]] : [q[1], q[3]];
-      courtsData.push({ court: c + 1, teamA, teamB, avgA: (eloMap[teamA[0]] || 1000 + eloMap[teamA[1]] || 1000) / 2, avgB: (eloMap[teamB[0]] || 1000 + eloMap[teamB[1]] || 1000) / 2 });
-    }
-    if (!courtsData.length) break;
-    rounds.push({ r: r + 1, courts: courtsData, sitters });
-  }
-  st.generated = rounds;
-  window._rotRender();
-};
-
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
@@ -17416,32 +17296,86 @@ function toggleSessionPanel() {
 }
 
 // ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
+function _mkEloTeams(pick4, eloMap, alt) {
+  const s = [...pick4].sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
+  const teamA = alt ? [s[0], s[2]] : [s[0], s[3]];
+  const teamB = alt ? [s[1], s[3]] : [s[1], s[2]];
+  const avgA = ((eloMap[teamA[0]] || 1000) + (eloMap[teamA[1]] || 1000)) / 2;
+  const avgB = ((eloMap[teamB[0]] || 1000) + (eloMap[teamB[1]] || 1000)) / 2;
+  return { teamA, teamB, avgA, avgB };
+}
+
 function suggestNextMatch() {
-  const players = _liveSessionData?.sessionPlayers || [];
-  if (players.length < 4) { showToast("Need 4+ players in session", "❌"); return; }
+  const sessionPlayers = _liveSessionData?.sessionPlayers || [];
+  if (sessionPlayers.length < 4) { showToast("Need 4+ players in session", "❌"); return; }
+  const eloMap = _memoElo();
   const counts = {};
-  players.forEach(p => counts[p] = 0);
+  sessionPlayers.forEach(p => counts[p] = 0);
   _sessionMatchHistory.forEach(m => {
     [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
   });
-  const sorted = [...players].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
+  const sorted = [...sessionPlayers].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
   const pick4 = sorted.slice(0, 4);
-  // Snake-draft ELO balance: sort desc, pair [0]+[2] vs [1]+[3]
-  // (1st & 3rd vs 2nd & 4th — minimises avg ELO gap between teams)
-  const eloMap = _memoElo();
-  pick4.sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
-  _liveSlots.a1 = pick4[0]; _liveSlots.a2 = pick4[2];
-  _liveSlots.b1 = pick4[1]; _liveSlots.b2 = pick4[3];
+  const suggestions = [
+    _mkEloTeams(pick4, eloMap, false), // snake: best+worst vs 2nd+3rd
+    sorted.length >= 8
+      ? _mkEloTeams(sorted.slice(4, 8), eloMap, false) // next 4 players
+      : _mkEloTeams(pick4, eloMap, true),               // alt pairing of same 4
+  ];
+  _showSuggestSheet(suggestions);
+}
+
+function _showSuggestSheet(suggestions) {
+  const sheet = document.getElementById("suggest-sheet");
+  const body = document.getElementById("suggest-sheet-body");
+  if (!sheet || !body) return;
+  body.innerHTML = suggestions.map((s, i) => {
+    const diff = Math.abs(s.avgA - s.avgB).toFixed(0);
+    return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:8px">GAME ${i + 1}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:13px;font-weight:800">${escHtml(s.teamA[0])}</div>
+          <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamA[1])}</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgA)} avg</div>
+        </div>
+        <div style="font-size:13px;font-weight:900;color:var(--muted)">VS</div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:13px;font-weight:800">${escHtml(s.teamB[0])}</div>
+          <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamB[1])}</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgB)} avg</div>
+        </div>
+      </div>
+      ${diff > 30 ? `<div style="font-size:8px;color:var(--gold);text-align:center;margin-bottom:8px">Δ${diff} ELO gap</div>` : ""}
+      <button onclick="window._applySuggestion(${i})" style="width:100%;padding:8px;background:var(--accent);color:#000;font-size:11px;font-weight:900;border:none;border-radius:6px;cursor:pointer">▶ PLAY THIS</button>
+    </div>`;
+  }).join("");
+  window._matchSuggestions = suggestions;
+  document.getElementById("suggest-sheet-overlay").style.display = "block";
+  sheet.classList.add("live-sheet-open");
+}
+
+function _closeSuggestSheet() {
+  document.getElementById("suggest-sheet")?.classList.remove("live-sheet-open");
+  const ov = document.getElementById("suggest-sheet-overlay");
+  if (ov) ov.style.display = "none";
+}
+window._closeSuggestSheet = _closeSuggestSheet;
+
+window._applySuggestion = function(idx) {
+  const s = window._matchSuggestions?.[idx];
+  if (!s) return;
+  _liveSlots.a1 = s.teamA[0]; _liveSlots.a2 = s.teamA[1];
+  _liveSlots.b1 = s.teamB[0]; _liveSlots.b2 = s.teamB[1];
   _liveScoreA = 0; _liveScoreB = 0;
   _liveGamePtsA = 0; _liveGamePtsB = 0;
   _liveAdv = null; _liveMatchEnded = false;
   _livePoints = []; _livePointUndoStack = [];
-  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  ["a1","a2","b1","b2"].forEach(sl => _renderLiveSlot(sl));
   _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
-  _renderSittingOut();
-  _checkRematchWarning();
-  showToast("Next match suggested 🎲", "✅");
-}
+  _renderSittingOut(); _checkRematchWarning();
+  _closeSuggestSheet();
+};
 
 // ── UNDO LAST SESSION MATCH ──────────────────────────────────
 function undoSessionMatch() {

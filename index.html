@@ -1054,7 +1054,6 @@ Puneet - Pun, PK
         <div class="live-session-actions">
           <button class="live-sess-action-btn" onclick="suggestNextMatch()">🎲 SUGGEST</button>
           <button class="live-sess-action-btn" id="sess-panel-toggle-btn" onclick="toggleSessionPanel()">📊 STATS</button>
-          <button class="live-sess-action-btn" onclick="openRotationSheet()">🔄 ROTATION</button>
           <button class="live-sess-action-btn live-sess-action-undo" id="live-undo-match-btn" onclick="undoSessionMatch()" style="display:none">↶ UNDO</button>
         </div>
         <div id="live-session-panel" class="live-session-panel" style="display:none">
@@ -1064,7 +1063,6 @@ Puneet - Pun, PK
       <div id="live-start-session-bar" class="live-start-session-bar">
         <div class="live-no-session-msg">No active session</div>
         <button class="live-start-session-btn" onclick="openSessionSetup()">🎾 START SESSION</button>
-        <button class="live-sess-action-btn" onclick="openRotationSheet()" style="margin-left:8px">🔄 ROTATION</button>
       </div>
 
       <div class="live-ufc-wrap">
@@ -1331,12 +1329,12 @@ Puneet - Pun, PK
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
 
-      <!-- Rotation Scheduler Sheet -->
-      <div class="live-sheet-overlay" id="rot-sheet-overlay" onclick="closeRotationSheet()" style="display:none"></div>
-      <div class="live-sheet live-sheet-tall" id="rot-sheet">
+      <!-- Suggest Next Match Sheet -->
+      <div class="live-sheet-overlay" id="suggest-sheet-overlay" onclick="window._closeSuggestSheet()" style="display:none"></div>
+      <div class="live-sheet" id="suggest-sheet">
         <div class="live-sheet-handle"></div>
-        <div class="live-sheet-title">🔄 ROTATION SCHEDULER</div>
-        <div id="rot-sheet-body" style="padding:0 14px 8px;overflow-y:auto;max-height:70vh"></div>
+        <div class="live-sheet-title">🎲 NEXT MATCH SUGGESTIONS</div>
+        <div id="suggest-sheet-body" style="padding:0 14px 8px;overflow-y:auto;max-height:60vh"></div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
 
