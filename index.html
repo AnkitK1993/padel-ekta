@@ -87,15 +87,11 @@
           <div class="hmenu-divider"></div>
           <div class="hmenu-item">
             <span class="hmenu-label">Animations</span>
-            <label class="mng-toggle">
-              <input
-                type="checkbox"
-                id="cascadeAnimToggle"
-                onchange="setCascadeAnimSetting(this.checked)"
-                checked
-              />
-              <span class="mng-toggle-slider"></span>
-            </label>
+            <div class="anim-seg" id="animSeg">
+              <button class="anim-seg-btn active" data-val="full" onclick="setAnimLevel('full')">Full</button>
+              <button class="anim-seg-btn" data-val="medium" onclick="setAnimLevel('medium')">Medium</button>
+              <button class="anim-seg-btn" data-val="off" onclick="setAnimLevel('off')">Off</button>
+            </div>
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item" id="pwa-install-btn" style="display: none">

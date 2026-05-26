@@ -2622,6 +2622,45 @@ textarea:focus {
 .mng-toggle input:checked + .mng-toggle-slider::before {
   transform: translateX(20px);
 }
+/* ── Anim segmented control ────────────────────────────────────── */
+.anim-seg {
+  display: flex;
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.anim-seg-btn {
+  flex: 1;
+  height: 28px;
+  padding: 0 9px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(var(--theme-rgb), 0.2);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: "DM Sans", sans-serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.anim-seg-btn:first-child { border-left: none; }
+.anim-seg-btn.active {
+  background: rgba(var(--theme-rgb), 0.22);
+  color: var(--accent);
+}
+
+/* ── All animations off ─────────────────────────────────────── */
+body.no-anim *,
+body.no-anim *::before,
+body.no-anim *::after {
+  animation-duration: 0ms !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0ms !important;
+  transition-delay: 0ms !important;
+}
+
 /* ── Cascade animations disabled ──────────────────────────────── */
 /* .pc, .holo-pc, table.cmp tbody tr, .card-anim keep their cardSlideUp pop */
 body.no-cascade .section-anim,

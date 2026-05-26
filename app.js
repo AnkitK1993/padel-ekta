@@ -649,7 +649,9 @@ let lastMatchSnapshot = null;
 let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a local save
 let _emailTimer = null;
 window.isAdmin = false;
-if (localStorage.getItem("cascade_anim") === "0") document.body.classList.add("no-cascade");
+const _animLevel0 = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
+if (_animLevel0 === "medium" || _animLevel0 === "off") document.body.classList.add("no-cascade");
+if (_animLevel0 === "off") document.body.classList.add("no-anim");
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
@@ -1357,8 +1359,8 @@ onAuthStateChanged(auth, (user) => {
 function updateAdminUI(user) {
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle) scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
-  const cascadeToggle = document.getElementById("cascadeAnimToggle");
-  if (cascadeToggle) cascadeToggle.checked = localStorage.getItem("cascade_anim") !== "0";
+  const _al = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
+  document.querySelectorAll(".anim-seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.val === _al));
   const fab = document.getElementById("fab");
   // Show/hide admin tabs in all tabbars
   document.querySelectorAll(".admin-tab").forEach((tab) => {
@@ -3085,9 +3087,11 @@ function setScreenshotChoiceSetting(val) {
   localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
 }
 
-function setCascadeAnimSetting(val) {
-  localStorage.setItem("cascade_anim", val ? "1" : "0");
-  document.body.classList.toggle("no-cascade", !val);
+function setAnimLevel(val) {
+  localStorage.setItem("anim_level", val);
+  document.body.classList.toggle("no-cascade", val === "medium" || val === "off");
+  document.body.classList.toggle("no-anim", val === "off");
+  document.querySelectorAll(".anim-seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.val === val));
 }
 
 function clearMatches() {
@@ -15945,7 +15949,7 @@ Object.assign(window, {
   exportData,
   exportCSV,
   setScreenshotChoiceSetting,
-  setCascadeAnimSetting,
+  setAnimLevel,
   renderHome,
   renderCompact,
   setCmpSort,
