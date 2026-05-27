@@ -16670,6 +16670,7 @@ async function syncSession() {
   _sessionPendingCount = 0;
   _sessionRedoStack = []; // sync is a checkpoint — redo history is committed and cleared
   _updateSyncBadge();
+  _saveSessionState();
   // Hide UNDO/REDO since nothing is pending after the checkpoint
   document.getElementById("live-undo-match-btn")?.style.setProperty("display", "none");
   document.getElementById("live-redo-match-btn")?.style.setProperty("display", "none");
@@ -17433,6 +17434,7 @@ function confirmUndoSession() {
   document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
   document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
+  _saveSessionState();
   renderHome(); renderCompact(); renderModernMatches();
   showToast("Last match undone ↶", "✅");
 }
@@ -17456,6 +17458,7 @@ function redoSessionMatch() {
   document.getElementById("live-undo-match-btn")?.style.setProperty("display", "");
   document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
+  _saveSessionState();
   renderHome(); renderCompact(); renderModernMatches();
   showToast("Match redone ↷", "✅");
 }
@@ -17615,8 +17618,27 @@ function _saveSessionState() {
     localStorage.setItem(_SESSION_SAVE_KEY, JSON.stringify({
       session: _liveSessionData,
       history: _sessionMatchHistory,
+      pendingCount: _sessionPendingCount,
+      redoStack: _sessionRedoStack,
       savedAt: new Date().toISOString(),
     }));
+  } catch (e) {}
+}
+
+// Re-attach locally-buffered matches (in padel_matches) that aren't yet in allMatches (cloud data).
+// Called after restoring a session on page load/refresh.
+function _reattachPendingMatches() {
+  try {
+    const localRaw = localStorage.getItem("padel_matches");
+    if (!localRaw) return;
+    const localMatches = JSON.parse(localRaw);
+    const cloudKeys = new Set(allMatches.map(_mkMatchKey));
+    const pending = localMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+    if (!pending.length) { _sessionPendingCount = 0; return; }
+    allMatches = [...allMatches, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    _sessionPendingCount = pending.length;
+    _invalidateEloMemo();
+    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   } catch (e) {}
 }
 function _clearSessionState() {
@@ -17655,29 +17677,37 @@ function checkResumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
     if (!saved) return;
-    const { session, history } = JSON.parse(saved);
+    const { session, history, pendingCount, redoStack } = JSON.parse(saved);
     if (!session?.sessionActive) return;
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
-    _sessionPendingCount = 0;
+    _sessionRedoStack = redoStack || [];
+    _sessionPendingCount = pendingCount || 0;
+    if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
     _startSessionTimer();
     _renderSessionActiveCard();
+    document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+    document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   } catch (e) {}
 }
 function resumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
     if (!saved) return;
-    const { session, history } = JSON.parse(saved);
+    const { session, history, pendingCount, redoStack } = JSON.parse(saved);
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
-    _sessionPendingCount = 0;
+    _sessionRedoStack = redoStack || [];
+    _sessionPendingCount = pendingCount || 0;
+    if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
     _startSessionTimer();
     _renderSessionActiveCard();
+    document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+    document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
     showToast("Session resumed!", "✅");
   } catch (e) { showToast("Could not resume session", "❌"); }
 }
