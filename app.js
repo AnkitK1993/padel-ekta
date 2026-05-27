@@ -1,4 +1,5 @@
-﻿import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+﻿import { initEloDeps, computeElo, computeEloHistory, computeEloPeaks, computeEloLows, _lightFingerprint, clearEloCache } from './elo.js';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
   doc,
@@ -647,6 +648,8 @@ let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
 let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a local save
+let _forcedOffline = localStorage.getItem("padel_forced_offline") === "1";
+let _firestoreUnsub = null;
 let _emailTimer = null;
 window.isAdmin = false;
 const _animLevel0 = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
@@ -772,42 +775,11 @@ function applyEloConfig() {
 }
 
 // ── ELO MEMO ───────────────────────────────────────────────
-let _eloMemo = null,
-  _eloMemoKey = "",
-  _eloMemoDecay = false;
-const _ELO_CACHE_MAX = 48;
-const _eloCalcCache = new Map();
-
-function _matchesFingerprintForCache(matches) {
-  return (matches || [])
-    .map(
-      (m) =>
-        `${m.date || ""}|${(m.teamA || []).join(",")}|${(m.teamB || []).join(",")}|${m.scoreA ?? ""}|${m.scoreB ?? ""}|${m.note || ""}`,
-    )
-    .join("~");
-}
-
-function _rememberElo(cacheKey, elo) {
-  if (_eloCalcCache.has(cacheKey)) _eloCalcCache.delete(cacheKey);
-  _eloCalcCache.set(cacheKey, elo);
-  while (_eloCalcCache.size > _ELO_CACHE_MAX) {
-    _eloCalcCache.delete(_eloCalcCache.keys().next().value);
-  }
-}
-
-function _eloCacheKey(matches, applyDecay) {
-  const decayKey = applyDecay
-    ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() })
-    : "";
-  return `${applyDecay ? "decay" : "raw"}|${decayKey}|${_matchesFingerprintForCache(matches)}`;
-}
-
-function _lightFingerprint(matches) {
-  const arr = matches || [];
-  if (!arr.length) return "0||";
-  const last = arr[arr.length - 1];
-  return `${arr.length}|${last.date || ""}|${last.scoreA ?? ""}|${last.scoreB ?? ""}`;
-}
+let _eloMemo = null, _eloMemoKey = "", _eloMemoDecay = false;
+let _eloHistMemo = null, _eloHistKey = "";
+let _eloPeaksMemo = null, _eloPeaksKey = "";
+let _eloLowsMemo = null, _eloLowsKey = "";
+initEloDeps(getEloDecayParams, todayISO);
 
 function _memoElo(decay = false) {
   const am = activeMatches();
@@ -820,10 +792,6 @@ function _memoElo(decay = false) {
   }
   return _eloMemo;
 }
-
-let _eloHistMemo = null, _eloHistKey = "";
-let _eloPeaksMemo = null, _eloPeaksKey = "";
-let _eloLowsMemo = null, _eloLowsKey = "";
 
 function _memoEloHistory() {
   const am = activeMatches();
@@ -845,9 +813,8 @@ function _memoEloLows() {
 }
 
 function _invalidateEloMemo() {
-  _eloMemoKey = "";
-  _eloMemo = null;
-  _eloCalcCache.clear();
+  _eloMemoKey = ""; _eloMemo = null;
+  clearEloCache();
   _eloHistKey = ""; _eloHistMemo = null;
   _eloPeaksKey = ""; _eloPeaksMemo = null;
   _eloLowsKey = ""; _eloLowsMemo = null;
@@ -870,16 +837,93 @@ async function saveCloudData() {
   const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
   if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   try {
+    localStorage.setItem("padel_matches", JSON.stringify(allMatches));
+  } catch (e) {}
+  if (!navigator.onLine || _forcedOffline) {
+    _setPendingSync(true);
+    return;
+  }
+  try {
     if (auth.currentUser && window.isAdmin) {
       _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the snapshot that echoes this write
       await setDoc(doc(db, "padel", "main"), payload);
+      _setPendingSync(false);
     }
   } catch (err) {
     console.error("Firestore save failed:", err);
+    _setPendingSync(true);
   }
+}
+
+function _hasPendingSync() {
+  return localStorage.getItem("padel_pending_sync") === "1";
+}
+function _setPendingSync(flag) {
+  if (flag) localStorage.setItem("padel_pending_sync", "1");
+  else localStorage.removeItem("padel_pending_sync");
+  const el = document.getElementById("sync-indicator");
+  if (el) el.style.display = flag ? "flex" : "none";
+}
+async function _trySyncNow() {
+  if (!navigator.onLine || _forcedOffline || !auth?.currentUser || !window.isAdmin) return;
+  if (!_hasPendingSync()) return;
+  const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
   try {
-    localStorage.setItem("padel_matches", JSON.stringify(allMatches));
-  } catch (e) {}
+    _lastLocalSaveTime = Date.now();
+    await setDoc(doc(db, "padel", "main"), payload);
+    _setPendingSync(false);
+    showToast("Synced to cloud", "☁️");
+  } catch (err) {
+    console.error("Sync retry failed:", err);
+  }
+}
+
+function toggleOfflineMode(on) {
+  _forcedOffline = on;
+  if (on) {
+    localStorage.setItem("padel_forced_offline", "1");
+    if (_firestoreUnsub) { _firestoreUnsub(); _firestoreUnsub = null; }
+    _setPendingSync(true);
+    showToast("Offline mode ON — tap SYNC to push manually", "✈️");
+  } else {
+    localStorage.removeItem("padel_forced_offline");
+    _resubscribeFirestore();
+    showToast("Online mode — reconnecting to cloud", "☁️");
+  }
+  const toggle = document.getElementById("offline-mode-toggle");
+  if (toggle) toggle.checked = on;
+}
+
+function _resubscribeFirestore() {
+  if (_firestoreUnsub) { _firestoreUnsub(); _firestoreUnsub = null; }
+  try {
+    _firestoreUnsub = onSnapshot(doc(db, "padel", "main"), (snap) => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      let pls, pam, npid;
+      if (d.players && typeof d.players === "object" && Object.keys(d.players).length > 0) {
+        pls = d.players; pam = d.playerAliasMap || {}; npid = d.nextPlayerId || 1;
+      } else {
+        const mig = migrateAliasMapToPlayers(d.aliasMap || {});
+        pls = mig.players; pam = mig.playerAliasMap; npid = mig.nextPlayerId;
+      }
+      const incoming = d.matches || [];
+      const _sessionBuffering = !!(_liveSessionData?.sessionActive);
+      if (_sessionBuffering && _sessionPendingCount > 0) {
+        const cloudKeys = new Set(incoming.map(_mkMatchKey));
+        const pending = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+        allMatches = pending.length
+          ? [...incoming, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+          : incoming;
+      } else {
+        allMatches = incoming;
+      }
+      players = pls; playerAliasMap = pam; nextPlayerId = npid;
+      rebuildNameMaps(); _invalidateEloMemo();
+      if (!_sessionBuffering || _sessionPendingCount === 0) _setPendingSync(false);
+      renderHome(); renderCompact(); refreshManage();
+    }, (err) => { console.error("Firestore re-subscribe error:", err); });
+  } catch (e) { console.error("Re-subscribe failed:", e); }
 }
 
 // ── PLAYER PHOTOS ──────────────────────────────────────────
@@ -1264,9 +1308,13 @@ function loadCloudData() {
     }
   } catch (e) {}
 
-  // Step 2 — Firestore live subscription
+  // Step 2 — Firestore live subscription (skipped in forced-offline mode)
+  if (_forcedOffline) {
+    window.dismissSplash("Offline mode");
+    return;
+  }
   try {
-    onSnapshot(
+    _firestoreUnsub = onSnapshot(
       doc(db, "padel", "main"),
       function (snap) {
         if (!snap.exists()) {
@@ -1317,11 +1365,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   }
 });
 
-getRedirectResult(auth)
-  .then((r) => {
-    if (r?.user) console.log("Logged in:", r.user.email);
-  })
-  .catch(console.error);
+getRedirectResult(auth).catch(console.error);
 
 let _authInitialFired = false;
 // Enhancement 21: offline indicator
@@ -1330,9 +1374,10 @@ function _updateOfflineIndicator() {
   if (!el) return;
   el.style.display = navigator.onLine ? "none" : "flex";
 }
-window.addEventListener("online", _updateOfflineIndicator);
+window.addEventListener("online", () => { _updateOfflineIndicator(); _trySyncNow(); });
 window.addEventListener("offline", _updateOfflineIndicator);
 _updateOfflineIndicator();
+_setPendingSync(_hasPendingSync());
 
 onAuthStateChanged(auth, (user) => {
   const wasAdmin = window.isAdmin;
@@ -1424,7 +1469,9 @@ function goTo(id) {
   }
 }
 function goBack() {
-  goTo(prevPage === "add" ? "home" : prevPage);
+  const curId = document.querySelector(".page.active")?.id?.replace("pg-", "");
+  const dest = prevPage === "add" ? "home" : prevPage;
+  goTo(dest === curId ? "home" : dest);
 }
 
 function _slideTab(fromPage, toPage, dir) {
@@ -3116,7 +3163,7 @@ function clearNames() {
 }
 function exportData() {
   navigator.clipboard
-    .writeText(JSON.stringify({ allMatches, aliasMap, nameMap }, null, 2))
+    .writeText(JSON.stringify({ matches: allMatches, players, playerAliasMap, nextPlayerId }, null, 2))
     .then(() => {
       const el = document.getElementById("expOk");
       el.textContent = "Copied!";
@@ -3174,12 +3221,13 @@ function importData() {
     alert("Invalid JSON data");
     return;
   }
-  if (!Array.isArray(data.allMatches) || typeof data.aliasMap !== "object") {
-    alert("JSON must include allMatches array and aliasMap object.");
+  const incomingMatches = data.matches || data.allMatches;
+  if (!Array.isArray(incomingMatches)) {
+    alert("JSON must include a matches array.");
     return;
   }
   // Enhancement 22: auto-merge instead of full replace
-  const incoming = data.allMatches || [];
+  const incoming = incomingMatches;
   const existingKeys = new Set(allMatches.map((m) => _mkMatchKey(m)));
   const newMatches = incoming.filter((m) => !existingKeys.has(_mkMatchKey(m)));
   const merged = [...allMatches, ...newMatches];
@@ -3191,8 +3239,15 @@ function importData() {
   const confirm = window.confirm(`Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`);
   if (!confirm) return;
   allMatches = merged;
-  aliasMap = { ...aliasMap, ...(data.aliasMap || {}) };
-  nameMap = { ...nameMap, ...(data.nameMap || {}) };
+  if (data.players && typeof data.players === "object") {
+    players = { ...players, ...data.players };
+    playerAliasMap = { ...playerAliasMap, ...(data.playerAliasMap || {}) };
+    if (data.nextPlayerId > nextPlayerId) nextPlayerId = data.nextPlayerId;
+    rebuildNameMaps();
+  } else {
+    aliasMap = { ...aliasMap, ...(data.aliasMap || {}) };
+    nameMap = { ...nameMap, ...(data.nameMap || {}) };
+  }
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
@@ -7017,6 +7072,30 @@ function openPlayerDetail(name) {
     return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ELO gained together</div><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
   })();
 
+  // ── PARTNER COMPATIBILITY SCORE ──────────────────────────
+  const partnerCompatHtml = (() => {
+    const pairStats = getPairStats(activeMatches())
+      .filter((ps) => ps.players.map(normPlayer).includes(normPlayer(name)) && ps.played >= 3)
+      .sort((a, b) => b.winPct - a.winPct)
+      .slice(0, 5);
+    if (!pairStats.length) return "";
+    const rows = pairStats.map((ps) => {
+      const partner = ps.players.find((p) => normPlayer(p) !== normPlayer(name)) || ps.players[0];
+      const pct = Math.round(ps.winPct);
+      const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+      const stars = pct >= 70 ? "★★★" : pct >= 55 ? "★★☆" : pct >= 45 ? "★☆☆" : "☆☆☆";
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:11px;font-weight:700">${escHtml(partner)}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:9px;color:var(--muted)">${ps.played}g</span>
+          <span style="font-size:11px;color:var(--gold)">${stars}</span>
+          <span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="ana-card"><span class="badge">Partner Compatibility</span><div style="font-size:9px;color:var(--muted);padding:4px 0 8px">Top pairings by win rate (min 3 games)</div>${rows}</div>`;
+  })();
+
   // ── BEST DAY TO PLAY ─────────────────────────────────────
   const bestDayHtml = (() => {
     const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -7365,6 +7444,8 @@ function openPlayerDetail(name) {
                 ${vsOpponentsHtml}
 
                 ${allPartnersHtml}
+
+                ${partnerCompatHtml}
 
                 ${eloProjectionHtml}
 
@@ -10132,64 +10213,6 @@ function _pillOnUp(e) {
   _pillDragReady = false;
 }
 
-function computeElo(matches, applyDecay = false) {
-  const cacheKey = _eloCacheKey(matches, applyDecay);
-  const cached = _eloCalcCache.get(cacheKey);
-  if (cached) return cached;
-
-  const elo = {};
-  const g = (n) => {
-    if (!(n in elo)) elo[n] = 1000;
-  };
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  sorted.forEach((m) => {
-    const aWon = m.scoreA > m.scoreB;
-    [...m.teamA, ...m.teamB].forEach(g);
-    const avgA =
-      m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB =
-      m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const expB = 1 - expA;
-    const deltaA = 32 * ((aWon ? 1 : 0) - expA);
-    const deltaB = 32 * ((aWon ? 0 : 1) - expB);
-    m.teamA.forEach((p) => {
-      elo[p] = Math.round(elo[p] + deltaA);
-    });
-    m.teamB.forEach((p) => {
-      elo[p] = Math.round(elo[p] + deltaB);
-    });
-  });
-  if (applyDecay && sorted.length) {
-    const { perWeek, graceDays, maxDecay, floor } = getEloDecayParams();
-    const today = todayISO();
-    const lastSeen = {};
-    sorted.forEach((m) => {
-      [...m.teamA, ...m.teamB].forEach((p) => {
-        if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
-      });
-    });
-    Object.keys(elo).forEach((p) => {
-      const last = lastSeen[p];
-      if (!last) return;
-      const daysSince = Math.round(
-        (new Date(today) - new Date(last)) / 86400000,
-      );
-      if (daysSince > graceDays) {
-        const decay = Math.min(
-          maxDecay,
-          Math.floor((daysSince - graceDays) / 7) * perWeek,
-        );
-        elo[p] = Math.max(floor, elo[p] - decay);
-      }
-    });
-  }
-  _rememberElo(cacheKey, elo);
-  return elo;
-}
-
 // ── XP + LEVELS ────────────────────────────────────────────
 function xpThreshold(level) {
   if (level <= 1) return 0;
@@ -10250,110 +10273,6 @@ function mkLvlRow(displayName) {
     ? `background:${barClr[tier]}`
     : `background:${barClr[tier]}`;
   return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">${level}</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
-}
-
-function computeEloHistory(matches) {
-  const elo = {};
-  const history = {};
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  sorted.forEach((m) => {
-    const allP = [...(m.teamA || []), ...(m.teamB || [])];
-    allP.forEach((p) => {
-      if (!(p in elo)) {
-        elo[p] = 1000;
-        history[p] = [];
-      }
-    });
-    const aWon = m.scoreA > m.scoreB;
-    const avgA =
-      m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB =
-      m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-    m.teamA.forEach((p) => {
-      elo[p] = (elo[p] || 1000) + dA;
-      history[p].push({
-        date: m.date,
-        elo: elo[p],
-        delta: dA,
-        won: aWon,
-        opponent: m.teamB.join(" & "),
-        scoreA: m.scoreA,
-        scoreB: m.scoreB,
-      });
-    });
-    m.teamB.forEach((p) => {
-      elo[p] = (elo[p] || 1000) + dB;
-      history[p].push({
-        date: m.date,
-        elo: elo[p],
-        delta: dB,
-        won: !aWon,
-        opponent: m.teamA.join(" & "),
-        scoreA: m.scoreB,
-        scoreB: m.scoreA,
-      });
-    });
-  });
-  return history;
-}
-
-function computeEloPeaks(matches) {
-  const elo = {};
-  const peaks = {};
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  sorted.forEach((m) => {
-    const allP = [...(m.teamA || []), ...(m.teamB || [])];
-    allP.forEach((p) => {
-      if (!(p in elo)) {
-        elo[p] = 1000;
-        peaks[p] = 1000;
-      }
-    });
-    const aWon = m.scoreA > m.scoreB;
-    const avgA =
-      m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB =
-      m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-    m.teamA.forEach((p) => {
-      elo[p] = (elo[p] || 1000) + dA;
-      if (elo[p] > (peaks[p] || 0)) peaks[p] = elo[p];
-    });
-    m.teamB.forEach((p) => {
-      elo[p] = (elo[p] || 1000) + dB;
-      if (elo[p] > (peaks[p] || 0)) peaks[p] = elo[p];
-    });
-  });
-  return peaks;
-}
-
-function computeEloLows(matches) {
-  const elo = {};
-  const lows = {};
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  sorted.forEach((m) => {
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      if (!(p in elo)) { elo[p] = 1000; lows[p] = 1000; }
-    });
-    const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-    m.teamA.forEach((p) => { elo[p] = (elo[p] || 1000) + dA; if (elo[p] < lows[p]) lows[p] = elo[p]; });
-    m.teamB.forEach((p) => { elo[p] = (elo[p] || 1000) + dB; if (elo[p] < lows[p]) lows[p] = elo[p]; });
-  });
-  return lows;
 }
 
 function computeBadges(name, stats, eloMap, allMatchesArr, precomputedStats) {
@@ -15633,6 +15552,91 @@ function renderAnalyticsPage() {
       body: _buildLeaderboardReplayHtml(),
     },
     {
+      key: "rivalries",
+      cat: "players",
+      title: "⚔️ Rivalries",
+      body: (() => {
+        const enc = {};
+        activeMatches().forEach((m) => {
+          const tA = m.teamA || [], tB = m.teamB || [];
+          const aWon = m.scoreA > m.scoreB;
+          tA.forEach((a) => {
+            tB.forEach((b) => {
+              const sorted = [normPlayer(a), normPlayer(b)].sort();
+              const key = sorted.join(" vs ");
+              if (!enc[key]) enc[key] = { total: 0, wins0: 0, p0: sorted[0], p1: sorted[1] };
+              enc[key].total++;
+              const p0IsA = normPlayer(a) === sorted[0];
+              if ((p0IsA && aWon) || (!p0IsA && !aWon)) enc[key].wins0++;
+            });
+          });
+        });
+        const rivals = Object.values(enc)
+          .filter((r) => r.total >= 5)
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 6);
+        if (!rivals.length)
+          return `<div class="ana-card"><div class="sub" style="padding:8px 0">Need 5+ head-to-head encounters to surface rivalries.</div></div>`;
+        return rivals.map((r) => {
+          const p0w = r.wins0, p1w = r.total - r.wins0;
+          const p0pct = Math.round((p0w / r.total) * 100);
+          const col0 = p0pct >= 60 ? "var(--green)" : p0pct <= 40 ? "var(--red)" : "var(--muted)";
+          const col1 = p0pct <= 40 ? "var(--green)" : p0pct >= 60 ? "var(--red)" : "var(--muted)";
+          return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:800;color:${col0}">${escHtml(r.p0)}</span>
+              <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.06em">${r.total} matches</span>
+              <span style="font-size:12px;font-weight:800;color:${col1}">${escHtml(r.p1)}</span>
+            </div>
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px">
+              <div style="flex:${p0pct};background:var(--accent);border-radius:3px 0 0 3px"></div>
+              <div style="flex:${100 - p0pct};background:rgba(255,255,255,0.15);border-radius:0 3px 3px 0"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px">
+              <span style="font-size:10px;font-weight:700;color:${col0}">${p0w}W (${p0pct}%)</span>
+              <span style="font-size:10px;font-weight:700;color:${col1}">${p1w}W (${100 - p0pct}%)</span>
+            </div>
+          </div>`;
+        }).join("");
+      })(),
+    },
+    {
+      key: "elodow",
+      cat: "elo",
+      title: "📅 ELO Gain by Day",
+      body: (() => {
+        const hist = _memoEloHistory();
+        const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const byDay = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
+        Object.values(hist).forEach((entries) => {
+          entries.forEach((e) => {
+            if (!e.date) return;
+            const d = new Date(e.date + "T00:00:00").getDay();
+            byDay[d].sum += e.delta;
+            byDay[d].count++;
+          });
+        });
+        const avgs = byDay.map((d) => (d.count ? d.sum / d.count : null));
+        const maxAbs = Math.max(...avgs.filter((v) => v !== null).map(Math.abs), 1);
+        const cells = DAY.map((dayName, i) => {
+          const avg = avgs[i];
+          if (avg === null)
+            return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:rgba(255,255,255,0.04);border-radius:8px"><div style="font-size:10px;color:var(--muted)">—</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:4px">${dayName}</div><div style="font-size:7px;color:var(--muted)">0g</div></div>`;
+          const intensity = Math.min(1, Math.abs(avg) / maxAbs);
+          const bg = avg >= 0
+            ? `rgba(72,199,116,${(0.1 + 0.7 * intensity).toFixed(2)})`
+            : `rgba(240,79,79,${(0.1 + 0.7 * intensity).toFixed(2)})`;
+          const col = avg >= 0 ? "var(--green)" : "var(--red)";
+          return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:${bg};border-radius:8px">
+            <div style="font-size:11px;font-weight:800;color:${col}">${avg >= 0 ? "+" : ""}${avg.toFixed(1)}</div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px">${dayName}</div>
+            <div style="font-size:7px;color:rgba(255,255,255,0.35)">${byDay[i].count}g</div>
+          </div>`;
+        }).join("");
+        return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Average ELO Δ per match played on each day</div></div>`;
+      })(),
+    },
+    {
       key: "eloproj",
       cat: "players",
       title: "🔮 ELO Projection",
@@ -15854,7 +15858,7 @@ async function sendBackupEmail(isAuto = false) {
   }
   try {
     const todayStr = todayISO();
-    const jsonData = JSON.stringify({ allMatches, aliasMap, nameMap }, null, 2);
+    const jsonData = JSON.stringify({ matches: allMatches, players, playerAliasMap, nextPlayerId }, null, 2);
 
     await emailjs.send(
       serviceId,
@@ -15918,6 +15922,9 @@ function scheduleAutoEmail() {
 // renderHome/renderCompact are called inside it after data is ready.
 renderNamesTable();
 loadCloudData();
+// Sync offline-mode toggle UI with persisted state
+const _offlineToggleEl = document.getElementById("offline-mode-toggle");
+if (_offlineToggleEl) _offlineToggleEl.checked = _forcedOffline;
 loadPhotos();
 loadDeletedMatches();
 scheduleAutoEmail();
@@ -15950,6 +15957,7 @@ Object.assign(window, {
   exportCSV,
   setScreenshotChoiceSetting,
   setAnimLevel,
+  toggleOfflineMode,
   renderHome,
   renderCompact,
   setCmpSort,
@@ -16130,6 +16138,9 @@ Object.assign(window, {
   toggleSessionPanel,
   suggestNextMatch,
   undoSessionMatch,
+  redoSessionMatch,
+  closeUndoConfirmSheet,
+  confirmUndoSession,
   saveAndRematch,
   openSessionSummary,
   closeSessionSummary,
@@ -16162,6 +16173,7 @@ let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
 let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
+let _sessionRedoStack = [];       // matches popped by undo, available for redo
 let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
 let _sessionPanelOpen = false;    // whether the session stats panel is expanded
 
@@ -16672,14 +16684,15 @@ function endLiveMatch() {
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
     _sessionMatchHistory.push({ teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, date });
+    _sessionRedoStack = []; // new match invalidates redo history
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
     // Buffer locally — don't write to Firestore until SYNC or End Session
     _sessionPendingCount++;
     _updateSyncBadge();
     _syncLiveSessionBar();
     if (_sessionPanelOpen) _updateSessionPanel();
-    const undoBtn = document.getElementById("live-undo-match-btn");
-    if (undoBtn) undoBtn.style.display = "";
+    document.getElementById("live-undo-match-btn")?.style.setProperty("display", "");
+    document.getElementById("live-redo-match-btn")?.style.setProperty("display", "none");
     _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
@@ -16719,9 +16732,17 @@ function _updateSyncBadge() {
 async function syncSession() {
   if (_sessionPendingCount === 0) { showToast("Nothing to sync", "✅"); return; }
   const count = _sessionPendingCount;
+  const wasForced = _forcedOffline;
+  _forcedOffline = false; // one-shot push — bypass forced offline
   await saveCloudData();
+  _forcedOffline = wasForced;
   _sessionPendingCount = 0;
+  _sessionRedoStack = []; // sync is a checkpoint — redo history is committed and cleared
   _updateSyncBadge();
+  _saveSessionState();
+  // Hide UNDO/REDO since nothing is pending after the checkpoint
+  document.getElementById("live-undo-match-btn")?.style.setProperty("display", "none");
+  document.getElementById("live-redo-match-btn")?.style.setProperty("display", "none");
   showToast(`Synced ${count} match${count !== 1 ? "es" : ""} to cloud`, "☁️");
 }
 
@@ -17354,55 +17375,161 @@ function toggleSessionPanel() {
 }
 
 // ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
+function _mkEloTeams(pick4, eloMap, alt) {
+  const s = [...pick4].sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
+  const teamA = alt ? [s[0], s[2]] : [s[0], s[3]];
+  const teamB = alt ? [s[1], s[3]] : [s[1], s[2]];
+  const avgA = ((eloMap[teamA[0]] || 1000) + (eloMap[teamA[1]] || 1000)) / 2;
+  const avgB = ((eloMap[teamB[0]] || 1000) + (eloMap[teamB[1]] || 1000)) / 2;
+  return { teamA, teamB, avgA, avgB };
+}
+
 function suggestNextMatch() {
-  const players = _liveSessionData?.sessionPlayers || [];
-  if (players.length < 4) { showToast("Need 4+ players in session", "❌"); return; }
+  const sessionPlayers = _liveSessionData?.sessionPlayers || [];
+  if (sessionPlayers.length < 4) { showToast("Need 4+ players in session", "❌"); return; }
+  const eloMap = _memoElo();
   const counts = {};
-  players.forEach(p => counts[p] = 0);
+  sessionPlayers.forEach(p => counts[p] = 0);
   _sessionMatchHistory.forEach(m => {
     [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
   });
-  const sorted = [...players].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
+  const sorted = [...sessionPlayers].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
   const pick4 = sorted.slice(0, 4);
-  // Snake-draft ELO balance: sort desc, pair [0]+[2] vs [1]+[3]
-  // (1st & 3rd vs 2nd & 4th — minimises avg ELO gap between teams)
-  const eloMap = _memoElo();
-  pick4.sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
-  _liveSlots.a1 = pick4[0]; _liveSlots.a2 = pick4[2];
-  _liveSlots.b1 = pick4[1]; _liveSlots.b2 = pick4[3];
+  const suggestions = [
+    _mkEloTeams(pick4, eloMap, false), // snake: best+worst vs 2nd+3rd
+    sorted.length >= 8
+      ? _mkEloTeams(sorted.slice(4, 8), eloMap, false) // next 4 players
+      : _mkEloTeams(pick4, eloMap, true),               // alt pairing of same 4
+  ];
+  _showSuggestSheet(suggestions);
+}
+
+function _showSuggestSheet(suggestions) {
+  const sheet = document.getElementById("suggest-sheet");
+  const body = document.getElementById("suggest-sheet-body");
+  if (!sheet || !body) return;
+  body.innerHTML = suggestions.map((s, i) => {
+    const diff = Math.abs(s.avgA - s.avgB).toFixed(0);
+    return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:8px">GAME ${i + 1}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:13px;font-weight:800">${escHtml(s.teamA[0])}</div>
+          <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamA[1])}</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgA)} avg</div>
+        </div>
+        <div style="font-size:13px;font-weight:900;color:var(--muted)">VS</div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:13px;font-weight:800">${escHtml(s.teamB[0])}</div>
+          <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamB[1])}</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgB)} avg</div>
+        </div>
+      </div>
+      ${diff > 30 ? `<div style="font-size:8px;color:var(--gold);text-align:center;margin-bottom:8px">Δ${diff} ELO gap</div>` : ""}
+      <button onclick="window._applySuggestion(${i})" style="width:100%;padding:8px;background:var(--accent);color:#000;font-size:11px;font-weight:900;border:none;border-radius:6px;cursor:pointer">▶ PLAY THIS</button>
+    </div>`;
+  }).join("");
+  window._matchSuggestions = suggestions;
+  document.getElementById("suggest-sheet-overlay").style.display = "block";
+  sheet.classList.add("live-sheet-open");
+}
+
+function _closeSuggestSheet() {
+  document.getElementById("suggest-sheet")?.classList.remove("live-sheet-open");
+  const ov = document.getElementById("suggest-sheet-overlay");
+  if (ov) ov.style.display = "none";
+}
+window._closeSuggestSheet = _closeSuggestSheet;
+
+window._applySuggestion = function(idx) {
+  const s = window._matchSuggestions?.[idx];
+  if (!s) return;
+  _liveSlots.a1 = s.teamA[0]; _liveSlots.a2 = s.teamA[1];
+  _liveSlots.b1 = s.teamB[0]; _liveSlots.b2 = s.teamB[1];
   _liveScoreA = 0; _liveScoreB = 0;
   _liveGamePtsA = 0; _liveGamePtsB = 0;
   _liveAdv = null; _liveMatchEnded = false;
   _livePoints = []; _livePointUndoStack = [];
-  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  ["a1","a2","b1","b2"].forEach(sl => _renderLiveSlot(sl));
   _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
-  _renderSittingOut();
-  _checkRematchWarning();
-  showToast("Next match suggested 🎲", "✅");
-}
+  _renderSittingOut(); _checkRematchWarning();
+  _closeSuggestSheet();
+};
 
 // ── UNDO LAST SESSION MATCH ──────────────────────────────────
 function undoSessionMatch() {
+  if (!_sessionPendingCount) { showToast("Nothing to undo — all matches are synced", "🔒"); return; }
   if (!_sessionMatchHistory.length) { showToast("No match to undo", "❌"); return; }
+  const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
+  // Show confirmation sheet with match details
+  const body = document.getElementById("undo-confirm-body");
+  if (body) {
+    body.innerHTML = `
+      <div style="margin:6px 0 14px;font-size:13px;font-weight:800">
+        ${escHtml(last.teamA.join(" & "))}
+        <span style="color:var(--muted);font-weight:700;margin:0 8px">${last.scoreA}–${last.scoreB}</span>
+        ${escHtml(last.teamB.join(" & "))}
+      </div>
+      <div style="font-size:10px;color:var(--muted)">${last.date || ""}</div>`;
+  }
+  document.getElementById("undo-confirm-overlay")?.style.setProperty("display", "block");
+  document.getElementById("undo-confirm-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeUndoConfirmSheet() {
+  document.getElementById("undo-confirm-overlay")?.style.setProperty("display", "none");
+  document.getElementById("undo-confirm-sheet")?.classList.remove("live-sheet-open");
+}
+
+function confirmUndoSession() {
+  closeUndoConfirmSheet();
+  if (!_sessionMatchHistory.length) return;
   const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
   const key = _mkMatchKey(last);
   const idx = allMatches.findIndex(m => _mkMatchKey(m) === key);
   if (idx !== -1) allMatches.splice(idx, 1);
   _sessionMatchHistory.pop();
+  _sessionRedoStack.push(last);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
   _updateSyncBadge();
   _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
   _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
   ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-  _updateLiveDisplay(); _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
   _syncLiveSessionBar();
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
   _checkRematchWarning();
-  const undoBtn = document.getElementById("live-undo-match-btn");
-  if (undoBtn) undoBtn.style.display = _sessionMatchHistory.length > 0 ? "" : "none";
+  document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+  document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+  _invalidateEloMemo();
+  _saveSessionState();
   renderHome(); renderCompact(); renderModernMatches();
   showToast("Last match undone ↶", "✅");
+}
+
+// ── REDO LAST UNDONE SESSION MATCH ───────────────────────────
+function redoSessionMatch() {
+  if (!_sessionRedoStack.length) { showToast("Nothing to redo", "❌"); return; }
+  const match = _sessionRedoStack.pop();
+  allMatches.push({ ...match });
+  _sessionMatchHistory.push(match);
+  _sessionPendingCount++;
+  _updateSyncBadge();
+  _liveSlots.a1 = match.teamA[0]; _liveSlots.a2 = match.teamA[1];
+  _liveSlots.b1 = match.teamB[0]; _liveSlots.b2 = match.teamB[1];
+  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _syncLiveSessionBar();
+  if (_sessionPanelOpen) _updateSessionPanel();
+  _renderSittingOut();
+  _checkRematchWarning();
+  document.getElementById("live-undo-match-btn")?.style.setProperty("display", "");
+  document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+  _invalidateEloMemo();
+  _saveSessionState();
+  renderHome(); renderCompact(); renderModernMatches();
+  showToast("Match redone ↷", "✅");
 }
 
 // ── SAVE + REMATCH ───────────────────────────────────────────
@@ -17481,6 +17608,7 @@ async function confirmEndSession() {
   }
   _liveSessionData = null;
   _sessionMatchHistory = [];
+  _sessionRedoStack = [];
   _sessionPanelOpen = false;
   _clearSessionState(); // Enhancement 13: clear persisted session
   _syncLiveSessionBar();
@@ -17559,8 +17687,27 @@ function _saveSessionState() {
     localStorage.setItem(_SESSION_SAVE_KEY, JSON.stringify({
       session: _liveSessionData,
       history: _sessionMatchHistory,
+      pendingCount: _sessionPendingCount,
+      redoStack: _sessionRedoStack,
       savedAt: new Date().toISOString(),
     }));
+  } catch (e) {}
+}
+
+// Re-attach locally-buffered matches (in padel_matches) that aren't yet in allMatches (cloud data).
+// Called after restoring a session on page load/refresh.
+function _reattachPendingMatches() {
+  try {
+    const localRaw = localStorage.getItem("padel_matches");
+    if (!localRaw) return;
+    const localMatches = JSON.parse(localRaw);
+    const cloudKeys = new Set(allMatches.map(_mkMatchKey));
+    const pending = localMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+    if (!pending.length) { _sessionPendingCount = 0; return; }
+    allMatches = [...allMatches, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    _sessionPendingCount = pending.length;
+    _invalidateEloMemo();
+    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   } catch (e) {}
 }
 function _clearSessionState() {
@@ -17599,29 +17746,39 @@ function checkResumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
     if (!saved) return;
-    const { session, history } = JSON.parse(saved);
+    const { session, history, pendingCount, redoStack } = JSON.parse(saved);
     if (!session?.sessionActive) return;
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
-    _sessionPendingCount = 0;
+    _sessionRedoStack = redoStack || [];
+    _sessionPendingCount = pendingCount || 0;
+    if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
+    _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
+    document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+    document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   } catch (e) {}
 }
 function resumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
     if (!saved) return;
-    const { session, history } = JSON.parse(saved);
+    const { session, history, pendingCount, redoStack } = JSON.parse(saved);
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
-    _sessionPendingCount = 0;
+    _sessionRedoStack = redoStack || [];
+    _sessionPendingCount = pendingCount || 0;
+    if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
+    _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
+    document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+    document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
     showToast("Session resumed!", "✅");
   } catch (e) { showToast("Could not resume session", "❌"); }
 }
@@ -17638,6 +17795,7 @@ function confirmSessionStart() {
   _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
   _sessionPendingCount = 0;
   _sessionMatchHistory = [];
+  _sessionRedoStack = [];
   _sessionPanelOpen = false;
   _updateSyncBadge();
   _syncLiveSessionBar();

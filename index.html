@@ -36,6 +36,7 @@
     </div>
     <!-- Enhancement 21: offline indicator -->
     <div id="offline-indicator">📡 OFFLINE</div>
+    <div id="sync-indicator">⏳ PENDING SYNC</div>
 
 
     <!-- ══════════ SPLASH SCREEN ══════════ -->
@@ -92,6 +93,14 @@
               <button class="anim-seg-btn" data-val="medium" onclick="setAnimLevel('medium')">Medium</button>
               <button class="anim-seg-btn" data-val="off" onclick="setAnimLevel('off')">Off</button>
             </div>
+          </div>
+          <div class="hmenu-divider"></div>
+          <div class="hmenu-item">
+            <span class="hmenu-label">Offline Mode</span>
+            <label class="hmenu-toggle">
+              <input type="checkbox" id="offline-mode-toggle" onchange="toggleOfflineMode(this.checked)">
+              <span class="hmenu-toggle-slider"></span>
+            </label>
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item" id="pwa-install-btn" style="display: none">
@@ -1054,6 +1063,7 @@ Puneet - Pun, PK
           <button class="live-sess-action-btn" onclick="suggestNextMatch()">🎲 SUGGEST</button>
           <button class="live-sess-action-btn" id="sess-panel-toggle-btn" onclick="toggleSessionPanel()">📊 STATS</button>
           <button class="live-sess-action-btn live-sess-action-undo" id="live-undo-match-btn" onclick="undoSessionMatch()" style="display:none">↶ UNDO</button>
+          <button class="live-sess-action-btn live-sess-action-redo" id="live-redo-match-btn" onclick="redoSessionMatch()" style="display:none">↷ REDO</button>
         </div>
         <div id="live-session-panel" class="live-session-panel" style="display:none">
           <div id="live-session-leaderboard"></div>
@@ -1325,6 +1335,28 @@ Puneet - Pun, PK
           <button class="live-start-session-btn" onclick="confirmStartMatch()">▶️ START MATCH</button>
           <button class="tb-btn" onclick="closeMatchConfirmSheet()" style="padding:12px;font-size:13px">✏️ MAKE CHANGES</button>
         </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
+      <!-- Undo Confirm Sheet -->
+      <div class="live-sheet-overlay" id="undo-confirm-overlay" onclick="closeUndoConfirmSheet()" style="display:none"></div>
+      <div class="live-sheet" id="undo-confirm-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">UNDO MATCH?</div>
+        <div id="undo-confirm-body" style="padding:4px 14px 2px;text-align:center"></div>
+        <div style="padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px">
+          <button onclick="confirmUndoSession()" style="padding:13px;background:rgba(255,80,80,0.2);border:1px solid rgba(255,80,80,0.4);color:#ff7070;font-size:13px;font-weight:900;border-radius:10px;cursor:pointer;letter-spacing:0.04em">↶ YES, UNDO MATCH</button>
+          <button onclick="closeUndoConfirmSheet()" class="tb-btn" style="padding:12px;font-size:13px">CANCEL</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
+      <!-- Suggest Next Match Sheet -->
+      <div class="live-sheet-overlay" id="suggest-sheet-overlay" onclick="window._closeSuggestSheet()" style="display:none"></div>
+      <div class="live-sheet" id="suggest-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">🎲 NEXT MATCH SUGGESTIONS</div>
+        <div id="suggest-sheet-body" style="padding:0 14px 8px;overflow-y:auto;max-height:60vh"></div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
 
