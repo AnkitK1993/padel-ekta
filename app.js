@@ -3109,7 +3109,7 @@ function clearNames() {
 }
 function exportData() {
   navigator.clipboard
-    .writeText(JSON.stringify({ allMatches, aliasMap, nameMap }, null, 2))
+    .writeText(JSON.stringify({ matches: allMatches, players, playerAliasMap, nextPlayerId }, null, 2))
     .then(() => {
       const el = document.getElementById("expOk");
       el.textContent = "Copied!";
@@ -3167,12 +3167,13 @@ function importData() {
     alert("Invalid JSON data");
     return;
   }
-  if (!Array.isArray(data.allMatches) || typeof data.aliasMap !== "object") {
-    alert("JSON must include allMatches array and aliasMap object.");
+  const incomingMatches = data.matches || data.allMatches;
+  if (!Array.isArray(incomingMatches)) {
+    alert("JSON must include a matches array.");
     return;
   }
   // Enhancement 22: auto-merge instead of full replace
-  const incoming = data.allMatches || [];
+  const incoming = incomingMatches;
   const existingKeys = new Set(allMatches.map((m) => _mkMatchKey(m)));
   const newMatches = incoming.filter((m) => !existingKeys.has(_mkMatchKey(m)));
   const merged = [...allMatches, ...newMatches];
@@ -3184,8 +3185,15 @@ function importData() {
   const confirm = window.confirm(`Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`);
   if (!confirm) return;
   allMatches = merged;
-  aliasMap = { ...aliasMap, ...(data.aliasMap || {}) };
-  nameMap = { ...nameMap, ...(data.nameMap || {}) };
+  if (data.players && typeof data.players === "object") {
+    players = { ...players, ...data.players };
+    playerAliasMap = { ...playerAliasMap, ...(data.playerAliasMap || {}) };
+    if (data.nextPlayerId > nextPlayerId) nextPlayerId = data.nextPlayerId;
+    rebuildNameMaps();
+  } else {
+    aliasMap = { ...aliasMap, ...(data.aliasMap || {}) };
+    nameMap = { ...nameMap, ...(data.nameMap || {}) };
+  }
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
@@ -15796,7 +15804,7 @@ async function sendBackupEmail(isAuto = false) {
   }
   try {
     const todayStr = todayISO();
-    const jsonData = JSON.stringify({ allMatches, aliasMap, nameMap }, null, 2);
+    const jsonData = JSON.stringify({ matches: allMatches, players, playerAliasMap, nextPlayerId }, null, 2);
 
     await emailjs.send(
       serviceId,
