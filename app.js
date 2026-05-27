@@ -907,10 +907,20 @@ function _resubscribeFirestore() {
         const mig = migrateAliasMapToPlayers(d.aliasMap || {});
         pls = mig.players; pam = mig.playerAliasMap; npid = mig.nextPlayerId;
       }
-      allMatches = d.matches || [];
+      const incoming = d.matches || [];
+      const _sessionBuffering = !!(_liveSessionData?.sessionActive);
+      if (_sessionBuffering && _sessionPendingCount > 0) {
+        const cloudKeys = new Set(incoming.map(_mkMatchKey));
+        const pending = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+        allMatches = pending.length
+          ? [...incoming, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+          : incoming;
+      } else {
+        allMatches = incoming;
+      }
       players = pls; playerAliasMap = pam; nextPlayerId = npid;
       rebuildNameMaps(); _invalidateEloMemo();
-      _setPendingSync(false);
+      if (!_sessionBuffering || _sessionPendingCount === 0) _setPendingSync(false);
       renderHome(); renderCompact(); refreshManage();
     }, (err) => { console.error("Firestore re-subscribe error:", err); });
   } catch (e) { console.error("Re-subscribe failed:", e); }
@@ -17485,7 +17495,7 @@ function confirmUndoSession() {
   _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
   _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
   ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-  _updateLiveDisplay(); _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
   _syncLiveSessionBar();
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
@@ -17509,7 +17519,7 @@ function redoSessionMatch() {
   _liveSlots.a1 = match.teamA[0]; _liveSlots.a2 = match.teamA[1];
   _liveSlots.b1 = match.teamB[0]; _liveSlots.b2 = match.teamB[1];
   ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-  _updateLiveDisplay(); _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
   _syncLiveSessionBar();
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
@@ -17745,6 +17755,7 @@ function checkResumeSession() {
     if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
+    _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
     document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
@@ -17763,6 +17774,7 @@ function resumeSession() {
     if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
+    _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
     document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
