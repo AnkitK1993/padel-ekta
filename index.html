@@ -95,6 +95,14 @@
             </div>
           </div>
           <div class="hmenu-divider"></div>
+          <div class="hmenu-item">
+            <span class="hmenu-label">Offline Mode</span>
+            <label class="hmenu-toggle">
+              <input type="checkbox" id="offline-mode-toggle" onchange="toggleOfflineMode(this.checked)">
+              <span class="hmenu-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="hmenu-divider"></div>
           <div class="hmenu-item" id="pwa-install-btn" style="display: none">
             <span class="hmenu-label">Install App</span>
             <button onclick="triggerInstall()" class="hmenu-action-btn">

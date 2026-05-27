@@ -648,6 +648,8 @@ let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
 let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a local save
+let _forcedOffline = localStorage.getItem("padel_forced_offline") === "1";
+let _firestoreUnsub = null;
 let _emailTimer = null;
 window.isAdmin = false;
 const _animLevel0 = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
@@ -837,7 +839,7 @@ async function saveCloudData() {
   try {
     localStorage.setItem("padel_matches", JSON.stringify(allMatches));
   } catch (e) {}
-  if (!navigator.onLine) {
+  if (!navigator.onLine || _forcedOffline) {
     _setPendingSync(true);
     return;
   }
@@ -863,7 +865,7 @@ function _setPendingSync(flag) {
   if (el) el.style.display = flag ? "flex" : "none";
 }
 async function _trySyncNow() {
-  if (!navigator.onLine || !auth?.currentUser || !window.isAdmin) return;
+  if (!navigator.onLine || _forcedOffline || !auth?.currentUser || !window.isAdmin) return;
   if (!_hasPendingSync()) return;
   const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
   try {
@@ -874,6 +876,44 @@ async function _trySyncNow() {
   } catch (err) {
     console.error("Sync retry failed:", err);
   }
+}
+
+function toggleOfflineMode(on) {
+  _forcedOffline = on;
+  if (on) {
+    localStorage.setItem("padel_forced_offline", "1");
+    if (_firestoreUnsub) { _firestoreUnsub(); _firestoreUnsub = null; }
+    _setPendingSync(true);
+    showToast("Offline mode ON — tap SYNC to push manually", "✈️");
+  } else {
+    localStorage.removeItem("padel_forced_offline");
+    _resubscribeFirestore();
+    showToast("Online mode — reconnecting to cloud", "☁️");
+  }
+  const toggle = document.getElementById("offline-mode-toggle");
+  if (toggle) toggle.checked = on;
+}
+
+function _resubscribeFirestore() {
+  if (_firestoreUnsub) { _firestoreUnsub(); _firestoreUnsub = null; }
+  try {
+    _firestoreUnsub = onSnapshot(doc(db, "padel", "main"), (snap) => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      let pls, pam, npid;
+      if (d.players && typeof d.players === "object" && Object.keys(d.players).length > 0) {
+        pls = d.players; pam = d.playerAliasMap || {}; npid = d.nextPlayerId || 1;
+      } else {
+        const mig = migrateAliasMapToPlayers(d.aliasMap || {});
+        pls = mig.players; pam = mig.playerAliasMap; npid = mig.nextPlayerId;
+      }
+      allMatches = d.matches || [];
+      players = pls; playerAliasMap = pam; nextPlayerId = npid;
+      rebuildNameMaps(); _invalidateEloMemo();
+      _setPendingSync(false);
+      renderHome(); renderCompact(); refreshManage();
+    }, (err) => { console.error("Firestore re-subscribe error:", err); });
+  } catch (e) { console.error("Re-subscribe failed:", e); }
 }
 
 // ── PLAYER PHOTOS ──────────────────────────────────────────
@@ -1258,9 +1298,13 @@ function loadCloudData() {
     }
   } catch (e) {}
 
-  // Step 2 — Firestore live subscription
+  // Step 2 — Firestore live subscription (skipped in forced-offline mode)
+  if (_forcedOffline) {
+    window.dismissSplash("Offline mode");
+    return;
+  }
   try {
-    onSnapshot(
+    _firestoreUnsub = onSnapshot(
       doc(db, "padel", "main"),
       function (snap) {
         if (!snap.exists()) {
@@ -15868,6 +15912,9 @@ function scheduleAutoEmail() {
 // renderHome/renderCompact are called inside it after data is ready.
 renderNamesTable();
 loadCloudData();
+// Sync offline-mode toggle UI with persisted state
+const _offlineToggleEl = document.getElementById("offline-mode-toggle");
+if (_offlineToggleEl) _offlineToggleEl.checked = _forcedOffline;
 loadPhotos();
 loadDeletedMatches();
 scheduleAutoEmail();
@@ -15900,6 +15947,7 @@ Object.assign(window, {
   exportCSV,
   setScreenshotChoiceSetting,
   setAnimLevel,
+  toggleOfflineMode,
   renderHome,
   renderCompact,
   setCmpSort,
@@ -16674,7 +16722,10 @@ function _updateSyncBadge() {
 async function syncSession() {
   if (_sessionPendingCount === 0) { showToast("Nothing to sync", "✅"); return; }
   const count = _sessionPendingCount;
+  const wasForced = _forcedOffline;
+  _forcedOffline = false; // one-shot push — bypass forced offline
   await saveCloudData();
+  _forcedOffline = wasForced;
   _sessionPendingCount = 0;
   _sessionRedoStack = []; // sync is a checkpoint — redo history is committed and cleared
   _updateSyncBadge();
