@@ -6919,17 +6919,17 @@ function openPlayerDetail(name) {
       <span class="badge">Leaderboard Race</span>
       <div class="det-streak-row">
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rAll ? `#<span id="pd-rank-cur" data-final="${rAll}">${rAll}</span>` : "—"}</div>
+          <div class="det-streak-val" style="color:${rAll ? _rankColor(rAll, allRanked.length) : "var(--muted)"}">${rAll ? `#<span id="pd-rank-cur" data-final="${rAll}">${rAll}</span>` : "—"}</div>
           <div class="sub">Current Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">${rPre}</span>` : "—"}</div>
+          <div class="det-streak-val" style="color:${rPre ? _rankColor(rPre, allRanked.length) : "var(--muted)"}">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">${rPre}</span>` : "—"}</div>
           <div class="sub">Last Wk. Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
-          <div class="det-streak-val" style="color:var(--gold)">${bestRank ? `#<span id="pd-rank-best" data-final="${bestRank}">${bestRank}</span>` : "—"}</div>
+          <div class="det-streak-val" style="color:${bestRank ? _rankColor(bestRank, allRanked.length) : "var(--muted)"}">${bestRank ? `#<span id="pd-rank-best" data-final="${bestRank}">${bestRank}</span>` : "—"}</div>
           <div class="sub">Best Rank</div>
         </div>
         <div class="det-streak-div"></div>
