@@ -12399,14 +12399,14 @@ function _buildRankReignHtml(periodType) {
 function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
   const allPeriods = _computeRankPeriods(periodType);
   const validPeriods = allPeriods.filter(p => p.ranks.length > 0);
+  const _tlPills = (active) => `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <button class="digest-filter-btn${active==="today"?" active":""}" onclick="_timelineSetPeriod(this,'today')">DAILY</button>
+    <button class="digest-filter-btn${active==="week"?" active":""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
+    <button class="digest-filter-btn${active==="weekend"?" active":""}" onclick="_timelineSetPeriod(this,'weekend')">WEEKEND</button>
+    <button class="digest-filter-btn${active==="month"?" active":""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
+  </div>`;
   if (validPeriods.length < 2)
-    return `<div>
-      <div style="display:flex;gap:6px;margin-bottom:10px">
-        <button class="digest-filter-btn${periodType === "week" ? " active" : ""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
-        <button class="digest-filter-btn${periodType === "month" ? " active" : ""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
-      </div>
-      <div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>
-    </div>`;
+    return `<div>${_tlPills(periodType)}<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div></div>`;
 
   const periods = validPeriods.slice(-maxPeriods);
   const playerSet = new Set();
@@ -12447,11 +12447,7 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
     ["rhtl-top6","4–6"], ["rhtl-lower","7+"], ["rhtl-absent","—"],
   ].map(([cls, lbl]) => `<span class="rhtl-leg-cell ${cls}"></span>${lbl}`).join("");
 
-  return `<div>
-    <div style="display:flex;gap:6px;margin-bottom:10px">
-      <button class="digest-filter-btn${periodType === "week" ? " active" : ""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
-      <button class="digest-filter-btn${periodType === "month" ? " active" : ""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
-    </div>
+  return `<div>${_tlPills(periodType)}
     <div class="ana-card" style="padding:10px 12px">
       <div class="rhtl-legend">${legendItems}</div>
       <div class="rhtl-wrap">
@@ -15781,12 +15777,12 @@ function renderAnalyticsPage() {
       title: "🥇 Podium Tracker",
       body: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-          <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'week')">WEEKLY</button>
-          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'month')">MONTHLY</button>
-          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
+          <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'week')">WEEKLY</button>
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'weekend')">WEEKEND</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'month')">MONTHLY</button>
         </div>
-        <div class="podium-content">${_buildPodiumTrackerHtml("week")}</div>
+        <div class="podium-content">${_buildPodiumTrackerHtml("today")}</div>
       </div>`,
     },
     {
@@ -15794,18 +15790,20 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "👑 Rank Reign",
       body: `<div>
-        <div style="display:flex;gap:6px;margin-bottom:12px">
-          <button class="digest-filter-btn active" onclick="_reignSetPeriod(this,'week')">WEEKLY</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="digest-filter-btn active" onclick="_reignSetPeriod(this,'today')">DAILY</button>
+          <button class="digest-filter-btn" onclick="_reignSetPeriod(this,'week')">WEEKLY</button>
+          <button class="digest-filter-btn" onclick="_reignSetPeriod(this,'weekend')">WEEKEND</button>
           <button class="digest-filter-btn" onclick="_reignSetPeriod(this,'month')">MONTHLY</button>
         </div>
-        <div class="reign-content">${_buildRankReignHtml("week")}</div>
+        <div class="reign-content">${_buildRankReignHtml("today")}</div>
       </div>`,
     },
     {
       key: "ranktimeline",
       cat: "players",
       title: "📅 Rank Timeline",
-      body: _buildRankTimelineHtml("week"),
+      body: _buildRankTimelineHtml("today"),
     },
     {
       key: "clutchrank",
