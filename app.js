@@ -12255,16 +12255,21 @@ function _buildPodiumTrackerHtml(periodType) {
   if (validPeriods.length < 2)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
 
+  let maxRank = 3;
   const tally = {};
   validPeriods.forEach((p) => {
     p.ranks.forEach((r) => {
-      if (!tally[r.name]) tally[r.name] = { name: r.name, g: 0, s: 0, b: 0, periodsPlayed: 0 };
+      if (!tally[r.name]) tally[r.name] = { name: r.name, g: 0, s: 0, b: 0, periodsPlayed: 0, extra: {} };
       tally[r.name].periodsPlayed++;
       if (r.rank === 1) tally[r.name].g++;
       else if (r.rank === 2) tally[r.name].s++;
       else if (r.rank === 3) tally[r.name].b++;
+      else { tally[r.name].extra[r.rank] = (tally[r.name].extra[r.rank] || 0) + 1; }
+      if (r.rank > maxRank) maxRank = r.rank;
     });
   });
+
+  const extraRanks = Array.from({ length: maxRank - 3 }, (_, i) => i + 4);
 
   const rows = Object.values(tally)
     .map(p => ({ ...p, podiums: p.g + p.s + p.b,
@@ -12275,25 +12280,41 @@ function _buildPodiumTrackerHtml(periodType) {
   if (!rows.length)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
 
-  const colTpl = "1fr 46px 46px 46px 56px 48px";
-  const _d = (count, rankVal, name) => count > 0
-    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openPodiumDrill(${jsArg(name)},${typeof rankVal==='number'?rankVal:jsArg(rankVal)},${jsArg(periodType)})">${count}</span>`
-    : `${count}`;
-  const tableRows = rows.map(r =>
-    `<div class="lrace-row" style="grid-template-columns:${colTpl}">
-      <div class="lrace-name">${escHtml(r.name)}</div>
-      <div style="text-align:center;font-weight:800;color:var(--gold)">${_d(r.g,1,r.name)}</div>
-      <div style="text-align:center;font-weight:800;color:var(--silver)">${_d(r.s,2,r.name)}</div>
-      <div style="text-align:center;font-weight:800;color:var(--bronze)">${_d(r.b,3,r.name)}</div>
-      <div style="text-align:center;font-weight:700">${_d(r.podiums,"podiums",r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></div>
-      <div style="text-align:right;font-weight:700;color:var(--theme)">${r.periodsPlayed >= _MIN_RANK_PERIODS ? (r.podiumRate * 100).toFixed(0) + "%" : "—"}</div>
-    </div>`
-  ).join("");
+  const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
 
-  return `<div class="ana-card" style="padding:8px 12px">
-    <div class="lrace-header" style="grid-template-columns:${colTpl}">
-      <span>Player</span><span style="text-align:center">🥇</span><span style="text-align:center">🥈</span><span style="text-align:center">🥉</span><span style="text-align:center">Podiums</span><span style="text-align:right">%</span>
-    </div>${tableRows}</div>`;
+  const mkD = (count, rankVal, name) => count > 0
+    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openPodiumDrill(${jsArg(name)},${typeof rankVal==='number'?rankVal:jsArg(rankVal)},${jsArg(periodType)})">${count}</span>`
+    : `<span style="color:rgba(255,255,255,0.18)">${count}</span>`;
+
+  const thead = `<tr>
+    <th style="${_th};${_stickyTh};text-align:left">Player</th>
+    <th style="${_th}">🥇</th>
+    <th style="${_th}">🥈</th>
+    <th style="${_th}">🥉</th>
+    <th style="${_th}">Podiums</th>
+    <th style="${_th}">%</th>
+    ${extraRanks.map(n => `<th style="${_th}">#${n}</th>`).join("")}
+  </tr>`;
+
+  const tbody = rows.map(r => `<tr>
+    <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
+    <td style="${_td};color:var(--gold)">${mkD(r.g, 1, r.name)}</td>
+    <td style="${_td};color:var(--silver)">${mkD(r.s, 2, r.name)}</td>
+    <td style="${_td};color:var(--bronze)">${mkD(r.b, 3, r.name)}</td>
+    <td style="${_td}">${mkD(r.podiums, "podiums", r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
+    <td style="${_td};color:var(--theme);text-align:right">${r.periodsPlayed >= _MIN_RANK_PERIODS ? (r.podiumRate * 100).toFixed(0) + "%" : "—"}</td>
+    ${extraRanks.map(n => `<td style="${_td};color:var(--muted)">${mkD(r.extra?.[n] || 0, n, r.name)}</td>`).join("")}
+  </tr>`).join("");
+
+  return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  </div>`;
 }
 
 function _buildRankReignHtml(periodType) {
@@ -12456,8 +12477,8 @@ function _openPodiumDrill(playerName, rankVal, periodType) {
   });
   if (!matching.length) return;
 
-  const medalEmoji = rankVal === 1 ? "🥇" : rankVal === 2 ? "🥈" : rankVal === 3 ? "🥉" : "🏅";
-  const rankLabel = rankVal === 1 ? "#1 Finishes" : rankVal === 2 ? "#2 Finishes" : rankVal === 3 ? "#3 Finishes" : "Podium Finishes";
+  const medalEmoji = rankVal === 1 ? "🥇" : rankVal === 2 ? "🥈" : rankVal === 3 ? "🥉" : rankVal === "podiums" ? "🏅" : `#${rankVal}`;
+  const rankLabel = rankVal === "podiums" ? "Podium Finishes" : `#${rankVal} Finishes`;
   const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
   const _fmtD = iso => {
     if (!iso) return "";
@@ -12467,7 +12488,7 @@ function _openPodiumDrill(playerName, rankVal, periodType) {
 
   const items = matching.map(p => {
     const r = p.ranks.find(x => x.name === playerName);
-    const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : "🥉";
+    const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `#${r.rank}`;
     let sub = "";
     if (periodType === "week") sub = `<span style="color:var(--muted);font-size:9px;margin-left:6px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`;
     else if (periodType === "month") sub = `<span style="color:var(--muted);font-size:9px;margin-left:6px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`;
