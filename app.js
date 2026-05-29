@@ -12468,6 +12468,9 @@ function _buildAntiPodiumTrackerHtml(periodType) {
   const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
   const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
   const _dim = `<span style="color:rgba(255,255,255,0.18)">0</span>`;
+  const mkA = (count, pos, name) => count > 0
+    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openAntiPodiumDrill(${jsArg(name)},${jsArg(pos)},${jsArg(periodType)})">${count}</span>`
+    : _dim;
 
   const thead = `<tr>
     <th style="${_th};${_stickyTh};text-align:left">Player</th>
@@ -12479,9 +12482,9 @@ function _buildAntiPodiumTrackerHtml(periodType) {
 
   const tbody = rows.map(r => `<tr>
     <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
-    <td style="${_td};color:#ff3b3b">${r.l > 0 ? r.l : _dim}</td>
-    <td style="${_td};color:rgba(255,140,0,0.9)">${r.sl > 0 ? r.sl : _dim}</td>
-    <td style="${_td}">${r.bottom2 > 0 ? r.bottom2 : _dim}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
+    <td style="${_td};color:#ff3b3b">${mkA(r.l, "last", r.name)}</td>
+    <td style="${_td};color:rgba(255,140,0,0.9)">${mkA(r.sl, "secondlast", r.name)}</td>
+    <td style="${_td}">${mkA(r.bottom2, "bottom2", r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
     <td style="${_td};color:var(--theme);text-align:right">${(r.bottom2Rate * 100).toFixed(0)}%</td>
   </tr>`).join("");
 
@@ -12778,6 +12781,72 @@ function _podiumDrillGoTo(key, periodType) {
   }
   switchMainTab("compact");
   renderCompact();
+}
+
+function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const matching = periods.filter(p => {
+    if (!p.ranks.length) return false;
+    const r = p.ranks.find(x => x.name === playerName);
+    if (!r) return false;
+    const total = p.ranks.length;
+    if (bottomPos === "last") return r.rank === total;
+    if (bottomPos === "secondlast") return r.rank === total - 1;
+    if (bottomPos === "bottom2") return r.rank >= total - 1;
+    return false;
+  });
+  if (!matching.length) return;
+
+  const posEmoji = bottomPos === "last" ? "🪣" : bottomPos === "secondlast" ? "😬" : "📉";
+  const posLabel = bottomPos === "last" ? "Last Place Finishes" : bottomPos === "secondlast" ? "2nd Last Finishes" : "Bottom 2 Finishes";
+  const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
+  const _fmtD = iso => {
+    if (!iso) return "";
+    const [, m, d] = iso.split("-");
+    return parseInt(d) + " " + ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];
+  };
+
+  const renderItem = p => {
+    const r = p.ranks.find(x => x.name === playerName);
+    const total = p.ranks.length;
+    const icon = r.rank === total ? "🪣" : "😬";
+    const rankBadge = `<span style="font-size:10px;color:var(--muted)">#${r.rank}/${total}</span>`;
+    const sub = (periodType === "week" || periodType === "month")
+      ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>` : "";
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;-webkit-tap-highlight-color:transparent"
+        onclick="_podiumDrillGoTo(${jsArg(p.key)},${jsArg(periodType)})">
+      <span style="font-size:18px;line-height:1;flex-shrink:0">${icon}</span>
+      <span style="flex:1;font-size:12px;font-weight:700;line-height:1.4">${escHtml(p.label)}${sub}</span>
+      ${rankBadge}
+      <span style="font-size:14px;color:var(--theme);flex-shrink:0">›</span>
+    </div>`;
+  };
+
+  const PAGE = 10;
+  const head = matching.slice(0, PAGE).map(renderItem).join("");
+  const tail = matching.slice(PAGE);
+  const moreBlock = tail.length
+    ? `<div id="pdrill-more" style="display:none">${tail.map(renderItem).join("")}</div>
+       <button onclick="document.getElementById('pdrill-more').style.display='block';this.remove()"
+         style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.04em">
+         SHOW ${tail.length} MORE
+       </button>` : "";
+
+  let overlay = document.getElementById("podium-drill-overlay");
+  if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
+  overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:65vh;overflow-y:auto;padding:20px 16px 36px;box-sizing:border-box" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;font-weight:800">${escHtml(playerName)} ${posEmoji} ${posLabel}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${matching.length} period${matching.length !== 1 ? "s" : ""}</div>
+        </div>
+        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+      </div>
+      ${head}${moreBlock}
+    </div>
+  </div>`;
+  overlay.style.display = "block";
 }
 
 function _closePodiumDrill() {
@@ -16917,6 +16986,7 @@ Object.assign(window, {
   _reignSetPeriod,
   _timelineSetPeriod,
   _openPodiumDrill,
+  _openAntiPodiumDrill,
   _podiumDrillGoTo,
   _closePodiumDrill,
 });
