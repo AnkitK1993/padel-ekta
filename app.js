@@ -3419,9 +3419,19 @@ function closeColSheet() {
 function _renderColChips() {
   const list = document.getElementById("col-chip-list");
   if (!list) return;
-  list.innerHTML = _CMP_TOGGLE_COLS.map(c =>
+  const chips = _CMP_TOGGLE_COLS.map(c =>
     `<button class="col-chip${_cmpHiddenCols.has(c.key) ? "" : " col-chip--on"}" onclick="toggleCmpCol(${jsArg(c.key)})">${escHtml(c.label)}</button>`
   ).join("");
+  const showAll = _cmpHiddenCols.size > 0
+    ? `<button class="ss-exc-clear-btn" onclick="showAllCmpCols()">SHOW ALL</button>`
+    : "";
+  list.innerHTML = chips + showAll;
+}
+function showAllCmpCols() {
+  _cmpHiddenCols.clear();
+  try { localStorage.setItem("padel_cmp_hidden_cols", JSON.stringify([])); } catch (e) {}
+  _applyCmpColClasses();
+  _renderColChips();
 }
 function toggleCmpCol(key) {
   if (_cmpHiddenCols.has(key)) _cmpHiddenCols.delete(key);
@@ -16004,6 +16014,7 @@ Object.assign(window, {
   openColSheet,
   closeColSheet,
   toggleCmpCol,
+  showAllCmpCols,
   addMatches,
   saveNames,
   loadNames,
