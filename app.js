@@ -669,6 +669,28 @@ let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a loca
 let _forcedOffline = localStorage.getItem("padel_forced_offline") === "1";
 let _firestoreUnsub = null;
 let _emailTimer = null;
+// Live/session state is declared with core state because startup data loading
+// may need to merge cached/cloud matches with unsynced session matches.
+let _liveSessionData = null;
+let _liveScoreA = 0,
+  _liveScoreB = 0;
+const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
+let _liveActiveSlot = null;
+let _livePoints = []; // point history for momentum graph
+let _liveGameMode = 4; // 4 = race to 4 (no diff), 6 = race to 6 (±2 / TB)
+let _liveGamePtsA = 0; // 0..3 = 0/15/30/40 (then deuce/adv handled below)
+let _liveGamePtsB = 0;
+let _liveAdv = null; // 'a' | 'b' | null
+let _liveMatchEnded = false;
+let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
+let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
+let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
+let _sessionRedoStack = [];       // matches popped by undo, available for redo
+let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
+let _sessionPanelOpen = false;    // whether the session stats panel is expanded
+let _sessionSetupSelected = new Set();
+let _analyticsFeaturePromise = null;
+let _liveFeaturePromise = null;
 window.isAdmin = false;
 const _animLevel0 = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
 if (_animLevel0 === "medium" || _animLevel0 === "off") document.body.classList.add("no-cascade");
@@ -847,6 +869,51 @@ let _pairsShowAll = false;
 function setSplashStatus(msg) {
   var el = document.getElementById("splash-status");
   if (el) el.textContent = msg;
+}
+
+function _handleFeatureLoadError(name, err) {
+  console.error(`${name} feature failed to load:`, err);
+  showToast(`${name} could not load`, "❌");
+}
+
+function _loadAnalyticsFeature() {
+  if (!_analyticsFeaturePromise) {
+    _analyticsFeaturePromise = import("./features/analytics.js");
+  }
+  return _analyticsFeaturePromise;
+}
+
+function renderAnalyticsFeature() {
+  const container = document.getElementById("analytics-page-content");
+  if (container && !container.innerHTML.trim()) {
+    container.innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--muted)">Loading analytics...</div>';
+  }
+  return _loadAnalyticsFeature()
+    .then((feature) =>
+      feature.mountAnalyticsFeature({
+        renderAnalyticsPage,
+        afterRender: () => setTimeout(applyAnalyticsAnimations, 0),
+      }),
+    )
+    .catch((err) => _handleFeatureLoadError("Analytics", err));
+}
+
+function _loadLiveFeature() {
+  if (!_liveFeaturePromise) {
+    _liveFeaturePromise = import("./features/live-session.js");
+  }
+  return _liveFeaturePromise;
+}
+
+function openLiveMode() {
+  return _loadLiveFeature()
+    .then((feature) =>
+      feature.openLiveSessionFeature({
+        openLiveMode: _openLiveModeImpl,
+      }),
+    )
+    .catch((err) => _handleFeatureLoadError("Live session", err));
 }
 
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
@@ -1286,8 +1353,21 @@ function loadCloudData() {
 
     const _onAddPage = () => document.querySelector(".page.active")?.id === "pg-add";
     if (isFirstLoad) {
-      renderCompact();
-      if (_onAddPage()) refreshManage();
+      const activePageId = document.querySelector(".page.active")?.id;
+      if (activePageId === "pg-home") {
+        renderHome();
+      } else if (activePageId === "pg-history") {
+        renderModernMatches();
+        populateHistoryPlayerChips();
+      } else if (activePageId === "pg-analytics") {
+        renderAnalyticsFeature();
+      } else if (_onAddPage()) {
+        refreshManage();
+        renderAddMatches();
+        prefillMatchTADate();
+      } else {
+        renderCompact();
+      }
       fired = true;
       window.dismissSplash("Ready ✓");
       setTimeout(_checkAnniversaries, 1800);
@@ -1594,8 +1674,7 @@ function switchMainTab(id, skipAnim = false) {
     if (htf) htf.value = histMarginFilter;
   }
   if (id === "analytics") {
-    renderAnalyticsPage();
-    setTimeout(applyAnalyticsAnimations, 0);
+    renderAnalyticsFeature();
   }
   if (id === "add") {
     refreshManage();
@@ -3888,9 +3967,11 @@ function renderCompact() {
     all: "All Time",
     today: "Today",
     week: "This Week",
+    lastweek: "Last Week",
     weekend: "Weekend",
     month: "This Month",
     range: "Custom Range",
+    day: "Selected Day",
   };
   document.getElementById("cmpMeta").innerHTML =
     `<strong>${stats.length}</strong> players &nbsp;·&nbsp; <strong>${filtered.length}</strong> matches &nbsp;·&nbsp; ${fname[cmpFilter]}`;
@@ -12356,6 +12437,79 @@ function _buildPodiumTrackerHtml(periodType) {
   </div>`;
 }
 
+function _buildAntiPodiumTrackerHtml(periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const validPeriods = periods.filter(p => p.ranks.length > 0);
+  if (validPeriods.length < 2)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
+
+  const tally = {};
+  validPeriods.forEach((p) => {
+    const total = p.ranks.length;
+    p.ranks.forEach((r) => {
+      if (!tally[r.name]) tally[r.name] = { name: r.name, l: 0, sl: 0, periodsPlayed: 0 };
+      tally[r.name].periodsPlayed++;
+      if (r.rank === total) tally[r.name].l++;
+      else if (r.rank === total - 1) tally[r.name].sl++;
+    });
+  });
+
+  const rows = Object.values(tally)
+    .map(p => ({ ...p, bottom2: p.l + p.sl,
+      bottom2Rate: p.periodsPlayed >= _MIN_RANK_PERIODS ? (p.l + p.sl) / p.periodsPlayed : 0 }))
+    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
+    .sort((a, b) => b.l - a.l || b.sl - a.sl);
+
+  if (!rows.length)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
+
+  const mostLast = rows[0];
+  const mostBottom2 = [...rows].sort((a, b) => b.bottom2 - a.bottom2)[0];
+  const worstRate = [...rows].sort((a, b) => b.bottom2Rate - a.bottom2Rate)[0];
+
+  const awardCards = [
+    { icon: "🪣", label: "Most Last Place", name: mostLast.name, val: mostLast.l + " time" + (mostLast.l !== 1 ? "s" : "") },
+    { icon: "😬", label: "Most Bottom 2", name: mostBottom2.name, val: mostBottom2.bottom2 + " time" + (mostBottom2.bottom2 !== 1 ? "s" : "") },
+    { icon: "📉", label: "Worst Bottom %", name: worstRate.name, val: (worstRate.bottom2Rate * 100).toFixed(0) + "%" },
+  ].map(a => `<div class="ana-card" style="padding:8px;text-align:center">
+    <div style="font-size:20px">${a.icon}</div>
+    <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin:4px 0 2px">${a.label}</div>
+    <div style="font-size:12px;font-weight:800;color:var(--theme)">${escHtml(a.name)}</div>
+    <div style="font-size:10px;color:var(--muted)">${a.val}</div>
+  </div>`).join("");
+
+  const awardHtml = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">${awardCards}</div>`;
+
+  const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+  const _dim = `<span style="color:rgba(255,255,255,0.18)">0</span>`;
+
+  const thead = `<tr>
+    <th style="${_th};${_stickyTh};text-align:left">Player</th>
+    <th style="${_th}">🪣 Last</th>
+    <th style="${_th}">😬 2nd Last</th>
+    <th style="${_th}">Bottom 2</th>
+    <th style="${_th}">%</th>
+  </tr>`;
+
+  const tbody = rows.map(r => `<tr>
+    <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
+    <td style="${_td};color:#ff3b3b">${r.l > 0 ? r.l : _dim}</td>
+    <td style="${_td};color:rgba(255,140,0,0.9)">${r.sl > 0 ? r.sl : _dim}</td>
+    <td style="${_td}">${r.bottom2 > 0 ? r.bottom2 : _dim}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
+    <td style="${_td};color:var(--theme);text-align:right">${(r.bottom2Rate * 100).toFixed(0)}%</td>
+  </tr>`).join("");
+
+  return `${awardHtml}<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  </div>`;
+}
+
 const _reignCache = {};
 function _buildRankReignHtml() {
   const allM = activeMatches();
@@ -12530,6 +12684,13 @@ function _podiumSetPeriod(btn, type) {
   const content = btn.closest("[class]")?.parentElement?.querySelector(".podium-content")
     || btn.parentElement?.nextElementSibling;
   if (content) content.innerHTML = _buildPodiumTrackerHtml(type);
+}
+function _antiPodiumSetPeriod(btn, type) {
+  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const content = btn.closest("[class]")?.parentElement?.querySelector(".antipodium-content")
+    || btn.parentElement?.nextElementSibling;
+  if (content) content.innerHTML = _buildAntiPodiumTrackerHtml(type);
 }
 function _reignSetPeriod(btn, type) {
   btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
@@ -15942,6 +16103,20 @@ function renderAnalyticsPage() {
       </div>`,
     },
     {
+      key: "antipodiumtracker",
+      cat: "players",
+      title: "🪣 Anti-Podium Tracker",
+      body: `<div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="digest-filter-btn active" onclick="_antiPodiumSetPeriod(this,'today')">DAILY</button>
+          <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'week')">WEEKLY</button>
+          <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'weekend')">WEEKEND</button>
+          <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'month')">MONTHLY</button>
+        </div>
+        <div class="antipodium-content">${_buildAntiPodiumTrackerHtml("today")}</div>
+      </div>`,
+    },
+    {
       key: "rankreign",
       cat: "players",
       title: "👑 Rank Reign",
@@ -16755,6 +16930,7 @@ Object.assign(window, {
   removePlayerPhoto,
   openPlayerReportCard,
   _podiumSetPeriod,
+  _antiPodiumSetPeriod,
   _reignSetPeriod,
   _timelineSetPeriod,
   _openPodiumDrill,
@@ -16767,25 +16943,8 @@ function setHistoryDateFilter(value) {
 }
 
 // ── LIVE SCORING MODE ──────────────────────────────────────
-let _liveScoreA = 0,
-  _liveScoreB = 0;
-const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
-let _liveActiveSlot = null;
-let _livePoints = []; // point history for momentum graph
-// Tennis-style scoring
-let _liveGameMode = 4; // 4 = race to 4 (no diff), 6 = race to 6 (±2 / TB)
-let _liveGamePtsA = 0; // 0..3 = 0/15/30/40 (then deuce/adv handled below)
-let _liveGamePtsB = 0;
-let _liveAdv = null; // 'a' | 'b' | null
-let _liveMatchEnded = false;
-let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
-let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
-let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
-let _sessionRedoStack = [];       // matches popped by undo, available for redo
-let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
-let _sessionPanelOpen = false;    // whether the session stats panel is expanded
 
-function openLiveMode() {
+function _openLiveModeImpl() {
   if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
   _liveScoreA = 0;
   _liveScoreB = 0;
@@ -18228,8 +18387,6 @@ async function confirmEndSession() {
 }
 
 // ── SESSION ──────────────────────────────────────────────────
-let _liveSessionData = null;
-let _sessionSetupSelected = new Set();
 
 function _syncLiveSessionBar() {
   const d = _liveSessionData;
