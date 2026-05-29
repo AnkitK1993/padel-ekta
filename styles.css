@@ -2117,14 +2117,14 @@ table.cmp tbody td:nth-child(2) {
 
 .sr-ring.rev-limit {
   animation:
-    limiterShake 0.08s linear 25,
-    limiterPulse 0.28s ease-in-out 7 alternate;
+    limiterShake 0.1s linear 20,
+    limiterPulse 0.3s ease-in-out 8 alternate;
 }
 
 .sr-ring.rev-limit .needle {
   animation:
-    limiterNeedle 0.07s linear 28 alternate,
-    limiterGlow 0.18s ease-in-out 11 alternate;
+    limiterNeedle 0.08s linear 24 alternate,
+    limiterGlow 0.2s ease-in-out 10 alternate;
 }
 
 .sr-ring.rev-limit .gauge::before {
@@ -5656,24 +5656,14 @@ body.no-cascade .analytics-card {
 }
 
 @keyframes limiterShake {
-  0% {
-    transform: translateX(0px);
-  }
-  20% {
-    transform: translateX(-1px);
-  }
-  40% {
-    transform: translateX(1px);
-  }
-  60% {
-    transform: translateX(-2px);
-  }
-  80% {
-    transform: translateX(2px);
-  }
-  100% {
-    transform: translateX(0px);
-  }
+  0%   { transform: translateX(0px); }
+  15%  { transform: translateX(-4px); }
+  30%  { transform: translateX(4px); }
+  45%  { transform: translateX(-5px); }
+  60%  { transform: translateX(5px); }
+  75%  { transform: translateX(-3px); }
+  90%  { transform: translateX(3px); }
+  100% { transform: translateX(0px); }
 }
 
 @keyframes limiterPulse {
@@ -5687,10 +5677,10 @@ body.no-cascade .analytics-card {
 
 @keyframes limiterNeedle {
   from {
-    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) - 2deg));
+    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) - 4deg));
   }
   to {
-    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) + 2deg));
+    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) + 4deg));
   }
 }
 

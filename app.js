@@ -3789,11 +3789,9 @@ function _sweepNeedle(needle) {
   const ring = needle.closest(".sr-ring");
   if (!ring) return;
   const isRevLimit = ring.classList.contains("rev-limit");
-  // Remove rev-limit before sweep so its CSS animations don't exhaust their
-  // iteration-count while hidden under the Web Animation.
   if (isRevLimit) ring.classList.remove("rev-limit");
   const targetDeg = parseFloat(getComputedStyle(ring).getPropertyValue("--speed-angle")) || 0;
-  const sweepAnim = needle.animate(
+  needle.animate(
     [
       { transform: "translateX(-50%) rotate(-90deg)" },
       { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
@@ -3802,10 +3800,28 @@ function _sweepNeedle(needle) {
     { duration: 2200, easing: "cubic-bezier(0.22,1.15,0.36,1)", fill: "forwards" },
   );
   if (isRevLimit) {
-    sweepAnim.onfinish = () => {
-      sweepAnim.cancel();
+    setTimeout(() => {
+      if (!document.body.contains(ring)) return;
       ring.classList.add("rev-limit");
-    };
+      // Shake the whole card visibly (additive so it doesn't fight cardSlideUp)
+      const card = ring.closest(".pc");
+      if (card) {
+        card.animate(
+          [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(-5px)" },
+            { transform: "translateX(5px)" },
+            { transform: "translateX(-4px)" },
+            { transform: "translateX(4px)" },
+            { transform: "translateX(-3px)" },
+            { transform: "translateX(3px)" },
+            { transform: "translateX(-1px)" },
+            { transform: "translateX(0px)" },
+          ],
+          { duration: 500, easing: "ease-in-out", composite: "add" },
+        );
+      }
+    }, 2200);
   }
 }
 
