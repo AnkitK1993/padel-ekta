@@ -653,7 +653,7 @@ const _CMP_TOGGLE_COLS = [
 ];
 function _loadCmpHiddenCols() {
   try {
-    const s = localStorage.getItem("padel_cmp_hidden_cols");
+    const s = localStorage.getItem("padel_cmp_hidden_cols_v2");
     if (s) return new Set(JSON.parse(s));
   } catch (e) {}
   return new Set(["gw", "gl", "gamePct"]);
@@ -3429,14 +3429,14 @@ function _renderColChips() {
 }
 function showAllCmpCols() {
   _cmpHiddenCols.clear();
-  try { localStorage.setItem("padel_cmp_hidden_cols", JSON.stringify([])); } catch (e) {}
+  try { localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([])); } catch (e) {}
   _applyCmpColClasses();
   _renderColChips();
 }
 function toggleCmpCol(key) {
   if (_cmpHiddenCols.has(key)) _cmpHiddenCols.delete(key);
   else _cmpHiddenCols.add(key);
-  try { localStorage.setItem("padel_cmp_hidden_cols", JSON.stringify([..._cmpHiddenCols])); } catch (e) {}
+  try { localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([..._cmpHiddenCols])); } catch (e) {}
   _applyCmpColClasses();
   _renderColChips();
 }
