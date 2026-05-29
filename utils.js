@@ -160,7 +160,7 @@ body.paused-animations *{
           setTimeout(function () {
             splash.style.display = "none";
             document.body.classList.add("splash-done");
-            if (typeof renderCompact === "function") renderCompact();
+            if (typeof renderHome === "function") renderHome();
           }, 320);
         };
 
