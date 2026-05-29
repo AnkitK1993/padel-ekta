@@ -12507,6 +12507,37 @@ select.cmp-sel:hover,
   background: rgba(var(--theme-rgb), 0.1);
   color: var(--theme);
 }
+
+/* ── RANK TIMELINE ─────────────────────────────────── */
+.rhtl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.rhtl-table { border-collapse: separate; border-spacing: 2px; font-size: 10px; white-space: nowrap; min-width: 100%; }
+.rhtl-th-name, .rhtl-td-name {
+  position: sticky; left: 0; background: var(--card); z-index: 1;
+  font-weight: 700; padding: 4px 8px 4px 0; text-align: left;
+  min-width: 72px; max-width: 96px; overflow: hidden; text-overflow: ellipsis;
+}
+.rhtl-th-period {
+  font-size: 8px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 0 3px 6px; text-align: center; min-width: 34px;
+}
+.rhtl-cell {
+  width: 34px; height: 26px; border-radius: 4px; text-align: center;
+  vertical-align: middle; font-size: 11px; font-weight: 800; padding: 2px 3px;
+}
+.rhtl-gold   { background: rgba(245,200,66,0.25);   color: var(--gold);   }
+.rhtl-silver { background: rgba(152,152,184,0.25);  color: var(--silver); }
+.rhtl-bronze { background: rgba(196,106,40,0.25);   color: var(--bronze); }
+.rhtl-top6   { background: rgba(24,215,255,0.12);   color: var(--theme);  }
+.rhtl-lower  { background: rgba(255,255,255,0.05);  color: var(--muted);  }
+.rhtl-absent { background: transparent; color: rgba(255,255,255,0.12); }
+.rhtl-legend {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 9px; color: var(--muted); margin-bottom: 8px;
+}
+.rhtl-leg-cell {
+  display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+}
+
 .mng-card-drag-handle {
   font-size: 16px;
   color: var(--muted);

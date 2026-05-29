@@ -12158,6 +12158,314 @@ function recomputeWhatIfElo() {
 // ── NEW ANALYTICS SECTION BUILDERS ────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
+// ── RANK HISTORY HELPERS ──────────────────────────────────────
+
+const _rankPeriodCache = {};
+const _MIN_RANK_PERIODS = 3;
+const _MIN_RANK_PLAYERS = 3;
+
+function _computeRankPeriods(periodType) {
+  const fp = `${periodType}|${_lightFingerprint(activeMatches())}`;
+  if (_rankPeriodCache[fp]) return _rankPeriodCache[fp];
+
+  const matches = activeMatches();
+  if (!matches.length) return (_rankPeriodCache[fp] = []);
+
+  const buckets = {};
+  matches.forEach((m) => {
+    if (!m.date) return;
+    let key;
+    if (periodType === "week") {
+      const d = new Date(m.date + "T00:00:00");
+      const dow = d.getDay();
+      d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+      key = toLocalISODate(d);
+    } else {
+      key = m.date.slice(0, 7);
+    }
+    if (!buckets[key]) buckets[key] = { key, matches: [], from: m.date, to: m.date };
+    buckets[key].matches.push(m);
+    if (m.date < buckets[key].from) buckets[key].from = m.date;
+    if (m.date > buckets[key].to) buckets[key].to = m.date;
+  });
+
+  const result = Object.values(buckets)
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((b, idx) => {
+      const distinct = new Set(b.matches.flatMap(m => [...(m.teamA||[]), ...(m.teamB||[])]));
+      let label;
+      if (periodType === "week") {
+        const parts = fmtDate(b.key).replace(/^\w+,\s*/, "").replace(/\s\d{4}$/, "");
+        label = "Wk " + parts;
+      } else {
+        const [y, mo] = b.key.split("-");
+        label = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(mo)] + " '" + y.slice(2);
+      }
+      if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], idx };
+      const eloMap = computeElo(b.matches);
+      const statsArr = computeStats(b.matches, eloMap);
+      const ranks = statsArr.map((p, i) => ({ name: p.name, rank: i + 1, sr: p.sr, mp: p.mp }));
+      return { key: b.key, from: b.from, to: b.to, label, ranks, idx };
+    });
+
+  return (_rankPeriodCache[fp] = result);
+}
+
+function _buildPodiumTrackerHtml(periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const validPeriods = periods.filter(p => p.ranks.length > 0);
+  if (validPeriods.length < 2)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
+
+  const tally = {};
+  validPeriods.forEach((p) => {
+    p.ranks.forEach((r) => {
+      if (!tally[r.name]) tally[r.name] = { name: r.name, g: 0, s: 0, b: 0, periodsPlayed: 0 };
+      tally[r.name].periodsPlayed++;
+      if (r.rank === 1) tally[r.name].g++;
+      else if (r.rank === 2) tally[r.name].s++;
+      else if (r.rank === 3) tally[r.name].b++;
+    });
+  });
+
+  const rows = Object.values(tally)
+    .map(p => ({ ...p, podiums: p.g + p.s + p.b,
+      podiumRate: p.periodsPlayed >= _MIN_RANK_PERIODS ? (p.g + p.s + p.b) / p.periodsPlayed : 0 }))
+    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
+    .sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b);
+
+  if (!rows.length)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
+
+  const mostGold = rows[0];
+  const mostPodiums = [...rows].sort((a, b) => b.podiums - a.podiums)[0];
+  const bestRate = [...rows].filter(r => r.periodsPlayed >= _MIN_RANK_PERIODS).sort((a, b) => b.podiumRate - a.podiumRate)[0];
+  const pLabel = periodType === "week" ? "wk" : "mo";
+
+  const awardCards = `<div class="awards-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
+    <div class="award-card">
+      <div class="award-icon">🥇</div>
+      <div class="award-title">MOST #1 FINISHES</div>
+      <div class="award-name">${escHtml(mostGold.name)}</div>
+      <div class="award-sub">${mostGold.g} gold · ${pLabel}</div>
+    </div>
+    <div class="award-card">
+      <div class="award-icon">🏅</div>
+      <div class="award-title">MOST PODIUMS</div>
+      <div class="award-name">${escHtml(mostPodiums.name)}</div>
+      <div class="award-sub">${mostPodiums.podiums} top-3 finishes</div>
+    </div>
+    ${bestRate ? `<div class="award-card">
+      <div class="award-icon">📊</div>
+      <div class="award-title">BEST PODIUM RATE</div>
+      <div class="award-name">${escHtml(bestRate.name)}</div>
+      <div class="award-sub">${(bestRate.podiumRate * 100).toFixed(0)}% of periods</div>
+    </div>` : ""}
+  </div>`;
+
+  const tableRows = rows.map(r =>
+    `<div class="lrace-row" style="grid-template-columns:1fr 38px 38px 38px 64px">
+      <div class="lrace-name">${escHtml(r.name)}</div>
+      <div style="text-align:center;font-weight:800;color:var(--gold)">${r.g}</div>
+      <div style="text-align:center;font-weight:800;color:var(--silver)">${r.s}</div>
+      <div style="text-align:center;font-weight:800;color:var(--bronze)">${r.b}</div>
+      <div style="text-align:right;font-weight:700">${r.podiums}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></div>
+    </div>`
+  ).join("");
+
+  return `${awardCards}<div class="ana-card" style="padding:8px 12px">
+    <div class="lrace-header" style="grid-template-columns:1fr 38px 38px 38px 64px">
+      <span>Player</span><span>🥇</span><span>🥈</span><span>🥉</span><span style="text-align:right">Podiums</span>
+    </div>${tableRows}</div>`;
+}
+
+function _buildRankReignHtml(periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const validPeriods = periods.filter(p => p.ranks.length > 0);
+  if (validPeriods.length < 2)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
+
+  const playerData = {};
+  validPeriods.forEach((p, periodIdx) => {
+    p.ranks.forEach((r) => {
+      if (!playerData[r.name]) playerData[r.name] = { name: r.name, rankHistory: [], periodsPlayed: 0 };
+      playerData[r.name].rankHistory.push({ periodIdx, rank: r.rank });
+      playerData[r.name].periodsPlayed++;
+    });
+  });
+
+  const rows = Object.values(playerData)
+    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
+    .map((p) => {
+      const h = p.rankHistory.sort((a, b) => a.periodIdx - b.periodIdx);
+      const totalGold = h.filter(x => x.rank === 1).length;
+
+      let longestStreak = 0, curS = 0;
+      h.forEach((x, i) => {
+        if (x.rank === 1 && (i === 0 || x.periodIdx === h[i-1].periodIdx + 1)) {
+          curS++;
+        } else {
+          curS = x.rank === 1 ? 1 : 0;
+        }
+        if (curS > longestStreak) longestStreak = curS;
+      });
+
+      let currentGoldStreak = 0;
+      for (let i = h.length - 1; i >= 0; i--) {
+        if (h[i].rank !== 1) break;
+        if (i < h.length - 1 && h[i].periodIdx !== h[i+1].periodIdx - 1) break;
+        currentGoldStreak++;
+      }
+
+      const avgRank = parseFloat((h.reduce((s, x) => s + x.rank, 0) / h.length).toFixed(1));
+      const bestRank = Math.min(...h.map(x => x.rank));
+      const currentRank = h[h.length - 1].rank;
+      const climbFromAvg = parseFloat((avgRank - currentRank).toFixed(1));
+
+      return { name: p.name, totalGold, longestStreak, currentGoldStreak, avgRank, bestRank, currentRank, climbFromAvg, periodsPlayed: p.periodsPlayed };
+    })
+    .sort((a, b) => b.totalGold - a.totalGold || a.avgRank - b.avgRank);
+
+  if (!rows.length)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
+
+  const pLabel = periodType === "week" ? "weeks" : "months";
+  const longestW = [...rows].sort((a, b) => b.longestStreak - a.longestStreak)[0];
+  const curW = [...rows].filter(r => r.currentGoldStreak > 0).sort((a, b) => b.currentGoldStreak - a.currentGoldStreak)[0];
+  const stableW = [...rows].sort((a, b) => a.avgRank - b.avgRank)[0];
+  const climbW = [...rows].sort((a, b) => b.climbFromAvg - a.climbFromAvg)[0];
+
+  const awardCards = `<div class="awards-grid" style="margin-bottom:10px">
+    <div class="award-card">
+      <div class="award-icon">👑</div>
+      <div class="award-title">LONGEST #1 STREAK</div>
+      <div class="award-name">${escHtml(longestW.name)}</div>
+      <div class="award-sub">${longestW.longestStreak} consecutive ${pLabel}</div>
+    </div>
+    <div class="award-card">
+      <div class="award-icon">🔥</div>
+      <div class="award-title">CURRENT #1 STREAK</div>
+      <div class="award-name">${curW ? escHtml(curW.name) : "—"}</div>
+      <div class="award-sub">${curW ? curW.currentGoldStreak + " " + pLabel + " running" : "No active streak"}</div>
+    </div>
+    <div class="award-card">
+      <div class="award-icon">🧘</div>
+      <div class="award-title">MOST STABLE RANK</div>
+      <div class="award-name">${escHtml(stableW.name)}</div>
+      <div class="award-sub">Avg rank #${stableW.avgRank}</div>
+    </div>
+    <div class="award-card">
+      <div class="award-icon">🚀</div>
+      <div class="award-title">BIGGEST CLIMBER</div>
+      <div class="award-name">${escHtml(climbW.name)}</div>
+      <div class="award-sub">${climbW.climbFromAvg > 0 ? "+" : ""}${climbW.climbFromAvg} above avg rank</div>
+    </div>
+  </div>`;
+
+  const tableRows = rows.map(r =>
+    `<div class="lrace-row" style="grid-template-columns:1fr 52px 64px 44px 44px">
+      <div class="lrace-name">${escHtml(r.name)}</div>
+      <div style="text-align:center;font-weight:800;color:var(--gold)">${r.totalGold}</div>
+      <div style="text-align:center;font-weight:700">${r.longestStreak} <span style="font-size:9px;color:var(--muted)">/ cur ${r.currentGoldStreak}</span></div>
+      <div style="text-align:center;font-weight:700;color:var(--muted)">#${r.avgRank}</div>
+      <div style="text-align:right;font-weight:800;color:var(--theme)">#${r.bestRank}</div>
+    </div>`
+  ).join("");
+
+  return `${awardCards}<div class="ana-card" style="padding:8px 12px">
+    <div class="lrace-header" style="grid-template-columns:1fr 52px 64px 44px 44px">
+      <span>Player</span><span>🥇 Total</span><span>🔥 Streak</span><span>Avg #</span><span style="text-align:right">Best</span>
+    </div>${tableRows}</div>`;
+}
+
+function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
+  const allPeriods = _computeRankPeriods(periodType);
+  const validPeriods = allPeriods.filter(p => p.ranks.length > 0);
+  if (validPeriods.length < 2)
+    return `<div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="digest-filter-btn${periodType === "week" ? " active" : ""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
+        <button class="digest-filter-btn${periodType === "month" ? " active" : ""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
+      </div>
+      <div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>
+    </div>`;
+
+  const periods = validPeriods.slice(-maxPeriods);
+  const playerSet = new Set();
+  periods.forEach(p => p.ranks.forEach(r => playerSet.add(r.name)));
+
+  const lookup = {};
+  periods.forEach(p => {
+    lookup[p.key] = {};
+    p.ranks.forEach(r => { lookup[p.key][r.name] = r.rank; });
+  });
+
+  const players = [...playerSet].map((name) => {
+    const apps = periods.filter(p => lookup[p.key][name] != null);
+    const avgRank = apps.length ? apps.reduce((s, p) => s + lookup[p.key][name], 0) / apps.length : 999;
+    return { name, avgRank };
+  }).sort((a, b) => a.avgRank - b.avgRank);
+
+  const rankClass = (rank) => {
+    if (rank == null) return "rhtl-absent";
+    if (rank === 1) return "rhtl-gold";
+    if (rank === 2) return "rhtl-silver";
+    if (rank === 3) return "rhtl-bronze";
+    if (rank <= 6) return "rhtl-top6";
+    return "rhtl-lower";
+  };
+
+  const headerCells = periods.map(p => `<th class="rhtl-th-period">${escHtml(p.label)}</th>`).join("");
+  const bodyRows = players.map(pl =>
+    `<tr><td class="rhtl-td-name">${escHtml(pl.name)}</td>` +
+    periods.map(p => {
+      const r = lookup[p.key][pl.name];
+      return `<td class="rhtl-cell ${rankClass(r)}" title="${r != null ? "#" + r + " · " + escHtml(p.label) : "Did not play"}">${r != null ? r : "—"}</td>`;
+    }).join("") + "</tr>"
+  ).join("");
+
+  const legendItems = [
+    ["rhtl-gold","#1"], ["rhtl-silver","#2"], ["rhtl-bronze","#3"],
+    ["rhtl-top6","4–6"], ["rhtl-lower","7+"], ["rhtl-absent","—"],
+  ].map(([cls, lbl]) => `<span class="rhtl-leg-cell ${cls}"></span>${lbl}`).join("");
+
+  return `<div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button class="digest-filter-btn${periodType === "week" ? " active" : ""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
+      <button class="digest-filter-btn${periodType === "month" ? " active" : ""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
+    </div>
+    <div class="ana-card" style="padding:10px 12px">
+      <div class="rhtl-legend">${legendItems}</div>
+      <div class="rhtl-wrap">
+        <table class="rhtl-table">
+          <thead><tr><th class="rhtl-th-name">Player</th>${headerCells}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:8px">Rank within each ${periodType === "week" ? "week" : "month"} based on all matches in that period. Showing last ${periods.length}.</div>
+    </div>
+  </div>`;
+}
+
+function _podiumSetPeriod(btn, type) {
+  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const content = btn.closest("[class]")?.parentElement?.querySelector(".podium-content")
+    || btn.parentElement?.nextElementSibling;
+  if (content) content.innerHTML = _buildPodiumTrackerHtml(type);
+}
+function _reignSetPeriod(btn, type) {
+  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const content = btn.closest("[class]")?.parentElement?.querySelector(".reign-content")
+    || btn.parentElement?.nextElementSibling;
+  if (content) content.innerHTML = _buildRankReignHtml(type);
+}
+function _timelineSetPeriod(btn, type) {
+  const body = btn.closest(".ana-sec-body") || btn.closest(".ana-card")?.parentElement || btn.parentElement?.parentElement;
+  if (body) body.innerHTML = _buildRankTimelineHtml(type);
+}
+
 function _buildPowerRankingsHtml() {
   const rankings = computePowerRankings(activeMatches());
   if (!rankings.length)
@@ -15450,6 +15758,36 @@ function renderAnalyticsPage() {
       body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
     },
     {
+      key: "podiumtracker",
+      cat: "players",
+      title: "🥇 Podium Tracker",
+      body: `<div>
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'week')">WEEKLY</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'month')">MONTHLY</button>
+        </div>
+        <div class="podium-content">${_buildPodiumTrackerHtml("week")}</div>
+      </div>`,
+    },
+    {
+      key: "rankreign",
+      cat: "players",
+      title: "👑 Rank Reign",
+      body: `<div>
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <button class="digest-filter-btn active" onclick="_reignSetPeriod(this,'week')">WEEKLY</button>
+          <button class="digest-filter-btn" onclick="_reignSetPeriod(this,'month')">MONTHLY</button>
+        </div>
+        <div class="reign-content">${_buildRankReignHtml("week")}</div>
+      </div>`,
+    },
+    {
+      key: "ranktimeline",
+      cat: "players",
+      title: "📅 Rank Timeline",
+      body: _buildRankTimelineHtml("week"),
+    },
+    {
       key: "clutchrank",
       cat: "players",
       title: "🎯 Clutch Rankings",
@@ -16249,6 +16587,9 @@ Object.assign(window, {
   savePlayerPhoto,
   removePlayerPhoto,
   openPlayerReportCard,
+  _podiumSetPeriod,
+  _reignSetPeriod,
+  _timelineSetPeriod,
 });
 
 function setHistoryDateFilter(value) {
