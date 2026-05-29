@@ -12254,13 +12254,16 @@ function _buildPodiumTrackerHtml(periodType) {
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
 
   const colTpl = "1fr 46px 46px 46px 56px 48px";
+  const _d = (count, rankVal, name) => count > 0
+    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openPodiumDrill(${jsArg(name)},${typeof rankVal==='number'?rankVal:jsArg(rankVal)},${jsArg(periodType)})">${count}</span>`
+    : `${count}`;
   const tableRows = rows.map(r =>
     `<div class="lrace-row" style="grid-template-columns:${colTpl}">
       <div class="lrace-name">${escHtml(r.name)}</div>
-      <div style="text-align:center;font-weight:800;color:var(--gold)">${r.g}</div>
-      <div style="text-align:center;font-weight:800;color:var(--silver)">${r.s}</div>
-      <div style="text-align:center;font-weight:800;color:var(--bronze)">${r.b}</div>
-      <div style="text-align:center;font-weight:700">${r.podiums}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></div>
+      <div style="text-align:center;font-weight:800;color:var(--gold)">${_d(r.g,1,r.name)}</div>
+      <div style="text-align:center;font-weight:800;color:var(--silver)">${_d(r.s,2,r.name)}</div>
+      <div style="text-align:center;font-weight:800;color:var(--bronze)">${_d(r.b,3,r.name)}</div>
+      <div style="text-align:center;font-weight:700">${_d(r.podiums,"podiums",r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></div>
       <div style="text-align:right;font-weight:700;color:var(--theme)">${r.periodsPlayed >= _MIN_RANK_PERIODS ? (r.podiumRate * 100).toFixed(0) + "%" : "—"}</div>
     </div>`
   ).join("");
@@ -12419,6 +12422,59 @@ function _reignSetPeriod(btn, type) {
 function _timelineSetPeriod(btn, type) {
   const body = btn.closest(".ana-sec-body") || btn.closest(".ana-card")?.parentElement || btn.parentElement?.parentElement;
   if (body) body.innerHTML = _buildRankTimelineHtml(type);
+}
+
+function _openPodiumDrill(playerName, rankVal, periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const matching = periods.filter(p => {
+    if (!p.ranks.length) return false;
+    const r = p.ranks.find(x => x.name === playerName);
+    if (!r) return false;
+    return rankVal === "podiums" ? r.rank <= 3 : r.rank === rankVal;
+  });
+  if (!matching.length) return;
+
+  const medalEmoji = rankVal === 1 ? "🥇" : rankVal === 2 ? "🥈" : rankVal === 3 ? "🥉" : "🏅";
+  const rankLabel = rankVal === 1 ? "#1 Finishes" : rankVal === 2 ? "#2 Finishes" : rankVal === 3 ? "#3 Finishes" : "Podium Finishes";
+  const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
+  const _fmtD = iso => {
+    if (!iso) return "";
+    const [, m, d] = iso.split("-");
+    return parseInt(d) + " " + ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];
+  };
+
+  const items = matching.map(p => {
+    const r = p.ranks.find(x => x.name === playerName);
+    const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : "🥉";
+    let sub = "";
+    if (periodType === "week") sub = `<span style="color:var(--muted);font-size:9px;margin-left:6px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`;
+    else if (periodType === "month") sub = `<span style="color:var(--muted);font-size:9px;margin-left:6px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="font-size:18px;line-height:1">${medal}</span>
+      <span style="font-size:12px;font-weight:700">${escHtml(p.label)}${sub}</span>
+    </div>`;
+  }).join("");
+
+  let overlay = document.getElementById("podium-drill-overlay");
+  if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
+  overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:65vh;overflow-y:auto;padding:20px 16px 36px;box-sizing:border-box" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;font-weight:800">${escHtml(playerName)} ${medalEmoji} ${rankLabel}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${matching.length} period${matching.length !== 1 ? "s" : ""}</div>
+        </div>
+        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+      </div>
+      ${items}
+    </div>
+  </div>`;
+  overlay.style.display = "block";
+}
+
+function _closePodiumDrill() {
+  const el = document.getElementById("podium-drill-overlay");
+  if (el) el.style.display = "none";
 }
 
 function _buildPowerRankingsHtml() {
@@ -16549,6 +16605,8 @@ Object.assign(window, {
   _podiumSetPeriod,
   _reignSetPeriod,
   _timelineSetPeriod,
+  _openPodiumDrill,
+  _closePodiumDrill,
 });
 
 function setHistoryDateFilter(value) {
