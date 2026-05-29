@@ -12343,11 +12343,9 @@ function _buildRankReignHtml() {
   const rows = Object.values(tally)
     .filter(p => p.days >= _MIN_RANK_PERIODS)
     .sort((a, b) => {
-      for (let r = 1; r <= maxRank; r++) {
-        const diff = (b.rankCounts[r] || 0) - (a.rankCounts[r] || 0);
-        if (diff !== 0) return diff;
-      }
-      return a.name.localeCompare(b.name);
+      const ra = eloRankOf[a.name] ?? 9999;
+      const rb = eloRankOf[b.name] ?? 9999;
+      return ra !== rb ? ra - rb : a.name.localeCompare(b.name);
     });
 
   if (!rows.length)
