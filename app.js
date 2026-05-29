@@ -12808,7 +12808,6 @@ function _podiumDrillGoTo(key, periodType) {
     if (dp) dp.classList.remove("show");
   }
   switchMainTab("compact");
-  renderCompact();
 }
 
 function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
