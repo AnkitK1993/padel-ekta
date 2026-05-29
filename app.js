@@ -12307,6 +12307,14 @@ function recomputeWhatIfElo() {
 
 // ── RANK HISTORY HELPERS ──────────────────────────────────────
 
+function _secBody(fn) {
+  try { return fn(); }
+  catch (e) {
+    console.error("[Analytics section error]", e);
+    return `<div style="color:var(--muted);font-size:11px;padding:8px 0">Section unavailable — <code style="font-size:10px">${escHtml(String(e))}</code></div>`;
+  }
+}
+
 const _rankPeriodCache = {};
 const _MIN_RANK_PERIODS = 3;
 const _MIN_RANK_PLAYERS = 3;
@@ -12697,25 +12705,25 @@ function _podiumSetPeriod(btn, type) {
   btn.classList.add("active");
   const content = btn.closest("[class]")?.parentElement?.querySelector(".podium-content")
     || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _buildPodiumTrackerHtml(type);
+  if (content) content.innerHTML = _secBody(() => _buildPodiumTrackerHtml(type));
 }
 function _antiPodiumSetPeriod(btn, type) {
   btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   const content = btn.closest("[class]")?.parentElement?.querySelector(".antipodium-content")
     || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _buildAntiPodiumTrackerHtml(type);
+  if (content) content.innerHTML = _secBody(() => _buildAntiPodiumTrackerHtml(type));
 }
 function _reignSetPeriod(btn, type) {
   btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   const content = btn.closest("[class]")?.parentElement?.querySelector(".reign-content")
     || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _buildRankReignHtml(type);
+  if (content) content.innerHTML = _secBody(() => _buildRankReignHtml(type));
 }
 function _timelineSetPeriod(btn, type) {
   const body = btn.closest(".ana-sec-body") || btn.closest(".ana-card")?.parentElement || btn.parentElement?.parentElement;
-  if (body) body.innerHTML = _buildRankTimelineHtml(type);
+  if (body) body.innerHTML = _secBody(() => _buildRankTimelineHtml(type));
 }
 
 function _openPodiumDrill(playerName, rankVal, periodType) {
@@ -16178,7 +16186,7 @@ function renderAnalyticsPage() {
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'weekend')">WEEKEND</button>
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'month')">MONTHLY</button>
         </div>
-        <div class="podium-content">${_buildPodiumTrackerHtml("today")}</div>
+        <div class="podium-content">${_secBody(() => _buildPodiumTrackerHtml("today"))}</div>
       </div>`,
     },
     {
@@ -16192,20 +16200,20 @@ function renderAnalyticsPage() {
           <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'weekend')">WEEKEND</button>
           <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'month')">MONTHLY</button>
         </div>
-        <div class="antipodium-content">${_buildAntiPodiumTrackerHtml("today")}</div>
+        <div class="antipodium-content">${_secBody(() => _buildAntiPodiumTrackerHtml("today"))}</div>
       </div>`,
     },
     {
       key: "rankreign",
       cat: "players",
       title: "👑 Rank Reign",
-      body: _buildRankReignHtml(),
+      body: _secBody(() => _buildRankReignHtml()),
     },
     {
       key: "ranktimeline",
       cat: "players",
       title: "📅 Rank Timeline",
-      body: _buildRankTimelineHtml("today"),
+      body: _secBody(() => _buildRankTimelineHtml("today")),
     },
     {
       key: "clutchrank",
