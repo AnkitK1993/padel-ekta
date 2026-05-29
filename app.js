@@ -12420,14 +12420,15 @@ function _computeRankPeriods(periodType) {
         label = _shortMonths[parseInt(mo)] + " '" + y.slice(2);
       }
       if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
+      // Period must have at least 2 matches played (session minimum)
+      if (b.matches.length < 2) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
       const eloMap = computeElo(b.matches);
       const statsArr = computeStats(b.matches, eloMap);
-      const qualified = statsArr.filter(p => p.mp >= 2);
-      if (qualified.length < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
-      const ranks = qualified.map((p, i) => ({
+      if (statsArr.length < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
+      const ranks = statsArr.map((p, i) => ({
         name: p.name,
         rank: i + 1,
-        trueRank: statsArr.indexOf(p) + 1,
+        trueRank: i + 1,
         sr: p.sr,
         mp: p.mp,
       }));
@@ -12596,15 +12597,14 @@ function _buildRankReignHtml() {
   let maxRank = 1;
   const tally = {};
   allDates.forEach(date => {
-    const dayMatchCounts = {};
-    sorted.filter(m => m.date === date).forEach(m => {
-      [...(m.teamA||[]), ...(m.teamB||[])].forEach(p => { dayMatchCounts[p] = (dayMatchCounts[p] || 0) + 1; });
-    });
+    const dayMatches = sorted.filter(m => m.date === date);
+    if (dayMatches.length < 2) return; // skip days with fewer than 2 matches
+    const dayPlayers = new Set(dayMatches.flatMap(m => [...(m.teamA||[]), ...(m.teamB||[])]));
     const snap = sorted.filter(m => (m.date || "") <= date);
     const statsSnap = computeStats(snap, computeElo(snap));
     let qualRank = 0;
     statsSnap.forEach((p) => {
-      if ((dayMatchCounts[p.name] || 0) < 2) return;
+      if (!dayPlayers.has(p.name)) return; // only players who appeared that day
       qualRank++;
       if (!tally[p.name]) tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
       tally[p.name].days++;
