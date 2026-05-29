@@ -1286,8 +1286,8 @@ function loadCloudData() {
 
     const _onAddPage = () => document.querySelector(".page.active")?.id === "pg-add";
     if (isFirstLoad) {
-      // First render: paint data, then dismiss splash so user sees cards animate in cleanly once
-      renderHome();
+      // Paint compact (default page). Home renders on first tab visit so its
+      // cascade animations run while the page is actually visible.
       renderCompact();
       if (_onAddPage()) refreshManage();
       fired = true;
@@ -1574,10 +1574,12 @@ function switchMainTab(id, skipAnim = false) {
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
 
-  // Render content for the new page — skip if data + filter haven't changed
+  // Render content for the new page — skip if data + filter haven't changed.
+  // In FULL cascade mode always re-render home so animations play while the page is visible.
   if (id === "home") {
     const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
-    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
+    const fullMode = document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade");
+    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk || fullMode) renderHome();
   }
   if (id === "compact") {
     const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
