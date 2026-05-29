@@ -641,6 +641,23 @@ let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
 let _cmpEqualized = false;
+const _CMP_TOGGLE_COLS = [
+  { key: "mp",      label: "MP"  },
+  { key: "record",  label: "W–L" },
+  { key: "winPct",  label: "W%"  },
+  { key: "gw",      label: "GW"  },
+  { key: "gl",      label: "GL"  },
+  { key: "gamePct", label: "G%"  },
+  { key: "elo",     label: "ELO" },
+];
+function _loadCmpHiddenCols() {
+  try {
+    const s = localStorage.getItem("padel_cmp_hidden_cols");
+    if (s) return new Set(JSON.parse(s));
+  } catch (e) {}
+  return new Set(["gw", "gl", "gamePct"]);
+}
+let _cmpHiddenCols = _loadCmpHiddenCols();
 let _eloTLPlayer = "";
 let _eloTLFilter = "all";
 let _eloTLOverlay = "";
@@ -3388,6 +3405,35 @@ function closeExcludeSheet() {
   document.getElementById("exclude-sheet")?.classList.remove("live-sheet-open");
 }
 
+function openColSheet() {
+  _renderColChips();
+  document.getElementById("col-sheet-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("col-sheet")?.classList.add("live-sheet-open");
+}
+function closeColSheet() {
+  document.getElementById("col-sheet-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("col-sheet")?.classList.remove("live-sheet-open");
+}
+function _renderColChips() {
+  const list = document.getElementById("col-chip-list");
+  if (!list) return;
+  list.innerHTML = _CMP_TOGGLE_COLS.map(c =>
+    `<button class="col-chip${_cmpHiddenCols.has(c.key) ? "" : " col-chip--on"}" onclick="toggleCmpCol(${jsArg(c.key)})">${escHtml(c.label)}</button>`
+  ).join("");
+}
+function toggleCmpCol(key) {
+  if (_cmpHiddenCols.has(key)) _cmpHiddenCols.delete(key);
+  else _cmpHiddenCols.add(key);
+  try { localStorage.setItem("padel_cmp_hidden_cols", JSON.stringify([..._cmpHiddenCols])); } catch (e) {}
+  _applyCmpColClasses();
+  _renderColChips();
+}
+function _applyCmpColClasses() {
+  const table = document.querySelector(".cmp");
+  if (!table) return;
+  _CMP_TOGGLE_COLS.forEach(c => table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)));
+}
+
 function onCmpFilter() {
   cmpFilter = document.getElementById("cmpSel").value;
   const dr = document.getElementById("cmpDr");
@@ -3764,7 +3810,8 @@ function renderCompact() {
     _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const stats = computeStats(filtered, computeElo(filtered));
+  const _cmpEloMap = computeElo(filtered);
+  const stats = computeStats(filtered, _cmpEloMap);
   if (_cmpEqualized) {
     stats.forEach(p => {
       const c = p.mp / (p.mp + 5);
@@ -3791,6 +3838,7 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
+    elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
     sr: (a, b) => (_cmpEqualized ? (a.eqSR - b.eqSR) : (a.sr - b.sr)) || a.gamePct - b.gamePct,
   };
   const sorted = [...stats].sort((a, b) => {
@@ -3815,13 +3863,14 @@ function renderCompact() {
   if (!sorted.length) {
     _cmpLeaderHtmls = [];
     _cmpFiltered = filtered;
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
     document.getElementById("cmpMatches").innerHTML =
       buildSummaryMatchRows(filtered);
     updateSortArrows(sorted);
     return;
   }
   updateSortArrows();
+  _applyCmpColClasses();
 
   const splashDone = document.body.classList.contains("splash-done");
 
@@ -3855,7 +3904,8 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
+    const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -3951,6 +4001,7 @@ function updateSortArrows() {
     gw: ["sort-gw"],
     gl: ["sort-gl"],
     gamePct: ["sort-gamePct"],
+    elo: ["sort-elo"],
     sr: ["sort-sr", "sort-rank"],
   };
   Object.entries(keyMap).forEach(([key, ids]) => {
@@ -15947,6 +15998,9 @@ Object.assign(window, {
   closeExcludeSheet,
   toggleExcludePlayer,
   clearExcludedPlayers,
+  openColSheet,
+  closeColSheet,
+  toggleCmpCol,
   addMatches,
   saveNames,
   loadNames,

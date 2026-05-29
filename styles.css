@@ -1886,8 +1886,8 @@ table.cmp tbody td:nth-child(2) {
   padding-left: 4px;
 }
 
-table.cmp thead th:nth-child(9),
-table.cmp tbody td:nth-child(9) {
+table.cmp thead th:nth-child(10),
+table.cmp tbody td:nth-child(10) {
   text-align: center;
   padding: 5px 6px;
   vertical-align: middle;
@@ -8588,8 +8588,8 @@ table.cmp tbody td:nth-child(2) {
   padding-right: 2px !important;
 }
 
-table.cmp thead th:nth-child(9),
-table.cmp tbody td:nth-child(9) {
+table.cmp thead th:nth-child(10),
+table.cmp tbody td:nth-child(10) {
   width: 58px !important;
   padding-left: 3px !important;
   padding-right: 1px !important;
@@ -8688,6 +8688,50 @@ table.cmp td:nth-child(9) {
   padding-right: 8px !important;
 }
 
+/* ── ELO column ── */
+.cmp-elo-cell {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+#cmp-elo-th { width: 46px; }
+
+/* ── Column visibility toggle ── */
+.cmp.hide-col-mp [data-col="mp"],
+.cmp.hide-col-record [data-col="record"],
+.cmp.hide-col-winPct [data-col="winPct"],
+.cmp.hide-col-gw [data-col="gw"],
+.cmp.hide-col-gl [data-col="gl"],
+.cmp.hide-col-gamePct [data-col="gamePct"],
+.cmp.hide-col-elo [data-col="elo"] { display: none; }
+
+/* ── Column chip strip ── */
+.col-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 4px;
+}
+.col-chip {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  font-family: "DM Sans", sans-serif;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.col-chip--on {
+  background: rgba(var(--theme-rgb), 0.18);
+  border-color: rgba(var(--theme-rgb), 0.55);
+  color: var(--accent);
+}
+
 table.cmp thead th {
   letter-spacing: 0.05em !important;
   padding-left: 5px !important;
@@ -8710,8 +8754,8 @@ table.cmp tbody td {
 
 /* ══════════════════════════════════════ */
 
-table.cmp th:nth-child(9),
-table.cmp td:nth-child(9) {
+table.cmp th:nth-child(10),
+table.cmp td:nth-child(10) {
   width: 44px !important;
   padding-left: 2px !important;
   padding-right: 2px !important;
