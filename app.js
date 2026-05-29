@@ -1286,8 +1286,6 @@ function loadCloudData() {
 
     const _onAddPage = () => document.querySelector(".page.active")?.id === "pg-add";
     if (isFirstLoad) {
-      // Paint compact (default page). Home renders on first tab visit so its
-      // cascade animations run while the page is actually visible.
       renderCompact();
       if (_onAddPage()) refreshManage();
       fired = true;
@@ -1575,15 +1573,15 @@ function switchMainTab(id, skipAnim = false) {
     id === "add" && window.isAdmin ? "flex" : "none";
 
   // Render content for the new page — skip if data + filter haven't changed.
-  // In FULL cascade mode always re-render home so animations play while the page is visible.
+  // Compact gets fullMode re-render so its cascade plays while the page is visible.
   if (id === "home") {
     const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
-    const fullMode = document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade");
-    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk || fullMode) renderHome();
+    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
   }
   if (id === "compact") {
     const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
-    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk) renderCompact();
+    const fullMode = document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade");
+    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk || fullMode) renderCompact();
   }
   if (id === "history") {
     renderModernMatches();
@@ -1622,7 +1620,7 @@ function switchMainTab(id, skipAnim = false) {
   }
 }
 
-const mainTabOrder = ["compact", "home", "history", "analytics"];
+const mainTabOrder = ["home", "compact", "history", "analytics"];
 
 function isScrollable(el) {
   while (el && el !== document.body) {
