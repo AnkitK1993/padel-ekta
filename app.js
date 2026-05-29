@@ -1016,12 +1016,32 @@ function _resubscribeFirestore() {
       }
       const incoming = d.matches || [];
       const _sessionBuffering = !!(_liveSessionData?.sessionActive);
+      const _hadOfflineEdits = _hasPendingSync() && !_sessionBuffering;
       if (_sessionBuffering && _sessionPendingCount > 0) {
+        // Live session: re-attach session-buffered matches
         const cloudKeys = new Set(incoming.map(_mkMatchKey));
         const pending = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
         allMatches = pending.length
           ? [...incoming, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""))
           : incoming;
+      } else if (_hadOfflineEdits) {
+        // Offline mode: find matches added locally while offline, push merged set to cloud
+        const cloudKeys = new Set(incoming.map(_mkMatchKey));
+        const offlineAdditions = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+        if (offlineAdditions.length > 0) {
+          allMatches = [...incoming, ...offlineAdditions].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+          // Keep local player roster (may have new names added offline)
+          // push merged data back to Firestore
+          players = pls; playerAliasMap = pam; nextPlayerId = npid;
+          rebuildNameMaps(); _invalidateEloMemo();
+          saveCloudData();
+          showToast(`Pushed ${offlineAdditions.length} offline match${offlineAdditions.length !== 1 ? "es" : ""} to cloud ☁️`);
+          _setPendingSync(false);
+          renderHome(); renderCompact(); refreshManage();
+          return;
+        } else {
+          allMatches = incoming;
+        }
       } else {
         allMatches = incoming;
       }
@@ -5873,6 +5893,7 @@ function renderAddMatches() {
     ? allMatches.filter((m) => JSON.stringify(m).toLowerCase().includes(query))
     : [...allMatches];
   const addList = document.getElementById("add-match-list");
+  if (!addList) return;
   addList.innerHTML = buildMatchCards(matches, true);
   addList
     .querySelectorAll(".team-score[data-final], .motd-score[data-final]")
@@ -12694,7 +12715,7 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
       ? `<td style="${_rankTd};color:${eloRankColor(eloRank)}">#${eloRank}</td>`
       : `<td style="${_rankTd};color:var(--muted)">—</td>`;
     return `<tr>
-      <td class="rhtl-td-name" style="${_stickyTd};font-weight:700">${escHtml(pl.name)}</td>
+      <td class="rhtl-td-name" style="${_stickyTd};font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="_openRankCalendar(${jsArg(pl.name)},${jsArg(periodType)})">${escHtml(pl.name)}</td>
       ${rankCell}` +
     periods.map(p => {
       const r = lookup[p.key][pl.name];
@@ -12913,6 +12934,164 @@ function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
 function _closePodiumDrill() {
   const el = document.getElementById("podium-drill-overlay");
   if (el) el.style.display = "none";
+}
+
+// ── RANK CALENDAR (Timeline player tap) ───────────────────────
+
+function _openRankCalendar(playerName, periodType) {
+  const allPeriods = _computeRankPeriods(periodType);
+  // Build full lookup over ALL periods (not capped to 10)
+  const rankMap = {};
+  let maxRank = 1;
+  allPeriods.forEach(p => {
+    const r = p.ranks.find(x => x.name === playerName);
+    if (r) {
+      rankMap[p.key] = { rank: r.rank, label: p.label, from: p.from, to: p.to };
+      if (r.rank > maxRank) maxRank = r.rank;
+    }
+  });
+
+  const totalPeriods = Object.keys(rankMap).length;
+  if (!totalPeriods) return;
+
+  const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
+  const body = periodType === "today"
+    ? _rankCalDailyHtml(rankMap, maxRank)
+    : periodType === "week"
+    ? _rankCalWeeklyHtml(rankMap, allPeriods, maxRank)
+    : periodType === "weekend"
+    ? _rankCalWeekendHtml(rankMap, allPeriods, maxRank)
+    : _rankCalMonthlyHtml(rankMap, allPeriods, maxRank);
+
+  let overlay = document.getElementById("podium-drill-overlay");
+  if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
+  overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:75vh;overflow-y:auto;padding:20px 16px 40px;box-sizing:border-box" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;font-weight:800">${escHtml(playerName)} — Rank History</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${totalPeriods} period${totalPeriods !== 1 ? "s" : ""} played</div>
+        </div>
+        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+      </div>
+      ${body}
+    </div>
+  </div>`;
+  overlay.style.display = "block";
+}
+
+// Daily: full monthly calendar grid (Mon–Sun columns)
+function _rankCalDailyHtml(rankMap, maxRank) {
+  const _SM = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const DOW_H = ["M","T","W","T","F","S","S"];
+
+  // Group keys by YYYY-MM
+  const byMonth = {};
+  Object.keys(rankMap).sort().forEach(key => {
+    const ym = key.slice(0, 7);
+    if (!byMonth[ym]) byMonth[ym] = {};
+    byMonth[ym][key] = rankMap[key];
+  });
+
+  const _cell = (rank, label) => {
+    if (rank == null) return `<td style="width:36px;height:30px;border-radius:4px;text-align:center;vertical-align:middle;font-size:9px;font-weight:800;color:rgba(255,255,255,0.12)">—</td>`;
+    const bg = _rankBg(rank, maxRank);
+    const col = _rankColor(rank, maxRank);
+    const em = rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":"";
+    return `<td title="${label||""}" style="width:36px;height:30px;border-radius:4px;background:${bg};color:${col};text-align:center;vertical-align:middle;font-size:10px;font-weight:800">${em||("#"+rank)}</td>`;
+  };
+
+  return Object.entries(byMonth).sort().reverse().map(([ym, days]) => {
+    const [y, mo] = ym.split("-");
+    const firstDow = (new Date(+y, +mo - 1, 1).getDay() + 6) % 7; // Mon=0
+    const daysInMonth = new Date(+y, +mo, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDow; i++) cells.push(`<td></td>`);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${y}-${mo}-${String(d).padStart(2,"0")}`;
+      const data = days[key];
+      cells.push(_cell(data?.rank ?? null, data?.label));
+    }
+    while (cells.length % 7) cells.push(`<td></td>`);
+    const rows = [];
+    for (let i = 0; i < cells.length; i += 7) rows.push(`<tr style="gap:3px">${cells.slice(i,i+7).join("")}</tr>`);
+    return `<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">${_SM[+mo]} ${y}</div>
+      <table style="border-collapse:separate;border-spacing:3px">
+        <thead><tr>${DOW_H.map(d=>`<th style="font-size:9px;color:var(--muted);font-weight:600;width:36px;text-align:center;padding-bottom:4px">${d}</th>`).join("")}</tr></thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+    </div>`;
+  }).join("");
+}
+
+// Weekly: calendar-style grid grouped by month, highlighting the week range
+function _rankCalWeeklyHtml(rankMap, allPeriods, maxRank) {
+  // Show all weeks as cards grouped by month of the week-start
+  const _SM = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const byMonth = {};
+  allPeriods.filter(p => rankMap[p.key]).forEach(p => {
+    const ym = p.key.slice(0,7);
+    if (!byMonth[ym]) byMonth[ym] = [];
+    byMonth[ym].push(p);
+  });
+
+  const _card = (p) => {
+    const d = rankMap[p.key];
+    const bg = _rankBg(d.rank, maxRank);
+    const col = _rankColor(d.rank, maxRank);
+    const em = d.rank===1?"🥇":d.rank===2?"🥈":d.rank===3?"🥉":"";
+    const [,fm,fd] = (p.from||p.key).split("-");
+    const [,tm,td] = (p.to||p.key).split("-");
+    const range = `${+fd} ${_SM[+fm]}${fm!==tm?" – "+td+" "+_SM[+tm]:""}`;
+    return `<div style="background:${bg};border-radius:8px;padding:7px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:10px;color:var(--muted)">${range}</span>
+      <span style="font-size:13px;font-weight:800;color:${col}">${em||("#"+d.rank)}</span>
+    </div>`;
+  };
+
+  return Object.entries(byMonth).sort().reverse().map(([ym, periods]) => {
+    const [y,mo] = ym.split("-");
+    return `<div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">${_SM[+mo]} ${y}</div>
+      ${periods.map(_card).join("")}
+    </div>`;
+  }).join("");
+}
+
+// Weekend: same as weekly style but grouping by month of the Saturday
+function _rankCalWeekendHtml(rankMap, allPeriods, maxRank) {
+  return _rankCalWeeklyHtml(rankMap, allPeriods, maxRank); // same layout, different labels
+}
+
+// Monthly: year-grouped grid of month tiles
+function _rankCalMonthlyHtml(rankMap, allPeriods, maxRank) {
+  const _SM = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const byYear = {};
+  allPeriods.filter(p => rankMap[p.key]).forEach(p => {
+    const y = p.key.slice(0,4);
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(p);
+  });
+
+  const _tile = (p) => {
+    const d = rankMap[p.key];
+    const bg = _rankBg(d.rank, maxRank);
+    const col = _rankColor(d.rank, maxRank);
+    const em = d.rank===1?"🥇":d.rank===2?"🥈":d.rank===3?"🥉":"";
+    const mo = p.key.slice(5,7);
+    return `<div style="background:${bg};border-radius:8px;padding:8px;text-align:center;min-width:52px">
+      <div style="font-size:10px;color:var(--muted);font-weight:600">${_SM[+mo]}</div>
+      <div style="font-size:13px;font-weight:800;color:${col};margin-top:3px">${em||("#"+d.rank)}</div>
+    </div>`;
+  };
+
+  return Object.entries(byYear).sort().reverse().map(([y, periods]) => {
+    return `<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">${y}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${periods.map(_tile).join("")}</div>
+    </div>`;
+  }).join("");
 }
 
 function _buildPowerRankingsHtml() {
@@ -17060,6 +17239,7 @@ Object.assign(window, {
   _openAntiPodiumDrill,
   _podiumDrillGoTo,
   _closePodiumDrill,
+  _openRankCalendar,
 });
 
 function setHistoryDateFilter(value) {
