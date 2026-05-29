@@ -12253,32 +12253,6 @@ function _buildPodiumTrackerHtml(periodType) {
   if (!rows.length)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
 
-  const mostGold = rows[0];
-  const mostPodiums = [...rows].sort((a, b) => b.podiums - a.podiums)[0];
-  const bestRate = [...rows].filter(r => r.periodsPlayed >= _MIN_RANK_PERIODS).sort((a, b) => b.podiumRate - a.podiumRate)[0];
-  const pLabel = periodType === "week" ? "wk" : "mo";
-
-  const awardCards = `<div class="awards-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
-    <div class="award-card">
-      <div class="award-icon">🥇</div>
-      <div class="award-title">MOST #1 FINISHES</div>
-      <div class="award-name">${escHtml(mostGold.name)}</div>
-      <div class="award-sub">${mostGold.g} gold · ${pLabel}</div>
-    </div>
-    <div class="award-card">
-      <div class="award-icon">🏅</div>
-      <div class="award-title">MOST PODIUMS</div>
-      <div class="award-name">${escHtml(mostPodiums.name)}</div>
-      <div class="award-sub">${mostPodiums.podiums} top-3 finishes</div>
-    </div>
-    ${bestRate ? `<div class="award-card">
-      <div class="award-icon">📊</div>
-      <div class="award-title">BEST PODIUM RATE</div>
-      <div class="award-name">${escHtml(bestRate.name)}</div>
-      <div class="award-sub">${(bestRate.podiumRate * 100).toFixed(0)}% of periods</div>
-    </div>` : ""}
-  </div>`;
-
   const colTpl = "1fr 46px 46px 46px 56px 48px";
   const tableRows = rows.map(r =>
     `<div class="lrace-row" style="grid-template-columns:${colTpl}">
@@ -12291,7 +12265,7 @@ function _buildPodiumTrackerHtml(periodType) {
     </div>`
   ).join("");
 
-  return `${awardCards}<div class="ana-card" style="padding:8px 12px">
+  return `<div class="ana-card" style="padding:8px 12px">
     <div class="lrace-header" style="grid-template-columns:${colTpl}">
       <span>Player</span><span style="text-align:center">🥇</span><span style="text-align:center">🥈</span><span style="text-align:center">🥉</span><span style="text-align:center">Podiums</span><span style="text-align:right">%</span>
     </div>${tableRows}</div>`;
@@ -12347,39 +12321,6 @@ function _buildRankReignHtml(periodType) {
   if (!rows.length)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
 
-  const pLabel = periodType === "week" ? "weeks" : "months";
-  const longestW = [...rows].sort((a, b) => b.longestStreak - a.longestStreak)[0];
-  const curW = [...rows].filter(r => r.currentGoldStreak > 0).sort((a, b) => b.currentGoldStreak - a.currentGoldStreak)[0];
-  const stableW = [...rows].sort((a, b) => a.avgRank - b.avgRank)[0];
-  const climbW = [...rows].sort((a, b) => b.climbFromAvg - a.climbFromAvg)[0];
-
-  const awardCards = `<div class="awards-grid" style="margin-bottom:10px">
-    <div class="award-card">
-      <div class="award-icon">👑</div>
-      <div class="award-title">LONGEST #1 STREAK</div>
-      <div class="award-name">${escHtml(longestW.name)}</div>
-      <div class="award-sub">${longestW.longestStreak} consecutive ${pLabel}</div>
-    </div>
-    <div class="award-card">
-      <div class="award-icon">🔥</div>
-      <div class="award-title">CURRENT #1 STREAK</div>
-      <div class="award-name">${curW ? escHtml(curW.name) : "—"}</div>
-      <div class="award-sub">${curW ? curW.currentGoldStreak + " " + pLabel + " running" : "No active streak"}</div>
-    </div>
-    <div class="award-card">
-      <div class="award-icon">🧘</div>
-      <div class="award-title">MOST STABLE RANK</div>
-      <div class="award-name">${escHtml(stableW.name)}</div>
-      <div class="award-sub">Avg rank #${stableW.avgRank}</div>
-    </div>
-    <div class="award-card">
-      <div class="award-icon">🚀</div>
-      <div class="award-title">BIGGEST CLIMBER</div>
-      <div class="award-name">${escHtml(climbW.name)}</div>
-      <div class="award-sub">${climbW.climbFromAvg > 0 ? "+" : ""}${climbW.climbFromAvg} above avg rank</div>
-    </div>
-  </div>`;
-
   const tableRows = rows.map(r =>
     `<div class="lrace-row" style="grid-template-columns:1fr 52px 64px 44px 44px">
       <div class="lrace-name">${escHtml(r.name)}</div>
@@ -12390,7 +12331,7 @@ function _buildRankReignHtml(periodType) {
     </div>`
   ).join("");
 
-  return `${awardCards}<div class="ana-card" style="padding:8px 12px">
+  return `<div class="ana-card" style="padding:8px 12px">
     <div class="lrace-header" style="grid-template-columns:1fr 52px 64px 44px 44px">
       <span>Player</span><span>🥇 Total</span><span>🔥 Streak</span><span>Avg #</span><span style="text-align:right">Best</span>
     </div>${tableRows}</div>`;
