@@ -613,6 +613,7 @@ let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
 let _addRenderedVersion = -1;
+let _anaRenderedVersion = -1;
 let _excludedPlayers = new Set((() => { try { return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]"); } catch(e) { return []; } })());
 let _sessionGuestUnexcluded = new Set(); // guests temporarily re-included this Summary session
 let photoMap = {};
@@ -897,6 +898,27 @@ function renderAnalyticsFeature() {
       }),
     )
     .catch((err) => _handleFeatureLoadError("Analytics", err));
+}
+
+// Pre-render analytics in the background so the tab opens instantly.
+// Runs only when the user is NOT already on the analytics tab and the
+// rendered version is stale. Uses requestIdleCallback (with a 10s timeout
+// fallback) to avoid competing with primary UI work.
+let _anaPrefetchScheduled = false;
+function _scheduleAnalyticsPrefetch() {
+  if (_anaPrefetchScheduled) return;
+  _anaPrefetchScheduled = true;
+  const run = () => {
+    _anaPrefetchScheduled = false;
+    if (document.querySelector(".page.active")?.id === "pg-analytics") return;
+    if (_anaRenderedVersion === _dataVersion) return;
+    renderAnalyticsPage();
+  };
+  if (typeof requestIdleCallback !== "undefined") {
+    requestIdleCallback(run, { timeout: 10000 });
+  } else {
+    setTimeout(run, 3000);
+  }
 }
 
 function _loadLiveFeature() {
@@ -1372,6 +1394,8 @@ function loadCloudData() {
       window.dismissSplash("Ready ✓");
       setTimeout(_checkAnniversaries, 1800);
       setTimeout(checkResumeSession, 800); // Enhancement 13: show session resume banner if saved state exists
+      // Pre-render analytics in background after primary tab settles
+      if (activePageId !== "pg-analytics") _scheduleAnalyticsPrefetch();
     } else {
       // Genuine new data from Firestore: fade board out, re-render, fade back in — no blur flash
       const board = document.getElementById("board");
@@ -1392,6 +1416,8 @@ function loadCloudData() {
           });
           board.style.opacity = "1";
         }
+        // Re-invalidate analytics cache after Firestore update; pre-render in background
+        _scheduleAnalyticsPrefetch();
       }, 160);
     }
   }
@@ -12307,6 +12333,14 @@ function recomputeWhatIfElo() {
 
 // ── RANK HISTORY HELPERS ──────────────────────────────────────
 
+function _secBody(fn) {
+  try { return fn(); }
+  catch (e) {
+    console.error("[Analytics section error]", e);
+    return `<div style="color:var(--muted);font-size:11px;padding:8px 0">Section unavailable — <code style="font-size:10px">${escHtml(String(e))}</code></div>`;
+  }
+}
+
 const _rankPeriodCache = {};
 const _MIN_RANK_PERIODS = 3;
 const _MIN_RANK_PLAYERS = 3;
@@ -12697,25 +12731,25 @@ function _podiumSetPeriod(btn, type) {
   btn.classList.add("active");
   const content = btn.closest("[class]")?.parentElement?.querySelector(".podium-content")
     || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _buildPodiumTrackerHtml(type);
+  if (content) content.innerHTML = _secBody(() => _buildPodiumTrackerHtml(type));
 }
 function _antiPodiumSetPeriod(btn, type) {
   btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   const content = btn.closest("[class]")?.parentElement?.querySelector(".antipodium-content")
     || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _buildAntiPodiumTrackerHtml(type);
+  if (content) content.innerHTML = _secBody(() => _buildAntiPodiumTrackerHtml(type));
 }
 function _reignSetPeriod(btn, type) {
   btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   const content = btn.closest("[class]")?.parentElement?.querySelector(".reign-content")
     || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _buildRankReignHtml(type);
+  if (content) content.innerHTML = _secBody(() => _buildRankReignHtml(type));
 }
 function _timelineSetPeriod(btn, type) {
   const body = btn.closest(".ana-sec-body") || btn.closest(".ana-card")?.parentElement || btn.parentElement?.parentElement;
-  if (body) body.innerHTML = _buildRankTimelineHtml(type);
+  if (body) body.innerHTML = _secBody(() => _buildRankTimelineHtml(type));
 }
 
 function _openPodiumDrill(playerName, rankVal, periodType) {
@@ -13845,6 +13879,8 @@ window._renderEloProjTable = function() {
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
+  // Skip full re-render if data hasn't changed since last render
+  if (_anaRenderedVersion === _dataVersion && container.querySelector(".ana-sec")) return;
   if (!allMatches.length) {
     container.innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
@@ -16178,7 +16214,7 @@ function renderAnalyticsPage() {
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'weekend')">WEEKEND</button>
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'month')">MONTHLY</button>
         </div>
-        <div class="podium-content">${_buildPodiumTrackerHtml("today")}</div>
+        <div class="podium-content">${_secBody(() => _buildPodiumTrackerHtml("today"))}</div>
       </div>`,
     },
     {
@@ -16192,20 +16228,20 @@ function renderAnalyticsPage() {
           <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'weekend')">WEEKEND</button>
           <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'month')">MONTHLY</button>
         </div>
-        <div class="antipodium-content">${_buildAntiPodiumTrackerHtml("today")}</div>
+        <div class="antipodium-content">${_secBody(() => _buildAntiPodiumTrackerHtml("today"))}</div>
       </div>`,
     },
     {
       key: "rankreign",
       cat: "players",
       title: "👑 Rank Reign",
-      body: _buildRankReignHtml(),
+      body: _secBody(() => _buildRankReignHtml()),
     },
     {
       key: "ranktimeline",
       cat: "players",
       title: "📅 Rank Timeline",
-      body: _buildRankTimelineHtml("today"),
+      body: _secBody(() => _buildRankTimelineHtml("today")),
     },
     {
       key: "clutchrank",
@@ -16575,6 +16611,8 @@ function renderAnalyticsPage() {
         return makeSec(key, def.title, def.body, collapsed.has(key), def.cat);
       })
       .join("");
+
+  _anaRenderedVersion = _dataVersion;
 
   // Re-apply active category filter after re-render
   anaFilterCategory(_anaActiveCat, true);
