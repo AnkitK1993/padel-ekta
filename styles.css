@@ -1823,6 +1823,15 @@ select.cmp-sel:focus {
 .smr-inner .cmr-meta {
   flex-shrink: 0;
 }
+.smr-ed {
+  font-size: 9px;
+  font-weight: 700;
+  margin-left: 3px;
+  letter-spacing: 0.02em;
+}
+.smr-ed-pos { color: #4ade80; }
+.smr-ed-neg { color: #f87171; }
+.smr-ed-neu { color: var(--muted); }
 .cmp-matches {
   flex: unset;
   overflow: visible;

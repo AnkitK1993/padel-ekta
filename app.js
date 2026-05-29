@@ -3822,12 +3822,7 @@ function renderCompact() {
     _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const _minDate = filtered.length ? filtered.reduce((mn, m) => m.date < mn ? m.date : mn, filtered[0].date) : null;
-  const _priorMatches = _minDate ? activeMatches().filter(m => m.date < _minDate) : [];
-  const _eloStart = computeElo(_priorMatches);
-  const _cmpEloMap = computeElo([..._priorMatches, ...filtered]);
-  const _eloDeltaMap = {};
-  Object.keys(_cmpEloMap).forEach(p => { _eloDeltaMap[p] = (_cmpEloMap[p] || 1000) - (_eloStart[p] || 1000); });
+  const _cmpEloMap = computeElo(filtered);
   const stats = computeStats(filtered, _cmpEloMap);
   if (_cmpEqualized) {
     stats.forEach(p => {
@@ -3922,18 +3917,13 @@ function renderCompact() {
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
-    const _ed = Math.round(_eloDeltaMap[p.name] || 0);
-    const eloDeltaHtml = _ed > 0
-      ? `<span class="wk-rank-delta wk-up">+${_ed}</span>`
-      : _ed < 0
-        ? `<span class="wk-rank-delta wk-down">${_ed}</span>`
-        : `<span class="wk-rank-delta wk-same">±0</span>`;
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaHtml}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
+  const matchEloDeltas = _computeMatchEloDeltas(filtered);
   const reversedMatches = [...filtered].reverse();
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
@@ -3968,10 +3958,10 @@ function renderCompact() {
       const animCount = Math.min(10, reversedMatches.length);
       const animRows = reversedMatches
         .slice(0, animCount)
-        .map((m) => buildSummaryMatchRow(m, " card-anim", allMatches.indexOf(m)));
+        .map((m) => buildSummaryMatchRow(m, " card-anim", allMatches.indexOf(m), matchEloDeltas));
       const restRows = reversedMatches
         .slice(animCount)
-        .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m)));
+        .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m), matchEloDeltas));
       animRows.forEach((html, i) => {
         setTimeout(() => {
           list.insertAdjacentHTML("beforeend", html);
@@ -4002,7 +3992,7 @@ function renderCompact() {
       .forEach((el) => animateSrVal(el, 0));
     const _nc = document.body.classList.contains("no-cascade");
     const initRows = reversedMatches.map((m, i) =>
-      buildSummaryMatchRow(m, i < 10 && !_nc ? " card-anim" : "", allMatches.indexOf(m)),
+      buildSummaryMatchRow(m, i < 10 && !_nc ? " card-anim" : "", allMatches.indexOf(m), matchEloDeltas),
     );
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
@@ -4132,7 +4122,24 @@ function buildCompactMatchRows(matches) {
     .join("")}</tbody></table>`;
 }
 
-function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
+function _computeMatchEloDeltas(matches) {
+  const elo = {};
+  const map = new Map();
+  [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || "")).forEach(m => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach(p => { if (!(p in elo)) elo[p] = 1000; });
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    map.set(m, { dA, dB });
+    m.teamA.forEach(p => { elo[p] = (elo[p] || 1000) + dA; });
+    m.teamB.forEach(p => { elo[p] = (elo[p] || 1000) + dB; });
+  });
+  return map;
+}
+function buildSummaryMatchRow(m, extraClass = "", matchIdx = null, eloDeltaMap = null) {
   const aWon = m.scoreA > m.scoreB;
   const winA = aWon ? "cmr-win" : "cmr-loss";
   const winB = !aWon ? "cmr-win" : "cmr-loss";
@@ -4146,12 +4153,14 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
         ? `<span class="cmr-badge cmr-zero" title="Zero match: scored 0 games">😂</span>`
         : "";
   const clickHandler = matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
+  const _mkD = (d) => d == null ? "" : `<span class="smr-ed ${d > 0 ? "smr-ed-pos" : d < 0 ? "smr-ed-neg" : "smr-ed-neu"}">${d > 0 ? "+" : ""}${d}</span>`;
+  const eloD = eloDeltaMap?.get(m);
   return `<div class="smr-wrap${extraClass}">
     <div class="smr-inner" ${clickHandler}>
       <span class="cmr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</span>
-      <span class="cmr-team ${winA}">${escHtml(teamA)}</span>
+      <span class="cmr-team ${winA}">${escHtml(teamA)}${_mkD(eloD?.dA)}</span>
       <span class="cmr-sc"><span class="cmr-sv ${winA}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${winB}">${m.scoreB}</span></span>
-      <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}</span>
+      <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}${_mkD(eloD?.dB)}</span>
       <span class="cmr-meta">${badge}</span>
     </div>
     ${matchIdx !== null ? `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})">🗑</div>` : ""}
