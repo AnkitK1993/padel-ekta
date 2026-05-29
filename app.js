@@ -16764,7 +16764,13 @@ function scheduleAutoEmail() {
   }
 
   _emailTimer = setTimeout(() => {
-    sendBackupEmail(true).then(() => scheduleAutoEmail());
+    const _today = todayISO();
+    if (localStorage.getItem("padel_last_email") === _today) { scheduleAutoEmail(); return; }
+    localStorage.setItem("padel_last_email", _today);
+    sendBackupEmail(true).then((ok) => {
+      if (!ok) localStorage.removeItem("padel_last_email");
+      scheduleAutoEmail();
+    });
   }, target - now);
 }
 
