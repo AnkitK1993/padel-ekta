@@ -12486,17 +12486,28 @@ function _openPodiumDrill(playerName, rankVal, periodType) {
     return parseInt(d) + " " + ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];
   };
 
-  const items = matching.map(p => {
+  const renderItem = p => {
     const r = p.ranks.find(x => x.name === playerName);
     const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `#${r.rank}`;
-    let sub = "";
-    if (periodType === "week") sub = `<span style="color:var(--muted);font-size:9px;margin-left:6px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`;
-    else if (periodType === "month") sub = `<span style="color:var(--muted);font-size:9px;margin-left:6px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
-      <span style="font-size:18px;line-height:1">${medal}</span>
-      <span style="font-size:12px;font-weight:700">${escHtml(p.label)}${sub}</span>
+    const sub = (periodType === "week" || periodType === "month")
+      ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>` : "";
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;-webkit-tap-highlight-color:transparent"
+        onclick="_podiumDrillGoTo(${jsArg(p.key)},${jsArg(periodType)})">
+      <span style="font-size:18px;line-height:1;flex-shrink:0">${medal}</span>
+      <span style="flex:1;font-size:12px;font-weight:700;line-height:1.4">${escHtml(p.label)}${sub}</span>
+      <span style="font-size:14px;color:var(--theme);flex-shrink:0">›</span>
     </div>`;
-  }).join("");
+  };
+
+  const PAGE = 10;
+  const head = matching.slice(0, PAGE).map(renderItem).join("");
+  const tail = matching.slice(PAGE);
+  const moreBlock = tail.length
+    ? `<div id="pdrill-more" style="display:none">${tail.map(renderItem).join("")}</div>
+       <button onclick="document.getElementById('pdrill-more').style.display='block';this.remove()"
+         style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.04em">
+         SHOW ${tail.length} MORE
+       </button>` : "";
 
   let overlay = document.getElementById("podium-drill-overlay");
   if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
@@ -12509,10 +12520,44 @@ function _openPodiumDrill(playerName, rankVal, periodType) {
         </div>
         <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
       </div>
-      ${items}
+      ${head}${moreBlock}
     </div>
   </div>`;
   overlay.style.display = "block";
+}
+
+function _podiumDrillGoTo(key, periodType) {
+  _closePodiumDrill();
+  let filter, from, to = null;
+  if (periodType === "today") {
+    filter = "day"; from = key;
+  } else if (periodType === "week") {
+    filter = "range"; from = key;
+    const d = new Date(key + "T00:00:00"); d.setDate(d.getDate() + 6);
+    to = toLocalISODate(d);
+  } else if (periodType === "weekend") {
+    filter = "range"; from = key;
+    const d = new Date(key + "T00:00:00"); d.setDate(d.getDate() + 1);
+    to = toLocalISODate(d);
+  } else {
+    filter = "range"; from = key + "-01";
+    const [y, m] = key.split("-");
+    to = toLocalISODate(new Date(parseInt(y), parseInt(m), 0));
+  }
+  cmpFilter = filter; cmpFrom = from; cmpTo = to;
+  const dr = document.getElementById("cmpDr");
+  const dp = document.getElementById("cmpDayPicker");
+  const sel = document.getElementById("cmpSel");
+  if (sel) sel.value = filter;
+  if (filter === "day") {
+    if (dp) { dp.classList.add("show"); const di = document.getElementById("cmpDayInput"); if (di) di.value = from; }
+    if (dr) dr.classList.remove("show");
+  } else {
+    if (dr) { dr.classList.add("show"); const cf = document.getElementById("cmpFrom"), ct = document.getElementById("cmpTo"); if (cf) cf.value = from; if (ct) ct.value = to || ""; }
+    if (dp) dp.classList.remove("show");
+  }
+  switchMainTab("compact");
+  renderCompact();
 }
 
 function _closePodiumDrill() {
@@ -16650,6 +16695,7 @@ Object.assign(window, {
   _reignSetPeriod,
   _timelineSetPeriod,
   _openPodiumDrill,
+  _podiumDrillGoTo,
   _closePodiumDrill,
 });
 
