@@ -6320,6 +6320,7 @@ function openPlayerDetail(name) {
     return;
   }
   const s = detail.stats;
+  const daysPlayed = new Set(detail.matches.map(m => m.date).filter(Boolean)).size;
 
   // ── FORM ENGINE ──────────────────────────────────────────────
   const form = computePlayerForm(name, activeMatches());
@@ -7453,7 +7454,7 @@ function openPlayerDetail(name) {
                     </div>
                     <div class="ov-record-block">
                       <div class="ov-record">${s.mw}<span class="ov-record-sep">W</span>${s.ml}<span class="ov-record-sep">L</span></div>
-                      <div class="ov-win-pct">${s.winPct.toFixed(0)}% win rate · ${s.mp} played</div>
+                      <div class="ov-win-pct">${s.winPct.toFixed(0)}% win rate · ${s.mp} played · ${daysPlayed} day${daysPlayed !== 1 ? "s" : ""}</div>
                     </div>
                   </div>
                   <div class="ov-grid">
