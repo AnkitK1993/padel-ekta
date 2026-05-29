@@ -3802,10 +3802,10 @@ function _sweepNeedle(needle) {
     { duration: 2200, easing: "cubic-bezier(0.22,1.15,0.36,1)", fill: "forwards" },
   );
   if (isRevLimit) {
+    // Fire shortly after cardSlideUp (420ms) so shake is visible on page load
     setTimeout(() => {
       if (!document.body.contains(ring)) return;
       ring.classList.add("rev-limit");
-      // Shake the whole card visibly (additive so it doesn't fight cardSlideUp)
       const card = ring.closest(".pc");
       if (card) {
         card.animate(
@@ -3823,7 +3823,7 @@ function _sweepNeedle(needle) {
           { duration: 500, easing: "ease-in-out", composite: "add" },
         );
       }
-    }, 2200);
+    }, 450);
   }
 }
 
