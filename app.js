@@ -12437,26 +12437,42 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
     p.ranks.forEach(r => { lookup[p.key][r.name] = r.rank; });
   });
 
-  const players = [...playerSet].map((name) => {
-    const apps = periods.filter(p => lookup[p.key][name] != null);
-    const avgRank = apps.length ? apps.reduce((s, p) => s + lookup[p.key][name], 0) / apps.length : 999;
-    return { name, avgRank };
-  }).sort((a, b) => a.avgRank - b.avgRank);
+  // Current ALL TIME ELO rank
+  const eloMapTl = computeElo(activeMatches());
+  const eloRankOfTl = {};
+  Object.entries(eloMapTl).sort((a, b) => b[1] - a[1]).forEach(([name], i) => { eloRankOfTl[name] = i + 1; });
+
+  const players = [...playerSet].map((name) => ({
+    name,
+    eloRank: eloRankOfTl[name] ?? 9999,
+  })).sort((a, b) => a.eloRank !== b.eloRank ? a.eloRank - b.eloRank : a.name.localeCompare(b.name));
 
   let tlMaxRank = 1;
   periods.forEach(p => p.ranks.forEach(r => { if (r.rank > tlMaxRank) tlMaxRank = r.rank; }));
 
+  const eloRankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--theme)";
+  const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _rankTd = `padding:6px 8px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+
   const headerCells = periods.map(p => `<th class="rhtl-th-period">${escHtml(p.label)}</th>`).join("");
-  const bodyRows = players.map(pl =>
-    `<tr><td class="rhtl-td-name">${escHtml(pl.name)}</td>` +
+  const bodyRows = players.map(pl => {
+    const eloRank = eloRankOfTl[pl.name];
+    const rankCell = eloRank
+      ? `<td style="${_rankTd};color:${eloRankColor(eloRank)}">#${eloRank}</td>`
+      : `<td style="${_rankTd};color:var(--muted)">—</td>`;
+    return `<tr>
+      <td class="rhtl-td-name" style="${_stickyTd};font-weight:700">${escHtml(pl.name)}</td>
+      ${rankCell}` +
     periods.map(p => {
       const r = lookup[p.key][pl.name];
       const cellStyle = r != null
         ? `background:${_rankBg(r, tlMaxRank)};color:${_rankColor(r, tlMaxRank)}`
         : `background:transparent;color:rgba(255,255,255,0.12)`;
       return `<td class="rhtl-cell" style="${cellStyle}" title="${r != null ? "#" + r + " · " + escHtml(p.label) : "Did not play"}">${r != null ? r : "—"}</td>`;
-    }).join("") + "</tr>"
-  ).join("");
+    }).join("") + "</tr>";
+  }).join("");
 
   const legend = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
     <span style="font-size:9px;color:var(--muted)">#1</span>
@@ -12470,7 +12486,7 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
       ${legend}
       <div class="rhtl-wrap">
         <table class="rhtl-table">
-          <thead><tr><th class="rhtl-th-name">Player</th>${headerCells}</tr></thead>
+          <thead><tr><th class="rhtl-th-name" style="${_stickyTh}">Player</th><th style="${_th}">Rank</th>${headerCells}</tr></thead>
           <tbody>${bodyRows}</tbody>
         </table>
       </div>
