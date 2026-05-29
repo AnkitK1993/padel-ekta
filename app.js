@@ -2316,6 +2316,7 @@ function filterMatches(f, from, to) {
     if (f === "weekend") return m.date >= wr.from && m.date <= wr.to;
     if (f === "month") return m.date >= sm && m.date <= t;
     if (f === "lastweek") return m.date >= lwr.from && m.date <= lwr.to;
+    if (f === "day") return from ? m.date === from : m.date === t;
     if (f === "range") {
       const d = m.date || "";
       if (!d) return false;
@@ -3294,6 +3295,11 @@ function applyRange(page) {
     renderCompact();
   }
 }
+function applyCmpDay() {
+  cmpFrom = document.getElementById("cmpDayInput").value || null;
+  cmpTo = null;
+  renderCompact();
+}
 function onHomeFilterChange(val) {
   homeFilter = val;
   _syncHomeFilterLabel();
@@ -3813,16 +3819,12 @@ function renderCompact() {
   _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
-    const _cmpLblMap = {
-      all: "ALL TIME",
-      today: "TODAY",
-      week: "THIS WEEK",
-      lastweek: "LAST WEEK",
-      weekend: "WEEKEND",
-      month: "THIS MONTH",
-      range: "RANGE",
-    };
-    _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
+    const _LBL_MONTHS = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const _fmtLbl = iso => { const [,m,d] = iso.split("-"); return `${parseInt(d)} ${_LBL_MONTHS[parseInt(m)]}`; };
+    const _cmpLblMap = { all:"ALL TIME", today:"TODAY", week:"THIS WEEK", lastweek:"LAST WEEK", weekend:"WEEKEND", month:"THIS MONTH", range:"RANGE", day:"DAY" };
+    if (cmpFilter === "day" && cmpFrom) _cmpDateLbl.textContent = _fmtLbl(cmpFrom);
+    else if (cmpFilter === "range" && cmpFrom && cmpTo) _cmpDateLbl.textContent = `${_fmtLbl(cmpFrom)}–${_fmtLbl(cmpTo)}`;
+    else _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const _cmpEloMap = computeElo(filtered);
@@ -5413,6 +5415,8 @@ function _filterDateHint(v) {
   if (v === "lastweek") { const {from,to} = lastWeekRange(); return `${fmt(from)} – ${fmt(to)}`; }
   if (v === "month") return `${fmt(monthISO())} – ${fmt(today)}`;
   if (v === "today") return fmt(today);
+  if (v === "day") return cmpFrom ? `Selected: ${fmt(cmpFrom)}` : "Tap to pick a day";
+  if (v === "range") return cmpFrom && cmpTo ? `${fmt(cmpFrom)} – ${fmt(cmpTo)}` : "Tap to set a range";
   return "";
 }
 
@@ -5423,6 +5427,8 @@ const _CMP_DATE_OPTIONS = [
   { v: "lastweek", l: "LAST WEEK", icon: "⬅️" },
   { v: "weekend", l: "WEEKEND", icon: "🏖" },
   { v: "month", l: "THIS MONTH", icon: "🗓" },
+  { v: "day", l: "PICK A DAY", icon: "🔍" },
+  { v: "range", l: "DATE RANGE", icon: "📊" },
 ];
 
 const _HOME_DATE_OPTIONS = [
@@ -5507,7 +5513,23 @@ function selectFilterItem(value) {
     if (sel) sel.value = value;
     cmpFilter = value;
     const dr = document.getElementById("cmpDr");
-    if (dr) dr.classList.toggle("show", value === "range");
+    const dp = document.getElementById("cmpDayPicker");
+    if (value === "range") {
+      if (dr) dr.classList.add("show");
+      if (dp) dp.classList.remove("show");
+    } else if (value === "day") {
+      if (dr) dr.classList.remove("show");
+      if (dp) dp.classList.add("show");
+      if (!cmpFrom) cmpFrom = todayISO();
+      cmpTo = null;
+      const di = document.getElementById("cmpDayInput");
+      if (di && !di.value) di.value = cmpFrom;
+    } else {
+      if (dr) dr.classList.remove("show");
+      if (dp) dp.classList.remove("show");
+      cmpFrom = null;
+      cmpTo = null;
+    }
     renderCompact();
     return;
   }
@@ -16386,6 +16408,7 @@ Object.assign(window, {
   switchITab,
   filterMatchTab,
   applyRange,
+  applyCmpDay,
   renderHome,
   onCmpFilter,
   toggleCmpEqualized,

@@ -329,11 +329,16 @@
           <option value="lastweek">LAST WEEK</option>
           <option value="weekend">WEEKEND</option>
           <option value="month">THIS MONTH</option>
+          <option value="day">PICK A DAY</option>
           <option value="range">DATE RANGE</option>
         </select>
         <div class="cmp-dr" id="cmpDr">
           <input type="date" id="cmpFrom" /><input type="date" id="cmpTo" />
           <button class="btn-go" onclick="applyRange('compact')">Go</button>
+        </div>
+        <div class="cmp-dr" id="cmpDayPicker">
+          <input type="date" id="cmpDayInput" />
+          <button class="btn-go" onclick="applyCmpDay()">Go</button>
         </div>
         <div class="cmp-infobar">
           <div class="cmp-meta" id="cmpMeta">0 players</div>
