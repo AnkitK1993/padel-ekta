@@ -612,6 +612,7 @@ let nextPlayerId = 1;
 let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
+let _addRenderedVersion = -1;
 let _excludedPlayers = new Set((() => { try { return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]"); } catch(e) { return []; } })());
 let _sessionGuestUnexcluded = new Set(); // guests temporarily re-included this Summary session
 let photoMap = {};
@@ -1283,11 +1284,12 @@ function loadCloudData() {
     autoSaveWeeklySnap();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
 
+    const _onAddPage = () => document.querySelector(".page.active")?.id === "pg-add";
     if (isFirstLoad) {
       // First render: paint data, then dismiss splash so user sees cards animate in cleanly once
       renderHome();
       renderCompact();
-      refreshManage();
+      if (_onAddPage()) refreshManage();
       fired = true;
       window.dismissSplash("Ready ✓");
       setTimeout(_checkAnniversaries, 1800);
@@ -1302,7 +1304,7 @@ function loadCloudData() {
       setTimeout(function () {
         renderHome();
         renderCompact();
-        refreshManage();
+        if (_onAddPage()) { refreshManage(); if (_addRenderedVersion !== _dataVersion) renderAddMatches(); }
         if (board) {
           // Suppress the per-card keyframe animation for live updates
           board.querySelectorAll(".pc").forEach(function (c) {
@@ -1482,7 +1484,7 @@ function goTo(id) {
   }
   if (id === "add") {
     refreshManage();
-    renderAddMatches();
+    if (_addRenderedVersion !== _dataVersion) renderAddMatches();
   }
 }
 function goBack() {
@@ -1594,7 +1596,7 @@ function switchMainTab(id, skipAnim = false) {
   }
   if (id === "add") {
     refreshManage();
-    renderAddMatches();
+    if (_addRenderedVersion !== _dataVersion) renderAddMatches();
     prefillMatchTADate();
   }
 
@@ -5657,6 +5659,7 @@ function getPlayerStats(matches) {
 }
 
 function renderAddMatches() {
+  _addRenderedVersion = _dataVersion;
   const query = (
     document.getElementById("add-match-search")?.value || ""
   ).toLowerCase();

@@ -102,7 +102,7 @@ body.paused-animations *{
 
 (function () {
         const CACHE_KEY = "padel_cache_v5";
-        const CACHE_TTL = 1000 * 60 * 60 * 24;
+        const CACHE_TTL = 1000 * 60 * 60 * 24 * 7;
         const mem = {};
         window.appCache = {
           save: function (matches, players, playerAliasMap, nextPlayerId) {
