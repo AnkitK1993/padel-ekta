@@ -12318,26 +12318,37 @@ function _buildPodiumTrackerHtml(periodType) {
   </div>`;
 }
 
+const _reignCache = {};
 function _buildRankReignHtml() {
-  const periods = _computeRankPeriods("today");
-  const validPeriods = periods.filter(p => p.ranks.length > 0);
-  if (validPeriods.length < 2)
+  const allM = activeMatches();
+  const fp = _lightFingerprint(allM);
+  if (_reignCache[fp]) return _reignCache[fp];
+
+  // All distinct match days sorted chronologically
+  const allDates = [...new Set(allM.map(m => m.date).filter(Boolean))].sort();
+  if (allDates.length < 2)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
 
-  // Current ELO rank (ALL TIME)
-  const eloMap = computeElo(activeMatches());
+  // Current ALL TIME ELO rank (latest snapshot = full history)
+  const eloMap = computeElo(allM);
   const eloRanking = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   const eloRankOf = {};
   eloRanking.forEach(([name], i) => { eloRankOf[name] = i + 1; });
 
+  // For each match day compute cumulative ALL TIME rank up to that day,
+  // then tally how many days each player held each rank position.
+  const sorted = [...allM].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   let maxRank = 1;
   const tally = {};
-  validPeriods.forEach(p => {
-    p.ranks.forEach(r => {
-      if (!tally[r.name]) tally[r.name] = { name: r.name, rankCounts: {}, days: 0 };
-      tally[r.name].days++;
-      tally[r.name].rankCounts[r.rank] = (tally[r.name].rankCounts[r.rank] || 0) + 1;
-      if (r.rank > maxRank) maxRank = r.rank;
+  allDates.forEach(date => {
+    const snap = sorted.filter(m => (m.date || "") <= date);
+    const statsSnap = computeStats(snap, computeElo(snap));
+    statsSnap.forEach((p, i) => {
+      const rank = i + 1;
+      if (!tally[p.name]) tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
+      tally[p.name].days++;
+      tally[p.name].rankCounts[rank] = (tally[p.name].rankCounts[rank] || 0) + 1;
+      if (rank > maxRank) maxRank = rank;
     });
   });
 
@@ -12385,13 +12396,14 @@ function _buildRankReignHtml() {
     </tr>`;
   }).join("");
 
-  return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${validPeriods.length} MATCH DAYS</div>
+  const html = `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${allDates.length} MATCH DAYS</div>
     <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
       <thead>${thead}</thead>
       <tbody>${tbody}</tbody>
     </table>
   </div>`;
+  return (_reignCache[fp] = html);
 }
 
 function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
