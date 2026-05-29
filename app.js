@@ -12250,6 +12250,15 @@ function _computeRankPeriods(periodType) {
   return (_rankPeriodCache[fp] = result);
 }
 
+function _rankColor(rank, maxRank) {
+  const t = (rank - 1) / Math.max(maxRank - 1, 1);
+  return `hsl(${Math.round(120 * (1 - t))},70%,55%)`;
+}
+function _rankBg(rank, maxRank) {
+  const t = (rank - 1) / Math.max(maxRank - 1, 1);
+  return `hsla(${Math.round(120 * (1 - t))},60%,50%,0.18)`;
+}
+
 function _buildPodiumTrackerHtml(periodType) {
   const periods = _computeRankPeriods(periodType);
   const validPeriods = periods.filter(p => p.ranks.length > 0);
@@ -12302,12 +12311,12 @@ function _buildPodiumTrackerHtml(periodType) {
 
   const tbody = rows.map(r => `<tr>
     <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
-    <td style="${_td};color:var(--gold)">${mkD(r.g, 1, r.name)}</td>
-    <td style="${_td};color:var(--silver)">${mkD(r.s, 2, r.name)}</td>
-    <td style="${_td};color:var(--bronze)">${mkD(r.b, 3, r.name)}</td>
+    <td style="${_td};color:${_rankColor(1, maxRank)}">${mkD(r.g, 1, r.name)}</td>
+    <td style="${_td};color:${_rankColor(2, maxRank)}">${mkD(r.s, 2, r.name)}</td>
+    <td style="${_td};color:${_rankColor(3, maxRank)}">${mkD(r.b, 3, r.name)}</td>
     <td style="${_td}">${mkD(r.podiums, "podiums", r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
     <td style="${_td};color:var(--theme);text-align:right">${r.periodsPlayed >= _MIN_RANK_PERIODS ? (r.podiumRate * 100).toFixed(0) + "%" : "—"}</td>
-    ${extraRanks.map(n => `<td style="${_td};color:var(--muted)">${mkD(r.extra?.[n] || 0, n, r.name)}</td>`).join("")}
+    ${extraRanks.map(n => `<td style="${_td};color:${_rankColor(n, maxRank)}">${mkD(r.extra?.[n] || 0, n, r.name)}</td>`).join("")}
   </tr>`).join("");
 
   return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
@@ -12365,7 +12374,7 @@ function _buildRankReignHtml() {
 
   const rankCols = Array.from({ length: maxRank }, (_, i) => i + 1);
   const rankEmoji = r => r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : `#${r}`;
-  const rankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--muted)";
+  const rankColor = r => _rankColor(r, maxRank);
   const eloRankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--theme)";
 
   const _sTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
@@ -12434,32 +12443,31 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
     return { name, avgRank };
   }).sort((a, b) => a.avgRank - b.avgRank);
 
-  const rankClass = (rank) => {
-    if (rank == null) return "rhtl-absent";
-    if (rank === 1) return "rhtl-gold";
-    if (rank === 2) return "rhtl-silver";
-    if (rank === 3) return "rhtl-bronze";
-    if (rank <= 6) return "rhtl-top6";
-    return "rhtl-lower";
-  };
+  let tlMaxRank = 1;
+  periods.forEach(p => p.ranks.forEach(r => { if (r.rank > tlMaxRank) tlMaxRank = r.rank; }));
 
   const headerCells = periods.map(p => `<th class="rhtl-th-period">${escHtml(p.label)}</th>`).join("");
   const bodyRows = players.map(pl =>
     `<tr><td class="rhtl-td-name">${escHtml(pl.name)}</td>` +
     periods.map(p => {
       const r = lookup[p.key][pl.name];
-      return `<td class="rhtl-cell ${rankClass(r)}" title="${r != null ? "#" + r + " · " + escHtml(p.label) : "Did not play"}">${r != null ? r : "—"}</td>`;
+      const cellStyle = r != null
+        ? `background:${_rankBg(r, tlMaxRank)};color:${_rankColor(r, tlMaxRank)}`
+        : `background:transparent;color:rgba(255,255,255,0.12)`;
+      return `<td class="rhtl-cell" style="${cellStyle}" title="${r != null ? "#" + r + " · " + escHtml(p.label) : "Did not play"}">${r != null ? r : "—"}</td>`;
     }).join("") + "</tr>"
   ).join("");
 
-  const legendItems = [
-    ["rhtl-gold","#1"], ["rhtl-silver","#2"], ["rhtl-bronze","#3"],
-    ["rhtl-top6","4–6"], ["rhtl-lower","7+"], ["rhtl-absent","—"],
-  ].map(([cls, lbl]) => `<span class="rhtl-leg-cell ${cls}"></span>${lbl}`).join("");
+  const legend = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <span style="font-size:9px;color:var(--muted)">#1</span>
+    <div style="flex:1;height:5px;border-radius:3px;background:linear-gradient(to right,hsl(120,70%,55%),hsl(60,70%,55%),hsl(0,70%,55%))"></div>
+    <span style="font-size:9px;color:var(--muted)">#${tlMaxRank}</span>
+    <span style="font-size:9px;color:rgba(255,255,255,0.25);margin-left:6px">— absent</span>
+  </div>`;
 
   return `<div>${_tlPills(periodType)}
     <div class="ana-card" style="padding:10px 12px">
-      <div class="rhtl-legend">${legendItems}</div>
+      ${legend}
       <div class="rhtl-wrap">
         <table class="rhtl-table">
           <thead><tr><th class="rhtl-th-name">Player</th>${headerCells}</tr></thead>
