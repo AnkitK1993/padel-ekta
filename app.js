@@ -4487,8 +4487,9 @@ function filterMatchTab(f) {
   const active = document.querySelector(`[data-mf="${f}"]`);
   if (active) active.classList.add("on");
   const dr = document.getElementById("matchDr");
+  const dp = document.getElementById("matchDayPicker");
   if (dr) {
-    dr.style.display = ""; // always clear inline override first
+    dr.style.display = "";
     if (f === "range") {
       dr.classList.add("show");
     } else {
@@ -4499,6 +4500,17 @@ function filterMatchTab(f) {
       if (mt) mt.value = "";
     }
   }
+  if (dp) {
+    if (f === "day") {
+      dp.style.display = "";
+      const di = document.getElementById("matchDayInput");
+      if (di && !di.value) di.value = todayISO();
+    } else {
+      dp.style.display = "none";
+    }
+  }
+  const hdf = document.getElementById("histDateFilter");
+  if (hdf && hdf.value !== f) hdf.value = f;
   renderModernMatches();
 }
 
@@ -4989,6 +5001,8 @@ function renderModernMatches() {
   const mfrom =
     matchTabFilter === "range"
       ? document.getElementById("matchFrom")?.value || null
+      : matchTabFilter === "day"
+      ? document.getElementById("matchDayInput")?.value || todayISO()
       : null;
   const mto =
     matchTabFilter === "range"

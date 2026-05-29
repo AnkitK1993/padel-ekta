@@ -15,6 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Ekta Padel" />
     <meta name="theme-color" content="#09090f" />
     <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
     <title>Padel Leaderboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -58,7 +59,7 @@
       <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
       <div class="splash-status" id="splash-status">Loading…</div>
     </div>
-    <div class="page" id="pg-home">
+    <div class="page active" id="pg-home">
       <div class="page-body-scroll">
         <div class="nav">
           <!-- left: hamburger -->
@@ -259,15 +260,15 @@
       </div>
       <!-- Main tabs -->
       <div class="tabbar">
+        <button class="tbb on" data-tab="home" onclick="switchMainTab('home')">
+          <span class="ico">📊</span>Detailed
+        </button>
         <button
           class="tbb"
           data-tab="compact"
           onclick="switchMainTab('compact')"
         >
           <span class="ico">📋</span>Summary
-        </button>
-        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
-          <span class="ico">📊</span>Detailed
         </button>
         <button
           class="tbb"
@@ -295,7 +296,7 @@
     </div>
 
     <!-- ══════════ COMPACT PAGE ══════════ -->
-    <div class="page active" id="pg-compact">
+    <div class="page" id="pg-compact">
       <div class="page-body-scroll">
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
@@ -405,15 +406,15 @@
       </div>
       <!-- end page-body-scroll -->
       <div class="tabbar">
+        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
+          <span class="ico">📊</span>Detailed
+        </button>
         <button
           class="tbb on"
           data-tab="compact"
           onclick="switchMainTab('compact')"
         >
           <span class="ico">📋</span>SUMMARY
-        </button>
-        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
-          <span class="ico">📊</span>Detailed
         </button>
         <button
           class="tbb"
@@ -506,6 +507,11 @@
           </div>
           <button class="btn-go" onclick="renderModernMatches()">Apply</button>
         </div>
+        <div class="dr-wrap" id="matchDayPicker" style="display:none">
+          <div class="dr-g">
+            <label>Date</label><input type="date" id="matchDayInput" onchange="renderModernMatches()" />
+          </div>
+        </div>
 
         <div class="history-filter-panel compact-history-panel">
           <!-- Row 1: Date · Player · Result · Tags -->
@@ -522,6 +528,7 @@
                 <option value="lastweek">LAST WEEK</option>
                 <option value="weekend">WEEKEND</option>
                 <option value="month">MONTH</option>
+                <option value="day">PICK A DAY</option>
                 <option value="range">RANGE</option>
               </select>
             </div>
@@ -619,15 +626,15 @@
       </div>
       <!-- end page-body-scroll -->
       <div class="tabbar">
+        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
+          <span class="ico">📊</span>Detailed
+        </button>
         <button
           class="tbb"
           data-tab="compact"
           onclick="switchMainTab('compact')"
         >
           <span class="ico">📋</span>Summary
-        </button>
-        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
-          <span class="ico">📊</span>Detailed
         </button>
         <button
           class="tbb on"
@@ -710,15 +717,15 @@
         <div id="analytics-page-content" style="padding: 0 11px 110px"></div>
       </div>
       <div class="tabbar">
+        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
+          <span class="ico">📊</span>Detailed
+        </button>
         <button
           class="tbb"
           data-tab="compact"
           onclick="switchMainTab('compact')"
         >
           <span class="ico">📋</span>Summary
-        </button>
-        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
-          <span class="ico">📊</span>Detailed
         </button>
         <button
           class="tbb"
@@ -985,15 +992,15 @@ Puneet - Pun, PK
         </div>
       </div>
       <div class="tabbar">
+        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
+          <span class="ico">📊</span>Detailed
+        </button>
         <button
           class="tbb"
           data-tab="compact"
           onclick="switchMainTab('compact')"
         >
           <span class="ico">📋</span>Summary
-        </button>
-        <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
-          <span class="ico">📊</span>Detailed
         </button>
         <button
           class="tbb"
