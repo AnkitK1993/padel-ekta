@@ -4571,7 +4571,6 @@ function buildHistorySummary(matches, filter = "all") {
   const avgMargin = (totalMargin / matches.length).toFixed(1);
   const top3 = stats.slice(0, Math.min(3, stats.length));
   const medals = ["🥇", "🥈", "🥉"];
-  const medalColors = ["var(--gold)", "var(--silver)", "var(--bronze)"];
   let delay = 60;
   const d = () => {
     const v = delay;
@@ -4585,7 +4584,7 @@ function buildHistorySummary(matches, filter = "all") {
             <span class="hsum-medal">${medals[i]}</span>
             <span class="hsum-pname">${p.name}</span>
             <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
-            <span class="hsum-pct" style="color:${medalColors[i]}">${p.winPct.toFixed(0)}%</span>
+            <span class="hsum-pct" style="color:${_rankColor(i + 1, top3.length)}">${p.winPct.toFixed(0)}%</span>
             <span class="hsum-sr">${p.sr.toFixed(2)} SR</span>
           </div>`,
     )
@@ -12375,7 +12374,7 @@ function _buildRankReignHtml() {
   const rankCols = Array.from({ length: maxRank }, (_, i) => i + 1);
   const rankEmoji = r => r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : `#${r}`;
   const rankColor = r => _rankColor(r, maxRank);
-  const eloRankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--theme)";
+  const eloRankColor = r => _rankColor(r, eloRanking.length);
 
   const _sTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
   const _sTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
@@ -12450,7 +12449,7 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
   let tlMaxRank = 1;
   periods.forEach(p => p.ranks.forEach(r => { if (r.rank > tlMaxRank) tlMaxRank = r.rank; }));
 
-  const eloRankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--theme)";
+  const eloRankColor = r => _rankColor(r, players.length);
   const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
   const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
   const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
@@ -13548,8 +13547,8 @@ window._renderEloProjTable = function() {
     const projDiff = p.projElo - p.currentElo;
     const projSign = projDiff >= 0 ? "+" : "";
     const projDiffCol = projDiff > 0 ? "var(--green)" : projDiff < 0 ? "var(--red)" : "var(--muted)";
-    const rankColor = p.currentRank === 1 ? "var(--gold)" : p.currentRank <= 3 ? "var(--theme)" : "var(--muted)";
-    const newRankColor = p.projRank === 1 ? "var(--gold)" : p.projRank <= 3 ? "var(--theme)" : "var(--muted)";
+    const rankColor = _rankColor(p.currentRank, projData.length);
+    const newRankColor = _rankColor(p.projRank, projData.length);
     return `<div class="lrace-row ep-row" style="${pg}">
       <div class="lrace-rank" style="color:${rankColor}">#${p.currentRank}</div>
       <div class="lrace-name">${escHtml(p.name)}</div>
@@ -14302,12 +14301,7 @@ function renderAnalyticsPage() {
           : p.delta < 0
             ? `<span style="color:var(--red)">▼${Math.abs(p.delta)}</span>`
             : `<span style="color:var(--muted)">—</span>`;
-      const rankColor =
-        p.rAll === 1
-          ? "var(--gold)"
-          : p.rAll <= 3
-            ? "var(--theme)"
-            : "var(--accent)";
+      const rankColor = _rankColor(p.rAll, rankRace.length);
       const avatar = sheetAvSm(p.name);
       return `<div class="lrace-row">
         <div class="lrace-rank" style="color:${rankColor}">#${p.rAll}</div>
