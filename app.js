@@ -2232,6 +2232,57 @@ function prefillMatchTADate() {
   }
 }
 
+// ── MIRROR SAVED MATCHES INTO THE ADD-MATCHES EDITOR ───────
+// Convert an ISO date (YYYY-MM-DD) to the D/M/YY header format.
+function _isoToDMYY(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return todayDMYY();
+  const [, y, mo, d] = m;
+  return `${+d}/${+mo}/${y.slice(2)}`;
+}
+
+// Pick a single-word token for a player that parseMatchLine can resolve back
+// to this player (prefer a space-free alias; fall back to the display name).
+function _playerToken(name) {
+  const aliases = aliasMap[name] || [];
+  const single = aliases.find((a) => a && !/\s/.test(a));
+  if (single) return single;
+  if (!/\s/.test(name)) return name; // single-word display name resolves to itself
+  return name.split(/\s+/)[0]; // best effort for multi-word names without aliases
+}
+
+// Render a saved match as an editable line, e.g. "Ank God vs RaM Vin 4-3".
+function matchToEditableLine(m) {
+  const ta = (m.teamA || []).map(_playerToken);
+  const tb = (m.teamB || []).map(_playerToken);
+  return `${ta.join(" ")} vs ${tb.join(" ")} ${m.scoreA}-${m.scoreB}`;
+}
+
+// Append a saved match into the Add Matches textarea as editable text,
+// grouped under a D/M/YY date header. Does NOT commit — purely a mirror.
+function mirrorMatchToEditor(m) {
+  const ta = document.getElementById("matchTA");
+  if (!ta || !m) return;
+  const val = ta.value.replace(/\s+$/, ""); // drop trailing blank lines
+  const lines = val ? val.split("\n") : [];
+  // Find the most recent date header already in the box.
+  let lastHdrIso = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const iso = parseDateHdr(lines[i].trim());
+    if (iso) {
+      lastHdrIso = iso;
+      break;
+    }
+  }
+  const parts = [];
+  if (val) parts.push(val);
+  if (lastHdrIso !== m.date) parts.push(_isoToDMYY(m.date));
+  parts.push(matchToEditableLine(m));
+  ta.value = parts.join("\n") + "\n";
+  ta.selectionStart = ta.selectionEnd = ta.value.length;
+  previewMatchImport();
+}
+
 function switchITab(id) {
   const keys = ["matches", "names", "manage"];
   document
@@ -6809,6 +6860,7 @@ function saveModernMatch() {
     checkMilestones(prevSnapshot, allMatches);
     _lastLocalSaveTime = Date.now();
     saveCloudData();
+    mirrorMatchToEditor(candidate);
     closeModernAddModal();
     renderModernMatches();
     renderAddMatches();
@@ -19315,6 +19367,7 @@ function endLiveMatch() {
   };
   if (notes) match.note = notes;
   allMatches.push(match);
+  mirrorMatchToEditor(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
     _sessionMatchHistory.push({
