@@ -12364,6 +12364,7 @@ function _buildRankReignHtml() {
   const thead = `<tr>
     <th style="${_th};${_sTh};text-align:left">Player</th>
     <th style="${_th}">Rank</th>
+    <th style="${_th}">Days</th>
     ${rankCols.map(r => `<th style="${_th}">${rankEmoji(r)}</th>`).join("")}
   </tr>`;
 
@@ -12372,13 +12373,14 @@ function _buildRankReignHtml() {
     const eloCell = eloRank
       ? `<td style="${_td};color:${eloRankColor(eloRank)};font-size:13px">#${eloRank}</td>`
       : `<td style="${_td};color:var(--muted)">—</td>`;
+    const daysCell = `<td style="${_td};color:var(--theme)">${row.days}</td>`;
     const cells = rankCols.map(r => {
       const cnt = row.rankCounts[r] || 0;
       return `<td style="${_td};color:${cnt > 0 ? rankColor(r) : "rgba(255,255,255,0.15)"}" title="${cnt} day${cnt !== 1 ? "s" : ""} at ${rankEmoji(r)}">${cnt > 0 ? cnt : "—"}</td>`;
     }).join("");
     return `<tr>
       <td style="${_td};${_sTd};text-align:left;font-weight:700">${escHtml(row.name)}</td>
-      ${eloCell}${cells}
+      ${eloCell}${daysCell}${cells}
     </tr>`;
   }).join("");
 
