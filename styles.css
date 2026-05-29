@@ -15339,72 +15339,6 @@ select:focus,
 .ep-rank-dn { color: var(--red); font-size: 9px; font-weight: 800; }
 .ep-rank-eq { color: var(--muted); font-size: 9px; }
 
-/* ── Rivalry Hall of Fame ── */
-.rhof-card {
-  padding: 12px 14px;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--theme-rgb), 0.06),
-    rgba(0, 0, 0, 0.2)
-  );
-  border-radius: 12px;
-}
-.rhof-rank {
-  font-family: "Bebas Neue", sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  color: var(--gold);
-  margin-bottom: 8px;
-  font-weight: 800;
-}
-.rhof-pairs {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.rhof-pair {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
-  min-width: 0;
-}
-.rhof-avs {
-  display: flex;
-  gap: -4px;
-}
-.rhof-avs > * + * {
-  margin-left: -6px;
-}
-.rhof-pair-name {
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-}
-.rhof-vs {
-  font-family: "Bebas Neue", sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  flex-shrink: 0;
-  letter-spacing: 0.04em;
-}
-.rhof-last {
-  margin-top: 8px;
-  font-size: 10px;
-  color: var(--muted);
-  text-align: center;
-  padding-top: 8px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
-}
-.rhof-last b {
-  color: rgba(255, 255, 255, 0.9);
-}
-
 /* ── Personal Bests ── */
 .pb-card {
   padding: 12px 14px;
@@ -15526,26 +15460,6 @@ select:focus,
 .pr-mvmt-new {
   background: rgba(var(--theme-rgb), 0.18);
   color: var(--theme);
-}
-
-/* ── ELO TIER BADGES ── */
-.elo-tier-chip {
-  display: inline-block;
-  font-family: "Bebas Neue", sans-serif;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--muted);
-  line-height: 1.5;
-}
-.elo-tier-row {
-  margin: 2px 0 4px;
-  display: flex;
-  justify-content: center;
 }
 
 /* ════════════════════════════════════════════════════════
