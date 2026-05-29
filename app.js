@@ -3822,7 +3822,12 @@ function renderCompact() {
     _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const _cmpEloMap = computeElo(filtered);
+  const _minDate = filtered.length ? filtered.reduce((mn, m) => m.date < mn ? m.date : mn, filtered[0].date) : null;
+  const _priorMatches = _minDate ? activeMatches().filter(m => m.date < _minDate) : [];
+  const _eloStart = computeElo(_priorMatches);
+  const _cmpEloMap = computeElo([..._priorMatches, ...filtered]);
+  const _eloDeltaMap = {};
+  Object.keys(_cmpEloMap).forEach(p => { _eloDeltaMap[p] = (_cmpEloMap[p] || 1000) - (_eloStart[p] || 1000); });
   const stats = computeStats(filtered, _cmpEloMap);
   if (_cmpEqualized) {
     stats.forEach(p => {
@@ -3917,7 +3922,13 @@ function renderCompact() {
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
+    const _ed = Math.round(_eloDeltaMap[p.name] || 0);
+    const eloDeltaHtml = _ed > 0
+      ? `<span class="wk-rank-delta wk-up">+${_ed}</span>`
+      : _ed < 0
+        ? `<span class="wk-rank-delta wk-down">${_ed}</span>`
+        : `<span class="wk-rank-delta wk-same">±0</span>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaHtml}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
