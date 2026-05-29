@@ -12364,12 +12364,19 @@ function _computeRankPeriods(periodType) {
         const [y, mo] = b.key.split("-");
         label = _shortMonths[parseInt(mo)] + " '" + y.slice(2);
       }
-      if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], idx };
+      if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
       const eloMap = computeElo(b.matches);
-      const qualified = computeStats(b.matches, eloMap).filter(p => p.mp >= 2);
-      if (qualified.length < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], idx };
-      const ranks = qualified.map((p, i) => ({ name: p.name, rank: i + 1, sr: p.sr, mp: p.mp }));
-      return { key: b.key, from: b.from, to: b.to, label, ranks, idx };
+      const statsArr = computeStats(b.matches, eloMap);
+      const qualified = statsArr.filter(p => p.mp >= 2);
+      if (qualified.length < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
+      const ranks = qualified.map((p, i) => ({
+        name: p.name,
+        rank: i + 1,
+        trueRank: statsArr.indexOf(p) + 1,
+        sr: p.sr,
+        mp: p.mp,
+      }));
+      return { key: b.key, from: b.from, to: b.to, label, ranks, totalPlayers: statsArr.length, idx };
     });
 
   return (_rankPeriodCache[fp] = result);
@@ -12460,12 +12467,12 @@ function _buildAntiPodiumTrackerHtml(periodType) {
 
   const tally = {};
   validPeriods.forEach((p) => {
-    const total = p.ranks.length;
+    const total = p.totalPlayers;
     p.ranks.forEach((r) => {
       if (!tally[r.name]) tally[r.name] = { name: r.name, l: 0, sl: 0, periodsPlayed: 0 };
       tally[r.name].periodsPlayed++;
-      if (r.rank === total) tally[r.name].l++;
-      else if (r.rank === total - 1) tally[r.name].sl++;
+      if (r.trueRank === total) tally[r.name].l++;
+      else if (r.trueRank === total - 1) tally[r.name].sl++;
     });
   });
 
@@ -12674,8 +12681,8 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
   return `<div>${_tlPills(periodType)}
     <div class="ana-card" style="padding:10px 12px">
       ${legend}
-      <div class="rhtl-wrap">
-        <table class="rhtl-table">
+      <div class="rhtl-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%">
+        <table class="rhtl-table" style="width:max-content;min-width:100%">
           <thead><tr><th class="rhtl-th-name" style="${_stickyTh}">Player</th><th style="${_th}">Rank</th>${headerCells}</tr></thead>
           <tbody>${bodyRows}</tbody>
         </table>
@@ -12810,10 +12817,10 @@ function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
     if (!p.ranks.length) return false;
     const r = p.ranks.find(x => x.name === playerName);
     if (!r) return false;
-    const total = p.ranks.length;
-    if (bottomPos === "last") return r.rank === total;
-    if (bottomPos === "secondlast") return r.rank === total - 1;
-    if (bottomPos === "bottom2") return r.rank >= total - 1;
+    const total = p.totalPlayers;
+    if (bottomPos === "last") return r.trueRank === total;
+    if (bottomPos === "secondlast") return r.trueRank === total - 1;
+    if (bottomPos === "bottom2") return r.trueRank >= total - 1;
     return false;
   });
   if (!matching.length) return;
@@ -12829,9 +12836,9 @@ function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
 
   const renderItem = p => {
     const r = p.ranks.find(x => x.name === playerName);
-    const total = p.ranks.length;
-    const icon = r.rank === total ? "🪣" : "😬";
-    const rankBadge = `<span style="font-size:10px;color:var(--muted)">#${r.rank}/${total}</span>`;
+    const total = p.totalPlayers;
+    const icon = r.trueRank === total ? "🪣" : "😬";
+    const rankBadge = `<span style="font-size:10px;color:var(--muted)">#${r.trueRank}/${total}</span>`;
     const sub = (periodType === "week" || periodType === "month")
       ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>` : "";
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;-webkit-tap-highlight-color:transparent"
