@@ -12180,6 +12180,15 @@ function _computeRankPeriods(periodType) {
       const dow = d.getDay();
       d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
       key = toLocalISODate(d);
+    } else if (periodType === "today") {
+      key = m.date;
+    } else if (periodType === "weekend") {
+      const d = new Date(m.date + "T00:00:00");
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) return; // skip weekday matches
+      const sat = new Date(d);
+      if (dow === 0) sat.setDate(d.getDate() - 1);
+      key = toLocalISODate(sat);
     } else {
       key = m.date.slice(0, 7);
     }
@@ -12189,6 +12198,7 @@ function _computeRankPeriods(periodType) {
     if (m.date > buckets[key].to) buckets[key].to = m.date;
   });
 
+  const _shortMonths = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const result = Object.values(buckets)
     .sort((a, b) => a.key.localeCompare(b.key))
     .map((b, idx) => {
@@ -12197,9 +12207,15 @@ function _computeRankPeriods(periodType) {
       if (periodType === "week") {
         const parts = fmtDate(b.key).replace(/^\w+,\s*/, "").replace(/\s\d{4}$/, "");
         label = "Wk " + parts;
+      } else if (periodType === "today") {
+        const [, mo, dd] = b.key.split("-");
+        label = parseInt(dd) + " " + _shortMonths[parseInt(mo)];
+      } else if (periodType === "weekend") {
+        const [, mo, dd] = b.key.split("-");
+        label = "Wknd " + parseInt(dd) + " " + _shortMonths[parseInt(mo)];
       } else {
         const [y, mo] = b.key.split("-");
-        label = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(mo)] + " '" + y.slice(2);
+        label = _shortMonths[parseInt(mo)] + " '" + y.slice(2);
       }
       if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], idx };
       const eloMap = computeElo(b.matches);
@@ -12263,19 +12279,21 @@ function _buildPodiumTrackerHtml(periodType) {
     </div>` : ""}
   </div>`;
 
+  const colTpl = "1fr 46px 46px 46px 56px 48px";
   const tableRows = rows.map(r =>
-    `<div class="lrace-row" style="grid-template-columns:1fr 38px 38px 38px 64px">
+    `<div class="lrace-row" style="grid-template-columns:${colTpl}">
       <div class="lrace-name">${escHtml(r.name)}</div>
       <div style="text-align:center;font-weight:800;color:var(--gold)">${r.g}</div>
       <div style="text-align:center;font-weight:800;color:var(--silver)">${r.s}</div>
       <div style="text-align:center;font-weight:800;color:var(--bronze)">${r.b}</div>
-      <div style="text-align:right;font-weight:700">${r.podiums}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></div>
+      <div style="text-align:center;font-weight:700">${r.podiums}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></div>
+      <div style="text-align:right;font-weight:700;color:var(--theme)">${r.periodsPlayed >= _MIN_RANK_PERIODS ? (r.podiumRate * 100).toFixed(0) + "%" : "—"}</div>
     </div>`
   ).join("");
 
   return `${awardCards}<div class="ana-card" style="padding:8px 12px">
-    <div class="lrace-header" style="grid-template-columns:1fr 38px 38px 38px 64px">
-      <span>Player</span><span>🥇</span><span>🥈</span><span>🥉</span><span style="text-align:right">Podiums</span>
+    <div class="lrace-header" style="grid-template-columns:${colTpl}">
+      <span>Player</span><span style="text-align:center">🥇</span><span style="text-align:center">🥈</span><span style="text-align:center">🥉</span><span style="text-align:center">Podiums</span><span style="text-align:right">%</span>
     </div>${tableRows}</div>`;
 }
 
@@ -15762,9 +15780,11 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "🥇 Podium Tracker",
       body: `<div>
-        <div style="display:flex;gap:6px;margin-bottom:12px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'week')">WEEKLY</button>
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'month')">MONTHLY</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'weekend')">WEEKEND</button>
         </div>
         <div class="podium-content">${_buildPodiumTrackerHtml("week")}</div>
       </div>`,
