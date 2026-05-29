@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "test": "node tests.js",
-    "test:browser": "node scripts/browser-smoke.js"
+    "test:browser": "node scripts/browser-smoke.js",
+    "css:coverage": "node scripts/css-coverage.js"
   }
 }
