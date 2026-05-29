@@ -12317,70 +12317,77 @@ function _buildPodiumTrackerHtml(periodType) {
   </div>`;
 }
 
-function _buildRankReignHtml(periodType) {
-  const periods = _computeRankPeriods(periodType);
+function _buildRankReignHtml() {
+  const periods = _computeRankPeriods("today"); // daily — "how many days at each rank"
   const validPeriods = periods.filter(p => p.ranks.length > 0);
   if (validPeriods.length < 2)
-    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
 
-  const playerData = {};
-  validPeriods.forEach((p, periodIdx) => {
-    p.ranks.forEach((r) => {
-      if (!playerData[r.name]) playerData[r.name] = { name: r.name, rankHistory: [], periodsPlayed: 0 };
-      playerData[r.name].rankHistory.push({ periodIdx, rank: r.rank });
-      playerData[r.name].periodsPlayed++;
+  // current rank = rank in the most recent valid period
+  const latestPeriod = validPeriods[validPeriods.length - 1];
+  const currentRankMap = {};
+  latestPeriod.ranks.forEach(r => { currentRankMap[r.name] = r.rank; });
+
+  let maxRank = 1;
+  const tally = {};
+  validPeriods.forEach(p => {
+    p.ranks.forEach(r => {
+      if (!tally[r.name]) tally[r.name] = { name: r.name, rankCounts: {}, days: 0 };
+      tally[r.name].days++;
+      tally[r.name].rankCounts[r.rank] = (tally[r.name].rankCounts[r.rank] || 0) + 1;
+      if (r.rank > maxRank) maxRank = r.rank;
     });
   });
 
-  const rows = Object.values(playerData)
-    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
-    .map((p) => {
-      const h = p.rankHistory.sort((a, b) => a.periodIdx - b.periodIdx);
-      const totalGold = h.filter(x => x.rank === 1).length;
-
-      let longestStreak = 0, curS = 0;
-      h.forEach((x, i) => {
-        if (x.rank === 1 && (i === 0 || x.periodIdx === h[i-1].periodIdx + 1)) {
-          curS++;
-        } else {
-          curS = x.rank === 1 ? 1 : 0;
-        }
-        if (curS > longestStreak) longestStreak = curS;
-      });
-
-      let currentGoldStreak = 0;
-      for (let i = h.length - 1; i >= 0; i--) {
-        if (h[i].rank !== 1) break;
-        if (i < h.length - 1 && h[i].periodIdx !== h[i+1].periodIdx - 1) break;
-        currentGoldStreak++;
+  const rows = Object.values(tally)
+    .filter(p => p.days >= _MIN_RANK_PERIODS)
+    .sort((a, b) => {
+      for (let r = 1; r <= maxRank; r++) {
+        const diff = (b.rankCounts[r] || 0) - (a.rankCounts[r] || 0);
+        if (diff !== 0) return diff;
       }
-
-      const avgRank = parseFloat((h.reduce((s, x) => s + x.rank, 0) / h.length).toFixed(1));
-      const bestRank = Math.min(...h.map(x => x.rank));
-      const currentRank = h[h.length - 1].rank;
-      const climbFromAvg = parseFloat((avgRank - currentRank).toFixed(1));
-
-      return { name: p.name, totalGold, longestStreak, currentGoldStreak, avgRank, bestRank, currentRank, climbFromAvg, periodsPlayed: p.periodsPlayed };
-    })
-    .sort((a, b) => b.totalGold - a.totalGold || a.avgRank - b.avgRank);
+      return a.name.localeCompare(b.name);
+    });
 
   if (!rows.length)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
 
-  const tableRows = rows.map(r =>
-    `<div class="lrace-row" style="grid-template-columns:1fr 52px 64px 44px 44px">
-      <div class="lrace-name">${escHtml(r.name)}</div>
-      <div style="text-align:center;font-weight:800;color:var(--gold)">${r.totalGold}</div>
-      <div style="text-align:center;font-weight:700">${r.longestStreak} <span style="font-size:9px;color:var(--muted)">/ cur ${r.currentGoldStreak}</span></div>
-      <div style="text-align:center;font-weight:700;color:var(--muted)">#${r.avgRank}</div>
-      <div style="text-align:right;font-weight:800;color:var(--theme)">#${r.bestRank}</div>
-    </div>`
-  ).join("");
+  const rankCols = Array.from({ length: maxRank }, (_, i) => i + 1);
+  const rankEmoji = r => r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : `#${r}`;
+  const rankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--muted)";
 
-  return `<div class="ana-card" style="padding:8px 12px">
-    <div class="lrace-header" style="grid-template-columns:1fr 52px 64px 44px 44px">
-      <span>Player</span><span>🥇 Total</span><span>🔥 Streak</span><span>Avg #</span><span style="text-align:right">Best</span>
-    </div>${tableRows}</div>`;
+  const _sTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _sTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th  = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _td  = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+
+  const thead = `<tr>
+    <th style="${_th};${_sTh};text-align:left">Player</th>
+    ${rankCols.map(r => `<th style="${_th}">${rankEmoji(r)}</th>`).join("")}
+  </tr>`;
+
+  const tbody = rows.map(row => {
+    const cur = currentRankMap[row.name];
+    const cells = rankCols.map(r => {
+      const cnt = row.rankCounts[r] || 0;
+      const isCur = r === cur;
+      const color = cnt > 0 ? rankColor(r) : "rgba(255,255,255,0.15)";
+      const curStyle = isCur ? `outline:2px solid var(--theme);outline-offset:-2px;border-radius:5px;` : "";
+      return `<td style="${_td};color:${color};${curStyle}" title="${cnt} day${cnt !== 1 ? "s" : ""} at ${rankEmoji(r)}${isCur ? " · current rank" : ""}">${cnt > 0 ? cnt : "—"}</td>`;
+    }).join("");
+    return `<tr>
+      <td style="${_td};${_sTd};text-align:left;font-weight:700">${escHtml(row.name)}</td>
+      ${cells}
+    </tr>`;
+  }).join("");
+
+  return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${validPeriods.length} MATCH DAYS · <span style="color:var(--theme)">CURRENT RANK</span> HIGHLIGHTED</div>
+    <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  </div>`;
 }
 
 function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
@@ -15874,15 +15881,7 @@ function renderAnalyticsPage() {
       key: "rankreign",
       cat: "players",
       title: "👑 Rank Reign",
-      body: `<div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-          <button class="digest-filter-btn active" onclick="_reignSetPeriod(this,'today')">DAILY</button>
-          <button class="digest-filter-btn" onclick="_reignSetPeriod(this,'week')">WEEKLY</button>
-          <button class="digest-filter-btn" onclick="_reignSetPeriod(this,'weekend')">WEEKEND</button>
-          <button class="digest-filter-btn" onclick="_reignSetPeriod(this,'month')">MONTHLY</button>
-        </div>
-        <div class="reign-content">${_buildRankReignHtml("today")}</div>
-      </div>`,
+      body: _buildRankReignHtml(),
     },
     {
       key: "ranktimeline",
