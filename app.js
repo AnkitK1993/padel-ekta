@@ -12463,23 +12463,6 @@ function _buildAntiPodiumTrackerHtml(periodType) {
   if (!rows.length)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
 
-  const mostLast = rows[0];
-  const mostBottom2 = [...rows].sort((a, b) => b.bottom2 - a.bottom2)[0];
-  const worstRate = [...rows].sort((a, b) => b.bottom2Rate - a.bottom2Rate)[0];
-
-  const awardCards = [
-    { icon: "🪣", label: "Most Last Place", name: mostLast.name, val: mostLast.l + " time" + (mostLast.l !== 1 ? "s" : "") },
-    { icon: "😬", label: "Most Bottom 2", name: mostBottom2.name, val: mostBottom2.bottom2 + " time" + (mostBottom2.bottom2 !== 1 ? "s" : "") },
-    { icon: "📉", label: "Worst Bottom %", name: worstRate.name, val: (worstRate.bottom2Rate * 100).toFixed(0) + "%" },
-  ].map(a => `<div class="ana-card" style="padding:8px;text-align:center">
-    <div style="font-size:20px">${a.icon}</div>
-    <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin:4px 0 2px">${a.label}</div>
-    <div style="font-size:12px;font-weight:800;color:var(--theme)">${escHtml(a.name)}</div>
-    <div style="font-size:10px;color:var(--muted)">${a.val}</div>
-  </div>`).join("");
-
-  const awardHtml = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">${awardCards}</div>`;
-
   const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
   const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
   const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
@@ -12502,7 +12485,7 @@ function _buildAntiPodiumTrackerHtml(periodType) {
     <td style="${_td};color:var(--theme);text-align:right">${(r.bottom2Rate * 100).toFixed(0)}%</td>
   </tr>`).join("");
 
-  return `${awardHtml}<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+  return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
     <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
       <thead>${thead}</thead>
       <tbody>${tbody}</tbody>
