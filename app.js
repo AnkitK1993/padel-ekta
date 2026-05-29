@@ -908,12 +908,6 @@ let _pairSort = { key: "winPct", dir: -1 };
 let _pairsData = [];
 let _pairsShowAll = false;
 
-// ── SPLASH HELPERS ─────────────────────────────────────────
-function setSplashStatus(msg) {
-  var el = document.getElementById("splash-status");
-  if (el) el.textContent = msg;
-}
-
 function _handleFeatureLoadError(name, err) {
   console.error(`${name} feature failed to load:`, err);
   showToast(`${name} could not load`, "❌");
@@ -2447,11 +2441,6 @@ function weekISO() {
   d.setDate(d.getDate() + diff);
   return toLocalISODate(d);
 }
-function weekEndISO() {
-  const s = new Date(weekISO());
-  s.setDate(s.getDate() + 6);
-  return toLocalISODate(s);
-}
 function weekendRange() {
   const now = new Date(),
     day = now.getDay();
@@ -3167,49 +3156,6 @@ function getPlayerDetail(name) {
     shutoutWins,
     shutoutLosses,
   };
-}
-
-function getAchievements() {
-  const stats = computeStats(activeMatches());
-  const achievements = [];
-  stats.forEach((p) => {
-    const detail = getPlayerDetail(p.name);
-    const last = detail.recent.slice(-5);
-    const wins = last.filter((m) => m.won).length;
-    const losses = last.length - wins;
-    if (last.length >= 3 && wins === last.length)
-      achievements.push({
-        title: "Hot Streak",
-        name: p.name,
-        sub: `${wins} wins in recent form`,
-      });
-    if (last.length >= 3 && losses === last.length)
-      achievements.push({
-        title: "Cold Run",
-        name: p.name,
-        sub: `${losses} recent losses`,
-      });
-  });
-  // Game Diff Boss — single player with highest positive differential
-  const diffBoss = stats
-    .filter((p) => p.diff > 0)
-    .sort((a, b) => b.diff - a.diff)[0];
-  if (diffBoss)
-    achievements.push({
-      title: "Game Diff Boss",
-      name: diffBoss.name,
-      sub: `+${diffBoss.diff} game differential`,
-    });
-  getPairStats()
-    .slice(0, 3)
-    .forEach((p) =>
-      achievements.push({
-        title: "Pair Power",
-        name: p.key,
-        sub: `${p.winPct}% across ${p.played} matches`,
-      }),
-    );
-  return achievements.slice(0, 10);
 }
 
 // ── ADD MATCHES ────────────────────────────────────────────
@@ -3998,19 +3944,6 @@ function getSRRatingClass(normalizedSR) {
     normalizedSR >= 7 ? "sr-high" : normalizedSR >= 4 ? "sr-mid" : "sr-low";
   if (normalizedSR > 7) c += " rev-limit";
   return c;
-}
-
-function getEloTier(elo) {
-  if (elo >= 1150) return { name: "MASTER", color: "#ff5fe5" };
-  if (elo >= 1100) return { name: "DIAMOND", color: "#5cd0ff" };
-  if (elo >= 1050) return { name: "PLATINUM", color: "#7bc7c7" };
-  if (elo >= 1000) return { name: "GOLD", color: "#f5c842" };
-  if (elo >= 950) return { name: "SILVER", color: "#b8bdcc" };
-  return { name: "BRONZE", color: "#c47645" };
-}
-
-function eloTierBadge(elo) {
-  return `<span class="elo-tier-chip">${elo}</span>`;
 }
 
 let _hudGaugeId = 0;
@@ -5023,14 +4956,6 @@ function filterMatchTab(f) {
 }
 
 // ── MATCH OF THE DAY + BIGGEST UPSET ──────────────────────
-function getPlayerRankAtDate(playerName, beforeDate) {
-  // Rank based on SR from all matches strictly before this date
-  const prior = activeMatches().filter((m) => m.date < beforeDate);
-  if (!prior.length) return null;
-  const stats = computeStats(prior);
-  const idx = stats.findIndex((p) => p.name === playerName);
-  return idx === -1 ? null : idx + 1; // 1-based rank
-}
 
 function buildMatchOfTheDay() {
   if (!allMatches.length) return "";
@@ -6371,50 +6296,6 @@ function refreshOutcomeButtons() {
   document
     .querySelector(`[data-outcome="${histOutcomeFilter}"]`)
     ?.classList.add("on");
-}
-
-function getPlayerStats(matches) {
-  const stats = {};
-  matches.forEach((m) => {
-    const aWon = m.scoreA > m.scoreB;
-    m.teamA.forEach((p) => {
-      if (!stats[p])
-        stats[p] = {
-          name: p,
-          matches: 0,
-          wins: 0,
-          losses: 0,
-          gw: 0,
-          gl: 0,
-          net: 0,
-        };
-      stats[p].matches++;
-      stats[p].gw += m.scoreA;
-      stats[p].gl += m.scoreB;
-      stats[p].net = stats[p].gw - stats[p].gl;
-      if (aWon) stats[p].wins++;
-      else stats[p].losses++;
-    });
-    m.teamB.forEach((p) => {
-      if (!stats[p])
-        stats[p] = {
-          name: p,
-          matches: 0,
-          wins: 0,
-          losses: 0,
-          gw: 0,
-          gl: 0,
-          net: 0,
-        };
-      stats[p].matches++;
-      stats[p].gw += m.scoreB;
-      stats[p].gl += m.scoreA;
-      stats[p].net = stats[p].gw - stats[p].gl;
-      if (!aWon) stats[p].wins++;
-      else stats[p].losses++;
-    });
-  });
-  return Object.values(stats).sort((a, b) => b.matches - a.matches);
 }
 
 function renderAddMatches() {
@@ -10296,57 +10177,6 @@ function _h2hHighlightRow(tr) {
   }
 }
 
-// ── P VS P MATRIX ──────────────────────────────────────────
-function buildH2HMatrix(players) {
-  if (players.length < 2)
-    return '<div style="color:var(--muted);font-size:11px">Need at least 2 players with matches.</div>';
-
-  // Build win % for each row vs col (row beats col)
-  const matrix = {};
-  players.forEach((a) => {
-    matrix[a] = {};
-    players.forEach((b) => {
-      if (a === b) {
-        matrix[a][b] = null;
-        return;
-      }
-      const h2h = getHeadToHeadStats(a, b);
-      const total = h2h.aWins + h2h.bWins;
-      matrix[a][b] = total > 0 ? { wins: h2h.aWins, total } : null;
-    });
-  });
-
-  // Short name: first 5 chars to keep columns tight
-  const short = (n) => (n.length > 6 ? n.slice(0, 5) + "…" : n);
-
-  const colHeaders = players
-    .map(
-      (p) => `<th class="pvp-th" title="${p}">${getMatrixAlias(short(p))}</th>`,
-    )
-    .join("");
-
-  const rows = players
-    .map((a) => {
-      const cells = players
-        .map((b) => {
-          if (a === b) return `<td class="pvp-td pvp-self">·</td>`;
-          const d = matrix[a][b];
-          if (!d) return `<td class="pvp-td pvp-none">—</td>`;
-          const pct = Math.round((d.wins / d.total) * 100);
-          const cls =
-            pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
-          return `<td class="pvp-td ${cls} pvp-td-click" title="${escHtml(`${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L`)}" onclick="openRivalryScreen(${jsArg(a)},${jsArg(b)})">${pct}%</td>`;
-        })
-        .join("");
-      return `<tr><td class="pvp-row-hdr" title="${escHtml(a)}">${escHtml(short(a))}</td>${cells}</tr>`;
-    })
-    .join("");
-
-  return `<table class="pvp-table">
-              <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
-              <tbody>${rows}</tbody>
-            </table>`;
-}
 
 // ── PLAYER COMPARISON ─────────────────────────────────────
 const CMP_DATE_OPTS = [
@@ -10424,13 +10254,6 @@ function _cmpSetDate(v) {
     const match = CMP_DATE_OPTS.find((o) => o.l === b.textContent);
     if (match) b.classList.toggle("active", match.v === v);
   });
-}
-
-function cmpDateOptsHtml(selected = "all") {
-  return CMP_DATE_OPTS.map(
-    (o) =>
-      `<option value="${o.v}"${o.v === selected ? " selected" : ""}>${o.l}</option>`,
-  ).join("");
 }
 
 function triggerCompare() {
@@ -11361,12 +11184,6 @@ function getPrestigeTier(level) {
   if (level >= 10) return "silver";
   if (level >= 5) return "bronze";
   return "rookie";
-}
-
-function mkLvlBadge(displayName) {
-  const { level } = getPlayerLevel(computePlayerXP(displayName));
-  const tier = getPrestigeTier(level);
-  return `<span class="lvl-badge prestige-${tier}">LVL ${level}</span>`;
 }
 
 function mkLvlRow(displayName) {
@@ -14714,75 +14531,6 @@ function _buildSeasonModeHtml() {
     )
     .join("");
   return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${cards}</div>`;
-}
-
-function _buildRivalryHoFHtml() {
-  const rivalries = {};
-  activeMatches().forEach((m) => {
-    if (!m.teamA || !m.teamB || m.teamA.length < 2 || m.teamB.length < 2)
-      return;
-    const tA = [...m.teamA].map(normPlayer).sort().join("|");
-    const tB = [...m.teamB].map(normPlayer).sort().join("|");
-    const [k1, k2] = [tA, tB].sort();
-    const key = `${k1}~vs~${k2}`;
-    if (!rivalries[key]) {
-      rivalries[key] = {
-        pair1: k1.split("|"),
-        pair2: k2.split("|"),
-        matches: [],
-        wins1: 0,
-        wins2: 0,
-      };
-    }
-    rivalries[key].matches.push(m);
-    const aWon = m.scoreA > m.scoreB;
-    const aIsK1 = tA === k1;
-    if ((aWon && aIsK1) || (!aWon && !aIsK1)) rivalries[key].wins1++;
-    else rivalries[key].wins2++;
-  });
-  const top = Object.values(rivalries)
-    .filter((r) => r.matches.length >= 3)
-    .sort((a, b) => b.matches.length - a.matches.length)
-    .slice(0, 5);
-  if (!top.length)
-    return '<div class="sub" style="padding:8px">Need pairs that have played each other 3+ times.</div>';
-  return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${top
-    .map((r, i) => {
-      const sorted = [...r.matches].sort((a, b) =>
-        (a.date || "").localeCompare(b.date || ""),
-      );
-      const last = sorted[sorted.length - 1];
-      const lastTA = [...last.teamA].map(normPlayer).sort().join("|");
-      const lastIsK1 = lastTA === r.pair1.join("|");
-      const lastWinner =
-        last.scoreA > last.scoreB === lastIsK1
-          ? r.pair1.join(" & ")
-          : r.pair2.join(" & ");
-      const dominator =
-        r.wins1 === r.wins2
-          ? "Tied"
-          : r.wins1 > r.wins2
-            ? `${r.pair1.join(" & ")} lead`
-            : `${r.pair2.join(" & ")} lead`;
-      const av = (name) =>
-        `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${playerColor(name)};font-size:8px;font-weight:800;color:#fff">${playerInitials(name)}</span>`;
-      return `<div class="ana-card rhof-card">
-        <div class="rhof-rank">#${i + 1} · ${r.matches.length} MEETINGS · ${dominator}</div>
-        <div class="rhof-pairs">
-          <div class="rhof-pair">
-            <div class="rhof-avs">${av(r.pair1[0])}${av(r.pair1[1])}</div>
-            <div class="rhof-pair-name">${r.pair1.join(" & ")}</div>
-          </div>
-          <div class="rhof-vs"><span style="color:${r.wins1 >= r.wins2 ? "var(--green)" : "var(--muted)"}">${r.wins1}</span><span style="color:var(--muted);margin:0 2px">–</span><span style="color:${r.wins2 >= r.wins1 ? "var(--green)" : "var(--muted)"}">${r.wins2}</span></div>
-          <div class="rhof-pair">
-            <div class="rhof-avs">${av(r.pair2[0])}${av(r.pair2[1])}</div>
-            <div class="rhof-pair-name">${r.pair2.join(" & ")}</div>
-          </div>
-        </div>
-        <div class="rhof-last">Last: ${last.date || ""} · <b>${lastWinner}</b> won ${Math.max(last.scoreA, last.scoreB)}-${Math.min(last.scoreA, last.scoreB)}</div>
-      </div>`;
-    })
-    .join("")}</div>`;
 }
 
 const _REPLAY_MIN = 5;
