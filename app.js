@@ -1454,6 +1454,9 @@ function updateAdminUI(user) {
   // Show Live Scoring button only for admin
   const liveHmenu = document.getElementById("live-scoring-hmenu");
   if (liveHmenu) liveHmenu.style.display = window.isAdmin ? "" : "none";
+  // Show Offline Mode toggle only for admin
+  const offlineItem = document.getElementById("offline-mode-item");
+  if (offlineItem) offlineItem.style.display = window.isAdmin ? "" : "none";
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
