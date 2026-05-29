@@ -613,6 +613,7 @@ let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
 let _addRenderedVersion = -1;
+let _anaRenderedVersion = -1;
 let _excludedPlayers = new Set((() => { try { return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]"); } catch(e) { return []; } })());
 let _sessionGuestUnexcluded = new Set(); // guests temporarily re-included this Summary session
 let photoMap = {};
@@ -897,6 +898,27 @@ function renderAnalyticsFeature() {
       }),
     )
     .catch((err) => _handleFeatureLoadError("Analytics", err));
+}
+
+// Pre-render analytics in the background so the tab opens instantly.
+// Runs only when the user is NOT already on the analytics tab and the
+// rendered version is stale. Uses requestIdleCallback (with a 10s timeout
+// fallback) to avoid competing with primary UI work.
+let _anaPrefetchScheduled = false;
+function _scheduleAnalyticsPrefetch() {
+  if (_anaPrefetchScheduled) return;
+  _anaPrefetchScheduled = true;
+  const run = () => {
+    _anaPrefetchScheduled = false;
+    if (document.querySelector(".page.active")?.id === "pg-analytics") return;
+    if (_anaRenderedVersion === _dataVersion) return;
+    renderAnalyticsPage();
+  };
+  if (typeof requestIdleCallback !== "undefined") {
+    requestIdleCallback(run, { timeout: 10000 });
+  } else {
+    setTimeout(run, 3000);
+  }
 }
 
 function _loadLiveFeature() {
@@ -1372,6 +1394,8 @@ function loadCloudData() {
       window.dismissSplash("Ready ✓");
       setTimeout(_checkAnniversaries, 1800);
       setTimeout(checkResumeSession, 800); // Enhancement 13: show session resume banner if saved state exists
+      // Pre-render analytics in background after primary tab settles
+      if (activePageId !== "pg-analytics") _scheduleAnalyticsPrefetch();
     } else {
       // Genuine new data from Firestore: fade board out, re-render, fade back in — no blur flash
       const board = document.getElementById("board");
@@ -1392,6 +1416,8 @@ function loadCloudData() {
           });
           board.style.opacity = "1";
         }
+        // Re-invalidate analytics cache after Firestore update; pre-render in background
+        _scheduleAnalyticsPrefetch();
       }, 160);
     }
   }
@@ -13853,6 +13879,8 @@ window._renderEloProjTable = function() {
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
+  // Skip full re-render if data hasn't changed since last render
+  if (_anaRenderedVersion === _dataVersion && container.querySelector(".ana-sec")) return;
   if (!allMatches.length) {
     container.innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
@@ -16583,6 +16611,8 @@ function renderAnalyticsPage() {
         return makeSec(key, def.title, def.body, collapsed.has(key), def.cat);
       })
       .join("");
+
+  _anaRenderedVersion = _dataVersion;
 
   // Re-apply active category filter after re-render
   anaFilterCategory(_anaActiveCat, true);
