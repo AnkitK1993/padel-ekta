@@ -3917,7 +3917,13 @@ function renderCompact() {
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
+    const _eloDiff = eloVal - 1000;
+    const eloDeltaBadge = _eloDiff > 0
+      ? `<span class="wk-rank-delta wk-up">+${_eloDiff}</span>`
+      : _eloDiff < 0
+        ? `<span class="wk-rank-delta wk-down">${_eloDiff}</span>`
+        : `<span class="wk-rank-delta wk-same">±0</span>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaBadge}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
