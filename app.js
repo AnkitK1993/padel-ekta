@@ -12318,15 +12318,16 @@ function _buildPodiumTrackerHtml(periodType) {
 }
 
 function _buildRankReignHtml() {
-  const periods = _computeRankPeriods("today"); // daily — "how many days at each rank"
+  const periods = _computeRankPeriods("today");
   const validPeriods = periods.filter(p => p.ranks.length > 0);
   if (validPeriods.length < 2)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
 
-  // current rank = rank in the most recent valid period
-  const latestPeriod = validPeriods[validPeriods.length - 1];
-  const currentRankMap = {};
-  latestPeriod.ranks.forEach(r => { currentRankMap[r.name] = r.rank; });
+  // Current ELO rank (ALL TIME)
+  const eloMap = computeElo(activeMatches());
+  const eloRanking = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
+  const eloRankOf = {};
+  eloRanking.forEach(([name], i) => { eloRankOf[name] = i + 1; });
 
   let maxRank = 1;
   const tally = {};
@@ -12355,6 +12356,7 @@ function _buildRankReignHtml() {
   const rankCols = Array.from({ length: maxRank }, (_, i) => i + 1);
   const rankEmoji = r => r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : `#${r}`;
   const rankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--muted)";
+  const eloRankColor = r => r === 1 ? "var(--gold)" : r === 2 ? "var(--silver)" : r === 3 ? "var(--bronze)" : "var(--theme)";
 
   const _sTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
   const _sTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
@@ -12363,26 +12365,27 @@ function _buildRankReignHtml() {
 
   const thead = `<tr>
     <th style="${_th};${_sTh};text-align:left">Player</th>
+    <th style="${_th}">Rank</th>
     ${rankCols.map(r => `<th style="${_th}">${rankEmoji(r)}</th>`).join("")}
   </tr>`;
 
   const tbody = rows.map(row => {
-    const cur = currentRankMap[row.name];
+    const eloRank = eloRankOf[row.name];
+    const eloCell = eloRank
+      ? `<td style="${_td};color:${eloRankColor(eloRank)};font-size:13px">#${eloRank}</td>`
+      : `<td style="${_td};color:var(--muted)">—</td>`;
     const cells = rankCols.map(r => {
       const cnt = row.rankCounts[r] || 0;
-      const isCur = r === cur;
-      const color = cnt > 0 ? rankColor(r) : "rgba(255,255,255,0.15)";
-      const curStyle = isCur ? `outline:2px solid var(--theme);outline-offset:-2px;border-radius:5px;` : "";
-      return `<td style="${_td};color:${color};${curStyle}" title="${cnt} day${cnt !== 1 ? "s" : ""} at ${rankEmoji(r)}${isCur ? " · current rank" : ""}">${cnt > 0 ? cnt : "—"}</td>`;
+      return `<td style="${_td};color:${cnt > 0 ? rankColor(r) : "rgba(255,255,255,0.15)"}" title="${cnt} day${cnt !== 1 ? "s" : ""} at ${rankEmoji(r)}">${cnt > 0 ? cnt : "—"}</td>`;
     }).join("");
     return `<tr>
       <td style="${_td};${_sTd};text-align:left;font-weight:700">${escHtml(row.name)}</td>
-      ${cells}
+      ${eloCell}${cells}
     </tr>`;
   }).join("");
 
   return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${validPeriods.length} MATCH DAYS · <span style="color:var(--theme)">CURRENT RANK</span> HIGHLIGHTED</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${validPeriods.length} MATCH DAYS</div>
     <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
       <thead>${thead}</thead>
       <tbody>${tbody}</tbody>
