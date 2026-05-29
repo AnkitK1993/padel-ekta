@@ -1620,7 +1620,7 @@ function switchMainTab(id, skipAnim = false) {
   }
 }
 
-const mainTabOrder = ["home", "compact", "history", "analytics"];
+const mainTabOrder = ["compact", "home", "history", "analytics"];
 
 function isScrollable(el) {
   while (el && el !== document.body) {
@@ -3739,8 +3739,9 @@ function renderHome() {
         const xpRow = card.querySelector(".xp-row");
         if (xpRow) animateXpRow(xpRow, 300);
         card.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 220 + i * 60));
+        const needle = card.querySelector(".needle");
+        if (needle) setTimeout(() => _sweepNeedle(needle), 50);
         if (i === cardHtmls.length - 1) {
-          runSpeedometerSweep();
           setTimeout(animateGauges, 50);
         }
       }, i * 100);
@@ -3784,32 +3785,26 @@ function animateSrVal(el, delay = 200) {
 }
 
 // ── RENDER COMPACT ─────────────────────────────────────────
+function _sweepNeedle(needle) {
+  const ring = needle.closest(".sr-ring");
+  if (!ring) return;
+  const targetDeg = parseFloat(getComputedStyle(ring).getPropertyValue("--speed-angle")) || 0;
+  const sweepAnim = needle.animate(
+    [
+      { transform: "translateX(-50%) rotate(-90deg)" },
+      { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
+      { transform: `translateX(-50%) rotate(${-90 + targetDeg}deg)` },
+    ],
+    { duration: 2200, easing: "cubic-bezier(0.22,1.15,0.36,1)", fill: "forwards" },
+  );
+  if (ring.classList.contains("rev-limit")) {
+    sweepAnim.onfinish = () => sweepAnim.cancel();
+  }
+}
+
 function runSpeedometerSweep() {
   requestAnimationFrame(() => {
-    document.querySelectorAll(".needle").forEach((needle) => {
-      const ring = needle.closest(".sr-ring");
-      if (!ring) return;
-      const targetAngle = getComputedStyle(ring)
-        .getPropertyValue("--speed-angle")
-        .trim();
-      const sweepAnim = needle.animate(
-        [
-          { transform: "translateX(-50%) rotate(-90deg)" },
-          { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
-          {
-            transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))`,
-          },
-        ],
-        {
-          duration: 2200,
-          easing: "cubic-bezier(0.22,1.15,0.36,1)",
-          fill: "forwards",
-        },
-      );
-      if (ring.classList.contains("rev-limit")) {
-        sweepAnim.onfinish = () => sweepAnim.cancel();
-      }
-    });
+    document.querySelectorAll(".needle").forEach(_sweepNeedle);
   });
 }
 
