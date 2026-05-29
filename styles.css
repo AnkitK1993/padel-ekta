@@ -1823,6 +1823,20 @@ select.cmp-sel:focus {
 .smr-inner .cmr-meta {
   flex-shrink: 0;
 }
+.smr-ed {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+.smr-ed-pos { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.smr-ed-neg { color: #f87171; background: rgba(248, 113, 113, 0.12); }
+.smr-ed-neu { color: var(--muted); background: rgba(255, 255, 255, 0.06); }
 .cmp-matches {
   flex: unset;
   overflow: visible;
@@ -1886,8 +1900,8 @@ table.cmp tbody td:nth-child(2) {
   padding-left: 4px;
 }
 
-table.cmp thead th:nth-child(9),
-table.cmp tbody td:nth-child(9) {
+table.cmp thead th:nth-child(10),
+table.cmp tbody td:nth-child(10) {
   text-align: center;
   padding: 5px 6px;
   vertical-align: middle;
@@ -2103,14 +2117,14 @@ table.cmp tbody td:nth-child(2) {
 
 .sr-ring.rev-limit {
   animation:
-    limiterShake 0.08s linear 25,
-    limiterPulse 0.28s ease-in-out 7 alternate;
+    limiterShake 0.1s linear 20,
+    limiterPulse 0.3s ease-in-out 8 alternate;
 }
 
 .sr-ring.rev-limit .needle {
   animation:
-    limiterNeedle 0.07s linear 28 alternate,
-    limiterGlow 0.18s ease-in-out 11 alternate;
+    limiterNeedle 0.08s linear 24 alternate,
+    limiterGlow 0.2s ease-in-out 10 alternate;
 }
 
 .sr-ring.rev-limit .gauge::before {
@@ -5642,24 +5656,14 @@ body.no-cascade .analytics-card {
 }
 
 @keyframes limiterShake {
-  0% {
-    transform: translateX(0px);
-  }
-  20% {
-    transform: translateX(-1px);
-  }
-  40% {
-    transform: translateX(1px);
-  }
-  60% {
-    transform: translateX(-2px);
-  }
-  80% {
-    transform: translateX(2px);
-  }
-  100% {
-    transform: translateX(0px);
-  }
+  0%   { transform: translateX(0px); }
+  15%  { transform: translateX(-4px); }
+  30%  { transform: translateX(4px); }
+  45%  { transform: translateX(-5px); }
+  60%  { transform: translateX(5px); }
+  75%  { transform: translateX(-3px); }
+  90%  { transform: translateX(3px); }
+  100% { transform: translateX(0px); }
 }
 
 @keyframes limiterPulse {
@@ -5673,10 +5677,10 @@ body.no-cascade .analytics-card {
 
 @keyframes limiterNeedle {
   from {
-    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) - 2deg));
+    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) - 4deg));
   }
   to {
-    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) + 2deg));
+    transform: translateX(-50%) rotate(calc(-90deg + var(--speed-angle) + 4deg));
   }
 }
 
@@ -8588,8 +8592,8 @@ table.cmp tbody td:nth-child(2) {
   padding-right: 2px !important;
 }
 
-table.cmp thead th:nth-child(9),
-table.cmp tbody td:nth-child(9) {
+table.cmp thead th:nth-child(10),
+table.cmp tbody td:nth-child(10) {
   width: 58px !important;
   padding-left: 3px !important;
   padding-right: 1px !important;
@@ -8688,6 +8692,50 @@ table.cmp td:nth-child(9) {
   padding-right: 8px !important;
 }
 
+/* ── ELO column ── */
+.cmp-elo-cell {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+#cmp-elo-th { width: 46px; }
+
+/* ── Column visibility toggle ── */
+.cmp.hide-col-mp [data-col="mp"],
+.cmp.hide-col-record [data-col="record"],
+.cmp.hide-col-winPct [data-col="winPct"],
+.cmp.hide-col-gw [data-col="gw"],
+.cmp.hide-col-gl [data-col="gl"],
+.cmp.hide-col-gamePct [data-col="gamePct"],
+.cmp.hide-col-elo [data-col="elo"] { display: none; }
+
+/* ── Column chip strip ── */
+.col-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 4px;
+}
+.col-chip {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  font-family: "DM Sans", sans-serif;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.col-chip--on {
+  background: rgba(var(--theme-rgb), 0.18);
+  border-color: rgba(var(--theme-rgb), 0.55);
+  color: var(--accent);
+}
+
 table.cmp thead th {
   letter-spacing: 0.05em !important;
   padding-left: 5px !important;
@@ -8710,8 +8758,8 @@ table.cmp tbody td {
 
 /* ══════════════════════════════════════ */
 
-table.cmp th:nth-child(9),
-table.cmp td:nth-child(9) {
+table.cmp th:nth-child(10),
+table.cmp td:nth-child(10) {
   width: 44px !important;
   padding-left: 2px !important;
   padding-right: 2px !important;
@@ -12449,6 +12497,37 @@ select.cmp-sel:hover,
   background: rgba(var(--theme-rgb), 0.1);
   color: var(--theme);
 }
+
+/* ── RANK TIMELINE ─────────────────────────────────── */
+.rhtl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.rhtl-table { border-collapse: separate; border-spacing: 2px; font-size: 10px; white-space: nowrap; min-width: 100%; }
+.rhtl-th-name, .rhtl-td-name {
+  position: sticky; left: 0; background: var(--card); z-index: 1;
+  font-weight: 700; padding: 4px 8px 4px 0; text-align: left;
+  min-width: 72px; max-width: 96px; overflow: hidden; text-overflow: ellipsis;
+}
+.rhtl-th-period {
+  font-size: 8px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 0 3px 6px; text-align: center; min-width: 34px;
+}
+.rhtl-cell {
+  width: 34px; height: 26px; border-radius: 4px; text-align: center;
+  vertical-align: middle; font-size: 11px; font-weight: 800; padding: 2px 3px;
+}
+.rhtl-gold   { background: rgba(245,200,66,0.25);   color: var(--gold);   }
+.rhtl-silver { background: rgba(152,152,184,0.25);  color: var(--silver); }
+.rhtl-bronze { background: rgba(196,106,40,0.25);   color: var(--bronze); }
+.rhtl-top6   { background: rgba(24,215,255,0.12);   color: var(--theme);  }
+.rhtl-lower  { background: rgba(255,255,255,0.05);  color: var(--muted);  }
+.rhtl-absent { background: transparent; color: rgba(255,255,255,0.12); }
+.rhtl-legend {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 9px; color: var(--muted); margin-bottom: 8px;
+}
+.rhtl-leg-cell {
+  display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+}
+
 .mng-card-drag-handle {
   font-size: 16px;
   color: var(--muted);

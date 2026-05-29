@@ -612,6 +612,7 @@ let nextPlayerId = 1;
 let _dataVersion = 0;
 let _homeRenderedVersion = -1, _homeRenderedFilter = "";
 let _compactRenderedVersion = -1, _compactRenderedFilter = "";
+let _addRenderedVersion = -1;
 let _excludedPlayers = new Set((() => { try { return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]"); } catch(e) { return []; } })());
 let _sessionGuestUnexcluded = new Set(); // guests temporarily re-included this Summary session
 let photoMap = {};
@@ -641,6 +642,23 @@ let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
 let _cmpEqualized = false;
+const _CMP_TOGGLE_COLS = [
+  { key: "mp",      label: "MP"  },
+  { key: "record",  label: "W–L" },
+  { key: "winPct",  label: "W%"  },
+  { key: "gw",      label: "GW"  },
+  { key: "gl",      label: "GL"  },
+  { key: "gamePct", label: "G%"  },
+  { key: "elo",     label: "ELO" },
+];
+function _loadCmpHiddenCols() {
+  try {
+    const s = localStorage.getItem("padel_cmp_hidden_cols_v2");
+    if (s) return new Set(JSON.parse(s));
+  } catch (e) {}
+  return new Set(["gw", "gl", "gamePct"]);
+}
+let _cmpHiddenCols = _loadCmpHiddenCols();
 let _eloTLPlayer = "";
 let _eloTLFilter = "all";
 let _eloTLOverlay = "";
@@ -651,6 +669,28 @@ let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a loca
 let _forcedOffline = localStorage.getItem("padel_forced_offline") === "1";
 let _firestoreUnsub = null;
 let _emailTimer = null;
+// Live/session state is declared with core state because startup data loading
+// may need to merge cached/cloud matches with unsynced session matches.
+let _liveSessionData = null;
+let _liveScoreA = 0,
+  _liveScoreB = 0;
+const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
+let _liveActiveSlot = null;
+let _livePoints = []; // point history for momentum graph
+let _liveGameMode = 4; // 4 = race to 4 (no diff), 6 = race to 6 (±2 / TB)
+let _liveGamePtsA = 0; // 0..3 = 0/15/30/40 (then deuce/adv handled below)
+let _liveGamePtsB = 0;
+let _liveAdv = null; // 'a' | 'b' | null
+let _liveMatchEnded = false;
+let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
+let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
+let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
+let _sessionRedoStack = [];       // matches popped by undo, available for redo
+let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
+let _sessionPanelOpen = false;    // whether the session stats panel is expanded
+let _sessionSetupSelected = new Set();
+let _analyticsFeaturePromise = null;
+let _liveFeaturePromise = null;
 window.isAdmin = false;
 const _animLevel0 = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
 if (_animLevel0 === "medium" || _animLevel0 === "off") document.body.classList.add("no-cascade");
@@ -829,6 +869,51 @@ let _pairsShowAll = false;
 function setSplashStatus(msg) {
   var el = document.getElementById("splash-status");
   if (el) el.textContent = msg;
+}
+
+function _handleFeatureLoadError(name, err) {
+  console.error(`${name} feature failed to load:`, err);
+  showToast(`${name} could not load`, "❌");
+}
+
+function _loadAnalyticsFeature() {
+  if (!_analyticsFeaturePromise) {
+    _analyticsFeaturePromise = import("./features/analytics.js");
+  }
+  return _analyticsFeaturePromise;
+}
+
+function renderAnalyticsFeature() {
+  const container = document.getElementById("analytics-page-content");
+  if (container && !container.innerHTML.trim()) {
+    container.innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--muted)">Loading analytics...</div>';
+  }
+  return _loadAnalyticsFeature()
+    .then((feature) =>
+      feature.mountAnalyticsFeature({
+        renderAnalyticsPage,
+        afterRender: () => setTimeout(applyAnalyticsAnimations, 0),
+      }),
+    )
+    .catch((err) => _handleFeatureLoadError("Analytics", err));
+}
+
+function _loadLiveFeature() {
+  if (!_liveFeaturePromise) {
+    _liveFeaturePromise = import("./features/live-session.js");
+  }
+  return _liveFeaturePromise;
+}
+
+function openLiveMode() {
+  return _loadLiveFeature()
+    .then((feature) =>
+      feature.openLiveSessionFeature({
+        openLiveMode: _openLiveModeImpl,
+      }),
+    )
+    .catch((err) => _handleFeatureLoadError("Live session", err));
 }
 
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
@@ -1266,11 +1351,23 @@ function loadCloudData() {
     autoSaveWeeklySnap();
     if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
 
+    const _onAddPage = () => document.querySelector(".page.active")?.id === "pg-add";
     if (isFirstLoad) {
-      // First render: paint data, then dismiss splash so user sees cards animate in cleanly once
-      renderHome();
-      renderCompact();
-      refreshManage();
+      const activePageId = document.querySelector(".page.active")?.id;
+      if (activePageId === "pg-home") {
+        renderHome();
+      } else if (activePageId === "pg-history") {
+        renderModernMatches();
+        populateHistoryPlayerChips();
+      } else if (activePageId === "pg-analytics") {
+        renderAnalyticsFeature();
+      } else if (_onAddPage()) {
+        refreshManage();
+        renderAddMatches();
+        prefillMatchTADate();
+      } else {
+        renderCompact();
+      }
       fired = true;
       window.dismissSplash("Ready ✓");
       setTimeout(_checkAnniversaries, 1800);
@@ -1285,7 +1382,7 @@ function loadCloudData() {
       setTimeout(function () {
         renderHome();
         renderCompact();
-        refreshManage();
+        if (_onAddPage()) { refreshManage(); if (_addRenderedVersion !== _dataVersion) renderAddMatches(); }
         if (board) {
           // Suppress the per-card keyframe animation for live updates
           board.querySelectorAll(".pc").forEach(function (c) {
@@ -1435,6 +1532,9 @@ function updateAdminUI(user) {
   // Show Live Scoring button only for admin
   const liveHmenu = document.getElementById("live-scoring-hmenu");
   if (liveHmenu) liveHmenu.style.display = window.isAdmin ? "" : "none";
+  // Show Offline Mode toggle only for admin
+  const offlineItem = document.getElementById("offline-mode-item");
+  if (offlineItem) offlineItem.style.display = window.isAdmin ? "" : "none";
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
@@ -1465,7 +1565,7 @@ function goTo(id) {
   }
   if (id === "add") {
     refreshManage();
-    renderAddMatches();
+    if (_addRenderedVersion !== _dataVersion) renderAddMatches();
   }
 }
 function goBack() {
@@ -1552,14 +1652,16 @@ function switchMainTab(id, skipAnim = false) {
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
 
-  // Render content for the new page — skip if data + filter haven't changed
+  // Render content for the new page — skip if data + filter haven't changed.
+  // Compact gets fullMode re-render so its cascade plays while the page is visible.
   if (id === "home") {
     const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
     if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
   }
   if (id === "compact") {
     const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
-    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk) renderCompact();
+    const fullMode = document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade");
+    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk || fullMode) renderCompact();
   }
   if (id === "history") {
     renderModernMatches();
@@ -1572,12 +1674,11 @@ function switchMainTab(id, skipAnim = false) {
     if (htf) htf.value = histMarginFilter;
   }
   if (id === "analytics") {
-    renderAnalyticsPage();
-    setTimeout(applyAnalyticsAnimations, 0);
+    renderAnalyticsFeature();
   }
   if (id === "add") {
     refreshManage();
-    renderAddMatches();
+    if (_addRenderedVersion !== _dataVersion) renderAddMatches();
     prefillMatchTADate();
   }
 
@@ -2294,6 +2395,7 @@ function filterMatches(f, from, to) {
     if (f === "weekend") return m.date >= wr.from && m.date <= wr.to;
     if (f === "month") return m.date >= sm && m.date <= t;
     if (f === "lastweek") return m.date >= lwr.from && m.date <= lwr.to;
+    if (f === "day") return from ? m.date === from : m.date === t;
     if (f === "range") {
       const d = m.date || "";
       if (!d) return false;
@@ -3272,6 +3374,11 @@ function applyRange(page) {
     renderCompact();
   }
 }
+function applyCmpDay() {
+  cmpFrom = document.getElementById("cmpDayInput").value || null;
+  cmpTo = null;
+  renderCompact();
+}
 function onHomeFilterChange(val) {
   homeFilter = val;
   _syncHomeFilterLabel();
@@ -3386,6 +3493,45 @@ function clearExcludedPlayers() {
 function closeExcludeSheet() {
   document.getElementById("exclude-sheet-overlay")?.classList.remove("live-sheet-open");
   document.getElementById("exclude-sheet")?.classList.remove("live-sheet-open");
+}
+
+function openColSheet() {
+  _renderColChips();
+  document.getElementById("col-sheet-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("col-sheet")?.classList.add("live-sheet-open");
+}
+function closeColSheet() {
+  document.getElementById("col-sheet-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("col-sheet")?.classList.remove("live-sheet-open");
+}
+function _renderColChips() {
+  const list = document.getElementById("col-chip-list");
+  if (!list) return;
+  const chips = _CMP_TOGGLE_COLS.map(c =>
+    `<button class="col-chip${_cmpHiddenCols.has(c.key) ? "" : " col-chip--on"}" onclick="toggleCmpCol(${jsArg(c.key)})">${escHtml(c.label)}</button>`
+  ).join("");
+  const showAll = _cmpHiddenCols.size > 0
+    ? `<button class="ss-exc-clear-btn" onclick="showAllCmpCols()">SHOW ALL</button>`
+    : "";
+  list.innerHTML = chips + showAll;
+}
+function showAllCmpCols() {
+  _cmpHiddenCols.clear();
+  try { localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([])); } catch (e) {}
+  _applyCmpColClasses();
+  _renderColChips();
+}
+function toggleCmpCol(key) {
+  if (_cmpHiddenCols.has(key)) _cmpHiddenCols.delete(key);
+  else _cmpHiddenCols.add(key);
+  try { localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([..._cmpHiddenCols])); } catch (e) {}
+  _applyCmpColClasses();
+  _renderColChips();
+}
+function _applyCmpColClasses() {
+  const table = document.querySelector(".cmp");
+  if (!table) return;
+  _CMP_TOGGLE_COLS.forEach(c => table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)));
 }
 
 function onCmpFilter() {
@@ -3672,8 +3818,9 @@ function renderHome() {
         const xpRow = card.querySelector(".xp-row");
         if (xpRow) animateXpRow(xpRow, 300);
         card.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 220 + i * 60));
+        const needle = card.querySelector(".needle");
+        if (needle) setTimeout(() => _sweepNeedle(needle), 50);
         if (i === cardHtmls.length - 1) {
-          runSpeedometerSweep();
           setTimeout(animateGauges, 50);
         }
       }, i * 100);
@@ -3717,32 +3864,49 @@ function animateSrVal(el, delay = 200) {
 }
 
 // ── RENDER COMPACT ─────────────────────────────────────────
+function _sweepNeedle(needle) {
+  const ring = needle.closest(".sr-ring");
+  if (!ring) return;
+  const isRevLimit = ring.classList.contains("rev-limit");
+  if (isRevLimit) ring.classList.remove("rev-limit");
+  const targetDeg = parseFloat(getComputedStyle(ring).getPropertyValue("--speed-angle")) || 0;
+  needle.animate(
+    [
+      { transform: "translateX(-50%) rotate(-90deg)" },
+      { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
+      { transform: `translateX(-50%) rotate(${-90 + targetDeg}deg)` },
+    ],
+    { duration: 2200, easing: "cubic-bezier(0.22,1.15,0.36,1)", fill: "forwards" },
+  );
+  if (isRevLimit) {
+    // Fire shortly after cardSlideUp (420ms) so shake is visible on page load
+    setTimeout(() => {
+      if (!document.body.contains(ring)) return;
+      ring.classList.add("rev-limit");
+      const card = ring.closest(".pc");
+      if (card) {
+        card.animate(
+          [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(-5px)" },
+            { transform: "translateX(5px)" },
+            { transform: "translateX(-4px)" },
+            { transform: "translateX(4px)" },
+            { transform: "translateX(-3px)" },
+            { transform: "translateX(3px)" },
+            { transform: "translateX(-1px)" },
+            { transform: "translateX(0px)" },
+          ],
+          { duration: 500, easing: "ease-in-out", composite: "add" },
+        );
+      }
+    }, 450);
+  }
+}
+
 function runSpeedometerSweep() {
   requestAnimationFrame(() => {
-    document.querySelectorAll(".needle").forEach((needle) => {
-      const ring = needle.closest(".sr-ring");
-      if (!ring) return;
-      const targetAngle = getComputedStyle(ring)
-        .getPropertyValue("--speed-angle")
-        .trim();
-      const sweepAnim = needle.animate(
-        [
-          { transform: "translateX(-50%) rotate(-90deg)" },
-          { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
-          {
-            transform: `translateX(-50%) rotate(calc(-90deg + ${targetAngle}))`,
-          },
-        ],
-        {
-          duration: 2200,
-          easing: "cubic-bezier(0.22,1.15,0.36,1)",
-          fill: "forwards",
-        },
-      );
-      if (ring.classList.contains("rev-limit")) {
-        sweepAnim.onfinish = () => sweepAnim.cancel();
-      }
-    });
+    document.querySelectorAll(".needle").forEach(_sweepNeedle);
   });
 }
 
@@ -3752,19 +3916,16 @@ function renderCompact() {
   _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
-    const _cmpLblMap = {
-      all: "ALL TIME",
-      today: "TODAY",
-      week: "THIS WEEK",
-      lastweek: "LAST WEEK",
-      weekend: "WEEKEND",
-      month: "THIS MONTH",
-      range: "RANGE",
-    };
-    _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
+    const _LBL_MONTHS = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const _fmtLbl = iso => { const [,m,d] = iso.split("-"); return `${parseInt(d)} ${_LBL_MONTHS[parseInt(m)]}`; };
+    const _cmpLblMap = { all:"ALL TIME", today:"TODAY", week:"THIS WEEK", lastweek:"LAST WEEK", weekend:"WEEKEND", month:"THIS MONTH", range:"RANGE", day:"DAY" };
+    if (cmpFilter === "day" && cmpFrom) _cmpDateLbl.textContent = _fmtLbl(cmpFrom);
+    else if (cmpFilter === "range" && cmpFrom && cmpTo) _cmpDateLbl.textContent = `${_fmtLbl(cmpFrom)}–${_fmtLbl(cmpTo)}`;
+    else _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const stats = computeStats(filtered, computeElo(filtered));
+  const _cmpEloMap = computeElo(filtered);
+  const stats = computeStats(filtered, _cmpEloMap);
   if (_cmpEqualized) {
     stats.forEach(p => {
       const c = p.mp / (p.mp + 5);
@@ -3791,6 +3952,7 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
+    elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
     sr: (a, b) => (_cmpEqualized ? (a.eqSR - b.eqSR) : (a.sr - b.sr)) || a.gamePct - b.gamePct,
   };
   const sorted = [...stats].sort((a, b) => {
@@ -3805,9 +3967,11 @@ function renderCompact() {
     all: "All Time",
     today: "Today",
     week: "This Week",
+    lastweek: "Last Week",
     weekend: "Weekend",
     month: "This Month",
     range: "Custom Range",
+    day: "Selected Day",
   };
   document.getElementById("cmpMeta").innerHTML =
     `<strong>${stats.length}</strong> players &nbsp;·&nbsp; <strong>${filtered.length}</strong> matches &nbsp;·&nbsp; ${fname[cmpFilter]}`;
@@ -3815,17 +3979,25 @@ function renderCompact() {
   if (!sorted.length) {
     _cmpLeaderHtmls = [];
     _cmpFiltered = filtered;
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
     document.getElementById("cmpMatches").innerHTML =
       buildSummaryMatchRows(filtered);
     updateSortArrows(sorted);
     return;
   }
   updateSortArrows();
+  _applyCmpColClasses();
 
   const splashDone = document.body.classList.contains("splash-done");
 
   const prevRankMap = getPrevWeekRankMap();
+  const srSorted = [...sorted].sort((a, b) => {
+    const sa = _cmpEqualized ? (a.eqSR ?? a.sr) : a.sr;
+    const sb = _cmpEqualized ? (b.eqSR ?? b.sr) : b.sr;
+    return sb - sa;
+  });
+  const srRankMap = {};
+  srSorted.forEach((p, j) => { srRankMap[p.name] = j + 1; });
   const leaderRowHtmls = sorted.map((p, i) => {
     const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
     const ri =
@@ -3855,12 +4027,20 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td>${p.mp}</td><td><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td>${p.winPct.toFixed(0)}%</td><td class="tp">${p.gw}</td><td class="tn">${p.gl}</td><td class="${gc}">${p.gamePct.toFixed(0)}%</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
+    const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
+    const _eloDiff = eloVal - 1000;
+    const eloDeltaBadge = _eloDiff > 0
+      ? `<span class="wk-rank-delta wk-up">+${_eloDiff}</span>`
+      : _eloDiff < 0
+        ? `<span class="wk-rank-delta wk-down">${_eloDiff}</span>`
+        : `<span class="wk-rank-delta wk-same">±0</span>`;
+    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaBadge}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
+  const matchEloDeltas = _computeMatchEloDeltas(filtered);
   const reversedMatches = [...filtered].reverse();
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
@@ -3895,10 +4075,10 @@ function renderCompact() {
       const animCount = Math.min(10, reversedMatches.length);
       const animRows = reversedMatches
         .slice(0, animCount)
-        .map((m) => buildSummaryMatchRow(m, " card-anim", allMatches.indexOf(m)));
+        .map((m) => buildSummaryMatchRow(m, " card-anim", allMatches.indexOf(m), matchEloDeltas));
       const restRows = reversedMatches
         .slice(animCount)
-        .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m)));
+        .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m), matchEloDeltas));
       animRows.forEach((html, i) => {
         setTimeout(() => {
           list.insertAdjacentHTML("beforeend", html);
@@ -3929,7 +4109,7 @@ function renderCompact() {
       .forEach((el) => animateSrVal(el, 0));
     const _nc = document.body.classList.contains("no-cascade");
     const initRows = reversedMatches.map((m, i) =>
-      buildSummaryMatchRow(m, i < 10 && !_nc ? " card-anim" : "", allMatches.indexOf(m)),
+      buildSummaryMatchRow(m, i < 10 && !_nc ? " card-anim" : "", allMatches.indexOf(m), matchEloDeltas),
     );
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
@@ -3951,6 +4131,7 @@ function updateSortArrows() {
     gw: ["sort-gw"],
     gl: ["sort-gl"],
     gamePct: ["sort-gamePct"],
+    elo: ["sort-elo"],
     sr: ["sort-sr", "sort-rank"],
   };
   Object.entries(keyMap).forEach(([key, ids]) => {
@@ -4058,7 +4239,24 @@ function buildCompactMatchRows(matches) {
     .join("")}</tbody></table>`;
 }
 
-function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
+function _computeMatchEloDeltas(matches) {
+  const elo = {};
+  const map = new Map();
+  [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || "")).forEach(m => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach(p => { if (!(p in elo)) elo[p] = 1000; });
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    map.set(m, { dA, dB });
+    m.teamA.forEach(p => { elo[p] = (elo[p] || 1000) + dA; });
+    m.teamB.forEach(p => { elo[p] = (elo[p] || 1000) + dB; });
+  });
+  return map;
+}
+function buildSummaryMatchRow(m, extraClass = "", matchIdx = null, eloDeltaMap = null) {
   const aWon = m.scoreA > m.scoreB;
   const winA = aWon ? "cmr-win" : "cmr-loss";
   const winB = !aWon ? "cmr-win" : "cmr-loss";
@@ -4072,12 +4270,14 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null) {
         ? `<span class="cmr-badge cmr-zero" title="Zero match: scored 0 games">😂</span>`
         : "";
   const clickHandler = matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
+  const _mkD = (d) => d == null ? "" : `<span class="smr-ed ${d > 0 ? "smr-ed-pos" : d < 0 ? "smr-ed-neg" : "smr-ed-neu"}">${d > 0 ? "+" : ""}${d}</span>`;
+  const eloD = eloDeltaMap?.get(m);
   return `<div class="smr-wrap${extraClass}">
     <div class="smr-inner" ${clickHandler}>
       <span class="cmr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</span>
-      <span class="cmr-team ${winA}">${escHtml(teamA)}</span>
+      <span class="cmr-team ${winA}">${escHtml(teamA)}${_mkD(eloD?.dA)}</span>
       <span class="cmr-sc"><span class="cmr-sv ${winA}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${winB}">${m.scoreB}</span></span>
-      <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}</span>
+      <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}${_mkD(eloD?.dB)}</span>
       <span class="cmr-meta">${badge}</span>
     </div>
     ${matchIdx !== null ? `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})">🗑</div>` : ""}
@@ -4287,8 +4487,9 @@ function filterMatchTab(f) {
   const active = document.querySelector(`[data-mf="${f}"]`);
   if (active) active.classList.add("on");
   const dr = document.getElementById("matchDr");
+  const dp = document.getElementById("matchDayPicker");
   if (dr) {
-    dr.style.display = ""; // always clear inline override first
+    dr.style.display = "";
     if (f === "range") {
       dr.classList.add("show");
     } else {
@@ -4299,6 +4500,17 @@ function filterMatchTab(f) {
       if (mt) mt.value = "";
     }
   }
+  if (dp) {
+    if (f === "day") {
+      dp.style.display = "";
+      const di = document.getElementById("matchDayInput");
+      if (di && !di.value) di.value = todayISO();
+    } else {
+      dp.style.display = "none";
+    }
+  }
+  const hdf = document.getElementById("histDateFilter");
+  if (hdf && hdf.value !== f) hdf.value = f;
   renderModernMatches();
 }
 
@@ -4477,7 +4689,6 @@ function buildHistorySummary(matches, filter = "all") {
   const avgMargin = (totalMargin / matches.length).toFixed(1);
   const top3 = stats.slice(0, Math.min(3, stats.length));
   const medals = ["🥇", "🥈", "🥉"];
-  const medalColors = ["var(--gold)", "var(--silver)", "var(--bronze)"];
   let delay = 60;
   const d = () => {
     const v = delay;
@@ -4491,8 +4702,8 @@ function buildHistorySummary(matches, filter = "all") {
             <span class="hsum-medal">${medals[i]}</span>
             <span class="hsum-pname">${p.name}</span>
             <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
-            <span class="hsum-pct" style="color:${medalColors[i]}">${p.winPct.toFixed(0)}%</span>
-            <span class="hsum-sr">${p.sr.toFixed(2)} SR</span>
+            <span class="hsum-pct" style="color:${_rankColor(i + 1, top3.length)}">${p.winPct.toFixed(0)}%</span>
+            <span class="hsum-sr" style="color:${_rankColor(i+1,top3.length)}">${p.sr.toFixed(2)} SR</span>
           </div>`,
     )
     .join("");
@@ -4790,6 +5001,8 @@ function renderModernMatches() {
   const mfrom =
     matchTabFilter === "range"
       ? document.getElementById("matchFrom")?.value || null
+      : matchTabFilter === "day"
+      ? document.getElementById("matchDayInput")?.value || todayISO()
       : null;
   const mto =
     matchTabFilter === "range"
@@ -5321,6 +5534,8 @@ function _filterDateHint(v) {
   if (v === "lastweek") { const {from,to} = lastWeekRange(); return `${fmt(from)} – ${fmt(to)}`; }
   if (v === "month") return `${fmt(monthISO())} – ${fmt(today)}`;
   if (v === "today") return fmt(today);
+  if (v === "day") return cmpFrom ? `Selected: ${fmt(cmpFrom)}` : "Tap to pick a day";
+  if (v === "range") return cmpFrom && cmpTo ? `${fmt(cmpFrom)} – ${fmt(cmpTo)}` : "Tap to set a range";
   return "";
 }
 
@@ -5331,6 +5546,8 @@ const _CMP_DATE_OPTIONS = [
   { v: "lastweek", l: "LAST WEEK", icon: "⬅️" },
   { v: "weekend", l: "WEEKEND", icon: "🏖" },
   { v: "month", l: "THIS MONTH", icon: "🗓" },
+  { v: "day", l: "PICK A DAY", icon: "🔍" },
+  { v: "range", l: "DATE RANGE", icon: "📊" },
 ];
 
 const _HOME_DATE_OPTIONS = [
@@ -5415,7 +5632,23 @@ function selectFilterItem(value) {
     if (sel) sel.value = value;
     cmpFilter = value;
     const dr = document.getElementById("cmpDr");
-    if (dr) dr.classList.toggle("show", value === "range");
+    const dp = document.getElementById("cmpDayPicker");
+    if (value === "range") {
+      if (dr) dr.classList.add("show");
+      if (dp) dp.classList.remove("show");
+    } else if (value === "day") {
+      if (dr) dr.classList.remove("show");
+      if (dp) dp.classList.add("show");
+      if (!cmpFrom) cmpFrom = todayISO();
+      cmpTo = null;
+      const di = document.getElementById("cmpDayInput");
+      if (di && !di.value) di.value = cmpFrom;
+    } else {
+      if (dr) dr.classList.remove("show");
+      if (dp) dp.classList.remove("show");
+      cmpFrom = null;
+      cmpTo = null;
+    }
     renderCompact();
     return;
   }
@@ -5606,6 +5839,7 @@ function getPlayerStats(matches) {
 }
 
 function renderAddMatches() {
+  _addRenderedVersion = _dataVersion;
   const query = (
     document.getElementById("add-match-search")?.value || ""
   ).toLowerCase();
@@ -6205,6 +6439,7 @@ function openPlayerDetail(name) {
     return;
   }
   const s = detail.stats;
+  const daysPlayed = new Set(detail.matches.map(m => m.date).filter(Boolean)).size;
 
   // ── FORM ENGINE ──────────────────────────────────────────────
   const form = computePlayerForm(name, activeMatches());
@@ -6804,17 +7039,17 @@ function openPlayerDetail(name) {
       <span class="badge">Leaderboard Race</span>
       <div class="det-streak-row">
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rAll ? `#<span id="pd-rank-cur" data-final="${rAll}">${rAll}</span>` : "—"}</div>
+          <div class="det-streak-val" style="color:${rAll ? _rankColor(rAll, allRanked.length) : "var(--muted)"}">${rAll ? `#<span id="pd-rank-cur" data-final="${rAll}">${rAll}</span>` : "—"}</div>
           <div class="sub">Current Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
-          <div class="det-streak-val">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">${rPre}</span>` : "—"}</div>
+          <div class="det-streak-val" style="color:${rPre ? _rankColor(rPre, allRanked.length) : "var(--muted)"}">${rPre ? `#<span id="pd-rank-pre" data-final="${rPre}">${rPre}</span>` : "—"}</div>
           <div class="sub">Last Wk. Rank</div>
         </div>
         <div class="det-streak-div"></div>
         <div class="det-streak-cell">
-          <div class="det-streak-val" style="color:var(--gold)">${bestRank ? `#<span id="pd-rank-best" data-final="${bestRank}">${bestRank}</span>` : "—"}</div>
+          <div class="det-streak-val" style="color:${bestRank ? _rankColor(bestRank, allRanked.length) : "var(--muted)"}">${bestRank ? `#<span id="pd-rank-best" data-final="${bestRank}">${bestRank}</span>` : "—"}</div>
           <div class="sub">Best Rank</div>
         </div>
         <div class="det-streak-div"></div>
@@ -7338,7 +7573,7 @@ function openPlayerDetail(name) {
                     </div>
                     <div class="ov-record-block">
                       <div class="ov-record">${s.mw}<span class="ov-record-sep">W</span>${s.ml}<span class="ov-record-sep">L</span></div>
-                      <div class="ov-win-pct">${s.winPct.toFixed(0)}% win rate · ${s.mp} played</div>
+                      <div class="ov-win-pct">${s.winPct.toFixed(0)}% win rate · ${s.mp} played · ${daysPlayed} day${daysPlayed !== 1 ? "s" : ""}</div>
                     </div>
                   </div>
                   <div class="ov-grid">
@@ -7459,6 +7694,11 @@ function openPlayerDetail(name) {
             </div>
           </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
+
+  // Set stagger index for analyticsCardReveal animation in FULL mode
+  document.querySelectorAll("#player-detail-modal .ana-card").forEach((card, i) => {
+    card.style.setProperty("--analytics-index", i);
+  });
 
   // Scroll activity calendar so current month (rightmost column) is visible
   requestAnimationFrame(() => {
@@ -12065,6 +12305,582 @@ function recomputeWhatIfElo() {
 // ── NEW ANALYTICS SECTION BUILDERS ────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
+// ── RANK HISTORY HELPERS ──────────────────────────────────────
+
+const _rankPeriodCache = {};
+const _MIN_RANK_PERIODS = 3;
+const _MIN_RANK_PLAYERS = 3;
+
+function _computeRankPeriods(periodType) {
+  const fp = `${periodType}|${_lightFingerprint(activeMatches())}`;
+  if (_rankPeriodCache[fp]) return _rankPeriodCache[fp];
+
+  const matches = activeMatches();
+  if (!matches.length) return (_rankPeriodCache[fp] = []);
+
+  const buckets = {};
+  matches.forEach((m) => {
+    if (!m.date) return;
+    let key;
+    if (periodType === "week") {
+      const d = new Date(m.date + "T00:00:00");
+      const dow = d.getDay();
+      d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+      key = toLocalISODate(d);
+    } else if (periodType === "today") {
+      key = m.date;
+    } else if (periodType === "weekend") {
+      const d = new Date(m.date + "T00:00:00");
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) return; // skip weekday matches
+      const sat = new Date(d);
+      if (dow === 0) sat.setDate(d.getDate() - 1);
+      key = toLocalISODate(sat);
+    } else {
+      key = m.date.slice(0, 7);
+    }
+    if (!buckets[key]) buckets[key] = { key, matches: [], from: m.date, to: m.date };
+    buckets[key].matches.push(m);
+    if (m.date < buckets[key].from) buckets[key].from = m.date;
+    if (m.date > buckets[key].to) buckets[key].to = m.date;
+  });
+
+  const _shortMonths = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const result = Object.values(buckets)
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((b, idx) => {
+      const distinct = new Set(b.matches.flatMap(m => [...(m.teamA||[]), ...(m.teamB||[])]));
+      let label;
+      if (periodType === "week") {
+        const parts = fmtDate(b.key).replace(/^\w+,\s*/, "").replace(/\s\d{4}$/, "");
+        label = "Wk " + parts;
+      } else if (periodType === "today") {
+        const [, mo, dd] = b.key.split("-");
+        label = parseInt(dd) + " " + _shortMonths[parseInt(mo)];
+      } else if (periodType === "weekend") {
+        const [, mo, dd] = b.key.split("-");
+        label = "Wknd " + parseInt(dd) + " " + _shortMonths[parseInt(mo)];
+      } else {
+        const [y, mo] = b.key.split("-");
+        label = _shortMonths[parseInt(mo)] + " '" + y.slice(2);
+      }
+      if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
+      const eloMap = computeElo(b.matches);
+      const statsArr = computeStats(b.matches, eloMap);
+      const qualified = statsArr.filter(p => p.mp >= 2);
+      if (qualified.length < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
+      const ranks = qualified.map((p, i) => ({
+        name: p.name,
+        rank: i + 1,
+        trueRank: statsArr.indexOf(p) + 1,
+        sr: p.sr,
+        mp: p.mp,
+      }));
+      return { key: b.key, from: b.from, to: b.to, label, ranks, totalPlayers: statsArr.length, idx };
+    });
+
+  return (_rankPeriodCache[fp] = result);
+}
+
+function _rankColor(rank, maxRank) {
+  const t = (rank - 1) / Math.max(maxRank - 1, 1);
+  return `hsl(${Math.round(120 * (1 - t))},70%,55%)`;
+}
+function _rankBg(rank, maxRank) {
+  const t = (rank - 1) / Math.max(maxRank - 1, 1);
+  return `hsla(${Math.round(120 * (1 - t))},60%,50%,0.18)`;
+}
+
+function _buildPodiumTrackerHtml(periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const validPeriods = periods.filter(p => p.ranks.length > 0);
+  if (validPeriods.length < 2)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
+
+  let maxRank = 3;
+  const tally = {};
+  validPeriods.forEach((p) => {
+    p.ranks.forEach((r) => {
+      if (!tally[r.name]) tally[r.name] = { name: r.name, g: 0, s: 0, b: 0, periodsPlayed: 0, extra: {} };
+      tally[r.name].periodsPlayed++;
+      if (r.rank === 1) tally[r.name].g++;
+      else if (r.rank === 2) tally[r.name].s++;
+      else if (r.rank === 3) tally[r.name].b++;
+      else { tally[r.name].extra[r.rank] = (tally[r.name].extra[r.rank] || 0) + 1; }
+      if (r.rank > maxRank) maxRank = r.rank;
+    });
+  });
+
+  const extraRanks = Array.from({ length: maxRank - 3 }, (_, i) => i + 4);
+
+  const rows = Object.values(tally)
+    .map(p => ({ ...p, podiums: p.g + p.s + p.b,
+      podiumRate: p.periodsPlayed >= _MIN_RANK_PERIODS ? (p.g + p.s + p.b) / p.periodsPlayed : 0 }))
+    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
+    .sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b);
+
+  if (!rows.length)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
+
+  const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+
+  const mkD = (count, rankVal, name) => count > 0
+    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openPodiumDrill(${jsArg(name)},${typeof rankVal==='number'?rankVal:jsArg(rankVal)},${jsArg(periodType)})">${count}</span>`
+    : `<span style="color:rgba(255,255,255,0.18)">${count}</span>`;
+
+  const thead = `<tr>
+    <th style="${_th};${_stickyTh};text-align:left">Player</th>
+    <th style="${_th}">🥇</th>
+    <th style="${_th}">🥈</th>
+    <th style="${_th}">🥉</th>
+    <th style="${_th}">Podiums</th>
+    <th style="${_th}">%</th>
+    ${extraRanks.map(n => `<th style="${_th}">#${n}</th>`).join("")}
+  </tr>`;
+
+  const tbody = rows.map(r => `<tr>
+    <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
+    <td style="${_td};color:${_rankColor(1, maxRank)}">${mkD(r.g, 1, r.name)}</td>
+    <td style="${_td};color:${_rankColor(2, maxRank)}">${mkD(r.s, 2, r.name)}</td>
+    <td style="${_td};color:${_rankColor(3, maxRank)}">${mkD(r.b, 3, r.name)}</td>
+    <td style="${_td}">${mkD(r.podiums, "podiums", r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
+    <td style="${_td};color:var(--theme);text-align:right">${r.periodsPlayed >= _MIN_RANK_PERIODS ? (r.podiumRate * 100).toFixed(0) + "%" : "—"}</td>
+    ${extraRanks.map(n => `<td style="${_td};color:${_rankColor(n, maxRank)}">${mkD(r.extra?.[n] || 0, n, r.name)}</td>`).join("")}
+  </tr>`).join("");
+
+  return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  </div>`;
+}
+
+function _buildAntiPodiumTrackerHtml(periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const validPeriods = periods.filter(p => p.ranks.length > 0);
+  if (validPeriods.length < 2)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
+
+  const tally = {};
+  validPeriods.forEach((p) => {
+    const total = p.totalPlayers;
+    p.ranks.forEach((r) => {
+      if (!tally[r.name]) tally[r.name] = { name: r.name, l: 0, sl: 0, periodsPlayed: 0 };
+      tally[r.name].periodsPlayed++;
+      if (r.trueRank === total) tally[r.name].l++;
+      else if (r.trueRank === total - 1) tally[r.name].sl++;
+    });
+  });
+
+  const rows = Object.values(tally)
+    .map(p => ({ ...p, bottom2: p.l + p.sl,
+      bottom2Rate: p.periodsPlayed >= _MIN_RANK_PERIODS ? (p.l + p.sl) / p.periodsPlayed : 0 }))
+    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
+    .sort((a, b) => b.l - a.l || b.sl - a.sl);
+
+  if (!rows.length)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
+
+  const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+  const _dim = `<span style="color:rgba(255,255,255,0.18)">0</span>`;
+  const mkA = (count, pos, name) => count > 0
+    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openAntiPodiumDrill(${jsArg(name)},${jsArg(pos)},${jsArg(periodType)})">${count}</span>`
+    : _dim;
+
+  const thead = `<tr>
+    <th style="${_th};${_stickyTh};text-align:left">Player</th>
+    <th style="${_th}">🪣 Last</th>
+    <th style="${_th}">😬 2nd Last</th>
+    <th style="${_th}">Bottom 2</th>
+    <th style="${_th}">%</th>
+  </tr>`;
+
+  const tbody = rows.map(r => `<tr>
+    <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
+    <td style="${_td};color:#ff3b3b">${mkA(r.l, "last", r.name)}</td>
+    <td style="${_td};color:rgba(255,140,0,0.9)">${mkA(r.sl, "secondlast", r.name)}</td>
+    <td style="${_td}">${mkA(r.bottom2, "bottom2", r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
+    <td style="${_td};color:var(--theme);text-align:right">${(r.bottom2Rate * 100).toFixed(0)}%</td>
+  </tr>`).join("");
+
+  return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  </div>`;
+}
+
+const _reignCache = {};
+function _buildRankReignHtml() {
+  const allM = activeMatches();
+  const fp = _lightFingerprint(allM);
+  if (_reignCache[fp]) return _reignCache[fp];
+
+  // All distinct match days sorted chronologically
+  const allDates = [...new Set(allM.map(m => m.date).filter(Boolean))].sort();
+  if (allDates.length < 2)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
+
+  // Current ALL TIME ELO rank (latest snapshot = full history)
+  const eloMap = computeElo(allM);
+  const eloRanking = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
+  const eloRankOf = {};
+  eloRanking.forEach(([name], i) => { eloRankOf[name] = i + 1; });
+
+  // For each match day compute cumulative ALL TIME rank up to that day,
+  // then tally how many days each player held each rank position.
+  const sorted = [...allM].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  let maxRank = 1;
+  const tally = {};
+  allDates.forEach(date => {
+    const dayMatchCounts = {};
+    sorted.filter(m => m.date === date).forEach(m => {
+      [...(m.teamA||[]), ...(m.teamB||[])].forEach(p => { dayMatchCounts[p] = (dayMatchCounts[p] || 0) + 1; });
+    });
+    const snap = sorted.filter(m => (m.date || "") <= date);
+    const statsSnap = computeStats(snap, computeElo(snap));
+    let qualRank = 0;
+    statsSnap.forEach((p) => {
+      if ((dayMatchCounts[p.name] || 0) < 2) return;
+      qualRank++;
+      if (!tally[p.name]) tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
+      tally[p.name].days++;
+      tally[p.name].rankCounts[qualRank] = (tally[p.name].rankCounts[qualRank] || 0) + 1;
+      if (qualRank > maxRank) maxRank = qualRank;
+    });
+  });
+
+  const rows = Object.values(tally)
+    .filter(p => p.days >= _MIN_RANK_PERIODS)
+    .sort((a, b) => {
+      const ra = eloRankOf[a.name] ?? 9999;
+      const rb = eloRankOf[b.name] ?? 9999;
+      return ra !== rb ? ra - rb : a.name.localeCompare(b.name);
+    });
+
+  if (!rows.length)
+    return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
+
+  const rankCols = Array.from({ length: maxRank }, (_, i) => i + 1);
+  const rankEmoji = r => r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : `#${r}`;
+  const rankColor = r => _rankColor(r, maxRank);
+  const eloRankColor = r => _rankColor(r, eloRanking.length);
+
+  const _sTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _sTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th  = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _td  = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+
+  const thead = `<tr>
+    <th style="${_th};${_sTh};text-align:left">Player</th>
+    <th style="${_th}">Rank</th>
+    <th style="${_th}">Days</th>
+    ${rankCols.map(r => `<th style="${_th}">${rankEmoji(r)}</th>`).join("")}
+  </tr>`;
+
+  const tbody = rows.map(row => {
+    const eloRank = eloRankOf[row.name];
+    const eloCell = eloRank
+      ? `<td style="${_td};color:${eloRankColor(eloRank)};font-size:13px">#${eloRank}</td>`
+      : `<td style="${_td};color:var(--muted)">—</td>`;
+    const daysCell = `<td style="${_td};color:var(--theme)">${row.days}</td>`;
+    const cells = rankCols.map(r => {
+      const cnt = row.rankCounts[r] || 0;
+      return `<td style="${_td};color:${cnt > 0 ? rankColor(r) : "rgba(255,255,255,0.15)"}" title="${cnt} day${cnt !== 1 ? "s" : ""} at ${rankEmoji(r)}">${cnt > 0 ? cnt : "—"}</td>`;
+    }).join("");
+    return `<tr>
+      <td style="${_td};${_sTd};text-align:left;font-weight:700">${escHtml(row.name)}</td>
+      ${eloCell}${daysCell}${cells}
+    </tr>`;
+  }).join("");
+
+  const html = `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${allDates.length} MATCH DAYS</div>
+    <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  </div>`;
+  return (_reignCache[fp] = html);
+}
+
+function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
+  const allPeriods = _computeRankPeriods(periodType);
+  const validPeriods = allPeriods.filter(p => p.ranks.length > 0);
+  const _tlPills = (active) => `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <button class="digest-filter-btn${active==="today"?" active":""}" onclick="_timelineSetPeriod(this,'today')">DAILY</button>
+    <button class="digest-filter-btn${active==="week"?" active":""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
+    <button class="digest-filter-btn${active==="weekend"?" active":""}" onclick="_timelineSetPeriod(this,'weekend')">WEEKEND</button>
+    <button class="digest-filter-btn${active==="month"?" active":""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
+  </div>`;
+  if (validPeriods.length < 2)
+    return `<div>${_tlPills(periodType)}<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div></div>`;
+
+  const periods = validPeriods.slice(-maxPeriods);
+  const playerSet = new Set();
+  periods.forEach(p => p.ranks.forEach(r => playerSet.add(r.name)));
+
+  const lookup = {};
+  periods.forEach(p => {
+    lookup[p.key] = {};
+    p.ranks.forEach(r => { lookup[p.key][r.name] = r.rank; });
+  });
+
+  // Current ALL TIME ELO rank
+  const eloMapTl = computeElo(activeMatches());
+  const eloRankOfTl = {};
+  Object.entries(eloMapTl).sort((a, b) => b[1] - a[1]).forEach(([name], i) => { eloRankOfTl[name] = i + 1; });
+
+  const players = [...playerSet].map((name) => ({
+    name,
+    eloRank: eloRankOfTl[name] ?? 9999,
+  })).sort((a, b) => a.eloRank !== b.eloRank ? a.eloRank - b.eloRank : a.name.localeCompare(b.name));
+
+  let tlMaxRank = 1;
+  periods.forEach(p => p.ranks.forEach(r => { if (r.rank > tlMaxRank) tlMaxRank = r.rank; }));
+
+  const eloRankColor = r => _rankColor(r, players.length);
+  const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
+  const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
+  const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _rankTd = `padding:6px 8px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+
+  const headerCells = periods.map(p => `<th class="rhtl-th-period">${escHtml(p.label)}</th>`).join("");
+  const bodyRows = players.map(pl => {
+    const eloRank = eloRankOfTl[pl.name];
+    const rankCell = eloRank
+      ? `<td style="${_rankTd};color:${eloRankColor(eloRank)}">#${eloRank}</td>`
+      : `<td style="${_rankTd};color:var(--muted)">—</td>`;
+    return `<tr>
+      <td class="rhtl-td-name" style="${_stickyTd};font-weight:700">${escHtml(pl.name)}</td>
+      ${rankCell}` +
+    periods.map(p => {
+      const r = lookup[p.key][pl.name];
+      const cellStyle = r != null
+        ? `background:${_rankBg(r, tlMaxRank)};color:${_rankColor(r, tlMaxRank)}`
+        : `background:transparent;color:rgba(255,255,255,0.12)`;
+      return `<td class="rhtl-cell" style="${cellStyle}" title="${r != null ? "#" + r + " · " + escHtml(p.label) : "Did not play"}">${r != null ? r : "—"}</td>`;
+    }).join("") + "</tr>";
+  }).join("");
+
+  const legend = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <span style="font-size:9px;color:var(--muted)">#1</span>
+    <div style="flex:1;height:5px;border-radius:3px;background:linear-gradient(to right,hsl(120,70%,55%),hsl(60,70%,55%),hsl(0,70%,55%))"></div>
+    <span style="font-size:9px;color:var(--muted)">#${tlMaxRank}</span>
+    <span style="font-size:9px;color:rgba(255,255,255,0.25);margin-left:6px">— absent</span>
+  </div>`;
+
+  return `<div>${_tlPills(periodType)}
+    <div class="ana-card" style="padding:10px 12px">
+      ${legend}
+      <div class="rhtl-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%">
+        <table class="rhtl-table" style="width:max-content;min-width:100%">
+          <thead><tr><th class="rhtl-th-name" style="${_stickyTh}">Player</th><th style="${_th}">Rank</th>${headerCells}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:8px">Rank within each ${periodType === "week" ? "week" : "month"} based on all matches in that period. Showing last ${periods.length}.</div>
+    </div>
+  </div>`;
+}
+
+function _podiumSetPeriod(btn, type) {
+  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const content = btn.closest("[class]")?.parentElement?.querySelector(".podium-content")
+    || btn.parentElement?.nextElementSibling;
+  if (content) content.innerHTML = _buildPodiumTrackerHtml(type);
+}
+function _antiPodiumSetPeriod(btn, type) {
+  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const content = btn.closest("[class]")?.parentElement?.querySelector(".antipodium-content")
+    || btn.parentElement?.nextElementSibling;
+  if (content) content.innerHTML = _buildAntiPodiumTrackerHtml(type);
+}
+function _reignSetPeriod(btn, type) {
+  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const content = btn.closest("[class]")?.parentElement?.querySelector(".reign-content")
+    || btn.parentElement?.nextElementSibling;
+  if (content) content.innerHTML = _buildRankReignHtml(type);
+}
+function _timelineSetPeriod(btn, type) {
+  const body = btn.closest(".ana-sec-body") || btn.closest(".ana-card")?.parentElement || btn.parentElement?.parentElement;
+  if (body) body.innerHTML = _buildRankTimelineHtml(type);
+}
+
+function _openPodiumDrill(playerName, rankVal, periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const matching = periods.filter(p => {
+    if (!p.ranks.length) return false;
+    const r = p.ranks.find(x => x.name === playerName);
+    if (!r) return false;
+    return rankVal === "podiums" ? r.rank <= 3 : r.rank === rankVal;
+  });
+  if (!matching.length) return;
+
+  const medalEmoji = rankVal === 1 ? "🥇" : rankVal === 2 ? "🥈" : rankVal === 3 ? "🥉" : rankVal === "podiums" ? "🏅" : `#${rankVal}`;
+  const rankLabel = rankVal === "podiums" ? "Podium Finishes" : `#${rankVal} Finishes`;
+  const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
+  const _fmtD = iso => {
+    if (!iso) return "";
+    const [, m, d] = iso.split("-");
+    return parseInt(d) + " " + ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];
+  };
+
+  const renderItem = p => {
+    const r = p.ranks.find(x => x.name === playerName);
+    const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `#${r.rank}`;
+    const sub = (periodType === "week" || periodType === "month")
+      ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>` : "";
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;-webkit-tap-highlight-color:transparent"
+        onclick="_podiumDrillGoTo(${jsArg(p.key)},${jsArg(periodType)})">
+      <span style="font-size:18px;line-height:1;flex-shrink:0">${medal}</span>
+      <span style="flex:1;font-size:12px;font-weight:700;line-height:1.4">${escHtml(p.label)}${sub}</span>
+      <span style="font-size:14px;color:var(--theme);flex-shrink:0">›</span>
+    </div>`;
+  };
+
+  const PAGE = 10;
+  const head = matching.slice(0, PAGE).map(renderItem).join("");
+  const tail = matching.slice(PAGE);
+  const moreBlock = tail.length
+    ? `<div id="pdrill-more" style="display:none">${tail.map(renderItem).join("")}</div>
+       <button onclick="document.getElementById('pdrill-more').style.display='block';this.remove()"
+         style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.04em">
+         SHOW ${tail.length} MORE
+       </button>` : "";
+
+  let overlay = document.getElementById("podium-drill-overlay");
+  if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
+  overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:65vh;overflow-y:auto;padding:20px 16px 36px;box-sizing:border-box" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;font-weight:800">${escHtml(playerName)} ${medalEmoji} ${rankLabel}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${matching.length} period${matching.length !== 1 ? "s" : ""}</div>
+        </div>
+        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+      </div>
+      ${head}${moreBlock}
+    </div>
+  </div>`;
+  overlay.style.display = "block";
+}
+
+function _podiumDrillGoTo(key, periodType) {
+  _closePodiumDrill();
+  let filter, from, to = null;
+  if (periodType === "today") {
+    filter = "day"; from = key;
+  } else if (periodType === "week") {
+    filter = "range"; from = key;
+    const d = new Date(key + "T00:00:00"); d.setDate(d.getDate() + 6);
+    to = toLocalISODate(d);
+  } else if (periodType === "weekend") {
+    filter = "range"; from = key;
+    const d = new Date(key + "T00:00:00"); d.setDate(d.getDate() + 1);
+    to = toLocalISODate(d);
+  } else {
+    filter = "range"; from = key + "-01";
+    const [y, m] = key.split("-");
+    to = toLocalISODate(new Date(parseInt(y), parseInt(m), 0));
+  }
+  cmpFilter = filter; cmpFrom = from; cmpTo = to;
+  const dr = document.getElementById("cmpDr");
+  const dp = document.getElementById("cmpDayPicker");
+  const sel = document.getElementById("cmpSel");
+  if (sel) sel.value = filter;
+  if (filter === "day") {
+    if (dp) { dp.classList.add("show"); const di = document.getElementById("cmpDayInput"); if (di) di.value = from; }
+    if (dr) dr.classList.remove("show");
+  } else {
+    if (dr) { dr.classList.add("show"); const cf = document.getElementById("cmpFrom"), ct = document.getElementById("cmpTo"); if (cf) cf.value = from; if (ct) ct.value = to || ""; }
+    if (dp) dp.classList.remove("show");
+  }
+  switchMainTab("compact");
+}
+
+function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
+  const periods = _computeRankPeriods(periodType);
+  const matching = periods.filter(p => {
+    if (!p.ranks.length) return false;
+    const r = p.ranks.find(x => x.name === playerName);
+    if (!r) return false;
+    const total = p.totalPlayers;
+    if (bottomPos === "last") return r.trueRank === total;
+    if (bottomPos === "secondlast") return r.trueRank === total - 1;
+    if (bottomPos === "bottom2") return r.trueRank >= total - 1;
+    return false;
+  });
+  if (!matching.length) return;
+
+  const posEmoji = bottomPos === "last" ? "🪣" : bottomPos === "secondlast" ? "😬" : "📉";
+  const posLabel = bottomPos === "last" ? "Last Place Finishes" : bottomPos === "secondlast" ? "2nd Last Finishes" : "Bottom 2 Finishes";
+  const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
+  const _fmtD = iso => {
+    if (!iso) return "";
+    const [, m, d] = iso.split("-");
+    return parseInt(d) + " " + ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];
+  };
+
+  const renderItem = p => {
+    const r = p.ranks.find(x => x.name === playerName);
+    const total = p.totalPlayers;
+    const icon = r.trueRank === total ? "🪣" : "😬";
+    const rankBadge = `<span style="font-size:10px;color:var(--muted)">#${r.trueRank}/${total}</span>`;
+    const sub = (periodType === "week" || periodType === "month")
+      ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>` : "";
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;-webkit-tap-highlight-color:transparent"
+        onclick="_podiumDrillGoTo(${jsArg(p.key)},${jsArg(periodType)})">
+      <span style="font-size:18px;line-height:1;flex-shrink:0">${icon}</span>
+      <span style="flex:1;font-size:12px;font-weight:700;line-height:1.4">${escHtml(p.label)}${sub}</span>
+      ${rankBadge}
+      <span style="font-size:14px;color:var(--theme);flex-shrink:0">›</span>
+    </div>`;
+  };
+
+  const PAGE = 10;
+  const head = matching.slice(0, PAGE).map(renderItem).join("");
+  const tail = matching.slice(PAGE);
+  const moreBlock = tail.length
+    ? `<div id="pdrill-more" style="display:none">${tail.map(renderItem).join("")}</div>
+       <button onclick="document.getElementById('pdrill-more').style.display='block';this.remove()"
+         style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.04em">
+         SHOW ${tail.length} MORE
+       </button>` : "";
+
+  let overlay = document.getElementById("podium-drill-overlay");
+  if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
+  overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:65vh;overflow-y:auto;padding:20px 16px 36px;box-sizing:border-box" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;font-weight:800">${escHtml(playerName)} ${posEmoji} ${posLabel}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${matching.length} period${matching.length !== 1 ? "s" : ""}</div>
+        </div>
+        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+      </div>
+      ${head}${moreBlock}
+    </div>
+  </div>`;
+  overlay.style.display = "block";
+}
+
+function _closePodiumDrill() {
+  const el = document.getElementById("podium-drill-overlay");
+  if (el) el.style.display = "none";
+}
+
 function _buildPowerRankingsHtml() {
   const rankings = computePowerRankings(activeMatches());
   if (!rankings.length)
@@ -13001,8 +13817,8 @@ window._renderEloProjTable = function() {
     const projDiff = p.projElo - p.currentElo;
     const projSign = projDiff >= 0 ? "+" : "";
     const projDiffCol = projDiff > 0 ? "var(--green)" : projDiff < 0 ? "var(--red)" : "var(--muted)";
-    const rankColor = p.currentRank === 1 ? "var(--gold)" : p.currentRank <= 3 ? "var(--theme)" : "var(--muted)";
-    const newRankColor = p.projRank === 1 ? "var(--gold)" : p.projRank <= 3 ? "var(--theme)" : "var(--muted)";
+    const rankColor = _rankColor(p.currentRank, projData.length);
+    const newRankColor = _rankColor(p.projRank, projData.length);
     return `<div class="lrace-row ep-row" style="${pg}">
       <div class="lrace-rank" style="color:${rankColor}">#${p.currentRank}</div>
       <div class="lrace-name">${escHtml(p.name)}</div>
@@ -13755,12 +14571,7 @@ function renderAnalyticsPage() {
           : p.delta < 0
             ? `<span style="color:var(--red)">▼${Math.abs(p.delta)}</span>`
             : `<span style="color:var(--muted)">—</span>`;
-      const rankColor =
-        p.rAll === 1
-          ? "var(--gold)"
-          : p.rAll <= 3
-            ? "var(--theme)"
-            : "var(--accent)";
+      const rankColor = _rankColor(p.rAll, rankRace.length);
       const avatar = sheetAvSm(p.name);
       return `<div class="lrace-row">
         <div class="lrace-rank" style="color:${rankColor}">#${p.rAll}</div>
@@ -15357,6 +16168,46 @@ function renderAnalyticsPage() {
       body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
     },
     {
+      key: "podiumtracker",
+      cat: "players",
+      title: "🥇 Podium Tracker",
+      body: `<div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'week')">WEEKLY</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'weekend')">WEEKEND</button>
+          <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'month')">MONTHLY</button>
+        </div>
+        <div class="podium-content">${_buildPodiumTrackerHtml("today")}</div>
+      </div>`,
+    },
+    {
+      key: "antipodiumtracker",
+      cat: "players",
+      title: "🪣 Anti-Podium Tracker",
+      body: `<div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="digest-filter-btn active" onclick="_antiPodiumSetPeriod(this,'today')">DAILY</button>
+          <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'week')">WEEKLY</button>
+          <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'weekend')">WEEKEND</button>
+          <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'month')">MONTHLY</button>
+        </div>
+        <div class="antipodium-content">${_buildAntiPodiumTrackerHtml("today")}</div>
+      </div>`,
+    },
+    {
+      key: "rankreign",
+      cat: "players",
+      title: "👑 Rank Reign",
+      body: _buildRankReignHtml(),
+    },
+    {
+      key: "ranktimeline",
+      cat: "players",
+      title: "📅 Rank Timeline",
+      body: _buildRankTimelineHtml("today"),
+    },
+    {
       key: "clutchrank",
       cat: "players",
       title: "🎯 Clutch Rankings",
@@ -15913,7 +16764,13 @@ function scheduleAutoEmail() {
   }
 
   _emailTimer = setTimeout(() => {
-    sendBackupEmail(true).then(() => scheduleAutoEmail());
+    const _today = todayISO();
+    if (localStorage.getItem("padel_last_email") === _today) { scheduleAutoEmail(); return; }
+    localStorage.setItem("padel_last_email", _today);
+    sendBackupEmail(true).then((ok) => {
+      if (!ok) localStorage.removeItem("padel_last_email");
+      scheduleAutoEmail();
+    });
   }, target - now);
 }
 
@@ -15940,6 +16797,7 @@ Object.assign(window, {
   switchITab,
   filterMatchTab,
   applyRange,
+  applyCmpDay,
   renderHome,
   onCmpFilter,
   toggleCmpEqualized,
@@ -15947,6 +16805,10 @@ Object.assign(window, {
   closeExcludeSheet,
   toggleExcludePlayer,
   clearExcludedPlayers,
+  openColSheet,
+  closeColSheet,
+  toggleCmpCol,
+  showAllCmpCols,
   addMatches,
   saveNames,
   loadNames,
@@ -16152,6 +17014,14 @@ Object.assign(window, {
   savePlayerPhoto,
   removePlayerPhoto,
   openPlayerReportCard,
+  _podiumSetPeriod,
+  _antiPodiumSetPeriod,
+  _reignSetPeriod,
+  _timelineSetPeriod,
+  _openPodiumDrill,
+  _openAntiPodiumDrill,
+  _podiumDrillGoTo,
+  _closePodiumDrill,
 });
 
 function setHistoryDateFilter(value) {
@@ -16159,25 +17029,8 @@ function setHistoryDateFilter(value) {
 }
 
 // ── LIVE SCORING MODE ──────────────────────────────────────
-let _liveScoreA = 0,
-  _liveScoreB = 0;
-const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
-let _liveActiveSlot = null;
-let _livePoints = []; // point history for momentum graph
-// Tennis-style scoring
-let _liveGameMode = 4; // 4 = race to 4 (no diff), 6 = race to 6 (±2 / TB)
-let _liveGamePtsA = 0; // 0..3 = 0/15/30/40 (then deuce/adv handled below)
-let _liveGamePtsB = 0;
-let _liveAdv = null; // 'a' | 'b' | null
-let _liveMatchEnded = false;
-let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
-let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
-let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
-let _sessionRedoStack = [];       // matches popped by undo, available for redo
-let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
-let _sessionPanelOpen = false;    // whether the session stats panel is expanded
 
-function openLiveMode() {
+function _openLiveModeImpl() {
   if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
   _liveScoreA = 0;
   _liveScoreB = 0;
@@ -17620,8 +18473,6 @@ async function confirmEndSession() {
 }
 
 // ── SESSION ──────────────────────────────────────────────────
-let _liveSessionData = null;
-let _sessionSetupSelected = new Set();
 
 function _syncLiveSessionBar() {
   const d = _liveSessionData;

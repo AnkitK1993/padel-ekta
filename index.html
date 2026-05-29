@@ -15,16 +15,27 @@
     <meta name="apple-mobile-web-app-title" content="Ekta Padel" />
     <meta name="theme-color" content="#09090f" />
     <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
     <title>Padel Leaderboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
     <link rel="stylesheet" href="styles.css" />
     <script src="utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   </head>
   <body>
     <div id="ambient-bg" aria-hidden="true">
@@ -95,7 +106,7 @@
             </div>
           </div>
           <div class="hmenu-divider"></div>
-          <div class="hmenu-item">
+          <div class="hmenu-item" id="offline-mode-item" style="display:none">
             <span class="hmenu-label">Offline Mode</span>
             <label class="hmenu-toggle">
               <input type="checkbox" id="offline-mode-toggle" onchange="toggleOfflineMode(this.checked)">
@@ -303,6 +314,7 @@
           <div class="summary-nav-actions">
             <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()" title="Equalized mode: smooths out stats for players with fewer matches so they're not unfairly penalized for low sample size (Bayesian smoothing toward 50% win rate)">⚖</button>
             <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
+            <button class="ss-eq-btn" id="cmpColBtn" onclick="openColSheet()" title="Show/hide columns">⊞</button>
             <button class="ss-snap-btn" onclick="openSummaryShare()">📸</button>
           </div>
         </div>
@@ -318,11 +330,16 @@
           <option value="lastweek">LAST WEEK</option>
           <option value="weekend">WEEKEND</option>
           <option value="month">THIS MONTH</option>
+          <option value="day">PICK A DAY</option>
           <option value="range">DATE RANGE</option>
         </select>
         <div class="cmp-dr" id="cmpDr">
           <input type="date" id="cmpFrom" /><input type="date" id="cmpTo" />
           <button class="btn-go" onclick="applyRange('compact')">Go</button>
+        </div>
+        <div class="cmp-dr" id="cmpDayPicker">
+          <input type="date" id="cmpDayInput" />
+          <button class="btn-go" onclick="applyCmpDay()">Go</button>
         </div>
         <div class="cmp-infobar">
           <div class="cmp-meta" id="cmpMeta">0 players</div>
@@ -331,30 +348,33 @@
           <div class="cmp-scroll">
             <table class="cmp">
               <thead>
-                <tr>
+                <tr id="cmpHead">
                   <th class="sortable" onclick="setCmpSort('sr')">
                     # <span class="sort-arrow" id="sort-rank"></span>
                   </th>
                   <th class="sortable" onclick="setCmpSort('name')">
                     Player <span class="sort-arrow" id="sort-name"></span>
                   </th>
-                  <th class="sortable" onclick="setCmpSort('mp')">
+                  <th class="sortable" data-col="mp" onclick="setCmpSort('mp')">
                     MP <span class="sort-arrow" id="sort-mp"></span>
                   </th>
-                  <th class="sortable" onclick="setCmpSort('record')">
+                  <th class="sortable" data-col="record" onclick="setCmpSort('record')">
                     W–L <span class="sort-arrow" id="sort-record"></span>
                   </th>
-                  <th class="sortable" onclick="setCmpSort('winPct')">
+                  <th class="sortable" data-col="winPct" onclick="setCmpSort('winPct')">
                     W% <span class="sort-arrow" id="sort-winPct"></span>
                   </th>
-                  <th class="sortable" onclick="setCmpSort('gw')">
+                  <th class="sortable" data-col="gw" onclick="setCmpSort('gw')">
                     GW <span class="sort-arrow" id="sort-gw"></span>
                   </th>
-                  <th class="sortable" onclick="setCmpSort('gl')">
+                  <th class="sortable" data-col="gl" onclick="setCmpSort('gl')">
                     GL <span class="sort-arrow" id="sort-gl"></span>
                   </th>
-                  <th class="sortable" onclick="setCmpSort('gamePct')">
+                  <th class="sortable" data-col="gamePct" onclick="setCmpSort('gamePct')">
                     G% <span class="sort-arrow" id="sort-gamePct"></span>
+                  </th>
+                  <th class="sortable" data-col="elo" onclick="setCmpSort('elo')" id="cmp-elo-th">
+                    ELO <span class="sort-arrow" id="sort-elo"></span>
                   </th>
                   <th class="sortable" onclick="setCmpSort('sr')" id="cmp-sr-th">
                     SR <span class="sort-arrow" id="sort-sr"></span>
@@ -362,14 +382,14 @@
                 </tr>
               </thead>
               <tbody id="cmpBody">
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
-                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
+                <tr class="skel-row"><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td><td><div class="skel"></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -487,6 +507,11 @@
           </div>
           <button class="btn-go" onclick="renderModernMatches()">Apply</button>
         </div>
+        <div class="dr-wrap" id="matchDayPicker" style="display:none">
+          <div class="dr-g">
+            <label>Date</label><input type="date" id="matchDayInput" onchange="renderModernMatches()" />
+          </div>
+        </div>
 
         <div class="history-filter-panel compact-history-panel">
           <!-- Row 1: Date · Player · Result · Tags -->
@@ -503,6 +528,7 @@
                 <option value="lastweek">LAST WEEK</option>
                 <option value="weekend">WEEKEND</option>
                 <option value="month">MONTH</option>
+                <option value="day">PICK A DAY</option>
                 <option value="range">RANGE</option>
               </select>
             </div>
@@ -1670,6 +1696,21 @@ Puneet - Pun, PK
       <div class="live-sheet-list" id="exclude-sheet-list"></div>
       <div style="padding:12px 16px 8px">
         <button class="btn-go" style="width:100%" onclick="closeExcludeSheet()">DONE</button>
+      </div>
+    </div>
+
+    <!-- Column picker bottom sheet (Summary page) -->
+    <div
+      class="live-sheet-overlay"
+      id="col-sheet-overlay"
+      onclick="closeColSheet()"
+    ></div>
+    <div class="live-sheet" id="col-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title">SHOW / HIDE COLUMNS</div>
+      <div class="col-chip-wrap" id="col-chip-list"></div>
+      <div style="padding:12px 16px 8px">
+        <button class="btn-go" style="width:100%" onclick="closeColSheet()">DONE</button>
       </div>
     </div>
 
