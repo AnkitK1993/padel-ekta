@@ -1,4 +1,12 @@
-﻿import { initEloDeps, computeElo, computeEloHistory, computeEloPeaks, computeEloLows, _lightFingerprint, clearEloCache } from './elo.js';
+﻿import {
+  initEloDeps,
+  computeElo,
+  computeEloHistory,
+  computeEloPeaks,
+  computeEloLows,
+  _lightFingerprint,
+  clearEloCache,
+} from "./elo.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
@@ -167,8 +175,7 @@ function _ptrTarget(e) {
   // Only enable on home / compact / history pages
   if (!["pg-home", "pg-compact", "pg-history"].includes(id)) return null;
   // Find scrolling container — usually page itself or its first scroll child
-  const scroller =
-    page.querySelector(".page-body-scroll") || page;
+  const scroller = page.querySelector(".page-body-scroll") || page;
   if (scroller.scrollTop > 0) return null;
   return scroller;
 }
@@ -193,7 +200,8 @@ function _ptrMove(e) {
   ind.style.transform = `translate(-50%, ${Math.min(_ptrDelta, 80) - 60}px)`;
   ind.style.opacity = Math.min(_ptrDelta / 60, 1);
   if (lbl)
-    lbl.textContent = _ptrDelta >= _PTR_THRESHOLD ? "RELEASE TO REFRESH" : "PULL TO REFRESH";
+    lbl.textContent =
+      _ptrDelta >= _PTR_THRESHOLD ? "RELEASE TO REFRESH" : "PULL TO REFRESH";
   ind.classList.toggle("armed", _ptrDelta >= _PTR_THRESHOLD);
   if (_ptrDelta > 30) e.preventDefault();
 }
@@ -220,7 +228,9 @@ function _ptrEnd() {
       else if (id === "pg-history") renderModernMatches();
       if (lbl) lbl.textContent = "UPDATED ✓";
       if (navigator.vibrate) {
-        try { navigator.vibrate(20); } catch (e) {}
+        try {
+          navigator.vibrate(20);
+        } catch (e) {}
       }
       setTimeout(() => {
         if (ind) {
@@ -338,24 +348,24 @@ function openThemePicker() {
   const grid = document.getElementById("tp-grid");
   if (!ov || !grid) return;
   const themes = window.THEMES || [];
-  const cur = typeof window.getThemeIdx === "function" ? window.getThemeIdx() : -1;
+  const cur =
+    typeof window.getThemeIdx === "function" ? window.getThemeIdx() : -1;
   grid.innerHTML = themes
-    .map(
-      (t, i) => {
-        const modeClass = t.mode ? ` tp-swatch-${t.mode}` : "";
-        const dot = t.mode === "holo"
+    .map((t, i) => {
+      const modeClass = t.mode ? ` tp-swatch-${t.mode}` : "";
+      const dot =
+        t.mode === "holo"
           ? `<span class="tp-dot tp-dot-holo"></span>`
           : t.mode === "royal-gold"
             ? `<span class="tp-dot tp-dot-royal-gold"></span>`
             : t.mode === "midnight-oled"
               ? `<span class="tp-dot tp-dot-midnight-oled"></span>`
               : `<span class="tp-dot" style="background:${t.hex}"></span>`;
-        return `<button class="tp-swatch${i === cur ? " tp-swatch-active" : ""}${modeClass}" onclick="pickTheme(${i})" style="--sw:${t.hex};--sw-rgb:${t.r},${t.g},${t.b}">
+      return `<button class="tp-swatch${i === cur ? " tp-swatch-active" : ""}${modeClass}" onclick="pickTheme(${i})" style="--sw:${t.hex};--sw-rgb:${t.r},${t.g},${t.b}">
           ${dot}
           <span class="tp-name">${t.name}</span>
         </button>`;
-      },
-    )
+    })
     .join("");
   ov.classList.add("open");
 }
@@ -463,8 +473,7 @@ function _globalSearchInput(q) {
     const sB = scoreM[2] !== undefined ? parseInt(scoreM[2], 10) : null;
     allMatches
       .filter((m) => {
-        if (sB === null)
-          return m.scoreA === sA || m.scoreB === sA;
+        if (sB === null) return m.scoreA === sA || m.scoreB === sA;
         return (
           (m.scoreA === sA && m.scoreB === sB) ||
           (m.scoreA === sB && m.scoreB === sA)
@@ -606,15 +615,25 @@ let allMatches = [];
 let nameMap = {};
 let aliasMap = {};
 // Source-of-truth player roster (replaces aliasMap/nameMap as stored data)
-let players = {};        // { [id]: { id, name, email, image, isGuest } }
+let players = {}; // { [id]: { id, name, email, image, isGuest } }
 let playerAliasMap = {}; // { [id]: [alias1, alias2, ...] }
 let nextPlayerId = 1;
 let _dataVersion = 0;
-let _homeRenderedVersion = -1, _homeRenderedFilter = "";
-let _compactRenderedVersion = -1, _compactRenderedFilter = "";
+let _homeRenderedVersion = -1,
+  _homeRenderedFilter = "";
+let _compactRenderedVersion = -1,
+  _compactRenderedFilter = "";
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
-let _excludedPlayers = new Set((() => { try { return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]"); } catch(e) { return []; } })());
+let _excludedPlayers = new Set(
+  (() => {
+    try {
+      return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]");
+    } catch (e) {
+      return [];
+    }
+  })(),
+);
 let _sessionGuestUnexcluded = new Set(); // guests temporarily re-included this Summary session
 let photoMap = {};
 let calYear = new Date().getFullYear(),
@@ -644,13 +663,13 @@ let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
 let _cmpEqualized = false;
 const _CMP_TOGGLE_COLS = [
-  { key: "mp",      label: "MP"  },
-  { key: "record",  label: "W–L" },
-  { key: "winPct",  label: "W%"  },
-  { key: "gw",      label: "GW"  },
-  { key: "gl",      label: "GL"  },
-  { key: "gamePct", label: "G%"  },
-  { key: "elo",     label: "ELO" },
+  { key: "mp", label: "MP" },
+  { key: "record", label: "W–L" },
+  { key: "winPct", label: "W%" },
+  { key: "gw", label: "GW" },
+  { key: "gl", label: "GL" },
+  { key: "gamePct", label: "G%" },
+  { key: "elo", label: "ELO" },
 ];
 function _loadCmpHiddenCols() {
   try {
@@ -685,16 +704,19 @@ let _liveAdv = null; // 'a' | 'b' | null
 let _liveMatchEnded = false;
 let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
 let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
-let _sessionMatchHistory = [];    // matches logged this session (for stats / undo / rematch)
-let _sessionRedoStack = [];       // matches popped by undo, available for redo
+let _sessionMatchHistory = []; // matches logged this session (for stats / undo / rematch)
+let _sessionRedoStack = []; // matches popped by undo, available for redo
 let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
-let _sessionPanelOpen = false;    // whether the session stats panel is expanded
+let _sessionPanelOpen = false; // whether the session stats panel is expanded
 let _sessionSetupSelected = new Set();
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
 window.isAdmin = false;
-const _animLevel0 = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
-if (_animLevel0 === "medium" || _animLevel0 === "off") document.body.classList.add("no-cascade");
+const _animLevel0 =
+  localStorage.getItem("anim_level") ||
+  (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
+if (_animLevel0 === "medium" || _animLevel0 === "off")
+  document.body.classList.add("no-cascade");
 if (_animLevel0 === "off") document.body.classList.add("no-anim");
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
@@ -742,7 +764,7 @@ function getEloDecayParams() {
     floor: Number(c.floor) || 900,
   };
 }
-const ELO_DEFAULTS = { perWeek: 1, graceDays: 28, maxDecay: 30, floor: 900 };
+const ELO_DEFAULTS = { perWeek: 4, graceDays: 28, maxDecay: 300, floor: 900 };
 
 function renderEloConfigCard() {
   const p = getEloDecayParams();
@@ -816,15 +838,22 @@ function applyEloConfig() {
 }
 
 // ── ELO MEMO ───────────────────────────────────────────────
-let _eloMemo = null, _eloMemoKey = "", _eloMemoDecay = false;
-let _eloHistMemo = null, _eloHistKey = "";
-let _eloPeaksMemo = null, _eloPeaksKey = "";
-let _eloLowsMemo = null, _eloLowsKey = "";
+let _eloMemo = null,
+  _eloMemoKey = "",
+  _eloMemoDecay = false;
+let _eloHistMemo = null,
+  _eloHistKey = "";
+let _eloPeaksMemo = null,
+  _eloPeaksKey = "";
+let _eloLowsMemo = null,
+  _eloLowsKey = "";
 initEloDeps(getEloDecayParams, todayISO);
 
 function _memoElo(decay = false) {
   const am = activeMatches();
-  const decayKey = decay ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() }) : "";
+  const decayKey = decay
+    ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() })
+    : "";
   const key = `${decay ? "d" : "r"}|${decayKey}|${_lightFingerprint(am)}`;
   if (_eloMemoKey !== key || !_eloMemo) {
     _eloMemoKey = key;
@@ -837,28 +866,41 @@ function _memoElo(decay = false) {
 function _memoEloHistory() {
   const am = activeMatches();
   const key = _lightFingerprint(am);
-  if (_eloHistKey !== key || !_eloHistMemo) { _eloHistKey = key; _eloHistMemo = computeEloHistory(am); }
+  if (_eloHistKey !== key || !_eloHistMemo) {
+    _eloHistKey = key;
+    _eloHistMemo = computeEloHistory(am);
+  }
   return _eloHistMemo;
 }
 function _memoEloPeaks() {
   const am = activeMatches();
   const key = _lightFingerprint(am);
-  if (_eloPeaksKey !== key || !_eloPeaksMemo) { _eloPeaksKey = key; _eloPeaksMemo = computeEloPeaks(am); }
+  if (_eloPeaksKey !== key || !_eloPeaksMemo) {
+    _eloPeaksKey = key;
+    _eloPeaksMemo = computeEloPeaks(am);
+  }
   return _eloPeaksMemo;
 }
 function _memoEloLows() {
   const am = activeMatches();
   const key = _lightFingerprint(am);
-  if (_eloLowsKey !== key || !_eloLowsMemo) { _eloLowsKey = key; _eloLowsMemo = computeEloLows(am); }
+  if (_eloLowsKey !== key || !_eloLowsMemo) {
+    _eloLowsKey = key;
+    _eloLowsMemo = computeEloLows(am);
+  }
   return _eloLowsMemo;
 }
 
 function _invalidateEloMemo() {
-  _eloMemoKey = ""; _eloMemo = null;
+  _eloMemoKey = "";
+  _eloMemo = null;
   clearEloCache();
-  _eloHistKey = ""; _eloHistMemo = null;
-  _eloPeaksKey = ""; _eloPeaksMemo = null;
-  _eloLowsKey = ""; _eloLowsMemo = null;
+  _eloHistKey = "";
+  _eloHistMemo = null;
+  _eloPeaksKey = "";
+  _eloPeaksMemo = null;
+  _eloLowsKey = "";
+  _eloLowsMemo = null;
 }
 
 let _anaObserver = null;
@@ -941,8 +983,14 @@ function openLiveMode() {
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
 async function saveCloudData() {
   _invalidateEloMemo();
-  const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
-  if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+  const payload = {
+    matches: allMatches,
+    players,
+    playerAliasMap,
+    nextPlayerId,
+  };
+  if (window.appCache)
+    window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   try {
     localStorage.setItem("padel_matches", JSON.stringify(allMatches));
   } catch (e) {}
@@ -972,9 +1020,20 @@ function _setPendingSync(flag) {
   if (el) el.style.display = flag ? "flex" : "none";
 }
 async function _trySyncNow() {
-  if (!navigator.onLine || _forcedOffline || !auth?.currentUser || !window.isAdmin) return;
+  if (
+    !navigator.onLine ||
+    _forcedOffline ||
+    !auth?.currentUser ||
+    !window.isAdmin
+  )
+    return;
   if (!_hasPendingSync()) return;
-  const payload = { matches: allMatches, players, playerAliasMap, nextPlayerId };
+  const payload = {
+    matches: allMatches,
+    players,
+    playerAliasMap,
+    nextPlayerId,
+  };
   try {
     _lastLocalSaveTime = Date.now();
     await setDoc(doc(db, "padel", "main"), payload);
@@ -989,7 +1048,10 @@ function toggleOfflineMode(on) {
   _forcedOffline = on;
   if (on) {
     localStorage.setItem("padel_forced_offline", "1");
-    if (_firestoreUnsub) { _firestoreUnsub(); _firestoreUnsub = null; }
+    if (_firestoreUnsub) {
+      _firestoreUnsub();
+      _firestoreUnsub = null;
+    }
     _setPendingSync(true);
     showToast("Offline mode ON — tap SYNC to push manually", "✈️");
   } else {
@@ -1002,35 +1064,95 @@ function toggleOfflineMode(on) {
 }
 
 function _resubscribeFirestore() {
-  if (_firestoreUnsub) { _firestoreUnsub(); _firestoreUnsub = null; }
+  if (_firestoreUnsub) {
+    _firestoreUnsub();
+    _firestoreUnsub = null;
+  }
   try {
-    _firestoreUnsub = onSnapshot(doc(db, "padel", "main"), (snap) => {
-      if (!snap.exists()) return;
-      const d = snap.data();
-      let pls, pam, npid;
-      if (d.players && typeof d.players === "object" && Object.keys(d.players).length > 0) {
-        pls = d.players; pam = d.playerAliasMap || {}; npid = d.nextPlayerId || 1;
-      } else {
-        const mig = migrateAliasMapToPlayers(d.aliasMap || {});
-        pls = mig.players; pam = mig.playerAliasMap; npid = mig.nextPlayerId;
-      }
-      const incoming = d.matches || [];
-      const _sessionBuffering = !!(_liveSessionData?.sessionActive);
-      if (_sessionBuffering && _sessionPendingCount > 0) {
-        const cloudKeys = new Set(incoming.map(_mkMatchKey));
-        const pending = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
-        allMatches = pending.length
-          ? [...incoming, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-          : incoming;
-      } else {
-        allMatches = incoming;
-      }
-      players = pls; playerAliasMap = pam; nextPlayerId = npid;
-      rebuildNameMaps(); _invalidateEloMemo();
-      if (!_sessionBuffering || _sessionPendingCount === 0) _setPendingSync(false);
-      renderHome(); renderCompact(); refreshManage();
-    }, (err) => { console.error("Firestore re-subscribe error:", err); });
-  } catch (e) { console.error("Re-subscribe failed:", e); }
+    _firestoreUnsub = onSnapshot(
+      doc(db, "padel", "main"),
+      (snap) => {
+        if (!snap.exists()) return;
+        const d = snap.data();
+        let pls, pam, npid;
+        if (
+          d.players &&
+          typeof d.players === "object" &&
+          Object.keys(d.players).length > 0
+        ) {
+          pls = d.players;
+          pam = d.playerAliasMap || {};
+          npid = d.nextPlayerId || 1;
+        } else {
+          const mig = migrateAliasMapToPlayers(d.aliasMap || {});
+          pls = mig.players;
+          pam = mig.playerAliasMap;
+          npid = mig.nextPlayerId;
+        }
+        const incoming = d.matches || [];
+        const _sessionBuffering = !!_liveSessionData?.sessionActive;
+        const _hadOfflineEdits = _hasPendingSync() && !_sessionBuffering;
+        if (_sessionBuffering && _sessionPendingCount > 0) {
+          // Live session: re-attach session-buffered matches
+          const cloudKeys = new Set(incoming.map(_mkMatchKey));
+          const pending = allMatches.filter(
+            (m) => !cloudKeys.has(_mkMatchKey(m)),
+          );
+          allMatches = pending.length
+            ? [...incoming, ...pending].sort((a, b) =>
+                (a.date || "").localeCompare(b.date || ""),
+              )
+            : incoming;
+        } else if (_hadOfflineEdits) {
+          // Offline mode: find matches added locally while offline, push merged set to cloud
+          const cloudKeys = new Set(incoming.map(_mkMatchKey));
+          const offlineAdditions = allMatches.filter(
+            (m) => !cloudKeys.has(_mkMatchKey(m)),
+          );
+          if (offlineAdditions.length > 0) {
+            allMatches = [...incoming, ...offlineAdditions].sort((a, b) =>
+              (a.date || "").localeCompare(b.date || ""),
+            );
+            // Keep local player roster (may have new names added offline)
+            // push merged data back to Firestore
+            players = pls;
+            playerAliasMap = pam;
+            nextPlayerId = npid;
+            rebuildNameMaps();
+            _invalidateEloMemo();
+            saveCloudData();
+            showToast(
+              `Pushed ${offlineAdditions.length} offline match${offlineAdditions.length !== 1 ? "es" : ""} to cloud ☁️`,
+            );
+            _setPendingSync(false);
+            renderHome();
+            renderCompact();
+            refreshManage();
+            return;
+          } else {
+            allMatches = incoming;
+          }
+        } else {
+          allMatches = incoming;
+        }
+        players = pls;
+        playerAliasMap = pam;
+        nextPlayerId = npid;
+        rebuildNameMaps();
+        _invalidateEloMemo();
+        if (!_sessionBuffering || _sessionPendingCount === 0)
+          _setPendingSync(false);
+        renderHome();
+        renderCompact();
+        refreshManage();
+      },
+      (err) => {
+        console.error("Firestore re-subscribe error:", err);
+      },
+    );
+  } catch (e) {
+    console.error("Re-subscribe failed:", e);
+  }
 }
 
 // ── PLAYER PHOTOS ──────────────────────────────────────────
@@ -1045,7 +1167,9 @@ function loadPhotos() {
       const d = snap.data();
       if (d.photoMap && typeof d.photoMap === "object") {
         photoMap = d.photoMap;
-        try { localStorage.setItem("padel_photos", JSON.stringify(photoMap)); } catch (_) {}
+        try {
+          localStorage.setItem("padel_photos", JSON.stringify(photoMap));
+        } catch (_) {}
         renderHome();
       }
     });
@@ -1058,7 +1182,9 @@ async function _savePhotosToCloud() {
     if (auth.currentUser && window.isAdmin) {
       await setDoc(doc(db, "padel", "photos"), { photoMap });
     }
-  } catch (e) { console.error("Photo save failed:", e); }
+  } catch (e) {
+    console.error("Photo save failed:", e);
+  }
 }
 
 function savePlayerPhoto(name) {
@@ -1070,14 +1196,25 @@ function savePlayerPhoto(name) {
     const file = input.files[0];
     if (!file) return;
     const canvas = document.createElement("canvas");
-    canvas.width = 128; canvas.height = 128;
+    canvas.width = 128;
+    canvas.height = 128;
     const ctx = canvas.getContext("2d");
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
       const s = Math.min(img.width, img.height);
-      ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
+      ctx.drawImage(
+        img,
+        (img.width - s) / 2,
+        (img.height - s) / 2,
+        s,
+        s,
+        0,
+        0,
+        128,
+        128,
+      );
       photoMap[name] = canvas.toDataURL("image/jpeg", 0.78);
       _savePhotosToCloud();
       renderHome();
@@ -1189,7 +1326,11 @@ function computeSessionStreak() {
     return toLocalISODate(d);
   };
   const weeks = [
-    ...new Set(activeMatches().filter((m) => m.date).map((m) => getMonday(m.date))),
+    ...new Set(
+      activeMatches()
+        .filter((m) => m.date)
+        .map((m) => getMonday(m.date)),
+    ),
   ]
     .sort()
     .reverse();
@@ -1303,7 +1444,11 @@ function loadCloudData() {
   // Extract new-format player fields from a data object (Firestore doc or cache),
   // auto-migrating from old aliasMap format when needed.
   function extractPlayerData(d) {
-    if (d.players && typeof d.players === "object" && Object.keys(d.players).length > 0) {
+    if (
+      d.players &&
+      typeof d.players === "object" &&
+      Object.keys(d.players).length > 0
+    ) {
       return {
         pls: d.players,
         pam: d.playerAliasMap || {},
@@ -1312,7 +1457,11 @@ function loadCloudData() {
     }
     // Old format — migrate on the fly (data not yet saved in new format)
     const migrated = migrateAliasMapToPlayers(d.aliasMap || {});
-    return { pls: migrated.players, pam: migrated.playerAliasMap, npid: migrated.nextPlayerId };
+    return {
+      pls: migrated.players,
+      pam: migrated.playerAliasMap,
+      npid: migrated.nextPlayerId,
+    };
   }
 
   function onData(matches, pls, pam, npid, skipConflict = false) {
@@ -1327,9 +1476,15 @@ function loadCloudData() {
     // hasn't picked up our write yet and would falsely flag new matches.
     // Also skip while a live session is active — buffered matches are intentionally
     // local-only until the user taps SYNC or END SESSION.
-    const _recentSave = (Date.now() - _lastLocalSaveTime) < 15000;
-    const _sessionBuffering = !!(_liveSessionData?.sessionActive);
-    if (!skipConflict && !isFirstLoad && !_recentSave && !_sessionBuffering && allMatches.length > 0) {
+    const _recentSave = Date.now() - _lastLocalSaveTime < 15000;
+    const _sessionBuffering = !!_liveSessionData?.sessionActive;
+    if (
+      !skipConflict &&
+      !isFirstLoad &&
+      !_recentSave &&
+      !_sessionBuffering &&
+      allMatches.length > 0
+    ) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
       const localOnly = allMatches.filter(
         (m) => !cloudKeys.has(_mkMatchKey(m)),
@@ -1358,9 +1513,11 @@ function loadCloudData() {
     // so Firestore snapshots can't silently erase unsync'd session matches.
     if (_sessionBuffering && _sessionPendingCount > 0) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
-      const pending = allMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
+      const pending = allMatches.filter((m) => !cloudKeys.has(_mkMatchKey(m)));
       allMatches = pending.length
-        ? [...matches, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+        ? [...matches, ...pending].sort((a, b) =>
+            (a.date || "").localeCompare(b.date || ""),
+          )
         : matches;
     } else {
       allMatches = matches;
@@ -1371,9 +1528,11 @@ function loadCloudData() {
     rebuildNameMaps();
     _invalidateEloMemo();
     autoSaveWeeklySnap();
-    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+    if (window.appCache)
+      window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
 
-    const _onAddPage = () => document.querySelector(".page.active")?.id === "pg-add";
+    const _onAddPage = () =>
+      document.querySelector(".page.active")?.id === "pg-add";
     if (isFirstLoad) {
       const activePageId = document.querySelector(".page.active")?.id;
       if (activePageId === "pg-home") {
@@ -1406,7 +1565,10 @@ function loadCloudData() {
       setTimeout(function () {
         renderHome();
         renderCompact();
-        if (_onAddPage()) { refreshManage(); if (_addRenderedVersion !== _dataVersion) renderAddMatches(); }
+        if (_onAddPage()) {
+          refreshManage();
+          if (_addRenderedVersion !== _dataVersion) renderAddMatches();
+        }
         if (board) {
           // Suppress the per-card keyframe animation for live updates
           board.querySelectorAll(".pc").forEach(function (c) {
@@ -1465,9 +1627,12 @@ function animateGauges() {
   const noCascade = document.body.classList.contains("no-cascade");
   gauges.forEach((g, i) => {
     const target = getComputedStyle(g).getPropertyValue("--target-angle");
-    setTimeout(() => {
-      g.style.setProperty("--speed-angle", target);
-    }, noCascade ? 0 : i * 80);
+    setTimeout(
+      () => {
+        g.style.setProperty("--speed-angle", target);
+      },
+      noCascade ? 0 : i * 80,
+    );
   });
 }
 
@@ -1497,7 +1662,10 @@ function _updateOfflineIndicator() {
   if (!el) return;
   el.style.display = navigator.onLine ? "none" : "flex";
 }
-window.addEventListener("online", () => { _updateOfflineIndicator(); _trySyncNow(); });
+window.addEventListener("online", () => {
+  _updateOfflineIndicator();
+  _trySyncNow();
+});
 window.addEventListener("offline", _updateOfflineIndicator);
 _updateOfflineIndicator();
 _setPendingSync(_hasPendingSync());
@@ -1526,9 +1694,14 @@ onAuthStateChanged(auth, (user) => {
 
 function updateAdminUI(user) {
   const scToggle = document.getElementById("screenshotChoiceToggle");
-  if (scToggle) scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
-  const _al = localStorage.getItem("anim_level") || (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
-  document.querySelectorAll(".anim-seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.val === _al));
+  if (scToggle)
+    scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
+  const _al =
+    localStorage.getItem("anim_level") ||
+    (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
+  document
+    .querySelectorAll(".anim-seg-btn")
+    .forEach((b) => b.classList.toggle("active", b.dataset.val === _al));
   const fab = document.getElementById("fab");
   // Show/hide admin tabs in all tabbars
   document.querySelectorAll(".admin-tab").forEach((tab) => {
@@ -1570,7 +1743,8 @@ function goTo(id) {
     return;
   }
   const _leavingPage = document.querySelector(".page.active")?.id;
-  if (_leavingPage === "pg-compact" && id !== "compact") _sessionGuestUnexcluded.clear();
+  if (_leavingPage === "pg-compact" && id !== "compact")
+    _sessionGuestUnexcluded.clear();
   prevPage = (_leavingPage || "pg-home").replace("pg-", "");
   document
     .querySelectorAll(".page")
@@ -1579,12 +1753,17 @@ function goTo(id) {
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
   if (id === "home") {
-    const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
-    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
+    const fk = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
+    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk)
+      renderHome();
   }
   if (id === "compact") {
-    const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
-    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk) renderCompact();
+    const fk = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}`;
+    if (
+      _compactRenderedVersion !== _dataVersion ||
+      _compactRenderedFilter !== fk
+    )
+      renderCompact();
   }
   if (id === "history") {
     renderModernMatches();
@@ -1681,13 +1860,21 @@ function switchMainTab(id, skipAnim = false) {
   // Render content for the new page — skip if data + filter haven't changed.
   // Compact gets fullMode re-render so its cascade plays while the page is visible.
   if (id === "home") {
-    const fk = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
-    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk) renderHome();
+    const fk = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
+    if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk)
+      renderHome();
   }
   if (id === "compact") {
-    const fk = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}`;
-    const fullMode = document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade");
-    if (_compactRenderedVersion !== _dataVersion || _compactRenderedFilter !== fk || fullMode) renderCompact();
+    const fk = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}`;
+    const fullMode =
+      document.body.classList.contains("splash-done") &&
+      !document.body.classList.contains("no-cascade");
+    if (
+      _compactRenderedVersion !== _dataVersion ||
+      _compactRenderedFilter !== fk ||
+      fullMode
+    )
+      renderCompact();
   }
   if (id === "history") {
     renderModernMatches();
@@ -1955,8 +2142,9 @@ document.addEventListener(
   "touchstart",
   (e) => {
     if (e.touches.length !== 1) return;
-    const card = (window.isAdmin ? e.target.closest(".match-card") : null)
-               || e.target.closest(".smr-wrap");
+    const card =
+      (window.isAdmin ? e.target.closest(".match-card") : null) ||
+      e.target.closest(".smr-wrap");
     if (!card) return;
     _swipeTouchStartX = e.touches[0].clientX;
     _swipeTouchStartY = e.touches[0].clientY;
@@ -2265,7 +2453,9 @@ function resolve(a) {
 
 // Resolve a 2-char initial like "Ni" → full name from aliasMap or nameMap
 function resolveInitial(init) {
-  const key = String(init || "").trim().toLowerCase();
+  const key = String(init || "")
+    .trim()
+    .toLowerCase();
   if (!key) return null;
 
   const aliasExact = Object.entries(nameMap).find(
@@ -2383,12 +2573,14 @@ function playerAvatar(name, size = 26) {
 }
 function sheetAv(name) {
   const photo = photoMap[name];
-  if (photo) return `<img src="${photo}" class="live-sheet-item-av" style="object-fit:cover" alt="">`;
+  if (photo)
+    return `<img src="${photo}" class="live-sheet-item-av" style="object-fit:cover" alt="">`;
   return `<span class="live-sheet-item-av" style="background:${playerColor(name)}">${playerInitials(name)}</span>`;
 }
 function sheetAvSm(name) {
   const photo = photoMap[name];
-  if (photo) return `<img src="${photo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`;
+  if (photo)
+    return `<img src="${photo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`;
   return `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${playerInitials(name)}</div>`;
 }
 
@@ -2396,13 +2588,14 @@ function sheetAvSm(name) {
 function activeMatches() {
   const excluded = new Set([
     ...Object.values(players)
-      .filter(p => p.isGuest && !_sessionGuestUnexcluded.has(p.name))
-      .map(p => p.name),
+      .filter((p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name))
+      .map((p) => p.name),
     ..._excludedPlayers,
   ]);
   if (!excluded.size) return allMatches;
-  return allMatches.filter(m =>
-    ![...(m.teamA || []), ...(m.teamB || [])].some(p => excluded.has(p))
+  return allMatches.filter(
+    (m) =>
+      ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
   );
 }
 
@@ -2672,7 +2865,9 @@ function rebuildNameMaps() {
   Object.values(players).forEach((p) => {
     const aliases = playerAliasMap[p.id] || [];
     aliasMap[p.name] = aliases;
-    aliases.forEach((a) => { nameMap[a] = p.name; });
+    aliases.forEach((a) => {
+      nameMap[a] = p.name;
+    });
   });
 }
 
@@ -2738,9 +2933,14 @@ function getAllPlayerNamesFromMatches() {
 
 // Sort player names alphabetically, guests pushed to end
 function sortPlayersGuestsLast(names) {
-  const guestSet = new Set(Object.values(players).filter(p => p.isGuest).map(p => p.name));
+  const guestSet = new Set(
+    Object.values(players)
+      .filter((p) => p.isGuest)
+      .map((p) => p.name),
+  );
   return [...names].sort((a, b) => {
-    const ag = guestSet.has(a), bg = guestSet.has(b);
+    const ag = guestSet.has(a),
+      bg = guestSet.has(b);
     if (ag !== bg) return ag ? 1 : -1;
     return a.localeCompare(b, undefined, { sensitivity: "base" });
   });
@@ -3031,16 +3231,22 @@ function addMatches() {
     eEl.classList.add("show");
   }
   // Split: exact duplicates vs genuinely new
-  const exactDups = parsed.filter((m) => allMatches.some((old) => sameMatch(old, m)));
-  const toAdd = parsed.filter((m) => !allMatches.some((old) => sameMatch(old, m)));
+  const exactDups = parsed.filter((m) =>
+    allMatches.some((old) => sameMatch(old, m)),
+  );
+  const toAdd = parsed.filter(
+    (m) => !allMatches.some((old) => sameMatch(old, m)),
+  );
 
   // Same-day same-teams among the non-exact-dup matches
   const sameDayDups = toAdd.filter((m) =>
     allMatches.some(
       (old) =>
         old.date === m.date &&
-        [...(old.teamA || [])].sort().join("|") === [...(m.teamA || [])].sort().join("|") &&
-        [...(old.teamB || [])].sort().join("|") === [...(m.teamB || [])].sort().join("|"),
+        [...(old.teamA || [])].sort().join("|") ===
+          [...(m.teamA || [])].sort().join("|") &&
+        [...(old.teamB || [])].sort().join("|") ===
+          [...(m.teamB || [])].sort().join("|"),
     ),
   );
 
@@ -3073,9 +3279,12 @@ function addMatches() {
   if (exactDups.length) {
     const preview = exactDups
       .slice(0, 3)
-      .map((m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`)
+      .map(
+        (m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`,
+      )
       .join("\n");
-    const more = exactDups.length > 3 ? `\n…and ${exactDups.length - 3} more` : "";
+    const more =
+      exactDups.length > 3 ? `\n…and ${exactDups.length - 3} more` : "";
     showDupConfirmSheet(
       `${exactDups.length} exact duplicate(s) already exist:\n${preview}${more}\nAdd anyway?`,
       () => _commit(parsed),
@@ -3087,9 +3296,12 @@ function addMatches() {
   if (sameDayDups.length) {
     const preview = sameDayDups
       .slice(0, 3)
-      .map((m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`)
+      .map(
+        (m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`,
+      )
       .join("\n");
-    const more = sameDayDups.length > 3 ? `\n…and ${sameDayDups.length - 3} more` : "";
+    const more =
+      sameDayDups.length > 3 ? `\n…and ${sameDayDups.length - 3} more` : "";
     showDupConfirmSheet(
       `${sameDayDups.length} match(es) with the same teams already exist on that day:\n${preview}${more}`,
       () => _commit(toAdd),
@@ -3134,16 +3346,21 @@ function saveNames() {
   if (raw.startsWith("{")) {
     try {
       let parsed = JSON.parse(raw);
-      if (parsed.nameMap && typeof parsed.nameMap === "object") parsed = parsed.nameMap;
+      if (parsed.nameMap && typeof parsed.nameMap === "object")
+        parsed = parsed.nameMap;
       Object.entries(parsed).forEach(([alias, display]) => {
         if (typeof alias !== "string" || typeof display !== "string") return;
-        const a = alias.trim(), d = display.trim();
+        const a = alias.trim(),
+          d = display.trim();
         if (!a || !d) return;
         if (!importMap[d]) importMap[d] = [];
         if (!importMap[d].includes(a)) importMap[d].push(a);
       });
     } catch (e) {
-      if (eEl) { eEl.innerHTML = "Invalid JSON — check format"; eEl.classList.add("show"); }
+      if (eEl) {
+        eEl.innerHTML = "Invalid JSON — check format";
+        eEl.classList.add("show");
+      }
       return;
     }
   } else {
@@ -3151,10 +3368,20 @@ function saveNames() {
       const t = line.trim();
       if (!t) return;
       const idx = t.indexOf("-");
-      if (idx < 1) { errs.push(`Line ${i + 1}`); return; }
+      if (idx < 1) {
+        errs.push(`Line ${i + 1}`);
+        return;
+      }
       const display = t.slice(0, idx).trim();
-      const aliases = t.slice(idx + 1).split(",").map((a) => a.trim()).filter(Boolean);
-      if (!display || !aliases.length) { errs.push(`Line ${i + 1}`); return; }
+      const aliases = t
+        .slice(idx + 1)
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+      if (!display || !aliases.length) {
+        errs.push(`Line ${i + 1}`);
+        return;
+      }
       importMap[display] = aliases;
     });
     if (errs.length && eEl) {
@@ -3170,7 +3397,13 @@ function saveNames() {
       playerAliasMap[existing.id] = aliases;
     } else {
       const id = nextPlayerId++;
-      players[id] = { id, name: displayName, email: "", image: "", isGuest: false };
+      players[id] = {
+        id,
+        name: displayName,
+        email: "",
+        image: "",
+        isGuest: false,
+      };
       playerAliasMap[id] = aliases;
     }
   });
@@ -3203,7 +3436,9 @@ function editNameEntry(displayName) {
 function renderNamesTable() {
   const table = document.getElementById("names-table");
   const sorted = Object.values(players).sort((a, b) =>
-    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }),
+    (a.name || "").localeCompare(b.name || "", undefined, {
+      sensitivity: "base",
+    }),
   );
   if (!sorted.length) {
     table.innerHTML =
@@ -3212,7 +3447,7 @@ function renderNamesTable() {
   }
   table.innerHTML = sorted
     .map((p) => {
-      const aliases = (playerAliasMap[p.id] || []);
+      const aliases = playerAliasMap[p.id] || [];
       const { first, last } = getPlayerDateRange(p.name);
       const initials = (p.name || "?")
         .split(" ")
@@ -3237,9 +3472,10 @@ function renderNamesTable() {
       const aliasList = aliases.length
         ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.04em">${escHtml(aliases.join(" · "))}</div>`
         : "";
-      const dates = (first || last)
-        ? `<div style="font-size:10px;color:var(--muted);margin-top:4px">First: ${first ? fmtDate(first) : "—"} &nbsp;·&nbsp; Last: ${last ? fmtDate(last) : "—"}</div>`
-        : "";
+      const dates =
+        first || last
+          ? `<div style="font-size:10px;color:var(--muted);margin-top:4px">First: ${first ? fmtDate(first) : "—"} &nbsp;·&nbsp; Last: ${last ? fmtDate(last) : "—"}</div>`
+          : "";
       const emailLine = p.email
         ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">✉ ${escHtml(p.email)}</div>`
         : "";
@@ -3264,9 +3500,14 @@ function setScreenshotChoiceSetting(val) {
 
 function setAnimLevel(val) {
   localStorage.setItem("anim_level", val);
-  document.body.classList.toggle("no-cascade", val === "medium" || val === "off");
+  document.body.classList.toggle(
+    "no-cascade",
+    val === "medium" || val === "off",
+  );
   document.body.classList.toggle("no-anim", val === "off");
-  document.querySelectorAll(".anim-seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.val === val));
+  document
+    .querySelectorAll(".anim-seg-btn")
+    .forEach((b) => b.classList.toggle("active", b.dataset.val === val));
 }
 
 function clearMatches() {
@@ -3291,7 +3532,13 @@ function clearNames() {
 }
 function exportData() {
   navigator.clipboard
-    .writeText(JSON.stringify({ matches: allMatches, players, playerAliasMap, nextPlayerId }, null, 2))
+    .writeText(
+      JSON.stringify(
+        { matches: allMatches, players, playerAliasMap, nextPlayerId },
+        null,
+        2,
+      ),
+    )
     .then(() => {
       const el = document.getElementById("expOk");
       el.textContent = "Copied!";
@@ -3364,7 +3611,9 @@ function importData() {
     alert("All matches already exist — nothing new to import.");
     return;
   }
-  const confirm = window.confirm(`Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`);
+  const confirm = window.confirm(
+    `Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`,
+  );
   if (!confirm) return;
   allMatches = merged;
   if (data.players && typeof data.players === "object") {
@@ -3385,7 +3634,9 @@ function importData() {
   renderAddMatches();
   refreshManage();
   renderNamesTable();
-  alert(`Import complete: ${newMatches.length} match${newMatches.length !== 1 ? "es" : ""} added.`);
+  alert(
+    `Import complete: ${newMatches.length} match${newMatches.length !== 1 ? "es" : ""} added.`,
+  );
 }
 
 // ── RENDER HOME ────────────────────────────────────────────
@@ -3424,18 +3675,28 @@ function toggleCmpEqualized() {
   const btn = document.getElementById("cmpEqBtn");
   if (btn) btn.classList.toggle("ss-eq-btn-on", _cmpEqualized);
   const th = document.getElementById("cmp-sr-th");
-  if (th) th.innerHTML = (_cmpEqualized ? 'EQ <span class="sort-arrow" id="sort-sr"></span>' : 'SR <span class="sort-arrow" id="sort-sr"></span>');
+  if (th)
+    th.innerHTML = _cmpEqualized
+      ? 'EQ <span class="sort-arrow" id="sort-sr"></span>'
+      : 'SR <span class="sort-arrow" id="sort-sr"></span>';
   renderCompact();
 }
 
 function _saveExcludedPlayers() {
-  try { localStorage.setItem("padel-exclude-players", JSON.stringify([..._excludedPlayers])); } catch(e) {}
+  try {
+    localStorage.setItem(
+      "padel-exclude-players",
+      JSON.stringify([..._excludedPlayers]),
+    );
+  } catch (e) {}
 }
 
 function _updateExcludeBtn() {
   const btn = document.getElementById("cmpExcludeBtn");
   if (!btn) return;
-  const guestCount = Object.values(players).filter(p => p.isGuest && !_sessionGuestUnexcluded.has(p.name)).length;
+  const guestCount = Object.values(players).filter(
+    (p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name),
+  ).length;
   const n = guestCount + _excludedPlayers.size;
   btn.classList.toggle("ss-eq-btn-on", n > 0);
   btn.innerHTML = n > 0 ? `🚫<span class="ss-exc-badge">${n}</span>` : "🚫";
@@ -3446,20 +3707,34 @@ function openExcludeSheet() {
   const sheet = document.getElementById("exclude-sheet");
   const list = document.getElementById("exclude-sheet-list");
   if (!overlay || !sheet || !list) return;
-  const guestNames = new Set(Object.values(players).filter(p => p.isGuest).map(p => p.name));
+  const guestNames = new Set(
+    Object.values(players)
+      .filter((p) => p.isGuest)
+      .map((p) => p.name),
+  );
   // Collect all names — guests first (pre-checked), then non-guests
   const guestSorted = [...guestNames].sort((a, b) => a.localeCompare(b));
   const nonGuestNames = new Set();
-  allMatches.forEach(m => [...(m.teamA || []), ...(m.teamB || [])].forEach(p => {
-    const n = nameMap[p] || p;
-    if (!guestNames.has(n)) nonGuestNames.add(n);
-  }));
-  Object.values(players).forEach(p => { if (!p.isGuest) nonGuestNames.add(nameMap[p.name] || p.name); });
-  const nonGuestSorted = [...nonGuestNames].filter(n => n).sort((a, b) => a.localeCompare(b));
+  allMatches.forEach((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      const n = nameMap[p] || p;
+      if (!guestNames.has(n)) nonGuestNames.add(n);
+    }),
+  );
+  Object.values(players).forEach((p) => {
+    if (!p.isGuest) nonGuestNames.add(nameMap[p.name] || p.name);
+  });
+  const nonGuestSorted = [...nonGuestNames]
+    .filter((n) => n)
+    .sort((a, b) => a.localeCompare(b));
 
   const makeItem = (p, isGuest) => {
-    const on = isGuest ? !_sessionGuestUnexcluded.has(p) : _excludedPlayers.has(p);
-    const guestTag = isGuest ? `<span style="font-size:9px;color:var(--muted);margin-left:auto;padding-right:4px;flex-shrink:0">GUEST</span>` : "";
+    const on = isGuest
+      ? !_sessionGuestUnexcluded.has(p)
+      : _excludedPlayers.has(p);
+    const guestTag = isGuest
+      ? `<span style="font-size:9px;color:var(--muted);margin-left:auto;padding-right:4px;flex-shrink:0">GUEST</span>`
+      : "";
     return `<button class="live-sheet-item${on ? " live-sheet-item-selected" : ""}" onclick="toggleExcludePlayer(${jsArg(p)})">
       ${sheetAv(p)}
       <span class="live-sheet-item-name">${escHtml(p)}</span>
@@ -3469,9 +3744,11 @@ function openExcludeSheet() {
   };
 
   const rows = [
-    ...guestSorted.map(p => makeItem(p, true)),
-    ...(guestSorted.length && nonGuestSorted.length ? [`<div class="exc-divider"></div>`] : []),
-    ...nonGuestSorted.map(p => makeItem(p, false)),
+    ...guestSorted.map((p) => makeItem(p, true)),
+    ...(guestSorted.length && nonGuestSorted.length
+      ? [`<div class="exc-divider"></div>`]
+      : []),
+    ...nonGuestSorted.map((p) => makeItem(p, false)),
   ];
   list.innerHTML = rows.join("");
   overlay.classList.add("live-sheet-open");
@@ -3479,7 +3756,9 @@ function openExcludeSheet() {
 }
 
 function toggleExcludePlayer(name) {
-  const isGuest = Object.values(players).some(p => p.isGuest && p.name === name);
+  const isGuest = Object.values(players).some(
+    (p) => p.isGuest && p.name === name,
+  );
   if (isGuest) {
     // Session-only toggle — guests default to excluded, override to re-include
     if (_sessionGuestUnexcluded.has(name)) _sessionGuestUnexcluded.delete(name);
@@ -3492,13 +3771,19 @@ function toggleExcludePlayer(name) {
   // Refresh the tapped item in the sheet list
   const list = document.getElementById("exclude-sheet-list");
   if (list) {
-    list.querySelectorAll(".live-sheet-item").forEach(btn => {
+    list.querySelectorAll(".live-sheet-item").forEach((btn) => {
       const nameEl = btn.querySelector(".live-sheet-item-name");
       if (!nameEl || nameEl.textContent !== name) return;
-      const on = isGuest ? !_sessionGuestUnexcluded.has(name) : _excludedPlayers.has(name);
+      const on = isGuest
+        ? !_sessionGuestUnexcluded.has(name)
+        : _excludedPlayers.has(name);
       btn.classList.toggle("live-sheet-item-selected", on);
       const existing = btn.querySelector(".live-sheet-check");
-      if (on && !existing) btn.insertAdjacentHTML("beforeend", '<span class="live-sheet-check">✓</span>');
+      if (on && !existing)
+        btn.insertAdjacentHTML(
+          "beforeend",
+          '<span class="live-sheet-check">✓</span>',
+        );
       if (!on && existing) existing.remove();
     });
   }
@@ -3510,54 +3795,75 @@ function clearExcludedPlayers() {
   _excludedPlayers.clear();
   _saveExcludedPlayers();
   // Also session-unexclude all guests so "CLEAR ALL" truly shows everyone
-  Object.values(players).filter(p => p.isGuest).forEach(p => _sessionGuestUnexcluded.add(p.name));
+  Object.values(players)
+    .filter((p) => p.isGuest)
+    .forEach((p) => _sessionGuestUnexcluded.add(p.name));
   _updateExcludeBtn();
   renderCompact();
   closeExcludeSheet();
 }
 
 function closeExcludeSheet() {
-  document.getElementById("exclude-sheet-overlay")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("exclude-sheet-overlay")
+    ?.classList.remove("live-sheet-open");
   document.getElementById("exclude-sheet")?.classList.remove("live-sheet-open");
 }
 
 function openColSheet() {
   _renderColChips();
-  document.getElementById("col-sheet-overlay")?.classList.add("live-sheet-open");
+  document
+    .getElementById("col-sheet-overlay")
+    ?.classList.add("live-sheet-open");
   document.getElementById("col-sheet")?.classList.add("live-sheet-open");
 }
 function closeColSheet() {
-  document.getElementById("col-sheet-overlay")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("col-sheet-overlay")
+    ?.classList.remove("live-sheet-open");
   document.getElementById("col-sheet")?.classList.remove("live-sheet-open");
 }
 function _renderColChips() {
   const list = document.getElementById("col-chip-list");
   if (!list) return;
-  const chips = _CMP_TOGGLE_COLS.map(c =>
-    `<button class="col-chip${_cmpHiddenCols.has(c.key) ? "" : " col-chip--on"}" onclick="toggleCmpCol(${jsArg(c.key)})">${escHtml(c.label)}</button>`
-  ).join("");
-  const showAll = _cmpHiddenCols.size > 0
-    ? `<button class="ss-exc-clear-btn" onclick="showAllCmpCols()">SHOW ALL</button>`
-    : "";
+  const chips = _CMP_TOGGLE_COLS
+    .map(
+      (c) =>
+        `<button class="col-chip${_cmpHiddenCols.has(c.key) ? "" : " col-chip--on"}" onclick="toggleCmpCol(${jsArg(c.key)})">${escHtml(c.label)}</button>`,
+    )
+    .join("");
+  const showAll =
+    _cmpHiddenCols.size > 0
+      ? `<button class="ss-exc-clear-btn" onclick="showAllCmpCols()">SHOW ALL</button>`
+      : "";
   list.innerHTML = chips + showAll;
 }
 function showAllCmpCols() {
   _cmpHiddenCols.clear();
-  try { localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([])); } catch (e) {}
+  try {
+    localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([]));
+  } catch (e) {}
   _applyCmpColClasses();
   _renderColChips();
 }
 function toggleCmpCol(key) {
   if (_cmpHiddenCols.has(key)) _cmpHiddenCols.delete(key);
   else _cmpHiddenCols.add(key);
-  try { localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([..._cmpHiddenCols])); } catch (e) {}
+  try {
+    localStorage.setItem(
+      "padel_cmp_hidden_cols_v2",
+      JSON.stringify([..._cmpHiddenCols]),
+    );
+  } catch (e) {}
   _applyCmpColClasses();
   _renderColChips();
 }
 function _applyCmpColClasses() {
   const table = document.querySelector(".cmp");
   if (!table) return;
-  _CMP_TOGGLE_COLS.forEach(c => table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)));
+  _CMP_TOGGLE_COLS.forEach((c) =>
+    table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)),
+  );
 }
 
 function onCmpFilter() {
@@ -3659,17 +3965,20 @@ function eloTierBadge(elo) {
 let _hudGaugeId = 0;
 function buildHudGaugeSvg(sr, ratingClass) {
   const uid = ++_hudGaugeId;
-  const cx = 40, cy = 40, r = 33;
+  const cx = 40,
+    cy = 40,
+    r = 33;
   const isHigh = ratingClass.includes("sr-high");
-  const isMid  = ratingClass.includes("sr-mid");
+  const isMid = ratingClass.includes("sr-mid");
   const col = isHigh ? "#32d74b" : isMid ? "#ffd60a" : "#ff3b30";
   const rgb = isHigh ? "50,215,75" : isMid ? "255,214,10" : "255,59,48";
   const isRevLim = ratingClass.includes("rev-limit");
 
-  const pct   = Math.min(1, Math.max(0, sr / 10));
+  const pct = Math.min(1, Math.max(0, sr / 10));
   const total = parseFloat((Math.PI * r).toFixed(2));
-  const fill  = parseFloat((pct * total).toFixed(2));
-  const lx = cx - r, rx = cx + r;
+  const fill = parseFloat((pct * total).toFixed(2));
+  const lx = cx - r,
+    rx = cx + r;
   const arcPath = `M ${lx} ${cy} A ${r} ${r} 0 0 1 ${rx} ${cy}`;
 
   // 19 tick marks every 10° spanning the 180° semicircle
@@ -3678,7 +3987,8 @@ function buildHudGaugeSvg(sr, ratingClass) {
     const deg = 180 - step * 10;
     const rad = (deg * Math.PI) / 180;
     const isMaj = step % 3 === 0;
-    const ro = r + 4, ri = r + (isMaj ? 1 : 3);
+    const ro = r + 4,
+      ri = r + (isMaj ? 1 : 3);
     const x1 = (cx + ro * Math.cos(rad)).toFixed(1);
     const y1 = (cy - ro * Math.sin(rad)).toFixed(1);
     const x2 = (cx + ri * Math.cos(rad)).toFixed(1);
@@ -3688,16 +3998,18 @@ function buildHudGaugeSvg(sr, ratingClass) {
 
   // Scale labels: 0 (left), 5 (top), 10 (right)
   const scalePts = [
-    { ang: 180, lbl: "0",  anc: "end",    dx: -2, dy: 3 },
-    { ang:  90, lbl: "5",  anc: "middle", dx:  0, dy: -6 },
-    { ang:   0, lbl: "10", anc: "start",  dx:  2, dy: 3 },
+    { ang: 180, lbl: "0", anc: "end", dx: -2, dy: 3 },
+    { ang: 90, lbl: "5", anc: "middle", dx: 0, dy: -6 },
+    { ang: 0, lbl: "10", anc: "start", dx: 2, dy: 3 },
   ];
-  const scaleSvg = scalePts.map(({ ang, lbl, anc, dx, dy }) => {
-    const rad = (ang * Math.PI) / 180;
-    const sx = (cx + (r + 9) * Math.cos(rad) + dx).toFixed(1);
-    const sy = (cy - (r + 9) * Math.sin(rad) + dy).toFixed(1);
-    return `<text x="${sx}" y="${sy}" text-anchor="${anc}" font-size="5" font-family="monospace" fill="${col}" opacity="0.38">${lbl}</text>`;
-  }).join("");
+  const scaleSvg = scalePts
+    .map(({ ang, lbl, anc, dx, dy }) => {
+      const rad = (ang * Math.PI) / 180;
+      const sx = (cx + (r + 9) * Math.cos(rad) + dx).toFixed(1);
+      const sy = (cy - (r + 9) * Math.sin(rad) + dy).toFixed(1);
+      return `<text x="${sx}" y="${sy}" text-anchor="${anc}" font-size="5" font-family="monospace" fill="${col}" opacity="0.38">${lbl}</text>`;
+    })
+    .join("");
 
   return `<svg viewBox="0 0 80 48" class="hud-gauge-svg${isRevLim ? " hud-rev" : ""}" xmlns="http://www.w3.org/2000/svg">
     <defs>
@@ -3728,7 +4040,7 @@ function buildHudGaugeSvg(sr, ratingClass) {
 let _renderHomeGen = 0;
 function renderHome() {
   _homeRenderedVersion = _dataVersion;
-  _homeRenderedFilter = `${homeFilter}|${homeFrom||""}|${homeTo||""}`;
+  _homeRenderedFilter = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   const homeEloMapFull = computeElo(filtered);
   const stats = computeStats(filtered, homeEloMapFull);
@@ -3767,12 +4079,25 @@ function renderHome() {
 
   // Monthly ELO delta (30-day trend) — Enhancement 4
   const monthlyEloDeltaMap = {};
-  const _thirtyAgo = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); })();
+  const _thirtyAgo = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  })();
   stats.forEach((p) => {
-    const last30 = filtered.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) && (m.date || "") >= _thirtyAgo);
-    if (!last30.length) { monthlyEloDeltaMap[p.name] = null; return; }
+    const last30 = filtered.filter(
+      (m) =>
+        [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) &&
+        (m.date || "") >= _thirtyAgo,
+    );
+    if (!last30.length) {
+      monthlyEloDeltaMap[p.name] = null;
+      return;
+    }
     const without30 = filtered.filter((m) => !last30.includes(m));
-    monthlyEloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - (computeElo(without30)[p.name] || 1000));
+    monthlyEloDeltaMap[p.name] = Math.round(
+      (homeEloMap[p.name] || 1000) - (computeElo(without30)[p.name] || 1000),
+    );
   });
 
   const cardHtmls = stats.map((p, i) => {
@@ -3800,15 +4125,17 @@ function renderHome() {
       : "";
     const eld = eloDeltaMap[p.name];
     const mEld = monthlyEloDeltaMap[p.name];
-    const eldHtml = mEld !== null && mEld !== undefined
-      ? `<span class="s5-elo ${mEld > 0 ? "s5-pos" : mEld < 0 ? "s5-neg" : "s5-neu"}" title="ELO change (30 days)">${mEld > 0 ? "▲" : mEld < 0 ? "▼" : "–"}${Math.abs(mEld)}</span>`
-      : eld !== null && eld !== undefined
-        ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
-        : "";
+    const eldHtml =
+      mEld !== null && mEld !== undefined
+        ? `<span class="s5-elo ${mEld > 0 ? "s5-pos" : mEld < 0 ? "s5-neg" : "s5-neu"}" title="ELO change (30 days)">${mEld > 0 ? "▲" : mEld < 0 ? "▼" : "–"}${Math.abs(mEld)}</span>`
+        : eld !== null && eld !== undefined
+          ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
+          : "";
     // Enhancement 1: streak chip
-    const streakChip = p.curStreak > 0
-      ? `<span class="card-streak-chip ${p.curType === "W" ? "csc-w" : "csc-l"}">${p.curType === "W" ? "🔥" : "❄️"}${p.curStreak}${p.curType}</span>`
-      : "";
+    const streakChip =
+      p.curStreak > 0
+        ? `<span class="card-streak-chip ${p.curType === "W" ? "csc-w" : "csc-l"}">${p.curType === "W" ? "🔥" : "❄️"}${p.curStreak}${p.curType}</span>`
+        : "";
     const hasRowData = sparklineSvg || last5DotsHtml || eldHtml;
     const sparklineHtml = hasRowData
       ? `<div class="spark-row">${streakChip}<span class="spark-lbl">Form</span>${sparklineSvg || '<div style="flex:1"></div>'}<span class="spark-extras">${last5DotsHtml}${eldHtml}</span><span class="spark-full">Full stats →</span></div>`
@@ -3829,7 +4156,10 @@ function renderHome() {
 
   _renderSessionActiveCard();
 
-  if (document.body.classList.contains("splash-done") && !document.body.classList.contains("no-cascade")) {
+  if (
+    document.body.classList.contains("splash-done") &&
+    !document.body.classList.contains("no-cascade")
+  ) {
     board.innerHTML = "";
     const gen = ++_renderHomeGen;
     cardHtmls.forEach((html, i) => {
@@ -3843,7 +4173,9 @@ function renderHome() {
         if (srEl) animateSrVal(srEl, 300);
         const xpRow = card.querySelector(".xp-row");
         if (xpRow) animateXpRow(xpRow, 300);
-        card.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 220 + i * 60));
+        card
+          .querySelectorAll(".holo-gauge-val[data-final]")
+          .forEach((el) => animateSrVal(el, 220 + i * 60));
         const needle = card.querySelector(".needle");
         if (needle) setTimeout(() => _sweepNeedle(needle), 50);
         if (i === cardHtmls.length - 1) {
@@ -3859,7 +4191,9 @@ function renderHome() {
       .querySelectorAll(".sr-val[data-final]")
       .forEach((el) => animateSrVal(el, 300));
     board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
-    board.querySelectorAll(".holo-gauge-val[data-final]").forEach((el) => animateSrVal(el, 300));
+    board
+      .querySelectorAll(".holo-gauge-val[data-final]")
+      .forEach((el) => animateSrVal(el, 300));
   }
 }
 
@@ -3895,14 +4229,19 @@ function _sweepNeedle(needle) {
   if (!ring) return;
   const isRevLimit = ring.classList.contains("rev-limit");
   if (isRevLimit) ring.classList.remove("rev-limit");
-  const targetDeg = parseFloat(getComputedStyle(ring).getPropertyValue("--speed-angle")) || 0;
+  const targetDeg =
+    parseFloat(getComputedStyle(ring).getPropertyValue("--speed-angle")) || 0;
   needle.animate(
     [
       { transform: "translateX(-50%) rotate(-90deg)" },
       { transform: "translateX(-50%) rotate(90deg)", offset: 0.62 },
       { transform: `translateX(-50%) rotate(${-90 + targetDeg}deg)` },
     ],
-    { duration: 2200, easing: "cubic-bezier(0.22,1.15,0.36,1)", fill: "forwards" },
+    {
+      duration: 2200,
+      easing: "cubic-bezier(0.22,1.15,0.36,1)",
+      fill: "forwards",
+    },
   );
   if (isRevLimit) {
     // Fire shortly after cardSlideUp (420ms) so shake is visible on page load
@@ -3938,22 +4277,52 @@ function runSpeedometerSweep() {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom||""}|${cmpTo||""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}`;
   _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
-    const _LBL_MONTHS = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const _fmtLbl = iso => { const [,m,d] = iso.split("-"); return `${parseInt(d)} ${_LBL_MONTHS[parseInt(m)]}`; };
-    const _cmpLblMap = { all:"ALL TIME", today:"TODAY", week:"THIS WEEK", lastweek:"LAST WEEK", weekend:"WEEKEND", month:"THIS MONTH", range:"RANGE", day:"DAY" };
-    if (cmpFilter === "day" && cmpFrom) _cmpDateLbl.textContent = _fmtLbl(cmpFrom);
-    else if (cmpFilter === "range" && cmpFrom && cmpTo) _cmpDateLbl.textContent = `${_fmtLbl(cmpFrom)}–${_fmtLbl(cmpTo)}`;
-    else _cmpDateLbl.textContent = _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
+    const _LBL_MONTHS = [
+      "",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const _fmtLbl = (iso) => {
+      const [, m, d] = iso.split("-");
+      return `${parseInt(d)} ${_LBL_MONTHS[parseInt(m)]}`;
+    };
+    const _cmpLblMap = {
+      all: "ALL TIME",
+      today: "TODAY",
+      week: "THIS WEEK",
+      lastweek: "LAST WEEK",
+      weekend: "WEEKEND",
+      month: "THIS MONTH",
+      range: "RANGE",
+      day: "DAY",
+    };
+    if (cmpFilter === "day" && cmpFrom)
+      _cmpDateLbl.textContent = _fmtLbl(cmpFrom);
+    else if (cmpFilter === "range" && cmpFrom && cmpTo)
+      _cmpDateLbl.textContent = `${_fmtLbl(cmpFrom)}–${_fmtLbl(cmpTo)}`;
+    else
+      _cmpDateLbl.textContent =
+        _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const _cmpEloMap = computeElo(filtered);
   const stats = computeStats(filtered, _cmpEloMap);
   if (_cmpEqualized) {
-    stats.forEach(p => {
+    stats.forEach((p) => {
       const c = p.mp / (p.mp + 5);
       const wScore = p.mwr * c + 0.5 * (1 - c);
       const gScore = p.gwr * c + 0.5 * (1 - c);
@@ -3979,7 +4348,8 @@ function renderCompact() {
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
     elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
-    sr: (a, b) => (_cmpEqualized ? (a.eqSR - b.eqSR) : (a.sr - b.sr)) || a.gamePct - b.gamePct,
+    sr: (a, b) =>
+      (_cmpEqualized ? a.eqSR - b.eqSR : a.sr - b.sr) || a.gamePct - b.gamePct,
   };
   const sorted = [...stats].sort((a, b) => {
     const cmp = sortFns[cmpSortKey](a, b);
@@ -4023,7 +4393,9 @@ function renderCompact() {
     return sb - sa;
   });
   const srRankMap = {};
-  srSorted.forEach((p, j) => { srRankMap[p.name] = j + 1; });
+  srSorted.forEach((p, j) => {
+    srRankMap[p.name] = j + 1;
+  });
   const leaderRowHtmls = sorted.map((p, i) => {
     const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
     const ri =
@@ -4055,11 +4427,12 @@ function renderCompact() {
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
     const _eloDiff = eloVal - 1000;
-    const eloDeltaBadge = _eloDiff > 0
-      ? `<span class="wk-rank-delta wk-up">+${_eloDiff}</span>`
-      : _eloDiff < 0
-        ? `<span class="wk-rank-delta wk-down">${_eloDiff}</span>`
-        : `<span class="wk-rank-delta wk-same">±0</span>`;
+    const eloDeltaBadge =
+      _eloDiff > 0
+        ? `<span class="wk-rank-delta wk-up">+${_eloDiff}</span>`
+        : _eloDiff < 0
+          ? `<span class="wk-rank-delta wk-down">${_eloDiff}</span>`
+          : `<span class="wk-rank-delta wk-same">±0</span>`;
     return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaBadge}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
@@ -4083,7 +4456,9 @@ function renderCompact() {
     leaderRowHtmls.forEach((html, i) => {
       setTimeout(() => {
         tbody.insertAdjacentHTML("beforeend", html);
-        const srEl = tbody.lastElementChild.querySelector(".sr-pill-val[data-final]");
+        const srEl = tbody.lastElementChild.querySelector(
+          ".sr-pill-val[data-final]",
+        );
         if (srEl) animateSrVal(srEl, 50);
       }, i * 100);
     });
@@ -4101,26 +4476,44 @@ function renderCompact() {
       const animCount = Math.min(10, reversedMatches.length);
       const animRows = reversedMatches
         .slice(0, animCount)
-        .map((m) => buildSummaryMatchRow(m, " card-anim", allMatches.indexOf(m), matchEloDeltas));
+        .map((m) =>
+          buildSummaryMatchRow(
+            m,
+            " card-anim",
+            allMatches.indexOf(m),
+            matchEloDeltas,
+          ),
+        );
       const restRows = reversedMatches
         .slice(animCount)
-        .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m), matchEloDeltas));
+        .map((m) =>
+          buildSummaryMatchRow(m, "", allMatches.indexOf(m), matchEloDeltas),
+        );
       animRows.forEach((html, i) => {
-        setTimeout(() => {
-          list.insertAdjacentHTML("beforeend", html);
-        }, matchStartDelay + i * 100);
+        setTimeout(
+          () => {
+            list.insertAdjacentHTML("beforeend", html);
+          },
+          matchStartDelay + i * 100,
+        );
       });
       if (restRows.length) {
-        setTimeout(() => {
-          list.insertAdjacentHTML("beforeend", restRows.join(""));
-        }, matchStartDelay + animCount * 100);
+        setTimeout(
+          () => {
+            list.insertAdjacentHTML("beforeend", restRows.join(""));
+          },
+          matchStartDelay + animCount * 100,
+        );
       }
       const summaryHtml = buildHistorySummary(filtered, cmpFilter);
       if (summaryHtml) {
-        setTimeout(() => {
-          cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
-          setTimeout(_animEloCounts, 80);
-        }, matchStartDelay + animCount * 100 + 100);
+        setTimeout(
+          () => {
+            cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
+            setTimeout(_animEloCounts, 80);
+          },
+          matchStartDelay + animCount * 100 + 100,
+        );
       }
     } else {
       setTimeout(() => {
@@ -4135,7 +4528,12 @@ function renderCompact() {
       .forEach((el) => animateSrVal(el, 0));
     const _nc = document.body.classList.contains("no-cascade");
     const initRows = reversedMatches.map((m, i) =>
-      buildSummaryMatchRow(m, i < 10 && !_nc ? " card-anim" : "", allMatches.indexOf(m), matchEloDeltas),
+      buildSummaryMatchRow(
+        m,
+        i < 10 && !_nc ? " card-anim" : "",
+        allMatches.indexOf(m),
+        matchEloDeltas,
+      ),
     );
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
@@ -4180,7 +4578,9 @@ function updateSortArrows() {
     });
   });
   // Highlight active TH column — Enhancement 6
-  document.querySelectorAll("#cmpHead th").forEach((th) => th.classList.remove("cmp-th-sort-active"));
+  document
+    .querySelectorAll("#cmpHead th")
+    .forEach((th) => th.classList.remove("cmp-th-sort-active"));
   const activeArrow = document.querySelector(".sort-arrow.active");
   if (activeArrow) {
     const th = activeArrow.closest("th");
@@ -4242,9 +4642,10 @@ function buildMatchRowHtml(m, extraClass = "", delay = null, matchIdx = null) {
       : delay !== null
         ? ` style="animation-delay:${delay}ms"`
         : "";
-  const delBtn = window.isAdmin && matchIdx !== null
-    ? `<button class="cmr-del-btn" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})" title="Delete match">✕</button>`
-    : "";
+  const delBtn =
+    window.isAdmin && matchIdx !== null
+      ? `<button class="cmr-del-btn" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})" title="Delete match">✕</button>`
+      : "";
   return `<tr class="cmr-row${extraClass}"${clickable}>
           <td class="cmr-date">${fmtDate(m.date)
             .replace(/\s+\d{4}$/, "")
@@ -4268,21 +4669,36 @@ function buildCompactMatchRows(matches) {
 function _computeMatchEloDeltas(matches) {
   const elo = {};
   const map = new Map();
-  [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || "")).forEach(m => {
-    [...(m.teamA || []), ...(m.teamB || [])].forEach(p => { if (!(p in elo)) elo[p] = 1000; });
-    const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-    map.set(m, { dA, dB });
-    m.teamA.forEach(p => { elo[p] = (elo[p] || 1000) + dA; });
-    m.teamB.forEach(p => { elo[p] = (elo[p] || 1000) + dB; });
-  });
+  [...matches]
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in elo)) elo[p] = 1000;
+      });
+      const aWon = m.scoreA > m.scoreB;
+      const avgA =
+        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB =
+        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      map.set(m, { dA, dB });
+      m.teamA.forEach((p) => {
+        elo[p] = (elo[p] || 1000) + dA;
+      });
+      m.teamB.forEach((p) => {
+        elo[p] = (elo[p] || 1000) + dB;
+      });
+    });
   return map;
 }
-function buildSummaryMatchRow(m, extraClass = "", matchIdx = null, eloDeltaMap = null) {
+function buildSummaryMatchRow(
+  m,
+  extraClass = "",
+  matchIdx = null,
+  eloDeltaMap = null,
+) {
   const aWon = m.scoreA > m.scoreB;
   const winA = aWon ? "cmr-win" : "cmr-loss";
   const winB = !aWon ? "cmr-win" : "cmr-loss";
@@ -4295,12 +4711,18 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null, eloDeltaMap =
       : isZeroMatch(m)
         ? `<span class="cmr-badge cmr-zero" title="Zero match: scored 0 games">😂</span>`
         : "";
-  const clickHandler = matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
-  const _mkD = (d) => d == null ? "" : `<span class="smr-ed ${d > 0 ? "smr-ed-pos" : d < 0 ? "smr-ed-neg" : "smr-ed-neu"}">${d > 0 ? "+" : ""}${d}</span>`;
+  const clickHandler =
+    matchIdx !== null ? `onclick="openMatchIntro(${matchIdx})"` : "";
+  const _mkD = (d) =>
+    d == null
+      ? ""
+      : `<span class="smr-ed ${d > 0 ? "smr-ed-pos" : d < 0 ? "smr-ed-neg" : "smr-ed-neu"}">${d > 0 ? "+" : ""}${d}</span>`;
   const eloD = eloDeltaMap?.get(m);
   return `<div class="smr-wrap${extraClass}">
     <div class="smr-inner" ${clickHandler}>
-      <span class="cmr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</span>
+      <span class="cmr-date">${fmtDate(m.date)
+        .replace(/\s+\d{4}$/, "")
+        .toUpperCase()}</span>
       <span class="cmr-team ${winA}">${escHtml(teamA)}${_mkD(eloD?.dA)}</span>
       <span class="cmr-sc"><span class="cmr-sv ${winA}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${winB}">${m.scoreB}</span></span>
       <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}${_mkD(eloD?.dB)}</span>
@@ -4310,8 +4732,12 @@ function buildSummaryMatchRow(m, extraClass = "", matchIdx = null, eloDeltaMap =
   </div>`;
 }
 function buildSummaryMatchRows(matches) {
-  if (!matches.length) return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
-  return `<div class="smr-list">${[...matches].reverse().map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m))).join("")}</div>`;
+  if (!matches.length)
+    return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+  return `<div class="smr-list">${[...matches]
+    .reverse()
+    .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m)))
+    .join("")}</div>`;
 }
 
 function buildMatchCards(matches, showAdmin) {
@@ -4437,11 +4863,17 @@ function buildMatchCards(matches, showAdmin) {
       // Event badges — Enhancement 7: title tooltips
       const badges = [];
       if (isFire)
-        badges.push(`<span class="event-badge fire" title="Close match: margin of 1 game">🔥 FIRE MATCH</span>`);
+        badges.push(
+          `<span class="event-badge fire" title="Close match: margin of 1 game">🔥 FIRE MATCH</span>`,
+        );
       if (isDominating)
-        badges.push(`<span class="event-badge dominate" title="Dominant performance: 4-1, 6-1, or 6-2">💀 DOMINATING</span>`);
+        badges.push(
+          `<span class="event-badge dominate" title="Dominant performance: 4-1, 6-1, or 6-2">💀 DOMINATING</span>`,
+        );
       if (isZero)
-        badges.push(`<span class="event-badge zero" title="One team scored 0 games">😂 ZERO SE HAAR GAYE!</span>`);
+        badges.push(
+          `<span class="event-badge zero" title="One team scored 0 games">😂 ZERO SE HAAR GAYE!</span>`,
+        );
 
       const delay = Math.min(index * 0.1, 1); // Staggered delay up to 1s
 
@@ -4451,7 +4883,7 @@ function buildMatchCards(matches, showAdmin) {
       const _pvpKey = _pa8 <= _pb8 ? `${_pa8}|${_pb8}` : `${_pb8}|${_pa8}`;
       const _pvp = _pvpMap[_pvpKey];
       let pvpHtml = "";
-      if (_pvp && (_pvp.a + _pvp.b) >= 2) {
+      if (_pvp && _pvp.a + _pvp.b >= 2) {
         const paFirst = _pa8 <= _pb8;
         const aW8 = paFirst ? _pvp.a : _pvp.b;
         const bW8 = paFirst ? _pvp.b : _pvp.a;
@@ -4503,7 +4935,6 @@ function buildMatchCards(matches, showAdmin) {
     })
     .join("");
 }
-
 
 function filterMatchTab(f) {
   matchTabFilter = f;
@@ -4729,7 +5160,7 @@ function buildHistorySummary(matches, filter = "all") {
             <span class="hsum-pname">${p.name}</span>
             <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
             <span class="hsum-pct" style="color:${_rankColor(i + 1, top3.length)}">${p.winPct.toFixed(0)}%</span>
-            <span class="hsum-sr" style="color:${_rankColor(i+1,top3.length)}">${p.sr.toFixed(2)} SR</span>
+            <span class="hsum-sr" style="color:${_rankColor(i + 1, top3.length)}">${p.sr.toFixed(2)} SR</span>
           </div>`,
     )
     .join("");
@@ -4901,7 +5332,9 @@ function buildHistorySummary(matches, filter = "all") {
 }
 
 function toggleMatchesSection() {
-  const list = document.querySelector("#cmpMatches .smr-list") || document.querySelector("#cmpMatches .cmp-match-rows");
+  const list =
+    document.querySelector("#cmpMatches .smr-list") ||
+    document.querySelector("#cmpMatches .cmp-match-rows");
   const chevron = document.getElementById("cmpMatchesChevron");
   if (!list) return;
   list.classList.toggle("collapsed");
@@ -4956,8 +5389,12 @@ function renderMatchCalendar() {
     const count = matchCountByDate[iso] || 0;
     const isToday = iso === todayStr;
     const hasMatch = count > 0;
-    const heatOpacity = hasMatch ? (0.15 + (count / _calMaxCount) * 0.55).toFixed(2) : "0";
-    const heatStyle = hasMatch ? ` style="background:rgba(var(--theme-rgb),${heatOpacity})"` : "";
+    const heatOpacity = hasMatch
+      ? (0.15 + (count / _calMaxCount) * 0.55).toFixed(2)
+      : "0";
+    const heatStyle = hasMatch
+      ? ` style="background:rgba(var(--theme-rgb),${heatOpacity})"`
+      : "";
     cells += `<div class="cal-cell${isToday ? " cal-today" : ""}${hasMatch ? " cal-has-match" : ""}"${heatStyle} onclick="calDayClick('${iso}')">
       <span class="cal-day-num">${d}</span>
       ${hasMatch ? `<span class="cal-heat-count">${count}</span>` : ""}
@@ -5028,8 +5465,8 @@ function renderModernMatches() {
     matchTabFilter === "range"
       ? document.getElementById("matchFrom")?.value || null
       : matchTabFilter === "day"
-      ? document.getElementById("matchDayInput")?.value || todayISO()
-      : null;
+        ? document.getElementById("matchDayInput")?.value || todayISO()
+        : null;
   const mto =
     matchTabFilter === "range"
       ? document.getElementById("matchTo")?.value || null
@@ -5252,29 +5689,32 @@ function renderModernMatches() {
   allAnimated.forEach((el, i) => {
     el.style.opacity = "0";
     el.style.animation = "none";
-    setTimeout(() => {
-      el.style.animation = "";
-      el.style.opacity = "";
-      if (!_noCascade) el.classList.add("card-anim");
-      histList.appendChild(el);
-      el.querySelectorAll(
-        ".team-score[data-final], .motd-score[data-final]",
-      ).forEach((scoreEl) => {
-        const final = parseInt(scoreEl.dataset.final, 10);
-        if (!isNaN(final) && final > 0) {
-          let cur = 0;
-          scoreEl.textContent = "0";
-          const tick = () => {
-            cur = Math.min(cur + 1, final);
-            scoreEl.textContent = cur;
-            if (cur < final) setTimeout(tick, 140);
-          };
-          setTimeout(tick, 80);
-        } else {
-          scoreEl.textContent = scoreEl.dataset.final || "0";
-        }
-      });
-    }, _noCascade ? 0 : i * 100);
+    setTimeout(
+      () => {
+        el.style.animation = "";
+        el.style.opacity = "";
+        if (!_noCascade) el.classList.add("card-anim");
+        histList.appendChild(el);
+        el.querySelectorAll(
+          ".team-score[data-final], .motd-score[data-final]",
+        ).forEach((scoreEl) => {
+          const final = parseInt(scoreEl.dataset.final, 10);
+          if (!isNaN(final) && final > 0) {
+            let cur = 0;
+            scoreEl.textContent = "0";
+            const tick = () => {
+              cur = Math.min(cur + 1, final);
+              scoreEl.textContent = cur;
+              if (cur < final) setTimeout(tick, 140);
+            };
+            setTimeout(tick, 80);
+          } else {
+            scoreEl.textContent = scoreEl.dataset.final || "0";
+          }
+        });
+      },
+      _noCascade ? 0 : i * 100,
+    );
   });
 
   if (instant.length) {
@@ -5336,15 +5776,23 @@ function histJumpToDate(dateStr) {
   // Scroll to the date group after render
   requestAnimationFrame(() => {
     const groups = document.querySelectorAll(".match-date-group");
-    const target = [...groups].find((g) => g.dataset.date === dateStr || g.querySelector(`[data-date="${dateStr}"]`));
-    const firstCard = document.querySelector(`.match-card[data-date="${dateStr}"]`);
+    const target = [...groups].find(
+      (g) =>
+        g.dataset.date === dateStr ||
+        g.querySelector(`[data-date="${dateStr}"]`),
+    );
+    const firstCard = document.querySelector(
+      `.match-card[data-date="${dateStr}"]`,
+    );
     const scrollTarget = target || firstCard;
-    if (scrollTarget) scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (scrollTarget)
+      scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
 // Long-press match card → quick-action sheet (Share, Edit, Delete)
-let _lpTimer = null, _lpCard = null;
+let _lpTimer = null,
+  _lpCard = null;
 document.addEventListener("pointerdown", (e) => {
   const card = e.target.closest(".match-card");
   if (!card || e.target.closest("button, .swipe-delete-reveal")) return;
@@ -5354,9 +5802,15 @@ document.addEventListener("pointerdown", (e) => {
     if (!isNaN(idx2)) _openMatchQuickActions(idx2, card);
   }, 600);
 });
-document.addEventListener("pointerup", () => { clearTimeout(_lpTimer); _lpCard = null; });
+document.addEventListener("pointerup", () => {
+  clearTimeout(_lpTimer);
+  _lpCard = null;
+});
 document.addEventListener("pointermove", (e) => {
-  if (_lpCard) { clearTimeout(_lpTimer); _lpCard = null; }
+  if (_lpCard) {
+    clearTimeout(_lpTimer);
+    _lpCard = null;
+  }
 });
 
 function _openMatchQuickActions(idx2, cardEl) {
@@ -5376,7 +5830,9 @@ function _openMatchQuickActions(idx2, cardEl) {
       <button class="mqs-btn mqs-btn-cancel" onclick="document.getElementById('match-quick-sheet').remove()">Cancel</button>
     </div>`;
   document.body.appendChild(sheet);
-  requestAnimationFrame(() => sheet.querySelector(".mqs-panel").classList.add("open"));
+  requestAnimationFrame(() =>
+    sheet.querySelector(".mqs-panel").classList.add("open"),
+  );
 }
 
 function clearAllHistFilters() {
@@ -5449,12 +5905,16 @@ function filterSheetSearch(query) {
   if (!list) return;
   const pairs = getPairStats();
   const q = (query || "").toLowerCase().trim();
-  const filtered = q ? pairs.filter((p) => p.key.toLowerCase().includes(q)) : pairs;
+  const filtered = q
+    ? pairs.filter((p) => p.key.toLowerCase().includes(q))
+    : pairs;
   list.innerHTML = [
-    !q ? `<button class="live-sheet-item${!histPairFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
+    !q
+      ? `<button class="live-sheet-item${!histPairFilter ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem('')">
       <span class="live-sheet-item-name">ALL PAIRS</span>
       ${!histPairFilter ? '<span class="live-sheet-check">✓</span>' : ""}
-    </button>` : "",
+    </button>`
+      : "",
     ...filtered.map((p) => {
       const cur = p.key === histPairFilter;
       return `<button class="live-sheet-item${cur ? " live-sheet-item-selected" : ""}" onclick="selectFilterItem(${jsArg(p.key)})">
@@ -5492,7 +5952,9 @@ function _updateFilterBtnDisplay() {
   }
   const pairBtn = document.getElementById("hist-pair-btn");
   if (pairBtn) {
-    document.getElementById("hist-pair-label").textContent = histPairFilter ? histPairFilter.toUpperCase() : "ALL PAIRS";
+    document.getElementById("hist-pair-label").textContent = histPairFilter
+      ? histPairFilter.toUpperCase()
+      : "ALL PAIRS";
     pairBtn.classList.toggle("filter-fab-active", !!histPairFilter);
   }
 }
@@ -5543,7 +6005,9 @@ function openFilterSheet(mode) {
 }
 
 function closeFilterSheet() {
-  document.getElementById("filter-sheet-overlay")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("filter-sheet-overlay")
+    ?.classList.remove("live-sheet-open");
   document.getElementById("filter-sheet")?.classList.remove("live-sheet-open");
   const searchWrap = document.getElementById("filter-sheet-search-wrap");
   const searchInput = document.getElementById("filter-sheet-search");
@@ -5553,15 +6017,38 @@ function closeFilterSheet() {
 }
 
 function _filterDateHint(v) {
-  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const fmt = (iso) => { const [,m,d] = iso.split("-"); return `${parseInt(d)} ${MONTHS[parseInt(m)-1]}`; };
+  const MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const fmt = (iso) => {
+    const [, m, d] = iso.split("-");
+    return `${parseInt(d)} ${MONTHS[parseInt(m) - 1]}`;
+  };
   const today = todayISO();
   if (v === "week") return `${fmt(weekISO())} – ${fmt(today)}`;
-  if (v === "lastweek") { const {from,to} = lastWeekRange(); return `${fmt(from)} – ${fmt(to)}`; }
+  if (v === "lastweek") {
+    const { from, to } = lastWeekRange();
+    return `${fmt(from)} – ${fmt(to)}`;
+  }
   if (v === "month") return `${fmt(monthISO())} – ${fmt(today)}`;
   if (v === "today") return fmt(today);
-  if (v === "day") return cmpFrom ? `Selected: ${fmt(cmpFrom)}` : "Tap to pick a day";
-  if (v === "range") return cmpFrom && cmpTo ? `${fmt(cmpFrom)} – ${fmt(cmpTo)}` : "Tap to set a range";
+  if (v === "day")
+    return cmpFrom ? `Selected: ${fmt(cmpFrom)}` : "Tap to pick a day";
+  if (v === "range")
+    return cmpFrom && cmpTo
+      ? `${fmt(cmpFrom)} – ${fmt(cmpTo)}`
+      : "Tap to set a range";
   return "";
 }
 
@@ -5577,19 +6064,28 @@ const _CMP_DATE_OPTIONS = [
 ];
 
 const _HOME_DATE_OPTIONS = [
-  { v: "all",      l: "ALL TIME",   icon: "⏱" },
-  { v: "today",    l: "TODAY",      icon: "📅" },
-  { v: "week",     l: "THIS WEEK",  icon: "📆" },
-  { v: "lastweek", l: "LAST WEEK",  icon: "⬅️" },
-  { v: "weekend",  l: "WEEKEND",    icon: "🏖" },
-  { v: "month",    l: "THIS MONTH", icon: "🗓" },
-  { v: "range",    l: "DATE RANGE", icon: "📏" },
+  { v: "all", l: "ALL TIME", icon: "⏱" },
+  { v: "today", l: "TODAY", icon: "📅" },
+  { v: "week", l: "THIS WEEK", icon: "📆" },
+  { v: "lastweek", l: "LAST WEEK", icon: "⬅️" },
+  { v: "weekend", l: "WEEKEND", icon: "🏖" },
+  { v: "month", l: "THIS MONTH", icon: "🗓" },
+  { v: "range", l: "DATE RANGE", icon: "📏" },
 ];
-const _HOME_LBL_MAP = { all: "ALL TIME", today: "TODAY", week: "THIS WEEK", lastweek: "LAST WEEK", weekend: "WEEKEND", month: "THIS MONTH", range: "DATE RANGE" };
+const _HOME_LBL_MAP = {
+  all: "ALL TIME",
+  today: "TODAY",
+  week: "THIS WEEK",
+  lastweek: "LAST WEEK",
+  weekend: "WEEKEND",
+  month: "THIS MONTH",
+  range: "DATE RANGE",
+};
 
 function _syncHomeFilterLabel() {
   const lbl = document.getElementById("homeFilterLabel");
-  if (lbl) lbl.textContent = _HOME_LBL_MAP[homeFilter] || homeFilter.toUpperCase();
+  if (lbl)
+    lbl.textContent = _HOME_LBL_MAP[homeFilter] || homeFilter.toUpperCase();
 }
 
 function openHomeFilterSheet() {
@@ -5611,7 +6107,9 @@ function openHomeFilterSheet() {
       </div>`;
     })
     .join("");
-  document.getElementById("filter-sheet-overlay")?.classList.add("live-sheet-open");
+  document
+    .getElementById("filter-sheet-overlay")
+    ?.classList.add("live-sheet-open");
   document.getElementById("filter-sheet")?.classList.add("live-sheet-open");
 }
 
@@ -5650,7 +6148,11 @@ function selectFilterItem(value) {
     const dr = document.getElementById("homeDrRow");
     if (dr) dr.classList.toggle("show", value === "range");
     _syncHomeFilterLabel();
-    if (value !== "range") { homeFrom = null; homeTo = null; renderHome(); }
+    if (value !== "range") {
+      homeFrom = null;
+      homeTo = null;
+      renderHome();
+    }
     return;
   }
   if (mode === "cmpdate") {
@@ -5873,6 +6375,7 @@ function renderAddMatches() {
     ? allMatches.filter((m) => JSON.stringify(m).toLowerCase().includes(query))
     : [...allMatches];
   const addList = document.getElementById("add-match-list");
+  if (!addList) return;
   addList.innerHTML = buildMatchCards(matches, true);
   addList
     .querySelectorAll(".team-score[data-final], .motd-score[data-final]")
@@ -6064,7 +6567,8 @@ function saveMatchEdit(i) {
   if (isNaN(sa) || isNaN(sb)) return show("Enter valid scores.");
   if (sa === sb) return show("Scores cannot be equal.");
   // Enhancement 23: block future-dated match edits
-  if (date && date > todayISO()) return show("Match date cannot be in the future.");
+  if (date && date > todayISO())
+    return show("Match date cannot be in the future.");
   const teamA = [a1, a2].filter(Boolean);
   const teamB = [b1, b2].filter(Boolean);
   if (teamA.length !== teamB.length)
@@ -6140,19 +6644,21 @@ function openPlayerPicker(slotId, label) {
     .filter(Boolean);
   const currentVal = document.getElementById(slotId)?.value || "";
   const displayNames = getAllPlayerNamesFromMatches();
-  grid.innerHTML = displayNames.map((name) => {
-    const isTaken = taken.includes(name);
-    const isSelected = name === currentVal;
-    const photo = photoMap[name];
-    const avInner = photo
-      ? `<img src="${photo}" alt="${escHtml(name)}">`
-      : playerInitials(name);
-    const cls = `player-picker-chip${isTaken ? " taken" : ""}${isSelected ? " selected" : ""}`;
-    return `<button class="${cls}" onclick="pickPlayer(${jsArg(name)})">
+  grid.innerHTML = displayNames
+    .map((name) => {
+      const isTaken = taken.includes(name);
+      const isSelected = name === currentVal;
+      const photo = photoMap[name];
+      const avInner = photo
+        ? `<img src="${photo}" alt="${escHtml(name)}">`
+        : playerInitials(name);
+      const cls = `player-picker-chip${isTaken ? " taken" : ""}${isSelected ? " selected" : ""}`;
+      return `<button class="${cls}" onclick="pickPlayer(${jsArg(name)})">
       <div class="pp-chip-av" style="background:${photo ? "none" : playerColor(name)}">${avInner}</div>
       <span class="pp-chip-name">${escHtml(name)}</span>
     </button>`;
-  }).join("");
+    })
+    .join("");
   overlay.classList.add("open");
 }
 
@@ -6241,10 +6747,16 @@ function saveQuickName() {
   const email = document.getElementById("name-email")?.value.trim() || "";
   const isGuest = document.getElementById("name-guest")?.checked || false;
 
-  if (!display) { alert("Display name is required"); return; }
+  if (!display) {
+    alert("Display name is required");
+    return;
+  }
 
   const aliases = aliasesText
-    ? aliasesText.split(",").map((a) => a.trim()).filter(Boolean)
+    ? aliasesText
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean)
     : [];
 
   const id = nextPlayerId++;
@@ -6257,8 +6769,10 @@ function saveQuickName() {
 
   document.getElementById("name-display").value = "";
   document.getElementById("name-aliases").value = "";
-  if (document.getElementById("name-email")) document.getElementById("name-email").value = "";
-  if (document.getElementById("name-guest")) document.getElementById("name-guest").checked = false;
+  if (document.getElementById("name-email"))
+    document.getElementById("name-email").value = "";
+  if (document.getElementById("name-guest"))
+    document.getElementById("name-guest").checked = false;
 }
 
 function saveModernMatch() {
@@ -6315,7 +6829,10 @@ function saveModernMatch() {
       [...(old.teamB || [])].sort().join("|") === [...teamB].sort().join("|"),
   );
   if (sameDayConflict) {
-    showDupConfirmSheet("These teams already played on this date. Add anyway?", _doSave);
+    showDupConfirmSheet(
+      "These teams already played on this date. Add anyway?",
+      _doSave,
+    );
     return;
   }
   _doSave();
@@ -6345,8 +6862,18 @@ function _buildStreakCalendarHtml(name) {
   startOfWeek.setDate(endOfWeek.getDate() - 52 * 7 + 1);
 
   const monthLabels = [
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
   ];
 
   // Build columns (weeks) × rows (Sun=0..Sat=6)
@@ -6465,7 +6992,8 @@ function openPlayerDetail(name) {
     return;
   }
   const s = detail.stats;
-  const daysPlayed = new Set(detail.matches.map(m => m.date).filter(Boolean)).size;
+  const daysPlayed = new Set(detail.matches.map((m) => m.date).filter(Boolean))
+    .size;
 
   // ── FORM ENGINE ──────────────────────────────────────────────
   const form = computePlayerForm(name, activeMatches());
@@ -6666,7 +7194,11 @@ function openPlayerDetail(name) {
           if (!a.unlocked && a.progress) {
             const frac = String(a.progress).match(/(\d+)\s*\/\s*(\d+)/);
             const perc = String(a.progress).match(/(\d+)\s*%/);
-            if (frac) pct = Math.min(100, (parseInt(frac[1], 10) / parseInt(frac[2], 10)) * 100);
+            if (frac)
+              pct = Math.min(
+                100,
+                (parseInt(frac[1], 10) / parseInt(frac[2], 10)) * 100,
+              );
             else if (perc) pct = Math.min(100, parseInt(perc[1], 10));
           }
           return `<div class="ach-row${a.unlocked ? " ach-unlocked" : ""}">
@@ -6674,7 +7206,7 @@ function openPlayerDetail(name) {
             <div class="ach-body">
               <div class="ach-head">
                 <span class="ach-label">${a.label}</span>
-                <span class="ach-progress-lbl">${a.unlocked ? "✓ UNLOCKED" : (a.progress || "—")}</span>
+                <span class="ach-progress-lbl">${a.unlocked ? "✓ UNLOCKED" : a.progress || "—"}</span>
               </div>
               <div class="ach-desc">${a.desc}</div>
               <div class="ach-bar"><div class="ach-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
@@ -6862,8 +7394,12 @@ function openPlayerDetail(name) {
     : "";
 
   // Shared match list for enhancements 14-16 and recent cards
-  const pdSortedAll14 = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  const pdPlayerMs = pdSortedAll14.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+  const pdSortedAll14 = [...allMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const pdPlayerMs = pdSortedAll14.filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
+  );
 
   // Enhancement 14: dangerous opponent — opponent with highest win rate AGAINST this player
   const dangerousOppHtml = (() => {
@@ -6871,7 +7407,7 @@ function openPlayerDetail(name) {
     pdPlayerMs.forEach((m) => {
       const inA = (m.teamA || []).includes(name);
       const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const opps = inA ? (m.teamB || []) : (m.teamA || []);
+      const opps = inA ? m.teamB || [] : m.teamA || [];
       opps.forEach((o) => {
         if (!oppData[o]) oppData[o] = { w: 0, p: 0 };
         oppData[o].p++;
@@ -6880,10 +7416,10 @@ function openPlayerDetail(name) {
     });
     const best = Object.entries(oppData)
       .filter(([, d]) => d.p >= 3)
-      .sort((a, b) => (b[1].w / b[1].p) - (a[1].w / a[1].p))[0];
+      .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p)[0];
     if (!best) return "";
     const [oppName, d] = best;
-    const pct = Math.round(d.w / d.p * 100);
+    const pct = Math.round((d.w / d.p) * 100);
     if (pct < 55) return "";
     return `<div class="det-conn">
       <div class="det-conn-icon">⚠️</div>
@@ -7212,32 +7748,52 @@ function openPlayerDetail(name) {
     const eloAfterEach = {};
     pdSortedAll14.forEach((m) => {
       const allP2 = [...(m.teamA || []), ...(m.teamB || [])];
-      allP2.forEach((p) => { if (!(p in runElo2)) runElo2[p] = 1000; });
+      allP2.forEach((p) => {
+        if (!(p in runElo2)) runElo2[p] = 1000;
+      });
       const aWon3 = m.scoreA > m.scoreB;
-      const tA3 = m.teamA || [], tB3 = m.teamB || [];
-      const avgA3 = tA3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tA3.length, 1);
-      const avgB3 = tB3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tB3.length, 1);
+      const tA3 = m.teamA || [],
+        tB3 = m.teamB || [];
+      const avgA3 =
+        tA3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tA3.length, 1);
+      const avgB3 =
+        tB3.reduce((s, p) => s + runElo2[p], 0) / Math.max(tB3.length, 1);
       const expA3 = 1 / (1 + Math.pow(10, (avgB3 - avgA3) / 400));
       const dA3 = Math.round(32 * ((aWon3 ? 1 : 0) - expA3));
       const dB3 = Math.round(32 * ((aWon3 ? 0 : 1) - (1 - expA3)));
-      tA3.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dA3; });
-      tB3.forEach((p) => { runElo2[p] = (runElo2[p] || 1000) + dB3; });
+      tA3.forEach((p) => {
+        runElo2[p] = (runElo2[p] || 1000) + dA3;
+      });
+      tB3.forEach((p) => {
+        runElo2[p] = (runElo2[p] || 1000) + dB3;
+      });
       if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
         const inA4 = (m.teamA || []).includes(name);
         eloAfterEach[pdSortedAll14.indexOf(m)] = { delta: inA4 ? dA3 : dB3 };
       }
     });
-    return last8.map((m) => {
-      const inA4 = (m.teamA || []).includes(name);
-      const won4 = inA4 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const partner = (inA4 ? (m.teamA || []) : (m.teamB || [])).filter((p) => p !== name).map((p) => p.split(" ")[0]).join(" & ") || "—";
-      const opp = (inA4 ? (m.teamB || []) : (m.teamA || [])).map((p) => p.split(" ")[0]).join(" & ");
-      const score = inA4 ? `${m.scoreA}–${m.scoreB}` : `${m.scoreB}–${m.scoreA}`;
-      const eld = eloAfterEach[pdSortedAll14.indexOf(m)];
-      const eloDeltaStr = eld ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}` : "";
-      const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
-      const scoreColor = won4 ? "var(--green)" : "var(--red)";
-      return `<div class="ana-card det-match-card">
+    return last8
+      .map((m) => {
+        const inA4 = (m.teamA || []).includes(name);
+        const won4 = inA4 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+        const partner =
+          (inA4 ? m.teamA || [] : m.teamB || [])
+            .filter((p) => p !== name)
+            .map((p) => p.split(" ")[0])
+            .join(" & ") || "—";
+        const opp = (inA4 ? m.teamB || [] : m.teamA || [])
+          .map((p) => p.split(" ")[0])
+          .join(" & ");
+        const score = inA4
+          ? `${m.scoreA}–${m.scoreB}`
+          : `${m.scoreB}–${m.scoreA}`;
+        const eld = eloAfterEach[pdSortedAll14.indexOf(m)];
+        const eloDeltaStr = eld
+          ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}`
+          : "";
+        const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
+        const scoreColor = won4 ? "var(--green)" : "var(--red)";
+        return `<div class="ana-card det-match-card">
         <div class="det-match-result" style="color:${scoreColor}">${won4 ? "W" : "L"}</div>
         <div class="det-match-body">
           <div class="det-match-score">${score}</div>
@@ -7245,7 +7801,8 @@ function openPlayerDetail(name) {
         </div>
         ${eld ? `<div style="font-size:11px;font-weight:700;color:${eloDeltaCol};flex-shrink:0">${eloDeltaStr}</div>` : ""}
       </div>`;
-    }).join("");
+      })
+      .join("");
   })();
 
   // ── VS-ALL-OPPONENTS BREAKDOWN ───────────────────────────
@@ -7255,25 +7812,36 @@ function openPlayerDetail(name) {
       const inA5 = (m.teamA || []).includes(name);
       const won5 = inA5 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
       const opp5 = inA5 ? m.teamB : m.teamA;
-      const own5 = inA5 ? (m.scoreA) : (m.scoreB);
+      const own5 = inA5 ? m.scoreA : m.scoreB;
       const oppS5 = inA5 ? m.scoreB : m.scoreA;
       opp5.forEach((o) => {
         if (!vsData[o]) vsData[o] = { w: 0, p: 0, margin: 0 };
         vsData[o].p++;
         if (won5) vsData[o].w++;
-        vsData[o].margin += (own5 - oppS5);
+        vsData[o].margin += own5 - oppS5;
       });
     });
     const rows5 = Object.entries(vsData)
       .filter(([, d]) => d.p >= 1)
       .sort((a, b) => b[1].p - a[1].p)
       .map(([opp, d]) => {
-        const pct = Math.round(d.w / d.p * 100);
-        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+        const pct = Math.round((d.w / d.p) * 100);
+        const col =
+          pct >= 60
+            ? "var(--green)"
+            : pct <= 40
+              ? "var(--red)"
+              : "var(--muted)";
         const avgM2 = (d.margin / d.p).toFixed(1);
-        const mc2 = d.margin > 0 ? "var(--green)" : d.margin < 0 ? "var(--red)" : "var(--muted)";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${opp}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p-d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2>0?"+":""}${avgM2}</span></div></div>`;
-      }).join("");
+        const mc2 =
+          d.margin > 0
+            ? "var(--green)"
+            : d.margin < 0
+              ? "var(--red)"
+              : "var(--muted)";
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${opp}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
+      })
+      .join("");
     if (!rows5) return "";
     return `<div class="ana-card"><span class="badge">vs All Opponents</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows5}</div></div>`;
   })();
@@ -7285,50 +7853,74 @@ function openPlayerDetail(name) {
       const inA6 = (m.teamA || []).includes(name);
       const won6 = inA6 ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
       const team6 = inA6 ? m.teamA : m.teamB;
-      team6.filter((p) => p !== name).forEach((p) => {
-        if (!pData[p]) pData[p] = { w: 0, p: 0 };
-        pData[p].p++;
-        if (won6) pData[p].w++;
-      });
+      team6
+        .filter((p) => p !== name)
+        .forEach((p) => {
+          if (!pData[p]) pData[p] = { w: 0, p: 0 };
+          pData[p].p++;
+          if (won6) pData[p].w++;
+        });
     });
     // Enhancement 15: compute cumulative ELO delta when paired with each partner
     const _eloW15 = {};
     const partnerEloDelta = {};
-    const sortedForElo15 = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const sortedForElo15 = [...allMatches].sort((a, b) =>
+      (a.date || "").localeCompare(b.date || ""),
+    );
     sortedForElo15.forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _eloW15)) _eloW15[p] = 1000; });
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in _eloW15)) _eloW15[p] = 1000;
+      });
       const aWon15 = m.scoreA > m.scoreB;
-      const tA15 = m.teamA || [], tB15 = m.teamB || [];
-      const avgA15 = tA15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(tA15.length, 1);
-      const avgB15 = tB15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) / Math.max(tB15.length, 1);
+      const tA15 = m.teamA || [],
+        tB15 = m.teamB || [];
+      const avgA15 =
+        tA15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) /
+        Math.max(tA15.length, 1);
+      const avgB15 =
+        tB15.reduce((s, p) => s + (_eloW15[p] || 1000), 0) /
+        Math.max(tB15.length, 1);
       const expA15 = 1 / (1 + Math.pow(10, (avgB15 - avgA15) / 400));
       const dA15 = Math.round(32 * ((aWon15 ? 1 : 0) - expA15));
       const dB15 = Math.round(32 * ((aWon15 ? 0 : 1) - (1 - expA15)));
-      tA15.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dA15; });
-      tB15.forEach((p) => { _eloW15[p] = (_eloW15[p] || 1000) + dB15; });
+      tA15.forEach((p) => {
+        _eloW15[p] = (_eloW15[p] || 1000) + dA15;
+      });
+      tB15.forEach((p) => {
+        _eloW15[p] = (_eloW15[p] || 1000) + dB15;
+      });
       const inA15 = (m.teamA || []).includes(name);
       const inB15 = (m.teamB || []).includes(name);
       if (inA15 || inB15) {
         const myDelta15 = inA15 ? dA15 : dB15;
         const myTeam15 = inA15 ? m.teamA : m.teamB;
-        myTeam15.filter((p) => p !== name).forEach((p) => {
-          if (!partnerEloDelta[p]) partnerEloDelta[p] = 0;
-          partnerEloDelta[p] += myDelta15;
-        });
+        myTeam15
+          .filter((p) => p !== name)
+          .forEach((p) => {
+            if (!partnerEloDelta[p]) partnerEloDelta[p] = 0;
+            partnerEloDelta[p] += myDelta15;
+          });
       }
     });
     const rows6 = Object.entries(pData)
       .filter(([, d]) => d.p >= 1)
       .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p || b[1].p - a[1].p)
       .map(([partner, d]) => {
-        const pct = Math.round(d.w / d.p * 100);
-        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+        const pct = Math.round((d.w / d.p) * 100);
+        const col =
+          pct >= 60
+            ? "var(--green)"
+            : pct <= 40
+              ? "var(--red)"
+              : "var(--muted)";
         const eloDelta = partnerEloDelta[partner];
-        const eloStr = eloDelta !== undefined
-          ? `<span style="font-size:10px;font-weight:700;color:${eloDelta >= 0 ? 'var(--green)' : 'var(--red)'}">${eloDelta >= 0 ? '+' : ''}${eloDelta}</span>`
-          : '';
+        const eloStr =
+          eloDelta !== undefined
+            ? `<span style="font-size:10px;font-weight:700;color:${eloDelta >= 0 ? "var(--green)" : "var(--red)"}">${eloDelta >= 0 ? "+" : ""}${eloDelta}</span>`
+            : "";
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${eloStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
-      }).join("");
+      })
+      .join("");
     if (!rows6) return "";
     return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ELO gained together</div><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
   })();
@@ -7336,16 +7928,29 @@ function openPlayerDetail(name) {
   // ── PARTNER COMPATIBILITY SCORE ──────────────────────────
   const partnerCompatHtml = (() => {
     const pairStats = getPairStats(activeMatches())
-      .filter((ps) => ps.players.map(normPlayer).includes(normPlayer(name)) && ps.played >= 3)
+      .filter(
+        (ps) =>
+          ps.players.map(normPlayer).includes(normPlayer(name)) &&
+          ps.played >= 3,
+      )
       .sort((a, b) => b.winPct - a.winPct)
       .slice(0, 5);
     if (!pairStats.length) return "";
-    const rows = pairStats.map((ps) => {
-      const partner = ps.players.find((p) => normPlayer(p) !== normPlayer(name)) || ps.players[0];
-      const pct = Math.round(ps.winPct);
-      const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
-      const stars = pct >= 70 ? "★★★" : pct >= 55 ? "★★☆" : pct >= 45 ? "★☆☆" : "☆☆☆";
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+    const rows = pairStats
+      .map((ps) => {
+        const partner =
+          ps.players.find((p) => normPlayer(p) !== normPlayer(name)) ||
+          ps.players[0];
+        const pct = Math.round(ps.winPct);
+        const col =
+          pct >= 60
+            ? "var(--green)"
+            : pct <= 40
+              ? "var(--red)"
+              : "var(--muted)";
+        const stars =
+          pct >= 70 ? "★★★" : pct >= 55 ? "★★☆" : pct >= 45 ? "★☆☆" : "☆☆☆";
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
         <span style="font-size:11px;font-weight:700">${escHtml(partner)}</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:9px;color:var(--muted)">${ps.played}g</span>
@@ -7353,14 +7958,16 @@ function openPlayerDetail(name) {
           <span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span>
         </div>
       </div>`;
-    }).join("");
+      })
+      .join("");
     return `<div class="ana-card"><span class="badge">Partner Compatibility</span><div style="font-size:9px;color:var(--muted);padding:4px 0 8px">Top pairings by win rate (min 3 games)</div>${rows}</div>`;
   })();
 
   // ── BEST DAY TO PLAY ─────────────────────────────────────
   const bestDayHtml = (() => {
     const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const played = Array(7).fill(0), won = Array(7).fill(0);
+    const played = Array(7).fill(0),
+      won = Array(7).fill(0);
     pdPlayerMs.forEach((m) => {
       if (!m.date) return;
       const d = new Date(m.date + "T00:00:00").getDay();
@@ -7371,7 +7978,8 @@ function openPlayerDetail(name) {
     const rows = DAY.map((label, d) => {
       if (!played[d]) return "";
       const wr = Math.round((won[d] / played[d]) * 100);
-      const col = wr >= 60 ? "var(--green)" : wr <= 40 ? "var(--red)" : "var(--muted)";
+      const col =
+        wr >= 60 ? "var(--green)" : wr <= 40 ? "var(--red)" : "var(--muted)";
       return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
         <span style="font-size:10px;font-weight:700;width:28px;flex-shrink:0">${label}</span>
         <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px">
@@ -7385,15 +7993,16 @@ function openPlayerDetail(name) {
     const best = DAY.reduce((b, _, d) => {
       if (played[d] < 2) return b;
       const wr = won[d] / played[d];
-      return (b.d === undefined || wr > b.wr) ? { d, wr } : b;
+      return b.d === undefined || wr > b.wr ? { d, wr } : b;
     }, {});
-    const chip = best.d !== undefined
-      ? `<div style="margin-top:10px;padding:7px 10px;background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
+    const chip =
+      best.d !== undefined
+        ? `<div style="margin-top:10px;padding:7px 10px;background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
           <span style="font-size:18px">📅</span>
           <div><div style="font-size:8px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</div>
           <div style="font-size:13px;font-weight:900;color:var(--accent)">${DAY[best.d]} <span style="font-size:10px;color:var(--green);font-weight:700">${Math.round(best.wr * 100)}% win rate</span></div></div>
         </div>`
-      : "";
+        : "";
     return `<div class="ana-card"><span class="badge">Day of Week</span><div style="margin-top:8px">${rows}</div>${chip}</div>`;
   })();
 
@@ -7422,26 +8031,32 @@ function openPlayerDetail(name) {
       })),
     ];
 
-    const elos = allCoords.map(c => c.elo);
+    const elos = allCoords.map((c) => c.elo);
     const pad = 18;
-    const minE = Math.min(...elos) - pad, maxE = Math.max(...elos) + pad;
+    const minE = Math.min(...elos) - pad,
+      maxE = Math.max(...elos) + pad;
     const eRange = maxE - minE || 1;
-    const W = 320, H = 88;
-    const toX = i => ((i / (allCoords.length - 1)) * W).toFixed(1);
-    const toY = e => (H - ((e - minE) / eRange) * H).toFixed(1);
+    const W = 320,
+      H = 88;
+    const toX = (i) => ((i / (allCoords.length - 1)) * W).toFixed(1);
+    const toY = (e) => (H - ((e - minE) / eRange) * H).toFixed(1);
 
-    const histPath = histPts.map((p, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(p.elo)}`).join(" ");
+    const histPath = histPts
+      .map((p, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(p.elo)}`)
+      .join(" ");
     const joinX = toX(HIST_SHOW - 1);
     const joinY = toY(histPts[histPts.length - 1].elo);
-    const projCoords = allCoords.filter(c => c.proj);
-    const projPath = `M${joinX},${joinY} ` + projCoords.map(c => `L${toX(c.i)},${toY(c.elo)}`).join(" ");
+    const projCoords = allCoords.filter((c) => c.proj);
+    const projPath =
+      `M${joinX},${joinY} ` +
+      projCoords.map((c) => `L${toX(c.i)},${toY(c.elo)}`).join(" ");
 
     const refY = toY(currentElo);
     const trendUp = avgDelta >= 0;
     const trendCol = trendUp ? "var(--green)" : "var(--red)";
     const trendLbl = trendUp ? "↑ CLIMBING" : "↓ DECLINING";
 
-    const mkChip = n => {
+    const mkChip = (n) => {
       const proj = Math.round(currentElo + avgDelta * n);
       const d = proj - currentElo;
       const col = d >= 0 ? "var(--green)" : "var(--red)";
@@ -7452,11 +8067,13 @@ function openPlayerDetail(name) {
       </div>`;
     };
 
-    const markerDots = [10, 20, 30].map(n => {
-      const coord = allCoords[HIST_SHOW - 1 + n];
-      if (!coord) return "";
-      return `<circle cx="${toX(coord.i)}" cy="${toY(coord.elo)}" r="3.5" fill="${trendCol}" stroke="var(--bg-card,#0c0c16)" stroke-width="1.5"/>`;
-    }).join("");
+    const markerDots = [10, 20, 30]
+      .map((n) => {
+        const coord = allCoords[HIST_SHOW - 1 + n];
+        if (!coord) return "";
+        return `<circle cx="${toX(coord.i)}" cy="${toY(coord.elo)}" r="3.5" fill="${trendCol}" stroke="var(--bg-card,#0c0c16)" stroke-width="1.5"/>`;
+      })
+      .join("");
 
     return `<div class="ana-card">
       <span class="badge">ELO Projection</span>
@@ -7490,26 +8107,33 @@ function openPlayerDetail(name) {
     });
     const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]);
     const maxCount = Math.max(...entries.map(([, c]) => c), 1);
-    const bars = entries.map(([score, count]) => {
-      const [own] = score.split("–").map(Number);
-      const isWin = own > (parseInt(score.split("–")[1], 10));
-      const pct = Math.round((count / maxCount) * 100);
-      const col = isWin ? "var(--green)" : "var(--red)";
-      return `<div class="sd-row">
-        <div class="sd-label ${isWin ? 'p' : 'n'}">${score}</div>
+    const bars = entries
+      .map(([score, count]) => {
+        const [own] = score.split("–").map(Number);
+        const isWin = own > parseInt(score.split("–")[1], 10);
+        const pct = Math.round((count / maxCount) * 100);
+        const col = isWin ? "var(--green)" : "var(--red)";
+        return `<div class="sd-row">
+        <div class="sd-label ${isWin ? "p" : "n"}">${score}</div>
         <div class="sd-bar-wrap"><div class="sd-bar" style="width:${pct}%;background:${col}"></div></div>
         <div class="sd-count">${count}</div>
       </div>`;
-    }).join("");
+      })
+      .join("");
     return `<div class="ana-card"><span class="badge">Score Distribution</span><div style="margin-top:8px">${bars}</div></div>`;
   })();
 
   // ── PERSONAL RECORDS CAREER HIGHS ────────────────────────
   const personalRecordsHtml = (() => {
     if (!pdPlayerMs.length) return "";
-    let biggestWin2 = null, biggestWinM = 0;
-    let worstLoss2 = null, worstLossM = 0;
-    let longestWS = 0, longestLS = 0, curWS = 0, curLS = 0;
+    let biggestWin2 = null,
+      biggestWinM = 0;
+    let worstLoss2 = null,
+      worstLossM = 0;
+    let longestWS = 0,
+      longestLS = 0,
+      curWS = 0,
+      curLS = 0;
     const byDate2 = {};
     pdPlayerMs.forEach((m) => {
       const inA7 = (m.teamA || []).includes(name);
@@ -7517,16 +8141,31 @@ function openPlayerDetail(name) {
       const opp7 = inA7 ? m.scoreB : m.scoreA;
       const won7 = own7 > opp7;
       const margin7 = own7 - opp7;
-      if (won7 && margin7 > biggestWinM) { biggestWinM = margin7; biggestWin2 = `${own7}–${opp7}`; }
-      if (!won7 && -margin7 > worstLossM) { worstLossM = -margin7; worstLoss2 = `${own7}–${opp7}`; }
-      if (won7) { curWS++; curLS = 0; if (curWS > longestWS) longestWS = curWS; }
-      else { curLS++; curWS = 0; if (curLS > longestLS) longestLS = curLS; }
+      if (won7 && margin7 > biggestWinM) {
+        biggestWinM = margin7;
+        biggestWin2 = `${own7}–${opp7}`;
+      }
+      if (!won7 && -margin7 > worstLossM) {
+        worstLossM = -margin7;
+        worstLoss2 = `${own7}–${opp7}`;
+      }
+      if (won7) {
+        curWS++;
+        curLS = 0;
+        if (curWS > longestWS) longestWS = curWS;
+      } else {
+        curLS++;
+        curWS = 0;
+        if (curLS > longestLS) longestLS = curLS;
+      }
       if (!m.date) return;
       if (!byDate2[m.date]) byDate2[m.date] = { w: 0, p: 0 };
       byDate2[m.date].p++;
       if (won7) byDate2[m.date].w++;
     });
-    const bestDay2 = Object.entries(byDate2).sort((a, b) => b[1].w - a[1].w || b[1].p - a[1].p)[0];
+    const bestDay2 = Object.entries(byDate2).sort(
+      (a, b) => b[1].w - a[1].w || b[1].p - a[1].p,
+    )[0];
     const peakEloVal = _memoEloPeaks()[name] || playerElo;
     return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
   })();
@@ -7545,38 +8184,89 @@ function openPlayerDetail(name) {
     });
     const moKeys = Object.keys(moMap2).sort().slice(-8);
     if (moKeys.length < 3) return "";
-    const moN4 = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const moN4 = [
+      "",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     const pts2 = moKeys.map((mo, i) => ({
-      mo, pct: moMap2[mo].p ? (moMap2[mo].w / moMap2[mo].p) * 100 : 0, i
+      mo,
+      pct: moMap2[mo].p ? (moMap2[mo].w / moMap2[mo].p) * 100 : 0,
+      i,
     }));
-    const W2 = 300, H2 = 70, pl2 = 8, pr2 = 8, pt3 = 8, pb2 = 18, cW2 = W2 - pl2 - pr2, cH2 = H2 - pt3 - pb2;
+    const W2 = 300,
+      H2 = 70,
+      pl2 = 8,
+      pr2 = 8,
+      pt3 = 8,
+      pb2 = 18,
+      cW2 = W2 - pl2 - pr2,
+      cH2 = H2 - pt3 - pb2;
     const toX3 = (i) => pl2 + (i / (pts2.length - 1 || 1)) * cW2;
     const toY3 = (v) => pt3 + (1 - v / 100) * cH2;
     const col2 = playerColor(name);
-    const polyline3 = pts2.map((p) => `${toX3(p.i).toFixed(1)},${toY3(p.pct).toFixed(1)}`).join(" ");
-    const circles3 = pts2.map((p) => {
-      const c = p.pct >= 60 ? "var(--green)" : p.pct <= 40 ? "var(--red)" : "var(--gold)";
-      return `<circle cx="${toX3(p.i).toFixed(1)}" cy="${toY3(p.pct).toFixed(1)}" r="2.5" fill="${c}"><title>${p.mo}: ${p.pct.toFixed(0)}%</title></circle>`;
-    }).join("");
-    const xLbls2 = pts2.map((p) => `<text x="${toX3(p.i).toFixed(1)}" y="${H2 - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN4[parseInt(p.mo.slice(5))]}</text>`).join("");
-    const area2 = `M${toX3(0).toFixed(1)},${(H2 - pb2).toFixed(1)} ` + pts2.map((p) => `L${toX3(p.i).toFixed(1)},${toY3(p.pct).toFixed(1)}`).join(" ") + ` L${toX3(pts2.length-1).toFixed(1)},${(H2-pb2).toFixed(1)} Z`;
-    return `<div class="ana-card"><span class="badge">Monthly Win Rate</span><div style="overflow-x:auto;margin-top:8px"><svg viewBox="0 0 ${W2} ${H2}" width="100%" style="max-width:${W2}px;display:block;overflow:visible"><defs><linearGradient id="mwrg_${name.replace(/\s/g,"")}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col2}" stop-opacity="0.2"/><stop offset="100%" stop-color="${col2}" stop-opacity="0"/></linearGradient></defs><path d="${area2}" fill="url(#mwrg_${name.replace(/\s/g,"")})"/><polyline points="${polyline3}" fill="none" stroke="${col2}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${circles3}${xLbls2}</svg></div></div>`;
+    const polyline3 = pts2
+      .map((p) => `${toX3(p.i).toFixed(1)},${toY3(p.pct).toFixed(1)}`)
+      .join(" ");
+    const circles3 = pts2
+      .map((p) => {
+        const c =
+          p.pct >= 60
+            ? "var(--green)"
+            : p.pct <= 40
+              ? "var(--red)"
+              : "var(--gold)";
+        return `<circle cx="${toX3(p.i).toFixed(1)}" cy="${toY3(p.pct).toFixed(1)}" r="2.5" fill="${c}"><title>${p.mo}: ${p.pct.toFixed(0)}%</title></circle>`;
+      })
+      .join("");
+    const xLbls2 = pts2
+      .map(
+        (p) =>
+          `<text x="${toX3(p.i).toFixed(1)}" y="${H2 - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN4[parseInt(p.mo.slice(5))]}</text>`,
+      )
+      .join("");
+    const area2 =
+      `M${toX3(0).toFixed(1)},${(H2 - pb2).toFixed(1)} ` +
+      pts2
+        .map((p) => `L${toX3(p.i).toFixed(1)},${toY3(p.pct).toFixed(1)}`)
+        .join(" ") +
+      ` L${toX3(pts2.length - 1).toFixed(1)},${(H2 - pb2).toFixed(1)} Z`;
+    return `<div class="ana-card"><span class="badge">Monthly Win Rate</span><div style="overflow-x:auto;margin-top:8px"><svg viewBox="0 0 ${W2} ${H2}" width="100%" style="max-width:${W2}px;display:block;overflow:visible"><defs><linearGradient id="mwrg_${name.replace(/\s/g, "")}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col2}" stop-opacity="0.2"/><stop offset="100%" stop-color="${col2}" stop-opacity="0"/></linearGradient></defs><path d="${area2}" fill="url(#mwrg_${name.replace(/\s/g, "")})"/><polyline points="${polyline3}" fill="none" stroke="${col2}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${circles3}${xLbls2}</svg></div></div>`;
   })();
 
   // ── STRENGTHS / WEAKNESSES TAGS ───────────────────────────
   const strengthTagsHtml = (() => {
     const tags = [];
-    if (s.winPct >= 65) tags.push({ t: "💪 Consistent Winner", c: "var(--green)" });
-    else if (s.winPct <= 35) tags.push({ t: "📈 Room to Grow", c: "var(--muted)" });
-    if (form && form.momentumLabel === "RISING") tags.push({ t: "🔥 On the Rise", c: "var(--accent)" });
-    else if (form && form.momentumLabel === "DECLINING") tags.push({ t: "📉 Declining Form", c: "var(--red)" });
-    if (closePlayed >= 3 && clutchPct > 60) tags.push({ t: "⚔️ Clutch Performer", c: "var(--green)" });
-    else if (closePlayed >= 3 && clutchPct < 40) tags.push({ t: "😰 Struggles in Close Matches", c: "var(--red)" });
+    if (s.winPct >= 65)
+      tags.push({ t: "💪 Consistent Winner", c: "var(--green)" });
+    else if (s.winPct <= 35)
+      tags.push({ t: "📈 Room to Grow", c: "var(--muted)" });
+    if (form && form.momentumLabel === "RISING")
+      tags.push({ t: "🔥 On the Rise", c: "var(--accent)" });
+    else if (form && form.momentumLabel === "DECLINING")
+      tags.push({ t: "📉 Declining Form", c: "var(--red)" });
+    if (closePlayed >= 3 && clutchPct > 60)
+      tags.push({ t: "⚔️ Clutch Performer", c: "var(--green)" });
+    else if (closePlayed >= 3 && clutchPct < 40)
+      tags.push({ t: "😰 Struggles in Close Matches", c: "var(--red)" });
     const allStats2 = computeStats(activeMatches(), _memoElo());
     const ps2 = allStats2.find((p) => p.name === name);
-    if (ps2?.avgMargin > 2) tags.push({ t: "💥 Dominant in wins", c: "var(--green)" });
-    if (ps2?.consistency != null && ps2.consistency <= 2) tags.push({ t: "🪨 Rock Solid", c: "var(--gold)" });
-    else if (ps2?.consistency != null && ps2.consistency >= 5) tags.push({ t: "🎲 Unpredictable", c: "var(--muted)" });
+    if (ps2?.avgMargin > 2)
+      tags.push({ t: "💥 Dominant in wins", c: "var(--green)" });
+    if (ps2?.consistency != null && ps2.consistency <= 2)
+      tags.push({ t: "🪨 Rock Solid", c: "var(--gold)" });
+    else if (ps2?.consistency != null && ps2.consistency >= 5)
+      tags.push({ t: "🎲 Unpredictable", c: "var(--muted)" });
     if (tags.length === 0) return "";
     return `<div class="ana-card"><span class="badge">Profile Tags</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tags.map((t) => `<span style="background:rgba(255,255,255,0.07);border-radius:20px;padding:4px 10px;font-size:10px;font-weight:700;color:${t.c}">${t.t}</span>`).join("")}</div></div>`;
   })();
@@ -7722,9 +8412,11 @@ function openPlayerDetail(name) {
   document.body.insertAdjacentHTML("beforeend", html);
 
   // Set stagger index for analyticsCardReveal animation in FULL mode
-  document.querySelectorAll("#player-detail-modal .ana-card").forEach((card, i) => {
-    card.style.setProperty("--analytics-index", i);
-  });
+  document
+    .querySelectorAll("#player-detail-modal .ana-card")
+    .forEach((card, i) => {
+      card.style.setProperty("--analytics-index", i);
+    });
 
   // Scroll activity calendar so current month (rightmost column) is visible
   requestAnimationFrame(() => {
@@ -8169,8 +8861,8 @@ function openShareMatchPoster(matchIdx) {
   const _amSlice = activeMatches();
   const _upToIncl = new Set(allMatches.slice(0, matchIdx + 1));
   const _upToBefore = new Set(allMatches.slice(0, matchIdx));
-  const eloMap = computeElo(_amSlice.filter(m => _upToIncl.has(m)));
-  const eloMapBefore = computeElo(_amSlice.filter(m => _upToBefore.has(m)));
+  const eloMap = computeElo(_amSlice.filter((m) => _upToIncl.has(m)));
+  const eloMapBefore = computeElo(_amSlice.filter((m) => _upToBefore.has(m)));
   const aWon = m.scoreA > m.scoreB;
   const winTeam = aWon ? m.teamA : m.teamB;
   const losTeam = aWon ? m.teamB : m.teamA;
@@ -8271,14 +8963,22 @@ function _animEloCounts() {
     });
 }
 
-let _shareBlob = null, _shareLabel = "";
+let _shareBlob = null,
+  _shareLabel = "";
 
 function openSummaryShare() {
-  if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
+  if (!window.html2canvas) {
+    showToast("Capture not available", "❌");
+    return;
+  }
   const askChoice = localStorage.getItem("screenshot_ask_choice") === "1";
   if (askChoice) {
-    document.getElementById("screenshot-choice-overlay")?.classList.add("live-sheet-open");
-    document.getElementById("screenshot-choice-sheet")?.classList.add("live-sheet-open");
+    document
+      .getElementById("screenshot-choice-overlay")
+      ?.classList.add("live-sheet-open");
+    document
+      .getElementById("screenshot-choice-sheet")
+      ?.classList.add("live-sheet-open");
   } else {
     // Default: TODAY → leaderboard + matches; all other filters → leaderboard only
     doSummaryScreenshot(cmpFilter === "today");
@@ -8286,15 +8986,22 @@ function openSummaryShare() {
 }
 
 function closeScreenshotChoiceSheet() {
-  document.getElementById("screenshot-choice-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("screenshot-choice-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("screenshot-choice-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("screenshot-choice-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 async function doSummaryScreenshot(includeMatches) {
   closeScreenshotChoiceSheet();
   showToast("Capturing…", "📸");
   const captureEl = document.querySelector("#pg-compact .cmp-body-scroll");
-  if (!captureEl) { showToast("No data to capture", "❌"); return; }
+  if (!captureEl) {
+    showToast("No data to capture", "❌");
+    return;
+  }
 
   // Flush staggered leaderboard rows if animation still in progress
   if (_cmpLeaderHtmls.length) {
@@ -8302,13 +9009,13 @@ async function doSummaryScreenshot(includeMatches) {
     if (tbody) tbody.innerHTML = _cmpLeaderHtmls.join("");
   }
   // Flush SR pill counter animations to final values
-  captureEl.querySelectorAll(".sr-pill-val[data-final]").forEach(el => {
+  captureEl.querySelectorAll(".sr-pill-val[data-final]").forEach((el) => {
     el.textContent = el.dataset.final;
   });
 
   // Always hide HIGHLIGHTS card
   const highlights = captureEl.querySelectorAll(".hist-summary-card");
-  highlights.forEach(el => el.style.display = "none");
+  highlights.forEach((el) => (el.style.display = "none"));
 
   // Optionally hide matches section
   const matchesHeader = captureEl.querySelector(".cmp-matches-header");
@@ -8318,10 +9025,18 @@ async function doSummaryScreenshot(includeMatches) {
     if (matchesBody) matchesBody.style.display = "none";
   }
 
-  const fnameMap = { all: "AllTime", today: "Today", week: "ThisWeek", lastweek: "LastWeek", weekend: "Weekend", month: "ThisMonth", range: "Custom" };
+  const fnameMap = {
+    all: "AllTime",
+    today: "Today",
+    week: "ThisWeek",
+    lastweek: "LastWeek",
+    weekend: "Weekend",
+    month: "ThisMonth",
+    range: "Custom",
+  };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
   const restore = () => {
-    highlights.forEach(el => el.style.display = "");
+    highlights.forEach((el) => (el.style.display = ""));
     if (!includeMatches) {
       if (matchesHeader) matchesHeader.style.display = "";
       if (matchesBody) matchesBody.style.display = "";
@@ -8354,15 +9069,30 @@ function closeSharePreview() {
   const sheet = document.getElementById("share-preview-sheet");
   if (sheet) sheet.classList.remove("open");
   const img = document.getElementById("share-preview-img");
-  if (img && img.src.startsWith("blob:")) { URL.revokeObjectURL(img.src); img.src = ""; }
+  if (img && img.src.startsWith("blob:")) {
+    URL.revokeObjectURL(img.src);
+    img.src = "";
+  }
   _shareBlob = null;
 }
 
 async function doShareWhatsApp() {
   if (!_shareBlob) return;
-  const file = new File([_shareBlob], `EktaPadel-${_shareLabel}.png`, { type: "image/png" });
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], title: "Ekta Padel", text: `${_shareLabel} Leaderboard` }).catch(() => {});
+  const file = new File([_shareBlob], `EktaPadel-${_shareLabel}.png`, {
+    type: "image/png",
+  });
+  if (
+    navigator.share &&
+    navigator.canShare &&
+    navigator.canShare({ files: [file] })
+  ) {
+    await navigator
+      .share({
+        files: [file],
+        title: "Ekta Padel",
+        text: `${_shareLabel} Leaderboard`,
+      })
+      .catch(() => {});
   } else {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(_shareBlob);
@@ -8474,11 +9204,22 @@ function closeSnapshot() {
 }
 
 async function shareSnapshot() {
-  if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
+  if (!window.html2canvas) {
+    showToast("Capture not available", "❌");
+    return;
+  }
   showToast("Capturing…", "📸");
   const snapEl = document.getElementById("snap-content");
   if (!snapEl) return;
-  const fnameMap = { all: "AllTime", today: "Today", week: "ThisWeek", lastweek: "LastWeek", weekend: "Weekend", month: "ThisMonth", range: "Custom" };
+  const fnameMap = {
+    all: "AllTime",
+    today: "Today",
+    week: "ThisWeek",
+    lastweek: "LastWeek",
+    weekend: "Weekend",
+    month: "ThisMonth",
+    range: "Custom",
+  };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
   try {
     const canvas = await window.html2canvas(snapEl, {
@@ -8740,7 +9481,9 @@ function openDigestPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
+  const players = sortPlayersGuestsLast(
+    computeStats(activeMatches()).map((s) => s.name),
+  );
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
     players
@@ -9396,7 +10139,9 @@ function _h2hSortPlayers(players) {
     );
   } else if (_h2hMatrixSort === "winrate") {
     sorted.sort(
-      (a, b) => (winPct[b] || 0) - (winPct[a] || 0) || (matchCount[b] || 0) - (matchCount[a] || 0),
+      (a, b) =>
+        (winPct[b] || 0) - (winPct[a] || 0) ||
+        (matchCount[b] || 0) - (matchCount[a] || 0),
     );
   } else if (_h2hMatrixSort === "name") {
     return sortPlayersGuestsLast(sorted);
@@ -9488,10 +10233,14 @@ function _h2hHighlightRow(tr) {
   if (!table) return;
   const all = table.querySelectorAll("tbody tr");
   const isHighlighted = tr.classList.contains("pvp-row-highlight");
-  all.forEach((r) => { r.classList.remove("pvp-row-highlight", "pvp-dimmed"); });
+  all.forEach((r) => {
+    r.classList.remove("pvp-row-highlight", "pvp-dimmed");
+  });
   if (!isHighlighted) {
     tr.classList.add("pvp-row-highlight");
-    all.forEach((r) => { if (r !== tr) r.classList.add("pvp-dimmed"); });
+    all.forEach((r) => {
+      if (r !== tr) r.classList.add("pvp-dimmed");
+    });
   }
 }
 
@@ -9588,7 +10337,9 @@ function openCmpSheet(slot) {
   if (!list) return;
   const taken = slot === "A" ? _cmpPlayerB : _cmpPlayerA;
   const selected = slot === "A" ? _cmpPlayerA : _cmpPlayerB;
-  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
+  const players = sortPlayersGuestsLast(
+    computeStats(activeMatches()).map((s) => s.name),
+  );
   list.innerHTML = players
     .map((p) => {
       const disabled =
@@ -9750,13 +10501,19 @@ function renderCompareSelector() {
     card.innerHTML = "";
     return;
   }
-  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
+  const players = sortPlayersGuestsLast(
+    computeStats(activeMatches()).map((s) => s.name),
+  );
   const opts =
     `<option value="">P1</option>` +
-    players.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
+    players
+      .map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`)
+      .join("");
   const optsB =
     `<option value="">P2</option>` +
-    players.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
+    players
+      .map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`)
+      .join("");
   _cmpPlayerA = "";
   _cmpPlayerB = "";
   _cmpDateFilter = "all";
@@ -9987,7 +10744,11 @@ function toggleAnaFav(key, e) {
 }
 
 function getAnaHidden() {
-  try { return JSON.parse(localStorage.getItem(ANA_HIDDEN_KEY)) || []; } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(ANA_HIDDEN_KEY)) || [];
+  } catch {
+    return [];
+  }
 }
 function saveAnaHidden(a) {
   localStorage.setItem(ANA_HIDDEN_KEY, JSON.stringify(a));
@@ -9996,14 +10757,20 @@ function toggleAnaHidden(key, e) {
   e.stopPropagation();
   const hidden = getAnaHidden();
   const idx = hidden.indexOf(key);
-  if (idx === -1) hidden.push(key); else hidden.splice(idx, 1);
+  if (idx === -1) hidden.push(key);
+  else hidden.splice(idx, 1);
   saveAnaHidden(hidden);
   const isNowHidden = idx === -1;
   const sec = document.querySelector(`.ana-sec[data-key="${key}"]`);
   if (sec) {
-    if (isNowHidden) sec.dataset.hidden = "true"; else delete sec.dataset.hidden;
+    if (isNowHidden) sec.dataset.hidden = "true";
+    else delete sec.dataset.hidden;
     const btn = sec.querySelector(".ana-hide-btn");
-    if (btn) { btn.classList.toggle("active", isNowHidden); btn.title = isNowHidden ? "Unhide" : "Hide"; btn.textContent = isNowHidden ? "+" : "−"; }
+    if (btn) {
+      btn.classList.toggle("active", isNowHidden);
+      btn.title = isNowHidden ? "Unhide" : "Hide";
+      btn.textContent = isNowHidden ? "+" : "−";
+    }
   }
   anaFilterCategory(_anaActiveCat, true);
 }
@@ -10118,11 +10885,17 @@ function anaSearchInput(q) {
   if (!res) return;
   _anaSearchIdx = -1;
   const query = (q || "").trim().toLowerCase();
-  if (!query) { res.innerHTML = ""; return; }
+  if (!query) {
+    res.innerHTML = "";
+    return;
+  }
 
-  const matches = _anaSections.filter(s =>
-    s.title.toLowerCase().replace(/[^\w\s]/g, "").includes(query) ||
-    s.key.toLowerCase().includes(query)
+  const matches = _anaSections.filter(
+    (s) =>
+      s.title
+        .toLowerCase()
+        .replace(/[^\w\s]/g, "")
+        .includes(query) || s.key.toLowerCase().includes(query),
   );
 
   if (!matches.length) {
@@ -10130,28 +10903,45 @@ function anaSearchInput(q) {
     return;
   }
 
-  const catLabel = { activity:"Activity", players:"Players", records:"Records", elo:"ELO", rivals:"Rivals" };
-  res.innerHTML = matches.slice(0, 8).map((s, i) =>
-    `<div class="ana-sov-item" data-key="${s.key}" style="animation-delay:${i * 40}ms"
+  const catLabel = {
+    activity: "Activity",
+    players: "Players",
+    records: "Records",
+    elo: "ELO",
+    rivals: "Rivals",
+  };
+  res.innerHTML = matches
+    .slice(0, 8)
+    .map(
+      (s, i) =>
+        `<div class="ana-sov-item" data-key="${s.key}" style="animation-delay:${i * 40}ms"
       onmousedown="anaSearchSelect('${s.key}')">
       <span class="ana-sov-item-icon">${s.title.match(/^\p{Emoji}/u)?.[0] || "📋"}</span>
       <span class="ana-sov-item-title">${s.title.replace(/^\p{Emoji}\s*/u, "")}</span>
       <span class="ana-sov-item-cat">${catLabel[s.cat] || s.cat}</span>
-    </div>`
-  ).join("");
+    </div>`,
+    )
+    .join("");
 }
 
 function anaSearchKey(e) {
   const items = document.querySelectorAll(".ana-sov-item");
-  if (e.key === "Escape") { closeAnaSearch(); return; }
-  if (e.key === "ArrowDown") { _anaSearchIdx = Math.min(_anaSearchIdx + 1, items.length - 1); }
-  else if (e.key === "ArrowUp") { _anaSearchIdx = Math.max(_anaSearchIdx - 1, 0); }
-  else if (e.key === "Enter" && _anaSearchIdx >= 0) {
+  if (e.key === "Escape") {
+    closeAnaSearch();
+    return;
+  }
+  if (e.key === "ArrowDown") {
+    _anaSearchIdx = Math.min(_anaSearchIdx + 1, items.length - 1);
+  } else if (e.key === "ArrowUp") {
+    _anaSearchIdx = Math.max(_anaSearchIdx - 1, 0);
+  } else if (e.key === "Enter" && _anaSearchIdx >= 0) {
     const key = items[_anaSearchIdx]?.dataset.key;
     if (key) anaSearchSelect(key);
     return;
   } else return;
-  items.forEach((el, i) => el.classList.toggle("ana-sov-item-focus", i === _anaSearchIdx));
+  items.forEach((el, i) =>
+    el.classList.toggle("ana-sov-item-focus", i === _anaSearchIdx),
+  );
   e.preventDefault();
 }
 
@@ -10159,9 +10949,13 @@ function anaSearchSelect(key) {
   closeAnaSearch();
   const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
   if (!el) return;
-  if (_anaActiveCat !== "all" && el.dataset.cat !== _anaActiveCat) anaFilterCategory("all", true);
+  if (_anaActiveCat !== "all" && el.dataset.cat !== _anaActiveCat)
+    anaFilterCategory("all", true);
   if (el.classList.contains("collapsed")) toggleAnaSection(key);
-  setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  setTimeout(
+    () => el.scrollIntoView({ behavior: "smooth", block: "start" }),
+    80,
+  );
   el.classList.remove("ana-sec-highlight");
   void el.offsetWidth;
   el.classList.add("ana-sec-highlight");
@@ -11632,16 +12426,18 @@ function computeSeasons(matches) {
       const pairs = getPairStats(ms).filter((p) => p.played >= 2);
       const mvp = stats[0] || null;
       const topPair = pairs[0] || null;
-      const priorEloMap = stats.length > 1
-        ? computeElo(sorted.filter((m) => (m.date || "") < month + "-01"))
-        : null;
-      const mostImproved =
-        priorEloMap
-          ? [...stats].sort((a, b) =>
-              (eloMap[b.name] || 1000) - (priorEloMap[b.name] || 1000) -
-              ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000))
-            )[0]
+      const priorEloMap =
+        stats.length > 1
+          ? computeElo(sorted.filter((m) => (m.date || "") < month + "-01"))
           : null;
+      const mostImproved = priorEloMap
+        ? [...stats].sort(
+            (a, b) =>
+              (eloMap[b.name] || 1000) -
+              (priorEloMap[b.name] || 1000) -
+              ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000)),
+          )[0]
+        : null;
       const ironMan = stats.length
         ? [...stats].sort((a, b) => b.mp - a.mp)[0]
         : null;
@@ -11755,7 +12551,6 @@ function runMatchSimulator() {
     </div>`;
 }
 
-
 function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || _eloTLFilter || "all";
   _eloTLFilter = filterKey;
@@ -11838,18 +12633,24 @@ function buildEloTimelineHtml(filterKey) {
     if (_eloTLOverlay && _eloTLOverlay !== name && history[_eloTLOverlay]) {
       let rawOpts = [...history[_eloTLOverlay]];
       if (filterKey === "3m") {
-        const c = new Date(now); c.setMonth(c.getMonth() - 3);
+        const c = new Date(now);
+        c.setMonth(c.getMonth() - 3);
         rawOpts = rawOpts.filter((p) => (p.date || "") >= toLocalISODate(c));
       } else if (filterKey === "1m") {
-        const c = new Date(now); c.setMonth(c.getMonth() - 1);
+        const c = new Date(now);
+        c.setMonth(c.getMonth() - 1);
         rawOpts = rawOpts.filter((p) => (p.date || "") >= toLocalISODate(c));
       } else if (filterKey === "1w") {
-        const c = new Date(now); c.setDate(c.getDate() - 7);
+        const c = new Date(now);
+        c.setDate(c.getDate() - 7);
         rawOpts = rawOpts.filter((p) => (p.date || "") >= toLocalISODate(c));
       } else if (filterKey === "thisweek") {
         rawOpts = rawOpts.filter((p) => (p.date || "") >= thisMondayStr);
       } else if (filterKey === "lastweek") {
-        rawOpts = rawOpts.filter((p) => (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr);
+        rawOpts = rawOpts.filter(
+          (p) =>
+            (p.date || "") >= lastMondayStr && (p.date || "") <= lastSundayStr,
+        );
       } else if (filterKey === "today") {
         rawOpts = rawOpts.filter((p) => p.date === todayStr);
       }
@@ -11865,7 +12666,10 @@ function buildEloTimelineHtml(filterKey) {
     const rawMin = Math.min(...allElos);
     const rawMax = Math.max(...allElos);
     const combinedRange = rawMax - rawMin;
-    const H = Math.max(100, Math.min(220, pt + pb + Math.round(combinedRange * 0.6)));
+    const H = Math.max(
+      100,
+      Math.min(220, pt + pb + Math.round(combinedRange * 0.6)),
+    );
     const cW = W - pl - pr,
       cH = H - pt - pb;
     const minE = rawMin - 15;
@@ -11929,7 +12733,8 @@ function buildEloTimelineHtml(filterKey) {
     };
     const peakTroughAnnotations =
       peakIdx !== troughIdx
-        ? annot(peakIdx, "▲", "var(--gold)") + annot(troughIdx, "▼", "var(--red)")
+        ? annot(peakIdx, "▲", "var(--gold)") +
+          annot(troughIdx, "▼", "var(--red)")
         : "";
 
     // Overlay: 2nd player line (uses pre-computed overlayPts)
@@ -11937,7 +12742,10 @@ function buildEloTimelineHtml(filterKey) {
     if (overlayPts.length >= 2) {
       const overlayCol = playerColor(_eloTLOverlay);
       const overlayPoly = overlayPts
-        .map((p, i) => `${toX((i / Math.max(overlayPts.length - 1, 1)) * (pts.length - 1)).toFixed(1)},${toY(p.elo).toFixed(1)}`)
+        .map(
+          (p, i) =>
+            `${toX((i / Math.max(overlayPts.length - 1, 1)) * (pts.length - 1)).toFixed(1)},${toY(p.elo).toFixed(1)}`,
+        )
         .join(" ");
       overlayHtml = `<polyline points="${overlayPoly}" fill="none" stroke="${overlayCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3" opacity="0.85"/>
         <text x="${(toX(pts.length - 1) - 4).toFixed(1)}" y="${(toY(overlayPts[overlayPts.length - 1].elo) - 5).toFixed(1)}" text-anchor="end" font-size="9" font-weight="800" fill="${overlayCol}">${_eloTLOverlay}</text>`;
@@ -11989,13 +12797,17 @@ function openEloTLOverlaySheet() {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
   const history = _memoEloHistory();
-  const players = sortPlayersGuestsLast(Object.keys(history).filter((p) => p !== _eloTLPlayer));
+  const players = sortPlayersGuestsLast(
+    Object.keys(history).filter((p) => p !== _eloTLPlayer),
+  );
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
-    players.map((p) => {
-      const sel = p === _eloTLOverlay ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
-    }).join("");
+    players
+      .map((p) => {
+        const sel = p === _eloTLOverlay ? " live-sheet-item-selected" : "";
+        return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
+      })
+      .join("");
   const overlay = document.getElementById("filter-sheet-overlay");
   const sheet = document.getElementById("filter-sheet");
   if (overlay) overlay.classList.add("live-sheet-open");
@@ -12068,7 +12880,9 @@ function openEloProbSheet(slot) {
   if (!list) return;
   const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
   const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
-  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
+  const players = sortPlayersGuestsLast(
+    computeStats(activeMatches()).map((s) => s.name),
+  );
   list.innerHTML = players
     .map((p) => {
       const disabled =
@@ -12089,7 +12903,9 @@ function openWhatIfPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
+  const players = sortPlayersGuestsLast(
+    computeStats(activeMatches()).map((s) => s.name),
+  );
   list.innerHTML = players
     .map((p) => {
       const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
@@ -12278,9 +13094,7 @@ function recomputeWhatIfElo() {
     diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
   const sign = diff > 0 ? "+" : "";
   // Rank change
-  const actualRanked = Object.entries(_memoElo()).sort(
-    (a, b) => b[1] - a[1],
-  );
+  const actualRanked = Object.entries(_memoElo()).sort((a, b) => b[1] - a[1]);
   const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort(
     (a, b) => b[1] - a[1],
   );
@@ -12334,8 +13148,9 @@ function recomputeWhatIfElo() {
 // ── RANK HISTORY HELPERS ──────────────────────────────────────
 
 function _secBody(fn) {
-  try { return fn(); }
-  catch (e) {
+  try {
+    return fn();
+  } catch (e) {
     console.error("[Analytics section error]", e);
     return `<div style="color:var(--muted);font-size:11px;padding:8px 0">Section unavailable — <code style="font-size:10px">${escHtml(String(e))}</code></div>`;
   }
@@ -12373,20 +13188,39 @@ function _computeRankPeriods(periodType) {
     } else {
       key = m.date.slice(0, 7);
     }
-    if (!buckets[key]) buckets[key] = { key, matches: [], from: m.date, to: m.date };
+    if (!buckets[key])
+      buckets[key] = { key, matches: [], from: m.date, to: m.date };
     buckets[key].matches.push(m);
     if (m.date < buckets[key].from) buckets[key].from = m.date;
     if (m.date > buckets[key].to) buckets[key].to = m.date;
   });
 
-  const _shortMonths = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const _shortMonths = [
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const result = Object.values(buckets)
     .sort((a, b) => a.key.localeCompare(b.key))
     .map((b, idx) => {
-      const distinct = new Set(b.matches.flatMap(m => [...(m.teamA||[]), ...(m.teamB||[])]));
+      const distinct = new Set(
+        b.matches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]),
+      );
       let label;
       if (periodType === "week") {
-        const parts = fmtDate(b.key).replace(/^\w+,\s*/, "").replace(/\s\d{4}$/, "");
+        const parts = fmtDate(b.key)
+          .replace(/^\w+,\s*/, "")
+          .replace(/\s\d{4}$/, "");
         label = "Wk " + parts;
       } else if (periodType === "today") {
         const [, mo, dd] = b.key.split("-");
@@ -12398,19 +13232,55 @@ function _computeRankPeriods(periodType) {
         const [y, mo] = b.key.split("-");
         label = _shortMonths[parseInt(mo)] + " '" + y.slice(2);
       }
-      if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
+      if (distinct.size < _MIN_RANK_PLAYERS)
+        return {
+          key: b.key,
+          from: b.from,
+          to: b.to,
+          label,
+          ranks: [],
+          totalPlayers: 0,
+          idx,
+        };
+      // Period must have at least 2 matches played (session minimum)
+      if (b.matches.length < 2)
+        return {
+          key: b.key,
+          from: b.from,
+          to: b.to,
+          label,
+          ranks: [],
+          totalPlayers: 0,
+          idx,
+        };
       const eloMap = computeElo(b.matches);
       const statsArr = computeStats(b.matches, eloMap);
-      const qualified = statsArr.filter(p => p.mp >= 2);
-      if (qualified.length < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], totalPlayers: 0, idx };
-      const ranks = qualified.map((p, i) => ({
+      if (statsArr.length < _MIN_RANK_PLAYERS)
+        return {
+          key: b.key,
+          from: b.from,
+          to: b.to,
+          label,
+          ranks: [],
+          totalPlayers: 0,
+          idx,
+        };
+      const ranks = statsArr.map((p, i) => ({
         name: p.name,
         rank: i + 1,
-        trueRank: statsArr.indexOf(p) + 1,
+        trueRank: i + 1,
         sr: p.sr,
         mp: p.mp,
       }));
-      return { key: b.key, from: b.from, to: b.to, label, ranks, totalPlayers: statsArr.length, idx };
+      return {
+        key: b.key,
+        from: b.from,
+        to: b.to,
+        label,
+        ranks,
+        totalPlayers: statsArr.length,
+        idx,
+      };
     });
 
   return (_rankPeriodCache[fp] = result);
@@ -12427,7 +13297,7 @@ function _rankBg(rank, maxRank) {
 
 function _buildPodiumTrackerHtml(periodType) {
   const periods = _computeRankPeriods(periodType);
-  const validPeriods = periods.filter(p => p.ranks.length > 0);
+  const validPeriods = periods.filter((p) => p.ranks.length > 0);
   if (validPeriods.length < 2)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
 
@@ -12435,12 +13305,22 @@ function _buildPodiumTrackerHtml(periodType) {
   const tally = {};
   validPeriods.forEach((p) => {
     p.ranks.forEach((r) => {
-      if (!tally[r.name]) tally[r.name] = { name: r.name, g: 0, s: 0, b: 0, periodsPlayed: 0, extra: {} };
+      if (!tally[r.name])
+        tally[r.name] = {
+          name: r.name,
+          g: 0,
+          s: 0,
+          b: 0,
+          periodsPlayed: 0,
+          extra: {},
+        };
       tally[r.name].periodsPlayed++;
       if (r.rank === 1) tally[r.name].g++;
       else if (r.rank === 2) tally[r.name].s++;
       else if (r.rank === 3) tally[r.name].b++;
-      else { tally[r.name].extra[r.rank] = (tally[r.name].extra[r.rank] || 0) + 1; }
+      else {
+        tally[r.name].extra[r.rank] = (tally[r.name].extra[r.rank] || 0) + 1;
+      }
       if (r.rank > maxRank) maxRank = r.rank;
     });
   });
@@ -12448,9 +13328,15 @@ function _buildPodiumTrackerHtml(periodType) {
   const extraRanks = Array.from({ length: maxRank - 3 }, (_, i) => i + 4);
 
   const rows = Object.values(tally)
-    .map(p => ({ ...p, podiums: p.g + p.s + p.b,
-      podiumRate: p.periodsPlayed >= _MIN_RANK_PERIODS ? (p.g + p.s + p.b) / p.periodsPlayed : 0 }))
-    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
+    .map((p) => ({
+      ...p,
+      podiums: p.g + p.s + p.b,
+      podiumRate:
+        p.periodsPlayed >= _MIN_RANK_PERIODS
+          ? (p.g + p.s + p.b) / p.periodsPlayed
+          : 0,
+    }))
+    .filter((p) => p.periodsPlayed >= _MIN_RANK_PERIODS)
     .sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b);
 
   if (!rows.length)
@@ -12461,9 +13347,10 @@ function _buildPodiumTrackerHtml(periodType) {
   const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
   const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
 
-  const mkD = (count, rankVal, name) => count > 0
-    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openPodiumDrill(${jsArg(name)},${typeof rankVal==='number'?rankVal:jsArg(rankVal)},${jsArg(periodType)})">${count}</span>`
-    : `<span style="color:rgba(255,255,255,0.18)">${count}</span>`;
+  const mkD = (count, rankVal, name) =>
+    count > 0
+      ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openPodiumDrill(${jsArg(name)},${typeof rankVal === "number" ? rankVal : jsArg(rankVal)},${jsArg(periodType)})">${count}</span>`
+      : `<span style="color:rgba(255,255,255,0.18)">${count}</span>`;
 
   const thead = `<tr>
     <th style="${_th};${_stickyTh};text-align:left">Player</th>
@@ -12472,18 +13359,22 @@ function _buildPodiumTrackerHtml(periodType) {
     <th style="${_th}">🥉</th>
     <th style="${_th}">Podiums</th>
     <th style="${_th}">%</th>
-    ${extraRanks.map(n => `<th style="${_th}">#${n}</th>`).join("")}
+    ${extraRanks.map((n) => `<th style="${_th}">#${n}</th>`).join("")}
   </tr>`;
 
-  const tbody = rows.map(r => `<tr>
+  const tbody = rows
+    .map(
+      (r) => `<tr>
     <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
     <td style="${_td};color:${_rankColor(1, maxRank)}">${mkD(r.g, 1, r.name)}</td>
     <td style="${_td};color:${_rankColor(2, maxRank)}">${mkD(r.s, 2, r.name)}</td>
     <td style="${_td};color:${_rankColor(3, maxRank)}">${mkD(r.b, 3, r.name)}</td>
     <td style="${_td}">${mkD(r.podiums, "podiums", r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
     <td style="${_td};color:var(--theme);text-align:right">${r.periodsPlayed >= _MIN_RANK_PERIODS ? (r.podiumRate * 100).toFixed(0) + "%" : "—"}</td>
-    ${extraRanks.map(n => `<td style="${_td};color:${_rankColor(n, maxRank)}">${mkD(r.extra?.[n] || 0, n, r.name)}</td>`).join("")}
-  </tr>`).join("");
+    ${extraRanks.map((n) => `<td style="${_td};color:${_rankColor(n, maxRank)}">${mkD(r.extra?.[n] || 0, n, r.name)}</td>`).join("")}
+  </tr>`,
+    )
+    .join("");
 
   return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
     <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
@@ -12495,7 +13386,7 @@ function _buildPodiumTrackerHtml(periodType) {
 
 function _buildAntiPodiumTrackerHtml(periodType) {
   const periods = _computeRankPeriods(periodType);
-  const validPeriods = periods.filter(p => p.ranks.length > 0);
+  const validPeriods = periods.filter((p) => p.ranks.length > 0);
   if (validPeriods.length < 2)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div>';
 
@@ -12503,7 +13394,8 @@ function _buildAntiPodiumTrackerHtml(periodType) {
   validPeriods.forEach((p) => {
     const total = p.totalPlayers;
     p.ranks.forEach((r) => {
-      if (!tally[r.name]) tally[r.name] = { name: r.name, l: 0, sl: 0, periodsPlayed: 0 };
+      if (!tally[r.name])
+        tally[r.name] = { name: r.name, l: 0, sl: 0, periodsPlayed: 0 };
       tally[r.name].periodsPlayed++;
       if (r.trueRank === total) tally[r.name].l++;
       else if (r.trueRank === total - 1) tally[r.name].sl++;
@@ -12511,9 +13403,15 @@ function _buildAntiPodiumTrackerHtml(periodType) {
   });
 
   const rows = Object.values(tally)
-    .map(p => ({ ...p, bottom2: p.l + p.sl,
-      bottom2Rate: p.periodsPlayed >= _MIN_RANK_PERIODS ? (p.l + p.sl) / p.periodsPlayed : 0 }))
-    .filter(p => p.periodsPlayed >= _MIN_RANK_PERIODS)
+    .map((p) => ({
+      ...p,
+      bottom2: p.l + p.sl,
+      bottom2Rate:
+        p.periodsPlayed >= _MIN_RANK_PERIODS
+          ? (p.l + p.sl) / p.periodsPlayed
+          : 0,
+    }))
+    .filter((p) => p.periodsPlayed >= _MIN_RANK_PERIODS)
     .sort((a, b) => b.l - a.l || b.sl - a.sl);
 
   if (!rows.length)
@@ -12524,9 +13422,10 @@ function _buildAntiPodiumTrackerHtml(periodType) {
   const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
   const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
   const _dim = `<span style="color:rgba(255,255,255,0.18)">0</span>`;
-  const mkA = (count, pos, name) => count > 0
-    ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openAntiPodiumDrill(${jsArg(name)},${jsArg(pos)},${jsArg(periodType)})">${count}</span>`
-    : _dim;
+  const mkA = (count, pos, name) =>
+    count > 0
+      ? `<span style="cursor:pointer;border-bottom:1px dotted currentColor" onclick="_openAntiPodiumDrill(${jsArg(name)},${jsArg(pos)},${jsArg(periodType)})">${count}</span>`
+      : _dim;
 
   const thead = `<tr>
     <th style="${_th};${_stickyTh};text-align:left">Player</th>
@@ -12536,13 +13435,17 @@ function _buildAntiPodiumTrackerHtml(periodType) {
     <th style="${_th}">%</th>
   </tr>`;
 
-  const tbody = rows.map(r => `<tr>
+  const tbody = rows
+    .map(
+      (r) => `<tr>
     <td style="${_td};${_stickyTd};text-align:left;font-weight:700">${escHtml(r.name)}</td>
     <td style="${_td};color:#ff3b3b">${mkA(r.l, "last", r.name)}</td>
     <td style="${_td};color:rgba(255,140,0,0.9)">${mkA(r.sl, "secondlast", r.name)}</td>
     <td style="${_td}">${mkA(r.bottom2, "bottom2", r.name)}<span style="font-size:9px;color:var(--muted)"> /${r.periodsPlayed}</span></td>
     <td style="${_td};color:var(--theme);text-align:right">${(r.bottom2Rate * 100).toFixed(0)}%</td>
-  </tr>`).join("");
+  </tr>`,
+    )
+    .join("");
 
   return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
     <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
@@ -12559,7 +13462,7 @@ function _buildRankReignHtml() {
   if (_reignCache[fp]) return _reignCache[fp];
 
   // All distinct match days sorted chronologically
-  const allDates = [...new Set(allM.map(m => m.date).filter(Boolean))].sort();
+  const allDates = [...new Set(allM.map((m) => m.date).filter(Boolean))].sort();
   if (allDates.length < 2)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
 
@@ -12567,33 +13470,40 @@ function _buildRankReignHtml() {
   const eloMap = computeElo(allM);
   const eloRanking = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   const eloRankOf = {};
-  eloRanking.forEach(([name], i) => { eloRankOf[name] = i + 1; });
+  eloRanking.forEach(([name], i) => {
+    eloRankOf[name] = i + 1;
+  });
 
   // For each match day compute cumulative ALL TIME rank up to that day,
   // then tally how many days each player held each rank position.
-  const sorted = [...allM].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const sorted = [...allM].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   let maxRank = 1;
   const tally = {};
-  allDates.forEach(date => {
-    const dayMatchCounts = {};
-    sorted.filter(m => m.date === date).forEach(m => {
-      [...(m.teamA||[]), ...(m.teamB||[])].forEach(p => { dayMatchCounts[p] = (dayMatchCounts[p] || 0) + 1; });
-    });
-    const snap = sorted.filter(m => (m.date || "") <= date);
+  allDates.forEach((date) => {
+    const dayMatches = sorted.filter((m) => m.date === date);
+    if (dayMatches.length < 2) return; // skip days with fewer than 2 matches
+    const dayPlayers = new Set(
+      dayMatches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]),
+    );
+    const snap = sorted.filter((m) => (m.date || "") <= date);
     const statsSnap = computeStats(snap, computeElo(snap));
     let qualRank = 0;
     statsSnap.forEach((p) => {
-      if ((dayMatchCounts[p.name] || 0) < 2) return;
+      if (!dayPlayers.has(p.name)) return; // only players who appeared that day
       qualRank++;
-      if (!tally[p.name]) tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
+      if (!tally[p.name])
+        tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
       tally[p.name].days++;
-      tally[p.name].rankCounts[qualRank] = (tally[p.name].rankCounts[qualRank] || 0) + 1;
+      tally[p.name].rankCounts[qualRank] =
+        (tally[p.name].rankCounts[qualRank] || 0) + 1;
       if (qualRank > maxRank) maxRank = qualRank;
     });
   });
 
   const rows = Object.values(tally)
-    .filter(p => p.days >= _MIN_RANK_PERIODS)
+    .filter((p) => p.days >= _MIN_RANK_PERIODS)
     .sort((a, b) => {
       const ra = eloRankOf[a.name] ?? 9999;
       const rb = eloRankOf[b.name] ?? 9999;
@@ -12604,37 +13514,42 @@ function _buildRankReignHtml() {
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not enough data yet.</div>';
 
   const rankCols = Array.from({ length: maxRank }, (_, i) => i + 1);
-  const rankEmoji = r => r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : `#${r}`;
-  const rankColor = r => _rankColor(r, maxRank);
-  const eloRankColor = r => _rankColor(r, eloRanking.length);
+  const rankEmoji = (r) =>
+    r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : `#${r}`;
+  const rankColor = (r) => _rankColor(r, maxRank);
+  const eloRankColor = (r) => _rankColor(r, eloRanking.length);
 
   const _sTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
   const _sTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
-  const _th  = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
-  const _td  = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
+  const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
+  const _td = `padding:6px 10px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
 
   const thead = `<tr>
     <th style="${_th};${_sTh};text-align:left">Player</th>
     <th style="${_th}">Rank</th>
     <th style="${_th}">Days</th>
-    ${rankCols.map(r => `<th style="${_th}">${rankEmoji(r)}</th>`).join("")}
+    ${rankCols.map((r) => `<th style="${_th}">${rankEmoji(r)}</th>`).join("")}
   </tr>`;
 
-  const tbody = rows.map(row => {
-    const eloRank = eloRankOf[row.name];
-    const eloCell = eloRank
-      ? `<td style="${_td};color:${eloRankColor(eloRank)};font-size:13px">#${eloRank}</td>`
-      : `<td style="${_td};color:var(--muted)">—</td>`;
-    const daysCell = `<td style="${_td};color:var(--theme)">${row.days}</td>`;
-    const cells = rankCols.map(r => {
-      const cnt = row.rankCounts[r] || 0;
-      return `<td style="${_td};color:${cnt > 0 ? rankColor(r) : "rgba(255,255,255,0.15)"}" title="${cnt} day${cnt !== 1 ? "s" : ""} at ${rankEmoji(r)}">${cnt > 0 ? cnt : "—"}</td>`;
-    }).join("");
-    return `<tr>
+  const tbody = rows
+    .map((row) => {
+      const eloRank = eloRankOf[row.name];
+      const eloCell = eloRank
+        ? `<td style="${_td};color:${eloRankColor(eloRank)};font-size:13px">#${eloRank}</td>`
+        : `<td style="${_td};color:var(--muted)">—</td>`;
+      const daysCell = `<td style="${_td};color:var(--theme)">${row.days}</td>`;
+      const cells = rankCols
+        .map((r) => {
+          const cnt = row.rankCounts[r] || 0;
+          return `<td style="${_td};color:${cnt > 0 ? rankColor(r) : "rgba(255,255,255,0.15)"}" title="${cnt} day${cnt !== 1 ? "s" : ""} at ${rankEmoji(r)}">${cnt > 0 ? cnt : "—"}</td>`;
+        })
+        .join("");
+      return `<tr>
       <td style="${_td};${_sTd};text-align:left;font-weight:700">${escHtml(row.name)}</td>
       ${eloCell}${daysCell}${cells}
     </tr>`;
-  }).join("");
+    })
+    .join("");
 
   const html = `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
     <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${allDates.length} MATCH DAYS</div>
@@ -12648,62 +13563,90 @@ function _buildRankReignHtml() {
 
 function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
   const allPeriods = _computeRankPeriods(periodType);
-  const validPeriods = allPeriods.filter(p => p.ranks.length > 0);
-  const _tlPills = (active) => `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-    <button class="digest-filter-btn${active==="today"?" active":""}" onclick="_timelineSetPeriod(this,'today')">DAILY</button>
-    <button class="digest-filter-btn${active==="week"?" active":""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
-    <button class="digest-filter-btn${active==="weekend"?" active":""}" onclick="_timelineSetPeriod(this,'weekend')">WEEKEND</button>
-    <button class="digest-filter-btn${active==="month"?" active":""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
+  const validPeriods = allPeriods.filter((p) => p.ranks.length > 0);
+  const _tlPills = (
+    active,
+  ) => `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <button class="digest-filter-btn${active === "today" ? " active" : ""}" onclick="_timelineSetPeriod(this,'today')">DAILY</button>
+    <button class="digest-filter-btn${active === "week" ? " active" : ""}" onclick="_timelineSetPeriod(this,'week')">WEEKLY</button>
+    <button class="digest-filter-btn${active === "weekend" ? " active" : ""}" onclick="_timelineSetPeriod(this,'weekend')">WEEKEND</button>
+    <button class="digest-filter-btn${active === "month" ? " active" : ""}" onclick="_timelineSetPeriod(this,'month')">MONTHLY</button>
   </div>`;
   if (validPeriods.length < 2)
     return `<div>${_tlPills(periodType)}<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 periods with 3+ players.</div></div>`;
 
   const periods = validPeriods.slice(-maxPeriods);
   const playerSet = new Set();
-  periods.forEach(p => p.ranks.forEach(r => playerSet.add(r.name)));
+  periods.forEach((p) => p.ranks.forEach((r) => playerSet.add(r.name)));
 
   const lookup = {};
-  periods.forEach(p => {
+  periods.forEach((p) => {
     lookup[p.key] = {};
-    p.ranks.forEach(r => { lookup[p.key][r.name] = r.rank; });
+    p.ranks.forEach((r) => {
+      lookup[p.key][r.name] = r.rank;
+    });
   });
 
   // Current ALL TIME ELO rank
   const eloMapTl = computeElo(activeMatches());
   const eloRankOfTl = {};
-  Object.entries(eloMapTl).sort((a, b) => b[1] - a[1]).forEach(([name], i) => { eloRankOfTl[name] = i + 1; });
+  Object.entries(eloMapTl)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([name], i) => {
+      eloRankOfTl[name] = i + 1;
+    });
 
-  const players = [...playerSet].map((name) => ({
-    name,
-    eloRank: eloRankOfTl[name] ?? 9999,
-  })).sort((a, b) => a.eloRank !== b.eloRank ? a.eloRank - b.eloRank : a.name.localeCompare(b.name));
+  const players = [...playerSet]
+    .map((name) => ({
+      name,
+      eloRank: eloRankOfTl[name] ?? 9999,
+    }))
+    .sort((a, b) =>
+      a.eloRank !== b.eloRank
+        ? a.eloRank - b.eloRank
+        : a.name.localeCompare(b.name),
+    );
 
   let tlMaxRank = 1;
-  periods.forEach(p => p.ranks.forEach(r => { if (r.rank > tlMaxRank) tlMaxRank = r.rank; }));
+  periods.forEach((p) =>
+    p.ranks.forEach((r) => {
+      if (r.rank > tlMaxRank) tlMaxRank = r.rank;
+    }),
+  );
 
-  const eloRankColor = r => _rankColor(r, players.length);
+  const eloRankColor = (r) => _rankColor(r, players.length);
   const _stickyTh = `position:sticky;left:0;z-index:2;background:var(--surface2)`;
   const _stickyTd = `position:sticky;left:0;z-index:1;background:var(--card)`;
   const _th = `font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:5px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.08)`;
   const _rankTd = `padding:6px 8px;text-align:center;font-weight:800;font-size:11px;white-space:nowrap`;
 
-  const headerCells = periods.map(p => `<th class="rhtl-th-period">${escHtml(p.label)}</th>`).join("");
-  const bodyRows = players.map(pl => {
-    const eloRank = eloRankOfTl[pl.name];
-    const rankCell = eloRank
-      ? `<td style="${_rankTd};color:${eloRankColor(eloRank)}">#${eloRank}</td>`
-      : `<td style="${_rankTd};color:var(--muted)">—</td>`;
-    return `<tr>
-      <td class="rhtl-td-name" style="${_stickyTd};font-weight:700">${escHtml(pl.name)}</td>
+  const headerCells = periods
+    .map((p) => `<th class="rhtl-th-period">${escHtml(p.label)}</th>`)
+    .join("");
+  const bodyRows = players
+    .map((pl) => {
+      const eloRank = eloRankOfTl[pl.name];
+      const rankCell = eloRank
+        ? `<td style="${_rankTd};color:${eloRankColor(eloRank)}">#${eloRank}</td>`
+        : `<td style="${_rankTd};color:var(--muted)">—</td>`;
+      return (
+        `<tr>
+      <td class="rhtl-td-name" style="${_stickyTd};font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="_openRankCalendar(${jsArg(pl.name)},${jsArg(periodType)})">${escHtml(pl.name)}</td>
       ${rankCell}` +
-    periods.map(p => {
-      const r = lookup[p.key][pl.name];
-      const cellStyle = r != null
-        ? `background:${_rankBg(r, tlMaxRank)};color:${_rankColor(r, tlMaxRank)}`
-        : `background:transparent;color:rgba(255,255,255,0.12)`;
-      return `<td class="rhtl-cell" style="${cellStyle}" title="${r != null ? "#" + r + " · " + escHtml(p.label) : "Did not play"}">${r != null ? r : "—"}</td>`;
-    }).join("") + "</tr>";
-  }).join("");
+        periods
+          .map((p) => {
+            const r = lookup[p.key][pl.name];
+            const cellStyle =
+              r != null
+                ? `background:${_rankBg(r, tlMaxRank)};color:${_rankColor(r, tlMaxRank)}`
+                : `background:transparent;color:rgba(255,255,255,0.12)`;
+            return `<td class="rhtl-cell" style="${cellStyle}" title="${r != null ? "#" + r + " · " + escHtml(p.label) : "Did not play"}">${r != null ? r : "—"}</td>`;
+          })
+          .join("") +
+        "</tr>"
+      );
+    })
+    .join("");
 
   const legend = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
     <span style="font-size:9px;color:var(--muted)">#1</span>
@@ -12727,55 +13670,114 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
 }
 
 function _podiumSetPeriod(btn, type) {
-  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn
+    .closest("div")
+    .querySelectorAll(".digest-filter-btn")
+    .forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
-  const content = btn.closest("[class]")?.parentElement?.querySelector(".podium-content")
-    || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _secBody(() => _buildPodiumTrackerHtml(type));
+  const content =
+    btn.closest("[class]")?.parentElement?.querySelector(".podium-content") ||
+    btn.parentElement?.nextElementSibling;
+  if (content)
+    content.innerHTML = _secBody(() => _buildPodiumTrackerHtml(type));
 }
 function _antiPodiumSetPeriod(btn, type) {
-  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn
+    .closest("div")
+    .querySelectorAll(".digest-filter-btn")
+    .forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
-  const content = btn.closest("[class]")?.parentElement?.querySelector(".antipodium-content")
-    || btn.parentElement?.nextElementSibling;
-  if (content) content.innerHTML = _secBody(() => _buildAntiPodiumTrackerHtml(type));
+  const content =
+    btn
+      .closest("[class]")
+      ?.parentElement?.querySelector(".antipodium-content") ||
+    btn.parentElement?.nextElementSibling;
+  if (content)
+    content.innerHTML = _secBody(() => _buildAntiPodiumTrackerHtml(type));
 }
 function _reignSetPeriod(btn, type) {
-  btn.closest("div").querySelectorAll(".digest-filter-btn").forEach(b => b.classList.remove("active"));
+  btn
+    .closest("div")
+    .querySelectorAll(".digest-filter-btn")
+    .forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
-  const content = btn.closest("[class]")?.parentElement?.querySelector(".reign-content")
-    || btn.parentElement?.nextElementSibling;
+  const content =
+    btn.closest("[class]")?.parentElement?.querySelector(".reign-content") ||
+    btn.parentElement?.nextElementSibling;
   if (content) content.innerHTML = _secBody(() => _buildRankReignHtml(type));
 }
 function _timelineSetPeriod(btn, type) {
-  const body = btn.closest(".ana-sec-body") || btn.closest(".ana-card")?.parentElement || btn.parentElement?.parentElement;
+  const body =
+    btn.closest(".ana-sec-body") ||
+    btn.closest(".ana-card")?.parentElement ||
+    btn.parentElement?.parentElement;
   if (body) body.innerHTML = _secBody(() => _buildRankTimelineHtml(type));
 }
 
 function _openPodiumDrill(playerName, rankVal, periodType) {
   const periods = _computeRankPeriods(periodType);
-  const matching = periods.filter(p => {
+  const matching = periods.filter((p) => {
     if (!p.ranks.length) return false;
-    const r = p.ranks.find(x => x.name === playerName);
+    const r = p.ranks.find((x) => x.name === playerName);
     if (!r) return false;
     return rankVal === "podiums" ? r.rank <= 3 : r.rank === rankVal;
   });
   if (!matching.length) return;
 
-  const medalEmoji = rankVal === 1 ? "🥇" : rankVal === 2 ? "🥈" : rankVal === 3 ? "🥉" : rankVal === "podiums" ? "🏅" : `#${rankVal}`;
-  const rankLabel = rankVal === "podiums" ? "Podium Finishes" : `#${rankVal} Finishes`;
-  const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
-  const _fmtD = iso => {
+  const medalEmoji =
+    rankVal === 1
+      ? "🥇"
+      : rankVal === 2
+        ? "🥈"
+        : rankVal === 3
+          ? "🥉"
+          : rankVal === "podiums"
+            ? "🏅"
+            : `#${rankVal}`;
+  const rankLabel =
+    rankVal === "podiums" ? "Podium Finishes" : `#${rankVal} Finishes`;
+  const periodLabel =
+    { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[
+      periodType
+    ] || periodType;
+  const _fmtD = (iso) => {
     if (!iso) return "";
     const [, m, d] = iso.split("-");
-    return parseInt(d) + " " + ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];
+    return (
+      parseInt(d) +
+      " " +
+      [
+        "",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ][parseInt(m)]
+    );
   };
 
-  const renderItem = p => {
-    const r = p.ranks.find(x => x.name === playerName);
-    const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `#${r.rank}`;
-    const sub = (periodType === "week" || periodType === "month")
-      ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>` : "";
+  const renderItem = (p) => {
+    const r = p.ranks.find((x) => x.name === playerName);
+    const medal =
+      r.rank === 1
+        ? "🥇"
+        : r.rank === 2
+          ? "🥈"
+          : r.rank === 3
+            ? "🥉"
+            : `#${r.rank}`;
+    const sub =
+      periodType === "week" || periodType === "month"
+        ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`
+        : "";
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;-webkit-tap-highlight-color:transparent"
         onclick="_podiumDrillGoTo(${jsArg(p.key)},${jsArg(periodType)})">
       <span style="font-size:18px;line-height:1;flex-shrink:0">${medal}</span>
@@ -12792,10 +13794,15 @@ function _openPodiumDrill(playerName, rankVal, periodType) {
        <button onclick="document.getElementById('pdrill-more').style.display='block';this.remove()"
          style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.04em">
          SHOW ${tail.length} MORE
-       </button>` : "";
+       </button>`
+    : "";
 
   let overlay = document.getElementById("podium-drill-overlay");
-  if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "podium-drill-overlay";
+    document.body.appendChild(overlay);
+  }
   overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
     <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:65vh;overflow-y:auto;padding:20px 16px 36px;box-sizing:border-box" onclick="event.stopPropagation()">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
@@ -12813,32 +13820,52 @@ function _openPodiumDrill(playerName, rankVal, periodType) {
 
 function _podiumDrillGoTo(key, periodType) {
   _closePodiumDrill();
-  let filter, from, to = null;
+  let filter,
+    from,
+    to = null;
   if (periodType === "today") {
-    filter = "day"; from = key;
+    filter = "day";
+    from = key;
   } else if (periodType === "week") {
-    filter = "range"; from = key;
-    const d = new Date(key + "T00:00:00"); d.setDate(d.getDate() + 6);
+    filter = "range";
+    from = key;
+    const d = new Date(key + "T00:00:00");
+    d.setDate(d.getDate() + 6);
     to = toLocalISODate(d);
   } else if (periodType === "weekend") {
-    filter = "range"; from = key;
-    const d = new Date(key + "T00:00:00"); d.setDate(d.getDate() + 1);
+    filter = "range";
+    from = key;
+    const d = new Date(key + "T00:00:00");
+    d.setDate(d.getDate() + 1);
     to = toLocalISODate(d);
   } else {
-    filter = "range"; from = key + "-01";
+    filter = "range";
+    from = key + "-01";
     const [y, m] = key.split("-");
     to = toLocalISODate(new Date(parseInt(y), parseInt(m), 0));
   }
-  cmpFilter = filter; cmpFrom = from; cmpTo = to;
+  cmpFilter = filter;
+  cmpFrom = from;
+  cmpTo = to;
   const dr = document.getElementById("cmpDr");
   const dp = document.getElementById("cmpDayPicker");
   const sel = document.getElementById("cmpSel");
   if (sel) sel.value = filter;
   if (filter === "day") {
-    if (dp) { dp.classList.add("show"); const di = document.getElementById("cmpDayInput"); if (di) di.value = from; }
+    if (dp) {
+      dp.classList.add("show");
+      const di = document.getElementById("cmpDayInput");
+      if (di) di.value = from;
+    }
     if (dr) dr.classList.remove("show");
   } else {
-    if (dr) { dr.classList.add("show"); const cf = document.getElementById("cmpFrom"), ct = document.getElementById("cmpTo"); if (cf) cf.value = from; if (ct) ct.value = to || ""; }
+    if (dr) {
+      dr.classList.add("show");
+      const cf = document.getElementById("cmpFrom"),
+        ct = document.getElementById("cmpTo");
+      if (cf) cf.value = from;
+      if (ct) ct.value = to || "";
+    }
     if (dp) dp.classList.remove("show");
   }
   switchMainTab("compact");
@@ -12846,9 +13873,9 @@ function _podiumDrillGoTo(key, periodType) {
 
 function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
   const periods = _computeRankPeriods(periodType);
-  const matching = periods.filter(p => {
+  const matching = periods.filter((p) => {
     if (!p.ranks.length) return false;
-    const r = p.ranks.find(x => x.name === playerName);
+    const r = p.ranks.find((x) => x.name === playerName);
     if (!r) return false;
     const total = p.totalPlayers;
     if (bottomPos === "last") return r.trueRank === total;
@@ -12858,22 +13885,51 @@ function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
   });
   if (!matching.length) return;
 
-  const posEmoji = bottomPos === "last" ? "🪣" : bottomPos === "secondlast" ? "😬" : "📉";
-  const posLabel = bottomPos === "last" ? "Last Place Finishes" : bottomPos === "secondlast" ? "2nd Last Finishes" : "Bottom 2 Finishes";
-  const periodLabel = { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[periodType] || periodType;
-  const _fmtD = iso => {
+  const posEmoji =
+    bottomPos === "last" ? "🪣" : bottomPos === "secondlast" ? "😬" : "📉";
+  const posLabel =
+    bottomPos === "last"
+      ? "Last Place Finishes"
+      : bottomPos === "secondlast"
+        ? "2nd Last Finishes"
+        : "Bottom 2 Finishes";
+  const periodLabel =
+    { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[
+      periodType
+    ] || periodType;
+  const _fmtD = (iso) => {
     if (!iso) return "";
     const [, m, d] = iso.split("-");
-    return parseInt(d) + " " + ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];
+    return (
+      parseInt(d) +
+      " " +
+      [
+        "",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ][parseInt(m)]
+    );
   };
 
-  const renderItem = p => {
-    const r = p.ranks.find(x => x.name === playerName);
+  const renderItem = (p) => {
+    const r = p.ranks.find((x) => x.name === playerName);
     const total = p.totalPlayers;
     const icon = r.trueRank === total ? "🪣" : "😬";
     const rankBadge = `<span style="font-size:10px;color:var(--muted)">#${r.trueRank}/${total}</span>`;
-    const sub = (periodType === "week" || periodType === "month")
-      ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>` : "";
+    const sub =
+      periodType === "week" || periodType === "month"
+        ? `<span style="color:var(--muted);font-size:9px;display:block;margin-top:1px">${_fmtD(p.from)} – ${_fmtD(p.to)}</span>`
+        : "";
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;-webkit-tap-highlight-color:transparent"
         onclick="_podiumDrillGoTo(${jsArg(p.key)},${jsArg(periodType)})">
       <span style="font-size:18px;line-height:1;flex-shrink:0">${icon}</span>
@@ -12891,10 +13947,15 @@ function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
        <button onclick="document.getElementById('pdrill-more').style.display='block';this.remove()"
          style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.04em">
          SHOW ${tail.length} MORE
-       </button>` : "";
+       </button>`
+    : "";
 
   let overlay = document.getElementById("podium-drill-overlay");
-  if (!overlay) { overlay = document.createElement("div"); overlay.id = "podium-drill-overlay"; document.body.appendChild(overlay); }
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "podium-drill-overlay";
+    document.body.appendChild(overlay);
+  }
   overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
     <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:65vh;overflow-y:auto;padding:20px 16px 36px;box-sizing:border-box" onclick="event.stopPropagation()">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
@@ -12913,6 +13974,236 @@ function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
 function _closePodiumDrill() {
   const el = document.getElementById("podium-drill-overlay");
   if (el) el.style.display = "none";
+}
+
+// ── RANK CALENDAR (Timeline player tap) ───────────────────────
+
+function _openRankCalendar(playerName, periodType) {
+  const allPeriods = _computeRankPeriods(periodType);
+  // Build full lookup over ALL periods (not capped to 10)
+  const rankMap = {};
+  let maxRank = 1;
+  allPeriods.forEach((p) => {
+    const r = p.ranks.find((x) => x.name === playerName);
+    if (r) {
+      rankMap[p.key] = { rank: r.rank, label: p.label, from: p.from, to: p.to };
+      if (r.rank > maxRank) maxRank = r.rank;
+    }
+  });
+
+  const totalPeriods = Object.keys(rankMap).length;
+  if (!totalPeriods) return;
+
+  const periodLabel =
+    { today: "Daily", week: "Weekly", weekend: "Weekend", month: "Monthly" }[
+      periodType
+    ] || periodType;
+  const body =
+    periodType === "today"
+      ? _rankCalDailyHtml(rankMap, maxRank)
+      : periodType === "week"
+        ? _rankCalWeeklyHtml(rankMap, allPeriods, maxRank)
+        : periodType === "weekend"
+          ? _rankCalWeekendHtml(rankMap, allPeriods, maxRank)
+          : _rankCalMonthlyHtml(rankMap, allPeriods, maxRank);
+
+  let overlay = document.getElementById("podium-drill-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "podium-drill-overlay";
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end" onclick="_closePodiumDrill()">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:75vh;overflow-y:auto;padding:20px 16px 40px;box-sizing:border-box" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;font-weight:800">${escHtml(playerName)} — Rank History</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${totalPeriods} period${totalPeriods !== 1 ? "s" : ""} played</div>
+        </div>
+        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+      </div>
+      ${body}
+    </div>
+  </div>`;
+  overlay.style.display = "block";
+}
+
+// Daily: full monthly calendar grid (Mon–Sun columns)
+function _rankCalDailyHtml(rankMap, maxRank) {
+  const _SM = [
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const DOW_H = ["M", "T", "W", "T", "F", "S", "S"];
+
+  // Group keys by YYYY-MM
+  const byMonth = {};
+  Object.keys(rankMap)
+    .sort()
+    .forEach((key) => {
+      const ym = key.slice(0, 7);
+      if (!byMonth[ym]) byMonth[ym] = {};
+      byMonth[ym][key] = rankMap[key];
+    });
+
+  const _cell = (rank, label) => {
+    if (rank == null)
+      return `<td style="width:36px;height:30px;border-radius:4px;text-align:center;vertical-align:middle;font-size:9px;font-weight:800;color:rgba(255,255,255,0.12)">—</td>`;
+    const bg = _rankBg(rank, maxRank);
+    const col = _rankColor(rank, maxRank);
+    const em = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
+    return `<td title="${label || ""}" style="width:36px;height:30px;border-radius:4px;background:${bg};color:${col};text-align:center;vertical-align:middle;font-size:10px;font-weight:800">${em || "#" + rank}</td>`;
+  };
+
+  return Object.entries(byMonth)
+    .sort()
+    .reverse()
+    .map(([ym, days]) => {
+      const [y, mo] = ym.split("-");
+      const firstDow = (new Date(+y, +mo - 1, 1).getDay() + 6) % 7; // Mon=0
+      const daysInMonth = new Date(+y, +mo, 0).getDate();
+      const cells = [];
+      for (let i = 0; i < firstDow; i++) cells.push(`<td></td>`);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = `${y}-${mo}-${String(d).padStart(2, "0")}`;
+        const data = days[key];
+        cells.push(_cell(data?.rank ?? null, data?.label));
+      }
+      while (cells.length % 7) cells.push(`<td></td>`);
+      const rows = [];
+      for (let i = 0; i < cells.length; i += 7)
+        rows.push(`<tr style="gap:3px">${cells.slice(i, i + 7).join("")}</tr>`);
+      return `<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">${_SM[+mo]} ${y}</div>
+      <table style="border-collapse:separate;border-spacing:3px">
+        <thead><tr>${DOW_H.map((d) => `<th style="font-size:9px;color:var(--muted);font-weight:600;width:36px;text-align:center;padding-bottom:4px">${d}</th>`).join("")}</tr></thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+    </div>`;
+    })
+    .join("");
+}
+
+// Weekly: calendar-style grid grouped by month, highlighting the week range
+function _rankCalWeeklyHtml(rankMap, allPeriods, maxRank) {
+  // Show all weeks as cards grouped by month of the week-start
+  const _SM = [
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const byMonth = {};
+  allPeriods
+    .filter((p) => rankMap[p.key])
+    .forEach((p) => {
+      const ym = p.key.slice(0, 7);
+      if (!byMonth[ym]) byMonth[ym] = [];
+      byMonth[ym].push(p);
+    });
+
+  const _card = (p) => {
+    const d = rankMap[p.key];
+    const bg = _rankBg(d.rank, maxRank);
+    const col = _rankColor(d.rank, maxRank);
+    const em =
+      d.rank === 1 ? "🥇" : d.rank === 2 ? "🥈" : d.rank === 3 ? "🥉" : "";
+    const [, fm, fd] = (p.from || p.key).split("-");
+    const [, tm, td] = (p.to || p.key).split("-");
+    const range = `${+fd} ${_SM[+fm]}${fm !== tm ? " – " + td + " " + _SM[+tm] : ""}`;
+    return `<div style="background:${bg};border-radius:8px;padding:7px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:10px;color:var(--muted)">${range}</span>
+      <span style="font-size:13px;font-weight:800;color:${col}">${em || "#" + d.rank}</span>
+    </div>`;
+  };
+
+  return Object.entries(byMonth)
+    .sort()
+    .reverse()
+    .map(([ym, periods]) => {
+      const [y, mo] = ym.split("-");
+      return `<div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">${_SM[+mo]} ${y}</div>
+      ${periods.map(_card).join("")}
+    </div>`;
+    })
+    .join("");
+}
+
+// Weekend: same as weekly style but grouping by month of the Saturday
+function _rankCalWeekendHtml(rankMap, allPeriods, maxRank) {
+  return _rankCalWeeklyHtml(rankMap, allPeriods, maxRank); // same layout, different labels
+}
+
+// Monthly: year-grouped grid of month tiles
+function _rankCalMonthlyHtml(rankMap, allPeriods, maxRank) {
+  const _SM = [
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const byYear = {};
+  allPeriods
+    .filter((p) => rankMap[p.key])
+    .forEach((p) => {
+      const y = p.key.slice(0, 4);
+      if (!byYear[y]) byYear[y] = [];
+      byYear[y].push(p);
+    });
+
+  const _tile = (p) => {
+    const d = rankMap[p.key];
+    const bg = _rankBg(d.rank, maxRank);
+    const col = _rankColor(d.rank, maxRank);
+    const em =
+      d.rank === 1 ? "🥇" : d.rank === 2 ? "🥈" : d.rank === 3 ? "🥉" : "";
+    const mo = p.key.slice(5, 7);
+    return `<div style="background:${bg};border-radius:8px;padding:8px;text-align:center;min-width:52px">
+      <div style="font-size:10px;color:var(--muted);font-weight:600">${_SM[+mo]}</div>
+      <div style="font-size:13px;font-weight:800;color:${col};margin-top:3px">${em || "#" + d.rank}</div>
+    </div>`;
+  };
+
+  return Object.entries(byYear)
+    .sort()
+    .reverse()
+    .map(([y, periods]) => {
+      return `<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">${y}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${periods.map(_tile).join("")}</div>
+    </div>`;
+    })
+    .join("");
 }
 
 function _buildPowerRankingsHtml() {
@@ -12936,7 +14227,8 @@ function _buildPowerRankingsHtml() {
       let movement = `<span class="pr-mvmt pr-mvmt-eq">—</span>`;
       if (prev) {
         const diff = prev - (i + 1);
-        if (diff > 0) movement = `<span class="pr-mvmt pr-mvmt-up">↑${diff}</span>`;
+        if (diff > 0)
+          movement = `<span class="pr-mvmt pr-mvmt-up">↑${diff}</span>`;
         else if (diff < 0)
           movement = `<span class="pr-mvmt pr-mvmt-dn">↓${Math.abs(diff)}</span>`;
       } else {
@@ -13040,7 +14332,10 @@ let _predictPlayerA = "",
   _predictPartnerA = "",
   _predictPartnerB = "";
 
-let _simA1 = "", _simA2 = "", _simB1 = "", _simB2 = "";
+let _simA1 = "",
+  _simA2 = "",
+  _simB1 = "",
+  _simB2 = "";
 
 function _buildMatchPredictHtml() {
   const players = computeStats(activeMatches()).map((p) => p.name);
@@ -13090,7 +14385,9 @@ function openPredictSheet(slot) {
     _predictPlayerB,
     _predictPartnerB,
   ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
-  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
+  const players = sortPlayersGuestsLast(
+    computeStats(activeMatches()).map((s) => s.name),
+  );
   const selected =
     slot === "a1"
       ? _predictPlayerA
@@ -13128,12 +14425,16 @@ function openSimSheet(slot) {
     .filter(([k]) => k !== slot)
     .map(([, v]) => v)
     .filter(Boolean);
-  const players = sortPlayersGuestsLast(computeStats(activeMatches()).map((s) => s.name));
+  const players = sortPlayersGuestsLast(
+    computeStats(activeMatches()).map((s) => s.name),
+  );
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
       .map((p) => {
-        const dis = others.includes(p) ? ' style="opacity:0.3;pointer-events:none"' : "";
+        const dis = others.includes(p)
+          ? ' style="opacity:0.3;pointer-events:none"'
+          : "";
         const sel = p === current ? " live-sheet-item-selected" : "";
         return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
       })
@@ -13272,7 +14573,10 @@ function _buildStoryFeedHtml() {
     )
     .join("");
   const remaining = stories.length - 5;
-  const showMoreBtn = remaining > 0 ? `<button class="story-show-more" onclick="_storyShowMore(this,'all')">Show More (${remaining} more)</button>` : "";
+  const showMoreBtn =
+    remaining > 0
+      ? `<button class="story-show-more" onclick="_storyShowMore(this,'all')">Show More (${remaining} more)</button>`
+      : "";
   return `<div class="ana-card" style="padding:10px 12px">
     <div class="story-chips">${chips}</div>
     <div class="story-cards-wrap">${cards}</div>
@@ -13283,21 +14587,30 @@ function _buildStoryFeedHtml() {
 function _storyFilter(filter, btn) {
   const wrap = btn.parentElement;
   if (wrap)
-    wrap.querySelectorAll(".story-chip").forEach((b) => b.classList.toggle("active", b === btn));
+    wrap
+      .querySelectorAll(".story-chip")
+      .forEach((b) => b.classList.toggle("active", b === btn));
   const card = btn.closest(".ana-card");
   if (!card) return;
   const allCards = [...card.querySelectorAll(".story-card")];
   let shown = 0;
   allCards.forEach((c) => {
     const matches = filter === "all" || c.dataset.type === filter;
-    if (matches && shown < 5) { c.style.display = ""; shown++; }
-    else c.style.display = "none";
+    if (matches && shown < 5) {
+      c.style.display = "";
+      shown++;
+    } else c.style.display = "none";
   });
-  const matching = allCards.filter((c) => filter === "all" || c.dataset.type === filter).length;
+  const matching = allCards.filter(
+    (c) => filter === "all" || c.dataset.type === filter,
+  ).length;
   const moreWrap = card.querySelector(".story-more-wrap");
   if (moreWrap) {
     const rem = matching - 5;
-    moreWrap.innerHTML = rem > 0 ? `<button class="story-show-more" onclick="_storyShowMore(this,'${filter}')">Show More (${rem} more)</button>` : "";
+    moreWrap.innerHTML =
+      rem > 0
+        ? `<button class="story-show-more" onclick="_storyShowMore(this,'${filter}')">Show More (${rem} more)</button>`
+        : "";
   }
 }
 
@@ -13354,7 +14667,8 @@ function _buildSeasonModeHtml() {
 function _buildRivalryHoFHtml() {
   const rivalries = {};
   activeMatches().forEach((m) => {
-    if (!m.teamA || !m.teamB || m.teamA.length < 2 || m.teamB.length < 2) return;
+    if (!m.teamA || !m.teamB || m.teamA.length < 2 || m.teamB.length < 2)
+      return;
     const tA = [...m.teamA].map(normPlayer).sort().join("|");
     const tB = [...m.teamB].map(normPlayer).sort().join("|");
     const [k1, k2] = [tA, tB].sort();
@@ -13389,7 +14703,7 @@ function _buildRivalryHoFHtml() {
       const lastTA = [...last.teamA].map(normPlayer).sort().join("|");
       const lastIsK1 = lastTA === r.pair1.join("|");
       const lastWinner =
-        (last.scoreA > last.scoreB) === lastIsK1
+        last.scoreA > last.scoreB === lastIsK1
           ? r.pair1.join(" & ")
           : r.pair2.join(" & ");
       const dominator =
@@ -13465,10 +14779,16 @@ function _buildLeaderboardReplayHtml() {
       return `<div class="lr-milestone" style="left:${pct}%" title="${escHtml(m.label)}"></div>`;
     })
     .join("");
-  const uniqDates = [...new Set(sorted.map((m) => m.date).filter(Boolean))].sort();
+  const uniqDates = [
+    ...new Set(sorted.map((m) => m.date).filter(Boolean)),
+  ].sort();
   const dateOpts =
     '<option value="" disabled selected>📅 Jump to date</option>' +
-    uniqDates.map((d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`).join("");
+    uniqDates
+      .map(
+        (d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`,
+      )
+      .join("");
   const topPlayers = computeStats(sorted, computeElo(sorted));
   const spotlightOpts =
     '<option value="">👁 Spotlight: All</option>' +
@@ -13706,7 +15026,7 @@ function _replayReset() {
   _replayUpdate(_REPLAY_MIN);
 }
 
-window._renderHiLoTable = function() {
+window._renderHiLoTable = function () {
   const el = document.getElementById("hi-lo-elo-body");
   if (!el || !window._hiLoData) return;
   const { col, asc } = window._hiLoSort;
@@ -13714,25 +15034,33 @@ window._renderHiLoTable = function() {
   const sorted = [...window._hiLoData].sort((a, b) => {
     const av = col === "name" ? a.name : a[col];
     const bv = col === "name" ? b.name : b[col];
-    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    if (col === "name")
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
     return asc ? av - bv : bv - av;
   });
-  el.innerHTML = sorted.map((r, i) => {
-    const fpStr = r.fromPeak === 0
-      ? `<span style="color:var(--green);font-size:9px;font-weight:800">PEAK</span>`
-      : `<span style="color:var(--red)">${r.fromPeak}</span>`;
-    const flStr = r.fromLow === 0
-      ? `<span style="color:var(--muted);font-size:9px">LOW</span>`
-      : `<span style="color:var(--green)">+${r.fromLow}</span>`;
-    const dots = (r.pts5 || []).map(pt =>
-      `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"}"></span>`
-    ).join("");
-    const momStr = r.momAvg > 0
-      ? `<span style="color:var(--green);font-size:8px">↑${r.momAvg}</span>`
-      : r.momAvg < 0
-        ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(r.momAvg)}</span>`
-        : `<span style="color:var(--muted);font-size:8px">→</span>`;
-    return `<div class="lrace-row" style="${pg3};padding:6px 4px">
+  el.innerHTML = sorted
+    .map((r, i) => {
+      const fpStr =
+        r.fromPeak === 0
+          ? `<span style="color:var(--green);font-size:9px;font-weight:800">PEAK</span>`
+          : `<span style="color:var(--red)">${r.fromPeak}</span>`;
+      const flStr =
+        r.fromLow === 0
+          ? `<span style="color:var(--muted);font-size:9px">LOW</span>`
+          : `<span style="color:var(--green)">+${r.fromLow}</span>`;
+      const dots = (r.pts5 || [])
+        .map(
+          (pt) =>
+            `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"}"></span>`,
+        )
+        .join("");
+      const momStr =
+        r.momAvg > 0
+          ? `<span style="color:var(--green);font-size:8px">↑${r.momAvg}</span>`
+          : r.momAvg < 0
+            ? `<span style="color:var(--red);font-size:8px">↓${Math.abs(r.momAvg)}</span>`
+            : `<span style="color:var(--muted);font-size:8px">→</span>`;
+      return `<div class="lrace-row" style="${pg3};padding:6px 4px">
       <div class="lrace-rank" style="font-size:10px">#${i + 1}</div>
       <div class="lrace-name" style="font-size:10px">${r.name}</div>
       <div style="text-align:center;font-size:11px;font-weight:800">${r.current}</div>
@@ -13742,8 +15070,9 @@ window._renderHiLoTable = function() {
       <div style="text-align:center;font-size:9px">${flStr}</div>
       <div style="text-align:center"><div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${dots}</div>${momStr}</div>
     </div>`;
-  }).join("");
-  document.querySelectorAll(".hilo-hdr").forEach(h => {
+    })
+    .join("");
+  document.querySelectorAll(".hilo-hdr").forEach((h) => {
     const c = h.dataset.col;
     const base = h.title.replace(/^Sort by /, "").toUpperCase();
     const isActive = c === col;
@@ -13753,7 +15082,7 @@ window._renderHiLoTable = function() {
   });
 };
 
-window._hiLoSortBy = function(col) {
+window._hiLoSortBy = function (col) {
   if (!window._hiLoSort) return;
   if (window._hiLoSort.col === col) {
     window._hiLoSort.asc = !window._hiLoSort.asc;
@@ -13764,9 +15093,14 @@ window._hiLoSortBy = function(col) {
 };
 
 // ── ELO PROJECTION ─────────────────────────────────────────────
-window._eloProj = { formN: 10, futureM: 20, sortCol: "currentRank", sortAsc: true };
+window._eloProj = {
+  formN: 10,
+  futureM: 20,
+  sortCol: "currentRank",
+  sortAsc: true,
+};
 
-window._eloprojAdj = function(type, delta) {
+window._eloprojAdj = function (type, delta) {
   const state = window._eloProj;
   if (!state) return;
   if (type === "form") {
@@ -13781,7 +15115,7 @@ window._eloprojAdj = function(type, delta) {
   window._renderEloProjTable();
 };
 
-window._eloprojSort = function(col) {
+window._eloprojSort = function (col) {
   const state = window._eloProj;
   if (!state) return;
   if (state.sortCol === col) {
@@ -13793,7 +15127,7 @@ window._eloprojSort = function(col) {
   window._renderEloProjTable();
 };
 
-window._renderEloProjTable = function() {
+window._renderEloProjTable = function () {
   const tableEl = document.getElementById("eloproj-table");
   if (!tableEl) return;
   const { formN, futureM, sortCol, sortAsc } = window._eloProj;
@@ -13802,22 +15136,38 @@ window._renderEloProjTable = function() {
   if (!histAll || !eloMap) return;
 
   const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
-  if (!ranked.length) { tableEl.innerHTML = '<div class="sub" style="padding:8px">No ELO data.</div>'; return; }
+  if (!ranked.length) {
+    tableEl.innerHTML =
+      '<div class="sub" style="padding:8px">No ELO data.</div>';
+    return;
+  }
 
   const currentRankMap = {};
-  ranked.forEach(([name], i) => { currentRankMap[name] = i + 1; });
+  ranked.forEach(([name], i) => {
+    currentRankMap[name] = i + 1;
+  });
 
   const projData = ranked.map(([name, currentElo]) => {
     const hist = histAll[name] || [];
     const slice = hist.slice(-formN);
-    const avgDelta = slice.length ? slice.reduce((s, p) => s + p.delta, 0) / slice.length : 0;
+    const avgDelta = slice.length
+      ? slice.reduce((s, p) => s + p.delta, 0) / slice.length
+      : 0;
     const projElo = Math.round(currentElo + avgDelta * futureM);
-    return { name, currentElo, avgDelta, projElo, currentRank: currentRankMap[name] };
+    return {
+      name,
+      currentElo,
+      avgDelta,
+      projElo,
+      currentRank: currentRankMap[name],
+    };
   });
 
   const projSorted = [...projData].sort((a, b) => b.projElo - a.projElo);
   const projRankMap = {};
-  projSorted.forEach((p, i) => { projRankMap[p.name] = i + 1; });
+  projSorted.forEach((p, i) => {
+    projRankMap[p.name] = i + 1;
+  });
 
   // Attach projRank and rankDiff then sort display order
   projData.forEach((p) => {
@@ -13827,33 +15177,45 @@ window._renderEloProjTable = function() {
 
   const sortFn = {
     currentRank: (a, b) => a.currentRank - b.currentRank,
-    name:        (a, b) => a.name.localeCompare(b.name),
-    currentElo:  (a, b) => b.currentElo - a.currentElo,
-    avgDelta:    (a, b) => b.avgDelta - a.avgDelta,
-    projElo:     (a, b) => b.projElo - a.projElo,
-    projRank:    (a, b) => a.projRank - b.projRank,
-    rankDiff:    (a, b) => b.rankDiff - a.rankDiff,
+    name: (a, b) => a.name.localeCompare(b.name),
+    currentElo: (a, b) => b.currentElo - a.currentElo,
+    avgDelta: (a, b) => b.avgDelta - a.avgDelta,
+    projElo: (a, b) => b.projElo - a.projElo,
+    projRank: (a, b) => a.projRank - b.projRank,
+    rankDiff: (a, b) => b.rankDiff - a.rankDiff,
   };
   const cmp = sortFn[sortCol] || sortFn.currentRank;
   projData.sort(sortAsc ? cmp : (a, b) => cmp(b, a));
 
   const pg = "grid-template-columns:28px 1fr 50px 52px 70px 36px 40px";
-  const arrow = (col) => sortCol === col ? (sortAsc ? " ▲" : " ▼") : "";
+  const arrow = (col) => (sortCol === col ? (sortAsc ? " ▲" : " ▼") : "");
 
-  const rows = projData.map((p) => {
-    const rankEl = p.rankDiff > 0
-      ? `<span class="ep-rank-up">▲${p.rankDiff}</span>`
-      : p.rankDiff < 0
-        ? `<span class="ep-rank-dn">▼${Math.abs(p.rankDiff)}</span>`
-        : `<span class="ep-rank-eq">—</span>`;
-    const avgSign = p.avgDelta >= 0 ? "+" : "";
-    const avgCol = p.avgDelta > 0 ? "var(--green)" : p.avgDelta < 0 ? "var(--red)" : "var(--muted)";
-    const projDiff = p.projElo - p.currentElo;
-    const projSign = projDiff >= 0 ? "+" : "";
-    const projDiffCol = projDiff > 0 ? "var(--green)" : projDiff < 0 ? "var(--red)" : "var(--muted)";
-    const rankColor = _rankColor(p.currentRank, projData.length);
-    const newRankColor = _rankColor(p.projRank, projData.length);
-    return `<div class="lrace-row ep-row" style="${pg}">
+  const rows = projData
+    .map((p) => {
+      const rankEl =
+        p.rankDiff > 0
+          ? `<span class="ep-rank-up">▲${p.rankDiff}</span>`
+          : p.rankDiff < 0
+            ? `<span class="ep-rank-dn">▼${Math.abs(p.rankDiff)}</span>`
+            : `<span class="ep-rank-eq">—</span>`;
+      const avgSign = p.avgDelta >= 0 ? "+" : "";
+      const avgCol =
+        p.avgDelta > 0
+          ? "var(--green)"
+          : p.avgDelta < 0
+            ? "var(--red)"
+            : "var(--muted)";
+      const projDiff = p.projElo - p.currentElo;
+      const projSign = projDiff >= 0 ? "+" : "";
+      const projDiffCol =
+        projDiff > 0
+          ? "var(--green)"
+          : projDiff < 0
+            ? "var(--red)"
+            : "var(--muted)";
+      const rankColor = _rankColor(p.currentRank, projData.length);
+      const newRankColor = _rankColor(p.projRank, projData.length);
+      return `<div class="lrace-row ep-row" style="${pg}">
       <div class="lrace-rank" style="color:${rankColor}">#${p.currentRank}</div>
       <div class="lrace-name">${escHtml(p.name)}</div>
       <div class="ep-cell">${p.currentElo}</div>
@@ -13862,7 +15224,8 @@ window._renderEloProjTable = function() {
       <div class="ep-cell" style="color:${newRankColor};font-weight:800">#${p.projRank}</div>
       <div class="ep-cell">${rankEl}</div>
     </div>`;
-  }).join("");
+    })
+    .join("");
 
   const hdr = `<div class="lrace-header ep-hdr" style="${pg}">
     <span class="hilo-hdr" onclick="window._eloprojSort('currentRank')">#NOW${arrow("currentRank")}</span>
@@ -13880,7 +15243,11 @@ function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
   // Skip full re-render if data hasn't changed since last render
-  if (_anaRenderedVersion === _dataVersion && container.querySelector(".ana-sec")) return;
+  if (
+    _anaRenderedVersion === _dataVersion &&
+    container.querySelector(".ana-sec")
+  )
+    return;
   if (!allMatches.length) {
     container.innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
@@ -14128,12 +15495,17 @@ function renderAnalyticsPage() {
     .sort((a, b) => a.pct - b.pct)
     .slice(0, 3)
     .filter((p) => p.pct < 50);
-  const _antiClutchHtml = _antiClutchRows.length >= 2
-    ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">😰 ANTI-CLUTCH</div>` +
-      _antiClutchRows.map((p, i) =>
-        `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:var(--red)">${p.pct}% <span style="font-size:9px">CHOKER</span></div></div>`
-      ).join("") + `</div>`
-    : "";
+  const _antiClutchHtml =
+    _antiClutchRows.length >= 2
+      ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">😰 ANTI-CLUTCH</div>` +
+        _antiClutchRows
+          .map(
+            (p, i) =>
+              `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:var(--red)">${p.pct}% <span style="font-size:9px">CHOKER</span></div></div>`,
+          )
+          .join("") +
+        `</div>`
+      : "";
 
   // ── CONSISTENCY RANKINGS ─────────────────────────────────
   // grid: Rank | Player | Matches | Consistency
@@ -14163,9 +15535,15 @@ function renderAnalyticsPage() {
         .join("") +
       (consistencyStats.length >= 3
         ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">⚡ MOST VOLATILE</div>` +
-          [...consistencyStats].reverse().slice(0, 3).map((p, i) =>
-            `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:var(--red)">±${p.consistency} <span style="font-size:9px">VOLATILE</span></div></div>`
-          ).join("") + `</div>`
+          [...consistencyStats]
+            .reverse()
+            .slice(0, 3)
+            .map(
+              (p, i) =>
+                `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:var(--red)">±${p.consistency} <span style="font-size:9px">VOLATILE</span></div></div>`,
+            )
+            .join("") +
+          `</div>`
         : "")
     : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
 
@@ -14194,19 +15572,29 @@ function renderAnalyticsPage() {
     .sort((a, b) => b.score - a.score);
 
   // Hardest single win = match with highest combined opponent ELO
-  let _hardestWinMatch = null, _hardestCombinedElo = 0;
+  let _hardestWinMatch = null,
+    _hardestCombinedElo = 0;
   allMatches.forEach((m) => {
     const _aw = m.scoreA > m.scoreB;
     const _losers2 = _aw ? m.teamB : m.teamA;
     const _combElo = _losers2.reduce((s, p) => s + (eloMapFull[p] || 1000), 0);
-    if (_combElo > _hardestCombinedElo) { _hardestCombinedElo = _combElo; _hardestWinMatch = m; }
+    if (_combElo > _hardestCombinedElo) {
+      _hardestCombinedElo = _combElo;
+      _hardestWinMatch = m;
+    }
   });
-  const _hardestWinCallout = _hardestWinMatch ? (() => {
-    const _aw2 = _hardestWinMatch.scoreA > _hardestWinMatch.scoreB;
-    const _w = (_aw2 ? _hardestWinMatch.teamA : _hardestWinMatch.teamB).join(" & ");
-    const _l = (_aw2 ? _hardestWinMatch.teamB : _hardestWinMatch.teamA).join(" & ");
-    return `<div style="background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.18);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:5px">💎 HARDEST WIN · OPP ELO ${_hardestCombinedElo}</div><div style="font-size:12px;font-weight:800">${_w} <span style="color:var(--green)">beat</span> ${_l}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtDate(_hardestWinMatch.date)} · ${_hardestWinMatch.scoreA}–${_hardestWinMatch.scoreB}</div></div>`;
-  })() : "";
+  const _hardestWinCallout = _hardestWinMatch
+    ? (() => {
+        const _aw2 = _hardestWinMatch.scoreA > _hardestWinMatch.scoreB;
+        const _w = (
+          _aw2 ? _hardestWinMatch.teamA : _hardestWinMatch.teamB
+        ).join(" & ");
+        const _l = (
+          _aw2 ? _hardestWinMatch.teamB : _hardestWinMatch.teamA
+        ).join(" & ");
+        return `<div style="background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.18);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:5px">💎 HARDEST WIN · OPP ELO ${_hardestCombinedElo}</div><div style="font-size:12px;font-weight:800">${_w} <span style="color:var(--green)">beat</span> ${_l}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtDate(_hardestWinMatch.date)} · ${_hardestWinMatch.scoreA}–${_hardestWinMatch.scoreB}</div></div>`;
+      })()
+    : "";
 
   // grid: Rank | Player | Wins | Avg Opp ELO
   const qualGrid = "grid-template-columns:40px 1fr 44px 72px";
@@ -14311,7 +15699,9 @@ function renderAnalyticsPage() {
       });
       let strk = 0;
       const lastDot = dots.length ? dots[dots.length - 1] : null;
-      if (lastDot) for (let si = dots.length - 1; si >= 0 && dots[si] === lastDot; si--) strk++;
+      if (lastDot)
+        for (let si = dots.length - 1; si >= 0 && dots[si] === lastDot; si--)
+          strk++;
       return {
         name,
         dots,
@@ -14568,10 +15958,12 @@ function renderAnalyticsPage() {
   const _topScore = scoreDistSorted[0];
   const _allMarginsRaw = sortedM.map((m) => Math.abs(m.scoreA - m.scoreB));
   const _avgMarginOverall = _allMarginsRaw.length
-    ? (_allMarginsRaw.reduce((s, v) => s + v, 0) / _allMarginsRaw.length).toFixed(1)
+    ? (
+        _allMarginsRaw.reduce((s, v) => s + v, 0) / _allMarginsRaw.length
+      ).toFixed(1)
     : "—";
   const _sdCallout = _topScore
-    ? `<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">MOST COMMON SCORE</div><div style="font-size:20px;font-weight:900;color:var(--theme)">${_topScore[0]}</div><div style="font-size:9px;color:var(--muted)">${_topScore[1]}× · ${Math.round(_topScore[1] / allMatches.length * 100)}%</div></div><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">AVG MARGIN</div><div style="font-size:20px;font-weight:900;color:var(--accent)">${_avgMarginOverall}</div><div style="font-size:9px;color:var(--muted)">games per match</div></div></div>`
+    ? `<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">MOST COMMON SCORE</div><div style="font-size:20px;font-weight:900;color:var(--theme)">${_topScore[0]}</div><div style="font-size:9px;color:var(--muted)">${_topScore[1]}× · ${Math.round((_topScore[1] / allMatches.length) * 100)}%</div></div><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">AVG MARGIN</div><div style="font-size:20px;font-weight:900;color:var(--accent)">${_avgMarginOverall}</div><div style="font-size:9px;color:var(--muted)">games per match</div></div></div>`
     : "";
   const sdHtml = scoreDistSorted
     .map(
@@ -14590,9 +15982,10 @@ function renderAnalyticsPage() {
             : p.pct <= 40
               ? "var(--red)"
               : "var(--text)";
-        const skBadge = p.streak >= 2
-          ? `<span class="ft-streak-badge ${p.streakType === "W" ? "ft-sk-w" : "ft-sk-l"}">${p.streak}${p.streakType}</span>`
-          : `<span class="ft-streak-badge ft-sk-n">—</span>`;
+        const skBadge =
+          p.streak >= 2
+            ? `<span class="ft-streak-badge ${p.streakType === "W" ? "ft-sk-w" : "ft-sk-l"}">${p.streak}${p.streakType}</span>`
+            : `<span class="ft-streak-badge ft-sk-n">—</span>`;
         return `<div class="ftable-row"><div class="ftable-rank">${i + 1}</div><div class="ftable-name">${p.name}</div><div class="ftable-dots">${fdots(p.dots)}</div><div class="ftable-pct" style="color:${pc}">${p.pct}%</div>${skBadge}</div>`;
       })
       .join("") ||
@@ -14621,18 +16014,24 @@ function renderAnalyticsPage() {
   // ── MOST IMPROVED ──────────────────────────────────────
   const mostImproved = (() => {
     const pNames = Object.keys(stats).filter((p) => stats[p].matches >= 5);
-    let best = null, bestDiff = -Infinity;
+    let best = null,
+      bestDiff = -Infinity;
     for (const p of pNames) {
       const overall = stats[p].wins / stats[p].matches;
-      const pMatches = sortedM.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p));
+      const pMatches = sortedM.filter((m) =>
+        [...(m.teamA || []), ...(m.teamB || [])].includes(p),
+      );
       const recent = pMatches.slice(-10);
       if (recent.length < 3) continue;
       const recWins = recent.filter((m) =>
-        (m.scoreA > m.scoreB ? (m.teamA || []) : (m.teamB || [])).includes(p)
+        (m.scoreA > m.scoreB ? m.teamA || [] : m.teamB || []).includes(p),
       ).length;
       const recentRate = recWins / recent.length;
       const diff = recentRate - overall;
-      if (diff > bestDiff) { bestDiff = diff; best = p; }
+      if (diff > bestDiff) {
+        bestDiff = diff;
+        best = p;
+      }
     }
     return best ? { name: best, diff: Math.round(bestDiff * 100) } : null;
   })();
@@ -15048,7 +16447,10 @@ function renderAnalyticsPage() {
 
   // ── H2H DEEP DIVE ──────────────────────────────────────
   const opts = playersByMatches
-    .map((p) => `<option value="${escHtml(p)}">${escHtml(p.toUpperCase())}</option>`)
+    .map(
+      (p) =>
+        `<option value="${escHtml(p)}">${escHtml(p.toUpperCase())}</option>`,
+    )
     .join("");
   const placeholder = `<option value="" disabled selected>Select player</option>`;
   const h2hHtml = `<div class="h2h-form"><div class="h2h-selects h2h-cascade-item"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select></div><button class="btn-go h2h-cascade-item" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
@@ -15672,9 +17074,11 @@ function renderAnalyticsPage() {
       .slice(-6);
     if (!allMonths.length)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
-    const topPlayers = playerList.filter(
-      (p) => byPlayer[p] && Object.values(byPlayer[p]).some((d) => d.p >= 1),
-    ).sort((a, b) => a.localeCompare(b));
+    const topPlayers = playerList
+      .filter(
+        (p) => byPlayer[p] && Object.values(byPlayer[p]).some((d) => d.p >= 1),
+      )
+      .sort((a, b) => a.localeCompare(b));
     if (!topPlayers.length)
       return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
     // Enhancement 20: unified clutch summary table
@@ -15683,23 +17087,30 @@ function renderAnalyticsPage() {
       sortedM.forEach((m) => {
         if (Math.abs(m.scoreA - m.scoreB) > 1) return;
         const aWon20 = m.scoreA > m.scoreB;
-        const process20 = (players, won) => players.forEach((p) => {
-          if (!totals[p]) totals[p] = { w: 0, p: 0 };
-          totals[p].p++;
-          if (won) totals[p].w++;
-        });
+        const process20 = (players, won) =>
+          players.forEach((p) => {
+            if (!totals[p]) totals[p] = { w: 0, p: 0 };
+            totals[p].p++;
+            if (won) totals[p].w++;
+          });
         process20(m.teamA || [], aWon20);
         process20(m.teamB || [], !aWon20);
       });
       const summaryRows = Object.entries(totals)
         .filter(([, d]) => d.p >= 2)
-        .sort((a, b) => (b[1].w / b[1].p) - (a[1].w / a[1].p))
+        .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p)
         .map(([p, d]) => {
-          const pct = Math.round(d.w / d.p * 100);
-          const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--gold)";
+          const pct = Math.round((d.w / d.p) * 100);
+          const col =
+            pct >= 60
+              ? "var(--green)"
+              : pct <= 40
+                ? "var(--red)"
+                : "var(--gold)";
           const rating = pct >= 60 ? "CLUTCH" : pct <= 40 ? "CHOKER" : "STEADY";
-          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.w}W–${d.p-d.w}L</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
-        }).join("");
+          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
+        })
+        .join("");
       if (!summaryRows) return "";
       return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
         <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:8px">CLUTCH RANKING — ALL TIME (close matches, margin ≤1)</div>
@@ -15712,7 +17123,9 @@ function renderAnalyticsPage() {
       </div>`;
     })();
 
-    return clutchSummary + `<div class="ana-card" style="padding:12px;overflow-x:auto">
+    return (
+      clutchSummary +
+      `<div class="ana-card" style="padding:12px;overflow-x:auto">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% in close matches (margin ≤1) per month</div>
       <table style="width:100%;border-collapse:collapse;font-size:10px">
         <tr><th style="text-align:left;color:var(--muted);font-weight:600;padding-bottom:6px">Player</th>${allMonths.map((m) => `<th style="color:var(--muted);font-weight:600;padding:0 4px 6px;text-align:center">${MONTHS[parseInt(m.slice(5)) - 1]}</th>`).join("")}</tr>
@@ -15738,7 +17151,8 @@ function renderAnalyticsPage() {
           })
           .join("")}
       </table>
-    </div>`;
+    </div>`
+    );
   })();
 
   // ── WHAT-IF SIMULATOR ──────────────────────────────────
@@ -15795,74 +17209,136 @@ function renderAnalyticsPage() {
 
   // 1a: Player Stats Table
   const _playerStatsTableHtml = (() => {
-    if (!compList.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    if (!compList.length)
+      return '<div class="sub" style="padding:8px">No data.</div>';
     const pg = "grid-template-columns:1fr 44px 60px 54px 60px";
-    return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span>Player</span><span>Avg G</span><span>Shutout%</span><span>Partners</span><span>Avg Margin</span></div>` +
-      compList.filter((p) => p.mp >= 1).map((p) => {
-        const avgG = (p.ngw / p.mp).toFixed(1);
-        const shutRate = stats[p.name]?.wins > 0
-          ? Math.round(((shutoutWins[p.name] || 0) / stats[p.name].wins) * 100) + "%"
-          : "—";
-        const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
-        const avgM = p.avgMargin != null ? (p.avgMargin >= 0 ? "+" : "") + p.avgMargin.toFixed(1) : "—";
-        const mc = p.avgMargin > 0 ? "var(--green)" : p.avgMargin < 0 ? "var(--red)" : "var(--muted)";
-        return `<div class="lrace-row" style="${pg}"><div class="lrace-name">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${shutRate}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
-      }).join("") + `</div>`;
+    return (
+      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span>Player</span><span>Avg G</span><span>Shutout%</span><span>Partners</span><span>Avg Margin</span></div>` +
+      compList
+        .filter((p) => p.mp >= 1)
+        .map((p) => {
+          const avgG = (p.ngw / p.mp).toFixed(1);
+          const shutRate =
+            stats[p.name]?.wins > 0
+              ? Math.round(
+                  ((shutoutWins[p.name] || 0) / stats[p.name].wins) * 100,
+                ) + "%"
+              : "—";
+          const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
+          const avgM =
+            p.avgMargin != null
+              ? (p.avgMargin >= 0 ? "+" : "") + p.avgMargin.toFixed(1)
+              : "—";
+          const mc =
+            p.avgMargin > 0
+              ? "var(--green)"
+              : p.avgMargin < 0
+                ? "var(--red)"
+                : "var(--muted)";
+          return `<div class="lrace-row" style="${pg}"><div class="lrace-name">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${shutRate}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
+        })
+        .join("") +
+      `</div>`
+    );
   })();
 
   // 1b: Pair Leaderboard Top 10 with streak + against quality
   const _pairLeaderboardHtml = (() => {
-    const pairAQ = {}, pairStrk = {};
+    const pairAQ = {},
+      pairStrk = {};
     sortedM.forEach((m) => {
       if (m.teamA.length !== 2 || m.teamB.length !== 2) return;
-      const tkA = [...m.teamA].sort().join(" & "), tkB = [...m.teamB].sort().join(" & ");
+      const tkA = [...m.teamA].sort().join(" & "),
+        tkB = [...m.teamB].sort().join(" & ");
       [tkA, tkB].forEach((tk, ti) => {
         const opp = ti === 0 ? m.teamB : m.teamA;
         if (!pairAQ[tk]) pairAQ[tk] = { t: 0, c: 0 };
-        pairAQ[tk].t += opp.reduce((s, p) => s + (eloMap[p] || 1000), 0) / opp.length;
+        pairAQ[tk].t +=
+          opp.reduce((s, p) => s + (eloMap[p] || 1000), 0) / opp.length;
         pairAQ[tk].c++;
       });
     });
     Object.entries(partnerships).forEach(([key, pd]) => {
       const pms = sortedM.filter((m) => {
         if (m.teamA.length !== 2 || m.teamB.length !== 2) return false;
-        const ak = [...m.teamA].sort().join(" & "), bk = [...m.teamB].sort().join(" & ");
+        const ak = [...m.teamA].sort().join(" & "),
+          bk = [...m.teamB].sort().join(" & ");
         return ak === key || bk === key;
       });
-      let sk = 0, st = null;
+      let sk = 0,
+        st = null;
       for (let i = pms.length - 1; i >= 0; i--) {
         const m = pms[i];
         const ak = [...m.teamA].sort().join(" & ");
         const won = ak === key ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-        if (st === null) { st = won ? "W" : "L"; sk = 1; }
-        else if ((won && st === "W") || (!won && st === "L")) sk++;
+        if (st === null) {
+          st = won ? "W" : "L";
+          sk = 1;
+        } else if ((won && st === "W") || (!won && st === "L")) sk++;
         else break;
       }
       pairStrk[key] = { sk, st };
     });
     const top10 = Object.entries(partnerships)
       .filter(([, pd]) => pd.played >= 2)
-      .sort((a, b) => b[1].wins / b[1].played - a[1].wins / a[1].played || b[1].played - a[1].played)
+      .sort(
+        (a, b) =>
+          b[1].wins / b[1].played - a[1].wins / a[1].played ||
+          b[1].played - a[1].played,
+      )
       .slice(0, 10);
-    if (!top10.length) return '<div class="sub" style="padding:8px">Need 2+ games per pair.</div>';
+    if (!top10.length)
+      return '<div class="sub" style="padding:8px">Need 2+ games per pair.</div>';
     const pg2 = "grid-template-columns:1fr 44px 52px 54px 54px";
-    return `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg2}"><span>Pair</span><span>Played</span><span>Win%</span><span>vs ELO</span><span>Streak</span></div>` +
-      top10.map(([key, pd], i) => {
-        const pct = Math.round(pd.wins / pd.played * 100);
-        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
-        const aq = pairAQ[key] ? Math.round(pairAQ[key].t / pairAQ[key].c) : "—";
-        const s = pairStrk[key];
-        const sStr = s?.sk >= 1 ? `${s.sk}${s.st}` : "—";
-        const sCol = s?.st === "W" ? "var(--green)" : s?.st === "L" ? "var(--red)" : "var(--muted)";
-        const shortKey = pd.players.map((p) => p.split(" ")[0]).join(" & ");
-        return `<div class="lrace-row" style="${pg2}"><div class="lrace-name" style="font-size:10px">#${i + 1} ${shortKey}</div><div style="text-align:center;font-weight:700">${pd.played}</div><div style="text-align:center;font-weight:700;color:${col}">${pct}%</div><div style="text-align:center;font-weight:700;font-size:10px">${aq}</div><div style="text-align:center;font-weight:700;color:${sCol}">${sStr}</div></div>`;
-      }).join("") + `</div>`;
+    return (
+      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg2}"><span>Pair</span><span>Played</span><span>Win%</span><span>vs ELO</span><span>Streak</span></div>` +
+      top10
+        .map(([key, pd], i) => {
+          const pct = Math.round((pd.wins / pd.played) * 100);
+          const col =
+            pct >= 60
+              ? "var(--green)"
+              : pct <= 40
+                ? "var(--red)"
+                : "var(--muted)";
+          const aq = pairAQ[key]
+            ? Math.round(pairAQ[key].t / pairAQ[key].c)
+            : "—";
+          const s = pairStrk[key];
+          const sStr = s?.sk >= 1 ? `${s.sk}${s.st}` : "—";
+          const sCol =
+            s?.st === "W"
+              ? "var(--green)"
+              : s?.st === "L"
+                ? "var(--red)"
+                : "var(--muted)";
+          const shortKey = pd.players.map((p) => p.split(" ")[0]).join(" & ");
+          return `<div class="lrace-row" style="${pg2}"><div class="lrace-name" style="font-size:10px">#${i + 1} ${shortKey}</div><div style="text-align:center;font-weight:700">${pd.played}</div><div style="text-align:center;font-weight:700;color:${col}">${pct}%</div><div style="text-align:center;font-weight:700;font-size:10px">${aq}</div><div style="text-align:center;font-weight:700;color:${sCol}">${sStr}</div></div>`;
+        })
+        .join("") +
+      `</div>`
+    );
   })();
 
   // 1c: Monthly Stats Table
   const _monthlyStatsTableHtml = (() => {
-    if (!uniqueMonths.length) return '<div class="sub" style="padding:8px">No monthly data yet.</div>';
-    const moN2 = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    if (!uniqueMonths.length)
+      return '<div class="sub" style="padding:8px">No monthly data yet.</div>';
+    const moN2 = [
+      "",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     const lastMos = uniqueMonths.slice(-6);
     const potmMap = {};
     lastMos.forEach((mo) => {
@@ -15872,41 +17348,82 @@ function renderAnalyticsPage() {
       const ps2 = allEntries.filter(([, d]) => d.m >= threshold);
       if (!ps2.length) return;
       const top = ps2.sort((a, b) => b[1].w / b[1].m - a[1].w / a[1].m)[0];
-      if (top) potmMap[mo] = { name: top[0], pct: Math.round(top[1].w / top[1].m * 100), matches: top[1].m };
+      if (top)
+        potmMap[mo] = {
+          name: top[0],
+          pct: Math.round((top[1].w / top[1].m) * 100),
+          matches: top[1].m,
+        };
     });
     const trendArrows = {};
     if (lastMos.length >= 2) {
       playersByMatches.forEach((p) => {
-        const [prev, curr] = lastMos.slice(-2).map((mo) => monthlyStats[mo]?.[p]);
+        const [prev, curr] = lastMos
+          .slice(-2)
+          .map((mo) => monthlyStats[mo]?.[p]);
         if (prev?.m >= 2 && curr?.m >= 2) {
           const d = curr.w / curr.m - prev.w / prev.m;
           trendArrows[p] = d > 0.1 ? "↑" : d < -0.1 ? "↓" : "→";
         }
       });
     }
-    const activePs = playersByMatches.filter((p) => lastMos.some((mo) => monthlyStats[mo]?.[p]?.m > 0));
-    if (!activePs.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    const activePs = playersByMatches.filter((p) =>
+      lastMos.some((mo) => monthlyStats[mo]?.[p]?.m > 0),
+    );
+    if (!activePs.length)
+      return '<div class="sub" style="padding:8px">No data.</div>';
     const potmHtml2 = Object.keys(potmMap).length
       ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">` +
-        Object.entries(potmMap).map(([mo, d]) =>
-          `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}% · ${d.matches}P</div></div>`
-        ).join("") + `</div>`
+        Object.entries(potmMap)
+          .map(
+            ([mo, d]) =>
+              `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}% · ${d.matches}P</div></div>`,
+          )
+          .join("") +
+        `</div>`
       : "";
-    const hdrs = lastMos.map((mo) => `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${moN2[parseInt(mo.slice(5))]}</th>`).join("");
-    const bodyRows2 = activePs.map((p) => {
-      const cells2 = lastMos.map((mo) => {
-        const d = monthlyStats[mo]?.[p];
-        if (!d || !d.m) return `<td style="text-align:center;color:var(--muted);font-size:10px">—</td>`;
-        const pct = Math.round(d.w / d.m * 100);
-        const col = pct >= 70 ? "var(--green)" : pct >= 40 ? "var(--gold)" : "var(--red)";
-        const bg = pct >= 70 ? "rgba(54,212,126,0.12)" : pct >= 40 ? "rgba(241,196,15,0.1)" : "rgba(240,79,79,0.12)";
-        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%<br><span style="font-size:8px;color:var(--muted);font-weight:600">${d.w}W–${d.m-d.w}L</span></td>`;
-      }).join("");
-      const arr = trendArrows[p];
-      const arrCol = arr === "↑" ? "var(--green)" : arr === "↓" ? "var(--red)" : "var(--muted)";
-      const arrSpan = arr ? `<span style="font-size:10px;color:${arrCol};margin-left:3px">${arr}</span>` : "";
-      return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}${arrSpan}</td>${cells2}</tr>`;
-    }).join("");
+    const hdrs = lastMos
+      .map(
+        (mo) =>
+          `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${moN2[parseInt(mo.slice(5))]}</th>`,
+      )
+      .join("");
+    const bodyRows2 = activePs
+      .map((p) => {
+        const cells2 = lastMos
+          .map((mo) => {
+            const d = monthlyStats[mo]?.[p];
+            if (!d || !d.m)
+              return `<td style="text-align:center;color:var(--muted);font-size:10px">—</td>`;
+            const pct = Math.round((d.w / d.m) * 100);
+            const col =
+              pct >= 70
+                ? "var(--green)"
+                : pct >= 40
+                  ? "var(--gold)"
+                  : "var(--red)";
+            const bg =
+              pct >= 70
+                ? "rgba(54,212,126,0.12)"
+                : pct >= 40
+                  ? "rgba(241,196,15,0.1)"
+                  : "rgba(240,79,79,0.12)";
+            return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%<br><span style="font-size:8px;color:var(--muted);font-weight:600">${d.w}W–${d.m - d.w}L</span></td>`;
+          })
+          .join("");
+        const arr = trendArrows[p];
+        const arrCol =
+          arr === "↑"
+            ? "var(--green)"
+            : arr === "↓"
+              ? "var(--red)"
+              : "var(--muted)";
+        const arrSpan = arr
+          ? `<span style="font-size:10px;color:${arrCol};margin-left:3px">${arr}</span>`
+          : "";
+        return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}${arrSpan}</td>${cells2}</tr>`;
+      })
+      .join("");
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">${potmHtml2}<table style="width:100%;border-collapse:collapse;font-size:10px;border-spacing:2px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs}</tr></thead><tbody>${bodyRows2}</tbody></table></div>`;
   })();
 
@@ -15931,19 +17448,20 @@ function renderAnalyticsPage() {
   window._hiLoSort = { col: "current", asc: false };
 
   const _peakEloHtml = (() => {
-    if (!eloRanked.length) return '<div class="sub" style="padding:8px">No data.</div>';
+    if (!eloRanked.length)
+      return '<div class="sub" style="padding:8px">No data.</div>';
     const pg3 = "grid-template-columns:22px 1fr 44px 44px 48px 44px 48px 46px";
     const mkH = (col, label, tip) =>
       `<span class="hilo-hdr" data-col="${col}" onclick="_hiLoSortBy('${col}')" title="${tip}" style="text-align:center;cursor:pointer;user-select:none">${label}</span>`;
     return `<div class="ana-card" style="padding:8px 10px">
       <div class="lrace-header" style="${pg3};font-size:8px">
         <span style="color:var(--muted)">#</span>
-        ${mkH('name','PLAYER','Sort by player name')}
-        ${mkH('current','NOW','Sort by current ELO')}
-        ${mkH('peak','PEAK','Sort by peak ELO')}
-        ${mkH('fromPeak','↓PEAK','Sort by distance from peak')}
-        ${mkH('low','LOW','Sort by lowest ELO')}
-        ${mkH('fromLow','↑LOW','Sort by recovery from low')}
+        ${mkH("name", "PLAYER", "Sort by player name")}
+        ${mkH("current", "NOW", "Sort by current ELO")}
+        ${mkH("peak", "PEAK", "Sort by peak ELO")}
+        ${mkH("fromPeak", "↓PEAK", "Sort by distance from peak")}
+        ${mkH("low", "LOW", "Sort by lowest ELO")}
+        ${mkH("fromLow", "↑LOW", "Sort by recovery from low")}
         <span style="text-align:center;color:var(--muted);cursor:default" title="Last 5 form">FORM</span>
       </div>
       <div id="hi-lo-elo-body"></div>
@@ -15965,25 +17483,45 @@ function renderAnalyticsPage() {
         if ((inA && aWon2) || (!inA && !aWon2)) byP[p][d].w++;
       });
     });
-    const activeDays = [0,1,2,3,4,5,6].filter((d) => Object.values(byP).some((v) => v[d].p > 0));
-    if (!activeDays.length) return '<div class="sub" style="padding:8px">Not enough data.</div>';
-    const hdrs2 = activeDays.map((d) => `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${DAY2[d]}</th>`).join("");
-    const rows2 = playersByMatches.filter((p) => byP[p]).map((p) => {
-      const cells3 = activeDays.map((d) => {
-        const dd = byP[p][d];
-        if (!dd.p) return `<td style="text-align:center;color:var(--muted);font-size:10px">—</td>`;
-        const pct = Math.round(dd.w / dd.p * 100);
-        const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--gold)";
-        return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col}" title="${dd.w}W–${dd.p-dd.w}L">${pct}%</td>`;
-      }).join("");
-      return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}</td>${cells3}</tr>`;
-    }).join("");
+    const activeDays = [0, 1, 2, 3, 4, 5, 6].filter((d) =>
+      Object.values(byP).some((v) => v[d].p > 0),
+    );
+    if (!activeDays.length)
+      return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    const hdrs2 = activeDays
+      .map(
+        (d) =>
+          `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${DAY2[d]}</th>`,
+      )
+      .join("");
+    const rows2 = playersByMatches
+      .filter((p) => byP[p])
+      .map((p) => {
+        const cells3 = activeDays
+          .map((d) => {
+            const dd = byP[p][d];
+            if (!dd.p)
+              return `<td style="text-align:center;color:var(--muted);font-size:10px">—</td>`;
+            const pct = Math.round((dd.w / dd.p) * 100);
+            const col =
+              pct >= 60
+                ? "var(--green)"
+                : pct <= 40
+                  ? "var(--red)"
+                  : "var(--gold)";
+            return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col}" title="${dd.w}W–${dd.p - dd.w}L">${pct}%</td>`;
+          })
+          .join("");
+        return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}</td>${cells3}</tr>`;
+      })
+      .join("");
     return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % per player per day of week</div><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs2}</tr></thead><tbody>${rows2}</tbody></table></div>`;
   })();
 
   // 2: Score Margin Trend (avg margin per month)
   const _scoreMargTrendHtml = (() => {
-    if (uniqueMonths.length < 2) return '<div class="sub" style="padding:8px">Need matches across 2+ months.</div>';
+    if (uniqueMonths.length < 2)
+      return '<div class="sub" style="padding:8px">Need matches across 2+ months.</div>';
     const moMargins = {};
     sortedM.forEach((m) => {
       const mo = (m.date || "").slice(0, 7);
@@ -15992,22 +17530,64 @@ function renderAnalyticsPage() {
       moMargins[mo].total += Math.abs(m.scoreA - m.scoreB);
       moMargins[mo].count++;
     });
-    const moN3 = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const pts = uniqueMonths.map((mo) => ({
-      mo,
-      avg: moMargins[mo] ? moMargins[mo].total / moMargins[mo].count : null,
-    })).filter((p) => p.avg !== null);
-    if (pts.length < 2) return '<div class="sub" style="padding:8px">Not enough data.</div>';
-    const W = 300, H = 90, pl = 30, pr = 8, pt2 = 8, pb = 18, cW = W - pl - pr, cH = H - pt2 - pb;
+    const moN3 = [
+      "",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const pts = uniqueMonths
+      .map((mo) => ({
+        mo,
+        avg: moMargins[mo] ? moMargins[mo].total / moMargins[mo].count : null,
+      }))
+      .filter((p) => p.avg !== null);
+    if (pts.length < 2)
+      return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    const W = 300,
+      H = 90,
+      pl = 30,
+      pr = 8,
+      pt2 = 8,
+      pb = 18,
+      cW = W - pl - pr,
+      cH = H - pt2 - pb;
     const maxA = Math.max(...pts.map((p) => p.avg)) + 0.5;
     const minA = Math.max(0, Math.min(...pts.map((p) => p.avg)) - 0.5);
     const toX2 = (i) => pl + (i / (pts.length - 1 || 1)) * cW;
     const toY2 = (v) => pt2 + (1 - (v - minA) / (maxA - minA || 1)) * cH;
-    const polyline2 = pts.map((p, i) => `${toX2(i).toFixed(1)},${toY2(p.avg).toFixed(1)}`).join(" ");
-    const xLbls = pts.map((p, i) => `<text x="${toX2(i).toFixed(1)}" y="${H - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN3[parseInt(p.mo.slice(5))]}</text>`).join("");
-    const circles2 = pts.map((p, i) => `<circle cx="${toX2(i).toFixed(1)}" cy="${toY2(p.avg).toFixed(1)}" r="2.5" fill="var(--theme)"><title>${p.mo}: ${p.avg.toFixed(1)}</title></circle>`).join("");
-    const lastAvg = pts[pts.length - 1].avg, prevAvg = pts[pts.length - 2]?.avg;
-    const trend = lastAvg < prevAvg - 0.1 ? "getting tighter" : lastAvg > prevAvg + 0.1 ? "more one-sided" : "steady";
+    const polyline2 = pts
+      .map((p, i) => `${toX2(i).toFixed(1)},${toY2(p.avg).toFixed(1)}`)
+      .join(" ");
+    const xLbls = pts
+      .map(
+        (p, i) =>
+          `<text x="${toX2(i).toFixed(1)}" y="${H - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN3[parseInt(p.mo.slice(5))]}</text>`,
+      )
+      .join("");
+    const circles2 = pts
+      .map(
+        (p, i) =>
+          `<circle cx="${toX2(i).toFixed(1)}" cy="${toY2(p.avg).toFixed(1)}" r="2.5" fill="var(--theme)"><title>${p.mo}: ${p.avg.toFixed(1)}</title></circle>`,
+      )
+      .join("");
+    const lastAvg = pts[pts.length - 1].avg,
+      prevAvg = pts[pts.length - 2]?.avg;
+    const trend =
+      lastAvg < prevAvg - 0.1
+        ? "getting tighter"
+        : lastAvg > prevAvg + 0.1
+          ? "more one-sided"
+          : "steady";
     return `<div class="ana-card" style="padding:12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">Average score margin per month — ${trend}</div><div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible"><polyline points="${polyline2}" fill="none" stroke="var(--theme)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${circles2}${xLbls}</svg></div></div>`;
   })();
 
@@ -16017,27 +17597,38 @@ function renderAnalyticsPage() {
     sortedM.forEach((m) => {
       const aWon2 = m.scoreA > m.scoreB;
       const winners = aWon2 ? m.teamA : m.teamB;
-      const losers  = aWon2 ? m.teamB : m.teamA;
+      const losers = aWon2 ? m.teamB : m.teamA;
       winners.forEach((w) => {
         if (!beatenCounts[w]) beatenCounts[w] = {};
-        losers.forEach((l) => { beatenCounts[w][l] = (beatenCounts[w][l] || 0) + 1; });
+        losers.forEach((l) => {
+          beatenCounts[w][l] = (beatenCounts[w][l] || 0) + 1;
+        });
       });
     });
-    if (!Object.keys(beatenCounts).length) return '<div class="sub" style="padding:8px">No data.</div>';
+    if (!Object.keys(beatenCounts).length)
+      return '<div class="sub" style="padding:8px">No data.</div>';
     window._domCounts = beatenCounts;
-    window._domRebuild = function(minN) {
+    window._domRebuild = function (minN) {
       const n = Math.max(1, Math.floor(+minN) || 1);
       const pg = "grid-template-columns:40px 1fr 60px";
       const lbl = n === 1 ? "beaten at least once" : `beaten ${n}+ times`;
       const rows = Object.entries(beatenCounts)
-        .map(([p, opp]) => ({ name: p, count: Object.values(opp).filter(c => c >= n).length }))
-        .filter(r => r.count > 0)
+        .map(([p, opp]) => ({
+          name: p,
+          count: Object.values(opp).filter((c) => c >= n).length,
+        }))
+        .filter((r) => r.count > 0)
         .sort((a, b) => b.count - a.count);
       const el = document.getElementById("dominance-card");
       if (!el) return;
       el.querySelector(".dom-desc").textContent = `Distinct opponents ${lbl}`;
       el.querySelector(".dom-rows").innerHTML = rows.length
-        ? rows.map((r, i) => `<div class="lrace-row" style="${pg}"><div class="lrace-rank">#${i+1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")
+        ? rows
+            .map(
+              (r, i) =>
+                `<div class="lrace-row" style="${pg}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`,
+            )
+            .join("")
         : `<div style="font-size:11px;color:var(--muted);padding:8px 0">No player has beaten any opponent ${n}+ times.</div>`;
     };
     const pg4 = "grid-template-columns:40px 1fr 60px";
@@ -16053,7 +17644,7 @@ function renderAnalyticsPage() {
         </div>
       </div>
       <div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opp</span></div>
-      <div class="dom-rows">${initRows.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i+1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")}</div>
+      <div class="dom-rows">${initRows.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")}</div>
     </div>`;
   })();
 
@@ -16062,9 +17653,12 @@ function renderAnalyticsPage() {
     const rivalries = Object.entries(teamMatchups)
       .filter(([, v]) => v.played >= 3)
       .map(([, v]) => {
-        const tkA = v.teamA.join(" & "), tkB = v.teamB.join(" & ");
-        const wA = v.wins[tkA] || 0, wB = v.wins[tkB] || 0;
-        const dom = Math.max(wA, wB), sub = Math.min(wA, wB);
+        const tkA = v.teamA.join(" & "),
+          tkB = v.teamB.join(" & ");
+        const wA = v.wins[tkA] || 0,
+          wB = v.wins[tkB] || 0;
+        const dom = Math.max(wA, wB),
+          sub = Math.min(wA, wB);
         const domTeam = wA >= wB ? v.teamA : v.teamB;
         const subTeam = wA >= wB ? v.teamB : v.teamA;
         return { domTeam, subTeam, dom, sub, played: v.played };
@@ -16072,13 +17666,19 @@ function renderAnalyticsPage() {
       .filter((r) => r.dom > r.sub)
       .sort((a, b) => b.dom / b.played - a.dom / a.played || b.dom - a.dom)
       .slice(0, 5);
-    if (!rivalries.length) return '<div class="sub" style="padding:8px">Need 3+ meetings between same teams with a clear leader.</div>';
-    return `<div class="ana-card" style="padding:10px 12px">` +
-      rivalries.map((r) => {
-        const domPct = Math.round(r.dom / r.played * 100);
-        const short = (t) => t.map((p) => p.split(" ")[0]).join(" & ");
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><div><div style="font-size:11px;font-weight:700">${short(r.domTeam)} <span style="color:var(--green)">dominate</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px">vs ${short(r.subTeam)}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:var(--green)">${r.dom}–${r.sub}</div><div style="font-size:9px;color:var(--muted)">${r.played}g · ${domPct}%</div></div></div>`;
-      }).join("") + `</div>`;
+    if (!rivalries.length)
+      return '<div class="sub" style="padding:8px">Need 3+ meetings between same teams with a clear leader.</div>';
+    return (
+      `<div class="ana-card" style="padding:10px 12px">` +
+      rivalries
+        .map((r) => {
+          const domPct = Math.round((r.dom / r.played) * 100);
+          const short = (t) => t.map((p) => p.split(" ")[0]).join(" & ");
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><div><div style="font-size:11px;font-weight:700">${short(r.domTeam)} <span style="color:var(--green)">dominate</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px">vs ${short(r.subTeam)}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:var(--green)">${r.dom}–${r.sub}</div><div style="font-size:9px;color:var(--muted)">${r.played}g · ${domPct}%</div></div></div>`;
+        })
+        .join("") +
+      `</div>`
+    );
   })();
 
   // 2: Score Heatmap Grid (winner vs loser score — symmetric pairs merged)
@@ -16096,24 +17696,34 @@ function renderAnalyticsPage() {
     const scores = Array.from({ length: maxScore + 1 }, (_, i) => i);
     const maxG = Math.max(...Object.values(grid3), 1);
     const header = `<tr><th style="font-size:8px;color:var(--muted);padding:0 4px 4px 0">Win↓ Loss→</th>${scores.map((s) => `<th style="font-size:8px;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 4px">${s}</th>`).join("")}</tr>`;
-    const bodyRows3 = scores.map((hi) => {
-      const cells4 = scores.map((lo) => {
-        if (lo > hi) return `<td style="background:transparent;padding:4px 5px"></td>`;
-        const cnt = grid3[`${hi}_${lo}`] || 0;
-        const bg = cnt === 0 ? "rgba(255,255,255,0.04)" : `rgba(var(--theme-rgb),${Math.max(0.12, cnt / maxG * 0.8).toFixed(2)})`;
-        return `<td style="text-align:center;background:${bg};border-radius:3px;padding:4px;font-size:9px;font-weight:700;color:${cnt?'var(--text)':'transparent'}">${cnt || ""}</td>`;
-      }).join("");
-      return `<tr><td style="font-size:9px;color:var(--muted);font-weight:700;padding:2px 6px 2px 0">${hi}</td>${cells4}</tr>`;
-    }).join("");
+    const bodyRows3 = scores
+      .map((hi) => {
+        const cells4 = scores
+          .map((lo) => {
+            if (lo > hi)
+              return `<td style="background:transparent;padding:4px 5px"></td>`;
+            const cnt = grid3[`${hi}_${lo}`] || 0;
+            const bg =
+              cnt === 0
+                ? "rgba(255,255,255,0.04)"
+                : `rgba(var(--theme-rgb),${Math.max(0.12, (cnt / maxG) * 0.8).toFixed(2)})`;
+            return `<td style="text-align:center;background:${bg};border-radius:3px;padding:4px;font-size:9px;font-weight:700;color:${cnt ? "var(--text)" : "transparent"}">${cnt || ""}</td>`;
+          })
+          .join("");
+        return `<tr><td style="font-size:9px;color:var(--muted);font-weight:700;padding:2px 6px 2px 0">${hi}</td>${cells4}</tr>`;
+      })
+      .join("");
     return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Score frequency — win score (row) vs loss score (col). 4-2 and 2-4 counted together.</div><table style="border-collapse:separate;border-spacing:3px"><thead>${header}</thead><tbody>${bodyRows3}</tbody></table></div>`;
   })();
 
   // ── ABSENCE TRACKER ────────────────────────────────────────
   const _absenceTrackerHtml = (() => {
-    if (!sortedM.length) return '<div class="sub" style="padding:12px">No data.</div>';
+    if (!sortedM.length)
+      return '<div class="sub" style="padding:12px">No data.</div>';
     const todayStr3 = todayISO();
     const todayD = new Date(todayStr3 + "T00:00:00");
-    const firstDate3 = {}, lastDate3 = {};
+    const firstDate3 = {},
+      lastDate3 = {};
     sortedM.forEach((m) => {
       [...m.teamA, ...m.teamB].forEach((p) => {
         if (!firstDate3[p] || m.date < firstDate3[p]) firstDate3[p] = m.date;
@@ -16121,26 +17731,44 @@ function renderAnalyticsPage() {
       });
     });
     const rows3 = Object.keys(lastDate3)
-      .map(p => {
-        const days3 = Math.round((todayD - new Date(lastDate3[p] + "T00:00:00")) / 86400000);
-        const missed = sortedM.filter(m => m.date > lastDate3[p]).length;
-        return { name: p, first: firstDate3[p], last: lastDate3[p], days: days3, missed };
+      .map((p) => {
+        const days3 = Math.round(
+          (todayD - new Date(lastDate3[p] + "T00:00:00")) / 86400000,
+        );
+        const missed = sortedM.filter((m) => m.date > lastDate3[p]).length;
+        return {
+          name: p,
+          first: firstDate3[p],
+          last: lastDate3[p],
+          days: days3,
+          missed,
+        };
       })
       .sort((a, b) => b.days - a.days);
-    const fmtShort = s => s ? fmtDate(s).replace(/ \d{4}$/, '') : '—';
-    const rowsHtml3 = rows3.map((r) => {
-      const col = r.days === 0 ? "var(--green)" : r.days <= 7 ? "var(--accent)" : r.days <= 30 ? "#ffb340" : "var(--red)";
-      const lbl = r.days === 0 ? "Today" : r.days === 1 ? "1 day" : r.days + " days";
-      return `<tr class="abt-row">
+    const fmtShort = (s) => (s ? fmtDate(s).replace(/ \d{4}$/, "") : "—");
+    const rowsHtml3 = rows3
+      .map((r) => {
+        const col =
+          r.days === 0
+            ? "var(--green)"
+            : r.days <= 7
+              ? "var(--accent)"
+              : r.days <= 30
+                ? "#ffb340"
+                : "var(--red)";
+        const lbl =
+          r.days === 0 ? "Today" : r.days === 1 ? "1 day" : r.days + " days";
+        return `<tr class="abt-row">
         <td class="abt-name">${escHtml(r.name)}</td>
         <td class="abt-date">${fmtShort(r.first)}</td>
         <td class="abt-date">${fmtShort(r.last)}</td>
         <td class="abt-days" style="color:${col}">${lbl}</td>
         <td class="abt-matches">${r.missed}</td>
       </tr>`;
-    }).join('');
+      })
+      .join("");
     return `<div class="ana-card" style="padding:0;overflow:hidden"><table class="abt-table"><thead><tr><th>Player</th><th>First</th><th>Last</th><th>Days</th><th>Missed</th></tr></thead><tbody>${rowsHtml3}</tbody></table></div>`;
-  })()
+  })();
 
   // ── RENDER ─────────────────────────────────────────────
   const favKeys = getAnaFavs();
@@ -16392,15 +18020,64 @@ function renderAnalyticsPage() {
       body: `<div id="match-calendar" class="match-calendar"></div>`,
     },
     // ── TODO BATCH: Statistics enhancements ────────────────────
-    { key: "playerstats", cat: "players", title: "📊 Player Stats Deep Dive", body: _playerStatsTableHtml },
-    { key: "pairleaderboard", cat: "pairs", title: "🏆 Pair Leaderboard Top 10", body: _pairLeaderboardHtml },
-    ...(uniqueMonths.length >= 1 ? [{ key: "monthlystats", cat: "activity", title: "📅 Monthly Stats", body: _monthlyStatsTableHtml }] : []),
-    { key: "peakelo", cat: "elo", title: "📈 High Low ELO", body: _peakEloHtml },
-    { key: "dowplayer", cat: "activity", title: "📆 Day-of-Week Win Rates", body: _dowPlayerHtml },
-    { key: "scoremargtrend", cat: "activity", title: "📉 Score Margin Trend", body: _scoreMargTrendHtml },
-    { key: "dominance", cat: "players", title: "🦁 Dominance Index", body: _dominanceHtml },
-    { key: "scoreheatmap", cat: "activity", title: "🟦 Score Heatmap", body: _scoreHeatmapHtml },
-    { key: "absencetracker", cat: "players", title: "👻 Absence Tracker", body: _absenceTrackerHtml },
+    {
+      key: "playerstats",
+      cat: "players",
+      title: "📊 Player Stats Deep Dive",
+      body: _playerStatsTableHtml,
+    },
+    {
+      key: "pairleaderboard",
+      cat: "pairs",
+      title: "🏆 Pair Leaderboard Top 10",
+      body: _pairLeaderboardHtml,
+    },
+    ...(uniqueMonths.length >= 1
+      ? [
+          {
+            key: "monthlystats",
+            cat: "activity",
+            title: "📅 Monthly Stats",
+            body: _monthlyStatsTableHtml,
+          },
+        ]
+      : []),
+    {
+      key: "peakelo",
+      cat: "elo",
+      title: "📈 High Low ELO",
+      body: _peakEloHtml,
+    },
+    {
+      key: "dowplayer",
+      cat: "activity",
+      title: "📆 Day-of-Week Win Rates",
+      body: _dowPlayerHtml,
+    },
+    {
+      key: "scoremargtrend",
+      cat: "activity",
+      title: "📉 Score Margin Trend",
+      body: _scoreMargTrendHtml,
+    },
+    {
+      key: "dominance",
+      cat: "players",
+      title: "🦁 Dominance Index",
+      body: _dominanceHtml,
+    },
+    {
+      key: "scoreheatmap",
+      cat: "activity",
+      title: "🟦 Score Heatmap",
+      body: _scoreHeatmapHtml,
+    },
+    {
+      key: "absencetracker",
+      cat: "players",
+      title: "👻 Absence Tracker",
+      body: _absenceTrackerHtml,
+    },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
     {
       key: "powerrankings",
@@ -16445,13 +18122,15 @@ function renderAnalyticsPage() {
       body: (() => {
         const enc = {};
         activeMatches().forEach((m) => {
-          const tA = m.teamA || [], tB = m.teamB || [];
+          const tA = m.teamA || [],
+            tB = m.teamB || [];
           const aWon = m.scoreA > m.scoreB;
           tA.forEach((a) => {
             tB.forEach((b) => {
               const sorted = [normPlayer(a), normPlayer(b)].sort();
               const key = sorted.join(" vs ");
-              if (!enc[key]) enc[key] = { total: 0, wins0: 0, p0: sorted[0], p1: sorted[1] };
+              if (!enc[key])
+                enc[key] = { total: 0, wins0: 0, p0: sorted[0], p1: sorted[1] };
               enc[key].total++;
               const p0IsA = normPlayer(a) === sorted[0];
               if ((p0IsA && aWon) || (!p0IsA && !aWon)) enc[key].wins0++;
@@ -16464,12 +18143,24 @@ function renderAnalyticsPage() {
           .slice(0, 6);
         if (!rivals.length)
           return `<div class="ana-card"><div class="sub" style="padding:8px 0">Need 5+ head-to-head encounters to surface rivalries.</div></div>`;
-        return rivals.map((r) => {
-          const p0w = r.wins0, p1w = r.total - r.wins0;
-          const p0pct = Math.round((p0w / r.total) * 100);
-          const col0 = p0pct >= 60 ? "var(--green)" : p0pct <= 40 ? "var(--red)" : "var(--muted)";
-          const col1 = p0pct <= 40 ? "var(--green)" : p0pct >= 60 ? "var(--red)" : "var(--muted)";
-          return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
+        return rivals
+          .map((r) => {
+            const p0w = r.wins0,
+              p1w = r.total - r.wins0;
+            const p0pct = Math.round((p0w / r.total) * 100);
+            const col0 =
+              p0pct >= 60
+                ? "var(--green)"
+                : p0pct <= 40
+                  ? "var(--red)"
+                  : "var(--muted)";
+            const col1 =
+              p0pct <= 40
+                ? "var(--green)"
+                : p0pct >= 60
+                  ? "var(--red)"
+                  : "var(--muted)";
+            return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
               <span style="font-size:12px;font-weight:800;color:${col0}">${escHtml(r.p0)}</span>
               <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.06em">${r.total} matches</span>
@@ -16484,7 +18175,8 @@ function renderAnalyticsPage() {
               <span style="font-size:10px;font-weight:700;color:${col1}">${p1w}W (${100 - p0pct}%)</span>
             </div>
           </div>`;
-        }).join("");
+          })
+          .join("");
       })(),
     },
     {
@@ -16494,33 +18186,32 @@ function renderAnalyticsPage() {
       body: (() => {
         const hist = _memoEloHistory();
         const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const byDay = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
+        // wins[] = avg ELO gained when winning; losses[] = avg ELO lost when losing (stored as positive)
+        const byDay = Array.from({ length: 7 }, () => ({ wSum: 0, wCnt: 0, lSum: 0, lCnt: 0 }));
         Object.values(hist).forEach((entries) => {
           entries.forEach((e) => {
-            if (!e.date) return;
+            if (!e.date || e.delta === 0) return;
             const d = new Date(e.date + "T00:00:00").getDay();
-            byDay[d].sum += e.delta;
-            byDay[d].count++;
+            if (e.delta > 0) { byDay[d].wSum += e.delta; byDay[d].wCnt++; }
+            else             { byDay[d].lSum += Math.abs(e.delta); byDay[d].lCnt++; }
           });
         });
-        const avgs = byDay.map((d) => (d.count ? d.sum / d.count : null));
-        const maxAbs = Math.max(...avgs.filter((v) => v !== null).map(Math.abs), 1);
+        const wAvgs = byDay.map((d) => (d.wCnt ? d.wSum / d.wCnt : null));
+        const maxW = Math.max(...wAvgs.filter((v) => v !== null), 1);
         const cells = DAY.map((dayName, i) => {
-          const avg = avgs[i];
+          const avg = wAvgs[i];
+          const cnt = byDay[i].wCnt + byDay[i].lCnt;
           if (avg === null)
             return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:rgba(255,255,255,0.04);border-radius:8px"><div style="font-size:10px;color:var(--muted)">—</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:4px">${dayName}</div><div style="font-size:7px;color:var(--muted)">0g</div></div>`;
-          const intensity = Math.min(1, Math.abs(avg) / maxAbs);
-          const bg = avg >= 0
-            ? `rgba(72,199,116,${(0.1 + 0.7 * intensity).toFixed(2)})`
-            : `rgba(240,79,79,${(0.1 + 0.7 * intensity).toFixed(2)})`;
-          const col = avg >= 0 ? "var(--green)" : "var(--red)";
+          const intensity = Math.min(1, avg / maxW);
+          const bg = `rgba(72,199,116,${(0.1 + 0.7 * intensity).toFixed(2)})`;
           return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:${bg};border-radius:8px">
-            <div style="font-size:11px;font-weight:800;color:${col}">${avg >= 0 ? "+" : ""}${avg.toFixed(1)}</div>
+            <div style="font-size:11px;font-weight:800;color:var(--green)">+${avg.toFixed(1)}</div>
             <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px">${dayName}</div>
-            <div style="font-size:7px;color:rgba(255,255,255,0.35)">${byDay[i].count}g</div>
+            <div style="font-size:7px;color:rgba(255,255,255,0.35)">${cnt}g</div>
           </div>`;
         }).join("");
-        return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Average ELO Δ per match played on each day</div></div>`;
+        return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ELO gained per win by day — higher = more upsets / ELO at stake</div></div>`;
       })(),
     },
     {
@@ -16600,7 +18291,11 @@ function renderAnalyticsPage() {
     .join("")}</div>`;
 
   // Cache sections for search autocomplete
-  _anaSections = allSecs.map(s => ({ key: s.key, title: s.title, cat: s.cat }));
+  _anaSections = allSecs.map((s) => ({
+    key: s.key,
+    title: s.title,
+    cat: s.cat,
+  }));
 
   container.innerHTML =
     filterPillsHtml +
@@ -16685,12 +18380,16 @@ function renderAnalyticsPage() {
   const pillRow = document.getElementById("ana-filter-row");
   if (pillRow && !pillRow._wheelBound) {
     pillRow._wheelBound = true;
-    pillRow.addEventListener("wheel", (e) => {
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        e.preventDefault();
-        pillRow.scrollLeft += e.deltaY;
-      }
-    }, { passive: false });
+    pillRow.addEventListener(
+      "wheel",
+      (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          pillRow.scrollLeft += e.deltaY;
+        }
+      },
+      { passive: false },
+    );
   }
 }
 
@@ -16747,7 +18446,11 @@ async function sendBackupEmail(isAuto = false) {
   }
   try {
     const todayStr = todayISO();
-    const jsonData = JSON.stringify({ matches: allMatches, players, playerAliasMap, nextPlayerId }, null, 2);
+    const jsonData = JSON.stringify(
+      { matches: allMatches, players, playerAliasMap, nextPlayerId },
+      null,
+      2,
+    );
 
     await emailjs.send(
       serviceId,
@@ -16803,7 +18506,10 @@ function scheduleAutoEmail() {
 
   _emailTimer = setTimeout(() => {
     const _today = todayISO();
-    if (localStorage.getItem("padel_last_email") === _today) { scheduleAutoEmail(); return; }
+    if (localStorage.getItem("padel_last_email") === _today) {
+      scheduleAutoEmail();
+      return;
+    }
     localStorage.setItem("padel_last_email", _today);
     sendBackupEmail(true).then((ok) => {
       if (!ok) localStorage.removeItem("padel_last_email");
@@ -17060,6 +18766,7 @@ Object.assign(window, {
   _openAntiPodiumDrill,
   _podiumDrillGoTo,
   _closePodiumDrill,
+  _openRankCalendar,
 });
 
 function setHistoryDateFilter(value) {
@@ -17069,7 +18776,10 @@ function setHistoryDateFilter(value) {
 // ── LIVE SCORING MODE ──────────────────────────────────────
 
 function _openLiveModeImpl() {
-  if (!window.isAdmin) { showToast("Create Session is admin only", "🔒"); return; }
+  if (!window.isAdmin) {
+    showToast("Create Session is admin only", "🔒");
+    return;
+  }
   _liveScoreA = 0;
   _liveScoreB = 0;
   _livePoints = [];
@@ -17084,11 +18794,15 @@ function _openLiveModeImpl() {
   if (dateEl) dateEl.value = today;
   const notesEl = document.getElementById("live-notes");
   if (notesEl) notesEl.value = "";
-  const savedMode = parseInt(localStorage.getItem("padel_live_mode") || "4", 10);
+  const savedMode = parseInt(
+    localStorage.getItem("padel_live_mode") || "4",
+    10,
+  );
   _liveGameMode = savedMode === 6 ? 6 : 4;
   _liveSyncModeButtons();
   _updateLiveDisplay();
-  _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
@@ -17114,14 +18828,18 @@ function setLiveGameMode(mode) {
   _livePointUndoStack = [];
   _liveSyncModeButtons();
   _updateLiveDisplay();
-  _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
 
 function _liveSyncModeButtons() {
   document.querySelectorAll(".live-mode-btn").forEach((b) => {
-    b.classList.toggle("active", parseInt(b.dataset.mode, 10) === _liveGameMode);
+    b.classList.toggle(
+      "active",
+      parseInt(b.dataset.mode, 10) === _liveGameMode,
+    );
   });
 }
 
@@ -17158,11 +18876,14 @@ function _liveGameStateLabel() {
     _liveAdv === "b" ||
     (_liveGamePtsB === 3 && _liveGamePtsA < 3) ||
     (_liveGamePtsB === 3 && _liveGamePtsA === 3 && _liveAdv === "b");
-  if (aMatchPt && aGamePt) return { text: "MATCH POINT — RED", cls: "match-point" };
-  if (bMatchPt && bGamePt) return { text: "MATCH POINT — BLUE", cls: "match-point" };
+  if (aMatchPt && aGamePt)
+    return { text: "MATCH POINT — RED", cls: "match-point" };
+  if (bMatchPt && bGamePt)
+    return { text: "MATCH POINT — BLUE", cls: "match-point" };
   if (_liveAdv === "a") return { text: "ADVANTAGE RED", cls: "" };
   if (_liveAdv === "b") return { text: "ADVANTAGE BLUE", cls: "" };
-  if (_liveGamePtsA === 3 && _liveGamePtsB === 3) return { text: "DEUCE", cls: "" };
+  if (_liveGamePtsA === 3 && _liveGamePtsB === 3)
+    return { text: "DEUCE", cls: "" };
   if (aGamePt) return { text: "GAME POINT — RED", cls: "" };
   if (bGamePt) return { text: "GAME POINT — BLUE", cls: "" };
   return { text: "", cls: "" };
@@ -17246,7 +18967,8 @@ function _liveWinGame(team) {
     openMatchSaveSheet();
   }
   _updateLiveDisplay();
-  _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
@@ -17275,7 +18997,8 @@ function liveUndoPoint() {
   _livePoints = snap.points;
   _liveHaptic(8);
   _updateLiveDisplay();
-  _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
   _updateLiveMomentum();
   _liveSyncGameDisplay();
 }
@@ -17328,27 +19051,31 @@ function openLivePlayerSheet(slot) {
   const taken = Object.entries(_liveSlots)
     .filter(([k, v]) => k !== slot && v)
     .map(([, v]) => v);
-  const sessionPlayers = _liveSessionData?.sessionActive && (_liveSessionData?.sessionPlayers?.length >= 2)
-    ? _liveSessionData.sessionPlayers
-    : null;
-  const players = (sessionPlayers || getAllPlayerNamesFromMatches());
+  const sessionPlayers =
+    _liveSessionData?.sessionActive &&
+    _liveSessionData?.sessionPlayers?.length >= 2
+      ? _liveSessionData.sessionPlayers
+      : null;
+  const players = sessionPlayers || getAllPlayerNamesFromMatches();
   const clearBtn = `<button class="live-sheet-item live-sheet-item-clear" onclick="selectLivePlayer(null,${jsArg(slot)})">
       <span class="live-sheet-item-av" style="background:rgba(255,70,70,0.18);color:#ff5555">✕</span>
       <span class="live-sheet-item-name">CLEAR SLOT</span>
     </button>`;
-  list.innerHTML = clearBtn + players
-    .map((p) => {
-      const isTaken = taken.includes(p);
-      const isCurrent = _liveSlots[slot] === p;
-      return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
+  list.innerHTML =
+    clearBtn +
+    players
+      .map((p) => {
+        const isTaken = taken.includes(p);
+        const isCurrent = _liveSlots[slot] === p;
+        return `<button class="live-sheet-item${isCurrent ? " live-sheet-item-selected" : ""}${isTaken ? " live-sheet-item-taken" : ""}"
       onclick="${isTaken ? "" : `selectLivePlayer(${jsArg(p)},${jsArg(slot)})`}"
       ${isTaken ? "disabled" : ""}>
       ${sheetAv(p)}
       <span class="live-sheet-item-name">${escHtml(p)}</span>
       ${isCurrent ? '<span class="live-sheet-check">✓</span>' : ""}
     </button>`;
-    })
-    .join("");
+      })
+      .join("");
   overlay.classList.add("live-sheet-open");
   sheet.classList.add("live-sheet-open");
 }
@@ -17357,11 +19084,19 @@ function selectLivePlayer(name, slot) {
   _liveSlots[slot] = name;
   _renderLiveSlot(slot);
   closeLivePlayerSheet();
-  _liveScoreA = 0; _liveScoreB = 0;
-  _liveGamePtsA = 0; _liveGamePtsB = 0;
-  _liveAdv = null; _liveMatchEnded = false;
-  _livePoints = []; _livePointUndoStack = [];
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _liveScoreA = 0;
+  _liveScoreB = 0;
+  _liveGamePtsA = 0;
+  _liveGamePtsB = 0;
+  _liveAdv = null;
+  _liveMatchEnded = false;
+  _livePoints = [];
+  _livePointUndoStack = [];
+  _updateLiveDisplay();
+  _liveSyncGameDisplay();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
+  _updateLiveMomentum();
   _renderSittingOut();
   _checkRematchWarning();
   const { a1, a2, b1, b2 } = _liveSlots;
@@ -17408,7 +19143,8 @@ function liveAdjustScore(team, delta) {
         break;
       }
     }
-    let cA = 0, cB = 0;
+    let cA = 0,
+      cB = 0;
     _livePoints.forEach((p) => {
       if (p.team === "a") cA++;
       else cB++;
@@ -17422,7 +19158,8 @@ function liveAdjustScore(team, delta) {
   _liveAdv = null;
   _liveSyncGameDisplay();
   _updateLiveDisplay();
-  _updateLiveWinProb(); _updateLiveEloPreview();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
   _updateLiveMomentum();
   // Always prompt to save when win condition is met
   if (actualDelta !== 0 && _liveCheckMatchWin()) {
@@ -17489,21 +19226,27 @@ function _updateLiveEloPreview() {
   const el = document.getElementById("live-elo-preview");
   if (!el) return;
   const { a1, a2, b1, b2 } = _liveSlots;
-  if (!a1 || !a2 || !b1 || !b2) { el.style.display = "none"; return; }
+  if (!a1 || !a2 || !b1 || !b2) {
+    el.style.display = "none";
+    return;
+  }
   const eloMap = _memoElo();
   const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
   const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
   const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
   const expB = 1 - expA;
-  const dAwin  = Math.round(32 * (1 - expA));
+  const dAwin = Math.round(32 * (1 - expA));
   const dAlose = Math.round(32 * (0 - expA));
-  const dBwin  = Math.round(32 * (1 - expB));
+  const dBwin = Math.round(32 * (1 - expB));
   const dBlose = Math.round(32 * (0 - expB));
   el.style.display = "";
-  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-  set("lep-win-a",  `+${dAwin}`);
+  const set = (id, val) => {
+    const e = document.getElementById(id);
+    if (e) e.textContent = val;
+  };
+  set("lep-win-a", `+${dAwin}`);
   set("lep-lose-a", `${dAlose}`);
-  set("lep-win-b",  `+${dBwin}`);
+  set("lep-win-b", `+${dBwin}`);
   set("lep-lose-b", `${dBlose}`);
 }
 
@@ -17574,7 +19317,13 @@ function endLiveMatch() {
   allMatches.push(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
-    _sessionMatchHistory.push({ teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB, date });
+    _sessionMatchHistory.push({
+      teamA: [a1, a2],
+      teamB: [b1, b2],
+      scoreA: _liveScoreA,
+      scoreB: _liveScoreB,
+      date,
+    });
     _sessionRedoStack = []; // new match invalidates redo history
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
     // Buffer locally — don't write to Firestore until SYNC or End Session
@@ -17582,12 +19331,19 @@ function endLiveMatch() {
     _updateSyncBadge();
     _syncLiveSessionBar();
     if (_sessionPanelOpen) _updateSessionPanel();
-    document.getElementById("live-undo-match-btn")?.style.setProperty("display", "");
-    document.getElementById("live-redo-match-btn")?.style.setProperty("display", "none");
+    document
+      .getElementById("live-undo-match-btn")
+      ?.style.setProperty("display", "");
+    document
+      .getElementById("live-redo-match-btn")
+      ?.style.setProperty("display", "none");
     _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
-    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
-    try { localStorage.setItem("padel_matches", JSON.stringify(allMatches)); } catch(e) {}
+    if (window.appCache)
+      window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+    try {
+      localStorage.setItem("padel_matches", JSON.stringify(allMatches));
+    } catch (e) {}
   } else {
     saveCloudData();
   }
@@ -17595,15 +19351,30 @@ function endLiveMatch() {
   renderCompact();
   renderModernMatches();
   showToast(`Saved! ${eventMsg}`, "🎾");
-  _showLiveEventBanner({ type: "match_end", msg: `Match saved: ${eventMsg}`, teamA: [a1, a2], teamB: [b1, b2], scoreA: _liveScoreA, scoreB: _liveScoreB });
+  _showLiveEventBanner({
+    type: "match_end",
+    msg: `Match saved: ${eventMsg}`,
+    teamA: [a1, a2],
+    teamB: [b1, b2],
+    scoreA: _liveScoreA,
+    scoreB: _liveScoreB,
+  });
   // Reset everything for next match including player slots
-  _liveScoreA = 0; _liveScoreB = 0;
-  _liveGamePtsA = 0; _liveGamePtsB = 0;
-  _liveAdv = null; _liveMatchEnded = false;
-  _livePoints = []; _livePointUndoStack = [];
+  _liveScoreA = 0;
+  _liveScoreB = 0;
+  _liveGamePtsA = 0;
+  _liveGamePtsB = 0;
+  _liveAdv = null;
+  _liveMatchEnded = false;
+  _livePoints = [];
+  _livePointUndoStack = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _updateLiveDisplay();
+  _liveSyncGameDisplay();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
+  _updateLiveMomentum();
   _renderSittingOut();
   _checkRematchWarning();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
@@ -17621,7 +19392,10 @@ function _updateSyncBadge() {
 }
 
 async function syncSession() {
-  if (_sessionPendingCount === 0) { showToast("Nothing to sync", "✅"); return; }
+  if (_sessionPendingCount === 0) {
+    showToast("Nothing to sync", "✅");
+    return;
+  }
   const count = _sessionPendingCount;
   const wasForced = _forcedOffline;
   _forcedOffline = false; // one-shot push — bypass forced offline
@@ -17632,8 +19406,12 @@ async function syncSession() {
   _updateSyncBadge();
   _saveSessionState();
   // Hide UNDO/REDO since nothing is pending after the checkpoint
-  document.getElementById("live-undo-match-btn")?.style.setProperty("display", "none");
-  document.getElementById("live-redo-match-btn")?.style.setProperty("display", "none");
+  document
+    .getElementById("live-undo-match-btn")
+    ?.style.setProperty("display", "none");
+  document
+    .getElementById("live-redo-match-btn")
+    ?.style.setProperty("display", "none");
   showToast(`Synced ${count} match${count !== 1 ? "es" : ""} to cloud`, "☁️");
 }
 
@@ -17665,8 +19443,8 @@ function openMatchIntro(idx) {
   const _amE = activeMatches();
   const _upToInclE = new Set(allMatches.slice(0, idx + 1));
   const _upToBeforeE = new Set(allMatches.slice(0, idx));
-  const priorElo = computeElo(_amE.filter(m => _upToBeforeE.has(m)));
-  const afterElo = computeElo(_amE.filter(m => _upToInclE.has(m)));
+  const priorElo = computeElo(_amE.filter((m) => _upToBeforeE.has(m)));
+  const afterElo = computeElo(_amE.filter((m) => _upToInclE.has(m)));
   const aWon = m.scoreA > m.scoreB;
 
   // Pre-match individual and pair ranks
@@ -17701,7 +19479,9 @@ function openMatchIntro(idx) {
   const nameB = m.teamB.map((p) => normPlayer(p)).join(" & ");
 
   // Match number (chronological position in all matches)
-  const _sortedForNum = [...allMatches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const _sortedForNum = [...allMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   const _matchNum = _sortedForNum.indexOf(m) + 1;
   document.getElementById("mio-date-bar").textContent =
     `${fmtDate(m.date).toUpperCase()} · MATCH #${_matchNum}`;
@@ -17761,21 +19541,23 @@ function openMatchIntro(idx) {
   const tkB = [...m.teamB].sort().join("|");
   let h2hWinsA = 0,
     h2hWinsB = 0;
-  _amE.filter(m => _upToBeforeE.has(m)).forEach((pm) => {
-    const pmA = [...(pm.teamA || [])].sort().join("|");
-    const pmB = [...(pm.teamB || [])].sort().join("|");
-    const fwd = pmA === tkA && pmB === tkB;
-    const rev = pmA === tkB && pmB === tkA;
-    if (!fwd && !rev) return;
-    const pmAWon = pm.scoreA > pm.scoreB;
-    if (fwd) {
-      if (pmAWon) h2hWinsA++;
-      else h2hWinsB++;
-    } else {
-      if (pmAWon) h2hWinsB++;
-      else h2hWinsA++;
-    }
-  });
+  _amE
+    .filter((m) => _upToBeforeE.has(m))
+    .forEach((pm) => {
+      const pmA = [...(pm.teamA || [])].sort().join("|");
+      const pmB = [...(pm.teamB || [])].sort().join("|");
+      const fwd = pmA === tkA && pmB === tkB;
+      const rev = pmA === tkB && pmB === tkA;
+      if (!fwd && !rev) return;
+      const pmAWon = pm.scoreA > pm.scoreB;
+      if (fwd) {
+        if (pmAWon) h2hWinsA++;
+        else h2hWinsB++;
+      } else {
+        if (pmAWon) h2hWinsB++;
+        else h2hWinsA++;
+      }
+    });
   const h2hTotal = h2hWinsA + h2hWinsB;
   // After this match
   const h2hAfterA = h2hWinsA + (aWon ? 1 : 0);
@@ -17796,7 +19578,9 @@ function openMatchIntro(idx) {
         <div class="mio-h2h-lbl">${nameB}</div>
       </div>`;
     _mioSched(() => {
-      const winNumEl = h2hEl.querySelector(aWon ? ".mio-h2h-num-a" : ".mio-h2h-num-b");
+      const winNumEl = h2hEl.querySelector(
+        aWon ? ".mio-h2h-num-a" : ".mio-h2h-num-b",
+      );
       const newVal = aWon ? h2hAfterA : h2hAfterB;
       const oldVal = aWon ? h2hWinsA : h2hWinsB;
       if (winNumEl && newVal > oldVal) {
@@ -17806,7 +19590,10 @@ function openMatchIntro(idx) {
         plus.className = "mio-float-plus";
         plus.textContent = "+1";
         winNumEl.parentElement.appendChild(plus);
-        _mioSched(() => { winNumEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
+        _mioSched(() => {
+          winNumEl.classList.remove("mio-count-flash");
+          plus.remove();
+        }, 950);
       }
     }, 900);
   }
@@ -17814,7 +19601,7 @@ function openMatchIntro(idx) {
   // Individual player H2H grid (all 4 cross-matchups)
   const pvpEl = document.getElementById("mio-pvp-section");
   if (pvpEl && m.teamA.length >= 2 && m.teamB.length >= 2) {
-    const priorMatches = _amE.filter(m => _upToBeforeE.has(m));
+    const priorMatches = _amE.filter((m) => _upToBeforeE.has(m));
     const [p1, p2] = m.teamA.map(normPlayer);
     const [p3, p4] = m.teamB.map(normPlayer);
     const crossPairs = [
@@ -17854,7 +19641,9 @@ function openMatchIntro(idx) {
     pvpEl.innerHTML = `<div class="mio-pvp-label">PLAYER H2H</div>${pvpRows}`;
     _mioSched(() => {
       pvpEl.querySelectorAll(".mio-pvp-row").forEach((row, ri) => {
-        const numEl = row.querySelector(aWon ? ".mio-pvp-num-a" : ".mio-pvp-num-b");
+        const numEl = row.querySelector(
+          aWon ? ".mio-pvp-num-a" : ".mio-pvp-num-b",
+        );
         if (!numEl) return;
         const after = parseInt(numEl.dataset.after, 10);
         const before = parseInt(numEl.textContent, 10);
@@ -17866,7 +19655,10 @@ function openMatchIntro(idx) {
             plus.className = "mio-float-plus";
             plus.textContent = "+1";
             numEl.parentElement.appendChild(plus);
-            _mioSched(() => { numEl.classList.remove("mio-count-flash"); plus.remove(); }, 950);
+            _mioSched(() => {
+              numEl.classList.remove("mio-count-flash");
+              plus.remove();
+            }, 950);
           }, ri * 160);
         }
       });
@@ -17898,60 +19690,85 @@ function openMatchIntro(idx) {
     const ctxParts = [];
 
     // Streak context: did this extend or end a notable streak?
-    const priorMs = _amE.filter(m => _upToBeforeE.has(m));
+    const priorMs = _amE.filter((m) => _upToBeforeE.has(m));
     [...m.teamA, ...m.teamB].forEach((p) => {
-      const pPrior = priorMs.filter((pm) => [...(pm.teamA || []), ...(pm.teamB || [])].includes(p));
+      const pPrior = priorMs.filter((pm) =>
+        [...(pm.teamA || []), ...(pm.teamB || [])].includes(p),
+      );
       if (!pPrior.length) return;
-      let sk = 0, st = null;
+      let sk = 0,
+        st = null;
       for (let i = pPrior.length - 1; i >= 0; i--) {
         const pm = pPrior[i];
         const inA2 = (pm.teamA || []).includes(p);
         const won2 = inA2 ? pm.scoreA > pm.scoreB : pm.scoreB > pm.scoreA;
-        if (st === null) { st = won2; sk = 1; }
-        else if (won2 === st) sk++;
+        if (st === null) {
+          st = won2;
+          sk = 1;
+        } else if (won2 === st) sk++;
         else break;
       }
       const inA3 = (m.teamA || []).includes(p);
       const won3 = inA3 ? aWon : !aWon;
       if (st !== null && won3 === st && sk >= 2) {
-        ctxParts.push(`🔥 ${normPlayer(p)}'s ${st ? "win" : "loss"} streak → ${sk + 1}`);
+        ctxParts.push(
+          `🔥 ${normPlayer(p)}'s ${st ? "win" : "loss"} streak → ${sk + 1}`,
+        );
       } else if (st !== null && won3 !== st && sk >= 3) {
-        ctxParts.push(`💥 ${normPlayer(p)}'s ${sk}-${st ? "W" : "L"} streak ended`);
+        ctxParts.push(
+          `💥 ${normPlayer(p)}'s ${sk}-${st ? "W" : "L"} streak ended`,
+        );
       }
     });
 
     // ELO tier cross: check if any player crossed a tier boundary
-    const ELO_TIERS = [{ t: 900, n: "BRONZE" }, { t: 1000, n: "SILVER" }, { t: 1100, n: "GOLD" }, { t: 1200, n: "PLATINUM" }];
+    const ELO_TIERS = [
+      { t: 900, n: "BRONZE" },
+      { t: 1000, n: "SILVER" },
+      { t: 1100, n: "GOLD" },
+      { t: 1200, n: "PLATINUM" },
+    ];
     [...m.teamA, ...m.teamB].forEach((p) => {
       const pre = priorElo[p] || 1000;
       const post = afterElo[p] || 1000;
       ELO_TIERS.forEach(({ t, n }) => {
-        if (pre < t && post >= t) ctxParts.push(`⭐ ${normPlayer(p)} reached ${n}`);
-        else if (pre >= t && post < t) ctxParts.push(`📉 ${normPlayer(p)} dropped below ${n}`);
+        if (pre < t && post >= t)
+          ctxParts.push(`⭐ ${normPlayer(p)} reached ${n}`);
+        else if (pre >= t && post < t)
+          ctxParts.push(`📉 ${normPlayer(p)} dropped below ${n}`);
       });
     });
 
     // Last meeting reminder
     const tkA2 = [...m.teamA].sort().join("|");
     const tkB2 = [...m.teamB].sort().join("|");
-    const lastMeeting = [..._amE.filter(m => _upToBeforeE.has(m))].reverse().find((pm) => {
-      const pmA2 = [...(pm.teamA || [])].sort().join("|");
-      const pmB2 = [...(pm.teamB || [])].sort().join("|");
-      return (pmA2 === tkA2 && pmB2 === tkB2) || (pmA2 === tkB2 && pmB2 === tkA2);
-    });
+    const lastMeeting = [..._amE.filter((m) => _upToBeforeE.has(m))]
+      .reverse()
+      .find((pm) => {
+        const pmA2 = [...(pm.teamA || [])].sort().join("|");
+        const pmB2 = [...(pm.teamB || [])].sort().join("|");
+        return (
+          (pmA2 === tkA2 && pmB2 === tkB2) || (pmA2 === tkB2 && pmB2 === tkA2)
+        );
+      });
     if (lastMeeting) {
       const lmAWon = lastMeeting.scoreA > lastMeeting.scoreB;
       const lmA = [...lastMeeting.teamA].sort().join("|");
       const lastWinnerName = lmA === tkA2 ? nameA : nameB;
-      ctxParts.push(`📅 Last meeting: ${fmtDate(lastMeeting.date)} · ${lastMeeting.scoreA}–${lastMeeting.scoreB} (${lastWinnerName.split("<br>").join(" ")} won)`);
+      ctxParts.push(
+        `📅 Last meeting: ${fmtDate(lastMeeting.date)} · ${lastMeeting.scoreA}–${lastMeeting.scoreB} (${lastWinnerName.split("<br>").join(" ")} won)`,
+      );
     }
 
     // Relative performance vs team averages
     const teamAvgScore = (players) => {
-      const ms = _amE.filter(m => _upToBeforeE.has(m)).filter((pm) =>
-        players.every((p) => (pm.teamA || []).includes(p)) ||
-        players.every((p) => (pm.teamB || []).includes(p))
-      );
+      const ms = _amE
+        .filter((m) => _upToBeforeE.has(m))
+        .filter(
+          (pm) =>
+            players.every((p) => (pm.teamA || []).includes(p)) ||
+            players.every((p) => (pm.teamB || []).includes(p)),
+        );
       if (!ms.length) return null;
       const totals = ms.map((pm) => {
         const tk = [...players].sort().join("|");
@@ -17965,10 +19782,22 @@ function openMatchIntro(idx) {
     };
     const avgA2 = teamAvgScore(m.teamA);
     const avgB2 = teamAvgScore(m.teamB);
-    if (avgA2 !== null && m.scoreA > avgA2 + 0.4) ctxParts.push(`📈 ${nameA.split("<br>").join(" ")} above avg (${avgA2.toFixed(1)})`);
-    else if (avgA2 !== null && m.scoreA < avgA2 - 0.4) ctxParts.push(`📉 ${nameA.split("<br>").join(" ")} below avg (${avgA2.toFixed(1)})`);
-    if (avgB2 !== null && m.scoreB > avgB2 + 0.4) ctxParts.push(`📈 ${nameB.split("<br>").join(" ")} above avg (${avgB2.toFixed(1)})`);
-    else if (avgB2 !== null && m.scoreB < avgB2 - 0.4) ctxParts.push(`📉 ${nameB.split("<br>").join(" ")} below avg (${avgB2.toFixed(1)})`);
+    if (avgA2 !== null && m.scoreA > avgA2 + 0.4)
+      ctxParts.push(
+        `📈 ${nameA.split("<br>").join(" ")} above avg (${avgA2.toFixed(1)})`,
+      );
+    else if (avgA2 !== null && m.scoreA < avgA2 - 0.4)
+      ctxParts.push(
+        `📉 ${nameA.split("<br>").join(" ")} below avg (${avgA2.toFixed(1)})`,
+      );
+    if (avgB2 !== null && m.scoreB > avgB2 + 0.4)
+      ctxParts.push(
+        `📈 ${nameB.split("<br>").join(" ")} above avg (${avgB2.toFixed(1)})`,
+      );
+    else if (avgB2 !== null && m.scoreB < avgB2 - 0.4)
+      ctxParts.push(
+        `📉 ${nameB.split("<br>").join(" ")} below avg (${avgB2.toFixed(1)})`,
+      );
 
     ctxEl.innerHTML = ctxParts.length
       ? ctxParts.map((t) => `<div class="mio-ctx-line">${t}</div>`).join("")
@@ -18017,9 +19846,7 @@ function openMatchIntro(idx) {
       });
     }
     // Remove any floating +1 elements still in flight
-    document
-      .querySelectorAll(".mio-float-plus")
-      .forEach((el) => el.remove());
+    document.querySelectorAll(".mio-float-plus").forEach((el) => el.remove());
     document
       .querySelectorAll(".mio-count-flash")
       .forEach((el) => el.classList.remove("mio-count-flash"));
@@ -18030,9 +19857,7 @@ function closeMatchIntro() {
   _mioTimers.forEach((id) => clearTimeout(id));
   _mioTimers = [];
   _mioFinalize = null;
-  document
-    .querySelectorAll(".mio-float-plus")
-    .forEach((el) => el.remove());
+  document.querySelectorAll(".mio-float-plus").forEach((el) => el.remove());
   document.getElementById("match-intro-overlay").classList.remove("active");
 }
 
@@ -18120,12 +19945,17 @@ document.addEventListener("keydown", (e) => {
   );
 })();
 
-
 // ── PLAYER REPORT CARD ────────────────────────────────────────
 async function openPlayerReportCard(name) {
-  if (!window.html2canvas) { showToast("Capture not available", "❌"); return; }
+  if (!window.html2canvas) {
+    showToast("Capture not available", "❌");
+    return;
+  }
   const modal = document.getElementById("player-detail-modal");
-  if (!modal) { showToast("Open player detail first", "❌"); return; }
+  if (!modal) {
+    showToast("Open player detail first", "❌");
+    return;
+  }
   showToast("Capturing...", "📊");
   try {
     const inner = modal.querySelector(".analytics-inner");
@@ -18136,7 +19966,10 @@ async function openPlayerReportCard(name) {
       logging: false,
     });
     canvas.toBlob((blob) => {
-      if (!blob) { showToast("Capture failed", "❌"); return; }
+      if (!blob) {
+        showToast("Capture failed", "❌");
+        return;
+      }
       window._shareBlob = blob;
       const prevImg = document.getElementById("share-preview-img");
       if (prevImg) {
@@ -18157,32 +19990,50 @@ function _startSessionTimer() {
   _sessionTimerInterval = setInterval(_updateSessionTimer, 1000);
 }
 function _stopSessionTimer() {
-  if (_sessionTimerInterval) { clearInterval(_sessionTimerInterval); _sessionTimerInterval = null; }
+  if (_sessionTimerInterval) {
+    clearInterval(_sessionTimerInterval);
+    _sessionTimerInterval = null;
+  }
 }
 function _updateSessionTimer() {
   const el = document.getElementById("live-session-timer");
   if (!el || !_liveSessionData?.sessionStartedAt) return;
-  const sec = Math.floor((Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) / 1000);
+  const sec = Math.floor(
+    (Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) / 1000,
+  );
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
-  el.textContent = h > 0
-    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  el.textContent =
+    h > 0
+      ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+      : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 // ── SITTING-OUT STRIP ────────────────────────────────────────
 function _renderSittingOut() {
   const el = document.getElementById("live-sittingout-strip");
   if (!el) return;
-  if (!_liveSessionData?.sessionActive) { el.style.display = "none"; return; }
+  if (!_liveSessionData?.sessionActive) {
+    el.style.display = "none";
+    return;
+  }
   const sessionPlayers = _liveSessionData.sessionPlayers || [];
   const playing = new Set(Object.values(_liveSlots).filter(Boolean));
-  const sitting = sessionPlayers.filter(p => !playing.has(p));
-  if (sitting.length === 0) { el.style.display = "none"; return; }
+  const sitting = sessionPlayers.filter((p) => !playing.has(p));
+  if (sitting.length === 0) {
+    el.style.display = "none";
+    return;
+  }
   el.style.display = "";
-  el.innerHTML = `<span class="sittingout-label">SITTING OUT</span>` +
-    sitting.map(p => `<span class="sittingout-chip">${escHtml(p.split(" ")[0])}</span>`).join("");
+  el.innerHTML =
+    `<span class="sittingout-label">SITTING OUT</span>` +
+    sitting
+      .map(
+        (p) =>
+          `<span class="sittingout-chip">${escHtml(p.split(" ")[0])}</span>`,
+      )
+      .join("");
 }
 
 // ── REMATCH WARNING ──────────────────────────────────────────
@@ -18190,10 +20041,15 @@ function _checkRematchWarning() {
   const { a1, a2, b1, b2 } = _liveSlots;
   const el = document.getElementById("live-rematch-warning");
   if (!el) return;
-  if (!a1 || !a2 || !b1 || !b2) { el.style.display = "none"; return; }
-  const sA = [a1, a2].sort().join("|"), sB = [b1, b2].sort().join("|");
-  const prev = _sessionMatchHistory.find(m => {
-    const mA = [...m.teamA].sort().join("|"), mB = [...m.teamB].sort().join("|");
+  if (!a1 || !a2 || !b1 || !b2) {
+    el.style.display = "none";
+    return;
+  }
+  const sA = [a1, a2].sort().join("|"),
+    sB = [b1, b2].sort().join("|");
+  const prev = _sessionMatchHistory.find((m) => {
+    const mA = [...m.teamA].sort().join("|"),
+      mB = [...m.teamB].sort().join("|");
     return (mA === sA && mB === sB) || (mA === sB && mB === sA);
   });
   if (prev) {
@@ -18210,43 +20066,66 @@ function _buildSessionLeaderboard() {
   if (!sessionPlayers.length || !_sessionMatchHistory.length)
     return '<div style="font-size:11px;color:var(--muted);padding:8px 0;text-align:center">No matches yet</div>';
   const stats = {};
-  sessionPlayers.forEach(p => stats[p] = { w: 0, l: 0, m: 0 });
-  _sessionMatchHistory.forEach(mt => {
+  sessionPlayers.forEach((p) => (stats[p] = { w: 0, l: 0, m: 0 }));
+  _sessionMatchHistory.forEach((mt) => {
     const aWon = mt.scoreA > mt.scoreB;
-    (aWon ? mt.teamA : mt.teamB).forEach(p => { if (stats[p]) { stats[p].w++; stats[p].m++; } });
-    (aWon ? mt.teamB : mt.teamA).forEach(p => { if (stats[p]) { stats[p].l++; stats[p].m++; } });
+    (aWon ? mt.teamA : mt.teamB).forEach((p) => {
+      if (stats[p]) {
+        stats[p].w++;
+        stats[p].m++;
+      }
+    });
+    (aWon ? mt.teamB : mt.teamA).forEach((p) => {
+      if (stats[p]) {
+        stats[p].l++;
+        stats[p].m++;
+      }
+    });
   });
   const sorted = Object.entries(stats).sort((a, b) => {
-    const diff = (b[1].m ? b[1].w / b[1].m : 0) - (a[1].m ? a[1].w / a[1].m : 0);
+    const diff =
+      (b[1].m ? b[1].w / b[1].m : 0) - (a[1].m ? a[1].w / a[1].m : 0);
     return diff !== 0 ? diff : b[1].m - a[1].m;
   });
   const counts = sorted.map(([, s]) => s.m);
-  const maxM = Math.max(...counts), minM = Math.min(...counts);
-  const fairWarn = (maxM - minM) >= 2 && sorted.length >= 3
-    ? `<div class="sess-fairness-warn">⚠️ ${sorted.filter(([,s]) => s.m === maxM).map(([n]) => n.split(' ')[0]).join(', ')} played ${maxM - minM} more than others</div>`
-    : '';
-  const rows = sorted.map(([name, s]) => {
-    const pct = s.m ? Math.round(s.w / s.m * 100) : 0;
-    return `<div class="sess-ldr-row">
-      <div class="sess-ldr-name">${escHtml(name.split(' ')[0])}</div>
+  const maxM = Math.max(...counts),
+    minM = Math.min(...counts);
+  const fairWarn =
+    maxM - minM >= 2 && sorted.length >= 3
+      ? `<div class="sess-fairness-warn">⚠️ ${sorted
+          .filter(([, s]) => s.m === maxM)
+          .map(([n]) => n.split(" ")[0])
+          .join(", ")} played ${maxM - minM} more than others</div>`
+      : "";
+  const rows = sorted
+    .map(([name, s]) => {
+      const pct = s.m ? Math.round((s.w / s.m) * 100) : 0;
+      return `<div class="sess-ldr-row">
+      <div class="sess-ldr-name">${escHtml(name.split(" ")[0])}</div>
       <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
       <div class="sess-ldr-barwrap"><div class="sess-ldr-bar" style="width:${pct}%"></div></div>
       <div class="sess-ldr-count">×${s.m}</div>
     </div>`;
-  }).join('');
+    })
+    .join("");
   // Enhancement 11: full undo stack — show all session matches with undo buttons
-  const histRows = [..._sessionMatchHistory].reverse().map((mt, ri) => {
-    const i = _sessionMatchHistory.length - 1 - ri;
-    const aWon = mt.scoreA > mt.scoreB;
-    const tA = mt.teamA.map(p => p.split(' ')[0]).join(' & ');
-    const tB = mt.teamB.map(p => p.split(' ')[0]).join(' & ');
-    const isLast = i === _sessionMatchHistory.length - 1;
-    return `<div class="sess-hist-row${isLast ? ' sess-hist-last' : ''}">
-      <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? 'p' : 'n'}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
-      ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ''}
+  const histRows = [..._sessionMatchHistory]
+    .reverse()
+    .map((mt, ri) => {
+      const i = _sessionMatchHistory.length - 1 - ri;
+      const aWon = mt.scoreA > mt.scoreB;
+      const tA = mt.teamA.map((p) => p.split(" ")[0]).join(" & ");
+      const tB = mt.teamB.map((p) => p.split(" ")[0]).join(" & ");
+      const isLast = i === _sessionMatchHistory.length - 1;
+      return `<div class="sess-hist-row${isLast ? " sess-hist-last" : ""}">
+      <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? "p" : "n"}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
+      ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ""}
     </div>`;
-  }).join('');
-  const histHtml = histRows ? `<div class="sess-hist-label">MATCH LOG</div><div class="sess-hist-list">${histRows}</div>` : '';
+    })
+    .join("");
+  const histHtml = histRows
+    ? `<div class="sess-hist-label">MATCH LOG</div><div class="sess-hist-list">${histRows}</div>`
+    : "";
   return fairWarn + rows + histHtml;
 }
 
@@ -18267,7 +20146,9 @@ function toggleSessionPanel() {
 
 // ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
 function _mkEloTeams(pick4, eloMap, alt) {
-  const s = [...pick4].sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000));
+  const s = [...pick4].sort(
+    (a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000),
+  );
   const teamA = alt ? [s[0], s[2]] : [s[0], s[3]];
   const teamB = alt ? [s[1], s[3]] : [s[1], s[2]];
   const avgA = ((eloMap[teamA[0]] || 1000) + (eloMap[teamA[1]] || 1000)) / 2;
@@ -18277,20 +20158,27 @@ function _mkEloTeams(pick4, eloMap, alt) {
 
 function suggestNextMatch() {
   const sessionPlayers = _liveSessionData?.sessionPlayers || [];
-  if (sessionPlayers.length < 4) { showToast("Need 4+ players in session", "❌"); return; }
+  if (sessionPlayers.length < 4) {
+    showToast("Need 4+ players in session", "❌");
+    return;
+  }
   const eloMap = _memoElo();
   const counts = {};
-  sessionPlayers.forEach(p => counts[p] = 0);
-  _sessionMatchHistory.forEach(m => {
-    [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
+  sessionPlayers.forEach((p) => (counts[p] = 0));
+  _sessionMatchHistory.forEach((m) => {
+    [...m.teamA, ...m.teamB].forEach((p) => {
+      if (p in counts) counts[p]++;
+    });
   });
-  const sorted = [...sessionPlayers].sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
+  const sorted = [...sessionPlayers].sort(
+    (a, b) => counts[a] - counts[b] || a.localeCompare(b),
+  );
   const pick4 = sorted.slice(0, 4);
   const suggestions = [
     _mkEloTeams(pick4, eloMap, false), // snake: best+worst vs 2nd+3rd
     sorted.length >= 8
       ? _mkEloTeams(sorted.slice(4, 8), eloMap, false) // next 4 players
-      : _mkEloTeams(pick4, eloMap, true),               // alt pairing of same 4
+      : _mkEloTeams(pick4, eloMap, true), // alt pairing of same 4
   ];
   _showSuggestSheet(suggestions);
 }
@@ -18299,9 +20187,10 @@ function _showSuggestSheet(suggestions) {
   const sheet = document.getElementById("suggest-sheet");
   const body = document.getElementById("suggest-sheet-body");
   if (!sheet || !body) return;
-  body.innerHTML = suggestions.map((s, i) => {
-    const diff = Math.abs(s.avgA - s.avgB).toFixed(0);
-    return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-bottom:10px">
+  body.innerHTML = suggestions
+    .map((s, i) => {
+      const diff = Math.abs(s.avgA - s.avgB).toFixed(0);
+      return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-bottom:10px">
       <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:8px">GAME ${i + 1}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div style="flex:1;text-align:center">
@@ -18319,7 +20208,8 @@ function _showSuggestSheet(suggestions) {
       ${diff > 30 ? `<div style="font-size:8px;color:var(--gold);text-align:center;margin-bottom:8px">Δ${diff} ELO gap</div>` : ""}
       <button onclick="window._applySuggestion(${i})" style="width:100%;padding:8px;background:var(--accent);color:#000;font-size:11px;font-weight:900;border:none;border-radius:6px;cursor:pointer">▶ PLAY THIS</button>
     </div>`;
-  }).join("");
+    })
+    .join("");
   window._matchSuggestions = suggestions;
   document.getElementById("suggest-sheet-overlay").style.display = "block";
   sheet.classList.add("live-sheet-open");
@@ -18332,25 +20222,42 @@ function _closeSuggestSheet() {
 }
 window._closeSuggestSheet = _closeSuggestSheet;
 
-window._applySuggestion = function(idx) {
+window._applySuggestion = function (idx) {
   const s = window._matchSuggestions?.[idx];
   if (!s) return;
-  _liveSlots.a1 = s.teamA[0]; _liveSlots.a2 = s.teamA[1];
-  _liveSlots.b1 = s.teamB[0]; _liveSlots.b2 = s.teamB[1];
-  _liveScoreA = 0; _liveScoreB = 0;
-  _liveGamePtsA = 0; _liveGamePtsB = 0;
-  _liveAdv = null; _liveMatchEnded = false;
-  _livePoints = []; _livePointUndoStack = [];
-  ["a1","a2","b1","b2"].forEach(sl => _renderLiveSlot(sl));
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
-  _renderSittingOut(); _checkRematchWarning();
+  _liveSlots.a1 = s.teamA[0];
+  _liveSlots.a2 = s.teamA[1];
+  _liveSlots.b1 = s.teamB[0];
+  _liveSlots.b2 = s.teamB[1];
+  _liveScoreA = 0;
+  _liveScoreB = 0;
+  _liveGamePtsA = 0;
+  _liveGamePtsB = 0;
+  _liveAdv = null;
+  _liveMatchEnded = false;
+  _livePoints = [];
+  _livePointUndoStack = [];
+  ["a1", "a2", "b1", "b2"].forEach((sl) => _renderLiveSlot(sl));
+  _updateLiveDisplay();
+  _liveSyncGameDisplay();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
+  _updateLiveMomentum();
+  _renderSittingOut();
+  _checkRematchWarning();
   _closeSuggestSheet();
 };
 
 // ── UNDO LAST SESSION MATCH ──────────────────────────────────
 function undoSessionMatch() {
-  if (!_sessionPendingCount) { showToast("Nothing to undo — all matches are synced", "🔒"); return; }
-  if (!_sessionMatchHistory.length) { showToast("No match to undo", "❌"); return; }
+  if (!_sessionPendingCount) {
+    showToast("Nothing to undo — all matches are synced", "🔒");
+    return;
+  }
+  if (!_sessionMatchHistory.length) {
+    showToast("No match to undo", "❌");
+    return;
+  }
   const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
   // Show confirmation sheet with match details
   const body = document.getElementById("undo-confirm-body");
@@ -18363,13 +20270,21 @@ function undoSessionMatch() {
       </div>
       <div style="font-size:10px;color:var(--muted)">${last.date || ""}</div>`;
   }
-  document.getElementById("undo-confirm-overlay")?.style.setProperty("display", "block");
-  document.getElementById("undo-confirm-sheet")?.classList.add("live-sheet-open");
+  document
+    .getElementById("undo-confirm-overlay")
+    ?.style.setProperty("display", "block");
+  document
+    .getElementById("undo-confirm-sheet")
+    ?.classList.add("live-sheet-open");
 }
 
 function closeUndoConfirmSheet() {
-  document.getElementById("undo-confirm-overlay")?.style.setProperty("display", "none");
-  document.getElementById("undo-confirm-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("undo-confirm-overlay")
+    ?.style.setProperty("display", "none");
+  document
+    .getElementById("undo-confirm-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 function confirmUndoSession() {
@@ -18377,49 +20292,76 @@ function confirmUndoSession() {
   if (!_sessionMatchHistory.length) return;
   const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
   const key = _mkMatchKey(last);
-  const idx = allMatches.findIndex(m => _mkMatchKey(m) === key);
+  const idx = allMatches.findIndex((m) => _mkMatchKey(m) === key);
   if (idx !== -1) allMatches.splice(idx, 1);
   _sessionMatchHistory.pop();
   _sessionRedoStack.push(last);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
   _updateSyncBadge();
-  _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
-  _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
-  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _liveSlots.a1 = last.teamA[0];
+  _liveSlots.a2 = last.teamA[1];
+  _liveSlots.b1 = last.teamB[0];
+  _liveSlots.b2 = last.teamB[1];
+  ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
+  _updateLiveDisplay();
+  _liveSyncGameDisplay();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
+  _updateLiveMomentum();
   _syncLiveSessionBar();
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
   _checkRematchWarning();
-  document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
-  document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+  document
+    .getElementById("live-undo-match-btn")
+    ?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+  document
+    .getElementById("live-redo-match-btn")
+    ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
   _saveSessionState();
-  renderHome(); renderCompact(); renderModernMatches();
+  renderHome();
+  renderCompact();
+  renderModernMatches();
   showToast("Last match undone ↶", "✅");
 }
 
 // ── REDO LAST UNDONE SESSION MATCH ───────────────────────────
 function redoSessionMatch() {
-  if (!_sessionRedoStack.length) { showToast("Nothing to redo", "❌"); return; }
+  if (!_sessionRedoStack.length) {
+    showToast("Nothing to redo", "❌");
+    return;
+  }
   const match = _sessionRedoStack.pop();
   allMatches.push({ ...match });
   _sessionMatchHistory.push(match);
   _sessionPendingCount++;
   _updateSyncBadge();
-  _liveSlots.a1 = match.teamA[0]; _liveSlots.a2 = match.teamA[1];
-  _liveSlots.b1 = match.teamB[0]; _liveSlots.b2 = match.teamB[1];
-  ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-  _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+  _liveSlots.a1 = match.teamA[0];
+  _liveSlots.a2 = match.teamA[1];
+  _liveSlots.b1 = match.teamB[0];
+  _liveSlots.b2 = match.teamB[1];
+  ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
+  _updateLiveDisplay();
+  _liveSyncGameDisplay();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
+  _updateLiveMomentum();
   _syncLiveSessionBar();
   if (_sessionPanelOpen) _updateSessionPanel();
   _renderSittingOut();
   _checkRematchWarning();
-  document.getElementById("live-undo-match-btn")?.style.setProperty("display", "");
-  document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+  document
+    .getElementById("live-undo-match-btn")
+    ?.style.setProperty("display", "");
+  document
+    .getElementById("live-redo-match-btn")
+    ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
   _saveSessionState();
-  renderHome(); renderCompact(); renderModernMatches();
+  renderHome();
+  renderCompact();
+  renderModernMatches();
   showToast("Match redone ↷", "✅");
 }
 
@@ -18429,10 +20371,16 @@ function saveAndRematch() {
   // endLiveMatch() pushed to _sessionMatchHistory — restore those players
   if (_sessionMatchHistory.length > 0) {
     const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
-    _liveSlots.a1 = last.teamA[0]; _liveSlots.a2 = last.teamA[1];
-    _liveSlots.b1 = last.teamB[0]; _liveSlots.b2 = last.teamB[1];
-    ["a1","a2","b1","b2"].forEach(s => _renderLiveSlot(s));
-    _updateLiveDisplay(); _liveSyncGameDisplay(); _updateLiveWinProb(); _updateLiveEloPreview(); _updateLiveMomentum();
+    _liveSlots.a1 = last.teamA[0];
+    _liveSlots.a2 = last.teamA[1];
+    _liveSlots.b1 = last.teamB[0];
+    _liveSlots.b2 = last.teamB[1];
+    ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
+    _updateLiveDisplay();
+    _liveSyncGameDisplay();
+    _updateLiveWinProb();
+    _updateLiveEloPreview();
+    _updateLiveMomentum();
     _renderSittingOut();
     _checkRematchWarning();
   }
@@ -18443,50 +20391,75 @@ function openSessionSummary() {
   if (!_liveSessionData?.sessionActive) return;
   const sessionPlayers = _liveSessionData.sessionPlayers || [];
   const elapsed = _liveSessionData.sessionStartedAt
-    ? Math.floor((Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) / 1000) : 0;
+    ? Math.floor(
+        (Date.now() - new Date(_liveSessionData.sessionStartedAt).getTime()) /
+          1000,
+      )
+    : 0;
   const h = Math.floor(elapsed / 3600);
   const m2 = Math.floor((elapsed % 3600) / 60);
   const dur = elapsed < 60 ? `<1m` : h > 0 ? `${h}h ${m2}m` : `${m2}m`;
   const stats = {};
-  sessionPlayers.forEach(p => stats[p] = { w: 0, l: 0 });
-  _sessionMatchHistory.forEach(mt => {
+  sessionPlayers.forEach((p) => (stats[p] = { w: 0, l: 0 }));
+  _sessionMatchHistory.forEach((mt) => {
     const aWon = mt.scoreA > mt.scoreB;
-    (aWon ? mt.teamA : mt.teamB).forEach(p => { if (stats[p]) stats[p].w++; });
-    (aWon ? mt.teamB : mt.teamA).forEach(p => { if (stats[p]) stats[p].l++; });
+    (aWon ? mt.teamA : mt.teamB).forEach((p) => {
+      if (stats[p]) stats[p].w++;
+    });
+    (aWon ? mt.teamB : mt.teamA).forEach((p) => {
+      if (stats[p]) stats[p].l++;
+    });
   });
-  const sorted = Object.entries(stats).sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l);
+  const sorted = Object.entries(stats).sort(
+    (a, b) => b[1].w - a[1].w || a[1].l - b[1].l,
+  );
   const mvp = sorted[0];
-  const playersHtml = sorted.map(([name, s]) =>
-    `<div class="sess-sum-player">${sheetAvSm(name)}<span class="sess-sum-pname">${escHtml(name)}</span><span class="sess-sum-wl">${s.w}W–${s.l}L</span></div>`
-  ).join('');
-  const matchesHtml = _sessionMatchHistory.length === 0
-    ? '<div style="font-size:11px;color:var(--muted);padding:8px 0">No matches played</div>'
-    : _sessionMatchHistory.map((mt, i) => {
-        const aWon = mt.scoreA > mt.scoreB;
-        return `<div class="sess-sum-match">
+  const playersHtml = sorted
+    .map(
+      ([name, s]) =>
+        `<div class="sess-sum-player">${sheetAvSm(name)}<span class="sess-sum-pname">${escHtml(name)}</span><span class="sess-sum-wl">${s.w}W–${s.l}L</span></div>`,
+    )
+    .join("");
+  const matchesHtml =
+    _sessionMatchHistory.length === 0
+      ? '<div style="font-size:11px;color:var(--muted);padding:8px 0">No matches played</div>'
+      : _sessionMatchHistory
+          .map((mt, i) => {
+            const aWon = mt.scoreA > mt.scoreB;
+            return `<div class="sess-sum-match">
           <div class="sess-sum-match-num">${i + 1}</div>
-          <div class="sess-sum-match-teams">${escHtml(mt.teamA.join(' & '))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.join(' & '))}</div>
-          <div class="sess-sum-match-score" style="color:${aWon ? 'var(--green)' : 'var(--red)'}">${mt.scoreA}–${mt.scoreB}</div>
+          <div class="sess-sum-match-teams">${escHtml(mt.teamA.join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.join(" & "))}</div>
+          <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
         </div>`;
-      }).join('');
+          })
+          .join("");
   const bodyEl = document.getElementById("session-summary-body");
-  if (bodyEl) bodyEl.innerHTML = `
+  if (bodyEl)
+    bodyEl.innerHTML = `
     <div class="sess-sum-meta">
       <div class="sess-sum-stat"><div class="sess-sum-val">${_sessionMatchHistory.length}</div><div class="sess-sum-lbl">MATCHES</div></div>
       <div class="sess-sum-stat"><div class="sess-sum-val">${dur}</div><div class="sess-sum-lbl">DURATION</div></div>
-      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(mvp[0].split(' ')[0])}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ''}
+      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(mvp[0].split(" ")[0])}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ""}
     </div>
     <div class="sess-sum-section-title">PLAYERS</div>
     <div class="sess-sum-players">${playersHtml}</div>
     <div class="sess-sum-section-title">MATCHES</div>
     <div class="sess-sum-matches">${matchesHtml}</div>`;
-  document.getElementById("session-summary-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("session-summary-sheet")?.classList.add("live-sheet-open");
+  document
+    .getElementById("session-summary-overlay")
+    ?.classList.add("live-sheet-open");
+  document
+    .getElementById("session-summary-sheet")
+    ?.classList.add("live-sheet-open");
 }
 
 function closeSessionSummary() {
-  document.getElementById("session-summary-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("session-summary-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("session-summary-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("session-summary-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 async function confirmEndSession() {
@@ -18523,13 +20496,18 @@ function _syncLiveSessionBar() {
     const chipsEl = document.getElementById("live-session-players");
     if (chipsEl) {
       const counts = {};
-      (d.sessionPlayers || []).forEach(p => counts[p] = 0);
-      _sessionMatchHistory.forEach(m => {
-        [...m.teamA, ...m.teamB].forEach(p => { if (p in counts) counts[p]++; });
+      (d.sessionPlayers || []).forEach((p) => (counts[p] = 0));
+      _sessionMatchHistory.forEach((m) => {
+        [...m.teamA, ...m.teamB].forEach((p) => {
+          if (p in counts) counts[p]++;
+        });
       });
-      chipsEl.innerHTML = (d.sessionPlayers || []).map(p =>
-        `<span class="live-session-chip">${escHtml(p.split(" ")[0])}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ''}</span>`
-      ).join("");
+      chipsEl.innerHTML = (d.sessionPlayers || [])
+        .map(
+          (p) =>
+            `<span class="live-session-chip">${escHtml(p.split(" ")[0])}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ""}</span>`,
+        )
+        .join("");
     }
   }
 }
@@ -18539,33 +20517,53 @@ function openSessionSetup() {
   _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
-  list.innerHTML = players.map(p => `
+  list.innerHTML = players
+    .map(
+      (p) => `
     <label class="tb-player-chip">
       <input type="checkbox" onchange="window._sspToggle(${jsArg(p)}, this.checked)">
       <span class="tb-chip-name">${escHtml(p)}</span>
-    </label>`).join("");
-  document.getElementById("session-setup-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("session-setup-sheet")?.classList.add("live-sheet-open");
+    </label>`,
+    )
+    .join("");
+  document
+    .getElementById("session-setup-overlay")
+    ?.classList.add("live-sheet-open");
+  document
+    .getElementById("session-setup-sheet")
+    ?.classList.add("live-sheet-open");
 }
 
-window._sspToggle = function(name, checked) {
+window._sspToggle = function (name, checked) {
   if (checked) _sessionSetupSelected.add(name);
   else _sessionSetupSelected.delete(name);
 };
 
 function sessionSetupSelectAll() {
   _sessionSetupSelected = new Set(getAllPlayerNamesFromMatches());
-  document.querySelectorAll("#session-setup-list input[type=checkbox]").forEach(cb => { cb.checked = true; });
+  document
+    .querySelectorAll("#session-setup-list input[type=checkbox]")
+    .forEach((cb) => {
+      cb.checked = true;
+    });
 }
 
 function sessionSetupSelectNone() {
   _sessionSetupSelected = new Set();
-  document.querySelectorAll("#session-setup-list input[type=checkbox]").forEach(cb => { cb.checked = false; });
+  document
+    .querySelectorAll("#session-setup-list input[type=checkbox]")
+    .forEach((cb) => {
+      cb.checked = false;
+    });
 }
 
 function closeSessionSetup() {
-  document.getElementById("session-setup-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("session-setup-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("session-setup-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("session-setup-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 // Enhancement 13: session pause/resume via localStorage
@@ -18573,13 +20571,16 @@ const _SESSION_SAVE_KEY = "padel_session_state";
 function _saveSessionState() {
   try {
     if (!_liveSessionData?.sessionActive) return;
-    localStorage.setItem(_SESSION_SAVE_KEY, JSON.stringify({
-      session: _liveSessionData,
-      history: _sessionMatchHistory,
-      pendingCount: _sessionPendingCount,
-      redoStack: _sessionRedoStack,
-      savedAt: new Date().toISOString(),
-    }));
+    localStorage.setItem(
+      _SESSION_SAVE_KEY,
+      JSON.stringify({
+        session: _liveSessionData,
+        history: _sessionMatchHistory,
+        pendingCount: _sessionPendingCount,
+        redoStack: _sessionRedoStack,
+        savedAt: new Date().toISOString(),
+      }),
+    );
   } catch (e) {}
 }
 
@@ -18591,16 +20592,24 @@ function _reattachPendingMatches() {
     if (!localRaw) return;
     const localMatches = JSON.parse(localRaw);
     const cloudKeys = new Set(allMatches.map(_mkMatchKey));
-    const pending = localMatches.filter(m => !cloudKeys.has(_mkMatchKey(m)));
-    if (!pending.length) { _sessionPendingCount = 0; return; }
-    allMatches = [...allMatches, ...pending].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const pending = localMatches.filter((m) => !cloudKeys.has(_mkMatchKey(m)));
+    if (!pending.length) {
+      _sessionPendingCount = 0;
+      return;
+    }
+    allMatches = [...allMatches, ...pending].sort((a, b) =>
+      (a.date || "").localeCompare(b.date || ""),
+    );
     _sessionPendingCount = pending.length;
     _invalidateEloMemo();
-    if (window.appCache) window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+    if (window.appCache)
+      window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
   } catch (e) {}
 }
 function _clearSessionState() {
-  try { localStorage.removeItem(_SESSION_SAVE_KEY); } catch (e) {}
+  try {
+    localStorage.removeItem(_SESSION_SAVE_KEY);
+  } catch (e) {}
 }
 function _renderSessionActiveCard() {
   const wrap = document.getElementById("session-active-wrap");
@@ -18614,8 +20623,11 @@ function _renderSessionActiveCard() {
   const startedAt = _liveSessionData.sessionStartedAt;
   let durationStr = "";
   if (startedAt) {
-    const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
-    durationStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+    const mins = Math.floor(
+      (Date.now() - new Date(startedAt).getTime()) / 60000,
+    );
+    durationStr =
+      mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
   wrap.innerHTML = `<div class="session-active-card" onclick="switchMainTab('live')">
     <div class="sac-pulse"></div>
@@ -18647,8 +20659,15 @@ function checkResumeSession() {
     _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
-    document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
-    document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+    document
+      .getElementById("live-undo-match-btn")
+      ?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+    document
+      .getElementById("live-redo-match-btn")
+      ?.style.setProperty(
+        "display",
+        _sessionRedoStack.length > 0 ? "" : "none",
+      );
   } catch (e) {}
 }
 function resumeSession() {
@@ -18666,10 +20685,19 @@ function resumeSession() {
     _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
-    document.getElementById("live-undo-match-btn")?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
-    document.getElementById("live-redo-match-btn")?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+    document
+      .getElementById("live-undo-match-btn")
+      ?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+    document
+      .getElementById("live-redo-match-btn")
+      ?.style.setProperty(
+        "display",
+        _sessionRedoStack.length > 0 ? "" : "none",
+      );
     showToast("Session resumed!", "✅");
-  } catch (e) { showToast("Could not resume session", "❌"); }
+  } catch (e) {
+    showToast("Could not resume session", "❌");
+  }
 }
 function discardResumeSession() {
   _clearSessionState();
@@ -18678,10 +20706,18 @@ function discardResumeSession() {
 
 function confirmSessionStart() {
   const players = [..._sessionSetupSelected];
-  if (players.length < 2) { showToast("Select at least 2 players", "❌"); return; }
+  if (players.length < 2) {
+    showToast("Select at least 2 players", "❌");
+    return;
+  }
   closeSessionSetup();
   const now = new Date().toISOString();
-  _liveSessionData = { sessionActive: true, sessionPlayers: players, sessionStartedAt: now, currentMatch: null };
+  _liveSessionData = {
+    sessionActive: true,
+    sessionPlayers: players,
+    sessionStartedAt: now,
+    currentMatch: null,
+  };
   _sessionPendingCount = 0;
   _sessionMatchHistory = [];
   _sessionRedoStack = [];
@@ -18692,8 +20728,14 @@ function confirmSessionStart() {
   _saveSessionState();
   _renderSessionActiveCard();
   _liveHaptic([20, 50, 20]);
-  _notifyLiveEvent("session_start", `Session started · ${players.length} players`);
-  _showLiveEventBanner({ type: "session_start", msg: `Session started · ${players.length} players` });
+  _notifyLiveEvent(
+    "session_start",
+    `Session started · ${players.length} players`,
+  );
+  _showLiveEventBanner({
+    type: "session_start",
+    msg: `Session started · ${players.length} players`,
+  });
   _requestNotifPermission();
 }
 
@@ -18705,20 +20747,35 @@ function openAddPlayerSheet() {
   const list = document.getElementById("add-player-list");
   if (!list) return;
   const current = _liveSessionData?.sessionPlayers || [];
-  const available = Object.keys(aliasMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })).filter(p => !current.includes(p));
-  if (!available.length) { showToast("All players already in session", "✅"); return; }
-  list.innerHTML = available.map(p => `
+  const available = Object.keys(aliasMap)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+    .filter((p) => !current.includes(p));
+  if (!available.length) {
+    showToast("All players already in session", "✅");
+    return;
+  }
+  list.innerHTML = available
+    .map(
+      (p) => `
     <button class="live-sheet-item" onclick="addPlayerToSession(${jsArg(p)})">
       ${sheetAv(p)}
       <span class="live-sheet-item-name">${escHtml(p)}</span>
-    </button>`).join("");
-  document.getElementById("add-player-overlay")?.classList.add("live-sheet-open");
+    </button>`,
+    )
+    .join("");
+  document
+    .getElementById("add-player-overlay")
+    ?.classList.add("live-sheet-open");
   document.getElementById("add-player-sheet")?.classList.add("live-sheet-open");
 }
 
 function closeAddPlayerSheet() {
-  document.getElementById("add-player-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("add-player-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("add-player-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("add-player-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 function addPlayerToSession(name) {
@@ -18736,15 +20793,28 @@ function addPlayerToSession(name) {
 function _notifyLiveEvent(type, msg) {
   const isEnd = type === "match_end" || type === "session_end";
   _liveHaptic(isEnd ? [30, 60, 30] : [15, 30, 15]);
-  const icons = { session_start: "🎾", session_end: "🏁", match_start: "▶️", match_end: "✅", player_added: "➕" };
+  const icons = {
+    session_start: "🎾",
+    session_end: "🏁",
+    match_start: "▶️",
+    match_end: "✅",
+    player_added: "➕",
+  };
   showToast(msg, icons[type] || "🎾", 3500);
-  if (document.visibilityState !== "visible" && "Notification" in window && Notification.permission === "granted") {
-    try { new Notification("Ekta Padel 🎾", { body: msg, icon: "/icons/icon.svg" }); } catch (e) {}
+  if (
+    document.visibilityState !== "visible" &&
+    "Notification" in window &&
+    Notification.permission === "granted"
+  ) {
+    try {
+      new Notification("Ekta Padel 🎾", { body: msg, icon: "/icons/icon.svg" });
+    } catch (e) {}
   }
 }
 
 function _requestNotifPermission() {
-  if (!("Notification" in window) || Notification.permission !== "default") return;
+  if (!("Notification" in window) || Notification.permission !== "default")
+    return;
   Notification.requestPermission().catch(() => {});
 }
 
@@ -18756,28 +20826,42 @@ let _editingPlayerId = null;
 function openPlayerEditSheet(id) {
   _editingPlayerId = id || null;
   const isNew = !id;
-  const p = isNew ? { name: "", email: "", isGuest: false } : (players[id] || {});
-  const aliases = isNew ? [] : (playerAliasMap[id] || []);
-  const { first, last } = isNew ? { first: null, last: null } : getPlayerDateRange(p.name);
+  const p = isNew ? { name: "", email: "", isGuest: false } : players[id] || {};
+  const aliases = isNew ? [] : playerAliasMap[id] || [];
+  const { first, last } = isNew
+    ? { first: null, last: null }
+    : getPlayerDateRange(p.name);
 
-  document.getElementById("pes-title").textContent = isNew ? "ADD PLAYER" : "EDIT PLAYER";
+  document.getElementById("pes-title").textContent = isNew
+    ? "ADD PLAYER"
+    : "EDIT PLAYER";
   document.getElementById("pes-name").value = p.name || "";
   document.getElementById("pes-aliases").value = aliases.join(", ");
   document.getElementById("pes-email").value = p.email || "";
   document.getElementById("pes-guest").checked = !!p.isGuest;
-  document.getElementById("pes-first").textContent = first ? fmtDate(first) : "—";
+  document.getElementById("pes-first").textContent = first
+    ? fmtDate(first)
+    : "—";
   document.getElementById("pes-last").textContent = last ? fmtDate(last) : "—";
-  document.getElementById("pes-delete-btn").style.display = isNew ? "none" : "block";
+  document.getElementById("pes-delete-btn").style.display = isNew
+    ? "none"
+    : "block";
 
-  document.getElementById("player-edit-overlay").classList.add("live-sheet-open");
+  document
+    .getElementById("player-edit-overlay")
+    .classList.add("live-sheet-open");
   document.getElementById("player-edit-sheet").classList.add("live-sheet-open");
   setTimeout(() => document.getElementById("pes-name").focus(), 120);
 }
 window.openPlayerEditSheet = openPlayerEditSheet;
 
 function closePlayerEditSheet() {
-  document.getElementById("player-edit-overlay").classList.remove("live-sheet-open");
-  document.getElementById("player-edit-sheet").classList.remove("live-sheet-open");
+  document
+    .getElementById("player-edit-overlay")
+    .classList.remove("live-sheet-open");
+  document
+    .getElementById("player-edit-sheet")
+    .classList.remove("live-sheet-open");
   _editingPlayerId = null;
 }
 window.closePlayerEditSheet = closePlayerEditSheet;
@@ -18788,10 +20872,16 @@ function savePlayerEdit() {
   const email = document.getElementById("pes-email").value.trim();
   const isGuest = document.getElementById("pes-guest").checked;
 
-  if (!name) { alert("Display name is required"); return; }
+  if (!name) {
+    alert("Display name is required");
+    return;
+  }
 
   const aliases = aliasesRaw
-    ? aliasesRaw.split(",").map((a) => a.trim()).filter(Boolean)
+    ? aliasesRaw
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean)
     : [];
 
   const id = _editingPlayerId || nextPlayerId++;
@@ -18831,12 +20921,20 @@ function showDupConfirmSheet(msg, onYes) {
       if (typeof cb === "function") cb();
     };
   }
-  document.getElementById("dup-confirm-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("dup-confirm-sheet")?.classList.add("live-sheet-open");
+  document
+    .getElementById("dup-confirm-overlay")
+    ?.classList.add("live-sheet-open");
+  document
+    .getElementById("dup-confirm-sheet")
+    ?.classList.add("live-sheet-open");
 }
 function closeDupConfirmSheet() {
-  document.getElementById("dup-confirm-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("dup-confirm-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("dup-confirm-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("dup-confirm-sheet")
+    ?.classList.remove("live-sheet-open");
   _dupConfirmCallback = null;
 }
 window.closeDupConfirmSheet = closeDupConfirmSheet;
@@ -18859,13 +20957,21 @@ function openMatchConfirmSheet() {
       </div>
     </div>`;
   }
-  document.getElementById("match-confirm-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("match-confirm-sheet")?.classList.add("live-sheet-open");
+  document
+    .getElementById("match-confirm-overlay")
+    ?.classList.add("live-sheet-open");
+  document
+    .getElementById("match-confirm-sheet")
+    ?.classList.add("live-sheet-open");
 }
 
 function closeMatchConfirmSheet() {
-  document.getElementById("match-confirm-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("match-confirm-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("match-confirm-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("match-confirm-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 function confirmStartMatch() {
@@ -18887,14 +20993,21 @@ function openMatchSaveSheet() {
     </div>`;
   }
   const rematchBtn = document.getElementById("live-save-rematch-btn");
-  if (rematchBtn) rematchBtn.style.display = _liveSessionData?.sessionActive ? "" : "none";
-  document.getElementById("match-save-overlay")?.classList.add("live-sheet-open");
+  if (rematchBtn)
+    rematchBtn.style.display = _liveSessionData?.sessionActive ? "" : "none";
+  document
+    .getElementById("match-save-overlay")
+    ?.classList.add("live-sheet-open");
   document.getElementById("match-save-sheet")?.classList.add("live-sheet-open");
 }
 
 function closeMatchSaveSheet() {
-  document.getElementById("match-save-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("match-save-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("match-save-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("match-save-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 function confirmSaveMatch() {
@@ -18926,13 +21039,23 @@ function _buildBannerContent(type, title, subtitle, data) {
     const { teamA, teamB, scoreA, scoreB } = data;
     const isEnd = type === "match_end_ufc";
     const aWon = isEnd ? scoreA > scoreB : null;
-    const aAvatars = teamA.map(p => `<div class="lbf-avatar" style="background:${playerColor(p)}">${playerInitials(p)}</div>`).join("");
-    const bAvatars = teamB.map(p => `<div class="lbf-avatar" style="background:${playerColor(p)}">${playerInitials(p)}</div>`).join("");
+    const aAvatars = teamA
+      .map(
+        (p) =>
+          `<div class="lbf-avatar" style="background:${playerColor(p)}">${playerInitials(p)}</div>`,
+      )
+      .join("");
+    const bAvatars = teamB
+      .map(
+        (p) =>
+          `<div class="lbf-avatar" style="background:${playerColor(p)}">${playerInitials(p)}</div>`,
+      )
+      .join("");
     return `<div class="live-banner-ufc">
       <div class="live-banner-corner-a${isEnd && !aWon ? " live-banner-corner-dim" : ""}">
         <div class="live-banner-corner-label">RED CORNER</div>
         <div class="lbf-avatars">${aAvatars}</div>
-        ${teamA.map(p => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${teamA.map((p) => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
         ${isEnd ? `<div class="live-banner-corner-score${aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreA}</div>` : ""}
         ${isEnd && aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
@@ -18945,7 +21068,7 @@ function _buildBannerContent(type, title, subtitle, data) {
       <div class="live-banner-corner-b${isEnd && aWon ? " live-banner-corner-dim" : ""}">
         <div class="live-banner-corner-label">BLUE CORNER</div>
         <div class="lbf-avatars">${bAvatars}</div>
-        ${teamB.map(p => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${teamB.map((p) => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
         ${isEnd ? `<div class="live-banner-corner-score${!aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreB}</div>` : ""}
         ${isEnd && !aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
@@ -18953,7 +21076,7 @@ function _buildBannerContent(type, title, subtitle, data) {
   }
   const isStart = type === "session_start";
   return `<div class="live-banner-session live-banner-session-${type}">
-    <div class="lbs-particles">${Array.from({length:12},(_,i)=>`<div class="lbs-particle lbs-p${i}"></div>`).join("")}</div>
+    <div class="lbs-particles">${Array.from({ length: 12 }, (_, i) => `<div class="lbs-particle lbs-p${i}"></div>`).join("")}</div>
     <div class="lbs-ring"></div>
     <div class="live-banner-icon-big">${isStart ? "🎾" : "🏁"}</div>
     <div class="live-banner-title">${escHtml(title)}</div>
@@ -18975,17 +21098,27 @@ function closeLiveBanner() {
 
 function _showLiveEventBanner(event) {
   const { type, msg } = event;
-  const onLivePage = document.getElementById("pg-live")?.classList.contains("active");
+  const onLivePage = document
+    .getElementById("pg-live")
+    ?.classList.contains("active");
   if (type === "match_start") {
     const cm = _liveSessionData?.currentMatch;
     if (cm?.teamA && !onLivePage) {
-      showLiveBanner("match_start", "MATCH STARTING", msg, { teamA: cm.teamA, teamB: cm.teamB });
+      showLiveBanner("match_start", "MATCH STARTING", msg, {
+        teamA: cm.teamA,
+        teamB: cm.teamB,
+      });
     }
     return;
   }
   if (type === "match_end") {
     if (!onLivePage && event.teamA) {
-      showLiveBanner("match_end_ufc", "MATCH OVER", msg, { teamA: event.teamA, teamB: event.teamB, scoreA: event.scoreA, scoreB: event.scoreB });
+      showLiveBanner("match_end_ufc", "MATCH OVER", msg, {
+        teamA: event.teamA,
+        teamB: event.teamB,
+        scoreA: event.scoreA,
+        scoreB: event.scoreB,
+      });
     }
     return;
   }
@@ -18998,7 +21131,6 @@ function _showLiveEventBanner(event) {
     return;
   }
 }
-
 
 window.openMatchConfirmSheet = openMatchConfirmSheet;
 window.closeMatchConfirmSheet = closeMatchConfirmSheet;
