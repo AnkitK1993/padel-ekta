@@ -12366,8 +12366,9 @@ function _computeRankPeriods(periodType) {
       }
       if (distinct.size < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], idx };
       const eloMap = computeElo(b.matches);
-      const statsArr = computeStats(b.matches, eloMap);
-      const ranks = statsArr.map((p, i) => ({ name: p.name, rank: i + 1, sr: p.sr, mp: p.mp }));
+      const qualified = computeStats(b.matches, eloMap).filter(p => p.mp >= 2);
+      if (qualified.length < _MIN_RANK_PLAYERS) return { key: b.key, from: b.from, to: b.to, label, ranks: [], idx };
+      const ranks = qualified.map((p, i) => ({ name: p.name, rank: i + 1, sr: p.sr, mp: p.mp }));
       return { key: b.key, from: b.from, to: b.to, label, ranks, idx };
     });
 
@@ -12533,14 +12534,20 @@ function _buildRankReignHtml() {
   let maxRank = 1;
   const tally = {};
   allDates.forEach(date => {
+    const dayMatchCounts = {};
+    sorted.filter(m => m.date === date).forEach(m => {
+      [...(m.teamA||[]), ...(m.teamB||[])].forEach(p => { dayMatchCounts[p] = (dayMatchCounts[p] || 0) + 1; });
+    });
     const snap = sorted.filter(m => (m.date || "") <= date);
     const statsSnap = computeStats(snap, computeElo(snap));
-    statsSnap.forEach((p, i) => {
-      const rank = i + 1;
+    let qualRank = 0;
+    statsSnap.forEach((p) => {
+      if ((dayMatchCounts[p.name] || 0) < 2) return;
+      qualRank++;
       if (!tally[p.name]) tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
       tally[p.name].days++;
-      tally[p.name].rankCounts[rank] = (tally[p.name].rankCounts[rank] || 0) + 1;
-      if (rank > maxRank) maxRank = rank;
+      tally[p.name].rankCounts[qualRank] = (tally[p.name].rankCounts[qualRank] || 0) + 1;
+      if (qualRank > maxRank) maxRank = qualRank;
     });
   });
 
