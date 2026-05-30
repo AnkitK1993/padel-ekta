@@ -127,6 +127,39 @@ export function generateAmericano(players, numRounds, opts = {}) {
   return schedule;
 }
 
+// ── MEXICANO ─────────────────────────────────────────────────
+// One round at a time, paired from the CURRENT standings. Pass players already
+// ordered best→worst (for round 1, pass a seeded/shuffled order). Within each
+// court of four ranked [r0,r1,r2,r3], pair r0+r3 vs r1+r2 to balance the game.
+// Sit-outs rotate by fewest-sat-first (tie-break: lower current rank sits).
+export function nextMexicanoRound(orderedPlayers, sitCount = {}) {
+  const players = [...new Set((orderedPlayers || []).map(String).filter(Boolean))];
+  const N = players.length;
+  if (N < 4) throw new Error("Need at least 4 players for Mexicano.");
+  const courts = Math.floor(N / 4);
+  const numSitting = N - courts * 4;
+
+  const rankIndex = {};
+  players.forEach((p, i) => (rankIndex[p] = i)); // 0 = top of the table
+
+  const sitting = [...players]
+    .sort(
+      (a, b) =>
+        (sitCount[a] || 0) - (sitCount[b] || 0) || // fewest sit-outs sit next
+        rankIndex[b] - rankIndex[a], // tie: the lower-ranked sits
+    )
+    .slice(0, numSitting);
+
+  const sitSet = new Set(sitting);
+  const playing = players.filter((p) => !sitSet.has(p)); // still in standings order
+  const matches = [];
+  for (let c = 0; c < courts; c++) {
+    const g = playing.slice(c * 4, c * 4 + 4); // [best..worst] on this court
+    matches.push({ teamA: [g[0], g[3]], teamB: [g[1], g[2]] });
+  }
+  return { matches, sittingOut: sitting };
+}
+
 // Fairness summary for a generated schedule — used by tests and by the UI to
 // show "everyone partnered everyone" style reassurance.
 export function americanoFairness(players, schedule) {

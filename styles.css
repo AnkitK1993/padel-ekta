@@ -17246,6 +17246,34 @@ body.smooth-mode [style*="animation-delay"] {
   text-align: right;
   flex-shrink: 0;
 }
+.am-mode-seg {
+  display: flex;
+  margin: 4px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+.am-mode-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    color 0.18s;
+}
+.am-mode-btn.on {
+  background: var(--theme);
+  color: #04121a;
+  font-weight: 700;
+}
 
 
 

@@ -1,7 +1,11 @@
 // tests-americano.mjs — schedule generator correctness.
 // Run: node tests-americano.mjs   (or: npm run test:americano)
 
-import { generateAmericano, americanoFairness } from "./americano.js";
+import {
+  generateAmericano,
+  americanoFairness,
+  nextMexicanoRound,
+} from "./americano.js";
 
 let pass = 0,
   fail = 0;
@@ -104,6 +108,60 @@ for (const n of [5, 6, 7, 9, 11]) {
 {
   const s = generateAmericano(["A", "B", "C", "D", "A"], 2);
   ok("ignores duplicate player names", structurallyValid(["A", "B", "C", "D"], s, 1));
+}
+
+// ── Mexicano (standings-driven) ──
+console.log("\n\x1b[36m── Mexicano round generation ────────────────────────\x1b[0m");
+
+// Canonical pairing: within a court of 4 (best→worst), 1st+4th vs 2nd+3rd.
+{
+  const r = nextMexicanoRound(["A", "B", "C", "D"]);
+  ok(
+    "4 ranked players → 1st+4th vs 2nd+3rd",
+    JSON.stringify(r.matches) ===
+      JSON.stringify([{ teamA: ["A", "D"], teamB: ["B", "C"] }]),
+    JSON.stringify(r.matches),
+  );
+  ok("nobody sits with 4 players", r.sittingOut.length === 0);
+}
+
+// 8 ranked players → two courts, each paired 1+4 vs 2+3 within its group.
+{
+  const r = nextMexicanoRound(P(8));
+  ok(
+    "8 ranked players → 2 balanced courts",
+    JSON.stringify(r.matches) ===
+      JSON.stringify([
+        { teamA: ["P1", "P4"], teamB: ["P2", "P3"] },
+        { teamA: ["P5", "P8"], teamB: ["P6", "P7"] },
+      ]),
+    JSON.stringify(r.matches),
+  );
+}
+
+// 5 players: one sits; with equal sit-counts the lowest-ranked sits.
+{
+  const r = nextMexicanoRound(["A", "B", "C", "D", "E"]); // A best … E worst
+  ok("5 players: exactly one sits", r.sittingOut.length === 1);
+  ok("5 players: lowest-ranked sits first", r.sittingOut[0] === "E", r.sittingOut.join());
+}
+
+// Sit-outs rotate: a player who already sat is not chosen again while others
+// have sat less.
+{
+  const r = nextMexicanoRound(["A", "B", "C", "D", "E"], { E: 1 });
+  ok("already-sat player doesn't sit again", !r.sittingOut.includes("E"), r.sittingOut.join());
+}
+
+// Standings drive pairings: re-ordering players changes the matchups.
+{
+  const r = nextMexicanoRound(["D", "C", "B", "A"]); // now D is top
+  ok(
+    "pairings follow the standings order",
+    JSON.stringify(r.matches) ===
+      JSON.stringify([{ teamA: ["D", "A"], teamB: ["C", "B"] }]),
+    JSON.stringify(r.matches),
+  );
 }
 
 console.log(`\n\x1b[1mAmericano: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`);

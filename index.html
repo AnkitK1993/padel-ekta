@@ -1357,23 +1357,28 @@ Puneet - Pun, PK
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">🎾 AMERICANO</div>
         <div id="americano-setup">
-          <div style="padding:2px 14px 8px;font-size:12px;color:var(--text-muted);text-align:center">Pick players — everyone partners &amp; opposes everyone</div>
-          <div id="americano-list" style="padding:0 14px;max-height:34vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+          <div class="am-mode-seg">
+            <button id="am-mode-americano" class="am-mode-btn on" onclick="setAmericanoMode('americano')">AMERICANO</button>
+            <button id="am-mode-mexicano" class="am-mode-btn" onclick="setAmericanoMode('mexicano')">MEXICANO</button>
+          </div>
+          <div id="am-mode-hint" style="padding:2px 14px 8px;font-size:11px;color:var(--text-muted);text-align:center">Fixed schedule — everyone partners &amp; opposes everyone</div>
+          <div id="americano-list" style="padding:0 14px;max-height:32vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
           <div style="padding:10px 14px 0;display:flex;gap:8px;align-items:center">
             <button class="tb-btn tb-btn-all" onclick="americanoSelectAll()">ALL</button>
             <button class="tb-btn tb-btn-none" onclick="americanoSelectNone()">NONE</button>
-            <label style="margin-left:auto;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px">Rounds
+            <label id="am-rounds-wrap" style="margin-left:auto;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px">Rounds
               <input id="americano-rounds" type="number" min="1" max="30" value="7" style="width:50px;padding:5px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:center;font-weight:700" />
             </label>
           </div>
           <div style="padding:10px 14px 4px;display:flex;gap:8px">
-            <button class="tb-btn tb-btn-balance" onclick="generateAmericanoSchedule()" style="flex:1">🎲 GENERATE</button>
+            <button id="am-generate-btn" class="tb-btn tb-btn-balance" onclick="generateAmericanoSchedule()" style="flex:1">🎲 GENERATE</button>
           </div>
         </div>
         <div id="americano-result" style="display:none;padding:0 14px;max-height:62vh;overflow-y:auto"></div>
         <div id="americano-result-actions" style="display:none;padding:10px 14px 4px;gap:8px">
           <button class="tb-btn tb-btn-none" onclick="americanoBack()">↩ EDIT</button>
-          <button class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄 RESHUFFLE</button>
+          <button id="am-reshuffle-btn" class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄 RESHUFFLE</button>
+          <button id="am-next-btn" class="tb-btn tb-btn-balance" onclick="americanoNextRound()" style="flex:1;display:none">NEXT ROUND →</button>
         </div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
