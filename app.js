@@ -1,4 +1,9 @@
 ﻿import {
+  generateAmericano,
+  americanoFairness,
+  nextMexicanoRound,
+} from "./americano.js";
+import {
   initEloDeps,
   computeElo,
   computeEloHistory,
@@ -18568,6 +18573,16 @@ Object.assign(window, {
   setScreenshotChoiceSetting,
   setAnimLevel,
   toggleSmoothMode,
+  openAmericanoSheet,
+  closeAmericano,
+  setAmericanoMode,
+  americanoAddGuest,
+  americanoSelectAll,
+  americanoSelectNone,
+  generateAmericanoSchedule,
+  americanoRegenerate,
+  americanoNextRound,
+  americanoBack,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -20565,6 +20580,293 @@ function closeSessionSetup() {
     .getElementById("session-setup-sheet")
     ?.classList.remove("live-sheet-open");
 }
+
+// ── AMERICANO / MATCHUP GENERATOR (UI) ────────────────────
+let _americanoPlayers = [];
+let _americanoSelected = new Set();
+let _americanoSchedule = null;
+let _americanoScores = {}; // "round-match" -> {a, b}
+let _americanoMode = "americano"; // "americano" | "mexicano"
+let _americanoSitCount = {}; // mexicano sit-out rotation tracking
+
+function openAmericanoSheet() {
+  _americanoPlayers = getAllPlayerNamesFromMatches();
+  _americanoSelected = new Set();
+  _americanoSchedule = null;
+  if (!document.getElementById("americano-list")) return;
+  _renderAmericanoList();
+  _americanoShowSetup();
+  setAmericanoMode(_americanoMode); // sync the toggle UI to the current mode
+  document.getElementById("americano-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
+}
+// Render the player chips, reflecting the current selection (so adding a guest
+// or select-all/none re-renders without losing what's already ticked).
+function _renderAmericanoList() {
+  const list = document.getElementById("americano-list");
+  if (!list) return;
+  list.innerHTML = _americanoPlayers
+    .map(
+      (p) => `
+    <label class="tb-player-chip">
+      <input type="checkbox"${_americanoSelected.has(p) ? " checked" : ""} onchange="window._amToggle(${jsArg(p)}, this.checked)">
+      <span class="tb-chip-name">${escHtml(p)}</span>
+    </label>`,
+    )
+    .join("");
+}
+window._amToggle = function (name, on) {
+  if (on) _americanoSelected.add(name);
+  else _americanoSelected.delete(name);
+};
+// Add a guest / one-off player not in the roster (session-local), pre-selected.
+function americanoAddGuest() {
+  const inp = document.getElementById("americano-guest-input");
+  const name = (inp?.value || "").trim();
+  if (!name) return;
+  const existing = _americanoPlayers.find(
+    (p) => p.toLowerCase() === name.toLowerCase(),
+  );
+  if (existing) {
+    _americanoSelected.add(existing);
+  } else {
+    _americanoPlayers.push(name);
+    _americanoSelected.add(name);
+  }
+  if (inp) inp.value = "";
+  _renderAmericanoList();
+}
+function closeAmericano() {
+  document
+    .getElementById("americano-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("americano-sheet")
+    ?.classList.remove("live-sheet-open");
+}
+function _americanoShowSetup() {
+  document.getElementById("americano-setup").style.display = "";
+  document.getElementById("americano-result").style.display = "none";
+  document.getElementById("americano-result-actions").style.display = "none";
+}
+function americanoBack() {
+  _americanoShowSetup();
+}
+function setAmericanoMode(mode) {
+  _americanoMode = mode === "mexicano" ? "mexicano" : "americano";
+  document
+    .getElementById("am-mode-americano")
+    ?.classList.toggle("on", _americanoMode === "americano");
+  document
+    .getElementById("am-mode-mexicano")
+    ?.classList.toggle("on", _americanoMode === "mexicano");
+  const hint = document.getElementById("am-mode-hint");
+  if (hint)
+    hint.textContent =
+      _americanoMode === "mexicano"
+        ? "Standings-driven — top players matched each round (1st+4th vs 2nd+3rd)"
+        : "Fixed schedule — everyone partners & opposes everyone";
+  // Mexicano builds round-by-round, so the up-front "rounds" count is hidden.
+  const rw = document.getElementById("am-rounds-wrap");
+  if (rw) rw.style.visibility = _americanoMode === "mexicano" ? "hidden" : "";
+  const gen = document.getElementById("am-generate-btn");
+  if (gen)
+    gen.textContent =
+      _americanoMode === "mexicano" ? "🎲 START ROUND 1" : "🎲 GENERATE";
+}
+function americanoSelectAll() {
+  _americanoSelected = new Set(_americanoPlayers);
+  _renderAmericanoList();
+}
+function americanoSelectNone() {
+  _americanoSelected = new Set();
+  _renderAmericanoList();
+}
+function _americanoShuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function generateAmericanoSchedule(shuffle) {
+  let players = [..._americanoSelected];
+  if (players.length < 4) {
+    showToast("Pick at least 4 players", "❌");
+    return;
+  }
+  // Round 1 of either mode is seeded by a shuffle so each draw differs.
+  players = _americanoShuffle([...players]);
+  _americanoLastPlayers = players;
+  _americanoScores = {}; // fresh scoreboard for the new draw
+  _americanoSitCount = {};
+  try {
+    if (_americanoMode === "mexicano") {
+      const r1 = nextMexicanoRound(players, _americanoSitCount);
+      (r1.sittingOut || []).forEach(
+        (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
+      );
+      _americanoSchedule = [{ round: 1, ...r1 }];
+    } else {
+      const rounds = Math.max(
+        1,
+        Math.min(30, parseInt(document.getElementById("americano-rounds")?.value, 10) || 7),
+      );
+      _americanoSchedule = generateAmericano(players, rounds);
+    }
+  } catch (e) {
+    showToast(e.message || "Could not generate", "❌");
+    return;
+  }
+  _renderAmericanoResult(players, _americanoSchedule);
+  document.getElementById("americano-setup").style.display = "none";
+  document.getElementById("americano-result").style.display = "";
+  document.getElementById("americano-result-actions").style.display = "flex";
+  _syncAmericanoActions();
+}
+// Show RESHUFFLE for Americano, NEXT ROUND for Mexicano.
+function _syncAmericanoActions() {
+  const mex = _americanoMode === "mexicano";
+  const re = document.getElementById("am-reshuffle-btn");
+  const nx = document.getElementById("am-next-btn");
+  if (re) re.style.display = mex ? "none" : "";
+  if (nx) nx.style.display = mex ? "" : "none";
+}
+// Mexicano: generate the next round from the CURRENT standings, append it.
+function americanoNextRound() {
+  if (!_americanoSchedule || _americanoMode !== "mexicano") return;
+  if (_americanoSchedule.length >= 30) {
+    showToast("That's plenty of rounds!", "🎾");
+    return;
+  }
+  const ordered = _americanoStandings().map((s) => s.name); // best → worst
+  let next;
+  try {
+    next = nextMexicanoRound(ordered, _americanoSitCount);
+  } catch (e) {
+    showToast(e.message || "Could not build round", "❌");
+    return;
+  }
+  (next.sittingOut || []).forEach(
+    (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
+  );
+  _americanoSchedule.push({ round: _americanoSchedule.length + 1, ...next });
+  _renderAmericanoResult(_americanoLastPlayers, _americanoSchedule);
+  _syncAmericanoActions();
+  // Scroll the newly added round into view.
+  const rounds = document.querySelectorAll("#americano-result .am-round");
+  rounds[rounds.length - 1]?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+let _americanoLastPlayers = [];
+function americanoRegenerate() {
+  generateAmericanoSchedule(true);
+}
+function _renderAmericanoResult(players, schedule) {
+  const av = (n) =>
+    `<span class="am-av" style="background:${playerColor(n)}">${playerInitials(n)}</span>`;
+  // One line per team: avatars + names on the left, a points input on the right.
+  const teamRow = (team, r, i, side) => {
+    const sc = _americanoScores[r + "-" + i] || {};
+    const val = sc[side] != null ? sc[side] : "";
+    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><input class="am-score" type="number" inputmode="numeric" min="0" value="${val}" onchange="window._amScore(${r},${i},'${side}',this.value,this)" aria-label="points"></div>`;
+  };
+  const multiCourt = schedule.some((r) => r.matches.length > 1);
+  const body = schedule
+    .map((rnd, r) => {
+      const matches = rnd.matches
+        .map(
+          (m, i) =>
+            `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}<div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div></div>`,
+        )
+        .join("");
+      const sit =
+        rnd.sittingOut && rnd.sittingOut.length
+          ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
+          : "";
+      return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
+    })
+    .join("");
+  const f = americanoFairness(players, schedule);
+  const summary = `<div class="am-summary">${players.length} players · ${schedule.length} rounds · partners repeat ≤ ${f.maxPartnerRepeat}× · sit-outs ${f.minSits}–${f.maxSits}</div>`;
+  document.getElementById("americano-result").innerHTML =
+    `<div id="americano-standings"></div>` + summary + body;
+  _renderAmericanoStandings();
+}
+
+// Live standings from whatever scores have been entered so far. Americano
+// scoring: each player banks the points their team scored, every round.
+function _americanoStandings() {
+  const pts = {},
+    played = {},
+    won = {};
+  (_americanoSchedule || []).forEach((rnd, r) => {
+    rnd.matches.forEach((m, i) => {
+      const sc = _americanoScores[r + "-" + i];
+      if (!sc || (sc.a == null && sc.b == null)) return;
+      const a = +sc.a || 0,
+        b = +sc.b || 0;
+      m.teamA.forEach((p) => {
+        pts[p] = (pts[p] || 0) + a;
+        played[p] = (played[p] || 0) + 1;
+        if (a > b) won[p] = (won[p] || 0) + 1;
+      });
+      m.teamB.forEach((p) => {
+        pts[p] = (pts[p] || 0) + b;
+        played[p] = (played[p] || 0) + 1;
+        if (b > a) won[p] = (won[p] || 0) + 1;
+      });
+    });
+  });
+  return _americanoLastPlayers
+    .map((p) => ({
+      name: p,
+      pts: pts[p] || 0,
+      played: played[p] || 0,
+      won: won[p] || 0,
+    }))
+    .sort(
+      (x, y) => y.pts - x.pts || y.won - x.won || x.name.localeCompare(y.name),
+    );
+}
+function _renderAmericanoStandings() {
+  const el = document.getElementById("americano-standings");
+  if (!el) return;
+  const st = _americanoStandings();
+  if (!st.some((s) => s.played > 0)) {
+    el.innerHTML = "";
+    return;
+  }
+  const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1);
+  el.innerHTML =
+    `<div class="am-stand-hdr">🏆 STANDINGS</div>` +
+    st
+      .map(
+        (s, i) =>
+          `<div class="am-stand-row"><span class="am-stand-rank">${medal(i)}</span><span class="am-stand-name">${escHtml(s.name)}</span><span class="am-stand-meta">${s.won}W · ${s.played}p</span><span class="am-stand-pts">${s.pts}</span></div>`,
+      )
+      .join("");
+}
+window._amScore = function (r, i, side, val, inputEl) {
+  const k = r + "-" + i;
+  if (!_americanoScores[k]) _americanoScores[k] = {};
+  const n = val === "" ? null : Math.max(0, parseInt(val, 10) || 0);
+  _americanoScores[k][side] = n;
+  // Configurable points: if a per-match total is set, auto-fill the other team
+  // (total − this score) so you only type one number per match.
+  const total =
+    parseInt(document.getElementById("americano-points")?.value, 10) || 0;
+  if (total > 0 && n != null && inputEl) {
+    const other = side === "a" ? "b" : "a";
+    const otherVal = Math.max(0, total - n);
+    _americanoScores[k][other] = otherVal;
+    const inputs = inputEl.closest(".am-match")?.querySelectorAll(".am-score");
+    const otherInput = inputs && (other === "a" ? inputs[0] : inputs[1]);
+    // don't clobber the field the user is currently editing
+    if (otherInput && document.activeElement !== otherInput)
+      otherInput.value = otherVal;
+  }
+  _renderAmericanoStandings();
+};
 
 // Enhancement 13: session pause/resume via localStorage
 const _SESSION_SAVE_KEY = "padel_session_state";

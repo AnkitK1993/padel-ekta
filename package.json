@@ -1,8 +1,9 @@
 {
   "private": true,
   "scripts": {
-    "test": "node tests.js && node tests-golden.mjs",
+    "test": "node tests.js && node tests-golden.mjs && node tests-americano.mjs",
     "test:golden": "node tests-golden.mjs",
+    "test:americano": "node tests-americano.mjs",
     "test:browser": "node scripts/browser-smoke.js",
     "css:coverage": "node scripts/css-coverage.js"
   }

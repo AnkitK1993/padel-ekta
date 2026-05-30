@@ -17083,6 +17083,198 @@ body.smooth-mode [style*="animation-delay"] {
   }
 }
 
+/* ── Americano matchup generator ── */
+.am-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 6px 0 10px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
+}
+.am-round {
+  margin-bottom: 12px;
+}
+.am-round-hdr {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--theme);
+  margin-bottom: 6px;
+}
+.am-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.am-court {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+  min-width: 16px;
+}
+.am-team {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.am-av {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.am-av + .am-av {
+  margin-left: -6px;
+}
+.am-pair {
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.am-vs {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.am-sit {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px 2px 0;
+}
+#americano-result-actions {
+  display: none;
+}
+#americano-result-actions[style*="flex"] {
+  display: flex !important;
+}
+.am-match-teams {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.am-mrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.am-mrow .am-team {
+  flex: 1;
+  min-width: 0;
+}
+.am-score {
+  width: 46px;
+  padding: 5px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+#americano-standings:not(:empty) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface, #14141c);
+  padding: 8px 10px;
+  margin: 0 -10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.am-stand-hdr {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--gold, #f5c842);
+  margin: 0 0 6px;
+}
+.am-stand-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 3px;
+}
+.am-stand-rank {
+  width: 22px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.am-stand-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.am-stand-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.am-stand-pts {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 17px;
+  color: var(--theme);
+  min-width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.am-mode-seg {
+  display: flex;
+  margin: 4px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+.am-mode-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    color 0.18s;
+}
+.am-mode-btn.on {
+  background: var(--theme);
+  color: #04121a;
+  font-weight: 700;
+}
+
 
 
 

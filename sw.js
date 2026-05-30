@@ -11,6 +11,7 @@ const STATIC = [
   BASE + "features/live-session.js",
   BASE + "utils.js",
   BASE + "elo.js",
+  BASE + "americano.js",
   BASE + "manifest.json",
   BASE + "icons/icon.svg",
 ];
