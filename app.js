@@ -731,6 +731,8 @@ let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
+let _histRenderedVersion = -1,
+  _histRenderedFilter = "";
 let _excludedPlayers = new Set(
   (() => {
     try {
@@ -1100,6 +1102,10 @@ function openLiveMode() {
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
 async function saveCloudData() {
   _invalidateEloMemo();
+  // Any local data change bumps the version so every non-active page (incl.
+  // the now version-gated history feed) re-renders on its next navigation.
+  // commit() also bumps for the session-buffered path that skips this write.
+  _dataVersion++;
   const payload = {
     matches: allMatches,
     players,
@@ -1884,7 +1890,11 @@ function goTo(id) {
       renderCompact();
   }
   if (id === "history") {
-    renderModernMatches();
+    if (
+      _histRenderedVersion !== _dataVersion ||
+      _histRenderedFilter !== _histFilterKey()
+    )
+      renderModernMatches();
   }
   if (id === "add") {
     refreshManage();
@@ -1995,7 +2005,11 @@ function switchMainTab(id, skipAnim = false) {
       renderCompact();
   }
   if (id === "history") {
-    renderModernMatches();
+    if (
+      _histRenderedVersion !== _dataVersion ||
+      _histRenderedFilter !== _histFilterKey()
+    )
+      renderModernMatches();
     populateHistoryPlayerChips();
     const hdf = document.getElementById("histDateFilter");
     if (hdf) hdf.value = matchTabFilter;
@@ -3390,10 +3404,7 @@ function addMatches() {
     oEl.classList.add("show");
     document.getElementById("undoAddBtn").style.display = "block";
     setTimeout(() => oEl.classList.remove("show"), 2500);
-    renderHome();
-    renderCompact();
-    renderModernMatches();
-    renderAddMatches();
+    commit();
   }
 
   // Exact duplicates → prompt (add all parsed if confirmed)
@@ -3438,10 +3449,7 @@ function undoLastAdd() {
   allMatches = lastMatchSnapshot;
   lastMatchSnapshot = null;
   saveCloudData();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
-  renderAddMatches();
+  commit();
   refreshManage();
   document.getElementById("undoAddBtn").style.display = "none";
   const oEl = document.getElementById("mOk");
@@ -3650,8 +3658,7 @@ function clearMatches() {
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
-  renderHome();
-  renderCompact();
+  commit();
   refreshManage();
 }
 function clearNames() {
@@ -3762,10 +3769,7 @@ function importData() {
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
-  renderAddMatches();
+  commit();
   refreshManage();
   renderNamesTable();
   alert(
@@ -5895,6 +5899,41 @@ function renderModernMatches() {
   populateHistoryPlayerChips();
   populateHistoryAdvancedFilters();
   _updateHistFilterBadge();
+  _histRenderedVersion = _dataVersion;
+  _histRenderedFilter = _histFilterKey();
+}
+
+// Identity key for the history feed's current filter set — lets navigation
+// skip a re-render when neither the data nor the filters changed.
+function _histFilterKey() {
+  return [
+    matchTabFilter,
+    histPlayerFilter || "",
+    histOutcomeFilter,
+    histMarginFilter,
+    histPairFilter || "",
+    h2hFilterA || "",
+    h2hFilterB || "",
+    histScorelineFilter || "",
+  ].join("|");
+}
+
+// ── COMMIT — single mutation→render path ──────────────────
+// Call after any change to the match/player data. Bumps the data version (so
+// every other page re-renders lazily on its next navigation via the version
+// gates) and immediately re-renders only the page the user is looking at —
+// replacing the old "render all four tabs eagerly" bursts.
+function renderActivePage() {
+  const id = document.querySelector(".page.active")?.id;
+  if (id === "pg-home") renderHome();
+  else if (id === "pg-compact") renderCompact();
+  else if (id === "pg-history") renderModernMatches();
+  else if (id === "pg-add") renderAddMatches();
+}
+function commit() {
+  _dataVersion++;
+  _invalidateEloMemo();
+  renderActivePage();
 }
 
 function _updateHistFilterBadge() {
@@ -6503,10 +6542,7 @@ function deleteMatchByIndex(i) {
   deletedMatches.unshift(removed);
   saveDeletedMatches();
   saveCloudData();
-  renderModernMatches();
-  renderAddMatches();
-  renderHome();
-  renderCompact();
+  commit();
   renderTrash();
   showUndoToast("Match deleted", () => {
     deletedMatches.shift();
@@ -6514,10 +6550,7 @@ function deleteMatchByIndex(i) {
     delete removed.deletedAt;
     saveDeletedMatches();
     saveCloudData();
-    renderModernMatches();
-    renderAddMatches();
-    renderHome();
-    renderCompact();
+    commit();
     renderTrash();
   });
 }
@@ -6529,10 +6562,7 @@ function restoreMatch(i) {
   allMatches.push(m);
   saveDeletedMatches();
   saveCloudData();
-  renderModernMatches();
-  renderAddMatches();
-  renderHome();
-  renderCompact();
+  commit();
   renderTrash();
   showToast("Match restored!", "↩️");
 }
@@ -6696,10 +6726,7 @@ function saveMatchEdit(i) {
   else delete m.note;
   saveCloudData();
   closeMatchEdit();
-  renderModernMatches();
-  renderAddMatches();
-  renderHome();
-  renderCompact();
+  commit();
 }
 
 // ── FAB MODAL ──────────────────────────────────────────────
@@ -6923,10 +6950,7 @@ function saveModernMatch() {
     saveCloudData();
     mirrorMatchToEditor(candidate);
     closeModernAddModal();
-    renderModernMatches();
-    renderAddMatches();
-    renderHome();
-    renderCompact();
+    commit();
   }
 
   // Exact duplicate
@@ -19329,9 +19353,7 @@ function endLiveMatch() {
   } else {
     saveCloudData();
   }
-  renderHome();
-  renderCompact();
-  renderModernMatches();
+  commit();
   showToast(`Saved! ${eventMsg}`, "🎾");
   _showLiveEventBanner({
     type: "match_end",
@@ -20302,9 +20324,7 @@ function confirmUndoSession() {
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
   _saveSessionState();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
+  commit();
   showToast("Last match undone ↶", "✅");
 }
 
@@ -20341,9 +20361,7 @@ function redoSessionMatch() {
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
   _saveSessionState();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
+  commit();
   showToast("Match redone ↷", "✅");
 }
 
