@@ -102,7 +102,10 @@ body.paused-animations *{
 
 (function () {
         const CACHE_KEY = "padel_cache_v5";
-        const CACHE_TTL = 1000 * 60 * 60 * 24 * 7;
+        // Long TTL: this is an offline-first mirror of the cloud (the source of
+        // truth), so expiring it only ever hurts offline cold-starts. 90 days
+        // just guards against truly ancient data lingering forever.
+        const CACHE_TTL = 1000 * 60 * 60 * 24 * 90;
         const mem = {};
         window.appCache = {
           save: function (matches, players, playerAliasMap, nextPlayerId) {

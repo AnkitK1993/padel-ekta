@@ -712,6 +712,18 @@ let _sessionSetupSelected = new Set();
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
 window.isAdmin = false;
+// Used by the service-worker update flow (index.html) to decide whether it's
+// safe to auto-reload for a new build, so the user is never yanked mid-action.
+window.isAppBusy = function () {
+  try {
+    if (_liveSessionData && _liveSessionData.sessionActive) return true;
+    if (document.querySelector(".modal.show, .sheet.open, .overlay.open"))
+      return true;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return true;
+  } catch (e) {}
+  return false;
+};
 const _animLevel0 =
   localStorage.getItem("anim_level") ||
   (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");

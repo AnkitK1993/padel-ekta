@@ -1,4 +1,4 @@
-const STATIC_CACHE = "ekta-padel-static-v8";
+const STATIC_CACHE = "ekta-padel-static-v9";
 const RUNTIME_CACHE = "ekta-padel-runtime-v1";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
@@ -11,16 +11,31 @@ const STATIC = [
   BASE + "features/live-session.js",
   BASE + "utils.js",
   BASE + "elo.js",
+  BASE + "manifest.json",
   BASE + "icons/icon.svg",
 ];
 const RUNTIME_MAX_ENTRIES = 40;
 
 async function cacheStaticAssets(buildVersion) {
   const cache = await caches.open(STATIC_CACHE);
-  await cache.addAll(STATIC);
+  // Fetch with cache:"reload" so a fresh deploy can't re-store STALE files from
+  // the browser's own HTTP cache (GitHub Pages serves assets with max-age=600).
+  // Each asset is guarded so one failure can't abort the whole precache.
+  await Promise.all(
+    STATIC.map((u) =>
+      fetch(new Request(u, { cache: "reload" }))
+        .then((res) => (res && res.ok ? cache.put(u, res) : null))
+        .catch(() => null),
+    ),
+  );
   if (buildVersion !== undefined) {
     await cache.put(BUILD_KEY, new Response(String(buildVersion)));
   }
+}
+
+async function notifyClientsNewBuild() {
+  const all = await self.clients.matchAll();
+  all.forEach((client) => client.postMessage({ type: "NEW_BUILD" }));
 }
 
 self.addEventListener("install", (e) => {
@@ -68,14 +83,30 @@ async function checkForUpdates() {
     const stored = await cache.match(BUILD_KEY);
     const storedV = stored ? await stored.text() : null;
     if (storedV === String(v)) return false;
+    // Only refresh the app shell. The runtime cache holds version-pinned CDN
+    // libs (Firebase/emailjs/html2canvas) that don't change between deploys —
+    // wiping it every build (and we deploy on every edit) just forces needless
+    // re-downloads of hundreds of KB.
     await caches.delete(STATIC_CACHE);
-    await caches.delete(RUNTIME_CACHE);
     await cacheStaticAssets(v);
     return true;
   } catch {
     return false;
   }
 }
+
+// Client can ask us to check for a new build without a full navigation
+// (e.g. on focus / visibility / a timer) — useful for an installed PWA that
+// stays open for a long time and rarely triggers a navigate.
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "CHECK_UPDATE") {
+    e.waitUntil(
+      checkForUpdates().then((updated) =>
+        updated ? notifyClientsNewBuild() : undefined,
+      ),
+    );
+  }
+});
 
 self.addEventListener("push", (e) => {
   const data = e.data ? e.data.json() : {};
@@ -117,15 +148,7 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(
       caches.match(e.request, { ignoreSearch: true }).then((cached) => {
         checkForUpdates().then((updated) => {
-          if (updated) {
-            self.clients
-              .matchAll()
-              .then((clients) =>
-                clients.forEach((client) =>
-                  client.postMessage({ type: "NEW_BUILD" }),
-                ),
-              );
-          }
+          if (updated) notifyClientsNewBuild();
         });
         return cached || fetch(e.request);
       }),
