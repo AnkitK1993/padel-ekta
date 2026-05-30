@@ -5786,7 +5786,6 @@ function renderModernMatches() {
     h2hFilterB;
   const motdHtml = isFiltered ? "" : buildMatchOfTheDay();
   const histList = document.getElementById("modern-match-list");
-  histList.innerHTML = "";
 
   // Parse all content into a temp container
   const tmpAll = document.createElement("div");
@@ -5801,19 +5800,35 @@ function renderModernMatches() {
   const matchCards = Array.from(tmpAll.querySelectorAll(".match-card"));
   const emptyEl = tmpAll.querySelector(".empty");
 
-  // Build a flat cascade: feature cards + first 10 match cards animated, rest instant
-  const allAnimated = [...featureCards, ...matchCards.slice(0, 10)];
-  const instant = matchCards.slice(10);
+  // Stable keys so re-renders (filter changes) reconcile in place instead of
+  // wiping + re-animating the whole feed. Match cards key on their allMatches
+  // index (stable across filters); feature cards key on their type.
+  featureCards.forEach((el) => {
+    const m = el.className.match(/(motd|upset|thriller|pair-stats)-card/);
+    el.setAttribute("data-key", "feat-" + (m ? m[1] : "x"));
+  });
+  matchCards.forEach((el) =>
+    el.setAttribute(
+      "data-key",
+      "m" + (el.getAttribute("data-match-idx") || ""),
+    ),
+  );
 
   const _noCascade = document.body.classList.contains("no-cascade");
-  allAnimated.forEach((el, i) => {
-    el.style.opacity = "0";
-    el.style.animation = "none";
-    setTimeout(
-      () => {
+  const _firstPaint = !histList.querySelector("[data-key]");
+
+  if (_firstPaint && !_noCascade) {
+    // First paint: staggered entrance cascade (feature + first 10 animated).
+    histList.innerHTML = "";
+    const allAnimated = [...featureCards, ...matchCards.slice(0, 10)];
+    const instant = matchCards.slice(10);
+    allAnimated.forEach((el, i) => {
+      el.style.opacity = "0";
+      el.style.animation = "none";
+      setTimeout(() => {
         el.style.animation = "";
         el.style.opacity = "";
-        if (!_noCascade) el.classList.add("card-anim");
+        el.classList.add("card-anim");
         histList.appendChild(el);
         el.querySelectorAll(
           ".team-score[data-final], .motd-score[data-final]",
@@ -5832,29 +5847,50 @@ function renderModernMatches() {
             scoreEl.textContent = scoreEl.dataset.final || "0";
           }
         });
-      },
-      _noCascade ? 0 : i * 100,
-    );
-  });
-
-  if (instant.length) {
-    setTimeout(() => {
-      instant.forEach((el) => {
-        el.querySelectorAll(
-          ".team-score[data-final], .motd-score[data-final]",
-        ).forEach((scoreEl) => {
-          scoreEl.textContent = scoreEl.dataset.final || "0";
+      }, i * 100);
+    });
+    if (instant.length) {
+      setTimeout(() => {
+        instant.forEach((el) => {
+          el.querySelectorAll(
+            ".team-score[data-final], .motd-score[data-final]",
+          ).forEach((scoreEl) => {
+            scoreEl.textContent = scoreEl.dataset.final || "0";
+          });
+          el.style.animation = "none";
+          el.style.opacity = "1";
+          el.style.transform = "none";
+          histList.appendChild(el);
         });
-        el.style.animation = "none";
-        el.style.opacity = "1";
-        el.style.transform = "none";
-        histList.appendChild(el);
+      }, allAnimated.length * 100);
+    }
+    if (!allAnimated.length && !instant.length && emptyEl) {
+      histList.appendChild(emptyEl);
+    }
+  } else {
+    // Re-render (or no-cascade): reconcile in place. Resolve final scores up
+    // front (no count-up), then morph — unchanged cards keep their DOM so the
+    // feed reorders/filters without flicker and scroll position is preserved.
+    const ordered = [...featureCards, ...matchCards];
+    ordered.forEach((el) => {
+      el.querySelectorAll(
+        ".team-score[data-final], .motd-score[data-final]",
+      ).forEach((s) => {
+        s.textContent = s.dataset.final || "0";
       });
-    }, allAnimated.length * 100);
-  }
-
-  if (!allAnimated.length && !instant.length && emptyEl) {
-    histList.appendChild(emptyEl);
+    });
+    if (ordered.length) {
+      const touched = morphList(
+        histList,
+        ordered.map((el) => el.outerHTML).join(""),
+      );
+      // Don't replay entrance animations when filtering reveals many cards.
+      touched.forEach((el) => {
+        if (el.style) el.style.animation = "none";
+      });
+    } else {
+      histList.innerHTML = emptyEl ? emptyEl.outerHTML : "";
+    }
   }
   populateHistoryPlayerChips();
   populateHistoryAdvancedFilters();
