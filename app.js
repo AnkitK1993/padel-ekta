@@ -18576,6 +18576,7 @@ Object.assign(window, {
   openAmericanoSheet,
   closeAmericano,
   setAmericanoMode,
+  americanoAddGuest,
   americanoSelectAll,
   americanoSelectNone,
   generateAmericanoSchedule,
@@ -20592,26 +20593,49 @@ function openAmericanoSheet() {
   _americanoPlayers = getAllPlayerNamesFromMatches();
   _americanoSelected = new Set();
   _americanoSchedule = null;
+  if (!document.getElementById("americano-list")) return;
+  _renderAmericanoList();
+  _americanoShowSetup();
+  setAmericanoMode(_americanoMode); // sync the toggle UI to the current mode
+  document.getElementById("americano-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
+}
+// Render the player chips, reflecting the current selection (so adding a guest
+// or select-all/none re-renders without losing what's already ticked).
+function _renderAmericanoList() {
   const list = document.getElementById("americano-list");
   if (!list) return;
   list.innerHTML = _americanoPlayers
     .map(
       (p) => `
     <label class="tb-player-chip">
-      <input type="checkbox" onchange="window._amToggle(${jsArg(p)}, this.checked)">
+      <input type="checkbox"${_americanoSelected.has(p) ? " checked" : ""} onchange="window._amToggle(${jsArg(p)}, this.checked)">
       <span class="tb-chip-name">${escHtml(p)}</span>
     </label>`,
     )
     .join("");
-  _americanoShowSetup();
-  setAmericanoMode(_americanoMode); // sync the toggle UI to the current mode
-  document.getElementById("americano-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
 }
 window._amToggle = function (name, on) {
   if (on) _americanoSelected.add(name);
   else _americanoSelected.delete(name);
 };
+// Add a guest / one-off player not in the roster (session-local), pre-selected.
+function americanoAddGuest() {
+  const inp = document.getElementById("americano-guest-input");
+  const name = (inp?.value || "").trim();
+  if (!name) return;
+  const existing = _americanoPlayers.find(
+    (p) => p.toLowerCase() === name.toLowerCase(),
+  );
+  if (existing) {
+    _americanoSelected.add(existing);
+  } else {
+    _americanoPlayers.push(name);
+    _americanoSelected.add(name);
+  }
+  if (inp) inp.value = "";
+  _renderAmericanoList();
+}
 function closeAmericano() {
   document
     .getElementById("americano-overlay")
@@ -20652,15 +20676,11 @@ function setAmericanoMode(mode) {
 }
 function americanoSelectAll() {
   _americanoSelected = new Set(_americanoPlayers);
-  document
-    .querySelectorAll("#americano-list input[type=checkbox]")
-    .forEach((cb) => (cb.checked = true));
+  _renderAmericanoList();
 }
 function americanoSelectNone() {
   _americanoSelected = new Set();
-  document
-    .querySelectorAll("#americano-list input[type=checkbox]")
-    .forEach((cb) => (cb.checked = false));
+  _renderAmericanoList();
 }
 function _americanoShuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
@@ -20748,7 +20768,7 @@ function _renderAmericanoResult(players, schedule) {
   const teamRow = (team, r, i, side) => {
     const sc = _americanoScores[r + "-" + i] || {};
     const val = sc[side] != null ? sc[side] : "";
-    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><input class="am-score" type="number" inputmode="numeric" min="0" value="${val}" onchange="window._amScore(${r},${i},'${side}',this.value)" aria-label="points"></div>`;
+    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><input class="am-score" type="number" inputmode="numeric" min="0" value="${val}" onchange="window._amScore(${r},${i},'${side}',this.value,this)" aria-label="points"></div>`;
   };
   const multiCourt = schedule.some((r) => r.matches.length > 1);
   const body = schedule
@@ -20826,11 +20846,25 @@ function _renderAmericanoStandings() {
       )
       .join("");
 }
-window._amScore = function (r, i, side, val) {
+window._amScore = function (r, i, side, val, inputEl) {
   const k = r + "-" + i;
   if (!_americanoScores[k]) _americanoScores[k] = {};
-  _americanoScores[k][side] =
-    val === "" ? null : Math.max(0, parseInt(val, 10) || 0);
+  const n = val === "" ? null : Math.max(0, parseInt(val, 10) || 0);
+  _americanoScores[k][side] = n;
+  // Configurable points: if a per-match total is set, auto-fill the other team
+  // (total − this score) so you only type one number per match.
+  const total =
+    parseInt(document.getElementById("americano-points")?.value, 10) || 0;
+  if (total > 0 && n != null && inputEl) {
+    const other = side === "a" ? "b" : "a";
+    const otherVal = Math.max(0, total - n);
+    _americanoScores[k][other] = otherVal;
+    const inputs = inputEl.closest(".am-match")?.querySelectorAll(".am-score");
+    const otherInput = inputs && (other === "a" ? inputs[0] : inputs[1]);
+    // don't clobber the field the user is currently editing
+    if (otherInput && document.activeElement !== otherInput)
+      otherInput.value = otherVal;
+  }
   _renderAmericanoStandings();
 };
 
