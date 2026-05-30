@@ -1,4 +1,69 @@
-﻿(function () {
+﻿/* ══════════════════════════════════════ */
+
+// ── ERROR LOGGER ──────────────────────────────────────────
+// Captures uncaught errors + promise rejections into a capped localStorage
+// ring buffer so a solo maintainer can see real-world breakage instead of
+// "it broke once". Loaded first (classic script) so it catches early errors.
+// app.js installs an optional Firestore mirror via window.__onAppError.
+(function () {
+  const KEY = "padel_errlog";
+  const MAX = 50;
+  function read() {
+    try {
+      const a = JSON.parse(localStorage.getItem(KEY) || "[]");
+      return Array.isArray(a) ? a : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function record(entry) {
+    try {
+      const log = read();
+      // de-dupe consecutive identical messages, just bump count + time
+      const last = log[log.length - 1];
+      if (last && last.msg === entry.msg && last.stack === entry.stack) {
+        last.n = (last.n || 1) + 1;
+        last.ts = entry.ts;
+      } else {
+        log.push(entry);
+        while (log.length > MAX) log.shift();
+      }
+      localStorage.setItem(KEY, JSON.stringify(log));
+    } catch (e) {}
+    try {
+      if (typeof window.__onAppError === "function") window.__onAppError(entry);
+    } catch (e) {}
+  }
+  window.addEventListener("error", function (e) {
+    record({
+      ts: Date.now(),
+      msg: String(e.message || e.error || "error"),
+      src: (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || ""),
+      stack: (e.error && e.error.stack ? String(e.error.stack) : "").slice(0, 1200),
+      ua: navigator.userAgent,
+    });
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    const r = e.reason;
+    record({
+      ts: Date.now(),
+      msg: "unhandledrejection: " + String((r && r.message) || r),
+      src: "",
+      stack: (r && r.stack ? String(r.stack) : "").slice(0, 1200),
+      ua: navigator.userAgent,
+    });
+  });
+  window.getErrorLog = read;
+  window.clearErrorLog = function () {
+    try {
+      localStorage.removeItem(KEY);
+    } catch (e) {}
+  };
+})();
+
+/* ══════════════════════════════════════ */
+
+(function () {
         window.__analyticsRendered = false;
 
         function debounce(fn, wait) {
@@ -102,7 +167,10 @@ body.paused-animations *{
 
 (function () {
         const CACHE_KEY = "padel_cache_v5";
-        const CACHE_TTL = 1000 * 60 * 60 * 24 * 7;
+        // Long TTL: this is an offline-first mirror of the cloud (the source of
+        // truth), so expiring it only ever hurts offline cold-starts. 90 days
+        // just guards against truly ancient data lingering forever.
+        const CACHE_TTL = 1000 * 60 * 60 * 24 * 90;
         const mem = {};
         window.appCache = {
           save: function (matches, players, playerAliasMap, nextPlayerId) {

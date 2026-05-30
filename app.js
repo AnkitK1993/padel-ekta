@@ -42,6 +42,112 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// ── ERROR-LOG FIRESTORE MIRROR ────────────────────────────
+// utils.js captures uncaught errors into a localStorage ring buffer; here we
+// best-effort mirror them to errors/{clientId} so real-world breakage on any
+// device reaches the maintainer. Per-device doc = no cross-client clobbering.
+// Fire-and-forget; silently no-ops if security rules disallow the write.
+function _clientId() {
+  let id = null;
+  try {
+    id = localStorage.getItem("padel_client_id");
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("padel_client_id", id);
+    }
+  } catch (e) {}
+  return id || "anon";
+}
+let _errFlushT = null;
+function _flushErrorLog() {
+  try {
+    const log = (window.getErrorLog && window.getErrorLog()) || [];
+    if (!log.length) return;
+    setDoc(doc(db, "errors", _clientId()), {
+      entries: log.slice(-50),
+      email: (window.isAdmin && ADMIN_EMAIL) || (auth.currentUser?.email ?? ""),
+      updated: Date.now(),
+    }).catch(() => {});
+  } catch (e) {}
+}
+window.__onAppError = function () {
+  clearTimeout(_errFlushT);
+  _errFlushT = setTimeout(_flushErrorLog, 4000);
+};
+// Flush anything captured before app.js finished initialising.
+setTimeout(_flushErrorLog, 3000);
+
+// ── AUTOMATED DAILY BACKUP ────────────────────────────────
+// Admin-only, throttled to once/day: snapshots the full dataset to
+// backups/{YYYY-MM-DD} so a bad sync or an accidental "Clear all" stays
+// recoverable. Fire-and-forget; no-ops if not admin, no data yet, already
+// backed up today, or the write is blocked by security rules.
+async function _maybeBackup() {
+  try {
+    if (!window.isAdmin) return;
+    if (!Array.isArray(allMatches) || !allMatches.length) return;
+    const today = todayISO();
+    if (localStorage.getItem("padel_last_backup") === today) return;
+    await setDoc(doc(db, "backups", today), {
+      ts: Date.now(),
+      matches: allMatches,
+      players,
+      playerAliasMap,
+      nextPlayerId,
+    });
+    localStorage.setItem("padel_last_backup", today);
+  } catch (e) {}
+}
+
+// ── KEYED DOM RECONCILE (incremental rendering) ───────────────
+// Patch `container`'s children to match the children parsed from `html`,
+// reusing existing nodes by data-key. Unchanged rows keep their identity —
+// so the container isn't wiped (scroll/focus preserved) and untouched rows
+// don't re-run entrance animations. Returns the nodes that were added/changed.
+// Uses <template> so table rows (<tr>) parse correctly out of context.
+function _syncAttrs(target, src) {
+  for (const a of Array.from(target.attributes))
+    if (!src.hasAttribute(a.name)) target.removeAttribute(a.name);
+  for (const a of Array.from(src.attributes))
+    if (target.getAttribute(a.name) !== a.value)
+      target.setAttribute(a.name, a.value);
+}
+function morphList(container, html) {
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  const newNodes = Array.from(tpl.content.children);
+  const existing = new Map();
+  for (const el of Array.from(container.children)) {
+    const k = el.getAttribute("data-key");
+    if (k != null && !existing.has(k)) existing.set(k, el);
+  }
+  const touched = [];
+  const finalNodes = [];
+  let prev = null;
+  for (const newEl of newNodes) {
+    const key = newEl.getAttribute("data-key");
+    let node = key != null ? existing.get(key) : null;
+    if (node) {
+      if (node.outerHTML !== newEl.outerHTML) {
+        _syncAttrs(node, newEl);
+        node.innerHTML = newEl.innerHTML;
+        touched.push(node);
+      }
+    } else {
+      node = newEl;
+      touched.push(node);
+    }
+    const target = prev ? prev.nextSibling : container.firstChild;
+    if (target !== node) container.insertBefore(node, target);
+    prev = node;
+    finalNodes.push(node);
+  }
+  const keep = new Set(finalNodes);
+  for (const el of Array.from(container.children))
+    if (!keep.has(el)) el.remove();
+  return touched;
+}
+
 // ── HTML ESCAPE ───────────────────────────────────────────────
 function escHtml(str) {
   if (!str) return "";
@@ -625,6 +731,8 @@ let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
+let _histRenderedVersion = -1,
+  _histRenderedFilter = "";
 let _excludedPlayers = new Set(
   (() => {
     try {
@@ -712,12 +820,29 @@ let _sessionSetupSelected = new Set();
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
 window.isAdmin = false;
+// Used by the service-worker update flow (index.html) to decide whether it's
+// safe to auto-reload for a new build, so the user is never yanked mid-action.
+window.isAppBusy = function () {
+  try {
+    if (_liveSessionData && _liveSessionData.sessionActive) return true;
+    if (document.querySelector(".modal.show, .sheet.open, .overlay.open"))
+      return true;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return true;
+  } catch (e) {}
+  return false;
+};
 const _animLevel0 =
   localStorage.getItem("anim_level") ||
   (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
 if (_animLevel0 === "medium" || _animLevel0 === "off")
   document.body.classList.add("no-cascade");
 if (_animLevel0 === "off") document.body.classList.add("no-anim");
+if (localStorage.getItem("smooth_mode") === "1") {
+  document.body.classList.add("smooth-mode");
+  const _smCb = document.getElementById("smooth-mode-toggle");
+  if (_smCb) _smCb.checked = true;
+}
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
@@ -908,12 +1033,6 @@ let _pairSort = { key: "winPct", dir: -1 };
 let _pairsData = [];
 let _pairsShowAll = false;
 
-// ── SPLASH HELPERS ─────────────────────────────────────────
-function setSplashStatus(msg) {
-  var el = document.getElementById("splash-status");
-  if (el) el.textContent = msg;
-}
-
 function _handleFeatureLoadError(name, err) {
   console.error(`${name} feature failed to load:`, err);
   showToast(`${name} could not load`, "❌");
@@ -983,6 +1102,10 @@ function openLiveMode() {
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
 async function saveCloudData() {
   _invalidateEloMemo();
+  // Any local data change bumps the version so every non-active page (incl.
+  // the now version-gated history feed) re-renders on its next navigation.
+  // commit() also bumps for the session-buffered path that skips this write.
+  _dataVersion++;
   const payload = {
     matches: allMatches,
     players,
@@ -1675,6 +1798,7 @@ onAuthStateChanged(auth, (user) => {
   window.isAdmin = !!user && user.email === ADMIN_EMAIL;
   updateAdminUI(user);
   if (window.isAdmin) scheduleAutoEmail();
+  if (window.isAdmin) setTimeout(_maybeBackup, 6000); // once data has loaded
   else if (_emailTimer) {
     clearTimeout(_emailTimer);
     _emailTimer = null;
@@ -1766,7 +1890,11 @@ function goTo(id) {
       renderCompact();
   }
   if (id === "history") {
-    renderModernMatches();
+    if (
+      _histRenderedVersion !== _dataVersion ||
+      _histRenderedFilter !== _histFilterKey()
+    )
+      renderModernMatches();
   }
   if (id === "add") {
     refreshManage();
@@ -1877,7 +2005,11 @@ function switchMainTab(id, skipAnim = false) {
       renderCompact();
   }
   if (id === "history") {
-    renderModernMatches();
+    if (
+      _histRenderedVersion !== _dataVersion ||
+      _histRenderedFilter !== _histFilterKey()
+    )
+      renderModernMatches();
     populateHistoryPlayerChips();
     const hdf = document.getElementById("histDateFilter");
     if (hdf) hdf.value = matchTabFilter;
@@ -2232,6 +2364,57 @@ function prefillMatchTADate() {
   }
 }
 
+// ── MIRROR SAVED MATCHES INTO THE ADD-MATCHES EDITOR ───────
+// Convert an ISO date (YYYY-MM-DD) to the D/M/YY header format.
+function _isoToDMYY(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return todayDMYY();
+  const [, y, mo, d] = m;
+  return `${+d}/${+mo}/${y.slice(2)}`;
+}
+
+// Pick a single-word token for a player that parseMatchLine can resolve back
+// to this player (prefer a space-free alias; fall back to the display name).
+function _playerToken(name) {
+  const aliases = aliasMap[name] || [];
+  const single = aliases.find((a) => a && !/\s/.test(a));
+  if (single) return single;
+  if (!/\s/.test(name)) return name; // single-word display name resolves to itself
+  return name.split(/\s+/)[0]; // best effort for multi-word names without aliases
+}
+
+// Render a saved match as an editable line, e.g. "Ank God vs RaM Vin 4-3".
+function matchToEditableLine(m) {
+  const ta = (m.teamA || []).map(_playerToken);
+  const tb = (m.teamB || []).map(_playerToken);
+  return `${ta.join(" ")} vs ${tb.join(" ")} ${m.scoreA}-${m.scoreB}`;
+}
+
+// Append a saved match into the Add Matches textarea as editable text,
+// grouped under a D/M/YY date header. Does NOT commit — purely a mirror.
+function mirrorMatchToEditor(m) {
+  const ta = document.getElementById("matchTA");
+  if (!ta || !m) return;
+  const val = ta.value.replace(/\s+$/, ""); // drop trailing blank lines
+  const lines = val ? val.split("\n") : [];
+  // Find the most recent date header already in the box.
+  let lastHdrIso = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const iso = parseDateHdr(lines[i].trim());
+    if (iso) {
+      lastHdrIso = iso;
+      break;
+    }
+  }
+  const parts = [];
+  if (val) parts.push(val);
+  if (lastHdrIso !== m.date) parts.push(_isoToDMYY(m.date));
+  parts.push(matchToEditableLine(m));
+  ta.value = parts.join("\n") + "\n";
+  ta.selectionStart = ta.selectionEnd = ta.value.length;
+  previewMatchImport();
+}
+
 function switchITab(id) {
   const keys = ["matches", "names", "manage"];
   document
@@ -2395,11 +2578,6 @@ function weekISO() {
   const diff = day === 0 ? -6 : 1 - day; // Monday
   d.setDate(d.getDate() + diff);
   return toLocalISODate(d);
-}
-function weekEndISO() {
-  const s = new Date(weekISO());
-  s.setDate(s.getDate() + 6);
-  return toLocalISODate(s);
 }
 function weekendRange() {
   const now = new Date(),
@@ -3118,49 +3296,6 @@ function getPlayerDetail(name) {
   };
 }
 
-function getAchievements() {
-  const stats = computeStats(activeMatches());
-  const achievements = [];
-  stats.forEach((p) => {
-    const detail = getPlayerDetail(p.name);
-    const last = detail.recent.slice(-5);
-    const wins = last.filter((m) => m.won).length;
-    const losses = last.length - wins;
-    if (last.length >= 3 && wins === last.length)
-      achievements.push({
-        title: "Hot Streak",
-        name: p.name,
-        sub: `${wins} wins in recent form`,
-      });
-    if (last.length >= 3 && losses === last.length)
-      achievements.push({
-        title: "Cold Run",
-        name: p.name,
-        sub: `${losses} recent losses`,
-      });
-  });
-  // Game Diff Boss — single player with highest positive differential
-  const diffBoss = stats
-    .filter((p) => p.diff > 0)
-    .sort((a, b) => b.diff - a.diff)[0];
-  if (diffBoss)
-    achievements.push({
-      title: "Game Diff Boss",
-      name: diffBoss.name,
-      sub: `+${diffBoss.diff} game differential`,
-    });
-  getPairStats()
-    .slice(0, 3)
-    .forEach((p) =>
-      achievements.push({
-        title: "Pair Power",
-        name: p.key,
-        sub: `${p.winPct}% across ${p.played} matches`,
-      }),
-    );
-  return achievements.slice(0, 10);
-}
-
 // ── ADD MATCHES ────────────────────────────────────────────
 function previewMatchImport() {
   const raw = document.getElementById("matchTA").value;
@@ -3269,10 +3404,7 @@ function addMatches() {
     oEl.classList.add("show");
     document.getElementById("undoAddBtn").style.display = "block";
     setTimeout(() => oEl.classList.remove("show"), 2500);
-    renderHome();
-    renderCompact();
-    renderModernMatches();
-    renderAddMatches();
+    commit();
   }
 
   // Exact duplicates → prompt (add all parsed if confirmed)
@@ -3317,10 +3449,7 @@ function undoLastAdd() {
   allMatches = lastMatchSnapshot;
   lastMatchSnapshot = null;
   saveCloudData();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
-  renderAddMatches();
+  commit();
   refreshManage();
   document.getElementById("undoAddBtn").style.display = "none";
   const oEl = document.getElementById("mOk");
@@ -3498,6 +3627,19 @@ function setScreenshotChoiceSetting(val) {
   localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
 }
 
+// Smooth Mode (architecture #4): opt-in scroll/paint smoothness via the
+// body.smooth-mode CSS class. Persisted; reflected in the hamburger toggle.
+function toggleSmoothMode(on) {
+  const enabled =
+    on === undefined ? !document.body.classList.contains("smooth-mode") : !!on;
+  document.body.classList.toggle("smooth-mode", enabled);
+  try {
+    localStorage.setItem("smooth_mode", enabled ? "1" : "0");
+  } catch (e) {}
+  const cb = document.getElementById("smooth-mode-toggle");
+  if (cb) cb.checked = enabled;
+}
+
 function setAnimLevel(val) {
   localStorage.setItem("anim_level", val);
   document.body.classList.toggle(
@@ -3516,8 +3658,7 @@ function clearMatches() {
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
-  renderHome();
-  renderCompact();
+  commit();
   refreshManage();
 }
 function clearNames() {
@@ -3628,10 +3769,7 @@ function importData() {
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
-  renderAddMatches();
+  commit();
   refreshManage();
   renderNamesTable();
   alert(
@@ -3947,19 +4085,6 @@ function getSRRatingClass(normalizedSR) {
     normalizedSR >= 7 ? "sr-high" : normalizedSR >= 4 ? "sr-mid" : "sr-low";
   if (normalizedSR > 7) c += " rev-limit";
   return c;
-}
-
-function getEloTier(elo) {
-  if (elo >= 1150) return { name: "MASTER", color: "#ff5fe5" };
-  if (elo >= 1100) return { name: "DIAMOND", color: "#5cd0ff" };
-  if (elo >= 1050) return { name: "PLATINUM", color: "#7bc7c7" };
-  if (elo >= 1000) return { name: "GOLD", color: "#f5c842" };
-  if (elo >= 950) return { name: "SILVER", color: "#b8bdcc" };
-  return { name: "BRONZE", color: "#c47645" };
-}
-
-function eloTierBadge(elo) {
-  return `<span class="elo-tier-chip">${elo}</span>`;
 }
 
 let _hudGaugeId = 0;
@@ -4433,7 +4558,7 @@ function renderCompact() {
         : _eloDiff < 0
           ? `<span class="wk-rank-delta wk-down">${_eloDiff}</span>`
           : `<span class="wk-rank-delta wk-same">±0</span>`;
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaBadge}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaBadge}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -4445,7 +4570,11 @@ function renderCompact() {
   const cmpMatchesEl = document.getElementById("cmpMatches");
   const matchesHeader = cmpMatchesEl.previousElementSibling;
 
-  if (splashDone && !document.body.classList.contains("no-cascade")) {
+  // Animate the staggered entrance only on the FIRST paint of the table.
+  // Subsequent renders (sort / filter) reconcile in place via morphList so the
+  // table reorders smoothly instead of re-playing the whole cascade.
+  const _firstPaint = !tbody.querySelector("tr[data-key]");
+  if (_firstPaint && splashDone && !document.body.classList.contains("no-cascade")) {
     tbody.innerHTML = "";
     cmpMatchesEl.innerHTML = "";
     matchesHeader.style.opacity = "0";
@@ -4522,10 +4651,13 @@ function renderCompact() {
     }
   } else {
     matchesHeader.style.cssText = "";
-    tbody.innerHTML = leaderRowHtmls.join("");
-    tbody
-      .querySelectorAll(".sr-pill-val[data-final]")
-      .forEach((el) => animateSrVal(el, 0));
+    // Incremental reconcile: reuse unchanged rows, only animate new/changed SR.
+    const _touched = morphList(tbody, leaderRowHtmls.join(""));
+    _touched.forEach((row) => {
+      const el =
+        row.querySelector && row.querySelector(".sr-pill-val[data-final]");
+      if (el) animateSrVal(el, 0);
+    });
     const _nc = document.body.classList.contains("no-cascade");
     const initRows = reversedMatches.map((m, i) =>
       buildSummaryMatchRow(
@@ -4972,14 +5104,6 @@ function filterMatchTab(f) {
 }
 
 // ── MATCH OF THE DAY + BIGGEST UPSET ──────────────────────
-function getPlayerRankAtDate(playerName, beforeDate) {
-  // Rank based on SR from all matches strictly before this date
-  const prior = activeMatches().filter((m) => m.date < beforeDate);
-  if (!prior.length) return null;
-  const stats = computeStats(prior);
-  const idx = stats.findIndex((p) => p.name === playerName);
-  return idx === -1 ? null : idx + 1; // 1-based rank
-}
 
 function buildMatchOfTheDay() {
   if (!allMatches.length) return "";
@@ -5666,7 +5790,6 @@ function renderModernMatches() {
     h2hFilterB;
   const motdHtml = isFiltered ? "" : buildMatchOfTheDay();
   const histList = document.getElementById("modern-match-list");
-  histList.innerHTML = "";
 
   // Parse all content into a temp container
   const tmpAll = document.createElement("div");
@@ -5681,19 +5804,35 @@ function renderModernMatches() {
   const matchCards = Array.from(tmpAll.querySelectorAll(".match-card"));
   const emptyEl = tmpAll.querySelector(".empty");
 
-  // Build a flat cascade: feature cards + first 10 match cards animated, rest instant
-  const allAnimated = [...featureCards, ...matchCards.slice(0, 10)];
-  const instant = matchCards.slice(10);
+  // Stable keys so re-renders (filter changes) reconcile in place instead of
+  // wiping + re-animating the whole feed. Match cards key on their allMatches
+  // index (stable across filters); feature cards key on their type.
+  featureCards.forEach((el) => {
+    const m = el.className.match(/(motd|upset|thriller|pair-stats)-card/);
+    el.setAttribute("data-key", "feat-" + (m ? m[1] : "x"));
+  });
+  matchCards.forEach((el) =>
+    el.setAttribute(
+      "data-key",
+      "m" + (el.getAttribute("data-match-idx") || ""),
+    ),
+  );
 
   const _noCascade = document.body.classList.contains("no-cascade");
-  allAnimated.forEach((el, i) => {
-    el.style.opacity = "0";
-    el.style.animation = "none";
-    setTimeout(
-      () => {
+  const _firstPaint = !histList.querySelector("[data-key]");
+
+  if (_firstPaint && !_noCascade) {
+    // First paint: staggered entrance cascade (feature + first 10 animated).
+    histList.innerHTML = "";
+    const allAnimated = [...featureCards, ...matchCards.slice(0, 10)];
+    const instant = matchCards.slice(10);
+    allAnimated.forEach((el, i) => {
+      el.style.opacity = "0";
+      el.style.animation = "none";
+      setTimeout(() => {
         el.style.animation = "";
         el.style.opacity = "";
-        if (!_noCascade) el.classList.add("card-anim");
+        el.classList.add("card-anim");
         histList.appendChild(el);
         el.querySelectorAll(
           ".team-score[data-final], .motd-score[data-final]",
@@ -5712,33 +5851,89 @@ function renderModernMatches() {
             scoreEl.textContent = scoreEl.dataset.final || "0";
           }
         });
-      },
-      _noCascade ? 0 : i * 100,
-    );
-  });
-
-  if (instant.length) {
-    setTimeout(() => {
-      instant.forEach((el) => {
-        el.querySelectorAll(
-          ".team-score[data-final], .motd-score[data-final]",
-        ).forEach((scoreEl) => {
-          scoreEl.textContent = scoreEl.dataset.final || "0";
+      }, i * 100);
+    });
+    if (instant.length) {
+      setTimeout(() => {
+        instant.forEach((el) => {
+          el.querySelectorAll(
+            ".team-score[data-final], .motd-score[data-final]",
+          ).forEach((scoreEl) => {
+            scoreEl.textContent = scoreEl.dataset.final || "0";
+          });
+          el.style.animation = "none";
+          el.style.opacity = "1";
+          el.style.transform = "none";
+          histList.appendChild(el);
         });
-        el.style.animation = "none";
-        el.style.opacity = "1";
-        el.style.transform = "none";
-        histList.appendChild(el);
+      }, allAnimated.length * 100);
+    }
+    if (!allAnimated.length && !instant.length && emptyEl) {
+      histList.appendChild(emptyEl);
+    }
+  } else {
+    // Re-render (or no-cascade): reconcile in place. Resolve final scores up
+    // front (no count-up), then morph — unchanged cards keep their DOM so the
+    // feed reorders/filters without flicker and scroll position is preserved.
+    const ordered = [...featureCards, ...matchCards];
+    ordered.forEach((el) => {
+      el.querySelectorAll(
+        ".team-score[data-final], .motd-score[data-final]",
+      ).forEach((s) => {
+        s.textContent = s.dataset.final || "0";
       });
-    }, allAnimated.length * 100);
-  }
-
-  if (!allAnimated.length && !instant.length && emptyEl) {
-    histList.appendChild(emptyEl);
+    });
+    if (ordered.length) {
+      const touched = morphList(
+        histList,
+        ordered.map((el) => el.outerHTML).join(""),
+      );
+      // Don't replay entrance animations when filtering reveals many cards.
+      touched.forEach((el) => {
+        if (el.style) el.style.animation = "none";
+      });
+    } else {
+      histList.innerHTML = emptyEl ? emptyEl.outerHTML : "";
+    }
   }
   populateHistoryPlayerChips();
   populateHistoryAdvancedFilters();
   _updateHistFilterBadge();
+  _histRenderedVersion = _dataVersion;
+  _histRenderedFilter = _histFilterKey();
+}
+
+// Identity key for the history feed's current filter set — lets navigation
+// skip a re-render when neither the data nor the filters changed.
+function _histFilterKey() {
+  return [
+    matchTabFilter,
+    histPlayerFilter || "",
+    histOutcomeFilter,
+    histMarginFilter,
+    histPairFilter || "",
+    h2hFilterA || "",
+    h2hFilterB || "",
+    histScorelineFilter || "",
+  ].join("|");
+}
+
+// ── COMMIT — single mutation→render path ──────────────────
+// Call after any change to the match/player data. Bumps the data version (so
+// every other page re-renders lazily on its next navigation via the version
+// gates) and immediately re-renders only the page the user is looking at —
+// replacing the old "render all four tabs eagerly" bursts.
+function renderActivePage() {
+  const id = document.querySelector(".page.active")?.id;
+  if (id === "pg-home") renderHome();
+  else if (id === "pg-compact") renderCompact();
+  else if (id === "pg-history") renderModernMatches();
+  else if (id === "pg-add") renderAddMatches();
+}
+function commit() {
+  _dataVersion++;
+  _invalidateEloMemo();
+  renderActivePage();
 }
 
 function _updateHistFilterBadge() {
@@ -6322,50 +6517,6 @@ function refreshOutcomeButtons() {
     ?.classList.add("on");
 }
 
-function getPlayerStats(matches) {
-  const stats = {};
-  matches.forEach((m) => {
-    const aWon = m.scoreA > m.scoreB;
-    m.teamA.forEach((p) => {
-      if (!stats[p])
-        stats[p] = {
-          name: p,
-          matches: 0,
-          wins: 0,
-          losses: 0,
-          gw: 0,
-          gl: 0,
-          net: 0,
-        };
-      stats[p].matches++;
-      stats[p].gw += m.scoreA;
-      stats[p].gl += m.scoreB;
-      stats[p].net = stats[p].gw - stats[p].gl;
-      if (aWon) stats[p].wins++;
-      else stats[p].losses++;
-    });
-    m.teamB.forEach((p) => {
-      if (!stats[p])
-        stats[p] = {
-          name: p,
-          matches: 0,
-          wins: 0,
-          losses: 0,
-          gw: 0,
-          gl: 0,
-          net: 0,
-        };
-      stats[p].matches++;
-      stats[p].gw += m.scoreB;
-      stats[p].gl += m.scoreA;
-      stats[p].net = stats[p].gw - stats[p].gl;
-      if (!aWon) stats[p].wins++;
-      else stats[p].losses++;
-    });
-  });
-  return Object.values(stats).sort((a, b) => b.matches - a.matches);
-}
-
 function renderAddMatches() {
   _addRenderedVersion = _dataVersion;
   const query = (
@@ -6391,10 +6542,7 @@ function deleteMatchByIndex(i) {
   deletedMatches.unshift(removed);
   saveDeletedMatches();
   saveCloudData();
-  renderModernMatches();
-  renderAddMatches();
-  renderHome();
-  renderCompact();
+  commit();
   renderTrash();
   showUndoToast("Match deleted", () => {
     deletedMatches.shift();
@@ -6402,10 +6550,7 @@ function deleteMatchByIndex(i) {
     delete removed.deletedAt;
     saveDeletedMatches();
     saveCloudData();
-    renderModernMatches();
-    renderAddMatches();
-    renderHome();
-    renderCompact();
+    commit();
     renderTrash();
   });
 }
@@ -6417,10 +6562,7 @@ function restoreMatch(i) {
   allMatches.push(m);
   saveDeletedMatches();
   saveCloudData();
-  renderModernMatches();
-  renderAddMatches();
-  renderHome();
-  renderCompact();
+  commit();
   renderTrash();
   showToast("Match restored!", "↩️");
 }
@@ -6584,10 +6726,7 @@ function saveMatchEdit(i) {
   else delete m.note;
   saveCloudData();
   closeMatchEdit();
-  renderModernMatches();
-  renderAddMatches();
-  renderHome();
-  renderCompact();
+  commit();
 }
 
 // ── FAB MODAL ──────────────────────────────────────────────
@@ -6809,11 +6948,9 @@ function saveModernMatch() {
     checkMilestones(prevSnapshot, allMatches);
     _lastLocalSaveTime = Date.now();
     saveCloudData();
+    mirrorMatchToEditor(candidate);
     closeModernAddModal();
-    renderModernMatches();
-    renderAddMatches();
-    renderHome();
-    renderCompact();
+    commit();
   }
 
   // Exact duplicate
@@ -10244,57 +10381,6 @@ function _h2hHighlightRow(tr) {
   }
 }
 
-// ── P VS P MATRIX ──────────────────────────────────────────
-function buildH2HMatrix(players) {
-  if (players.length < 2)
-    return '<div style="color:var(--muted);font-size:11px">Need at least 2 players with matches.</div>';
-
-  // Build win % for each row vs col (row beats col)
-  const matrix = {};
-  players.forEach((a) => {
-    matrix[a] = {};
-    players.forEach((b) => {
-      if (a === b) {
-        matrix[a][b] = null;
-        return;
-      }
-      const h2h = getHeadToHeadStats(a, b);
-      const total = h2h.aWins + h2h.bWins;
-      matrix[a][b] = total > 0 ? { wins: h2h.aWins, total } : null;
-    });
-  });
-
-  // Short name: first 5 chars to keep columns tight
-  const short = (n) => (n.length > 6 ? n.slice(0, 5) + "…" : n);
-
-  const colHeaders = players
-    .map(
-      (p) => `<th class="pvp-th" title="${p}">${getMatrixAlias(short(p))}</th>`,
-    )
-    .join("");
-
-  const rows = players
-    .map((a) => {
-      const cells = players
-        .map((b) => {
-          if (a === b) return `<td class="pvp-td pvp-self">·</td>`;
-          const d = matrix[a][b];
-          if (!d) return `<td class="pvp-td pvp-none">—</td>`;
-          const pct = Math.round((d.wins / d.total) * 100);
-          const cls =
-            pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
-          return `<td class="pvp-td ${cls} pvp-td-click" title="${escHtml(`${a} vs ${b}: ${d.wins}W–${d.total - d.wins}L`)}" onclick="openRivalryScreen(${jsArg(a)},${jsArg(b)})">${pct}%</td>`;
-        })
-        .join("");
-      return `<tr><td class="pvp-row-hdr" title="${escHtml(a)}">${escHtml(short(a))}</td>${cells}</tr>`;
-    })
-    .join("");
-
-  return `<table class="pvp-table">
-              <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
-              <tbody>${rows}</tbody>
-            </table>`;
-}
 
 // ── PLAYER COMPARISON ─────────────────────────────────────
 const CMP_DATE_OPTS = [
@@ -10372,13 +10458,6 @@ function _cmpSetDate(v) {
     const match = CMP_DATE_OPTS.find((o) => o.l === b.textContent);
     if (match) b.classList.toggle("active", match.v === v);
   });
-}
-
-function cmpDateOptsHtml(selected = "all") {
-  return CMP_DATE_OPTS.map(
-    (o) =>
-      `<option value="${o.v}"${o.v === selected ? " selected" : ""}>${o.l}</option>`,
-  ).join("");
 }
 
 function triggerCompare() {
@@ -11309,12 +11388,6 @@ function getPrestigeTier(level) {
   if (level >= 10) return "silver";
   if (level >= 5) return "bronze";
   return "rookie";
-}
-
-function mkLvlBadge(displayName) {
-  const { level } = getPlayerLevel(computePlayerXP(displayName));
-  const tier = getPrestigeTier(level);
-  return `<span class="lvl-badge prestige-${tier}">LVL ${level}</span>`;
 }
 
 function mkLvlRow(displayName) {
@@ -14662,75 +14735,6 @@ function _buildSeasonModeHtml() {
     )
     .join("");
   return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${cards}</div>`;
-}
-
-function _buildRivalryHoFHtml() {
-  const rivalries = {};
-  activeMatches().forEach((m) => {
-    if (!m.teamA || !m.teamB || m.teamA.length < 2 || m.teamB.length < 2)
-      return;
-    const tA = [...m.teamA].map(normPlayer).sort().join("|");
-    const tB = [...m.teamB].map(normPlayer).sort().join("|");
-    const [k1, k2] = [tA, tB].sort();
-    const key = `${k1}~vs~${k2}`;
-    if (!rivalries[key]) {
-      rivalries[key] = {
-        pair1: k1.split("|"),
-        pair2: k2.split("|"),
-        matches: [],
-        wins1: 0,
-        wins2: 0,
-      };
-    }
-    rivalries[key].matches.push(m);
-    const aWon = m.scoreA > m.scoreB;
-    const aIsK1 = tA === k1;
-    if ((aWon && aIsK1) || (!aWon && !aIsK1)) rivalries[key].wins1++;
-    else rivalries[key].wins2++;
-  });
-  const top = Object.values(rivalries)
-    .filter((r) => r.matches.length >= 3)
-    .sort((a, b) => b.matches.length - a.matches.length)
-    .slice(0, 5);
-  if (!top.length)
-    return '<div class="sub" style="padding:8px">Need pairs that have played each other 3+ times.</div>';
-  return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${top
-    .map((r, i) => {
-      const sorted = [...r.matches].sort((a, b) =>
-        (a.date || "").localeCompare(b.date || ""),
-      );
-      const last = sorted[sorted.length - 1];
-      const lastTA = [...last.teamA].map(normPlayer).sort().join("|");
-      const lastIsK1 = lastTA === r.pair1.join("|");
-      const lastWinner =
-        last.scoreA > last.scoreB === lastIsK1
-          ? r.pair1.join(" & ")
-          : r.pair2.join(" & ");
-      const dominator =
-        r.wins1 === r.wins2
-          ? "Tied"
-          : r.wins1 > r.wins2
-            ? `${r.pair1.join(" & ")} lead`
-            : `${r.pair2.join(" & ")} lead`;
-      const av = (name) =>
-        `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${playerColor(name)};font-size:8px;font-weight:800;color:#fff">${playerInitials(name)}</span>`;
-      return `<div class="ana-card rhof-card">
-        <div class="rhof-rank">#${i + 1} · ${r.matches.length} MEETINGS · ${dominator}</div>
-        <div class="rhof-pairs">
-          <div class="rhof-pair">
-            <div class="rhof-avs">${av(r.pair1[0])}${av(r.pair1[1])}</div>
-            <div class="rhof-pair-name">${r.pair1.join(" & ")}</div>
-          </div>
-          <div class="rhof-vs"><span style="color:${r.wins1 >= r.wins2 ? "var(--green)" : "var(--muted)"}">${r.wins1}</span><span style="color:var(--muted);margin:0 2px">–</span><span style="color:${r.wins2 >= r.wins1 ? "var(--green)" : "var(--muted)"}">${r.wins2}</span></div>
-          <div class="rhof-pair">
-            <div class="rhof-avs">${av(r.pair2[0])}${av(r.pair2[1])}</div>
-            <div class="rhof-pair-name">${r.pair2.join(" & ")}</div>
-          </div>
-        </div>
-        <div class="rhof-last">Last: ${last.date || ""} · <b>${lastWinner}</b> won ${Math.max(last.scoreA, last.scoreB)}-${Math.min(last.scoreA, last.scoreB)}</div>
-      </div>`;
-    })
-    .join("")}</div>`;
 }
 
 const _REPLAY_MIN = 5;
@@ -18563,6 +18567,7 @@ Object.assign(window, {
   exportCSV,
   setScreenshotChoiceSetting,
   setAnimLevel,
+  toggleSmoothMode,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -19315,6 +19320,7 @@ function endLiveMatch() {
   };
   if (notes) match.note = notes;
   allMatches.push(match);
+  mirrorMatchToEditor(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
     _sessionMatchHistory.push({
@@ -19347,9 +19353,7 @@ function endLiveMatch() {
   } else {
     saveCloudData();
   }
-  renderHome();
-  renderCompact();
-  renderModernMatches();
+  commit();
   showToast(`Saved! ${eventMsg}`, "🎾");
   _showLiveEventBanner({
     type: "match_end",
@@ -20320,9 +20324,7 @@ function confirmUndoSession() {
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
   _saveSessionState();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
+  commit();
   showToast("Last match undone ↶", "✅");
 }
 
@@ -20359,9 +20361,7 @@ function redoSessionMatch() {
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
   _saveSessionState();
-  renderHome();
-  renderCompact();
-  renderModernMatches();
+  commit();
   showToast("Match redone ↷", "✅");
 }
 
