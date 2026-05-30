@@ -42,6 +42,63 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// ── ERROR-LOG FIRESTORE MIRROR ────────────────────────────
+// utils.js captures uncaught errors into a localStorage ring buffer; here we
+// best-effort mirror them to errors/{clientId} so real-world breakage on any
+// device reaches the maintainer. Per-device doc = no cross-client clobbering.
+// Fire-and-forget; silently no-ops if security rules disallow the write.
+function _clientId() {
+  let id = null;
+  try {
+    id = localStorage.getItem("padel_client_id");
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("padel_client_id", id);
+    }
+  } catch (e) {}
+  return id || "anon";
+}
+let _errFlushT = null;
+function _flushErrorLog() {
+  try {
+    const log = (window.getErrorLog && window.getErrorLog()) || [];
+    if (!log.length) return;
+    setDoc(doc(db, "errors", _clientId()), {
+      entries: log.slice(-50),
+      email: (window.isAdmin && ADMIN_EMAIL) || (auth.currentUser?.email ?? ""),
+      updated: Date.now(),
+    }).catch(() => {});
+  } catch (e) {}
+}
+window.__onAppError = function () {
+  clearTimeout(_errFlushT);
+  _errFlushT = setTimeout(_flushErrorLog, 4000);
+};
+// Flush anything captured before app.js finished initialising.
+setTimeout(_flushErrorLog, 3000);
+
+// ── AUTOMATED DAILY BACKUP ────────────────────────────────
+// Admin-only, throttled to once/day: snapshots the full dataset to
+// backups/{YYYY-MM-DD} so a bad sync or an accidental "Clear all" stays
+// recoverable. Fire-and-forget; no-ops if not admin, no data yet, already
+// backed up today, or the write is blocked by security rules.
+async function _maybeBackup() {
+  try {
+    if (!window.isAdmin) return;
+    if (!Array.isArray(allMatches) || !allMatches.length) return;
+    const today = todayISO();
+    if (localStorage.getItem("padel_last_backup") === today) return;
+    await setDoc(doc(db, "backups", today), {
+      ts: Date.now(),
+      matches: allMatches,
+      players,
+      playerAliasMap,
+      nextPlayerId,
+    });
+    localStorage.setItem("padel_last_backup", today);
+  } catch (e) {}
+}
+
 // ── HTML ESCAPE ───────────────────────────────────────────────
 function escHtml(str) {
   if (!str) return "";
@@ -1686,6 +1743,7 @@ onAuthStateChanged(auth, (user) => {
   window.isAdmin = !!user && user.email === ADMIN_EMAIL;
   updateAdminUI(user);
   if (window.isAdmin) scheduleAutoEmail();
+  if (window.isAdmin) setTimeout(_maybeBackup, 6000); // once data has loaded
   else if (_emailTimer) {
     clearTimeout(_emailTimer);
     _emailTimer = null;
