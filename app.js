@@ -718,6 +718,11 @@ const _animLevel0 =
 if (_animLevel0 === "medium" || _animLevel0 === "off")
   document.body.classList.add("no-cascade");
 if (_animLevel0 === "off") document.body.classList.add("no-anim");
+if (localStorage.getItem("smooth_mode") === "1") {
+  document.body.classList.add("smooth-mode");
+  const _smCb = document.getElementById("smooth-mode-toggle");
+  if (_smCb) _smCb.checked = true;
+}
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
@@ -3493,6 +3498,19 @@ function renderNamesTable() {
 
 function setScreenshotChoiceSetting(val) {
   localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
+}
+
+// Smooth Mode (architecture #4): opt-in scroll/paint smoothness via the
+// body.smooth-mode CSS class. Persisted; reflected in the hamburger toggle.
+function toggleSmoothMode(on) {
+  const enabled =
+    on === undefined ? !document.body.classList.contains("smooth-mode") : !!on;
+  document.body.classList.toggle("smooth-mode", enabled);
+  try {
+    localStorage.setItem("smooth_mode", enabled ? "1" : "0");
+  } catch (e) {}
+  const cb = document.getElementById("smooth-mode-toggle");
+  if (cb) cb.checked = enabled;
 }
 
 function setAnimLevel(val) {
@@ -18363,6 +18381,7 @@ Object.assign(window, {
   exportCSV,
   setScreenshotChoiceSetting,
   setAnimLevel,
+  toggleSmoothMode,
   toggleOfflineMode,
   renderHome,
   renderCompact,
