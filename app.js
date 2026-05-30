@@ -1,4 +1,5 @@
-﻿import {
+﻿import { generateAmericano, americanoFairness } from "./americano.js";
+import {
   initEloDeps,
   computeElo,
   computeEloHistory,
@@ -18568,6 +18569,13 @@ Object.assign(window, {
   setScreenshotChoiceSetting,
   setAnimLevel,
   toggleSmoothMode,
+  openAmericanoSheet,
+  closeAmericano,
+  americanoSelectAll,
+  americanoSelectNone,
+  generateAmericanoSchedule,
+  americanoRegenerate,
+  americanoBack,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -20564,6 +20572,121 @@ function closeSessionSetup() {
   document
     .getElementById("session-setup-sheet")
     ?.classList.remove("live-sheet-open");
+}
+
+// ── AMERICANO / MATCHUP GENERATOR (UI) ────────────────────
+let _americanoPlayers = [];
+let _americanoSelected = new Set();
+let _americanoSchedule = null;
+
+function openAmericanoSheet() {
+  _americanoPlayers = getAllPlayerNamesFromMatches();
+  _americanoSelected = new Set();
+  _americanoSchedule = null;
+  const list = document.getElementById("americano-list");
+  if (!list) return;
+  list.innerHTML = _americanoPlayers
+    .map(
+      (p) => `
+    <label class="tb-player-chip">
+      <input type="checkbox" onchange="window._amToggle(${jsArg(p)}, this.checked)">
+      <span class="tb-chip-name">${escHtml(p)}</span>
+    </label>`,
+    )
+    .join("");
+  _americanoShowSetup();
+  document.getElementById("americano-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
+}
+window._amToggle = function (name, on) {
+  if (on) _americanoSelected.add(name);
+  else _americanoSelected.delete(name);
+};
+function closeAmericano() {
+  document
+    .getElementById("americano-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("americano-sheet")
+    ?.classList.remove("live-sheet-open");
+}
+function _americanoShowSetup() {
+  document.getElementById("americano-setup").style.display = "";
+  document.getElementById("americano-result").style.display = "none";
+  document.getElementById("americano-result-actions").style.display = "none";
+}
+function americanoBack() {
+  _americanoShowSetup();
+}
+function americanoSelectAll() {
+  _americanoSelected = new Set(_americanoPlayers);
+  document
+    .querySelectorAll("#americano-list input[type=checkbox]")
+    .forEach((cb) => (cb.checked = true));
+}
+function americanoSelectNone() {
+  _americanoSelected = new Set();
+  document
+    .querySelectorAll("#americano-list input[type=checkbox]")
+    .forEach((cb) => (cb.checked = false));
+}
+function _americanoShuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function generateAmericanoSchedule(shuffle) {
+  let players = [..._americanoSelected];
+  if (players.length < 4) {
+    showToast("Pick at least 4 players", "❌");
+    return;
+  }
+  if (shuffle) players = _americanoShuffle(players);
+  const rounds = Math.max(
+    1,
+    Math.min(30, parseInt(document.getElementById("americano-rounds")?.value, 10) || 7),
+  );
+  try {
+    _americanoSchedule = generateAmericano(players, rounds);
+  } catch (e) {
+    showToast(e.message || "Could not generate", "❌");
+    return;
+  }
+  _americanoLastPlayers = players;
+  _renderAmericanoResult(players, _americanoSchedule);
+  document.getElementById("americano-setup").style.display = "none";
+  document.getElementById("americano-result").style.display = "";
+  document.getElementById("americano-result-actions").style.display = "flex";
+}
+let _americanoLastPlayers = [];
+function americanoRegenerate() {
+  generateAmericanoSchedule(true);
+}
+function _renderAmericanoResult(players, schedule) {
+  const av = (n) =>
+    `<span class="am-av" style="background:${playerColor(n)}">${playerInitials(n)}</span>`;
+  const pair = (p) =>
+    `<div class="am-team">${av(p[0])}${av(p[1])}<span class="am-pair">${escHtml(p[0])} & ${escHtml(p[1])}</span></div>`;
+  const multiCourt = schedule.some((r) => r.matches.length > 1);
+  const body = schedule
+    .map((rnd) => {
+      const matches = rnd.matches
+        .map(
+          (m, i) =>
+            `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}${pair(m.teamA)}<div class="am-vs">vs</div>${pair(m.teamB)}</div>`,
+        )
+        .join("");
+      const sit = rnd.sittingOut && rnd.sittingOut.length
+        ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
+        : "";
+      return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
+    })
+    .join("");
+  const f = americanoFairness(players, schedule);
+  const summary = `<div class="am-summary">${players.length} players · ${schedule.length} rounds · partners repeat ≤ ${f.maxPartnerRepeat}× · sit-outs ${f.minSits}–${f.maxSits}</div>`;
+  document.getElementById("americano-result").innerHTML = summary + body;
 }
 
 // Enhancement 13: session pause/resume via localStorage
