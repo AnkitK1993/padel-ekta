@@ -20578,6 +20578,7 @@ function closeSessionSetup() {
 let _americanoPlayers = [];
 let _americanoSelected = new Set();
 let _americanoSchedule = null;
+let _americanoScores = {}; // "round-match" -> {a, b}
 
 function openAmericanoSheet() {
   _americanoPlayers = getAllPlayerNamesFromMatches();
@@ -20655,6 +20656,7 @@ function generateAmericanoSchedule(shuffle) {
     return;
   }
   _americanoLastPlayers = players;
+  _americanoScores = {}; // fresh scoreboard for the new draw
   _renderAmericanoResult(players, _americanoSchedule);
   document.getElementById("americano-setup").style.display = "none";
   document.getElementById("americano-result").style.display = "";
@@ -20667,27 +20669,95 @@ function americanoRegenerate() {
 function _renderAmericanoResult(players, schedule) {
   const av = (n) =>
     `<span class="am-av" style="background:${playerColor(n)}">${playerInitials(n)}</span>`;
-  const pair = (p) =>
-    `<div class="am-team">${av(p[0])}${av(p[1])}<span class="am-pair">${escHtml(p[0])} & ${escHtml(p[1])}</span></div>`;
+  // One line per team: avatars + names on the left, a points input on the right.
+  const teamRow = (team, r, i, side) => {
+    const sc = _americanoScores[r + "-" + i] || {};
+    const val = sc[side] != null ? sc[side] : "";
+    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><input class="am-score" type="number" inputmode="numeric" min="0" value="${val}" onchange="window._amScore(${r},${i},'${side}',this.value)" aria-label="points"></div>`;
+  };
   const multiCourt = schedule.some((r) => r.matches.length > 1);
   const body = schedule
-    .map((rnd) => {
+    .map((rnd, r) => {
       const matches = rnd.matches
         .map(
           (m, i) =>
-            `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}${pair(m.teamA)}<div class="am-vs">vs</div>${pair(m.teamB)}</div>`,
+            `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}<div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div></div>`,
         )
         .join("");
-      const sit = rnd.sittingOut && rnd.sittingOut.length
-        ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
-        : "";
+      const sit =
+        rnd.sittingOut && rnd.sittingOut.length
+          ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
+          : "";
       return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
     })
     .join("");
   const f = americanoFairness(players, schedule);
   const summary = `<div class="am-summary">${players.length} players · ${schedule.length} rounds · partners repeat ≤ ${f.maxPartnerRepeat}× · sit-outs ${f.minSits}–${f.maxSits}</div>`;
-  document.getElementById("americano-result").innerHTML = summary + body;
+  document.getElementById("americano-result").innerHTML =
+    `<div id="americano-standings"></div>` + summary + body;
+  _renderAmericanoStandings();
 }
+
+// Live standings from whatever scores have been entered so far. Americano
+// scoring: each player banks the points their team scored, every round.
+function _americanoStandings() {
+  const pts = {},
+    played = {},
+    won = {};
+  (_americanoSchedule || []).forEach((rnd, r) => {
+    rnd.matches.forEach((m, i) => {
+      const sc = _americanoScores[r + "-" + i];
+      if (!sc || (sc.a == null && sc.b == null)) return;
+      const a = +sc.a || 0,
+        b = +sc.b || 0;
+      m.teamA.forEach((p) => {
+        pts[p] = (pts[p] || 0) + a;
+        played[p] = (played[p] || 0) + 1;
+        if (a > b) won[p] = (won[p] || 0) + 1;
+      });
+      m.teamB.forEach((p) => {
+        pts[p] = (pts[p] || 0) + b;
+        played[p] = (played[p] || 0) + 1;
+        if (b > a) won[p] = (won[p] || 0) + 1;
+      });
+    });
+  });
+  return _americanoLastPlayers
+    .map((p) => ({
+      name: p,
+      pts: pts[p] || 0,
+      played: played[p] || 0,
+      won: won[p] || 0,
+    }))
+    .sort(
+      (x, y) => y.pts - x.pts || y.won - x.won || x.name.localeCompare(y.name),
+    );
+}
+function _renderAmericanoStandings() {
+  const el = document.getElementById("americano-standings");
+  if (!el) return;
+  const st = _americanoStandings();
+  if (!st.some((s) => s.played > 0)) {
+    el.innerHTML = "";
+    return;
+  }
+  const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1);
+  el.innerHTML =
+    `<div class="am-stand-hdr">🏆 STANDINGS</div>` +
+    st
+      .map(
+        (s, i) =>
+          `<div class="am-stand-row"><span class="am-stand-rank">${medal(i)}</span><span class="am-stand-name">${escHtml(s.name)}</span><span class="am-stand-meta">${s.won}W · ${s.played}p</span><span class="am-stand-pts">${s.pts}</span></div>`,
+      )
+      .join("");
+}
+window._amScore = function (r, i, side, val) {
+  const k = r + "-" + i;
+  if (!_americanoScores[k]) _americanoScores[k] = {};
+  _americanoScores[k][side] =
+    val === "" ? null : Math.max(0, parseInt(val, 10) || 0);
+  _renderAmericanoStandings();
+};
 
 // Enhancement 13: session pause/resume via localStorage
 const _SESSION_SAVE_KEY = "padel_session_state";
