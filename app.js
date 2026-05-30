@@ -99,6 +99,55 @@ async function _maybeBackup() {
   } catch (e) {}
 }
 
+// ── KEYED DOM RECONCILE (incremental rendering) ───────────────
+// Patch `container`'s children to match the children parsed from `html`,
+// reusing existing nodes by data-key. Unchanged rows keep their identity —
+// so the container isn't wiped (scroll/focus preserved) and untouched rows
+// don't re-run entrance animations. Returns the nodes that were added/changed.
+// Uses <template> so table rows (<tr>) parse correctly out of context.
+function _syncAttrs(target, src) {
+  for (const a of Array.from(target.attributes))
+    if (!src.hasAttribute(a.name)) target.removeAttribute(a.name);
+  for (const a of Array.from(src.attributes))
+    if (target.getAttribute(a.name) !== a.value)
+      target.setAttribute(a.name, a.value);
+}
+function morphList(container, html) {
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  const newNodes = Array.from(tpl.content.children);
+  const existing = new Map();
+  for (const el of Array.from(container.children)) {
+    const k = el.getAttribute("data-key");
+    if (k != null && !existing.has(k)) existing.set(k, el);
+  }
+  const touched = [];
+  const finalNodes = [];
+  let prev = null;
+  for (const newEl of newNodes) {
+    const key = newEl.getAttribute("data-key");
+    let node = key != null ? existing.get(key) : null;
+    if (node) {
+      if (node.outerHTML !== newEl.outerHTML) {
+        _syncAttrs(node, newEl);
+        node.innerHTML = newEl.innerHTML;
+        touched.push(node);
+      }
+    } else {
+      node = newEl;
+      touched.push(node);
+    }
+    const target = prev ? prev.nextSibling : container.firstChild;
+    if (target !== node) container.insertBefore(node, target);
+    prev = node;
+    finalNodes.push(node);
+  }
+  const keep = new Set(finalNodes);
+  for (const el of Array.from(container.children))
+    if (!keep.has(el)) el.remove();
+  return touched;
+}
+
 // ── HTML ESCAPE ───────────────────────────────────────────────
 function escHtml(str) {
   if (!str) return "";
@@ -4505,7 +4554,7 @@ function renderCompact() {
         : _eloDiff < 0
           ? `<span class="wk-rank-delta wk-down">${_eloDiff}</span>`
           : `<span class="wk-rank-delta wk-same">±0</span>`;
-    return `<tr class="${rc}${animClass}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaBadge}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}${eloDeltaBadge}</td><td><div class="sr-pill ${ratingClass}"><div class="sr-pill-bar"><div class="sr-pill-fill" style="width:${pillW}%"></div></div><span class="sr-pill-val" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)}">${displaySR.toFixed(2)}</span></div></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -4517,7 +4566,11 @@ function renderCompact() {
   const cmpMatchesEl = document.getElementById("cmpMatches");
   const matchesHeader = cmpMatchesEl.previousElementSibling;
 
-  if (splashDone && !document.body.classList.contains("no-cascade")) {
+  // Animate the staggered entrance only on the FIRST paint of the table.
+  // Subsequent renders (sort / filter) reconcile in place via morphList so the
+  // table reorders smoothly instead of re-playing the whole cascade.
+  const _firstPaint = !tbody.querySelector("tr[data-key]");
+  if (_firstPaint && splashDone && !document.body.classList.contains("no-cascade")) {
     tbody.innerHTML = "";
     cmpMatchesEl.innerHTML = "";
     matchesHeader.style.opacity = "0";
@@ -4594,10 +4647,13 @@ function renderCompact() {
     }
   } else {
     matchesHeader.style.cssText = "";
-    tbody.innerHTML = leaderRowHtmls.join("");
-    tbody
-      .querySelectorAll(".sr-pill-val[data-final]")
-      .forEach((el) => animateSrVal(el, 0));
+    // Incremental reconcile: reuse unchanged rows, only animate new/changed SR.
+    const _touched = morphList(tbody, leaderRowHtmls.join(""));
+    _touched.forEach((row) => {
+      const el =
+        row.querySelector && row.querySelector(".sr-pill-val[data-final]");
+      if (el) animateSrVal(el, 0);
+    });
     const _nc = document.body.classList.contains("no-cascade");
     const initRows = reversedMatches.map((m, i) =>
       buildSummaryMatchRow(
