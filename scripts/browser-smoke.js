@@ -511,8 +511,40 @@ async function main() {
         hasOldMonthly: html.includes("Monthly Awards"),
         hasFeared: html.includes("MOST FEARED"),
         hasWinRate: html.includes("Win Rate Over Time"),
+        subtabCount: document.querySelectorAll(".ana-subtab").length,
+        hasOldAntiPodium: html.includes("Anti-Podium Tracker"),
+        hasDayOfWeek: html.includes("Day-of-Week"),
+        hasStreakBoard: html.includes("Streak Leaderboard"),
+        hasUpsets: html.includes("Biggest Upsets"),
+        hasRadar: html.includes("Player Radar Compare"),
+        hasSeasonCompare: html.includes("Season Comparison"),
+        hasMilestones: html.includes("Upcoming Milestones"),
+        hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
+        emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
       };
     })()`);
+    assert(awards.hasHideEmpty, "Expected Hide-empty toggle present");
+    assert(
+      awards.emptyCount > 0,
+      "Expected some sections flagged empty with sparse seed data",
+    );
+    for (const k of [
+      "hasStreakBoard",
+      "hasUpsets",
+      "hasRadar",
+      "hasSeasonCompare",
+      "hasMilestones",
+    ])
+      assert(awards[k], `Expected new section present: ${k}`);
+    assert(
+      awards.subtabCount >= 12,
+      `Expected merged sections to render sub-tabs, got ${awards.subtabCount}`,
+    );
+    assert(
+      !awards.hasOldAntiPodium,
+      "Expected old 'Anti-Podium Tracker' section to be merged away",
+    );
+    assert(awards.hasDayOfWeek, "Expected merged 'Day-of-Week' section present");
     // Seeded data is a single month, so this section used to be omitted; it must
     // now always render (with a helpful note) so users can always find it.
     assert(
@@ -535,6 +567,20 @@ async function main() {
       awards.hasFeared,
       "Expected merged awards (e.g. MOST FEARED) inside the season card",
     );
+
+    // Season banner: selecting a season shows its scope at the top of analytics.
+    await evaluate(client, `(() => {
+      const may = JSON.parse(localStorage.getItem("padel_seasons") || "[]").find(s => s.name === "May 2026");
+      setSeason(may.id);
+    })()`);
+    await evaluate(client, `switchMainTab("home", true);`);
+    await evaluate(client, `switchMainTab("analytics", true);`);
+    await waitFor(
+      client,
+      `document.querySelector(".ana-season-banner") !== null`,
+      "season context banner shows in analytics",
+    );
+    await evaluate(client, `setSeason("all"); switchMainTab("home", true);`);
 
     const errors = browserErrors(client.events);
     assert(
