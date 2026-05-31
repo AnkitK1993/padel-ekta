@@ -12846,6 +12846,32 @@ function _tabbedSection(tabs) {
     .join("")}</div>`;
   return bar + panels;
 }
+// Toggle the Hide-empty view (CSS hides .ana-sec.is-empty under .ana-hide-empty).
+function toggleAnaHideEmpty() {
+  const on = localStorage.getItem("padel_ana_hide_empty") !== "1";
+  try {
+    localStorage.setItem("padel_ana_hide_empty", on ? "1" : "0");
+  } catch (e) {}
+  const c = document.getElementById("analytics-page-content");
+  if (c) c.classList.toggle("ana-hide-empty", on);
+  const btn = c?.querySelector(".ana-hideempty-btn");
+  if (btn) {
+    btn.classList.toggle("active", on);
+    btn.textContent = (on ? "☑" : "☐") + " Hide empty";
+  }
+}
+// Heuristic: a section is "empty" when its body strips down to a short
+// empty-state message (used by the Hide-empty toggle to declutter small data).
+function _secIsEmpty(body) {
+  const text = String(body)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length > 60) return false;
+  return /need |not enough|no matches|no data|no upsets|no season|define seasons|within reach|no milestones/i.test(
+    text,
+  );
+}
 function _anaSubTab(btn, tab) {
   const body = btn.closest(".ana-sec-body");
   if (!body) return;
@@ -18298,7 +18324,8 @@ function renderAnalyticsPage() {
   const makeSec = (key, title, body, col, cat) => {
     const isFav = favKeys.includes(key);
     const isHid = hiddenKeys.includes(key);
-    return `<div class="ana-sec${col ? " collapsed" : ""}" data-key="${key}" data-cat="${cat || "all"}"${isHid ? ' data-hidden="true"' : ""}>
+    const emptyCls = _secIsEmpty(body) ? " is-empty" : "";
+    return `<div class="ana-sec${col ? " collapsed" : ""}${emptyCls}" data-key="${key}" data-cat="${cat || "all"}"${isHid ? ' data-hidden="true"' : ""}>
       <div class="ana-section-title ana-sec-hdr" onclick="toggleAnaSection('${key}')">
         <span class="ana-sec-drag-handle"
           onpointerdown="anaHandlePointerDown(event,'${key}')"
@@ -18816,8 +18843,21 @@ function renderAnalyticsPage() {
     cat: s.cat,
   }));
 
+  // Season context banner — every section already respects the active season
+  // via activeMatches(); this makes the scope explicit at the top of the page.
+  const _seasonForBanner = _activeSeason();
+  const _seasonBanner = _seasonForBanner
+    ? `<div class="ana-season-banner">🗓️ <strong>${escHtml(_seasonForBanner.name)}</strong> <span style="opacity:.65">· ${escHtml(_seasonRangeLabel(_seasonForBanner))}</span></div>`
+    : "";
+  const _hideEmptyOn =
+    localStorage.getItem("padel_ana_hide_empty") === "1";
+  const _hideEmptyToggle = `<div class="ana-toolbar"><button class="ana-hideempty-btn${_hideEmptyOn ? " active" : ""}" onclick="toggleAnaHideEmpty()">${_hideEmptyOn ? "☑" : "☐"} Hide empty</button></div>`;
+  container.classList.toggle("ana-hide-empty", _hideEmptyOn);
+
   container.innerHTML =
     filterPillsHtml +
+    _seasonBanner +
+    _hideEmptyToggle +
     orderedKeys
       .map((key) => {
         const def = allSecs.find((s) => s.key === key);
@@ -19095,6 +19135,7 @@ Object.assign(window, {
   americanoBack,
   _anaSubTab,
   _radarPick,
+  toggleAnaHideEmpty,
   openSeasonSheet,
   closeSeasonSheet,
   setSeason,

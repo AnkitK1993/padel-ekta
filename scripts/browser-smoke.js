@@ -519,8 +519,15 @@ async function main() {
         hasRadar: html.includes("Player Radar Compare"),
         hasSeasonCompare: html.includes("Season Comparison"),
         hasMilestones: html.includes("Upcoming Milestones"),
+        hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
+        emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
       };
     })()`);
+    assert(awards.hasHideEmpty, "Expected Hide-empty toggle present");
+    assert(
+      awards.emptyCount > 0,
+      "Expected some sections flagged empty with sparse seed data",
+    );
     for (const k of [
       "hasStreakBoard",
       "hasUpsets",
@@ -560,6 +567,20 @@ async function main() {
       awards.hasFeared,
       "Expected merged awards (e.g. MOST FEARED) inside the season card",
     );
+
+    // Season banner: selecting a season shows its scope at the top of analytics.
+    await evaluate(client, `(() => {
+      const may = JSON.parse(localStorage.getItem("padel_seasons") || "[]").find(s => s.name === "May 2026");
+      setSeason(may.id);
+    })()`);
+    await evaluate(client, `switchMainTab("home", true);`);
+    await evaluate(client, `switchMainTab("analytics", true);`);
+    await waitFor(
+      client,
+      `document.querySelector(".ana-season-banner") !== null`,
+      "season context banner shows in analytics",
+    );
+    await evaluate(client, `setSeason("all"); switchMainTab("home", true);`);
 
     const errors = browserErrors(client.events);
     assert(
