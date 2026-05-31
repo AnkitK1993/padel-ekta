@@ -510,8 +510,15 @@ async function main() {
         hasRecap: html.includes("Monthly Recap"),
         hasOldMonthly: html.includes("Monthly Awards"),
         hasFeared: html.includes("MOST FEARED"),
+        hasWinRate: html.includes("Win Rate Over Time"),
       };
     })()`);
+    // Seeded data is a single month, so this section used to be omitted; it must
+    // now always render (with a helpful note) so users can always find it.
+    assert(
+      awards.hasWinRate,
+      "Expected 'Win Rate Over Time' section to render even with one month of data",
+    );
     assert(
       awards.hasMay,
       "Expected a 'May 2026' season card in Season Awards",

@@ -16067,7 +16067,11 @@ function renderAnalyticsPage() {
 
   // ── WIN RATE CHART ─────────────────────────────────────
   let winChartHtml =
-    '<div class="sub" style="padding:8px">Need matches across multiple months.</div>';
+    '<div class="sub" style="padding:8px">' +
+    (_activeSeason()
+      ? "This season spans a single month — switch to ALL SEASONS (🗓️ in the menu) to see the multi-month trend."
+      : "Need matches across 2+ months to chart a win-rate trend.") +
+    "</div>";
   if (uniqueMonths.length >= 2) {
     const W = 300,
       H = 110,
@@ -18120,16 +18124,15 @@ function renderAnalyticsPage() {
       title: "💎 Quality Wins",
       body: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
     },
-    ...(uniqueMonths.length >= 2
-      ? [
-          {
-            key: "winrate",
-            cat: "activity",
-            title: "📈 Win Rate Over Time",
-            body: `<div class="ana-card">${winChartHtml}</div>`,
-          },
-        ]
-      : []),
+    {
+      // Always present — winChartHtml carries a helpful note when the active
+      // data spans fewer than 2 months (e.g. a single-month season) instead of
+      // the whole section silently disappearing.
+      key: "winrate",
+      cat: "activity",
+      title: "📈 Win Rate Over Time",
+      body: `<div class="ana-card">${winChartHtml}</div>`,
+    },
     {
       key: "score",
       cat: "activity",
