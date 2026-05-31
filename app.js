@@ -12827,6 +12827,39 @@ function _partnerTab(btn, tab) {
   btn.classList.add("active");
 }
 
+// ── GENERIC IN-CARD SUB-TABS (merged analytics sections) ──────
+// Build a tabbed body from [{label, html}]. Used to fold several same-topic
+// sections into one card. Panels are scoped to their own .ana-sec-body so
+// multiple tabbed sections coexist without id/selector collisions.
+function _tabbedSection(tabs) {
+  const bar = `<div class="ana-subtabs">${tabs
+    .map(
+      (t, i) =>
+        `<button class="ana-subtab${i === 0 ? " active" : ""}" onclick="_anaSubTab(this,${i})">${t.label}</button>`,
+    )
+    .join("")}</div>`;
+  const panels = `<div class="ana-subtab-panels">${tabs
+    .map(
+      (t, i) =>
+        `<div data-subtab="${i}"${i === 0 ? "" : ' style="display:none"'}>${t.html}</div>`,
+    )
+    .join("")}</div>`;
+  return bar + panels;
+}
+function _anaSubTab(btn, tab) {
+  const body = btn.closest(".ana-sec-body");
+  if (!body) return;
+  const panelWrap = body.querySelector(".ana-subtab-panels");
+  if (panelWrap)
+    panelWrap.querySelectorAll(":scope > [data-subtab]").forEach((p) => {
+      p.style.display = p.dataset.subtab === String(tab) ? "" : "none";
+    });
+  btn.parentElement
+    ?.querySelectorAll(".ana-subtab")
+    .forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
 function _simUpdateSlots() {
   const slots = { a1: _simA1, a2: _simA2, b1: _simB1, b2: _simB2 };
   Object.entries(slots).forEach(([k, v]) => {
@@ -18029,18 +18062,66 @@ function renderAnalyticsPage() {
     </div>`;
   };
 
+  // Avg ELO gained per win, by weekday — extracted so the Day-of-Week section
+  // can fold Volume / Win% / ELO Gain into one tabbed card.
+  const _eloDowHtml = (() => {
+    const hist = _memoEloHistory();
+    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const byDay = Array.from({ length: 7 }, () => ({
+      wSum: 0,
+      wCnt: 0,
+      lSum: 0,
+      lCnt: 0,
+    }));
+    Object.values(hist).forEach((entries) => {
+      entries.forEach((e) => {
+        if (!e.date || e.delta === 0) return;
+        const d = new Date(e.date + "T00:00:00").getDay();
+        if (e.delta > 0) {
+          byDay[d].wSum += e.delta;
+          byDay[d].wCnt++;
+        } else {
+          byDay[d].lSum += Math.abs(e.delta);
+          byDay[d].lCnt++;
+        }
+      });
+    });
+    const wAvgs = byDay.map((d) => (d.wCnt ? d.wSum / d.wCnt : null));
+    const maxW = Math.max(...wAvgs.filter((v) => v !== null), 1);
+    const cells = DAY.map((dayName, i) => {
+      const avg = wAvgs[i];
+      const cnt = byDay[i].wCnt + byDay[i].lCnt;
+      if (avg === null)
+        return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:rgba(255,255,255,0.04);border-radius:8px"><div style="font-size:10px;color:var(--muted)">—</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:4px">${dayName}</div><div style="font-size:7px;color:var(--muted)">0g</div></div>`;
+      const intensity = Math.min(1, avg / maxW);
+      const bg = `rgba(72,199,116,${(0.1 + 0.7 * intensity).toFixed(2)})`;
+      return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:${bg};border-radius:8px">
+            <div style="font-size:11px;font-weight:800;color:var(--green)">+${avg.toFixed(1)}</div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px">${dayName}</div>
+            <div style="font-size:7px;color:rgba(255,255,255,0.35)">${cnt}g</div>
+          </div>`;
+    }).join("");
+    return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ELO gained per win by day — higher = more upsets / ELO at stake</div></div>`;
+  })();
+
   const allSecs = [
     {
       key: "predacc",
       cat: "records",
-      title: "🔮 Prediction Accuracy",
-      body: predAccHtml,
+      title: "🔮 Predictions",
+      body: _tabbedSection([
+        { label: "Predict", html: _buildMatchPredictHtml() },
+        { label: "Accuracy", html: predAccHtml },
+      ]),
     },
     {
       key: "simulator",
       cat: "records",
-      title: "🎮 Match Simulator",
-      body: simulatorHtml,
+      title: "🎮 Simulators",
+      body: _tabbedSection([
+        { label: "Match Sim", html: simulatorHtml },
+        { label: "What-If", html: whatIfHtml },
+      ]),
     },
     {
       key: "pvp",
@@ -18069,8 +18150,11 @@ function renderAnalyticsPage() {
     {
       key: "podiumtracker",
       cat: "players",
-      title: "🥇 Podium Tracker",
-      body: `<div>
+      title: "🥇 Podium",
+      body: _tabbedSection([
+        {
+          label: "🥇 Top 3",
+          html: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'week')">WEEKLY</button>
@@ -18079,12 +18163,10 @@ function renderAnalyticsPage() {
         </div>
         <div class="podium-content">${_secBody(() => _buildPodiumTrackerHtml("today"))}</div>
       </div>`,
-    },
-    {
-      key: "antipodiumtracker",
-      cat: "players",
-      title: "🪣 Anti-Podium Tracker",
-      body: `<div>
+        },
+        {
+          label: "🪣 Bottom 3",
+          html: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_antiPodiumSetPeriod(this,'today')">DAILY</button>
           <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'week')">WEEKLY</button>
@@ -18093,30 +18175,35 @@ function renderAnalyticsPage() {
         </div>
         <div class="antipodium-content">${_secBody(() => _buildAntiPodiumTrackerHtml("today"))}</div>
       </div>`,
+        },
+      ]),
     },
     {
       key: "rankreign",
       cat: "players",
-      title: "👑 Rank Reign",
-      body: _secBody(() => _buildRankReignHtml()),
-    },
-    {
-      key: "ranktimeline",
-      cat: "players",
-      title: "📅 Rank Timeline",
-      body: _secBody(() => _buildRankTimelineHtml("today")),
+      title: "👑 Rank History",
+      body: _tabbedSection([
+        { label: "Reign", html: _secBody(() => _buildRankReignHtml()) },
+        { label: "Timeline", html: _secBody(() => _buildRankTimelineHtml("today")) },
+      ]),
     },
     {
       key: "clutchrank",
       cat: "players",
-      title: "🎯 Clutch Rankings",
-      body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>`,
+      title: "🎯 Clutch",
+      body: _tabbedSection([
+        { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>` },
+        { label: "Trends", html: clutchTrendHtml },
+      ]),
     },
     {
       key: "consistency",
       cat: "players",
-      title: "📐 Consistency Rankings",
-      body: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
+      title: "📐 Consistency",
+      body: _tabbedSection([
+        { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>` },
+        { label: "ELO Volatility", html: eloVolatilityHtml },
+      ]),
     },
     {
       key: "qualitywins",
@@ -18136,8 +18223,12 @@ function renderAnalyticsPage() {
     {
       key: "score",
       cat: "activity",
-      title: "📊 Score Distribution",
-      body: `<div class="ana-card">${_sdCallout}${sdHtml}</div>`,
+      title: "📊 Scores",
+      body: _tabbedSection([
+        { label: "Distribution", html: `<div class="ana-card">${_sdCallout}${sdHtml}</div>` },
+        { label: "Heatmap", html: _scoreHeatmapHtml },
+        { label: "Margin Trend", html: _scoreMargTrendHtml },
+      ]),
     },
     {
       key: "partnership",
@@ -18159,8 +18250,64 @@ function renderAnalyticsPage() {
     {
       key: "rivalry",
       cat: "players",
-      title: "🔥 Rivalry Spotlight",
-      body: `<div class="ana-card">${rivalHtml}</div>`,
+      title: "🔥 Rivalries",
+      body: _tabbedSection([
+        { label: "Spotlight", html: `<div class="ana-card">${rivalHtml}</div>` },
+        {
+          label: "Head-to-Head",
+          html: (() => {
+            const enc = {};
+            activeMatches().forEach((m) => {
+              const tA = m.teamA || [],
+                tB = m.teamB || [];
+              const aWon = m.scoreA > m.scoreB;
+              tA.forEach((a) => {
+                tB.forEach((b) => {
+                  const sorted = [normPlayer(a), normPlayer(b)].sort();
+                  const key = sorted.join(" vs ");
+                  if (!enc[key])
+                    enc[key] = { total: 0, wins0: 0, p0: sorted[0], p1: sorted[1] };
+                  enc[key].total++;
+                  const p0IsA = normPlayer(a) === sorted[0];
+                  if ((p0IsA && aWon) || (!p0IsA && !aWon)) enc[key].wins0++;
+                });
+              });
+            });
+            const rivals = Object.values(enc)
+              .filter((r) => r.total >= 5)
+              .sort((a, b) => b.total - a.total)
+              .slice(0, 6);
+            if (!rivals.length)
+              return `<div class="ana-card"><div class="sub" style="padding:8px 0">Need 5+ head-to-head encounters to surface rivalries.</div></div>`;
+            return rivals
+              .map((r) => {
+                const p0w = r.wins0,
+                  p1w = r.total - r.wins0;
+                const p0pct = Math.round((p0w / r.total) * 100);
+                const col0 =
+                  p0pct >= 60 ? "var(--green)" : p0pct <= 40 ? "var(--red)" : "var(--muted)";
+                const col1 =
+                  p0pct <= 40 ? "var(--green)" : p0pct >= 60 ? "var(--red)" : "var(--muted)";
+                return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:800;color:${col0}">${escHtml(r.p0)}</span>
+              <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.06em">${r.total} matches</span>
+              <span style="font-size:12px;font-weight:800;color:${col1}">${escHtml(r.p1)}</span>
+            </div>
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px">
+              <div style="flex:${p0pct};background:var(--accent);border-radius:3px 0 0 3px"></div>
+              <div style="flex:${100 - p0pct};background:rgba(255,255,255,0.15);border-radius:0 3px 3px 0"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px">
+              <span style="font-size:10px;font-weight:700;color:${col0}">${p0w}W (${p0pct}%)</span>
+              <span style="font-size:10px;font-weight:700;color:${col1}">${p1w}W (${100 - p0pct}%)</span>
+            </div>
+          </div>`;
+              })
+              .join("");
+          })(),
+        },
+      ]),
     },
     {
       key: "session",
@@ -18171,8 +18318,12 @@ function renderAnalyticsPage() {
     {
       key: "dayofweek",
       cat: "activity",
-      title: "📅 Day-of-Week Analysis",
-      body: dowHtml,
+      title: "📅 Day-of-Week",
+      body: _tabbedSection([
+        { label: "Volume", html: dowHtml },
+        { label: "Win %", html: _dowPlayerHtml },
+        { label: "ELO Gain", html: _eloDowHtml },
+      ]),
     },
     {
       key: "carryfactor",
@@ -18181,22 +18332,13 @@ function renderAnalyticsPage() {
       body: carryHtml,
     },
     {
-      key: "clutchtrend",
-      cat: "players",
-      title: "🎯 Clutch Trends",
-      body: clutchTrendHtml,
-    },
-    {
-      key: "whatif",
-      cat: "elo",
-      title: "🔄 What-If Simulator",
-      body: whatIfHtml,
-    },
-    {
       key: "pairs",
       cat: "pairs",
-      title: "🤝 All Pairs",
-      body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`,
+      title: "🤝 Pairs",
+      body: _tabbedSection([
+        { label: "Top 10", html: _pairLeaderboardHtml },
+        { label: "All Pairs", html: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>` },
+      ]),
     },
     {
       key: "pairedh2h",
@@ -18218,16 +18360,13 @@ function renderAnalyticsPage() {
       body: eloWinProbHtml,
     },
     {
-      key: "eloVolatility",
-      cat: "elo",
-      title: "📊 ELO Volatility / Consistency",
-      body: eloVolatilityHtml,
-    },
-    {
       key: "pairmatrix",
       cat: "pairs",
-      title: "🧪 Pair Chemistry Matrix",
-      body: pairMatrixHtml,
+      title: "🧪 Pair Chemistry",
+      body: _tabbedSection([
+        { label: "Matrix", html: pairMatrixHtml },
+        { label: "Leaderboard", html: _buildChemistryLeaderboardHtml() },
+      ]),
     },
     {
       key: "personalbests",
@@ -18254,12 +18393,6 @@ function renderAnalyticsPage() {
       title: "📊 Player Stats Deep Dive",
       body: _playerStatsTableHtml,
     },
-    {
-      key: "pairleaderboard",
-      cat: "pairs",
-      title: "🏆 Pair Leaderboard Top 10",
-      body: _pairLeaderboardHtml,
-    },
     ...(uniqueMonths.length >= 1
       ? [
           {
@@ -18277,28 +18410,10 @@ function renderAnalyticsPage() {
       body: _peakEloHtml,
     },
     {
-      key: "dowplayer",
-      cat: "activity",
-      title: "📆 Day-of-Week Win Rates",
-      body: _dowPlayerHtml,
-    },
-    {
-      key: "scoremargtrend",
-      cat: "activity",
-      title: "📉 Score Margin Trend",
-      body: _scoreMargTrendHtml,
-    },
-    {
       key: "dominance",
       cat: "players",
       title: "🦁 Dominance Index",
       body: _dominanceHtml,
-    },
-    {
-      key: "scoreheatmap",
-      cat: "activity",
-      title: "🟦 Score Heatmap",
-      body: _scoreHeatmapHtml,
     },
     {
       key: "absencetracker",
@@ -18312,18 +18427,6 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "⚡ Power Rankings",
       body: _buildPowerRankingsHtml(),
-    },
-    {
-      key: "chemistryleader",
-      cat: "pairs",
-      title: "🧪 Chemistry Leaderboard",
-      body: _buildChemistryLeaderboardHtml(),
-    },
-    {
-      key: "matchpredict",
-      cat: "records",
-      title: "🔮 Match Prediction",
-      body: _buildMatchPredictHtml(),
     },
     {
       key: "storyfeed",
@@ -18344,105 +18447,6 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "▶️ Leaderboard Replay",
       body: _buildLeaderboardReplayHtml(),
-    },
-    {
-      key: "rivalries",
-      cat: "players",
-      title: "⚔️ Rivalries",
-      body: (() => {
-        const enc = {};
-        activeMatches().forEach((m) => {
-          const tA = m.teamA || [],
-            tB = m.teamB || [];
-          const aWon = m.scoreA > m.scoreB;
-          tA.forEach((a) => {
-            tB.forEach((b) => {
-              const sorted = [normPlayer(a), normPlayer(b)].sort();
-              const key = sorted.join(" vs ");
-              if (!enc[key])
-                enc[key] = { total: 0, wins0: 0, p0: sorted[0], p1: sorted[1] };
-              enc[key].total++;
-              const p0IsA = normPlayer(a) === sorted[0];
-              if ((p0IsA && aWon) || (!p0IsA && !aWon)) enc[key].wins0++;
-            });
-          });
-        });
-        const rivals = Object.values(enc)
-          .filter((r) => r.total >= 5)
-          .sort((a, b) => b.total - a.total)
-          .slice(0, 6);
-        if (!rivals.length)
-          return `<div class="ana-card"><div class="sub" style="padding:8px 0">Need 5+ head-to-head encounters to surface rivalries.</div></div>`;
-        return rivals
-          .map((r) => {
-            const p0w = r.wins0,
-              p1w = r.total - r.wins0;
-            const p0pct = Math.round((p0w / r.total) * 100);
-            const col0 =
-              p0pct >= 60
-                ? "var(--green)"
-                : p0pct <= 40
-                  ? "var(--red)"
-                  : "var(--muted)";
-            const col1 =
-              p0pct <= 40
-                ? "var(--green)"
-                : p0pct >= 60
-                  ? "var(--red)"
-                  : "var(--muted)";
-            return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <span style="font-size:12px;font-weight:800;color:${col0}">${escHtml(r.p0)}</span>
-              <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.06em">${r.total} matches</span>
-              <span style="font-size:12px;font-weight:800;color:${col1}">${escHtml(r.p1)}</span>
-            </div>
-            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px">
-              <div style="flex:${p0pct};background:var(--accent);border-radius:3px 0 0 3px"></div>
-              <div style="flex:${100 - p0pct};background:rgba(255,255,255,0.15);border-radius:0 3px 3px 0"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-top:4px">
-              <span style="font-size:10px;font-weight:700;color:${col0}">${p0w}W (${p0pct}%)</span>
-              <span style="font-size:10px;font-weight:700;color:${col1}">${p1w}W (${100 - p0pct}%)</span>
-            </div>
-          </div>`;
-          })
-          .join("");
-      })(),
-    },
-    {
-      key: "elodow",
-      cat: "elo",
-      title: "📅 ELO Gain by Day",
-      body: (() => {
-        const hist = _memoEloHistory();
-        const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        // wins[] = avg ELO gained when winning; losses[] = avg ELO lost when losing (stored as positive)
-        const byDay = Array.from({ length: 7 }, () => ({ wSum: 0, wCnt: 0, lSum: 0, lCnt: 0 }));
-        Object.values(hist).forEach((entries) => {
-          entries.forEach((e) => {
-            if (!e.date || e.delta === 0) return;
-            const d = new Date(e.date + "T00:00:00").getDay();
-            if (e.delta > 0) { byDay[d].wSum += e.delta; byDay[d].wCnt++; }
-            else             { byDay[d].lSum += Math.abs(e.delta); byDay[d].lCnt++; }
-          });
-        });
-        const wAvgs = byDay.map((d) => (d.wCnt ? d.wSum / d.wCnt : null));
-        const maxW = Math.max(...wAvgs.filter((v) => v !== null), 1);
-        const cells = DAY.map((dayName, i) => {
-          const avg = wAvgs[i];
-          const cnt = byDay[i].wCnt + byDay[i].lCnt;
-          if (avg === null)
-            return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:rgba(255,255,255,0.04);border-radius:8px"><div style="font-size:10px;color:var(--muted)">—</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:4px">${dayName}</div><div style="font-size:7px;color:var(--muted)">0g</div></div>`;
-          const intensity = Math.min(1, avg / maxW);
-          const bg = `rgba(72,199,116,${(0.1 + 0.7 * intensity).toFixed(2)})`;
-          return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:${bg};border-radius:8px">
-            <div style="font-size:11px;font-weight:800;color:var(--green)">+${avg.toFixed(1)}</div>
-            <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px">${dayName}</div>
-            <div style="font-size:7px;color:rgba(255,255,255,0.35)">${cnt}g</div>
-          </div>`;
-        }).join("");
-        return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ELO gained per win by day — higher = more upsets / ELO at stake</div></div>`;
-      })(),
     },
     {
       key: "eloproj",
@@ -18804,6 +18808,7 @@ Object.assign(window, {
   americanoRegenerate,
   americanoNextRound,
   americanoBack,
+  _anaSubTab,
   openSeasonSheet,
   closeSeasonSheet,
   setSeason,

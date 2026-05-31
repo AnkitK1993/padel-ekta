@@ -511,8 +511,20 @@ async function main() {
         hasOldMonthly: html.includes("Monthly Awards"),
         hasFeared: html.includes("MOST FEARED"),
         hasWinRate: html.includes("Win Rate Over Time"),
+        subtabCount: document.querySelectorAll(".ana-subtab").length,
+        hasOldAntiPodium: html.includes("Anti-Podium Tracker"),
+        hasDayOfWeek: html.includes("Day-of-Week"),
       };
     })()`);
+    assert(
+      awards.subtabCount >= 12,
+      `Expected merged sections to render sub-tabs, got ${awards.subtabCount}`,
+    );
+    assert(
+      !awards.hasOldAntiPodium,
+      "Expected old 'Anti-Podium Tracker' section to be merged away",
+    );
+    assert(awards.hasDayOfWeek, "Expected merged 'Day-of-Week' section present");
     // Seeded data is a single month, so this section used to be omitted; it must
     // now always render (with a helpful note) so users can always find it.
     assert(
