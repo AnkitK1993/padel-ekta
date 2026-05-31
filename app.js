@@ -15053,6 +15053,260 @@ function _buildSeasonModeHtml() {
   return `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${cards}</div>`;
 }
 
+// ── NEW STATISTICS FEATURES ───────────────────────────────────
+// All read the season/guest-scoped active set (except Season Comparison, which
+// is inherently cross-season and reads allMatches).
+
+// Everyone's CURRENT win/loss streak, ranked (hot streaks first).
+function _buildStreakLeaderboardHtml() {
+  const stats = computeStats(activeMatches(), _memoElo()).filter((p) => p.mp >= 1);
+  if (!stats.length)
+    return '<div class="sub" style="padding:8px">No matches yet.</div>';
+  const sorted = [...stats].sort((a, b) => {
+    const av = a.curType === "W" ? a.curStreak : -a.curStreak;
+    const bv = b.curType === "W" ? b.curStreak : -b.curStreak;
+    return bv - av || b.bestWinStreak - a.bestWinStreak;
+  });
+  const rows = sorted
+    .map((p, i) => {
+      const onW = p.curType === "W";
+      const col = onW ? "var(--green)" : "var(--red)";
+      const ico = onW ? "🔥" : "❄️";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:11px;font-weight:800;color:var(--muted);width:20px">#${i + 1}</span>
+        <span style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</span>
+        <span style="flex:1;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span>
+        <span style="font-size:12px;font-weight:800;color:${col}">${ico} ${onW ? "W" : "L"}${p.curStreak}</span>
+        <span style="font-size:9px;color:var(--muted);width:54px;text-align:right">best W${p.bestWinStreak}</span>
+      </div>`;
+    })
+    .join("");
+  return `<div class="ana-card" style="padding:8px 12px">${rows}</div>`;
+}
+
+// Biggest ELO upsets: lower-rated team beating a higher-rated one. Recomputes
+// ELO match-by-match (same engine as elo.js) to capture pre-match ratings.
+function _buildBiggestUpsetsHtml() {
+  const ms = [...activeMatches()].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const elo = {};
+  const seed = (n) => {
+    if (!(n in elo)) elo[n] = 1000;
+  };
+  const upsets = [];
+  ms.forEach((m) => {
+    const tA = m.teamA || [],
+      tB = m.teamB || [];
+    [...tA, ...tB].forEach(seed);
+    const avgA = tA.reduce((s, p) => s + elo[p], 0) / Math.max(tA.length, 1);
+    const avgB = tB.reduce((s, p) => s + elo[p], 0) / Math.max(tB.length, 1);
+    const aWon = m.scoreA > m.scoreB;
+    const winAvg = aWon ? avgA : avgB;
+    const loseAvg = aWon ? avgB : avgA;
+    const gap = loseAvg - winAvg; // >0 → the underdog won
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    tA.forEach((p) => (elo[p] += dA));
+    tB.forEach((p) => (elo[p] += dB));
+    if (gap > 0)
+      upsets.push({
+        date: m.date,
+        gap: Math.round(gap),
+        winners: aWon ? tA : tB,
+        losers: aWon ? tB : tA,
+        sw: Math.max(m.scoreA, m.scoreB),
+        sl: Math.min(m.scoreA, m.scoreB),
+      });
+  });
+  upsets.sort((a, b) => b.gap - a.gap);
+  const top = upsets.slice(0, 8);
+  if (!top.length)
+    return '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
+  const cards = top
+    .map(
+      (u) => `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:800;color:var(--green)">${escHtml(u.winners.join(" & "))}</span>
+        <span style="font-size:13px;font-weight:800">${u.sw}–${u.sl}</span>
+        <span style="font-size:12px;font-weight:800;color:var(--muted)">${escHtml(u.losers.join(" & "))}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
+        <span>+${u.gap} ELO underdog gap</span>
+        <span>${fmtDate(u.date)}</span>
+      </div>
+    </div>`,
+    )
+    .join("");
+  return cards;
+}
+
+// Players closest to their next round-number milestone (matches / wins of 25).
+function _buildUpcomingMilestonesHtml() {
+  const stats = computeStats(activeMatches());
+  if (!stats.length)
+    return '<div class="sub" style="padding:8px">No matches yet.</div>';
+  const nextMul = (v, step) => Math.ceil((v + 1) / step) * step;
+  const items = [];
+  stats.forEach((p) => {
+    const nm = nextMul(p.mp, 25);
+    items.push({ name: p.name, to: nm - p.mp, target: nm, kind: "matches", icon: "🎯" });
+    const nw = nextMul(p.mw, 25);
+    items.push({ name: p.name, to: nw - p.mw, target: nw, kind: "wins", icon: "🏆" });
+  });
+  const near = items
+    .filter((i) => i.to <= 8)
+    .sort((a, b) => a.to - b.to)
+    .slice(0, 12);
+  if (!near.length)
+    return '<div class="sub" style="padding:8px">No milestones within reach (8) yet.</div>';
+  const rows = near
+    .map(
+      (i) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <span style="font-size:15px">${i.icon}</span>
+      <span style="flex:1;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(i.name)}</span>
+      <span style="font-size:13px;font-weight:800;color:var(--theme)">${i.to}</span>
+      <span style="font-size:10px;color:var(--muted)">from ${i.target} ${i.kind}</span>
+    </div>`,
+    )
+    .join("");
+  return `<div class="ana-card" style="padding:8px 12px">${rows}</div>`;
+}
+
+// Compare every player's ELO across the user-defined Seasons (cross-season).
+function _buildSeasonComparisonHtml() {
+  if (!seasons.length)
+    return '<div class="sub" style="padding:8px">Define Seasons (🗓️ in the menu) to compare players across them.</div>';
+  const ordered = [...seasons].sort((a, b) =>
+    (a.start || "").localeCompare(b.start || ""),
+  );
+  const perSeason = ordered.map((s) => {
+    const sm = allMatches.filter((m) => _inSeason(s, m.date));
+    return { s, elo: computeElo(sm), stats: computeStats(sm) };
+  });
+  const totals = {};
+  allMatches.forEach((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].forEach(
+      (p) => (totals[p] = (totals[p] || 0) + 1),
+    ),
+  );
+  const playersSorted = Object.keys(totals)
+    .sort((a, b) => totals[b] - totals[a])
+    .slice(0, 12);
+  if (!playersSorted.length)
+    return '<div class="sub" style="padding:8px">No matches in any season.</div>';
+  const th = `<th style="text-align:left;padding:4px 6px;font-size:9px;color:var(--muted);position:sticky;left:0;background:var(--surface)">Player</th>${ordered
+    .map(
+      (s) =>
+        `<th style="padding:4px 6px;font-size:9px;color:var(--muted);white-space:nowrap">${escHtml(s.name)}</th>`,
+    )
+    .join("")}`;
+  const rows = playersSorted
+    .map((name) => {
+      const cells = perSeason
+        .map((ps) => {
+          const st = ps.stats.find((x) => x.name === name);
+          if (!st)
+            return `<td style="text-align:center;padding:4px 6px;color:var(--muted)">—</td>`;
+          const e = Math.round(ps.elo[name] || 1000);
+          const col =
+            e >= 1030 ? "var(--green)" : e <= 970 ? "var(--red)" : "var(--text)";
+          return `<td style="text-align:center;padding:4px 6px"><div style="font-size:12px;font-weight:800;color:${col}">${e}</div><div style="font-size:8px;color:var(--muted)">${st.mw}-${st.ml}</div></td>`;
+        })
+        .join("");
+      return `<tr><td style="text-align:left;padding:4px 6px;font-size:11px;font-weight:700;position:sticky;left:0;background:var(--surface);white-space:nowrap">${escHtml(name)}</td>${cells}</tr>`;
+    })
+    .join("");
+  return `<div class="ana-card" style="padding:8px"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div><div style="font-size:9px;color:var(--muted);margin-top:6px">Season ELO per player (W–L below). — = didn't play that season.</div></div>`;
+}
+
+// Radar overlay comparing 2 players across 5 normalized axes.
+function _radarSvg(stats, aName, bName) {
+  const A = stats.find((p) => p.name === aName),
+    B = stats.find((p) => p.name === bName);
+  if (!A || !B) return "";
+  const maxConsist = Math.max(...stats.map((p) => p.consistency || 0), 1);
+  const axes = [
+    { label: "Win%", v: (p) => p.winPct },
+    { label: "Game%", v: (p) => p.gamePct },
+    { label: "ELO", v: (p) => (p.sr / 10) * 100 },
+    { label: "Activity", v: (p) => p.act * 100 },
+    {
+      label: "Consist.",
+      v: (p) =>
+        p.consistency == null
+          ? 50
+          : Math.max(0, 100 - (p.consistency / maxConsist) * 100),
+    },
+  ];
+  const cx = 130,
+    cy = 120,
+    R = 84,
+    N = axes.length;
+  const pt = (i, frac) => {
+    const ang = -Math.PI / 2 + (i / N) * 2 * Math.PI;
+    return [cx + Math.cos(ang) * R * frac, cy + Math.sin(ang) * R * frac];
+  };
+  let grid = "";
+  [0.25, 0.5, 0.75, 1].forEach((f) => {
+    grid += `<polygon points="${axes.map((_, i) => pt(i, f).join(",")).join(" ")}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+  });
+  let spokes = "",
+    labels = "";
+  axes.forEach((ax, i) => {
+    const [x, y] = pt(i, 1);
+    spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.08)"/>`;
+    const [lx, ly] = pt(i, 1.2);
+    labels += `<text x="${lx}" y="${ly}" font-size="8" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle">${ax.label}</text>`;
+  });
+  const poly = (p, color) =>
+    `<polygon points="${axes.map((ax, i) => pt(i, Math.max(0, Math.min(1, ax.v(p) / 100))).join(",")).join(" ")}" fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="2"/>`;
+  const colA = playerColor(aName),
+    colB = playerColor(bName);
+  return `<svg viewBox="0 0 260 248" width="100%" style="max-width:300px;display:block;margin:0 auto">${grid}${spokes}${labels}${poly(B, colB)}${poly(A, colA)}</svg>
+    <div style="display:flex;justify-content:center;gap:16px;margin-top:4px">
+      <span style="font-size:11px;font-weight:700;color:${colA}">● ${escHtml(aName)}</span>
+      <span style="font-size:11px;font-weight:700;color:${colB}">● ${escHtml(bName)}</span>
+    </div>`;
+}
+function _buildRadarCompareHtml() {
+  const stats = computeStats(activeMatches(), _memoElo()).filter((p) => p.mp >= 3);
+  if (stats.length < 2)
+    return '<div class="sub" style="padding:8px">Need 2+ players with 3+ matches.</div>';
+  const byElo = [...stats].sort((a, b) => b.sr - a.sr);
+  if (
+    !window._radarSel ||
+    !stats.find((p) => p.name === window._radarSel.a) ||
+    !stats.find((p) => p.name === window._radarSel.b)
+  )
+    window._radarSel = { a: byElo[0].name, b: byElo[1].name };
+  const opts = (sel) =>
+    stats
+      .map(
+        (p) =>
+          `<option value="${escHtml(p.name)}"${p.name === sel ? " selected" : ""}>${escHtml(p.name)}</option>`,
+      )
+      .join("");
+  const selStyle =
+    "flex:1;min-width:0;padding:7px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-weight:700";
+  return `<div class="ana-card" style="padding:12px">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <select onchange="_radarPick('a',this.value)" style="${selStyle}">${opts(window._radarSel.a)}</select>
+      <select onchange="_radarPick('b',this.value)" style="${selStyle}">${opts(window._radarSel.b)}</select>
+    </div>
+    <div id="radar-box">${_radarSvg(stats, window._radarSel.a, window._radarSel.b)}</div>
+  </div>`;
+}
+function _radarPick(slot, name) {
+  window._radarSel = window._radarSel || {};
+  window._radarSel[slot] = name;
+  const box = document.getElementById("radar-box");
+  if (!box) return;
+  const stats = computeStats(activeMatches(), _memoElo()).filter((p) => p.mp >= 3);
+  box.innerHTML = _radarSvg(stats, window._radarSel.a, window._radarSel.b);
+}
+
 const _REPLAY_MIN = 5;
 const _REPLAY_BASE_MS = 400;
 let _replayIdx = 0,
@@ -18481,6 +18735,37 @@ function renderAnalyticsPage() {
         </div>`;
       })(),
     },
+    // ── NEW SECTIONS ───────────────────────────────────────────
+    {
+      key: "streakboard",
+      cat: "players",
+      title: "🔥 Streak Leaderboard",
+      body: _buildStreakLeaderboardHtml(),
+    },
+    {
+      key: "radar",
+      cat: "players",
+      title: "🕸️ Player Radar Compare",
+      body: _buildRadarCompareHtml(),
+    },
+    {
+      key: "upcomingmilestones",
+      cat: "records",
+      title: "⏳ Upcoming Milestones",
+      body: _buildUpcomingMilestonesHtml(),
+    },
+    {
+      key: "biggestupsets",
+      cat: "records",
+      title: "💥 Biggest Upsets",
+      body: _buildBiggestUpsetsHtml(),
+    },
+    {
+      key: "seasoncompare",
+      cat: "records",
+      title: "🗓️ Season Comparison",
+      body: _buildSeasonComparisonHtml(),
+    },
   ];
 
   const storedOrder = getAnaOrder();
@@ -18809,6 +19094,7 @@ Object.assign(window, {
   americanoNextRound,
   americanoBack,
   _anaSubTab,
+  _radarPick,
   openSeasonSheet,
   closeSeasonSheet,
   setSeason,

@@ -514,8 +514,21 @@ async function main() {
         subtabCount: document.querySelectorAll(".ana-subtab").length,
         hasOldAntiPodium: html.includes("Anti-Podium Tracker"),
         hasDayOfWeek: html.includes("Day-of-Week"),
+        hasStreakBoard: html.includes("Streak Leaderboard"),
+        hasUpsets: html.includes("Biggest Upsets"),
+        hasRadar: html.includes("Player Radar Compare"),
+        hasSeasonCompare: html.includes("Season Comparison"),
+        hasMilestones: html.includes("Upcoming Milestones"),
       };
     })()`);
+    for (const k of [
+      "hasStreakBoard",
+      "hasUpsets",
+      "hasRadar",
+      "hasSeasonCompare",
+      "hasMilestones",
+    ])
+      assert(awards[k], `Expected new section present: ${k}`);
     assert(
       awards.subtabCount >= 12,
       `Expected merged sections to render sub-tabs, got ${awards.subtabCount}`,
