@@ -345,6 +345,24 @@ function makeActiveMatches(allMatches, guestNames, excludedNames, sessionUnexclu
   return allMatches.filter(m => ![...(m.teamA || []), ...(m.teamB || [])].some(p => excluded.has(p)));
 }
 
+// ── SEASONS (mirrors app.js _inSeason + the activeMatches() season scope) ──
+// A season is { id, name, start:"YYYY-MM-DD", end:"YYYY-MM-DD"|null }.
+function inSeason(season, dateStr) {
+  const d = dateStr || "";
+  if (!d) return false;                       // undated matches never fall in a range
+  if (season.start && d < season.start) return false;
+  if (season.end && d > season.end) return false;  // null/"" end = open-ended (ongoing)
+  return true;
+}
+
+// Full activeMatches() pipeline: season scope FIRST, then guest/exclude filter.
+// season === null means "ALL SEASONS" (no date filter).
+function makeActiveMatchesWithSeason(allMatches, season, guestNames, excludedNames, sessionUnexcluded) {
+  let base = allMatches;
+  if (season) base = base.filter(m => inSeason(season, m.date));
+  return makeActiveMatches(base, guestNames, excludedNames, sessionUnexcluded);
+}
+
 function sortPlayersGuestsLast(names, guestSet) {
   return [...names].sort((a, b) => {
     const ag = guestSet.has(a), bg = guestSet.has(b);
@@ -1222,6 +1240,76 @@ test("ELO of player only in active matches differs from ELO in all matches", () 
   const active    = makeActiveMatches(allMatches, new Set(["Guest"]), new Set(), new Set());
   const eloActive = computeElo(active);
   assert(eloAll["Alice"] !== eloActive["Alice"], "ELO differs when guest match included vs excluded");
+});
+
+group("inSeason (date-range membership)");
+const SEASON_CLOSED = { id: "s1", name: "Q1", start: "2026-01-01", end: "2026-03-31" };
+const SEASON_OPEN   = { id: "s2", name: "Now", start: "2026-02-01", end: null };
+test("start boundary is inclusive", () => {
+  assert(inSeason(SEASON_CLOSED, "2026-01-01"));
+});
+test("end boundary is inclusive", () => {
+  assert(inSeason(SEASON_CLOSED, "2026-03-31"));
+});
+test("day before start is excluded", () => {
+  assert(!inSeason(SEASON_CLOSED, "2025-12-31"));
+});
+test("day after end is excluded", () => {
+  assert(!inSeason(SEASON_CLOSED, "2026-04-01"));
+});
+test("date inside range is included", () => {
+  assert(inSeason(SEASON_CLOSED, "2026-02-15"));
+});
+test("empty/undated match is never in range", () => {
+  assert(!inSeason(SEASON_CLOSED, ""));
+  assert(!inSeason(SEASON_CLOSED, undefined));
+});
+test("open-ended season includes far-future dates", () => {
+  assert(inSeason(SEASON_OPEN, "2030-12-31"));
+});
+test("open-ended season still respects its start", () => {
+  assert(!inSeason(SEASON_OPEN, "2026-01-15"));
+});
+
+group("season scope + guest filter composition (activeMatches pipeline)");
+const SEASON_MATCHES = [
+  M("2025-12-20", ["Alice","Bob"], ["Carol","Dave"], 4, 2),   // before season
+  M("2026-01-05", ["Alice","Bob"], ["Carol","Dave"], 4, 2),   // in season
+  M("2026-02-10", ["Alice","Guest"], ["Carol","Dave"], 4, 2), // in season, has guest
+  M("2026-03-31", ["Alice","Bob"], ["Carol","Dave"], 4, 2),   // in season (end boundary)
+  M("2026-05-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2),   // after season
+];
+test("ALL SEASONS (null) applies no date filter", () => {
+  const r = makeActiveMatchesWithSeason(SEASON_MATCHES, null, new Set(), new Set(), new Set());
+  assertEqual(r.length, 5);
+});
+test("season scopes matches to its date range", () => {
+  const r = makeActiveMatchesWithSeason(SEASON_MATCHES, SEASON_CLOSED, new Set(), new Set(), new Set());
+  assertEqual(r.length, 3, "only the 3 in-range matches remain");
+});
+test("season scope composes with guest exclusion", () => {
+  // Guest's match (2026-02-10) is in-range but should drop out under guest filter.
+  const r = makeActiveMatchesWithSeason(SEASON_MATCHES, SEASON_CLOSED, new Set(["Guest"]), new Set(), new Set());
+  assertEqual(r.length, 2, "in-range minus the guest match");
+});
+test("empty-range season yields no matches", () => {
+  const empty = { id: "e", name: "Empty", start: "2020-01-01", end: "2020-12-31" };
+  const r = makeActiveMatchesWithSeason(SEASON_MATCHES, empty, new Set(), new Set(), new Set());
+  assertEqual(r.length, 0);
+});
+test("season-scoped stats differ from all-time stats", () => {
+  const allStats = computeStats(makeActiveMatchesWithSeason(SEASON_MATCHES, null, new Set(), new Set(), new Set()));
+  const seasonStats = computeStats(makeActiveMatchesWithSeason(SEASON_MATCHES, SEASON_CLOSED, new Set(), new Set(), new Set()));
+  const aliceAll = allStats.find(p => p.name === "Alice");
+  const aliceSeason = seasonStats.find(p => p.name === "Alice");
+  assertEqual(aliceAll.mp, 5);
+  assertEqual(aliceSeason.mp, 3, "Alice played 3 matches inside the season");
+});
+test("season-scoped ELO resets from 1000 (independent of prior seasons)", () => {
+  // ELO over only the in-range matches must not depend on the out-of-range ones.
+  const inRangeOnly = SEASON_MATCHES.filter(m => inSeason(SEASON_CLOSED, m.date));
+  const viaPipeline = makeActiveMatchesWithSeason(SEASON_MATCHES, SEASON_CLOSED, new Set(), new Set(), new Set());
+  assertDeepEqual(computeElo(viaPipeline), computeElo(inRangeOnly));
 });
 
 // ─── SUMMARY ─────────────────────────────────────────────────────────────────

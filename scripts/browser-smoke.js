@@ -391,7 +391,41 @@ async function main() {
       `document.querySelectorAll("#board .pc").length >= 4`,
       "ALL SEASONS restores the full leaderboard",
     );
-    await evaluate(client, `closeSeasonSheet();`);
+
+    // Entering a populated season must reset the "today"-defaulted Compact &
+    // History sub-filters to "all", so the whole season range is shown (not an
+    // empty "today" view). Seeded matches are all in May 2026.
+    const reset = await evaluate(client, `(() => {
+      window.isAdmin = true;
+      // Force the sub-filters to "today" first (would render empty for the season).
+      const cmpSel = document.getElementById("cmpSel");
+      if (cmpSel) { cmpSel.value = "today"; onCmpFilter(); }
+      setHistoryDateFilter("today");
+      openSeasonSheet();
+      openSeasonEditor();
+      document.getElementById("season-edit-name").value = "May 2026";
+      document.getElementById("season-edit-start").value = "2026-05-01";
+      document.getElementById("season-edit-end").value = "2026-05-31";
+      saveSeasonFromEditor();
+      const may = JSON.parse(localStorage.getItem("padel_seasons") || "[]")
+        .find(s => s.name === "May 2026");
+      setSeason(may.id);
+      const closed = (() => { closeSeasonSheet(); return true; })();
+      return {
+        cmpVal: document.getElementById("cmpSel").value,
+        histVal: document.getElementById("histDateFilter").value,
+      };
+    })()`);
+    assert(
+      reset.cmpVal === "all",
+      `Expected Compact filter reset to "all" on season select, got "${reset.cmpVal}"`,
+    );
+    assert(
+      reset.histVal === "all",
+      `Expected History filter reset to "all" on season select, got "${reset.histVal}"`,
+    );
+
+    await evaluate(client, `setSeason("all"); closeSeasonSheet();`);
 
     const errors = browserErrors(client.events);
     assert(

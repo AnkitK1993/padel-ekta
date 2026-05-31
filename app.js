@@ -993,6 +993,13 @@ let _eloLowsMemo = null,
 initEloDeps(getEloDecayParams, todayISO);
 
 function _memoElo(decay = false) {
+  // A CLOSED season (end date already past) is a finished competition: its ELO
+  // is the final standing for that range, so time-decay — which is measured to
+  // "today" — must not apply. Ongoing seasons and ALL SEASONS keep decay.
+  if (decay) {
+    const s = _activeSeason();
+    if (s && s.end && s.end < todayISO()) decay = false;
+  }
   const am = activeMatches();
   const decayKey = decay
     ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() })
@@ -2807,12 +2814,52 @@ function _seasonMatchCount(s) {
   for (const m of allMatches) if (_inSeason(s, m.date)) n++;
   return n;
 }
+// Reset the per-tab date sub-filters to "all" and sync their controls. Called
+// when entering a specific season so the WHOLE season range is shown — otherwise
+// Compact/History (which default to "today") would render empty for a past
+// season, contradicting "show all data for that range".
+function _resetSubFiltersForSeason() {
+  // Home (Detailed)
+  homeFilter = "all";
+  homeFrom = null;
+  homeTo = null;
+  const homeSel = document.getElementById("homeFilterSel");
+  if (homeSel) homeSel.value = "all";
+  document.getElementById("homeDrRow")?.classList.remove("show");
+  _syncHomeFilterLabel();
+  // Compact (Summary)
+  cmpFilter = "all";
+  cmpFrom = null;
+  cmpTo = null;
+  const cmpSel = document.getElementById("cmpSel");
+  if (cmpSel) cmpSel.value = "all";
+  document.getElementById("cmpDr")?.classList.remove("show");
+  document.getElementById("cmpDayPicker")?.classList.remove("show");
+  // History — matchTabFilter drives renderModernMatches; the visible control is
+  // the #histDateFilter select (the [data-mf] chips are a legacy fallback).
+  matchTabFilter = "all";
+  const hdf = document.getElementById("histDateFilter");
+  if (hdf) hdf.value = "all";
+  document.querySelectorAll("[data-mf]").forEach((b) => b.classList.remove("on"));
+  document.querySelector('[data-mf="all"]')?.classList.add("on");
+  document.getElementById("matchDr")?.classList.remove("show");
+  const mdp = document.getElementById("matchDayPicker");
+  if (mdp) mdp.style.display = "none";
+  const mf = document.getElementById("matchFrom");
+  const mt = document.getElementById("matchTo");
+  if (mf) mf.value = "";
+  if (mt) mt.value = "";
+}
 // Switch the active season (id, or "all"). Persists the view preference and
 // re-renders everything via the standard commit() path (bumps _dataVersion,
 // invalidates the ELO memo, re-renders the active page; other pages re-render
 // lazily on their next navigation through the version gates).
 function setSeason(id) {
-  _activeSeasonId = id || "all";
+  const next = id || "all";
+  // Entering a specific season resets the date sub-filters so its full range
+  // shows (no empty "today" view); leaving to ALL SEASONS keeps the current view.
+  if (next !== "all" && next !== _activeSeasonId) _resetSubFiltersForSeason();
+  _activeSeasonId = next;
   try {
     localStorage.setItem("padel_active_season", _activeSeasonId);
   } catch (e) {}
@@ -2834,12 +2881,20 @@ function setSeason(id) {
 function _ingestSeasons(arr) {
   if (!Array.isArray(arr)) return;
   seasons = arr;
+  // If the selected season was deleted elsewhere, fall back to ALL.
+  if (
+    _activeSeasonId !== "all" &&
+    !seasons.some((s) => s.id === _activeSeasonId)
+  ) {
+    _activeSeasonId = "all";
+    try {
+      localStorage.setItem("padel_active_season", "all");
+    } catch (e) {}
+    updateSeasonHamburgerUI();
+  }
   try {
     localStorage.setItem("padel_seasons", JSON.stringify(seasons));
   } catch (e) {}
-  // If the selected season was deleted elsewhere, fall back to ALL.
-  if (_activeSeasonId !== "all" && !seasons.some((s) => s.id === _activeSeasonId))
-    _activeSeasonId = "all";
 }
 
 // ── GUEST FILTER ────────────────────────────────────────────
