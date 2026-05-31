@@ -17275,6 +17275,114 @@ body.smooth-mode [style*="animation-delay"] {
   font-weight: 700;
 }
 
+/* ── SEASONS ─────────────────────────────────────────────── */
+.season-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.16s,
+    background 0.16s;
+}
+.season-row.active {
+  border-color: var(--theme);
+  background: color-mix(in srgb, var(--theme) 12%, var(--surface));
+}
+.season-row-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+.season-row.active .season-row-radio {
+  border-color: var(--theme);
+}
+.season-row.active .season-row-radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--theme);
+}
+.season-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.season-row-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.season-row-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.season-row-edit {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.season-row-edit:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.season-field-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 8px 0 4px;
+  text-transform: uppercase;
+}
+.season-input {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.season-edit-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.season-del-btn {
+  color: #ff6b6b;
+  border: 1px solid color-mix(in srgb, #ff6b6b 40%, transparent);
+}
+.season-auto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 14px 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 
 
 

@@ -99,6 +99,7 @@ async function _maybeBackup() {
       players,
       playerAliasMap,
       nextPlayerId,
+      seasons,
     });
     localStorage.setItem("padel_last_backup", today);
   } catch (e) {}
@@ -729,6 +730,22 @@ let aliasMap = {};
 let players = {}; // { [id]: { id, name, email, image, isGuest } }
 let playerAliasMap = {}; // { [id]: [alias1, alias2, ...] }
 let nextPlayerId = 1;
+// ── SEASONS ────────────────────────────────────────────────
+// User-defined date ranges. Each: { id, name, start:"YYYY-MM-DD", end:"YYYY-MM-DD"|null }.
+// `seasons` is shared config (persisted in the cloud doc alongside matches).
+// `_activeSeasonId` is a per-device VIEW preference ("all" = no filter) kept in
+// localStorage — selecting one globally scopes every analytical surface (home,
+// compact, history, analytics, ELO, XP, stats) to that range via activeMatches().
+let seasons = [];
+let _activeSeasonId = "all";
+// When enabled (per-device), the ongoing season (the one whose range contains
+// today) is auto-selected on launch instead of restoring the last manual pick.
+let _seasonManuallySet = false;
+try {
+  _activeSeasonId = localStorage.getItem("padel_active_season") || "all";
+  seasons = JSON.parse(localStorage.getItem("padel_seasons") || "[]") || [];
+} catch (e) {}
+_applyAutoSeason(); // override with the ongoing season if auto-select is on
 let _dataVersion = 0;
 let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
@@ -968,6 +985,8 @@ function applyEloConfig() {
 }
 
 // ── ELO MEMO ───────────────────────────────────────────────
+let _amMemo = null,
+  _amMemoKey = ""; // activeMatches() memo (see activeMatches)
 let _eloMemo = null,
   _eloMemoKey = "",
   _eloMemoDecay = false;
@@ -980,6 +999,13 @@ let _eloLowsMemo = null,
 initEloDeps(getEloDecayParams, todayISO);
 
 function _memoElo(decay = false) {
+  // A CLOSED season (end date already past) is a finished competition: its ELO
+  // is the final standing for that range, so time-decay — which is measured to
+  // "today" — must not apply. Ongoing seasons and ALL SEASONS keep decay.
+  if (decay) {
+    const s = _activeSeason();
+    if (s && s.end && s.end < todayISO()) decay = false;
+  }
   const am = activeMatches();
   const decayKey = decay
     ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() })
@@ -1022,6 +1048,9 @@ function _memoEloLows() {
 }
 
 function _invalidateEloMemo() {
+  // Also drop the activeMatches() memo — this is the universal data-change hook,
+  // so any allMatches mutation invalidates the cached filtered array here.
+  _amMemo = null;
   _eloMemoKey = "";
   _eloMemo = null;
   clearEloCache();
@@ -1116,6 +1145,7 @@ async function saveCloudData() {
     players,
     playerAliasMap,
     nextPlayerId,
+    seasons,
   };
   if (window.appCache)
     window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
@@ -1161,6 +1191,7 @@ async function _trySyncNow() {
     players,
     playerAliasMap,
     nextPlayerId,
+    seasons,
   };
   try {
     _lastLocalSaveTime = Date.now();
@@ -1202,6 +1233,7 @@ function _resubscribeFirestore() {
       (snap) => {
         if (!snap.exists()) return;
         const d = snap.data();
+        _ingestSeasons(d.seasons);
         let pls, pam, npid;
         if (
           d.players &&
@@ -1735,6 +1767,7 @@ function loadCloudData() {
           return;
         }
         const d = snap.data();
+        _ingestSeasons(d.seasons);
         const { pls, pam, npid } = extractPlayerData(d);
         onData(d.matches || [], pls, pam, npid);
       },
@@ -1822,6 +1855,7 @@ onAuthStateChanged(auth, (user) => {
 });
 
 function updateAdminUI(user) {
+  updateSeasonHamburgerUI();
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle)
     scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
@@ -2767,19 +2801,198 @@ function sheetAvSm(name) {
   return `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${playerInitials(name)}</div>`;
 }
 
+// ── SEASON HELPERS ─────────────────────────────────────────
+// The currently-selected season object, or null when "ALL SEASONS".
+function _activeSeason() {
+  if (!_activeSeasonId || _activeSeasonId === "all") return null;
+  return seasons.find((s) => s.id === _activeSeasonId) || null;
+}
+// True when `dateStr` (YYYY-MM-DD) falls inside the season's range. An empty
+// end means open-ended (ongoing). Inclusive on both bounds.
+function _inSeason(s, dateStr) {
+  const d = dateStr || "";
+  if (!d) return false;
+  if (s.start && d < s.start) return false;
+  if (s.end && d > s.end) return false;
+  return true;
+}
+// Count matches in a season range (ignores guest exclusion — raw range size).
+function _seasonMatchCount(s) {
+  if (!s) return allMatches.length;
+  let n = 0;
+  for (const m of allMatches) if (_inSeason(s, m.date)) n++;
+  return n;
+}
+// ── AUTO-SELECT ONGOING SEASON (per-device) ────────────────
+function _isAutoSeasonEnabled() {
+  try {
+    return localStorage.getItem("padel_season_auto") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+// The season whose range contains today; if several overlap, the latest-starting
+// one wins (most specific/current). null when none is ongoing.
+function _currentOngoingSeason() {
+  const t = todayISO();
+  const inRange = seasons.filter((s) => _inSeason(s, t));
+  if (!inRange.length) return null;
+  return inRange.sort((a, b) => (b.start || "").localeCompare(a.start || ""))[0];
+}
+// When auto-select is on, point _activeSeasonId at the ongoing season (or "all").
+// Used at launch and when fresh cloud seasons arrive (unless the user has made a
+// manual pick this session). Does not render — callers handle that.
+function _applyAutoSeason() {
+  if (!_isAutoSeasonEnabled()) return;
+  const og = _currentOngoingSeason();
+  _activeSeasonId = og ? og.id : "all";
+  try {
+    localStorage.setItem("padel_active_season", _activeSeasonId);
+  } catch (e) {}
+}
+// Per-device toggle. Turning it on immediately jumps to the ongoing season.
+function setSeasonAuto(on) {
+  try {
+    localStorage.setItem("padel_season_auto", on ? "1" : "0");
+  } catch (e) {}
+  if (on) {
+    const og = _currentOngoingSeason();
+    setSeason(og ? og.id : "all");
+    _seasonManuallySet = false; // keep auto-driven for later cloud updates
+    showToast(
+      og ? `Season: ${og.name}` : "No ongoing season → All Seasons",
+      "🗓️",
+    );
+  }
+}
+// Reset the per-tab date sub-filters to "all" and sync their controls. Called
+// when entering a specific season so the WHOLE season range is shown — otherwise
+// Compact/History (which default to "today") would render empty for a past
+// season, contradicting "show all data for that range".
+function _resetSubFiltersForSeason() {
+  // Home (Detailed)
+  homeFilter = "all";
+  homeFrom = null;
+  homeTo = null;
+  const homeSel = document.getElementById("homeFilterSel");
+  if (homeSel) homeSel.value = "all";
+  document.getElementById("homeDrRow")?.classList.remove("show");
+  _syncHomeFilterLabel();
+  // Compact (Summary)
+  cmpFilter = "all";
+  cmpFrom = null;
+  cmpTo = null;
+  const cmpSel = document.getElementById("cmpSel");
+  if (cmpSel) cmpSel.value = "all";
+  document.getElementById("cmpDr")?.classList.remove("show");
+  document.getElementById("cmpDayPicker")?.classList.remove("show");
+  // History — matchTabFilter drives renderModernMatches; the visible control is
+  // the #histDateFilter select (the [data-mf] chips are a legacy fallback).
+  matchTabFilter = "all";
+  const hdf = document.getElementById("histDateFilter");
+  if (hdf) hdf.value = "all";
+  document.querySelectorAll("[data-mf]").forEach((b) => b.classList.remove("on"));
+  document.querySelector('[data-mf="all"]')?.classList.add("on");
+  document.getElementById("matchDr")?.classList.remove("show");
+  const mdp = document.getElementById("matchDayPicker");
+  if (mdp) mdp.style.display = "none";
+  const mf = document.getElementById("matchFrom");
+  const mt = document.getElementById("matchTo");
+  if (mf) mf.value = "";
+  if (mt) mt.value = "";
+}
+// Switch the active season (id, or "all"). Persists the view preference and
+// re-renders everything via the standard commit() path (bumps _dataVersion,
+// invalidates the ELO memo, re-renders the active page; other pages re-render
+// lazily on their next navigation through the version gates).
+function setSeason(id) {
+  const next = id || "all";
+  _seasonManuallySet = true; // a manual pick suppresses auto re-selection this session
+  // Entering a specific season resets the date sub-filters so its full range
+  // shows (no empty "today" view); leaving to ALL SEASONS keeps the current view.
+  if (next !== "all" && next !== _activeSeasonId) _resetSubFiltersForSeason();
+  _activeSeasonId = next;
+  try {
+    localStorage.setItem("padel_active_season", _activeSeasonId);
+  } catch (e) {}
+  commit();
+  // Analytics isn't covered by renderActivePage(); refresh it if it's showing.
+  if (document.querySelector(".page.active")?.id === "pg-analytics")
+    renderAnalyticsFeature();
+  updateSeasonHamburgerUI();
+  // If the picker is open, move the active highlight without closing it.
+  if (
+    document
+      .getElementById("season-sheet")
+      ?.classList.contains("live-sheet-open")
+  )
+    _renderSeasonList();
+}
+// Replace the in-memory season list from a cloud/cache payload and mirror to
+// localStorage so the next cold boot has it instantly (before Firestore resolves).
+function _ingestSeasons(arr) {
+  if (!Array.isArray(arr)) return;
+  seasons = arr;
+  // Auto-select: re-point at the ongoing season once real cloud seasons arrive,
+  // unless the user has manually chosen one this session.
+  if (_isAutoSeasonEnabled() && !_seasonManuallySet) {
+    const og = _currentOngoingSeason();
+    const want = og ? og.id : "all";
+    if (want !== _activeSeasonId) {
+      _activeSeasonId = want;
+      try {
+        localStorage.setItem("padel_active_season", want);
+      } catch (e) {}
+      updateSeasonHamburgerUI();
+    }
+  }
+  // If the selected season was deleted elsewhere, fall back to ALL.
+  if (
+    _activeSeasonId !== "all" &&
+    !seasons.some((s) => s.id === _activeSeasonId)
+  ) {
+    _activeSeasonId = "all";
+    try {
+      localStorage.setItem("padel_active_season", "all");
+    } catch (e) {}
+    updateSeasonHamburgerUI();
+  }
+  try {
+    localStorage.setItem("padel_seasons", JSON.stringify(seasons));
+  } catch (e) {}
+}
+
 // ── GUEST FILTER ────────────────────────────────────────────
+// activeMatches() is called 80+ times per render. The result only changes when
+// the data mutates, the active season changes, or the guest/exclude set changes —
+// so memoize the filtered array and skip the O(matches) passes when nothing moved.
+// Invalidation: _invalidateEloMemo() (called on every data mutation) nulls _amMemo,
+// and the key carries the season id + exclusion set (exclusion toggles re-render
+// without touching _dataVersion / the ELO memo). Callers treat the result as
+// read-only — the no-filter path has always returned the shared `allMatches`.
 function activeMatches() {
-  const excluded = new Set([
+  const s = _activeSeason();
+  const excludedArr = [
     ...Object.values(players)
       .filter((p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name))
       .map((p) => p.name),
     ..._excludedPlayers,
-  ]);
-  if (!excluded.size) return allMatches;
-  return allMatches.filter(
-    (m) =>
-      ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
-  );
+  ];
+  const key = `${_dataVersion}|${_activeSeasonId}|${excludedArr.sort().join(",")}`;
+  if (_amMemoKey === key && _amMemo) return _amMemo;
+  let base = allMatches;
+  if (s) base = base.filter((m) => _inSeason(s, m.date));
+  let result = base;
+  if (excludedArr.length) {
+    const excluded = new Set(excludedArr);
+    result = base.filter(
+      (m) =>
+        ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
+    );
+  }
+  _amMemoKey = key;
+  _amMemo = result;
+  return result;
 }
 
 // ── FILTER ─────────────────────────────────────────────────
@@ -12484,9 +12697,95 @@ function computeAchievements(name, matches) {
   return ach;
 }
 
-// ── SEASON MODE ───────────────────────────────────────────────
+// ── SEASON AWARDS ─────────────────────────────────────────────
+// Award set for one period (a month or a user-defined season). `priorMs` is the
+// matches before the period start, used for the Most-Improved ELO delta. This is
+// the single source for the per-period cards — it folds in the awards that used
+// to live in the separate "Monthly Awards" section (Most Consistent, Most Feared)
+// so the two are unified into one section.
+function _periodAwards(ms, priorMs) {
+  const eloMap = computeElo(ms);
+  const stats = computeStats(ms, eloMap).filter((p) => p.mp >= 2);
+  const pairs = getPairStats(ms).filter((p) => p.played >= 2);
+  const mvp = stats[0] || null;
+  const topPair = pairs[0] || null;
+  const ironMan = stats.length
+    ? [...stats].sort((a, b) => b.mp - a.mp)[0]
+    : null;
+  const priorEloMap =
+    priorMs && priorMs.length && stats.length > 1 ? computeElo(priorMs) : null;
+  const mostImproved = priorEloMap
+    ? [...stats].sort(
+        (a, b) =>
+          (eloMap[b.name] || 1000) -
+          (priorEloMap[b.name] || 1000) -
+          ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000)),
+      )[0]
+    : null;
+  // Most Consistent (≥3 matches): lowest std-dev of per-match game share.
+  const mostConsistent =
+    stats
+      .filter((p) => p.mp >= 3)
+      .map((p) => {
+        const pm = ms.filter((m) =>
+          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
+        );
+        const gp = pm.map((m) => {
+          const inA = (m.teamA || []).includes(p.name);
+          const gw = inA ? m.scoreA : m.scoreB;
+          const gl = inA ? m.scoreB : m.scoreA;
+          return gw + gl > 0 ? gw / (gw + gl) : 0.5;
+        });
+        const mean = gp.reduce((s, v) => s + v, 0) / gp.length;
+        const sd = Math.sqrt(
+          gp.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / gp.length,
+        );
+        return { name: p.name, sd };
+      })
+      .sort((a, b) => a.sd - b.sd)[0] || null;
+  // Most Feared (≥3 matches): highest win rate.
+  const mostFeared =
+    stats.filter((p) => p.mp >= 3).sort((a, b) => b.winPct - a.winPct)[0] ||
+    null;
+  return {
+    players: stats,
+    pairs,
+    mvp,
+    topPair,
+    ironMan,
+    mostImproved,
+    mostConsistent,
+    mostFeared,
+  };
+}
+// Bucket the (already season/guest-scoped) matches by each user-defined Season.
+// Empty seasons are dropped; newest-starting season first.
+function _computeManualSeasonAwards(matches) {
+  return seasons
+    .map((season) => {
+      const ms = matches.filter((m) => _inSeason(season, m.date));
+      if (!ms.length) return null;
+      const priorMs = season.start
+        ? matches.filter((m) => (m.date || "") < season.start)
+        : [];
+      return {
+        month: season.id,
+        monthName: season.name,
+        rangeLabel: _seasonRangeLabel(season),
+        start: season.start || "",
+        matches: ms.length,
+        ..._periodAwards(ms, priorMs),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.start || "").localeCompare(a.start || ""));
+}
+// Award cards (MVP / Top Pair / Iron Man / standings) per period. When the user
+// has defined Seasons, those are the buckets (unifying the two "season" ideas);
+// otherwise it falls back to auto monthly buckets.
 function computeSeasons(matches) {
   if (!matches.length) return [];
+  if (seasons.length) return _computeManualSeasonAwards(matches);
   const sorted = [...matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
@@ -12499,26 +12798,7 @@ function computeSeasons(matches) {
   });
   return Object.entries(byMonth)
     .map(([month, ms]) => {
-      const eloMap = computeElo(ms);
-      const stats = computeStats(ms, eloMap).filter((p) => p.mp >= 2);
-      const pairs = getPairStats(ms).filter((p) => p.played >= 2);
-      const mvp = stats[0] || null;
-      const topPair = pairs[0] || null;
-      const priorEloMap =
-        stats.length > 1
-          ? computeElo(sorted.filter((m) => (m.date || "") < month + "-01"))
-          : null;
-      const mostImproved = priorEloMap
-        ? [...stats].sort(
-            (a, b) =>
-              (eloMap[b.name] || 1000) -
-              (priorEloMap[b.name] || 1000) -
-              ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000)),
-          )[0]
-        : null;
-      const ironMan = stats.length
-        ? [...stats].sort((a, b) => b.mp - a.mp)[0]
-        : null;
+      const priorMs = sorted.filter((m) => (m.date || "") < month + "-01");
       const [yr, mo] = month.split("-");
       const monthName = new Date(+yr, +mo - 1, 1).toLocaleString("default", {
         month: "long",
@@ -12528,12 +12808,7 @@ function computeSeasons(matches) {
         month,
         monthName,
         matches: ms.length,
-        players: stats,
-        pairs,
-        mvp,
-        topPair,
-        mostImproved,
-        ironMan,
+        ..._periodAwards(ms, priorMs),
       };
     })
     .reverse();
@@ -14702,24 +14977,27 @@ function _storyShowMore(btn, filter) {
 }
 
 function _buildSeasonModeHtml() {
-  const seasons = computeSeasons(activeMatches());
-  if (!seasons.length)
-    return '<div class="sub" style="padding:8px">No seasons found.</div>';
-  const cards = seasons
+  const buckets = computeSeasons(activeMatches());
+  if (!buckets.length)
+    return '<div class="sub" style="padding:8px">No matches in any season yet.</div>';
+  const cards = buckets
     .map(
       (s) => `
     <div class="season-card" onclick="this.classList.toggle('season-open')">
       <div class="season-card-header">
         <div>
-          <div style="font-size:13px;font-weight:800">${s.monthName}</div>
-          <div style="font-size:9px;color:var(--muted)">${s.matches} matches · ${s.players.length} players</div>
+          <div style="font-size:13px;font-weight:800">${escHtml(s.monthName)}</div>
+          <div style="font-size:9px;color:var(--muted)">${s.rangeLabel ? escHtml(s.rangeLabel) + " · " : ""}${s.matches} matches · ${s.players.length} players</div>
         </div>
         <div style="font-size:11px;color:var(--muted)">▼</div>
       </div>
       <div class="season-card-body">
         ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${s.mvp.name}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw / s.mvp.mp) * 100)}%</div></div></div>` : ""}
         ${s.topPair ? `<div class="season-award"><span class="season-award-icon">🤝</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">TOP PAIR</div><div style="font-size:12px;font-weight:800">${s.topPair.players.join(" & ")}</div><div style="font-size:9px;color:var(--muted)">${s.topPair.wins}W ${s.topPair.played}P ${s.topPair.winPct}%</div></div></div>` : ""}
+        ${s.mostImproved ? `<div class="season-award"><span class="season-award-icon">📈</span><div><div style="font-size:9px;color:var(--green);font-weight:700">MOST IMPROVED</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostImproved.name)}</div></div></div>` : ""}
         ${s.ironMan ? `<div class="season-award"><span class="season-award-icon">💪</span><div><div style="font-size:9px;color:var(--green);font-weight:700">IRON MAN</div><div style="font-size:12px;font-weight:800">${s.ironMan.name}</div><div style="font-size:9px;color:var(--muted)">${s.ironMan.mp} matches</div></div></div>` : ""}
+        ${s.mostConsistent ? `<div class="season-award"><span class="season-award-icon">🎯</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">MOST CONSISTENT</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostConsistent.name)}</div><div style="font-size:9px;color:var(--muted)">${(s.mostConsistent.sd * 100).toFixed(1)}% std dev</div></div></div>` : ""}
+        ${s.mostFeared ? `<div class="season-award"><span class="season-award-icon">👹</span><div><div style="font-size:9px;color:var(--red);font-weight:700">MOST FEARED</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostFeared.name)}</div><div style="font-size:9px;color:var(--muted)">${s.mostFeared.winPct.toFixed(0)}% win rate</div></div></div>` : ""}
         <div style="margin-top:8px;font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">STANDINGS</div>
         ${s.players
           .slice(0, 5)
@@ -15789,7 +16067,11 @@ function renderAnalyticsPage() {
 
   // ── WIN RATE CHART ─────────────────────────────────────
   let winChartHtml =
-    '<div class="sub" style="padding:8px">Need matches across multiple months.</div>';
+    '<div class="sub" style="padding:8px">' +
+    (_activeSeason()
+      ? "This season spans a single month — switch to ALL SEASONS (🗓️ in the menu) to see the multi-month trend."
+      : "Need matches across 2+ months to chart a win-rate trend.") +
+    "</div>";
   if (uniqueMonths.length >= 2) {
     const W = 300,
       H = 110,
@@ -16666,64 +16948,8 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % as partners. — = fewer than 2 games together.</div><div class="pvp-wrap"><div class="pvp-scroll-wrap"><table class="pvp-table"><thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead><tbody>${rows}</tbody></table></div></div></div>`;
   })();
 
-  // ── MONTHLY AWARDS ─────────────────────────────────────
-  const nowDate = new Date();
-  const curMonth = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}`;
-  const _am14 = activeMatches();
-  const monthlyMatchList = _am14.filter((m) =>
-    (m.date || "").startsWith(curMonth),
-  );
-  const monthlyAwardsHtml = (() => {
-    if (monthlyMatchList.length < 2)
-      return '<div class="sub" style="padding:8px">Not enough matches this month.</div>';
-    const moEloNow = computeElo(_am14);
-    const moEloPre = computeElo(
-      _am14.filter((m) => !(m.date || "").startsWith(curMonth)),
-    );
-    const moStats = computeStats(monthlyMatchList);
-    // Most Improved
-    const moGains = moStats
-      .map((p) => ({
-        name: p.name,
-        gain: (moEloNow[p.name] || 1000) - (moEloPre[p.name] || 1000),
-      }))
-      .sort((a, b) => b.gain - a.gain);
-    const mostImproved = moGains[0];
-    // Best Duo of Month
-    const moPairs = getPairStats(monthlyMatchList)
-      .filter((p) => p.played >= 2)
-      .sort((a, b) => b.winPct - a.winPct);
-    const bestDuoMonth = moPairs[0];
-    // Most Consistent: lowest std dev of per-match game%
-    const moConsistency = moStats
-      .filter((p) => p.mp >= 3)
-      .map((p) => {
-        const playerMatches = monthlyMatchList.filter((m) =>
-          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
-        );
-        const gamePcts = playerMatches.map((m) => {
-          const inA = (m.teamA || []).includes(p.name);
-          const gw = inA ? m.scoreA : m.scoreB;
-          const gl = inA ? m.scoreB : m.scoreA;
-          return gw + gl > 0 ? gw / (gw + gl) : 0.5;
-        });
-        const mean = gamePcts.reduce((s, v) => s + v, 0) / gamePcts.length;
-        const sd = Math.sqrt(
-          gamePcts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) /
-            gamePcts.length,
-        );
-        return { name: p.name, sd };
-      })
-      .sort((a, b) => a.sd - b.sd);
-    const mostConsistent = moConsistency[0];
-    // Most Feared: highest win% with ≥3 matches
-    const mostFeared = moStats
-      .filter((p) => p.mp >= 3)
-      .sort((a, b) => b.winPct - a.winPct)[0];
-    // Most Active
-    const mostActiveMo = moStats.sort((a, b) => b.mp - a.mp)[0];
-    return `<div class="awards-grid">${scard("📈", "Most Improved", mostImproved?.name, mostImproved ? `+${mostImproved.gain} ELO this month` : "—")}${scard("🤝", "Best Duo", bestDuoMonth ? bestDuoMonth.key : null, bestDuoMonth ? `${bestDuoMonth.winPct}% · ${bestDuoMonth.played}g` : "Need ≥2 games")}${scard("🎯", "Most Consistent", mostConsistent?.name, mostConsistent ? `${(mostConsistent.sd * 100).toFixed(1)}% std dev` : "Need ≥3 matches")}${scard("👹", "Most Feared", mostFeared?.name, mostFeared ? `${mostFeared.winPct.toFixed(0)}% win rate` : "Need ≥3 matches")}${scard("🔁", "Most Active", mostActiveMo?.name, mostActiveMo ? `${mostActiveMo.mp} matches this month` : "—")}</div>`;
-  })();
+  // (The former "Monthly Awards" section is now unified into the per-period
+  // "Season Awards" / "Monthly Recap" cards — see computeSeasons/_periodAwards.)
 
   // ── PERSONAL BESTS ─────────────────────────────────────
   const personalBestsHtml = (() => {
@@ -17898,16 +18124,15 @@ function renderAnalyticsPage() {
       title: "💎 Quality Wins",
       body: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
     },
-    ...(uniqueMonths.length >= 2
-      ? [
-          {
-            key: "winrate",
-            cat: "activity",
-            title: "📈 Win Rate Over Time",
-            body: `<div class="ana-card">${winChartHtml}</div>`,
-          },
-        ]
-      : []),
+    {
+      // Always present — winChartHtml carries a helpful note when the active
+      // data spans fewer than 2 months (e.g. a single-month season) instead of
+      // the whole section silently disappearing.
+      key: "winrate",
+      cat: "activity",
+      title: "📈 Win Rate Over Time",
+      body: `<div class="ana-card">${winChartHtml}</div>`,
+    },
     {
       key: "score",
       cat: "activity",
@@ -18003,12 +18228,6 @@ function renderAnalyticsPage() {
       cat: "pairs",
       title: "🧪 Pair Chemistry Matrix",
       body: pairMatrixHtml,
-    },
-    {
-      key: "monthlyawards",
-      cat: "records",
-      title: "🏆 Monthly Awards",
-      body: monthlyAwardsHtml,
     },
     {
       key: "personalbests",
@@ -18115,7 +18334,9 @@ function renderAnalyticsPage() {
     {
       key: "seasonmode",
       cat: "records",
-      title: "🏆 Season Mode",
+      // Driven by user-defined Seasons when any exist, else auto monthly buckets.
+      // (Distinct from the separate "Monthly Awards" section above.)
+      title: seasons.length ? "🏆 Season Awards" : "📅 Monthly Recap",
       body: _buildSeasonModeHtml(),
     },
     {
@@ -18583,6 +18804,14 @@ Object.assign(window, {
   americanoRegenerate,
   americanoNextRound,
   americanoBack,
+  openSeasonSheet,
+  closeSeasonSheet,
+  setSeason,
+  setSeasonAuto,
+  openSeasonEditor,
+  closeSeasonEditor,
+  saveSeasonFromEditor,
+  deleteSeasonFromEditor,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -20643,6 +20872,160 @@ function closeAmericano() {
   document
     .getElementById("americano-sheet")
     ?.classList.remove("live-sheet-open");
+}
+
+// ── SEASONS UI ─────────────────────────────────────────────
+function _genSeasonId() {
+  return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+// Human label for a season's range, e.g. "1 Jan 2026 → 31 Mar 2026" / "… → now".
+function _seasonRangeLabel(s) {
+  const from = s.start ? fmtDate(s.start) : "start";
+  const to = s.end ? fmtDate(s.end) : "now";
+  return `${from} → ${to}`;
+}
+// Update the hamburger button label to reflect the active season.
+function updateSeasonHamburgerUI() {
+  const btn = document.getElementById("season-hmenu-btn");
+  if (!btn) return;
+  const s = _activeSeason();
+  btn.textContent = `🗓️ SEASON: ${s ? s.name : "All"}`;
+}
+function openSeasonSheet() {
+  _seasonShowList();
+  _renderSeasonList();
+  const autoT = document.getElementById("season-auto-toggle");
+  if (autoT) autoT.checked = _isAutoSeasonEnabled();
+  document.getElementById("season-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("season-sheet")?.classList.add("live-sheet-open");
+}
+function closeSeasonSheet() {
+  document
+    .getElementById("season-overlay")
+    ?.classList.remove("live-sheet-open");
+  document.getElementById("season-sheet")?.classList.remove("live-sheet-open");
+}
+function _seasonShowList() {
+  document.getElementById("season-list-view").style.display = "";
+  document.getElementById("season-edit-view").style.display = "none";
+}
+// Render the ALL SEASONS option + one row per season. Admin sees edit pencils
+// and the NEW SEASON button; everyone can tap a row to switch the view.
+function _renderSeasonList() {
+  const list = document.getElementById("season-list");
+  if (!list) return;
+  const admin = !!window.isAdmin;
+  const rowAll = `
+    <button class="season-row${_activeSeasonId === "all" ? " active" : ""}" onclick="setSeason('all')">
+      <span class="season-row-radio"></span>
+      <span class="season-row-main">
+        <span class="season-row-name">All Seasons</span>
+        <span class="season-row-meta">${allMatches.length} match${allMatches.length !== 1 ? "es" : ""} · no date filter</span>
+      </span>
+    </button>`;
+  const rows = seasons
+    .map((s) => {
+      const active = _activeSeasonId === s.id;
+      const cnt = _seasonMatchCount(s);
+      return `
+    <div class="season-row${active ? " active" : ""}" onclick="setSeason(${jsArg(s.id)})">
+      <span class="season-row-radio"></span>
+      <span class="season-row-main">
+        <span class="season-row-name">${escHtml(s.name)}</span>
+        <span class="season-row-meta">${_seasonRangeLabel(s)} · ${cnt} match${cnt !== 1 ? "es" : ""}</span>
+      </span>
+      ${admin ? `<button class="season-row-edit" title="Edit" onclick="event.stopPropagation();openSeasonEditor(${jsArg(s.id)})">✏️</button>` : ""}
+    </div>`;
+    })
+    .join("");
+  list.innerHTML =
+    rowAll +
+    rows +
+    (!seasons.length && !admin
+      ? `<div style="padding:18px 4px;text-align:center;color:var(--text-muted);font-size:12px">No seasons defined yet.</div>`
+      : "");
+  const adminActions = document.getElementById("season-admin-actions");
+  if (adminActions) adminActions.style.display = admin ? "" : "none";
+}
+// Open the add/edit form. No id = new season.
+function openSeasonEditor(id) {
+  const s = id ? seasons.find((x) => x.id === id) : null;
+  document.getElementById("season-edit-id").value = s ? s.id : "";
+  document.getElementById("season-edit-name").value = s ? s.name : "";
+  document.getElementById("season-edit-start").value = s ? s.start || "" : "";
+  document.getElementById("season-edit-end").value = s ? s.end || "" : "";
+  document.getElementById("season-delete-btn").style.display = s ? "" : "none";
+  document.getElementById("season-list-view").style.display = "none";
+  document.getElementById("season-edit-view").style.display = "";
+}
+function closeSeasonEditor() {
+  _seasonShowList();
+  _renderSeasonList();
+}
+// Persist the editor form into the seasons list + cloud.
+function saveSeasonFromEditor() {
+  if (!window.isAdmin) {
+    showToast("Admin only", "🔒");
+    return;
+  }
+  const id = document.getElementById("season-edit-id").value;
+  const name = document.getElementById("season-edit-name").value.trim();
+  const start = document.getElementById("season-edit-start").value;
+  const end = document.getElementById("season-edit-end").value;
+  if (!name) {
+    showToast("Name required", "⚠️");
+    return;
+  }
+  if (!start) {
+    showToast("Start date required", "⚠️");
+    return;
+  }
+  if (end && end < start) {
+    showToast("End is before start", "⚠️");
+    return;
+  }
+  if (id) {
+    const s = seasons.find((x) => x.id === id);
+    if (s) {
+      s.name = name;
+      s.start = start;
+      s.end = end || null;
+    }
+  } else {
+    seasons.push({ id: _genSeasonId(), name, start, end: end || null });
+  }
+  // Newest first by start date.
+  seasons.sort((a, b) => (b.start || "").localeCompare(a.start || ""));
+  _persistSeasons();
+  saveCloudData();
+  // If the edited season is the active one, the range may have changed → re-render.
+  if (_activeSeasonId === id) commit();
+  closeSeasonEditor();
+  updateSeasonHamburgerUI();
+  showToast(id ? "Season updated" : "Season added", "🗓️");
+}
+function deleteSeasonFromEditor() {
+  if (!window.isAdmin) return;
+  const id = document.getElementById("season-edit-id").value;
+  if (!id) return;
+  const s = seasons.find((x) => x.id === id);
+  if (!confirm(`Delete season "${s ? s.name : ""}"? Matches are not affected.`))
+    return;
+  seasons = seasons.filter((x) => x.id !== id);
+  const wasActive = _activeSeasonId === id;
+  if (wasActive) _activeSeasonId = "all";
+  _persistSeasons();
+  saveCloudData();
+  if (wasActive) commit();
+  closeSeasonEditor();
+  updateSeasonHamburgerUI();
+  showToast("Season deleted", "🗑");
+}
+function _persistSeasons() {
+  try {
+    localStorage.setItem("padel_seasons", JSON.stringify(seasons));
+    localStorage.setItem("padel_active_season", _activeSeasonId);
+  } catch (e) {}
 }
 function _americanoShowSetup() {
   document.getElementById("americano-setup").style.display = "";

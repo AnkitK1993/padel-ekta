@@ -347,6 +347,195 @@ async function main() {
       "Expected submitted match line to be cleared after add",
     );
 
+    // ── SEASONS: global date-range scoping ──────────────────
+    // Admin creates a season whose range contains none of the seeded matches,
+    // selects it (home empties out — the empty-state render is synchronous),
+    // then switches back to ALL SEASONS (home repopulates via the async card
+    // cascade) — proving the activeMatches() season filter is global.
+    const seasonPick = await evaluate(client, `(() => {
+      window.isAdmin = true;
+      openSeasonSheet();
+      openSeasonEditor();
+      document.getElementById("season-edit-name").value = "Empty Range";
+      document.getElementById("season-edit-start").value = "2020-01-01";
+      document.getElementById("season-edit-end").value = "2020-12-31";
+      saveSeasonFromEditor();
+      const list = JSON.parse(localStorage.getItem("padel_seasons") || "[]");
+      const sid = list[0] && list[0].id;
+      setSeason(sid); renderHome();
+      return {
+        len: list.length,
+        sid,
+        emptyCount: document.querySelectorAll("#board .pc").length,
+        hamLabel: document.getElementById("season-hmenu-btn").textContent,
+        activeLs: localStorage.getItem("padel_active_season"),
+      };
+    })()`);
+    assert(seasonPick.len === 1, "Expected one persisted season");
+    assert(
+      seasonPick.emptyCount === 0,
+      `Expected empty-range season to clear the leaderboard, got ${seasonPick.emptyCount}`,
+    );
+    assert(
+      seasonPick.hamLabel.includes("Empty Range"),
+      "Expected hamburger label to reflect the active season",
+    );
+    assert(
+      seasonPick.activeLs === seasonPick.sid,
+      "Expected active season id persisted to localStorage",
+    );
+
+    await evaluate(client, `setSeason("all"); renderHome();`);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#board .pc").length >= 4`,
+      "ALL SEASONS restores the full leaderboard",
+    );
+
+    // Entering a populated season must reset the "today"-defaulted Compact &
+    // History sub-filters to "all", so the whole season range is shown (not an
+    // empty "today" view). Seeded matches are all in May 2026.
+    const reset = await evaluate(client, `(() => {
+      window.isAdmin = true;
+      // Force the sub-filters to "today" first (would render empty for the season).
+      const cmpSel = document.getElementById("cmpSel");
+      if (cmpSel) { cmpSel.value = "today"; onCmpFilter(); }
+      setHistoryDateFilter("today");
+      openSeasonSheet();
+      openSeasonEditor();
+      document.getElementById("season-edit-name").value = "May 2026";
+      document.getElementById("season-edit-start").value = "2026-05-01";
+      document.getElementById("season-edit-end").value = "2026-05-31";
+      saveSeasonFromEditor();
+      const may = JSON.parse(localStorage.getItem("padel_seasons") || "[]")
+        .find(s => s.name === "May 2026");
+      setSeason(may.id);
+      const closed = (() => { closeSeasonSheet(); return true; })();
+      return {
+        cmpVal: document.getElementById("cmpSel").value,
+        histVal: document.getElementById("histDateFilter").value,
+      };
+    })()`);
+    assert(
+      reset.cmpVal === "all",
+      `Expected Compact filter reset to "all" on season select, got "${reset.cmpVal}"`,
+    );
+    assert(
+      reset.histVal === "all",
+      `Expected History filter reset to "all" on season select, got "${reset.histVal}"`,
+    );
+
+    await evaluate(client, `setSeason("all"); closeSeasonSheet();`);
+
+    // #6 memo correctness: an exclusion toggle changes the active-match set
+    // WITHOUT bumping _dataVersion, so the activeMatches() memo must invalidate
+    // off its exclusion key. Puneet is in every seeded match → excluding him
+    // empties the Summary table; re-including restores it. (renderCompact fills
+    // the populated table via an async cascade, so each step uses waitFor.)
+    await evaluate(client, `switchMainTab("compact", true);`);
+    await evaluate(client, `
+      const sel = document.getElementById("cmpSel");
+      if (sel) { sel.value = "all"; onCmpFilter(); }
+    `);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#cmpBody tr").length >= 4`,
+      "Summary populated before exclusion",
+    );
+    await evaluate(client, `toggleExcludePlayer("Puneet");`);
+    await waitFor(
+      client,
+      `document.querySelector("#cmpBody td[colspan]") !== null`,
+      "exclusion empties the Summary table (memo invalidated)",
+    );
+    await evaluate(client, `toggleExcludePlayer("Puneet");`);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#cmpBody tr").length >= 4`,
+      "re-including restores the Summary table (memo invalidated)",
+    );
+
+    // #5: auto-select jumps to the ongoing season (range contains today). Start
+    // it TODAY so it's unambiguously the latest-starting ongoing season (wins
+    // ties over the earlier "May 2026" season regardless of the VM clock).
+    const auto = await evaluate(client, `(() => {
+      window.isAdmin = true;
+      const today = new Date().toISOString().slice(0, 10);
+      openSeasonSheet();
+      openSeasonEditor();
+      document.getElementById("season-edit-name").value = "Ongoing";
+      document.getElementById("season-edit-start").value = today;
+      document.getElementById("season-edit-end").value = "";
+      saveSeasonFromEditor();
+      const ongoing = JSON.parse(localStorage.getItem("padel_seasons") || "[]")
+        .find(s => s.name === "Ongoing");
+      setSeasonAuto(true);
+      const out = {
+        autoLs: localStorage.getItem("padel_season_auto"),
+        activeLs: localStorage.getItem("padel_active_season"),
+        label: document.getElementById("season-hmenu-btn").textContent,
+        ongoingId: ongoing && ongoing.id,
+      };
+      // cleanup: disable auto, back to ALL
+      setSeasonAuto(false);
+      setSeason("all");
+      try { localStorage.removeItem("padel_season_auto"); } catch (e) {}
+      closeSeasonSheet();
+      return out;
+    })()`);
+    assert(auto.autoLs === "1", "Expected auto-season preference persisted");
+    assert(
+      auto.label.includes("Ongoing"),
+      `Expected auto-select to jump to the ongoing season, label was "${auto.label}"`,
+    );
+    assert(
+      auto.activeLs === auto.ongoingId,
+      "Expected active season to equal the ongoing season id",
+    );
+
+    // #2: with user-defined Seasons present, the analytics award section is
+    // titled "Season Awards" and bucketed by those seasons (the seeded May
+    // matches land in the "May 2026" season card), not auto monthly buckets.
+    await evaluate(client, `switchMainTab("home", true);`);
+    await evaluate(client, `switchMainTab("analytics", true);`);
+    await waitFor(
+      client,
+      `document.getElementById("analytics-page-content")?.innerHTML.includes("Season Awards")`,
+      "Analytics shows 'Season Awards' (driven by manual seasons)",
+    );
+    const awards = await evaluate(client, `(() => {
+      const html = document.getElementById("analytics-page-content").innerHTML;
+      return {
+        hasMay: html.includes("May 2026"),
+        hasRecap: html.includes("Monthly Recap"),
+        hasOldMonthly: html.includes("Monthly Awards"),
+        hasFeared: html.includes("MOST FEARED"),
+        hasWinRate: html.includes("Win Rate Over Time"),
+      };
+    })()`);
+    // Seeded data is a single month, so this section used to be omitted; it must
+    // now always render (with a helpful note) so users can always find it.
+    assert(
+      awards.hasWinRate,
+      "Expected 'Win Rate Over Time' section to render even with one month of data",
+    );
+    assert(
+      awards.hasMay,
+      "Expected a 'May 2026' season card in Season Awards",
+    );
+    assert(
+      !awards.hasRecap,
+      "Expected the auto 'Monthly Recap' fallback to be replaced by Season Awards",
+    );
+    assert(
+      !awards.hasOldMonthly,
+      "Expected the standalone 'Monthly Awards' section to be removed (unified)",
+    );
+    assert(
+      awards.hasFeared,
+      "Expected merged awards (e.g. MOST FEARED) inside the season card",
+    );
+
     const errors = browserErrors(client.events);
     assert(
       errors.length === 0,
@@ -354,7 +543,7 @@ async function main() {
     );
 
     console.log(
-      "Browser smoke passed: offline startup, tab switching, lazy Analytics/Live, add-match flow.",
+      "Browser smoke passed: offline startup, tab switching, lazy Analytics/Live, add-match flow, seasons filter.",
     );
   } finally {
     if (client) client.close();
