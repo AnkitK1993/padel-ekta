@@ -1407,7 +1407,14 @@ Puneet - Pun, PK
         <div class="live-sheet-title">🗓️ SEASONS</div>
         <!-- LIST VIEW -->
         <div id="season-list-view">
-          <div id="season-list" style="padding:0 14px;max-height:56vh;overflow-y:auto"></div>
+          <div id="season-list" style="padding:0 14px;max-height:52vh;overflow-y:auto"></div>
+          <label class="season-auto-row">
+            <span>Auto-select current season on launch</span>
+            <span class="hmenu-toggle">
+              <input type="checkbox" id="season-auto-toggle" onchange="setSeasonAuto(this.checked)">
+              <span class="hmenu-toggle-slider"></span>
+            </span>
+          </label>
           <div id="season-admin-actions" style="padding:10px 14px 4px;display:none">
             <button class="tb-btn tb-btn-balance" onclick="openSeasonEditor()" style="width:100%">➕ NEW SEASON</button>
           </div>

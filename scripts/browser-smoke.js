@@ -427,6 +427,95 @@ async function main() {
 
     await evaluate(client, `setSeason("all"); closeSeasonSheet();`);
 
+    // #6 memo correctness: an exclusion toggle changes the active-match set
+    // WITHOUT bumping _dataVersion, so the activeMatches() memo must invalidate
+    // off its exclusion key. Puneet is in every seeded match → excluding him
+    // empties the Summary table; re-including restores it. (renderCompact fills
+    // the populated table via an async cascade, so each step uses waitFor.)
+    await evaluate(client, `switchMainTab("compact", true);`);
+    await evaluate(client, `
+      const sel = document.getElementById("cmpSel");
+      if (sel) { sel.value = "all"; onCmpFilter(); }
+    `);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#cmpBody tr").length >= 4`,
+      "Summary populated before exclusion",
+    );
+    await evaluate(client, `toggleExcludePlayer("Puneet");`);
+    await waitFor(
+      client,
+      `document.querySelector("#cmpBody td[colspan]") !== null`,
+      "exclusion empties the Summary table (memo invalidated)",
+    );
+    await evaluate(client, `toggleExcludePlayer("Puneet");`);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#cmpBody tr").length >= 4`,
+      "re-including restores the Summary table (memo invalidated)",
+    );
+
+    // #5: auto-select jumps to the ongoing season (range contains today). Start
+    // it TODAY so it's unambiguously the latest-starting ongoing season (wins
+    // ties over the earlier "May 2026" season regardless of the VM clock).
+    const auto = await evaluate(client, `(() => {
+      window.isAdmin = true;
+      const today = new Date().toISOString().slice(0, 10);
+      openSeasonSheet();
+      openSeasonEditor();
+      document.getElementById("season-edit-name").value = "Ongoing";
+      document.getElementById("season-edit-start").value = today;
+      document.getElementById("season-edit-end").value = "";
+      saveSeasonFromEditor();
+      const ongoing = JSON.parse(localStorage.getItem("padel_seasons") || "[]")
+        .find(s => s.name === "Ongoing");
+      setSeasonAuto(true);
+      const out = {
+        autoLs: localStorage.getItem("padel_season_auto"),
+        activeLs: localStorage.getItem("padel_active_season"),
+        label: document.getElementById("season-hmenu-btn").textContent,
+        ongoingId: ongoing && ongoing.id,
+      };
+      // cleanup: disable auto, back to ALL
+      setSeasonAuto(false);
+      setSeason("all");
+      try { localStorage.removeItem("padel_season_auto"); } catch (e) {}
+      closeSeasonSheet();
+      return out;
+    })()`);
+    assert(auto.autoLs === "1", "Expected auto-season preference persisted");
+    assert(
+      auto.label.includes("Ongoing"),
+      `Expected auto-select to jump to the ongoing season, label was "${auto.label}"`,
+    );
+    assert(
+      auto.activeLs === auto.ongoingId,
+      "Expected active season to equal the ongoing season id",
+    );
+
+    // #2: with user-defined Seasons present, the analytics award section is
+    // titled "Season Awards" and bucketed by those seasons (the seeded May
+    // matches land in the "May 2026" season card), not auto monthly buckets.
+    await evaluate(client, `switchMainTab("home", true);`);
+    await evaluate(client, `switchMainTab("analytics", true);`);
+    await waitFor(
+      client,
+      `document.getElementById("analytics-page-content")?.innerHTML.includes("Season Awards")`,
+      "Analytics shows 'Season Awards' (driven by manual seasons)",
+    );
+    const awards = await evaluate(client, `(() => {
+      const html = document.getElementById("analytics-page-content").innerHTML;
+      return { hasMay: html.includes("May 2026"), hasRecap: html.includes("Monthly Recap") };
+    })()`);
+    assert(
+      awards.hasMay,
+      "Expected a 'May 2026' season card in Season Awards",
+    );
+    assert(
+      !awards.hasRecap,
+      "Expected the auto 'Monthly Recap' fallback to be replaced by Season Awards",
+    );
+
     const errors = browserErrors(client.events);
     assert(
       errors.length === 0,
