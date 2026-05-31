@@ -99,6 +99,7 @@ async function _maybeBackup() {
       players,
       playerAliasMap,
       nextPlayerId,
+      seasons,
     });
     localStorage.setItem("padel_last_backup", today);
   } catch (e) {}
@@ -729,6 +730,18 @@ let aliasMap = {};
 let players = {}; // { [id]: { id, name, email, image, isGuest } }
 let playerAliasMap = {}; // { [id]: [alias1, alias2, ...] }
 let nextPlayerId = 1;
+// ── SEASONS ────────────────────────────────────────────────
+// User-defined date ranges. Each: { id, name, start:"YYYY-MM-DD", end:"YYYY-MM-DD"|null }.
+// `seasons` is shared config (persisted in the cloud doc alongside matches).
+// `_activeSeasonId` is a per-device VIEW preference ("all" = no filter) kept in
+// localStorage — selecting one globally scopes every analytical surface (home,
+// compact, history, analytics, ELO, XP, stats) to that range via activeMatches().
+let seasons = [];
+let _activeSeasonId = "all";
+try {
+  _activeSeasonId = localStorage.getItem("padel_active_season") || "all";
+  seasons = JSON.parse(localStorage.getItem("padel_seasons") || "[]") || [];
+} catch (e) {}
 let _dataVersion = 0;
 let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
@@ -1116,6 +1129,7 @@ async function saveCloudData() {
     players,
     playerAliasMap,
     nextPlayerId,
+    seasons,
   };
   if (window.appCache)
     window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
@@ -1161,6 +1175,7 @@ async function _trySyncNow() {
     players,
     playerAliasMap,
     nextPlayerId,
+    seasons,
   };
   try {
     _lastLocalSaveTime = Date.now();
@@ -1202,6 +1217,7 @@ function _resubscribeFirestore() {
       (snap) => {
         if (!snap.exists()) return;
         const d = snap.data();
+        _ingestSeasons(d.seasons);
         let pls, pam, npid;
         if (
           d.players &&
@@ -1735,6 +1751,7 @@ function loadCloudData() {
           return;
         }
         const d = snap.data();
+        _ingestSeasons(d.seasons);
         const { pls, pam, npid } = extractPlayerData(d);
         onData(d.matches || [], pls, pam, npid);
       },
@@ -1822,6 +1839,7 @@ onAuthStateChanged(auth, (user) => {
 });
 
 function updateAdminUI(user) {
+  updateSeasonHamburgerUI();
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle)
     scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
@@ -2767,16 +2785,77 @@ function sheetAvSm(name) {
   return `<div style="width:24px;height:24px;border-radius:50%;background:${playerColor(name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${playerInitials(name)}</div>`;
 }
 
+// ── SEASON HELPERS ─────────────────────────────────────────
+// The currently-selected season object, or null when "ALL SEASONS".
+function _activeSeason() {
+  if (!_activeSeasonId || _activeSeasonId === "all") return null;
+  return seasons.find((s) => s.id === _activeSeasonId) || null;
+}
+// True when `dateStr` (YYYY-MM-DD) falls inside the season's range. An empty
+// end means open-ended (ongoing). Inclusive on both bounds.
+function _inSeason(s, dateStr) {
+  const d = dateStr || "";
+  if (!d) return false;
+  if (s.start && d < s.start) return false;
+  if (s.end && d > s.end) return false;
+  return true;
+}
+// Count matches in a season range (ignores guest exclusion — raw range size).
+function _seasonMatchCount(s) {
+  if (!s) return allMatches.length;
+  let n = 0;
+  for (const m of allMatches) if (_inSeason(s, m.date)) n++;
+  return n;
+}
+// Switch the active season (id, or "all"). Persists the view preference and
+// re-renders everything via the standard commit() path (bumps _dataVersion,
+// invalidates the ELO memo, re-renders the active page; other pages re-render
+// lazily on their next navigation through the version gates).
+function setSeason(id) {
+  _activeSeasonId = id || "all";
+  try {
+    localStorage.setItem("padel_active_season", _activeSeasonId);
+  } catch (e) {}
+  commit();
+  // Analytics isn't covered by renderActivePage(); refresh it if it's showing.
+  if (document.querySelector(".page.active")?.id === "pg-analytics")
+    renderAnalyticsFeature();
+  updateSeasonHamburgerUI();
+  // If the picker is open, move the active highlight without closing it.
+  if (
+    document
+      .getElementById("season-sheet")
+      ?.classList.contains("live-sheet-open")
+  )
+    _renderSeasonList();
+}
+// Replace the in-memory season list from a cloud/cache payload and mirror to
+// localStorage so the next cold boot has it instantly (before Firestore resolves).
+function _ingestSeasons(arr) {
+  if (!Array.isArray(arr)) return;
+  seasons = arr;
+  try {
+    localStorage.setItem("padel_seasons", JSON.stringify(seasons));
+  } catch (e) {}
+  // If the selected season was deleted elsewhere, fall back to ALL.
+  if (_activeSeasonId !== "all" && !seasons.some((s) => s.id === _activeSeasonId))
+    _activeSeasonId = "all";
+}
+
 // ── GUEST FILTER ────────────────────────────────────────────
 function activeMatches() {
+  // Season scope first (global view filter), then the guest/excluded filter.
+  let base = allMatches;
+  const s = _activeSeason();
+  if (s) base = base.filter((m) => _inSeason(s, m.date));
   const excluded = new Set([
     ...Object.values(players)
       .filter((p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name))
       .map((p) => p.name),
     ..._excludedPlayers,
   ]);
-  if (!excluded.size) return allMatches;
-  return allMatches.filter(
+  if (!excluded.size) return base;
+  return base.filter(
     (m) =>
       ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
   );
@@ -18583,6 +18662,13 @@ Object.assign(window, {
   americanoRegenerate,
   americanoNextRound,
   americanoBack,
+  openSeasonSheet,
+  closeSeasonSheet,
+  setSeason,
+  openSeasonEditor,
+  closeSeasonEditor,
+  saveSeasonFromEditor,
+  deleteSeasonFromEditor,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -20643,6 +20729,158 @@ function closeAmericano() {
   document
     .getElementById("americano-sheet")
     ?.classList.remove("live-sheet-open");
+}
+
+// ── SEASONS UI ─────────────────────────────────────────────
+function _genSeasonId() {
+  return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+// Human label for a season's range, e.g. "1 Jan 2026 → 31 Mar 2026" / "… → now".
+function _seasonRangeLabel(s) {
+  const from = s.start ? fmtDate(s.start) : "start";
+  const to = s.end ? fmtDate(s.end) : "now";
+  return `${from} → ${to}`;
+}
+// Update the hamburger button label to reflect the active season.
+function updateSeasonHamburgerUI() {
+  const btn = document.getElementById("season-hmenu-btn");
+  if (!btn) return;
+  const s = _activeSeason();
+  btn.textContent = `🗓️ SEASON: ${s ? s.name : "All"}`;
+}
+function openSeasonSheet() {
+  _seasonShowList();
+  _renderSeasonList();
+  document.getElementById("season-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("season-sheet")?.classList.add("live-sheet-open");
+}
+function closeSeasonSheet() {
+  document
+    .getElementById("season-overlay")
+    ?.classList.remove("live-sheet-open");
+  document.getElementById("season-sheet")?.classList.remove("live-sheet-open");
+}
+function _seasonShowList() {
+  document.getElementById("season-list-view").style.display = "";
+  document.getElementById("season-edit-view").style.display = "none";
+}
+// Render the ALL SEASONS option + one row per season. Admin sees edit pencils
+// and the NEW SEASON button; everyone can tap a row to switch the view.
+function _renderSeasonList() {
+  const list = document.getElementById("season-list");
+  if (!list) return;
+  const admin = !!window.isAdmin;
+  const rowAll = `
+    <button class="season-row${_activeSeasonId === "all" ? " active" : ""}" onclick="setSeason('all')">
+      <span class="season-row-radio"></span>
+      <span class="season-row-main">
+        <span class="season-row-name">All Seasons</span>
+        <span class="season-row-meta">${allMatches.length} match${allMatches.length !== 1 ? "es" : ""} · no date filter</span>
+      </span>
+    </button>`;
+  const rows = seasons
+    .map((s) => {
+      const active = _activeSeasonId === s.id;
+      const cnt = _seasonMatchCount(s);
+      return `
+    <div class="season-row${active ? " active" : ""}" onclick="setSeason(${jsArg(s.id)})">
+      <span class="season-row-radio"></span>
+      <span class="season-row-main">
+        <span class="season-row-name">${escHtml(s.name)}</span>
+        <span class="season-row-meta">${_seasonRangeLabel(s)} · ${cnt} match${cnt !== 1 ? "es" : ""}</span>
+      </span>
+      ${admin ? `<button class="season-row-edit" title="Edit" onclick="event.stopPropagation();openSeasonEditor(${jsArg(s.id)})">✏️</button>` : ""}
+    </div>`;
+    })
+    .join("");
+  list.innerHTML =
+    rowAll +
+    rows +
+    (!seasons.length && !admin
+      ? `<div style="padding:18px 4px;text-align:center;color:var(--text-muted);font-size:12px">No seasons defined yet.</div>`
+      : "");
+  const adminActions = document.getElementById("season-admin-actions");
+  if (adminActions) adminActions.style.display = admin ? "" : "none";
+}
+// Open the add/edit form. No id = new season.
+function openSeasonEditor(id) {
+  const s = id ? seasons.find((x) => x.id === id) : null;
+  document.getElementById("season-edit-id").value = s ? s.id : "";
+  document.getElementById("season-edit-name").value = s ? s.name : "";
+  document.getElementById("season-edit-start").value = s ? s.start || "" : "";
+  document.getElementById("season-edit-end").value = s ? s.end || "" : "";
+  document.getElementById("season-delete-btn").style.display = s ? "" : "none";
+  document.getElementById("season-list-view").style.display = "none";
+  document.getElementById("season-edit-view").style.display = "";
+}
+function closeSeasonEditor() {
+  _seasonShowList();
+  _renderSeasonList();
+}
+// Persist the editor form into the seasons list + cloud.
+function saveSeasonFromEditor() {
+  if (!window.isAdmin) {
+    showToast("Admin only", "🔒");
+    return;
+  }
+  const id = document.getElementById("season-edit-id").value;
+  const name = document.getElementById("season-edit-name").value.trim();
+  const start = document.getElementById("season-edit-start").value;
+  const end = document.getElementById("season-edit-end").value;
+  if (!name) {
+    showToast("Name required", "⚠️");
+    return;
+  }
+  if (!start) {
+    showToast("Start date required", "⚠️");
+    return;
+  }
+  if (end && end < start) {
+    showToast("End is before start", "⚠️");
+    return;
+  }
+  if (id) {
+    const s = seasons.find((x) => x.id === id);
+    if (s) {
+      s.name = name;
+      s.start = start;
+      s.end = end || null;
+    }
+  } else {
+    seasons.push({ id: _genSeasonId(), name, start, end: end || null });
+  }
+  // Newest first by start date.
+  seasons.sort((a, b) => (b.start || "").localeCompare(a.start || ""));
+  _persistSeasons();
+  saveCloudData();
+  // If the edited season is the active one, the range may have changed → re-render.
+  if (_activeSeasonId === id) commit();
+  closeSeasonEditor();
+  updateSeasonHamburgerUI();
+  showToast(id ? "Season updated" : "Season added", "🗓️");
+}
+function deleteSeasonFromEditor() {
+  if (!window.isAdmin) return;
+  const id = document.getElementById("season-edit-id").value;
+  if (!id) return;
+  const s = seasons.find((x) => x.id === id);
+  if (!confirm(`Delete season "${s ? s.name : ""}"? Matches are not affected.`))
+    return;
+  seasons = seasons.filter((x) => x.id !== id);
+  const wasActive = _activeSeasonId === id;
+  if (wasActive) _activeSeasonId = "all";
+  _persistSeasons();
+  saveCloudData();
+  if (wasActive) commit();
+  closeSeasonEditor();
+  updateSeasonHamburgerUI();
+  showToast("Season deleted", "🗑");
+}
+function _persistSeasons() {
+  try {
+    localStorage.setItem("padel_seasons", JSON.stringify(seasons));
+    localStorage.setItem("padel_active_season", _activeSeasonId);
+  } catch (e) {}
 }
 function _americanoShowSetup() {
   document.getElementById("americano-setup").style.display = "";

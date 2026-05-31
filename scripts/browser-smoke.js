@@ -347,6 +347,52 @@ async function main() {
       "Expected submitted match line to be cleared after add",
     );
 
+    // ── SEASONS: global date-range scoping ──────────────────
+    // Admin creates a season whose range contains none of the seeded matches,
+    // selects it (home empties out — the empty-state render is synchronous),
+    // then switches back to ALL SEASONS (home repopulates via the async card
+    // cascade) — proving the activeMatches() season filter is global.
+    const seasonPick = await evaluate(client, `(() => {
+      window.isAdmin = true;
+      openSeasonSheet();
+      openSeasonEditor();
+      document.getElementById("season-edit-name").value = "Empty Range";
+      document.getElementById("season-edit-start").value = "2020-01-01";
+      document.getElementById("season-edit-end").value = "2020-12-31";
+      saveSeasonFromEditor();
+      const list = JSON.parse(localStorage.getItem("padel_seasons") || "[]");
+      const sid = list[0] && list[0].id;
+      setSeason(sid); renderHome();
+      return {
+        len: list.length,
+        sid,
+        emptyCount: document.querySelectorAll("#board .pc").length,
+        hamLabel: document.getElementById("season-hmenu-btn").textContent,
+        activeLs: localStorage.getItem("padel_active_season"),
+      };
+    })()`);
+    assert(seasonPick.len === 1, "Expected one persisted season");
+    assert(
+      seasonPick.emptyCount === 0,
+      `Expected empty-range season to clear the leaderboard, got ${seasonPick.emptyCount}`,
+    );
+    assert(
+      seasonPick.hamLabel.includes("Empty Range"),
+      "Expected hamburger label to reflect the active season",
+    );
+    assert(
+      seasonPick.activeLs === seasonPick.sid,
+      "Expected active season id persisted to localStorage",
+    );
+
+    await evaluate(client, `setSeason("all"); renderHome();`);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#board .pc").length >= 4`,
+      "ALL SEASONS restores the full leaderboard",
+    );
+    await evaluate(client, `closeSeasonSheet();`);
+
     const errors = browserErrors(client.events);
     assert(
       errors.length === 0,
@@ -354,7 +400,7 @@ async function main() {
     );
 
     console.log(
-      "Browser smoke passed: offline startup, tab switching, lazy Analytics/Live, add-match flow.",
+      "Browser smoke passed: offline startup, tab switching, lazy Analytics/Live, add-match flow, seasons filter.",
     );
   } finally {
     if (client) client.close();

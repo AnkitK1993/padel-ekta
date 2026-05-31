@@ -171,6 +171,16 @@
               🎲 AMERICANO
             </button>
           </div>
+          <div class="hmenu-divider"></div>
+          <div class="hmenu-item hmenu-item--full">
+            <button
+              id="season-hmenu-btn"
+              onclick="openSeasonSheet();closeHamburgerMenu()"
+              class="hmenu-action-btn hmenu-action-btn--full"
+            >
+              🗓️ SEASON: All
+            </button>
+          </div>
         </div>
 
         <!-- Pull-to-refresh indicator -->
@@ -1386,6 +1396,43 @@ Puneet - Pun, PK
           <button class="tb-btn tb-btn-none" onclick="americanoBack()">↩ EDIT</button>
           <button id="am-reshuffle-btn" class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄 RESHUFFLE</button>
           <button id="am-next-btn" class="tb-btn tb-btn-balance" onclick="americanoNextRound()" style="flex:1;display:none">NEXT ROUND →</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
+      <!-- Seasons -->
+      <div class="live-sheet-overlay" id="season-overlay" onclick="closeSeasonSheet()"></div>
+      <div class="live-sheet" id="season-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">🗓️ SEASONS</div>
+        <!-- LIST VIEW -->
+        <div id="season-list-view">
+          <div id="season-list" style="padding:0 14px;max-height:56vh;overflow-y:auto"></div>
+          <div id="season-admin-actions" style="padding:10px 14px 4px;display:none">
+            <button class="tb-btn tb-btn-balance" onclick="openSeasonEditor()" style="width:100%">➕ NEW SEASON</button>
+          </div>
+        </div>
+        <!-- EDIT VIEW -->
+        <div id="season-edit-view" style="display:none;padding:4px 14px">
+          <input type="hidden" id="season-edit-id" />
+          <label class="season-field-label">Name</label>
+          <input id="season-edit-name" type="text" placeholder="e.g. Winter 2026" autocomplete="off" class="season-input" />
+          <div style="display:flex;gap:10px">
+            <div style="flex:1">
+              <label class="season-field-label">Start</label>
+              <input id="season-edit-start" type="date" class="season-input" />
+            </div>
+            <div style="flex:1">
+              <label class="season-field-label">End <span style="opacity:.6;font-weight:400">(optional)</span></label>
+              <input id="season-edit-end" type="date" class="season-input" />
+            </div>
+          </div>
+          <div class="season-edit-hint">Leave <b>End</b> blank for an ongoing season.</div>
+          <div style="display:flex;gap:8px;padding-top:10px">
+            <button class="tb-btn tb-btn-none" onclick="closeSeasonEditor()">← BACK</button>
+            <button id="season-delete-btn" class="tb-btn season-del-btn" onclick="deleteSeasonFromEditor()" style="display:none">🗑 DELETE</button>
+            <button class="tb-btn tb-btn-balance" onclick="saveSeasonFromEditor()" style="flex:1">💾 SAVE</button>
+          </div>
         </div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
