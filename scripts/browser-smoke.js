@@ -505,7 +505,12 @@ async function main() {
     );
     const awards = await evaluate(client, `(() => {
       const html = document.getElementById("analytics-page-content").innerHTML;
-      return { hasMay: html.includes("May 2026"), hasRecap: html.includes("Monthly Recap") };
+      return {
+        hasMay: html.includes("May 2026"),
+        hasRecap: html.includes("Monthly Recap"),
+        hasOldMonthly: html.includes("Monthly Awards"),
+        hasFeared: html.includes("MOST FEARED"),
+      };
     })()`);
     assert(
       awards.hasMay,
@@ -514,6 +519,14 @@ async function main() {
     assert(
       !awards.hasRecap,
       "Expected the auto 'Monthly Recap' fallback to be replaced by Season Awards",
+    );
+    assert(
+      !awards.hasOldMonthly,
+      "Expected the standalone 'Monthly Awards' section to be removed (unified)",
+    );
+    assert(
+      awards.hasFeared,
+      "Expected merged awards (e.g. MOST FEARED) inside the season card",
     );
 
     const errors = browserErrors(client.events);

@@ -12698,47 +12698,83 @@ function computeAchievements(name, matches) {
 }
 
 // ── SEASON AWARDS ─────────────────────────────────────────────
-// Bucket the (already season/guest-scoped) matches by each user-defined Season,
-// producing the same award shape as the monthly buckets so the renderer is
-// shared. Empty seasons are dropped; newest-starting season first.
+// Award set for one period (a month or a user-defined season). `priorMs` is the
+// matches before the period start, used for the Most-Improved ELO delta. This is
+// the single source for the per-period cards — it folds in the awards that used
+// to live in the separate "Monthly Awards" section (Most Consistent, Most Feared)
+// so the two are unified into one section.
+function _periodAwards(ms, priorMs) {
+  const eloMap = computeElo(ms);
+  const stats = computeStats(ms, eloMap).filter((p) => p.mp >= 2);
+  const pairs = getPairStats(ms).filter((p) => p.played >= 2);
+  const mvp = stats[0] || null;
+  const topPair = pairs[0] || null;
+  const ironMan = stats.length
+    ? [...stats].sort((a, b) => b.mp - a.mp)[0]
+    : null;
+  const priorEloMap =
+    priorMs && priorMs.length && stats.length > 1 ? computeElo(priorMs) : null;
+  const mostImproved = priorEloMap
+    ? [...stats].sort(
+        (a, b) =>
+          (eloMap[b.name] || 1000) -
+          (priorEloMap[b.name] || 1000) -
+          ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000)),
+      )[0]
+    : null;
+  // Most Consistent (≥3 matches): lowest std-dev of per-match game share.
+  const mostConsistent =
+    stats
+      .filter((p) => p.mp >= 3)
+      .map((p) => {
+        const pm = ms.filter((m) =>
+          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
+        );
+        const gp = pm.map((m) => {
+          const inA = (m.teamA || []).includes(p.name);
+          const gw = inA ? m.scoreA : m.scoreB;
+          const gl = inA ? m.scoreB : m.scoreA;
+          return gw + gl > 0 ? gw / (gw + gl) : 0.5;
+        });
+        const mean = gp.reduce((s, v) => s + v, 0) / gp.length;
+        const sd = Math.sqrt(
+          gp.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / gp.length,
+        );
+        return { name: p.name, sd };
+      })
+      .sort((a, b) => a.sd - b.sd)[0] || null;
+  // Most Feared (≥3 matches): highest win rate.
+  const mostFeared =
+    stats.filter((p) => p.mp >= 3).sort((a, b) => b.winPct - a.winPct)[0] ||
+    null;
+  return {
+    players: stats,
+    pairs,
+    mvp,
+    topPair,
+    ironMan,
+    mostImproved,
+    mostConsistent,
+    mostFeared,
+  };
+}
+// Bucket the (already season/guest-scoped) matches by each user-defined Season.
+// Empty seasons are dropped; newest-starting season first.
 function _computeManualSeasonAwards(matches) {
   return seasons
     .map((season) => {
       const ms = matches.filter((m) => _inSeason(season, m.date));
       if (!ms.length) return null;
-      const eloMap = computeElo(ms);
-      const stats = computeStats(ms, eloMap).filter((p) => p.mp >= 2);
-      const pairs = getPairStats(ms).filter((p) => p.played >= 2);
-      const mvp = stats[0] || null;
-      const topPair = pairs[0] || null;
-      const ironMan = stats.length
-        ? [...stats].sort((a, b) => b.mp - a.mp)[0]
-        : null;
-      // Most improved: ELO gain vs each player's standing just before the season.
-      const priorEloMap =
-        season.start && stats.length > 1
-          ? computeElo(matches.filter((m) => (m.date || "") < season.start))
-          : null;
-      const mostImproved = priorEloMap
-        ? [...stats].sort(
-            (a, b) =>
-              (eloMap[b.name] || 1000) -
-              (priorEloMap[b.name] || 1000) -
-              ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000)),
-          )[0]
-        : null;
+      const priorMs = season.start
+        ? matches.filter((m) => (m.date || "") < season.start)
+        : [];
       return {
         month: season.id,
         monthName: season.name,
         rangeLabel: _seasonRangeLabel(season),
         start: season.start || "",
         matches: ms.length,
-        players: stats,
-        pairs,
-        mvp,
-        topPair,
-        mostImproved,
-        ironMan,
+        ..._periodAwards(ms, priorMs),
       };
     })
     .filter(Boolean)
@@ -12762,26 +12798,7 @@ function computeSeasons(matches) {
   });
   return Object.entries(byMonth)
     .map(([month, ms]) => {
-      const eloMap = computeElo(ms);
-      const stats = computeStats(ms, eloMap).filter((p) => p.mp >= 2);
-      const pairs = getPairStats(ms).filter((p) => p.played >= 2);
-      const mvp = stats[0] || null;
-      const topPair = pairs[0] || null;
-      const priorEloMap =
-        stats.length > 1
-          ? computeElo(sorted.filter((m) => (m.date || "") < month + "-01"))
-          : null;
-      const mostImproved = priorEloMap
-        ? [...stats].sort(
-            (a, b) =>
-              (eloMap[b.name] || 1000) -
-              (priorEloMap[b.name] || 1000) -
-              ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000)),
-          )[0]
-        : null;
-      const ironMan = stats.length
-        ? [...stats].sort((a, b) => b.mp - a.mp)[0]
-        : null;
+      const priorMs = sorted.filter((m) => (m.date || "") < month + "-01");
       const [yr, mo] = month.split("-");
       const monthName = new Date(+yr, +mo - 1, 1).toLocaleString("default", {
         month: "long",
@@ -12791,12 +12808,7 @@ function computeSeasons(matches) {
         month,
         monthName,
         matches: ms.length,
-        players: stats,
-        pairs,
-        mvp,
-        topPair,
-        mostImproved,
-        ironMan,
+        ..._periodAwards(ms, priorMs),
       };
     })
     .reverse();
@@ -14982,7 +14994,10 @@ function _buildSeasonModeHtml() {
       <div class="season-card-body">
         ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${s.mvp.name}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw / s.mvp.mp) * 100)}%</div></div></div>` : ""}
         ${s.topPair ? `<div class="season-award"><span class="season-award-icon">🤝</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">TOP PAIR</div><div style="font-size:12px;font-weight:800">${s.topPair.players.join(" & ")}</div><div style="font-size:9px;color:var(--muted)">${s.topPair.wins}W ${s.topPair.played}P ${s.topPair.winPct}%</div></div></div>` : ""}
+        ${s.mostImproved ? `<div class="season-award"><span class="season-award-icon">📈</span><div><div style="font-size:9px;color:var(--green);font-weight:700">MOST IMPROVED</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostImproved.name)}</div></div></div>` : ""}
         ${s.ironMan ? `<div class="season-award"><span class="season-award-icon">💪</span><div><div style="font-size:9px;color:var(--green);font-weight:700">IRON MAN</div><div style="font-size:12px;font-weight:800">${s.ironMan.name}</div><div style="font-size:9px;color:var(--muted)">${s.ironMan.mp} matches</div></div></div>` : ""}
+        ${s.mostConsistent ? `<div class="season-award"><span class="season-award-icon">🎯</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">MOST CONSISTENT</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostConsistent.name)}</div><div style="font-size:9px;color:var(--muted)">${(s.mostConsistent.sd * 100).toFixed(1)}% std dev</div></div></div>` : ""}
+        ${s.mostFeared ? `<div class="season-award"><span class="season-award-icon">👹</span><div><div style="font-size:9px;color:var(--red);font-weight:700">MOST FEARED</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostFeared.name)}</div><div style="font-size:9px;color:var(--muted)">${s.mostFeared.winPct.toFixed(0)}% win rate</div></div></div>` : ""}
         <div style="margin-top:8px;font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">STANDINGS</div>
         ${s.players
           .slice(0, 5)
@@ -16929,64 +16944,8 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % as partners. — = fewer than 2 games together.</div><div class="pvp-wrap"><div class="pvp-scroll-wrap"><table class="pvp-table"><thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead><tbody>${rows}</tbody></table></div></div></div>`;
   })();
 
-  // ── MONTHLY AWARDS ─────────────────────────────────────
-  const nowDate = new Date();
-  const curMonth = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}`;
-  const _am14 = activeMatches();
-  const monthlyMatchList = _am14.filter((m) =>
-    (m.date || "").startsWith(curMonth),
-  );
-  const monthlyAwardsHtml = (() => {
-    if (monthlyMatchList.length < 2)
-      return '<div class="sub" style="padding:8px">Not enough matches this month.</div>';
-    const moEloNow = computeElo(_am14);
-    const moEloPre = computeElo(
-      _am14.filter((m) => !(m.date || "").startsWith(curMonth)),
-    );
-    const moStats = computeStats(monthlyMatchList);
-    // Most Improved
-    const moGains = moStats
-      .map((p) => ({
-        name: p.name,
-        gain: (moEloNow[p.name] || 1000) - (moEloPre[p.name] || 1000),
-      }))
-      .sort((a, b) => b.gain - a.gain);
-    const mostImproved = moGains[0];
-    // Best Duo of Month
-    const moPairs = getPairStats(monthlyMatchList)
-      .filter((p) => p.played >= 2)
-      .sort((a, b) => b.winPct - a.winPct);
-    const bestDuoMonth = moPairs[0];
-    // Most Consistent: lowest std dev of per-match game%
-    const moConsistency = moStats
-      .filter((p) => p.mp >= 3)
-      .map((p) => {
-        const playerMatches = monthlyMatchList.filter((m) =>
-          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
-        );
-        const gamePcts = playerMatches.map((m) => {
-          const inA = (m.teamA || []).includes(p.name);
-          const gw = inA ? m.scoreA : m.scoreB;
-          const gl = inA ? m.scoreB : m.scoreA;
-          return gw + gl > 0 ? gw / (gw + gl) : 0.5;
-        });
-        const mean = gamePcts.reduce((s, v) => s + v, 0) / gamePcts.length;
-        const sd = Math.sqrt(
-          gamePcts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) /
-            gamePcts.length,
-        );
-        return { name: p.name, sd };
-      })
-      .sort((a, b) => a.sd - b.sd);
-    const mostConsistent = moConsistency[0];
-    // Most Feared: highest win% with ≥3 matches
-    const mostFeared = moStats
-      .filter((p) => p.mp >= 3)
-      .sort((a, b) => b.winPct - a.winPct)[0];
-    // Most Active
-    const mostActiveMo = moStats.sort((a, b) => b.mp - a.mp)[0];
-    return `<div class="awards-grid">${scard("📈", "Most Improved", mostImproved?.name, mostImproved ? `+${mostImproved.gain} ELO this month` : "—")}${scard("🤝", "Best Duo", bestDuoMonth ? bestDuoMonth.key : null, bestDuoMonth ? `${bestDuoMonth.winPct}% · ${bestDuoMonth.played}g` : "Need ≥2 games")}${scard("🎯", "Most Consistent", mostConsistent?.name, mostConsistent ? `${(mostConsistent.sd * 100).toFixed(1)}% std dev` : "Need ≥3 matches")}${scard("👹", "Most Feared", mostFeared?.name, mostFeared ? `${mostFeared.winPct.toFixed(0)}% win rate` : "Need ≥3 matches")}${scard("🔁", "Most Active", mostActiveMo?.name, mostActiveMo ? `${mostActiveMo.mp} matches this month` : "—")}</div>`;
-  })();
+  // (The former "Monthly Awards" section is now unified into the per-period
+  // "Season Awards" / "Monthly Recap" cards — see computeSeasons/_periodAwards.)
 
   // ── PERSONAL BESTS ─────────────────────────────────────
   const personalBestsHtml = (() => {
@@ -18266,12 +18225,6 @@ function renderAnalyticsPage() {
       cat: "pairs",
       title: "🧪 Pair Chemistry Matrix",
       body: pairMatrixHtml,
-    },
-    {
-      key: "monthlyawards",
-      cat: "records",
-      title: "🏆 Monthly Awards",
-      body: monthlyAwardsHtml,
     },
     {
       key: "personalbests",
