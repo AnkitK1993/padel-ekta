@@ -803,10 +803,10 @@ const _CMP_TOGGLE_COLS = [
 ];
 function _loadCmpHiddenCols() {
   try {
-    const s = localStorage.getItem("padel_cmp_hidden_cols_v2");
+    const s = localStorage.getItem("padel_cmp_hidden_cols_v3");
     if (s) return new Set(JSON.parse(s));
   } catch (e) {}
-  return new Set(["gw", "gl", "gamePct"]);
+  return new Set([]);
 }
 let _cmpHiddenCols = _loadCmpHiddenCols();
 let _eloTLPlayer = "";
@@ -4197,7 +4197,7 @@ function _renderColChips() {
 function showAllCmpCols() {
   _cmpHiddenCols.clear();
   try {
-    localStorage.setItem("padel_cmp_hidden_cols_v2", JSON.stringify([]));
+    localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([]));
   } catch (e) {}
   _applyCmpColClasses();
   _renderColChips();
@@ -4207,7 +4207,7 @@ function toggleCmpCol(key) {
   else _cmpHiddenCols.add(key);
   try {
     localStorage.setItem(
-      "padel_cmp_hidden_cols_v2",
+      "padel_cmp_hidden_cols_v3",
       JSON.stringify([..._cmpHiddenCols]),
     );
   } catch (e) {}
