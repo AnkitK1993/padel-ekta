@@ -442,32 +442,23 @@ async function main() {
       `document.querySelectorAll("#cmpBody tr").length >= 4`,
       "Summary populated before exclusion",
     );
-    // Frozen-column layout: rank+player pinned left, SR pinned right, stats
-    // scroll between them (table sizes to content instead of squishing).
+    // All-columns-fit layout: table is 100% width, no horizontal scroll,
+    // no sticky columns. Table width must not exceed its container.
     const frozen = await evaluate(client, `(() => {
       const body = document.querySelector("#cmpBody");
       const firstRow = body && body.querySelector("tr");
       const cells = firstRow ? firstRow.querySelectorAll("td") : [];
       const cs = (el) => el ? getComputedStyle(el) : null;
-      const player = cells[1], sr = cells[cells.length - 1];
       const scroll = document.querySelector("#pg-compact .cmp-scroll");
       const table = document.querySelector("#pg-compact table.cmp");
       return {
-        playerPos: player ? cs(player).position : "",
-        playerLeft: player ? cs(player).left : "",
-        srPos: sr ? cs(sr).position : "",
-        srRight: sr ? cs(sr).right : "",
         scrollX: scroll ? cs(scroll).overflowX : "",
         cellCount: cells.length,
-        // table allowed to exceed its container rather than being crushed
-        canScroll: table && scroll ? table.scrollWidth >= scroll.clientWidth : false,
+        noOverflow: table && scroll ? table.scrollWidth <= scroll.clientWidth + 2 : false,
       };
     })()`);
-    assert(frozen.playerPos === "sticky", `Expected player column sticky, got ${frozen.playerPos}`);
-    assert(frozen.playerLeft === "30px", `Expected player column pinned at 30px, got ${frozen.playerLeft}`);
-    assert(frozen.srPos === "sticky", `Expected SR column sticky, got ${frozen.srPos}`);
-    assert(frozen.srRight === "0px", `Expected SR column pinned right, got ${frozen.srRight}`);
-    assert(frozen.scrollX === "auto", `Expected .cmp-scroll horizontally scrollable, got ${frozen.scrollX}`);
+    assert(frozen.scrollX === "hidden", `Expected .cmp-scroll overflow-x hidden, got "${frozen.scrollX}"`);
+    assert(frozen.noOverflow, "Expected table to fit within its container (no overflow)");
 
     await evaluate(client, `toggleExcludePlayer("Puneet");`);
     await waitFor(
