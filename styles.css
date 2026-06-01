@@ -17294,15 +17294,17 @@ body.smooth-mode [style*="animation-delay"] {
   display: none !important;
 }
 
-/* Summary page: always center content and cap at 680px.
-   On mobile (≤390px) max-width has no effect since the screen is already narrower.
-   On desktop the table+matches section stays in a clean centered column. */
-#pg-compact {
-  align-items: center !important;
-}
-#pg-compact .page-body-scroll {
-  max-width: 680px !important;
-  width: 100% !important;
+/* Desktop detection via pointer precision — fires on mouse devices (laptop/PC)
+   but NOT on touch phones (pointer:coarse). Width-based breakpoints fail when
+   the browser window happens to be narrow, this does not. */
+@media (hover: hover) and (pointer: fine) {
+  #pg-compact {
+    align-items: center !important;
+  }
+  #pg-compact .page-body-scroll {
+    max-width: 680px !important;
+    width: 100% !important;
+  }
 }
 
 .cmp-scroll { overflow-x: hidden !important; }
