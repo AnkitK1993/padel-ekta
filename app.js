@@ -3528,26 +3528,54 @@ function previewMatchImport() {
     return;
   }
   const { parsed, errors } = parseBlock(raw);
-  const duplicates = parsed.filter((m) =>
-    allMatches.some((old) => sameMatch(old, m)),
-  );
   const dupPlayers = parsed.filter(
     (m) =>
       new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length,
   );
+
+  // Count-based: same logic as addMatches() so preview matches actual behaviour
+  const _mk = (m) =>
+    `${m.date}|${[...(m.teamA||[])].sort()}|${[...(m.teamB||[])].sort()}|${m.scoreA}-${m.scoreB}`;
+  const dbCounts = new Map();
+  allMatches.forEach((m) => { const k=_mk(m); dbCounts.set(k,(dbCounts.get(k)||0)+1); });
+  const seenCounts = new Map();
+  let silentSkipCount = 0, askCount = 0;
+
   const rows = parsed.slice(0, 5).map((m) => {
-    const dup = allMatches.some((old) => sameMatch(old, m));
-    const badP =
-      new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
-    const warn = dup || badP;
-    const tag = badP ? " · repeated player!" : dup ? " · duplicate?" : "";
+    const k = _mk(m);
+    const seen = seenCounts.get(k) || 0;
+    seenCounts.set(k, seen + 1);
+    const inDb = dbCounts.get(k) || 0;
+    const badP = new Set([...m.teamA,...m.teamB]).size < m.teamA.length + m.teamB.length;
+    let tag = "", warn = false;
+    if (badP) { tag = " · repeated player!"; warn = true; }
+    else if (seen < inDb) { tag = " · already exists (skip)"; silentSkipCount++; }
+    else if (inDb > 0) { tag = " · exists — will ask"; warn = true; askCount++; }
     return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${warn ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${tag}</strong></div>`;
   });
+  // Finish counting for rows not shown
+  parsed.slice(5).forEach((m) => {
+    const k = _mk(m);
+    const seen = seenCounts.get(k) || 0;
+    seenCounts.set(k, seen + 1);
+    const inDb = dbCounts.get(k) || 0;
+    if (seen < inDb) silentSkipCount++;
+    else if (inDb > 0) askCount++;
+  });
+
+  const newCount = parsed.length - silentSkipCount - askCount - dupPlayers.length;
   box.innerHTML = `
-              <div><strong style="color:var(--text)">${parsed.length}</strong> parsed · <strong class="${errors.length ? "preview-warn" : ""}">${errors.length}</strong> skipped · <strong class="${duplicates.length ? "preview-warn" : ""}">${duplicates.length}</strong> duplicate warning(s)${dupPlayers.length ? ` · <strong class="preview-warn">${dupPlayers.length}</strong> repeated player(s)` : ""}</div>
-              ${rows.join("")}
-              ${parsed.length > 5 ? `<div class="preview-row"><span>+ ${parsed.length - 5} more</span><span></span></div>` : ""}
-            `;
+    <div>
+      <strong style="color:var(--text)">${parsed.length}</strong> parsed ·
+      <strong style="color:var(--green)">${newCount < 0 ? 0 : newCount}</strong> new ·
+      <strong>${silentSkipCount}</strong> existing (skip) ·
+      ${askCount ? `<strong class="preview-warn">${askCount}</strong> will ask ·` : ""}
+      <strong class="${errors.length ? "preview-warn" : ""}">${errors.length}</strong> error(s)
+      ${dupPlayers.length ? `· <strong class="preview-warn">${dupPlayers.length}</strong> repeated player(s)` : ""}
+    </div>
+    ${rows.join("")}
+    ${parsed.length > 5 ? `<div class="preview-row"><span>+ ${parsed.length - 5} more</span><span></span></div>` : ""}
+  `;
   box.classList.add("show");
 }
 
@@ -3587,28 +3615,43 @@ function addMatches() {
     eEl.innerHTML = errParts.join("<br>");
     eEl.classList.add("show");
   }
-  // Split: exact duplicates vs genuinely new
-  const exactDups = parsed.filter((m) =>
-    allMatches.some((old) => sameMatch(old, m)),
-  );
-  const toAdd = parsed.filter(
-    (m) => !allMatches.some((old) => sameMatch(old, m)),
-  );
+  // Count-based duplicate detection.
+  // Key = date + sorted teams + score. If the textarea has ≤N occurrences of a
+  // key already present N times in the DB, those are the prefilled/known entries
+  // and are silently skipped. If the textarea has MORE occurrences than the DB,
+  // the extras are genuinely new — same teams+score on same day → ask per line.
+  const _mk = (m) =>
+    `${m.date}|${[...(m.teamA || [])].sort()}|${[...(m.teamB || [])].sort()}|${m.scoreA}-${m.scoreB}`;
+  const dbCounts = new Map();
+  allMatches.forEach((m) => {
+    const k = _mk(m);
+    dbCounts.set(k, (dbCounts.get(k) || 0) + 1);
+  });
 
-  // Same-day same-teams among the non-exact-dup matches
-  const sameDayDups = toAdd.filter((m) =>
-    allMatches.some(
-      (old) =>
-        old.date === m.date &&
-        [...(old.teamA || [])].sort().join("|") ===
-          [...(m.teamA || [])].sort().join("|") &&
-        [...(old.teamB || [])].sort().join("|") ===
-          [...(m.teamB || [])].sort().join("|"),
-    ),
-  );
+  const seenCounts = new Map();
+  const toAdd = [];
+  const toConfirm = []; // same key already in DB but extra occurrence → ask per-line
+  let skipCount = 0;
+
+  for (const m of parsed) {
+    const k = _mk(m);
+    const seen = seenCounts.get(k) || 0;
+    seenCounts.set(k, seen + 1);
+    const inDb = dbCounts.get(k) || 0;
+    if (seen < inDb) { skipCount++; continue; } // prefilled/dup → silent skip
+    if (inDb > 0) toConfirm.push(m);           // new occurrence of same key → ask
+    else toAdd.push(m);                          // new match (different score or teams) → add
+  }
 
   function _commit(list) {
-    if (!list.length) return;
+    if (!list.length) {
+      if (skipCount) {
+        oEl.textContent = `${skipCount} match${skipCount > 1 ? "es" : ""} already existed — nothing new added.`;
+        oEl.classList.add("show");
+        setTimeout(() => oEl.classList.remove("show"), 3000);
+      }
+      return;
+    }
     const prevSnapshot = [...allMatches];
     lastMatchSnapshot = prevSnapshot;
     let step = [...prevSnapshot];
@@ -3622,48 +3665,26 @@ function addMatches() {
     saveCloudData();
     document.getElementById("matchTA").value = "";
     prefillMatchTADate();
-    oEl.textContent = `Added ${list.length} match${list.length > 1 ? "es" : ""}.`;
+    let msg = `Added ${list.length} match${list.length > 1 ? "es" : ""}.`;
+    if (skipCount) msg += ` (${skipCount} already existed, skipped)`;
+    oEl.textContent = msg;
     oEl.classList.add("show");
     document.getElementById("undoAddBtn").style.display = "block";
     setTimeout(() => oEl.classList.remove("show"), 2500);
     commit();
   }
 
-  // Exact duplicates → prompt (add all parsed if confirmed)
-  if (exactDups.length) {
-    const preview = exactDups
-      .slice(0, 3)
-      .map(
-        (m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`,
-      )
-      .join("\n");
-    const more =
-      exactDups.length > 3 ? `\n…and ${exactDups.length - 3} more` : "";
+  // Process per-line confirmations sequentially, then commit everything.
+  (function _processQueue() {
+    if (!toConfirm.length) { _commit(toAdd); return; }
+    const m = toConfirm.shift();
+    const label = `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} ${m.scoreA}–${m.scoreB} (${m.date})`;
     showDupConfirmSheet(
-      `${exactDups.length} exact duplicate(s) already exist:\n${preview}${more}\nAdd anyway?`,
-      () => _commit(parsed),
+      `This match already exists:\n${label}\nIs this a new genuine match?`,
+      () => { toAdd.push(m); _processQueue(); },  // Yes → include and continue
+      () => { skipCount++; _processQueue(); },     // No  → skip and continue
     );
-    return;
-  }
-
-  // Same-day same-teams → prompt (add non-exact-dups if confirmed)
-  if (sameDayDups.length) {
-    const preview = sameDayDups
-      .slice(0, 3)
-      .map(
-        (m) => `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} (${m.date})`,
-      )
-      .join("\n");
-    const more =
-      sameDayDups.length > 3 ? `\n…and ${sameDayDups.length - 3} more` : "";
-    showDupConfirmSheet(
-      `${sameDayDups.length} match(es) with the same teams already exist on that day:\n${preview}${more}`,
-      () => _commit(toAdd),
-    );
-    return;
-  }
-
-  _commit(toAdd);
+  })();
 }
 
 function undoLastAdd() {
@@ -21922,15 +21943,17 @@ function deletePlayerEntry() {
 window.deletePlayerEntry = deletePlayerEntry;
 
 let _dupConfirmCallback = null;
-function showDupConfirmSheet(msg, onYes) {
+let _dupConfirmCancelCb = null;
+function showDupConfirmSheet(msg, onYes, onNo) {
   _dupConfirmCallback = onYes;
+  _dupConfirmCancelCb = onNo || null;
   const msgEl = document.getElementById("dup-confirm-msg");
   if (msgEl) msgEl.textContent = msg;
   const yesBtn = document.getElementById("dup-confirm-yes");
   if (yesBtn) {
     yesBtn.onclick = () => {
       const cb = _dupConfirmCallback;
-      closeDupConfirmSheet();
+      closeDupConfirmSheet(true); // confirmed=true → skip the onNo callback
       if (typeof cb === "function") cb();
     };
   }
@@ -21941,7 +21964,8 @@ function showDupConfirmSheet(msg, onYes) {
     .getElementById("dup-confirm-sheet")
     ?.classList.add("live-sheet-open");
 }
-function closeDupConfirmSheet() {
+// confirmed=true when user clicked Yes (skip onNo); false/omitted when Cancel/overlay tap
+function closeDupConfirmSheet(confirmed = false) {
   document
     .getElementById("dup-confirm-overlay")
     ?.classList.remove("live-sheet-open");
@@ -21949,6 +21973,9 @@ function closeDupConfirmSheet() {
     .getElementById("dup-confirm-sheet")
     ?.classList.remove("live-sheet-open");
   _dupConfirmCallback = null;
+  const cancelCb = _dupConfirmCancelCb;
+  _dupConfirmCancelCb = null;
+  if (!confirmed && typeof cancelCb === "function") cancelCb();
 }
 window.closeDupConfirmSheet = closeDupConfirmSheet;
 
