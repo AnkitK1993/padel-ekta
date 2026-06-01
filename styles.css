@@ -17292,8 +17292,11 @@ body.smooth-mode [style*="animation-delay"] {
 
 table.cmp {
   width: 100% !important;
+  max-width: 620px !important;
   table-layout: fixed !important;
   min-width: 0 !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 table.cmp th,
 table.cmp td {
