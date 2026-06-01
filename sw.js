@@ -13,6 +13,7 @@ const STATIC = [
   BASE + "elo.js",
   BASE + "stats.js",
   BASE + "parser.js",
+  BASE + "format.js",
   BASE + "americano.js",
   BASE + "manifest.json",
   BASE + "icons/icon.svg",
