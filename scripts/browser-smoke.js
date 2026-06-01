@@ -442,23 +442,39 @@ async function main() {
       `document.querySelectorAll("#cmpBody tr").length >= 4`,
       "Summary populated before exclusion",
     );
-    // All-columns-fit layout: table is 100% width, no horizontal scroll,
-    // no sticky columns. Table width must not exceed its container.
-    const frozen = await evaluate(client, `(() => {
-      const body = document.querySelector("#cmpBody");
-      const firstRow = body && body.querySelector("tr");
-      const cells = firstRow ? firstRow.querySelectorAll("td") : [];
-      const cs = (el) => el ? getComputedStyle(el) : null;
+    // Dynamic column layout: no horizontal scroll, table always fills 100%
+    // width. With all columns shown AND with some hidden, the table must
+    // not overflow its container.
+    const colLayout = await evaluate(client, `(() => {
       const scroll = document.querySelector("#pg-compact .cmp-scroll");
       const table = document.querySelector("#pg-compact table.cmp");
+      const cs = (el) => el ? getComputedStyle(el) : null;
+      const allColsNoOverflow = table && scroll
+        ? table.scrollWidth <= scroll.clientWidth + 2 : false;
+      // Hide a few columns then check again
+      table && table.classList.add("hide-col-mp", "hide-col-gw", "hide-col-gl");
+      const hiddenColsNoOverflow = table && scroll
+        ? table.scrollWidth <= scroll.clientWidth + 2 : false;
+      // Restore
+      table && table.classList.remove("hide-col-mp", "hide-col-gw", "hide-col-gl");
       return {
         scrollX: scroll ? cs(scroll).overflowX : "",
-        cellCount: cells.length,
-        noOverflow: table && scroll ? table.scrollWidth <= scroll.clientWidth + 2 : false,
+        allColsNoOverflow,
+        hiddenColsNoOverflow,
       };
     })()`);
-    assert(frozen.scrollX === "hidden", `Expected .cmp-scroll overflow-x hidden, got "${frozen.scrollX}"`);
-    assert(frozen.noOverflow, "Expected table to fit within its container (no overflow)");
+    assert(
+      colLayout.scrollX === "hidden",
+      `Expected .cmp-scroll overflow-x hidden, got "${colLayout.scrollX}"`,
+    );
+    assert(
+      colLayout.allColsNoOverflow,
+      "Expected table to fit within container with all columns shown",
+    );
+    assert(
+      colLayout.hiddenColsNoOverflow,
+      "Expected table to still fit when some columns are hidden",
+    );
 
     await evaluate(client, `toggleExcludePlayer("Puneet");`);
     await waitFor(
