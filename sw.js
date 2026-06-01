@@ -7,6 +7,7 @@ const STATIC = [
   BASE + "index.html",
   BASE + "styles.css",
   BASE + "app.js",
+  BASE + "state.js",
   BASE + "features/analytics.js",
   BASE + "features/live-session.js",
   BASE + "utils.js",

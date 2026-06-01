@@ -26,6 +26,7 @@ import {
   _rankBg,
 } from "./format.js";
 import { buildHudGaugeSvg } from "./charts.js";
+import { state } from "./state.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
@@ -104,12 +105,12 @@ setTimeout(_flushErrorLog, 3000);
 async function _maybeBackup() {
   try {
     if (!window.isAdmin) return;
-    if (!Array.isArray(allMatches) || !allMatches.length) return;
+    if (!Array.isArray(state.matches) || !state.matches.length) return;
     const today = todayISO();
     if (localStorage.getItem("padel_last_backup") === today) return;
     await setDoc(doc(db, "backups", today), {
       ts: Date.now(),
-      matches: allMatches,
+      matches: state.matches,
       players,
       playerAliasMap,
       nextPlayerId,
@@ -465,7 +466,7 @@ function pickTheme(i) {
 
 // ── ANNIVERSARY TOAST ─────────────────────────────────────
 function _checkAnniversaries() {
-  if (!allMatches || !allMatches.length) return;
+  if (!state.matches || !state.matches.length) return;
   const today = new Date();
   const tMM = String(today.getMonth() + 1).padStart(2, "0");
   const tDD = String(today.getDate()).padStart(2, "0");
@@ -475,7 +476,7 @@ function _checkAnniversaries() {
     seen = sessionStorage.getItem("padel_anniv_shown") || "";
   } catch (e) {}
   const firstSeen = {};
-  for (const m of allMatches) {
+  for (const m of state.matches) {
     if (!m.date) continue;
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
       if (!firstSeen[p] || m.date < firstSeen[p]) firstSeen[p] = m.date;
@@ -557,7 +558,7 @@ function _globalSearchInput(q) {
   if (scoreM) {
     const sA = parseInt(scoreM[1], 10);
     const sB = scoreM[2] !== undefined ? parseInt(scoreM[2], 10) : null;
-    allMatches
+    state.matches
       .filter((m) => {
         if (sB === null) return m.scoreA === sA || m.scoreB === sA;
         return (
@@ -571,7 +572,7 @@ function _globalSearchInput(q) {
         const aWon = m.scoreA > m.scoreB;
         const win = aWon ? m.teamA : m.teamB;
         const lose = aWon ? m.teamB : m.teamA;
-        const idx = allMatches.indexOf(m);
+        const idx = state.matches.indexOf(m);
         out.push(
           `<button class="gs-result" onclick="closeGlobalSearch();openMatchIntro(${idx})">
             <span class="gs-result-score">${m.scoreA}-${m.scoreB}</span>
@@ -585,12 +586,12 @@ function _globalSearchInput(q) {
   const dateM = query.match(/^(\d{4})-?(\d{2})?-?(\d{2})?/);
   if (dateM && !scoreM) {
     const datePrefix = `${dateM[1]}${dateM[2] ? "-" + dateM[2] : ""}${dateM[3] ? "-" + dateM[3] : ""}`;
-    allMatches
+    state.matches
       .filter((m) => (m.date || "").startsWith(datePrefix))
       .slice(-10)
       .reverse()
       .forEach((m) => {
-        const idx = allMatches.indexOf(m);
+        const idx = state.matches.indexOf(m);
         out.push(
           `<button class="gs-result" onclick="closeGlobalSearch();openMatchIntro(${idx})">
             <span class="gs-result-score">${m.scoreA}-${m.scoreB}</span>
@@ -697,7 +698,7 @@ function checkMilestones(prevMatches, newMatches) {
 }
 
 // ── STATE ──────────────────────────────────────────────────
-let allMatches = [];
+// allMatches now lives in shared state.matches (./state.js)
 let nameMap = {};
 let aliasMap = {};
 // Source-of-truth player roster (replaces aliasMap/nameMap as stored data)
@@ -1055,7 +1056,7 @@ function _memoEloLows() {
 
 function _invalidateEloMemo() {
   // Also drop the activeMatches() memo — this is the universal data-change hook,
-  // so any allMatches mutation invalidates the cached filtered array here.
+  // so any state.matches mutation invalidates the cached filtered array here.
   _amMemo = null;
   _eloMemoKey = "";
   _eloMemo = null;
@@ -1147,16 +1148,16 @@ async function saveCloudData() {
   // commit() also bumps for the session-buffered path that skips this write.
   _dataVersion++;
   const payload = {
-    matches: allMatches,
+    matches: state.matches,
     players,
     playerAliasMap,
     nextPlayerId,
     seasons,
   };
   if (window.appCache)
-    window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+    window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
   try {
-    localStorage.setItem("padel_matches", JSON.stringify(allMatches));
+    localStorage.setItem("padel_matches", JSON.stringify(state.matches));
   } catch (e) {}
   if (!navigator.onLine || _forcedOffline) {
     _setPendingSync(true);
@@ -1193,7 +1194,7 @@ async function _trySyncNow() {
     return;
   if (!_hasPendingSync()) return;
   const payload = {
-    matches: allMatches,
+    matches: state.matches,
     players,
     playerAliasMap,
     nextPlayerId,
@@ -1261,10 +1262,10 @@ function _resubscribeFirestore() {
         if (_sessionBuffering && _sessionPendingCount > 0) {
           // Live session: re-attach session-buffered matches
           const cloudKeys = new Set(incoming.map(_mkMatchKey));
-          const pending = allMatches.filter(
+          const pending = state.matches.filter(
             (m) => !cloudKeys.has(_mkMatchKey(m)),
           );
-          allMatches = pending.length
+          state.matches = pending.length
             ? [...incoming, ...pending].sort((a, b) =>
                 (a.date || "").localeCompare(b.date || ""),
               )
@@ -1272,11 +1273,11 @@ function _resubscribeFirestore() {
         } else if (_hadOfflineEdits) {
           // Offline mode: find matches added locally while offline, push merged set to cloud
           const cloudKeys = new Set(incoming.map(_mkMatchKey));
-          const offlineAdditions = allMatches.filter(
+          const offlineAdditions = state.matches.filter(
             (m) => !cloudKeys.has(_mkMatchKey(m)),
           );
           if (offlineAdditions.length > 0) {
-            allMatches = [...incoming, ...offlineAdditions].sort((a, b) =>
+            state.matches = [...incoming, ...offlineAdditions].sort((a, b) =>
               (a.date || "").localeCompare(b.date || ""),
             );
             // Keep local player roster (may have new names added offline)
@@ -1296,10 +1297,10 @@ function _resubscribeFirestore() {
             refreshManage();
             return;
           } else {
-            allMatches = incoming;
+            state.matches = incoming;
           }
         } else {
-          allMatches = incoming;
+          state.matches = incoming;
         }
         players = pls;
         playerAliasMap = pam;
@@ -1427,7 +1428,7 @@ function _showSyncConflict(
   overlay.style.cssText =
     "position:fixed;inset:0;z-index:9992;display:flex;align-items:flex-end;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px)";
 
-  const localCount = allMatches.length;
+  const localCount = state.matches.length;
   const cloudCount = cloudMatches.length;
   const mergeCount = cloudCount + localOnly.length;
 
@@ -1477,14 +1478,14 @@ function _showSyncConflict(
   };
   overlay.querySelector("#sc-local").onclick = () => {
     overlay.remove();
-    resolveFn(allMatches, players, playerAliasMap, nextPlayerId, true);
+    resolveFn(state.matches, players, playerAliasMap, nextPlayerId, true);
     showToast("Keeping local data", "📱");
   };
 }
 
 // ── SESSION STREAK ──────────────────────────────────────────
 function computeSessionStreak() {
-  if (!allMatches.length) return 0;
+  if (!state.matches.length) return 0;
   const getMonday = (dateStr) => {
     const d = new Date(dateStr + "T00:00:00");
     const dow = d.getDay();
@@ -1562,7 +1563,7 @@ function saveWeeklySnap(snap) {
   } catch {}
 }
 function autoSaveWeeklySnap() {
-  if (!allMatches.length) return;
+  if (!state.matches.length) return;
   const now = new Date();
   const dow = now.getDay();
   const monday = new Date(now);
@@ -1649,10 +1650,10 @@ function loadCloudData() {
       !isFirstLoad &&
       !_recentSave &&
       !_sessionBuffering &&
-      allMatches.length > 0
+      state.matches.length > 0
     ) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
-      const localOnly = allMatches.filter(
+      const localOnly = state.matches.filter(
         (m) => !cloudKeys.has(_mkMatchKey(m)),
       );
       if (localOnly.length > 0) {
@@ -1679,14 +1680,14 @@ function loadCloudData() {
     // so Firestore snapshots can't silently erase unsync'd session matches.
     if (_sessionBuffering && _sessionPendingCount > 0) {
       const cloudKeys = new Set(matches.map(_mkMatchKey));
-      const pending = allMatches.filter((m) => !cloudKeys.has(_mkMatchKey(m)));
-      allMatches = pending.length
+      const pending = state.matches.filter((m) => !cloudKeys.has(_mkMatchKey(m)));
+      state.matches = pending.length
         ? [...matches, ...pending].sort((a, b) =>
             (a.date || "").localeCompare(b.date || ""),
           )
         : matches;
     } else {
-      allMatches = matches;
+      state.matches = matches;
     }
     players = pls;
     playerAliasMap = pam;
@@ -1695,7 +1696,7 @@ function loadCloudData() {
     _invalidateEloMemo();
     autoSaveWeeklySnap();
     if (window.appCache)
-      window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+      window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
 
     const _onAddPage = () =>
       document.querySelector(".page.active")?.id === "pg-add";
@@ -1854,7 +1855,7 @@ onAuthStateChanged(auth, (user) => {
     _authInitialFired = true;
     return;
   }
-  if (allMatches.length) {
+  if (state.matches.length) {
     renderHome();
     renderCompact();
   }
@@ -2402,7 +2403,7 @@ function prefillMatchTADate() {
   if (!ta) return;
   // Only prefill if the textarea is completely empty
   if (ta.value.trim() === "") {
-    const todayMatches = allMatches.filter(m => m.date === todayISO());
+    const todayMatches = state.matches.filter(m => m.date === todayISO());
     let text = todayDMYY() + "\n";
     if (todayMatches.length) {
       text += todayMatches.map(matchToEditableLine).join("\n") + "\n";
@@ -2609,9 +2610,9 @@ function _mngDragEnd() {
 }
 
 function refreshManage() {
-  const days = new Set(allMatches.map((m) => m.date)).size;
+  const days = new Set(state.matches.map((m) => m.date)).size;
   document.getElementById("manageInfo").innerHTML =
-    `Matches: <strong>${allMatches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(aliasMap).length}</strong>`;
+    `Matches: <strong>${state.matches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(aliasMap).length}</strong>`;
   renderEmailStatus();
   renderTrash();
   renderEloConfigCard();
@@ -2706,9 +2707,9 @@ function _inSeason(s, dateStr) {
 }
 // Count matches in a season range (ignores guest exclusion — raw range size).
 function _seasonMatchCount(s) {
-  if (!s) return allMatches.length;
+  if (!s) return state.matches.length;
   let n = 0;
-  for (const m of allMatches) if (_inSeason(s, m.date)) n++;
+  for (const m of state.matches) if (_inSeason(s, m.date)) n++;
   return n;
 }
 // ── AUTO-SELECT ONGOING SEASON (per-device) ────────────────
@@ -2857,7 +2858,7 @@ function _ingestSeasons(arr) {
 // Invalidation: _invalidateEloMemo() (called on every data mutation) nulls _amMemo,
 // and the key carries the season id + exclusion set (exclusion toggles re-render
 // without touching _dataVersion / the ELO memo). Callers treat the result as
-// read-only — the no-filter path has always returned the shared `allMatches`.
+// read-only — the no-filter path has always returned the shared `state.matches`.
 function activeMatches() {
   const s = _activeSeason();
   const excludedArr = [
@@ -2868,7 +2869,7 @@ function activeMatches() {
   ];
   const key = `${_dataVersion}|${_activeSeasonId}|${excludedArr.sort().join(",")}`;
   if (_amMemoKey === key && _amMemo) return _amMemo;
-  let base = allMatches;
+  let base = state.matches;
   if (s) base = base.filter((m) => _inSeason(s, m.date));
   let result = base;
   if (excludedArr.length) {
@@ -2916,7 +2917,7 @@ function filterMatches(f, from, to) {
 // ── MOMENTUM BADGE ─────────────────────────────────────────
 function getMomentumBadge(playerName) {
   // Get last 3 matches for this player, in chronological order
-  const playerMatches = allMatches
+  const playerMatches = state.matches
     .filter((m) => m.teamA.includes(playerName) || m.teamB.includes(playerName))
     .slice(-3);
   if (playerMatches.length < 2) return "";
@@ -2967,7 +2968,7 @@ function migrateAliasMapToPlayers(aMap) {
 
 // Compute first/last played date for a display-name player
 function getPlayerDateRange(playerName) {
-  const dates = allMatches
+  const dates = state.matches
     .filter((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].some(
         (p) => normPlayer(p) === playerName,
@@ -3002,7 +3003,7 @@ function sameMatch(a, b) {
 
 function getAllPlayerNamesFromMatches() {
   const names = new Set(Object.values(players).map((p) => p.name));
-  allMatches.forEach((m) => {
+  state.matches.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
       names.add(normPlayer(p)),
     );
@@ -3216,7 +3217,7 @@ function previewMatchImport() {
   const _mk = (m) =>
     `${m.date}|${[...(m.teamA||[])].sort()}|${[...(m.teamB||[])].sort()}|${m.scoreA}-${m.scoreB}`;
   const dbCounts = new Map();
-  allMatches.forEach((m) => { const k=_mk(m); dbCounts.set(k,(dbCounts.get(k)||0)+1); });
+  state.matches.forEach((m) => { const k=_mk(m); dbCounts.set(k,(dbCounts.get(k)||0)+1); });
   const seenCounts = new Map();
   let silentSkipCount = 0, askCount = 0;
 
@@ -3305,7 +3306,7 @@ function addMatches() {
   const _mk = (m) =>
     `${m.date}|${[...(m.teamA || [])].sort()}|${[...(m.teamB || [])].sort()}|${m.scoreA}-${m.scoreB}`;
   const dbCounts = new Map();
-  allMatches.forEach((m) => {
+  state.matches.forEach((m) => {
     const k = _mk(m);
     dbCounts.set(k, (dbCounts.get(k) || 0) + 1);
   });
@@ -3334,7 +3335,7 @@ function addMatches() {
       }
       return;
     }
-    const prevSnapshot = [...allMatches];
+    const prevSnapshot = [...state.matches];
     lastMatchSnapshot = prevSnapshot;
     let step = [...prevSnapshot];
     for (const m of list) {
@@ -3342,7 +3343,7 @@ function addMatches() {
       checkMilestones(step, next);
       step = next;
     }
-    allMatches.push(...list);
+    state.matches.push(...list);
     _lastLocalSaveTime = Date.now();
     saveCloudData();
     document.getElementById("matchTA").value = "";
@@ -3371,7 +3372,7 @@ function addMatches() {
 
 function undoLastAdd() {
   if (!lastMatchSnapshot) return;
-  allMatches = lastMatchSnapshot;
+  state.matches = lastMatchSnapshot;
   lastMatchSnapshot = null;
   saveCloudData();
   commit();
@@ -3600,7 +3601,7 @@ function toggleBatterySaver(on) {
 
 function clearMatches() {
   if (!confirm("Clear all match data?")) return;
-  allMatches = [];
+  state.matches = [];
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
@@ -3621,7 +3622,7 @@ function exportData() {
   navigator.clipboard
     .writeText(
       JSON.stringify(
-        { matches: allMatches, players, playerAliasMap, nextPlayerId },
+        { matches: state.matches, players, playerAliasMap, nextPlayerId },
         null,
         2,
       ),
@@ -3647,7 +3648,7 @@ function exportCSV() {
       "Note",
     ],
   ];
-  allMatches.forEach((m) => {
+  state.matches.forEach((m) => {
     rows.push([
       m.date || "",
       m.teamA[0] || "",
@@ -3690,9 +3691,9 @@ function importData() {
   }
   // Enhancement 22: auto-merge instead of full replace
   const incoming = incomingMatches;
-  const existingKeys = new Set(allMatches.map((m) => _mkMatchKey(m)));
+  const existingKeys = new Set(state.matches.map((m) => _mkMatchKey(m)));
   const newMatches = incoming.filter((m) => !existingKeys.has(_mkMatchKey(m)));
-  const merged = [...allMatches, ...newMatches];
+  const merged = [...state.matches, ...newMatches];
   merged.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (newMatches.length === 0) {
     alert("All matches already exist — nothing new to import.");
@@ -3702,7 +3703,7 @@ function importData() {
     `Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`,
   );
   if (!confirm) return;
-  allMatches = merged;
+  state.matches = merged;
   if (data.players && typeof data.players === "object") {
     players = { ...players, ...data.players };
     playerAliasMap = { ...playerAliasMap, ...(data.playerAliasMap || {}) };
@@ -3799,7 +3800,7 @@ function openExcludeSheet() {
   // Collect all names — guests first (pre-checked), then non-guests
   const guestSorted = [...guestNames].sort((a, b) => a.localeCompare(b));
   const nonGuestNames = new Set();
-  allMatches.forEach((m) =>
+  state.matches.forEach((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
       const n = nameMap[p] || p;
       if (!guestNames.has(n)) nonGuestNames.add(n);
@@ -3965,7 +3966,7 @@ function onCmpFilter() {
 // ── FORM SPARKLINE ─────────────────────────────────────────
 function getFormSparkline(playerName, width = 80, height = 28) {
   // Get all matches involving player, sorted by date
-  const pMatches = allMatches
+  const pMatches = state.matches
     .filter((m) => m.teamA.includes(playerName) || m.teamB.includes(playerName))
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (pMatches.length < 2) return "";
@@ -4463,14 +4464,14 @@ function renderCompact() {
           buildSummaryMatchRow(
             m,
             " card-anim",
-            allMatches.indexOf(m),
+            state.matches.indexOf(m),
             matchEloDeltas,
           ),
         );
       const restRows = reversedMatches
         .slice(animCount)
         .map((m) =>
-          buildSummaryMatchRow(m, "", allMatches.indexOf(m), matchEloDeltas),
+          buildSummaryMatchRow(m, "", state.matches.indexOf(m), matchEloDeltas),
         );
       animRows.forEach((html, i) => {
         setTimeout(
@@ -4517,7 +4518,7 @@ function renderCompact() {
       buildSummaryMatchRow(
         m,
         i < 10 && !_nc ? " card-anim" : "",
-        allMatches.indexOf(m),
+        state.matches.indexOf(m),
         matchEloDeltas,
       ),
     );
@@ -4648,7 +4649,7 @@ function buildCompactMatchRows(matches) {
     return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
   return `<table class="cmp-match-rows"><tbody>${[...matches]
     .reverse()
-    .map((m) => buildMatchRowHtml(m, "", null, allMatches.indexOf(m)))
+    .map((m) => buildMatchRowHtml(m, "", null, state.matches.indexOf(m)))
     .join("")}</tbody></table>`;
 }
 
@@ -4722,7 +4723,7 @@ function buildSummaryMatchRows(matches) {
     return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
   return `<div class="smr-list">${[...matches]
     .reverse()
-    .map((m) => buildSummaryMatchRow(m, "", allMatches.indexOf(m)))
+    .map((m) => buildSummaryMatchRow(m, "", state.matches.indexOf(m)))
     .join("")}</div>`;
 }
 
@@ -4736,7 +4737,7 @@ function buildMatchCards(matches, showAdmin) {
   const _allPairsList = getPairStats(); // all pairs ever formed
   {
     const elo = _finalElo;
-    [...allMatches]
+    [...state.matches]
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
       .forEach((m) => {
         [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
@@ -4820,7 +4821,7 @@ function buildMatchCards(matches, showAdmin) {
 
   // Enhancement 8: pre-compute pair-vs-pair H2H records
   const _pvpMap = {};
-  allMatches.forEach((hm) => {
+  state.matches.forEach((hm) => {
     const pa = (hm.teamA || []).slice().sort().join("&");
     const pb = (hm.teamB || []).slice().sort().join("&");
     if (!pa || !pb) return;
@@ -4844,7 +4845,7 @@ function buildMatchCards(matches, showAdmin) {
       const isZero = isZeroMatch(m);
 
       const bWon = !aWon;
-      const realIdx = allMatches.indexOf(m);
+      const realIdx = state.matches.indexOf(m);
 
       // Event badges — Enhancement 7: title tooltips
       const badges = [];
@@ -4960,12 +4961,12 @@ function filterMatchTab(f) {
 // ── MATCH OF THE DAY + BIGGEST UPSET ──────────────────────
 
 function buildMatchOfTheDay() {
-  if (!allMatches.length) return "";
-  const latestDate = allMatches.reduce(
+  if (!state.matches.length) return "";
+  const latestDate = state.matches.reduce(
     (max, m) => (m.date > max ? m.date : max),
     "",
   );
-  const sessionMatches = allMatches.filter((m) => m.date === latestDate);
+  const sessionMatches = state.matches.filter((m) => m.date === latestDate);
   if (!sessionMatches.length) return "";
 
   // ── MATCH OF THE DAY: closest scoreline, then highest total ──
@@ -5016,7 +5017,7 @@ function buildMatchOfTheDay() {
   const upsetMatchRankMap = new Map(); // match → Map(pairKey → pre-match rank)
   {
     const elo = {};
-    [...allMatches]
+    [...state.matches]
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
       .forEach((m) => {
         [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
@@ -5659,7 +5660,7 @@ function renderModernMatches() {
   const emptyEl = tmpAll.querySelector(".empty");
 
   // Stable keys so re-renders (filter changes) reconcile in place instead of
-  // wiping + re-animating the whole feed. Match cards key on their allMatches
+  // wiping + re-animating the whole feed. Match cards key on their state.matches
   // index (stable across filters); feature cards key on their type.
   featureCards.forEach((el) => {
     const m = el.className.match(/(motd|upset|thriller|pair-stats)-card/);
@@ -5864,7 +5865,7 @@ document.addEventListener("pointermove", (e) => {
 
 function _openMatchQuickActions(idx2, cardEl) {
   document.getElementById("match-quick-sheet")?.remove();
-  const m = allMatches[idx2];
+  const m = state.matches[idx2];
   if (!m) return;
   const sheet = document.createElement("div");
   sheet.id = "match-quick-sheet";
@@ -6377,8 +6378,8 @@ function renderAddMatches() {
     document.getElementById("add-match-search")?.value || ""
   ).toLowerCase();
   let matches = query
-    ? allMatches.filter((m) => JSON.stringify(m).toLowerCase().includes(query))
-    : [...allMatches];
+    ? state.matches.filter((m) => JSON.stringify(m).toLowerCase().includes(query))
+    : [...state.matches];
   const addList = document.getElementById("add-match-list");
   if (!addList) return;
   addList.innerHTML = buildMatchCards(matches, true);
@@ -6390,7 +6391,7 @@ function renderAddMatches() {
 }
 
 function deleteMatchByIndex(i) {
-  const removed = allMatches.splice(i, 1)[0];
+  const removed = state.matches.splice(i, 1)[0];
   if (!removed) return;
   removed.deletedAt = todayISO();
   deletedMatches.unshift(removed);
@@ -6400,7 +6401,7 @@ function deleteMatchByIndex(i) {
   renderTrash();
   showUndoToast("Match deleted", () => {
     deletedMatches.shift();
-    allMatches.splice(i, 0, removed);
+    state.matches.splice(i, 0, removed);
     delete removed.deletedAt;
     saveDeletedMatches();
     saveCloudData();
@@ -6413,7 +6414,7 @@ function restoreMatch(i) {
   const m = deletedMatches.splice(i, 1)[0];
   if (!m) return;
   delete m.deletedAt;
-  allMatches.push(m);
+  state.matches.push(m);
   saveDeletedMatches();
   saveCloudData();
   commit();
@@ -6472,7 +6473,7 @@ function closeMatchEdit() {
 }
 
 function editMatchByIndex(i, btn) {
-  const m = allMatches[i];
+  const m = state.matches[i];
   if (!m) return;
   // If clicking the same card again, toggle closed
   const existing = document.querySelector(
@@ -6544,7 +6545,7 @@ function editMatchByIndex(i, btn) {
 }
 
 function saveMatchEdit(i) {
-  const m = allMatches[i];
+  const m = state.matches[i];
   if (!m) return;
   const date = document.getElementById("edit-match-date")?.value;
   const a1 = document.getElementById("edit-a1")?.value;
@@ -6692,7 +6693,7 @@ function openModernAddModal() {
 }
 
 function quickRematch(idx) {
-  const m = allMatches[idx];
+  const m = state.matches[idx];
   if (!m) return;
   // Swap teams: winners become team B, losers become team A
   const newA = (m.teamB || []).map((p) => nameMap[p] || p);
@@ -6795,11 +6796,11 @@ function saveModernMatch() {
   const candidate = { teamA, teamB, scoreA: sA, scoreB: sB, date };
 
   function _doSave() {
-    const prevSnapshot = [...allMatches];
+    const prevSnapshot = [...state.matches];
     lastMatchSnapshot = prevSnapshot;
     if (note) candidate.note = note;
-    allMatches.push(candidate);
-    checkMilestones(prevSnapshot, allMatches);
+    state.matches.push(candidate);
+    checkMilestones(prevSnapshot, state.matches);
     _lastLocalSaveTime = Date.now();
     saveCloudData();
     mirrorMatchToEditor(candidate);
@@ -6808,12 +6809,12 @@ function saveModernMatch() {
   }
 
   // Exact duplicate
-  if (allMatches.some((old) => sameMatch(old, candidate))) {
+  if (state.matches.some((old) => sameMatch(old, candidate))) {
     showDupConfirmSheet("This match already exists. Add anyway?", _doSave);
     return;
   }
   // Same-day same-teams (different score)
-  const sameDayConflict = allMatches.some(
+  const sameDayConflict = state.matches.some(
     (old) =>
       old.date === candidate.date &&
       [...(old.teamA || [])].sort().join("|") === [...teamA].sort().join("|") &&
@@ -6967,8 +6968,8 @@ function streakCalDayClick(date, playerName) {
       [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
   );
   if (!dayMatches.length) return;
-  // Find first match index in allMatches
-  const idx = allMatches.indexOf(dayMatches[0]);
+  // Find first match index in state.matches
+  const idx = state.matches.indexOf(dayMatches[0]);
   if (idx >= 0) {
     document.getElementById("player-detail-modal")?.remove();
     openMatchIntro(idx);
@@ -7052,7 +7053,7 @@ function openPlayerDetail(name) {
     const formNorm = form ? form.score / 10 : winRateNorm;
     const maxMp = Math.max(...allStats.map((p) => p.mp), 1);
     const actNorm = ps.mp / maxMp;
-    const margins = allMatches
+    const margins = state.matches
       .filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name))
       .map((m) => {
         const inA = (m.teamA || []).includes(name);
@@ -7091,7 +7092,7 @@ function openPlayerDetail(name) {
     const avgForm = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
     const avgAct = _avg((p) => p.mp / maxMp);
     const avgConsist = _avg((p) => {
-      const ms2 = allMatches
+      const ms2 = state.matches
         .filter((m) =>
           [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
         )
@@ -7385,7 +7386,7 @@ function openPlayerDetail(name) {
     : "";
 
   // Shared match list for enhancements 14-16 and recent cards
-  const pdSortedAll14 = [...allMatches].sort((a, b) =>
+  const pdSortedAll14 = [...state.matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
   const pdPlayerMs = pdSortedAll14.filter((m) =>
@@ -7552,7 +7553,7 @@ function openPlayerDetail(name) {
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
   // Best rank: find minimum rank position across all match-date snapshots
-  const _sortedAll = [...allMatches].sort((a, b) =>
+  const _sortedAll = [...state.matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
   const _playerDates = [
@@ -7615,7 +7616,7 @@ function openPlayerDetail(name) {
 
   // ── ELO TIMELINE CHART ─────────────────────────────────
   const eloTimelineHtml = (() => {
-    const sorted = [...allMatches].sort((a, b) =>
+    const sorted = [...state.matches].sort((a, b) =>
       (a.date || "").localeCompare(b.date || ""),
     );
     const playerMs = sorted.filter((m) =>
@@ -7855,7 +7856,7 @@ function openPlayerDetail(name) {
     // Enhancement 15: compute cumulative ELO delta when paired with each partner
     const _eloW15 = {};
     const partnerEloDelta = {};
-    const sortedForElo15 = [...allMatches].sort((a, b) =>
+    const sortedForElo15 = [...state.matches].sort((a, b) =>
       (a.date || "").localeCompare(b.date || ""),
     );
     sortedForElo15.forEach((m) => {
@@ -8521,7 +8522,7 @@ function openH2HDetail(a, b) {
   // ELO walk for per-match deltas
   const h2hDeltaMap = new Map();
   const _e = {};
-  [...allMatches]
+  [...state.matches]
     .sort((x, y) => (x.date || "").localeCompare(y.date || ""))
     .forEach((m) => {
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
@@ -8847,11 +8848,11 @@ function openRivalryScreen(a, b) {
 // 4D: Shareable Match Poster
 function openShareMatchPoster(matchIdx) {
   document.getElementById("share-card-overlay")?.remove();
-  const m = allMatches[matchIdx];
+  const m = state.matches[matchIdx];
   if (!m) return;
   const _amSlice = activeMatches();
-  const _upToIncl = new Set(allMatches.slice(0, matchIdx + 1));
-  const _upToBefore = new Set(allMatches.slice(0, matchIdx));
+  const _upToIncl = new Set(state.matches.slice(0, matchIdx + 1));
+  const _upToBefore = new Set(state.matches.slice(0, matchIdx));
   const eloMap = computeElo(_amSlice.filter((m) => _upToIncl.has(m)));
   const eloMapBefore = computeElo(_amSlice.filter((m) => _upToBefore.has(m)));
   const aWon = m.scoreA > m.scoreB;
@@ -9528,7 +9529,7 @@ function openWeeklyDigest() {
   // Biggest upset
   const runElo2 = {};
   let biggestUpset = null;
-  [...allMatches]
+  [...state.matches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
     .forEach((m) => {
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
@@ -10483,7 +10484,7 @@ function renderH2HDeepDive() {
   // Walk full ELO to capture per-match deltas for this H2H pair
   const h2hDeltaMap = new Map();
   const _e = {};
-  [...allMatches]
+  [...state.matches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
     .forEach((m) => {
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
@@ -13028,7 +13029,7 @@ function renderWhatIfSection(playerName) {
     if (ctrlEl) ctrlEl.style.display = "none";
     return;
   }
-  const playerMatches = allMatches
+  const playerMatches = state.matches
     .map((m, i) => ({ m, i }))
     .filter(({ m }) =>
       [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
@@ -13093,7 +13094,7 @@ function toggleWhatIfFlip(idx) {
 
 function whatIfFlipAllLosses() {
   const eloMap = _memoElo();
-  allMatches.forEach((m, i) => {
+  state.matches.forEach((m, i) => {
     if (!_whatIfToggles.hasOwnProperty(i)) return;
     const inA = (m.teamA || []).includes(_whatIfPlayer);
     const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
@@ -13113,7 +13114,7 @@ function whatIfReset() {
 
 function _refreshWhatIfRows() {
   if (!_whatIfPlayer) return;
-  const playerMatches = allMatches
+  const playerMatches = state.matches
     .map((m, i) => ({ m, i }))
     .filter(({ m }) =>
       [...(m.teamA || []), ...(m.teamB || [])].includes(_whatIfPlayer),
@@ -13125,10 +13126,10 @@ function recomputeWhatIfElo() {
   const resultEl = document.getElementById("whatif-result");
   if (!resultEl || !_whatIfPlayer) return;
   // Build the modified match list
-  const whatIfMatches = allMatches
+  const whatIfMatches = state.matches
     .filter((m, i) => _whatIfToggles[i] !== false)
     .map((m) => {
-      const i = allMatches.indexOf(m);
+      const i = state.matches.indexOf(m);
       if (_whatIfFlips[i]) {
         // Flip: swap scores so the outcome reverses
         return { ...m, scoreA: m.scoreB, scoreB: m.scoreA };
@@ -14710,7 +14711,7 @@ function _buildSeasonModeHtml() {
 
 // ── NEW STATISTICS FEATURES ───────────────────────────────────
 // All read the season/guest-scoped active set (except Season Comparison, which
-// is inherently cross-season and reads allMatches).
+// is inherently cross-season and reads state.matches).
 
 // Everyone's CURRENT win/loss streak, ranked (hot streaks first).
 function _buildStreakLeaderboardHtml() {
@@ -14837,11 +14838,11 @@ function _buildSeasonComparisonHtml() {
     (a.start || "").localeCompare(b.start || ""),
   );
   const perSeason = ordered.map((s) => {
-    const sm = allMatches.filter((m) => _inSeason(s, m.date));
+    const sm = state.matches.filter((m) => _inSeason(s, m.date));
     return { s, elo: computeElo(sm), stats: computeStats(sm) };
   });
   const totals = {};
-  allMatches.forEach((m) =>
+  state.matches.forEach((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].forEach(
       (p) => (totals[p] = (totals[p] || 0) + 1),
     ),
@@ -14974,7 +14975,7 @@ let _replayIdx = 0,
   _replayPrevRanks = {};
 
 function _replaySorted() {
-  return [...allMatches].sort((a, b) =>
+  return [...state.matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
 }
@@ -15477,7 +15478,7 @@ function renderAnalyticsPage() {
     container.querySelector(".ana-sec")
   )
     return;
-  if (!allMatches.length) {
+  if (!state.matches.length) {
     container.innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
     return;
@@ -15497,7 +15498,7 @@ function renderAnalyticsPage() {
   const closeWins = {},
     closePlayed = {};
 
-  const sortedM = [...allMatches].sort((a, b) =>
+  const sortedM = [...state.matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
 
@@ -15779,7 +15780,7 @@ function renderAnalyticsPage() {
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
   const eloMapFull = _memoElo();
   const qualityWins = {};
-  allMatches.forEach((m) => {
+  state.matches.forEach((m) => {
     const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
     const losers = m.scoreA > m.scoreB ? m.teamB : m.teamA;
     const loserAvgElo =
@@ -15803,7 +15804,7 @@ function renderAnalyticsPage() {
   // Hardest single win = match with highest combined opponent ELO
   let _hardestWinMatch = null,
     _hardestCombinedElo = 0;
-  allMatches.forEach((m) => {
+  state.matches.forEach((m) => {
     const _aw = m.scoreA > m.scoreB;
     const _losers2 = _aw ? m.teamB : m.teamA;
     const _combElo = _losers2.reduce((s, p) => s + (eloMapFull[p] || 1000), 0);
@@ -16168,7 +16169,7 @@ function renderAnalyticsPage() {
     const statsBar = `<div class="hm-stats-row">
       <div class="hm-stat"><div class="hm-stat-val">${totalSessions}</div><div class="hm-stat-lbl">Session Days</div></div>
       <div class="hm-stat-div"></div>
-      <div class="hm-stat"><div class="hm-stat-val">${allMatches.length}</div><div class="hm-stat-lbl">Total Matches</div></div>
+      <div class="hm-stat"><div class="hm-stat-val">${state.matches.length}</div><div class="hm-stat-lbl">Total Matches</div></div>
       <div class="hm-stat-div"></div>
       <div class="hm-stat"><div class="hm-stat-val">${busiestMonthLabel}</div><div class="hm-stat-lbl">Busiest Month</div></div>
       <div class="hm-stat-div"></div>
@@ -16196,7 +16197,7 @@ function renderAnalyticsPage() {
       ).toFixed(1)
     : "—";
   const _sdCallout = _topScore
-    ? `<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">MOST COMMON SCORE</div><div style="font-size:20px;font-weight:900;color:var(--theme)">${_topScore[0]}</div><div style="font-size:9px;color:var(--muted)">${_topScore[1]}× · ${Math.round((_topScore[1] / allMatches.length) * 100)}%</div></div><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">AVG MARGIN</div><div style="font-size:20px;font-weight:900;color:var(--accent)">${_avgMarginOverall}</div><div style="font-size:9px;color:var(--muted)">games per match</div></div></div>`
+    ? `<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">MOST COMMON SCORE</div><div style="font-size:20px;font-weight:900;color:var(--theme)">${_topScore[0]}</div><div style="font-size:9px;color:var(--muted)">${_topScore[1]}× · ${Math.round((_topScore[1] / state.matches.length) * 100)}%</div></div><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">AVG MARGIN</div><div style="font-size:20px;font-weight:900;color:var(--accent)">${_avgMarginOverall}</div><div style="font-size:9px;color:var(--muted)">games per match</div></div></div>`
     : "";
   const sdHtml = scoreDistSorted
     .map(
@@ -16654,7 +16655,7 @@ function renderAnalyticsPage() {
     if (gap > longestGap) longestGap = gap;
   }
   const avgMatchesPerSession = totalSessions
-    ? (allMatches.length / totalSessions).toFixed(1)
+    ? (state.matches.length / totalSessions).toFixed(1)
     : 0;
   const maxPlayersSession = allSessionEntries.reduce(
     (max, [, d]) => Math.max(max, d.players.size),
@@ -16945,9 +16946,9 @@ function renderAnalyticsPage() {
 
   // ── SCORE PREDICTION ACCURACY ─────────────────────────
   const predAccHtml = (() => {
-    if (allMatches.length < 5)
+    if (state.matches.length < 5)
       return '<div class="sub" style="padding:8px">Need more matches.</div>';
-    const sorted2 = [...allMatches].sort((a, b) =>
+    const sorted2 = [...state.matches].sort((a, b) =>
       (a.date || "").localeCompare(b.date || ""),
     );
     const runElo = {};
@@ -18635,7 +18636,7 @@ async function sendBackupEmail(isAuto = false) {
   try {
     const todayStr = todayISO();
     const jsonData = JSON.stringify(
-      { matches: allMatches, players, playerAliasMap, nextPlayerId },
+      { matches: state.matches, players, playerAliasMap, nextPlayerId },
       null,
       2,
     );
@@ -18648,7 +18649,7 @@ async function sendBackupEmail(isAuto = false) {
         from_name: "Ekta Padel",
         subject: `Padel Backup — ${todayStr}`,
         send_type: isAuto ? "🤖 Automatic daily backup" : "📤 Manual backup",
-        match_count: allMatches.length,
+        match_count: state.matches.length,
         backup_date: todayStr,
         json_data: jsonData,
       },
@@ -19525,7 +19526,7 @@ function endLiveMatch() {
     date,
   };
   if (notes) match.note = notes;
-  allMatches.push(match);
+  state.matches.push(match);
   mirrorMatchToEditor(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
@@ -19552,9 +19553,9 @@ function endLiveMatch() {
     _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
     if (window.appCache)
-      window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+      window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
     try {
-      localStorage.setItem("padel_matches", JSON.stringify(allMatches));
+      localStorage.setItem("padel_matches", JSON.stringify(state.matches));
     } catch (e) {}
   } else {
     saveCloudData();
@@ -19643,7 +19644,7 @@ function mioSkipAnimation() {
 }
 
 function openMatchIntro(idx) {
-  const m = allMatches[idx];
+  const m = state.matches[idx];
   if (!m) return;
   // Cancel any in-flight animations from a previous opening
   _mioTimers.forEach((id) => clearTimeout(id));
@@ -19651,8 +19652,8 @@ function openMatchIntro(idx) {
   _mioFinalize = null;
 
   const _amE = activeMatches();
-  const _upToInclE = new Set(allMatches.slice(0, idx + 1));
-  const _upToBeforeE = new Set(allMatches.slice(0, idx));
+  const _upToInclE = new Set(state.matches.slice(0, idx + 1));
+  const _upToBeforeE = new Set(state.matches.slice(0, idx));
   const priorElo = computeElo(_amE.filter((m) => _upToBeforeE.has(m)));
   const afterElo = computeElo(_amE.filter((m) => _upToInclE.has(m)));
   const aWon = m.scoreA > m.scoreB;
@@ -19689,7 +19690,7 @@ function openMatchIntro(idx) {
   const nameB = m.teamB.map((p) => normPlayer(p)).join(" & ");
 
   // Match number (chronological position in all matches)
-  const _sortedForNum = [...allMatches].sort((a, b) =>
+  const _sortedForNum = [...state.matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
   const _matchNum = _sortedForNum.indexOf(m) + 1;
@@ -20502,8 +20503,8 @@ function confirmUndoSession() {
   if (!_sessionMatchHistory.length) return;
   const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
   const key = _mkMatchKey(last);
-  const idx = allMatches.findIndex((m) => _mkMatchKey(m) === key);
-  if (idx !== -1) allMatches.splice(idx, 1);
+  const idx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  if (idx !== -1) state.matches.splice(idx, 1);
   _sessionMatchHistory.pop();
   _sessionRedoStack.push(last);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
@@ -20541,7 +20542,7 @@ function redoSessionMatch() {
     return;
   }
   const match = _sessionRedoStack.pop();
-  allMatches.push({ ...match });
+  state.matches.push({ ...match });
   _sessionMatchHistory.push(match);
   _sessionPendingCount++;
   _updateSyncBadge();
@@ -20882,7 +20883,7 @@ function _renderSeasonList() {
       <span class="season-row-radio"></span>
       <span class="season-row-main">
         <span class="season-row-name">All Seasons</span>
-        <span class="season-row-meta">${allMatches.length} match${allMatches.length !== 1 ? "es" : ""} · no date filter</span>
+        <span class="season-row-meta">${state.matches.length} match${state.matches.length !== 1 ? "es" : ""} · no date filter</span>
       </span>
     </button>`;
   const rows = seasons
@@ -21231,26 +21232,26 @@ function _saveSessionState() {
   } catch (e) {}
 }
 
-// Re-attach locally-buffered matches (in padel_matches) that aren't yet in allMatches (cloud data).
+// Re-attach locally-buffered matches (in padel_matches) that aren't yet in state.matches (cloud data).
 // Called after restoring a session on page load/refresh.
 function _reattachPendingMatches() {
   try {
     const localRaw = localStorage.getItem("padel_matches");
     if (!localRaw) return;
     const localMatches = JSON.parse(localRaw);
-    const cloudKeys = new Set(allMatches.map(_mkMatchKey));
+    const cloudKeys = new Set(state.matches.map(_mkMatchKey));
     const pending = localMatches.filter((m) => !cloudKeys.has(_mkMatchKey(m)));
     if (!pending.length) {
       _sessionPendingCount = 0;
       return;
     }
-    allMatches = [...allMatches, ...pending].sort((a, b) =>
+    state.matches = [...state.matches, ...pending].sort((a, b) =>
       (a.date || "").localeCompare(b.date || ""),
     );
     _sessionPendingCount = pending.length;
     _invalidateEloMemo();
     if (window.appCache)
-      window.appCache.save(allMatches, players, playerAliasMap, nextPlayerId);
+      window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
   } catch (e) {}
 }
 function _clearSessionState() {
