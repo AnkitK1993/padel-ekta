@@ -17275,6 +17275,99 @@ body.smooth-mode [style*="animation-delay"] {
   font-weight: 700;
 }
 
+/* ════════════════════════════════════════════════════════════
+   Summary leaderboard — freeze rank+player (left) & SR (right),
+   scroll the stat columns between them (no squish / overlap when
+   all columns are shown). This block is intentionally last so it
+   wins over the earlier layered table.cmp width rules.
+   ════════════════════════════════════════════════════════════ */
+.cmp-scroll {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+/* Let the table size to its content and overflow horizontally instead of
+   being crushed into 100% width (which caused the data overlap). */
+table.cmp {
+  width: max-content !important;
+  min-width: 100% !important;
+  table-layout: auto !important;
+}
+table.cmp th,
+table.cmp td {
+  white-space: nowrap !important;
+}
+/* Frozen columns: rank(1) + player(2) pinned left, SR(10) pinned right. */
+table.cmp th:nth-child(1),
+table.cmp td:nth-child(1) {
+  position: sticky !important;
+  left: 0 !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  z-index: 3;
+  background: var(--bg);
+}
+table.cmp th:nth-child(2),
+table.cmp td:nth-child(2) {
+  position: sticky !important;
+  left: 30px !important;
+  z-index: 3;
+  background: var(--bg);
+  box-shadow: 7px 0 7px -7px rgba(0, 0, 0, 0.6);
+}
+table.cmp th:nth-child(10),
+table.cmp td:nth-child(10) {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 3;
+  background: var(--bg);
+  box-shadow: -7px 0 7px -7px rgba(0, 0, 0, 0.6);
+}
+table.cmp thead th:nth-child(1),
+table.cmp thead th:nth-child(2),
+table.cmp thead th:nth-child(10) {
+  z-index: 4;
+  background: var(--bg) !important;
+}
+/* Re-apply the medal / even-row tints on the frozen cells as OPAQUE colours so
+   the scrolling stat columns can't bleed through them. */
+table.cmp tbody tr.rg td:nth-child(1),
+table.cmp tbody tr.rg td:nth-child(2),
+table.cmp tbody tr.rg td:nth-child(10) {
+  background: color-mix(in srgb, #f5c842 7%, var(--bg));
+}
+table.cmp tbody tr.rs td:nth-child(1),
+table.cmp tbody tr.rs td:nth-child(2),
+table.cmp tbody tr.rs td:nth-child(10) {
+  background: color-mix(in srgb, #9898b8 4%, var(--bg));
+}
+table.cmp tbody tr.rb2 td:nth-child(1),
+table.cmp tbody tr.rb2 td:nth-child(2),
+table.cmp tbody tr.rb2 td:nth-child(10) {
+  background: color-mix(in srgb, #c46a28 4%, var(--bg));
+}
+table.cmp
+  tbody
+  tr:nth-child(even):not(.rg):not(.rs):not(.rb2)
+  td:nth-child(1),
+table.cmp
+  tbody
+  tr:nth-child(even):not(.rg):not(.rs):not(.rb2)
+  td:nth-child(2),
+table.cmp
+  tbody
+  tr:nth-child(even):not(.rg):not(.rs):not(.rb2)
+  td:nth-child(10) {
+  background: color-mix(in srgb, #ffffff 1.2%, var(--bg));
+}
+/* The shared snapshot image renders the same table but must stay a flat,
+   full-width capture — undo the sticky/scroll treatment there. */
+#pg-snapshot table.cmp th,
+#pg-snapshot table.cmp td {
+  position: static !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 /* ── SEASONS ─────────────────────────────────────────────── */
 .season-row {
   display: flex;
