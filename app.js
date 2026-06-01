@@ -36,6 +36,15 @@ import {
   buildSummaryMatchRow,
   buildSummaryMatchRows,
 } from "./render-match-rows.js";
+import {
+  initSelectorsDeps,
+  activeMatches,
+  filterMatches,
+  _activeSeason,
+  _inSeason,
+  _seasonMatchCount,
+  invalidateAmMemo,
+} from "./selectors.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
@@ -998,8 +1007,7 @@ function applyEloConfig() {
 }
 
 // ── ELO MEMO ───────────────────────────────────────────────
-let _amMemo = null,
-  _amMemoKey = ""; // activeMatches() memo (see activeMatches)
+// _amMemo / _amMemoKey → ./selectors.js (activeMatches memo)
 let _eloMemo = null,
   _eloMemoKey = "",
   _eloMemoDecay = false;
@@ -1013,6 +1021,19 @@ initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
 initParserDeps(() => state.nameMap, () => state.aliasMap, todayISO);
+// Selectors read state.* directly but need app.js's per-device view prefs
+// (reassigned here) and date helpers — injected as getters/functions.
+initSelectorsDeps({
+  getDataVersion: () => _dataVersion,
+  getActiveSeasonId: () => _activeSeasonId,
+  getExcludedPlayers: () => _excludedPlayers,
+  getSessionGuestUnexcluded: () => _sessionGuestUnexcluded,
+  todayISO,
+  weekISO,
+  monthISO,
+  weekendRange,
+  lastWeekRange,
+});
 
 function _memoElo(decay = false) {
   // A CLOSED season (end date already past) is a finished competition: its ELO
@@ -1066,7 +1087,7 @@ function _memoEloLows() {
 function _invalidateEloMemo() {
   // Also drop the activeMatches() memo — this is the universal data-change hook,
   // so any state.matches mutation invalidates the cached filtered array here.
-  _amMemo = null;
+  invalidateAmMemo();
   _eloMemoKey = "";
   _eloMemo = null;
   clearEloCache();
@@ -2701,26 +2722,12 @@ function sheetAvSm(name) {
 
 // ── SEASON HELPERS ─────────────────────────────────────────
 // The currently-selected season object, or null when "ALL SEASONS".
-function _activeSeason() {
-  if (!_activeSeasonId || _activeSeasonId === "all") return null;
-  return state.seasons.find((s) => s.id === _activeSeasonId) || null;
-}
+// _activeSeason → ./selectors.js
 // True when `dateStr` (YYYY-MM-DD) falls inside the season's range. An empty
 // end means open-ended (ongoing). Inclusive on both bounds.
-function _inSeason(s, dateStr) {
-  const d = dateStr || "";
-  if (!d) return false;
-  if (s.start && d < s.start) return false;
-  if (s.end && d > s.end) return false;
-  return true;
-}
+// _inSeason → ./selectors.js
 // Count matches in a season range (ignores guest exclusion — raw range size).
-function _seasonMatchCount(s) {
-  if (!s) return state.matches.length;
-  let n = 0;
-  for (const m of state.matches) if (_inSeason(s, m.date)) n++;
-  return n;
-}
+// _seasonMatchCount → ./selectors.js
 // ── AUTO-SELECT ONGOING SEASON (per-device) ────────────────
 function _isAutoSeasonEnabled() {
   try {
@@ -2868,57 +2875,10 @@ function _ingestSeasons(arr) {
 // and the key carries the season id + exclusion set (exclusion toggles re-render
 // without touching _dataVersion / the ELO memo). Callers treat the result as
 // read-only — the no-filter path has always returned the shared `state.matches`.
-function activeMatches() {
-  const s = _activeSeason();
-  const excludedArr = [
-    ...Object.values(state.players)
-      .filter((p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name))
-      .map((p) => p.name),
-    ..._excludedPlayers,
-  ];
-  const key = `${_dataVersion}|${_activeSeasonId}|${excludedArr.sort().join(",")}`;
-  if (_amMemoKey === key && _amMemo) return _amMemo;
-  let base = state.matches;
-  if (s) base = base.filter((m) => _inSeason(s, m.date));
-  let result = base;
-  if (excludedArr.length) {
-    const excluded = new Set(excludedArr);
-    result = base.filter(
-      (m) =>
-        ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
-    );
-  }
-  _amMemoKey = key;
-  _amMemo = result;
-  return result;
-}
+// activeMatches → ./selectors.js
 
 // ── FILTER ─────────────────────────────────────────────────
-function filterMatches(f, from, to) {
-  const t = todayISO(),
-    sw = weekISO(),
-    swe = t,
-    sm = monthISO(),
-    wr = weekendRange(),
-    lwr = lastWeekRange();
-  return activeMatches().filter((m) => {
-    if (f === "all") return true;
-    if (f === "today") return m.date === t;
-    if (f === "week") return m.date >= sw && m.date <= swe;
-    if (f === "weekend") return m.date >= wr.from && m.date <= wr.to;
-    if (f === "month") return m.date >= sm && m.date <= t;
-    if (f === "lastweek") return m.date >= lwr.from && m.date <= lwr.to;
-    if (f === "day") return from ? m.date === from : m.date === t;
-    if (f === "range") {
-      const d = m.date || "";
-      if (!d) return false;
-      if (from && d < from) return false;
-      if (to && d > to) return false;
-      return true;
-    }
-    return true;
-  });
-}
+// filterMatches → ./selectors.js
 
 // computeStats, _normScores, eloToSr now live in ./stats.js (pure module,
 // imported at the top of this file alongside the ELO engine).
