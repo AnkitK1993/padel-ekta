@@ -17321,6 +17321,11 @@ table.cmp td:nth-child(10) {
   z-index: 3;
   background: var(--bg);
   box-shadow: -7px 0 7px -7px rgba(0, 0, 0, 0.6);
+  width: 46px !important;
+  min-width: 46px !important;
+  padding-left: 4px !important;
+  padding-right: 6px !important;
+  text-align: center !important;
 }
 table.cmp thead th:nth-child(1),
 table.cmp thead th:nth-child(2),
