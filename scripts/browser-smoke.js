@@ -616,6 +616,19 @@ async function main() {
     );
     await evaluate(client, `setSeason("all"); switchMainTab("home", true);`);
 
+    // ── Battery Saver toggle ──────────────────────────────────
+    const bs = await evaluate(client, `(() => {
+      toggleBatterySaver(true);
+      const on = document.body.classList.contains("battery-saver");
+      const lsOn = localStorage.getItem("padel_battery_saver");
+      toggleBatterySaver(false);
+      const off = document.body.classList.contains("battery-saver");
+      const lsOff = localStorage.getItem("padel_battery_saver");
+      return { on, lsOn, off, lsOff };
+    })()`);
+    assert(bs.on === true && bs.lsOn === "1", "Battery Saver should enable + persist '1'");
+    assert(bs.off === false && bs.lsOff === "0", "Battery Saver should disable + persist '0'");
+
     const errors = browserErrors(client.events);
     assert(
       errors.length === 0,

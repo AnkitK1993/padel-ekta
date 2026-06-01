@@ -17332,6 +17332,25 @@ body.app-bg *::after {
   }
 }
 
+/* ── BATTERY SAVER ───────────────────────────────────────────
+   Coolest/fastest mode: removes the GPU-heavy decorative work — the blurred
+   ambient orbs, every backdrop-filter blur layer (~45 of them), and the
+   infinite holo glow/border/sweep loops — while KEEPING transitions so the
+   UI still feels smooth (unlike "Animations: Off" which freezes everything).
+   Infinite keyframe loops are collapsed to a single instant pass so any
+   element that animates in still lands on its final visible state. */
+body.battery-saver #ambient-bg {
+  display: none !important;
+}
+body.battery-saver *,
+body.battery-saver *::before,
+body.battery-saver *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Sort arrows that have no content (inactive columns) collapse to zero width,
    freeing ~10px per inactive header. Active arrows still show normally. */
 .sort-arrow:empty {
