@@ -368,6 +368,14 @@ document.addEventListener("touchmove", _ptrMove, { passive: false });
 document.addEventListener("touchend", _ptrEnd, { passive: true });
 document.addEventListener("touchcancel", _ptrEnd, { passive: true });
 
+// ── HEAT/BATTERY: freeze all CSS animations while the app is backgrounded ──
+// The body.app-bg class drives a CSS rule that pauses every animation
+// (including the fixed ambient orbs). Stops the GPU churning while the screen
+// is off or the user is in another app/tab.
+document.addEventListener("visibilitychange", () => {
+  document.body.classList.toggle("app-bg", document.hidden);
+});
+
 // ── CONFETTI (canvas-based, milestone celebration) ────────
 function fireConfetti(opts = {}) {
   const count = opts.count || 90;
@@ -4429,43 +4437,37 @@ function renderHome() {
   const maxSR = stats[0].sr || 1;
   const homeEloMap = homeEloMapFull;
 
-  // ELO delta over each player's last 5 matches
-  const eloDeltaMap = {};
-  stats.forEach((p) => {
-    const playerMs = filtered
-      .filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))
-      .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-    const last5 = playerMs.slice(-5);
-    if (!last5.length) {
-      eloDeltaMap[p.name] = null;
-      return;
-    }
-    const without5 = filtered.filter((m) => !last5.includes(m));
-    const prevElo = computeElo(without5)[p.name] || 1000;
-    eloDeltaMap[p.name] = Math.round((homeEloMap[p.name] || 1000) - prevElo);
-  });
-
-  // Monthly ELO delta (30-day trend) — Enhancement 4
-  const monthlyEloDeltaMap = {};
+  // ELO deltas (recent-5 and 30-day trend) for the card badges.
+  // Derived from a SINGLE ELO-history pass instead of recomputing the whole
+  // ladder once per player per metric (was ~22 full computeElo() calls + 22
+  // fingerprint-string allocations per home render — heavy GC churn on mobile).
+  // The history holds each player's running ELO after every match, so a recent
+  // delta is just (current ELO − ELO at the start of the window).
+  const _histAll = computeEloHistory(filtered);
   const _thirtyAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
     return d.toISOString().slice(0, 10);
   })();
+  const eloDeltaMap = {};
+  const monthlyEloDeltaMap = {};
   stats.forEach((p) => {
-    const last30 = filtered.filter(
-      (m) =>
-        [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) &&
-        (m.date || "") >= _thirtyAgo,
-    );
-    if (!last30.length) {
+    const hist = _histAll[p.name] || [];
+    if (!hist.length) {
+      eloDeltaMap[p.name] = null;
       monthlyEloDeltaMap[p.name] = null;
       return;
     }
-    const without30 = filtered.filter((m) => !last30.includes(m));
-    monthlyEloDeltaMap[p.name] = Math.round(
-      (homeEloMap[p.name] || 1000) - (computeElo(without30)[p.name] || 1000),
-    );
+    const cur = hist[hist.length - 1].elo;
+    // Last-5 trend: ELO now vs ELO just before this player's last 5 matches.
+    const base5 = hist.length > 5 ? hist[hist.length - 6].elo : 1000;
+    eloDeltaMap[p.name] = Math.round(cur - base5);
+    // 30-day trend: ELO now vs ELO just before the first match in the window.
+    const idx30 = hist.findIndex((h) => (h.date || "") >= _thirtyAgo);
+    monthlyEloDeltaMap[p.name] =
+      idx30 === -1
+        ? null
+        : Math.round(cur - (idx30 > 0 ? hist[idx30 - 1].elo : 1000));
   });
 
   const cardHtmls = stats.map((p, i) => {
