@@ -2396,8 +2396,12 @@ function prefillMatchTADate() {
   if (!ta) return;
   // Only prefill if the textarea is completely empty
   if (ta.value.trim() === "") {
-    ta.value = todayDMYY() + "\n";
-    // Place cursor at end so admin can type right away
+    const todayMatches = allMatches.filter(m => m.date === todayISO());
+    let text = todayDMYY() + "\n";
+    if (todayMatches.length) {
+      text += todayMatches.map(matchToEditableLine).join("\n") + "\n";
+    }
+    ta.value = text;
     ta.selectionStart = ta.selectionEnd = ta.value.length;
     previewMatchImport();
   }

@@ -17297,15 +17297,28 @@ body.smooth-mode [style*="animation-delay"] {
 /* Desktop: pointer:fine = mouse device (laptop/PC), excludes touch phones.
    align-self on page-body-scroll only — avoids centering the tabbar too. */
 @media (hover: hover) and (pointer: fine) {
+  /* Summary page: center content column, keep tabbar full-width */
   #pg-compact .page-body-scroll {
     align-self: center !important;
     width: 100% !important;
     max-width: 680px !important;
   }
-  /* Tabbar must always span full viewport width */
   #pg-compact .tabbar {
     width: 100% !important;
     align-self: stretch !important;
+  }
+
+  /* Detailed page: on desktop viewport is >768px so the max-width:768px
+     query that reduces .pname from 25px→21px never fires. Apply equivalent
+     mobile sizes so cards look the same as on phone. */
+  .pname {
+    font-size: 19px !important;
+  }
+  .cl {
+    font-size: 6px !important;
+  }
+  .sr-ring {
+    transform: scale(0.84) !important;
   }
 }
 
