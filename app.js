@@ -873,6 +873,35 @@ if (localStorage.getItem("smooth_mode") === "1") {
   const _smCb = document.getElementById("smooth-mode-toggle");
   if (_smCb) _smCb.checked = true;
 }
+// Battery Saver: explicit pref ("1"/"0") wins; otherwise auto-follow battery.
+{
+  const _bsPref = localStorage.getItem("padel_battery_saver");
+  if (_bsPref === "1") {
+    document.body.classList.add("battery-saver");
+    const _bsCb = document.getElementById("battery-saver-toggle");
+    if (_bsCb) _bsCb.checked = true;
+  }
+  if (_bsPref == null && navigator.getBattery) {
+    navigator
+      .getBattery()
+      .then((bat) => {
+        const _auto = () => {
+          // Stop auto-following the moment the user sets it manually.
+          if (localStorage.getItem("padel_battery_saver") != null) return;
+          document.body.classList.toggle(
+            "battery-saver",
+            bat.level <= 0.2 && !bat.charging,
+          );
+          const cb = document.getElementById("battery-saver-toggle");
+          if (cb) cb.checked = document.body.classList.contains("battery-saver");
+        };
+        _auto();
+        bat.addEventListener("levelchange", _auto);
+        bat.addEventListener("chargingchange", _auto);
+      })
+      .catch(() => {});
+  }
+}
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
@@ -3912,6 +3941,27 @@ function setAnimLevel(val) {
   document
     .querySelectorAll(".anim-seg-btn")
     .forEach((b) => b.classList.toggle("active", b.dataset.val === val));
+}
+
+// Battery Saver: kills the GPU-heavy decorative work (ambient orbs, every
+// backdrop blur, the holo glow/sweep loops) while KEEPING smooth UI
+// transitions — distinct from "Animations: Off" which removes all motion but
+// leaves the expensive static blurs running. Persisted; auto-enables on low
+// battery only while the user has never set it manually.
+function _applyBatterySaver(on) {
+  document.body.classList.toggle("battery-saver", on);
+  const cb = document.getElementById("battery-saver-toggle");
+  if (cb) cb.checked = on;
+}
+function toggleBatterySaver(on) {
+  const enabled =
+    on === undefined
+      ? !document.body.classList.contains("battery-saver")
+      : !!on;
+  try {
+    localStorage.setItem("padel_battery_saver", enabled ? "1" : "0");
+  } catch (e) {}
+  _applyBatterySaver(enabled);
 }
 
 function clearMatches() {
@@ -19153,6 +19203,7 @@ Object.assign(window, {
   setScreenshotChoiceSetting,
   setAnimLevel,
   toggleSmoothMode,
+  toggleBatterySaver,
   openAmericanoSheet,
   closeAmericano,
   setAmericanoMode,
