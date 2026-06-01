@@ -2697,15 +2697,23 @@ function resolveInitial(init) {
   );
   if (displayExact) return displayExact;
 
-  const aliasPrefix = Object.entries(nameMap).find(([alias]) =>
-    alias.toLowerCase().startsWith(key),
+  // Prefix fallback — but only resolve if it's UNAMBIGUOUS. If two different
+  // players share the prefix (e.g. "Ra" → both "Rahul M" and "Rahul G"),
+  // return null so the line surfaces as a parse error instead of silently
+  // being assigned to whichever player happened to come first.
+  const aliasPrefixNames = new Set(
+    Object.entries(nameMap)
+      .filter(([alias]) => alias.toLowerCase().startsWith(key))
+      .map(([, name]) => name),
   );
-  if (aliasPrefix) return aliasPrefix[1];
+  if (aliasPrefixNames.size === 1) return [...aliasPrefixNames][0];
+  if (aliasPrefixNames.size > 1) return null; // ambiguous
 
-  const displayPrefix = Object.keys(aliasMap).find((name) =>
+  const displayPrefixNames = Object.keys(aliasMap).filter((name) =>
     name.toLowerCase().startsWith(key),
   );
-  return displayPrefix || null;
+  if (displayPrefixNames.length === 1) return displayPrefixNames[0];
+  return null; // none, or ambiguous
 }
 
 function parseMatchLine(line) {
@@ -3561,12 +3569,15 @@ function previewMatchImport() {
     else if (inDb > 0) { tag = " · exists — will ask"; warn = true; askCount++; }
     return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${warn ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${tag}</strong></div>`;
   });
-  // Finish counting for rows not shown
+  // Finish counting for rows not shown — mirror the visible loop exactly:
+  // repeated-player rows are tallied under dupPlayers, not skip/ask.
   parsed.slice(5).forEach((m) => {
     const k = _mk(m);
     const seen = seenCounts.get(k) || 0;
     seenCounts.set(k, seen + 1);
     const inDb = dbCounts.get(k) || 0;
+    const badP = new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
+    if (badP) return;
     if (seen < inDb) silentSkipCount++;
     else if (inDb > 0) askCount++;
   });
