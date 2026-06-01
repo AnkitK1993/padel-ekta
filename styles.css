@@ -17276,102 +17276,67 @@ body.smooth-mode [style*="animation-delay"] {
 }
 
 /* ════════════════════════════════════════════════════════════
-   Summary leaderboard — freeze rank+player (left) & SR (right),
-   scroll the stat columns between them (no squish / overlap when
-   all columns are shown). This block is intentionally last so it
-   wins over the earlier layered table.cmp width rules.
+   Summary leaderboard — all 10 columns fit on one screen, no
+   horizontal scroll. With the SR bar and ELO delta removed the
+   stat columns are narrow enough for a fixed-layout 100% table.
+   Column budget (360px mobile): 22+auto+26+38+30+24+24+30+38+34
+   = 266px fixed → Player takes the remaining ~94px.
+   This block is intentionally last so it wins earlier rules.
    ════════════════════════════════════════════════════════════ */
 .cmp-scroll {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden !important;
 }
-/* Let the table size to its content and overflow horizontally instead of
-   being crushed into 100% width (which caused the data overlap). */
 table.cmp {
-  width: max-content !important;
-  min-width: 100% !important;
-  table-layout: auto !important;
+  width: 100% !important;
+  table-layout: fixed !important;
 }
 table.cmp th,
 table.cmp td {
   white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
-/* Frozen columns: rank(1) + player(2) pinned left, SR(10) pinned right. */
+/* Col 1 — rank medal/number */
 table.cmp th:nth-child(1),
 table.cmp td:nth-child(1) {
-  position: sticky !important;
-  left: 0 !important;
-  width: 30px !important;
-  min-width: 30px !important;
-  z-index: 3;
-  background: var(--bg);
+  width: 22px !important;
+  padding-left: 4px !important;
+  padding-right: 2px !important;
 }
+/* Col 2 — player name (flexible, takes leftover space) */
 table.cmp th:nth-child(2),
 table.cmp td:nth-child(2) {
-  position: sticky !important;
-  left: 30px !important;
-  z-index: 3;
-  background: var(--bg);
-  box-shadow: 7px 0 7px -7px rgba(0, 0, 0, 0.6);
-}
-table.cmp th:nth-child(10),
-table.cmp td:nth-child(10) {
-  position: sticky !important;
-  right: 0 !important;
-  z-index: 3;
-  background: var(--bg);
-  box-shadow: -7px 0 7px -7px rgba(0, 0, 0, 0.6);
-  width: 46px !important;
-  min-width: 46px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
   padding-left: 4px !important;
-  padding-right: 6px !important;
-  text-align: center !important;
+  padding-right: 4px !important;
+  text-align: left !important;
 }
-table.cmp thead th:nth-child(1),
-table.cmp thead th:nth-child(2),
-table.cmp thead th:nth-child(10) {
-  z-index: 4;
-  background: var(--bg) !important;
-}
-/* Re-apply the medal / even-row tints on the frozen cells as OPAQUE colours so
-   the scrolling stat columns can't bleed through them. */
-table.cmp tbody tr.rg td:nth-child(1),
-table.cmp tbody tr.rg td:nth-child(2),
-table.cmp tbody tr.rg td:nth-child(10) {
-  background: color-mix(in srgb, #f5c842 7%, var(--bg));
-}
-table.cmp tbody tr.rs td:nth-child(1),
-table.cmp tbody tr.rs td:nth-child(2),
-table.cmp tbody tr.rs td:nth-child(10) {
-  background: color-mix(in srgb, #9898b8 4%, var(--bg));
-}
-table.cmp tbody tr.rb2 td:nth-child(1),
-table.cmp tbody tr.rb2 td:nth-child(2),
-table.cmp tbody tr.rb2 td:nth-child(10) {
-  background: color-mix(in srgb, #c46a28 4%, var(--bg));
-}
-table.cmp
-  tbody
-  tr:nth-child(even):not(.rg):not(.rs):not(.rb2)
-  td:nth-child(1),
-table.cmp
-  tbody
-  tr:nth-child(even):not(.rg):not(.rs):not(.rb2)
-  td:nth-child(2),
-table.cmp
-  tbody
-  tr:nth-child(even):not(.rg):not(.rs):not(.rb2)
-  td:nth-child(10) {
-  background: color-mix(in srgb, #ffffff 1.2%, var(--bg));
-}
-/* The shared snapshot image renders the same table but must stay a flat,
-   full-width capture — undo the sticky/scroll treatment there. */
-#pg-snapshot table.cmp th,
-#pg-snapshot table.cmp td {
-  position: static !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
+/* Col 3 — MP */
+table.cmp th:nth-child(3),
+table.cmp td:nth-child(3) { width: 26px !important; padding: 2px 2px !important; }
+/* Col 4 — W–L */
+table.cmp th:nth-child(4),
+table.cmp td:nth-child(4) { width: 38px !important; padding: 2px 2px !important; }
+/* Col 5 — W% */
+table.cmp th:nth-child(5),
+table.cmp td:nth-child(5) { width: 30px !important; padding: 2px 2px !important; }
+/* Col 6 — GW */
+table.cmp th:nth-child(6),
+table.cmp td:nth-child(6) { width: 24px !important; padding: 2px 2px !important; }
+/* Col 7 — GL */
+table.cmp th:nth-child(7),
+table.cmp td:nth-child(7) { width: 24px !important; padding: 2px 2px !important; }
+/* Col 8 — G% */
+table.cmp th:nth-child(8),
+table.cmp td:nth-child(8) { width: 30px !important; padding: 2px 2px !important; }
+/* Col 9 — ELO */
+table.cmp th:nth-child(9),
+table.cmp td:nth-child(9) { width: 38px !important; padding: 2px 2px !important; }
+/* Col 10 — SR (plain number, no bar) */
+table.cmp th:nth-child(10),
+table.cmp td:nth-child(10) { width: 34px !important; padding: 2px 4px !important; }
 
 /* ── SEASONS ─────────────────────────────────────────────── */
 .season-row {
