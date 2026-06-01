@@ -699,8 +699,8 @@ function checkMilestones(prevMatches, newMatches) {
 
 // ── STATE ──────────────────────────────────────────────────
 // allMatches now lives in shared state.matches (./state.js)
-let nameMap = {};
-let aliasMap = {};
+// nameMap now lives in shared state (./state.js)
+// aliasMap now lives in shared state (./state.js)
 // Source-of-truth player roster (replaces aliasMap/nameMap as stored data)
 let players = {}; // { [id]: { id, name, email, image, isGuest } }
 let playerAliasMap = {}; // { [id]: [alias1, alias2, ...] }
@@ -1003,7 +1003,7 @@ let _eloLowsMemo = null,
 initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
-initParserDeps(() => nameMap, () => aliasMap, todayISO);
+initParserDeps(() => state.nameMap, () => state.aliasMap, todayISO);
 
 function _memoElo(decay = false) {
   // A CLOSED season (end date already past) is a finished competition: its ELO
@@ -2426,7 +2426,7 @@ function _isoToDMYY(iso) {
 // Pick a single-word token for a player that parseMatchLine can resolve back
 // to this player (prefer a space-free alias; fall back to the display name).
 function _playerToken(name) {
-  const aliases = aliasMap[name] || [];
+  const aliases = state.aliasMap[name] || [];
   const single = aliases.find((a) => a && !/\s/.test(a));
   if (single) return single;
   if (!/\s/.test(name)) return name; // single-word display name resolves to itself
@@ -2612,7 +2612,7 @@ function _mngDragEnd() {
 function refreshManage() {
   const days = new Set(state.matches.map((m) => m.date)).size;
   document.getElementById("manageInfo").innerHTML =
-    `Matches: <strong>${state.matches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(aliasMap).length}</strong>`;
+    `Matches: <strong>${state.matches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(state.aliasMap).length}</strong>`;
   renderEmailStatus();
   renderTrash();
   renderEloConfigCard();
@@ -2935,18 +2935,18 @@ function getMomentumBadge(playerName) {
 }
 
 function normPlayer(name) {
-  return (nameMap[name] || name || "").trim();
+  return (state.nameMap[name] || name || "").trim();
 }
 
 // Rebuild aliasMap + nameMap from the players/playerAliasMap source-of-truth
 function rebuildNameMaps() {
-  aliasMap = {};
-  nameMap = {};
+  state.aliasMap = {};
+  state.nameMap = {};
   Object.values(players).forEach((p) => {
     const aliases = playerAliasMap[p.id] || [];
-    aliasMap[p.name] = aliases;
+    state.aliasMap[p.name] = aliases;
     aliases.forEach((a) => {
-      nameMap[a] = p.name;
+      state.nameMap[a] = p.name;
     });
   });
 }
@@ -3710,8 +3710,8 @@ function importData() {
     if (data.nextPlayerId > nextPlayerId) nextPlayerId = data.nextPlayerId;
     rebuildNameMaps();
   } else {
-    aliasMap = { ...aliasMap, ...(data.aliasMap || {}) };
-    nameMap = { ...nameMap, ...(data.nameMap || {}) };
+    state.aliasMap = { ...state.aliasMap, ...(data.aliasMap || {}) };
+    state.nameMap = { ...state.nameMap, ...(data.nameMap || {}) };
   }
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
@@ -3802,12 +3802,12 @@ function openExcludeSheet() {
   const nonGuestNames = new Set();
   state.matches.forEach((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      const n = nameMap[p] || p;
+      const n = state.nameMap[p] || p;
       if (!guestNames.has(n)) nonGuestNames.add(n);
     }),
   );
   Object.values(players).forEach((p) => {
-    if (!p.isGuest) nonGuestNames.add(nameMap[p.name] || p.name);
+    if (!p.isGuest) nonGuestNames.add(state.nameMap[p.name] || p.name);
   });
   const nonGuestSorted = [...nonGuestNames]
     .filter((n) => n)
@@ -4785,8 +4785,8 @@ function buildMatchCards(matches, showAdmin) {
     if (!d) return "";
     const display = normPlayer(p);
     const short =
-      Object.keys(nameMap).find(
-        (k) => nameMap[k] === display && k.length === 3,
+      Object.keys(state.nameMap).find(
+        (k) => state.nameMap[k] === display && k.length === 3,
       ) || display.slice(0, 3).toUpperCase();
     const cls = d.delta >= 0 ? "elo-gain" : "elo-loss";
     const arrow = d.delta >= 0 ? "↑" : "↓";
@@ -5455,7 +5455,7 @@ function renderModernMatches() {
     const q = query.toLowerCase();
     matches = matches.filter((m) => {
       const players = [...(m.teamA || []), ...(m.teamB || [])].map((p) =>
-        (nameMap[p] || p).toLowerCase(),
+        (state.nameMap[p] || p).toLowerCase(),
       );
       if (players.some((p) => p.includes(q))) return true;
       if (
@@ -5473,7 +5473,7 @@ function renderModernMatches() {
     matches = matches.filter((m) =>
       [...m.teamA, ...m.teamB].some(
         (p) =>
-          (nameMap[p] || p).toLowerCase() === histPlayerFilter.toLowerCase(),
+          (state.nameMap[p] || p).toLowerCase() === histPlayerFilter.toLowerCase(),
       ),
     );
   }
@@ -5482,7 +5482,7 @@ function renderModernMatches() {
     matches = matches.filter((m) => {
       const inA = m.teamA.some(
         (p) =>
-          (nameMap[p] || p).toLowerCase() === histPlayerFilter.toLowerCase(),
+          (state.nameMap[p] || p).toLowerCase() === histPlayerFilter.toLowerCase(),
       );
       const aWon = m.scoreA > m.scoreB;
       const playerWon = inA ? aWon : !aWon;
@@ -6023,7 +6023,7 @@ function openFilterSheet(mode) {
     const names = new Set();
     activeMatches().forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
-        names.add(nameMap[p] || p),
+        names.add(state.nameMap[p] || p),
       ),
     );
     const sorted = sortPlayersGuestsLast([...names]);
@@ -6696,8 +6696,8 @@ function quickRematch(idx) {
   const m = state.matches[idx];
   if (!m) return;
   // Swap teams: winners become team B, losers become team A
-  const newA = (m.teamB || []).map((p) => nameMap[p] || p);
-  const newB = (m.teamA || []).map((p) => nameMap[p] || p);
+  const newA = (m.teamB || []).map((p) => state.nameMap[p] || p);
+  const newB = (m.teamA || []).map((p) => state.nameMap[p] || p);
   openModernAddModal();
   requestAnimationFrame(() => {
     const sel = (id, val) => {
@@ -10082,7 +10082,7 @@ function getMatrixAlias(name) {
   }
 
   // If passed actual player name string
-  const aliases = aliasMap?.[name];
+  const aliases = state.aliasMap?.[name];
 
   if (Array.isArray(aliases) && aliases.length > 0) {
     return String(aliases[0] || "")
@@ -10179,7 +10179,7 @@ function buildH2HMatrixCompact(players) {
   const colHeaders = players
     .map(
       (p) =>
-        `<th class="pvp-th" title="${p}">${getMatrixAlias(aliasMap[p])}</th>`,
+        `<th class="pvp-th" title="${p}">${getMatrixAlias(state.aliasMap[p])}</th>`,
     )
     .join("");
 
@@ -10197,7 +10197,7 @@ function buildH2HMatrixCompact(players) {
         })
         .join("");
       // Row label: use same alias as column header; click to highlight/dim row
-      return `<tr><td class="pvp-row-hdr pvp-row-hdr-click" title="${escHtml(a)}" onclick="_h2hHighlightRow(this.closest('tr'))">${escHtml(getMatrixAlias(aliasMap[a]))}</td>${cells}</tr>`;
+      return `<tr><td class="pvp-row-hdr pvp-row-hdr-click" title="${escHtml(a)}" onclick="_h2hHighlightRow(this.closest('tr'))">${escHtml(getMatrixAlias(state.aliasMap[a]))}</td>${cells}</tr>`;
     })
     .join("");
 
@@ -10205,7 +10205,7 @@ function buildH2HMatrixCompact(players) {
   const legend = players
     .map(
       (p) =>
-        `<span class="pvp-legend-item"><strong>${escHtml(getMatrixAlias(aliasMap[p]))}</strong> ${escHtml(p.toUpperCase())}</span>`,
+        `<span class="pvp-legend-item"><strong>${escHtml(getMatrixAlias(state.aliasMap[p]))}</strong> ${escHtml(p.toUpperCase())}</span>`,
     )
     .join("");
 
@@ -21395,7 +21395,7 @@ function openAddPlayerSheet() {
   const list = document.getElementById("add-player-list");
   if (!list) return;
   const current = _liveSessionData?.sessionPlayers || [];
-  const available = Object.keys(aliasMap)
+  const available = Object.keys(state.aliasMap)
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
     .filter((p) => !current.includes(p));
   if (!available.length) {
