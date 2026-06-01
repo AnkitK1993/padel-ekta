@@ -17294,16 +17294,18 @@ body.smooth-mode [style*="animation-delay"] {
   display: none !important;
 }
 
-/* Desktop detection via pointer precision — fires on mouse devices (laptop/PC)
-   but NOT on touch phones (pointer:coarse). Width-based breakpoints fail when
-   the browser window happens to be narrow, this does not. */
+/* Desktop: pointer:fine = mouse device (laptop/PC), excludes touch phones.
+   align-self on page-body-scroll only — avoids centering the tabbar too. */
 @media (hover: hover) and (pointer: fine) {
-  #pg-compact {
-    align-items: center !important;
-  }
   #pg-compact .page-body-scroll {
-    max-width: 680px !important;
+    align-self: center !important;
     width: 100% !important;
+    max-width: 680px !important;
+  }
+  /* Tabbar must always span full viewport width */
+  #pg-compact .tabbar {
+    width: 100% !important;
+    align-self: stretch !important;
   }
 }
 
