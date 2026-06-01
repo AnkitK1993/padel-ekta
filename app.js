@@ -2,7 +2,7 @@
   generateAmericano,
   americanoFairness,
   nextMexicanoRound,
-} from "./americano.js";
+} from "./src/engine/americano.js";
 import {
   initEloDeps,
   computeElo,
@@ -11,9 +11,9 @@ import {
   computeEloLows,
   _lightFingerprint,
   clearEloCache,
-} from "./elo.js";
-import { computeStats, _normScores } from "./stats.js";
-import { initParserDeps, parseBlock, parseDateHdr } from "./parser.js";
+} from "./src/engine/elo.js";
+import { computeStats, _normScores } from "./src/engine/stats.js";
+import { initParserDeps, parseBlock, parseDateHdr } from "./src/engine/parser.js";
 import {
   escHtml,
   jsArg,
@@ -24,9 +24,9 @@ import {
   getSRRatingClass,
   _rankColor,
   _rankBg,
-} from "./format.js";
-import { buildHudGaugeSvg } from "./charts.js";
-import { state } from "./state.js";
+} from "./src/ui/format.js";
+import { buildHudGaugeSvg } from "./src/ui/charts.js";
+import { state } from "./src/engine/state.js";
 import {
   isFireMatch,
   isDominatingMatch,
@@ -35,7 +35,7 @@ import {
   buildCompactMatchRows,
   buildSummaryMatchRow,
   buildSummaryMatchRows,
-} from "./render-match-rows.js";
+} from "./src/ui/render-match-rows.js";
 import {
   initSelectorsDeps,
   activeMatches,
@@ -44,11 +44,11 @@ import {
   _inSeason,
   _seasonMatchCount,
   invalidateAmMemo,
-} from "./selectors.js";
+} from "./src/engine/selectors.js";
 import {
   initHistorySummaryDeps,
   buildHistorySummary,
-} from "./render-history-summary.js";
+} from "./src/ui/render-history-summary.js";
 import {
   morphList,
   animateGauges,
@@ -56,7 +56,7 @@ import {
   animateSrVal,
   _sweepNeedle,
   runSpeedometerSweep,
-} from "./render-anim.js";
+} from "./src/ui/render-anim.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,

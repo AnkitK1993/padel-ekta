@@ -446,19 +446,32 @@ async function main() {
 
     // Source corpus for the "dynamically built class name" filter.
     // Must include every file that can set a class on an element. The app is
-    // split across many ES modules (render-*.js, charts.js, …), so scan ALL
-    // root + features/ JS plus index.html dynamically — a hardcoded list goes
-    // stale on every module split and yields false "dead" positives. Test
-    // files are excluded so they can't mask a genuinely-unused class.
+    // split across many ES modules under src/ (engine/, ui/) + features/, so
+    // walk those dirs recursively plus index.html — a hardcoded list goes stale
+    // on every module split/reorg and yields false "dead" positives. Test
+    // files and the tests/ dir are excluded so they can't mask an unused class.
     const corpusFiles = ["index.html"];
+    // Root-level .js (app.js, utils.js, sw.js) — non-recursive.
     try {
       for (const f of fs.readdirSync(ROOT))
         if (f.endsWith(".js") && !/^tests/.test(f)) corpusFiles.push(f);
     } catch (e) {}
-    try {
-      for (const f of fs.readdirSync(path.join(ROOT, "features")))
-        if (f.endsWith(".js")) corpusFiles.push(path.join("features", f));
-    } catch (e) {}
+    // App-code dirs — recursive (NOT scripts/ or tests/, which aren't runtime).
+    const walkJs = (dir) => {
+      let entries = [];
+      try {
+        entries = fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true });
+      } catch (e) {
+        return;
+      }
+      for (const e of entries) {
+        const r = path.join(dir, e.name);
+        if (e.isDirectory()) walkJs(r);
+        else if (e.name.endsWith(".js")) corpusFiles.push(r);
+      }
+    };
+    walkJs("src");
+    walkJs("features");
     const corpus = corpusFiles
       .map((f) => {
         try {

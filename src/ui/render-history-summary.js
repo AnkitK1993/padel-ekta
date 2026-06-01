@@ -4,10 +4,10 @@
 // modular; the three app-coupled helpers (normPlayer, getPairStats, the
 // memoised ELO accessor) are injected via initHistorySummaryDeps so the body
 // stays a verbatim copy of the original.
-import { computeStats } from "./stats.js";
-import { computeElo } from "./elo.js";
+import { computeStats } from "../engine/stats.js";
+import { computeElo } from "../engine/elo.js";
 import { _rankColor } from "./format.js";
-import { activeMatches } from "./selectors.js";
+import { activeMatches } from "../engine/selectors.js";
 
 let _deps = {
   normPlayer: (n) => n,

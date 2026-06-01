@@ -5,7 +5,7 @@ import {
   generateAmericano,
   americanoFairness,
   nextMexicanoRound,
-} from "./americano.js";
+} from "../src/engine/americano.js";
 
 let pass = 0,
   fail = 0;
