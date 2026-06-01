@@ -114,7 +114,7 @@ async function _maybeBackup() {
       players,
       playerAliasMap,
       nextPlayerId,
-      seasons,
+      seasons: state.seasons,
     });
     localStorage.setItem("padel_last_backup", today);
   } catch (e) {}
@@ -711,14 +711,14 @@ let nextPlayerId = 1;
 // `_activeSeasonId` is a per-device VIEW preference ("all" = no filter) kept in
 // localStorage — selecting one globally scopes every analytical surface (home,
 // compact, history, analytics, ELO, XP, stats) to that range via activeMatches().
-let seasons = [];
+// seasons now lives in shared state.seasons (./state.js)
 let _activeSeasonId = "all";
 // When enabled (per-device), the ongoing season (the one whose range contains
 // today) is auto-selected on launch instead of restoring the last manual pick.
 let _seasonManuallySet = false;
 try {
   _activeSeasonId = localStorage.getItem("padel_active_season") || "all";
-  seasons = JSON.parse(localStorage.getItem("padel_seasons") || "[]") || [];
+  state.seasons = JSON.parse(localStorage.getItem("padel_seasons") || "[]") || [];
 } catch (e) {}
 _applyAutoSeason(); // override with the ongoing season if auto-select is on
 let _dataVersion = 0;
@@ -1152,7 +1152,7 @@ async function saveCloudData() {
     players,
     playerAliasMap,
     nextPlayerId,
-    seasons,
+    seasons: state.seasons,
   };
   if (window.appCache)
     window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
@@ -1198,7 +1198,7 @@ async function _trySyncNow() {
     players,
     playerAliasMap,
     nextPlayerId,
-    seasons,
+    seasons: state.seasons,
   };
   try {
     _lastLocalSaveTime = Date.now();
@@ -2694,7 +2694,7 @@ function sheetAvSm(name) {
 // The currently-selected season object, or null when "ALL SEASONS".
 function _activeSeason() {
   if (!_activeSeasonId || _activeSeasonId === "all") return null;
-  return seasons.find((s) => s.id === _activeSeasonId) || null;
+  return state.seasons.find((s) => s.id === _activeSeasonId) || null;
 }
 // True when `dateStr` (YYYY-MM-DD) falls inside the season's range. An empty
 // end means open-ended (ongoing). Inclusive on both bounds.
@@ -2724,7 +2724,7 @@ function _isAutoSeasonEnabled() {
 // one wins (most specific/current). null when none is ongoing.
 function _currentOngoingSeason() {
   const t = todayISO();
-  const inRange = seasons.filter((s) => _inSeason(s, t));
+  const inRange = state.seasons.filter((s) => _inSeason(s, t));
   if (!inRange.length) return null;
   return inRange.sort((a, b) => (b.start || "").localeCompare(a.start || ""))[0];
 }
@@ -2821,7 +2821,7 @@ function setSeason(id) {
 // localStorage so the next cold boot has it instantly (before Firestore resolves).
 function _ingestSeasons(arr) {
   if (!Array.isArray(arr)) return;
-  seasons = arr;
+  state.seasons = arr;
   // Auto-select: re-point at the ongoing season once real cloud seasons arrive,
   // unless the user has manually chosen one this session.
   if (_isAutoSeasonEnabled() && !_seasonManuallySet) {
@@ -2838,7 +2838,7 @@ function _ingestSeasons(arr) {
   // If the selected season was deleted elsewhere, fall back to ALL.
   if (
     _activeSeasonId !== "all" &&
-    !seasons.some((s) => s.id === _activeSeasonId)
+    !state.seasons.some((s) => s.id === _activeSeasonId)
   ) {
     _activeSeasonId = "all";
     try {
@@ -2847,7 +2847,7 @@ function _ingestSeasons(arr) {
     updateSeasonHamburgerUI();
   }
   try {
-    localStorage.setItem("padel_seasons", JSON.stringify(seasons));
+    localStorage.setItem("padel_seasons", JSON.stringify(state.seasons));
   } catch (e) {}
 }
 
@@ -12398,7 +12398,7 @@ function _periodAwards(ms, priorMs) {
 // Bucket the (already season/guest-scoped) matches by each user-defined Season.
 // Empty seasons are dropped; newest-starting season first.
 function _computeManualSeasonAwards(matches) {
-  return seasons
+  return state.seasons
     .map((season) => {
       const ms = matches.filter((m) => _inSeason(season, m.date));
       if (!ms.length) return null;
@@ -12422,7 +12422,7 @@ function _computeManualSeasonAwards(matches) {
 // otherwise it falls back to auto monthly buckets.
 function computeSeasons(matches) {
   if (!matches.length) return [];
-  if (seasons.length) return _computeManualSeasonAwards(matches);
+  if (state.seasons.length) return _computeManualSeasonAwards(matches);
   const sorted = [...matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
@@ -14832,9 +14832,9 @@ function _buildUpcomingMilestonesHtml() {
 
 // Compare every player's ELO across the user-defined Seasons (cross-season).
 function _buildSeasonComparisonHtml() {
-  if (!seasons.length)
+  if (!state.seasons.length)
     return '<div class="sub" style="padding:8px">Define Seasons (🗓️ in the menu) to compare players across them.</div>';
-  const ordered = [...seasons].sort((a, b) =>
+  const ordered = [...state.seasons].sort((a, b) =>
     (a.start || "").localeCompare(b.start || ""),
   );
   const perSeason = ordered.map((s) => {
@@ -18350,7 +18350,7 @@ function renderAnalyticsPage() {
       cat: "records",
       // Driven by user-defined Seasons when any exist, else auto monthly buckets.
       // (Distinct from the separate "Monthly Awards" section above.)
-      title: seasons.length ? "🏆 Season Awards" : "📅 Monthly Recap",
+      title: state.seasons.length ? "🏆 Season Awards" : "📅 Monthly Recap",
       body: _buildSeasonModeHtml(),
     },
     {
@@ -20886,7 +20886,7 @@ function _renderSeasonList() {
         <span class="season-row-meta">${state.matches.length} match${state.matches.length !== 1 ? "es" : ""} · no date filter</span>
       </span>
     </button>`;
-  const rows = seasons
+  const rows = state.seasons
     .map((s) => {
       const active = _activeSeasonId === s.id;
       const cnt = _seasonMatchCount(s);
@@ -20904,7 +20904,7 @@ function _renderSeasonList() {
   list.innerHTML =
     rowAll +
     rows +
-    (!seasons.length && !admin
+    (!state.seasons.length && !admin
       ? `<div style="padding:18px 4px;text-align:center;color:var(--text-muted);font-size:12px">No seasons defined yet.</div>`
       : "");
   const adminActions = document.getElementById("season-admin-actions");
@@ -20912,7 +20912,7 @@ function _renderSeasonList() {
 }
 // Open the add/edit form. No id = new season.
 function openSeasonEditor(id) {
-  const s = id ? seasons.find((x) => x.id === id) : null;
+  const s = id ? state.seasons.find((x) => x.id === id) : null;
   document.getElementById("season-edit-id").value = s ? s.id : "";
   document.getElementById("season-edit-name").value = s ? s.name : "";
   document.getElementById("season-edit-start").value = s ? s.start || "" : "";
@@ -20948,17 +20948,17 @@ function saveSeasonFromEditor() {
     return;
   }
   if (id) {
-    const s = seasons.find((x) => x.id === id);
+    const s = state.seasons.find((x) => x.id === id);
     if (s) {
       s.name = name;
       s.start = start;
       s.end = end || null;
     }
   } else {
-    seasons.push({ id: _genSeasonId(), name, start, end: end || null });
+    state.seasons.push({ id: _genSeasonId(), name, start, end: end || null });
   }
   // Newest first by start date.
-  seasons.sort((a, b) => (b.start || "").localeCompare(a.start || ""));
+  state.seasons.sort((a, b) => (b.start || "").localeCompare(a.start || ""));
   _persistSeasons();
   saveCloudData();
   // If the edited season is the active one, the range may have changed → re-render.
@@ -20971,10 +20971,10 @@ function deleteSeasonFromEditor() {
   if (!window.isAdmin) return;
   const id = document.getElementById("season-edit-id").value;
   if (!id) return;
-  const s = seasons.find((x) => x.id === id);
+  const s = state.seasons.find((x) => x.id === id);
   if (!confirm(`Delete season "${s ? s.name : ""}"? Matches are not affected.`))
     return;
-  seasons = seasons.filter((x) => x.id !== id);
+  state.seasons = state.seasons.filter((x) => x.id !== id);
   const wasActive = _activeSeasonId === id;
   if (wasActive) _activeSeasonId = "all";
   _persistSeasons();
@@ -20986,7 +20986,7 @@ function deleteSeasonFromEditor() {
 }
 function _persistSeasons() {
   try {
-    localStorage.setItem("padel_seasons", JSON.stringify(seasons));
+    localStorage.setItem("padel_seasons", JSON.stringify(state.seasons));
     localStorage.setItem("padel_active_season", _activeSeasonId);
   } catch (e) {}
 }
