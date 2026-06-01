@@ -13,6 +13,7 @@ import {
   clearEloCache,
 } from "./elo.js";
 import { computeStats, _normScores } from "./stats.js";
+import { initParserDeps, parseBlock, parseDateHdr } from "./parser.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
@@ -1035,6 +1036,9 @@ let _eloPeaksMemo = null,
 let _eloLowsMemo = null,
   _eloLowsKey = "";
 initEloDeps(getEloDecayParams, todayISO);
+// Getters (not the objects) so the parser always sees the current maps —
+// nameMap/aliasMap are reassigned on data load.
+initParserDeps(() => nameMap, () => aliasMap, todayISO);
 
 function _memoElo(decay = false) {
   // A CLOSED season (end date already past) is a finished competition: its ELO
@@ -2693,115 +2697,9 @@ function lastWeekRange() {
   };
 }
 
-function parseDateHdr(s) {
-  const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (!m) return null;
-  let [, d, mo, y] = m;
-  if (y.length === 2) y = "20" + y;
-  return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
-}
-function resolve(a) {
-  const raw = String(a || "").trim();
-  if (!raw) return raw;
-  if (nameMap[raw]) return nameMap[raw];
-  const hit = Object.entries(nameMap).find(
-    ([alias]) => alias.toLowerCase() === raw.toLowerCase(),
-  );
-  return hit ? hit[1] : raw;
-}
-
-// Resolve a 2-char initial like "Ni" → full name from aliasMap or nameMap
-function resolveInitial(init) {
-  const key = String(init || "")
-    .trim()
-    .toLowerCase();
-  if (!key) return null;
-
-  const aliasExact = Object.entries(nameMap).find(
-    ([alias]) => alias.toLowerCase() === key,
-  );
-  if (aliasExact) return aliasExact[1];
-
-  const displayExact = Object.keys(aliasMap).find(
-    (name) => name.toLowerCase() === key,
-  );
-  if (displayExact) return displayExact;
-
-  // Prefix fallback — but only resolve if it's UNAMBIGUOUS. If two different
-  // players share the prefix (e.g. "Ra" → both "Rahul M" and "Rahul G"),
-  // return null so the line surfaces as a parse error instead of silently
-  // being assigned to whichever player happened to come first.
-  const aliasPrefixNames = new Set(
-    Object.entries(nameMap)
-      .filter(([alias]) => alias.toLowerCase().startsWith(key))
-      .map(([, name]) => name),
-  );
-  if (aliasPrefixNames.size === 1) return [...aliasPrefixNames][0];
-  if (aliasPrefixNames.size > 1) return null; // ambiguous
-
-  const displayPrefixNames = Object.keys(aliasMap).filter((name) =>
-    name.toLowerCase().startsWith(key),
-  );
-  if (displayPrefixNames.length === 1) return displayPrefixNames[0];
-  return null; // none, or ambiguous
-}
-
-function parseMatchLine(line) {
-  line = line.trim().replace(/\s+/g, " ");
-
-  // Shorthand format: NiGo v PaPu 6-1  (2-char initials, no spaces)
-  const sh = line.match(
-    /^([A-Za-z]{2})([A-Za-z]{2})\s+(?:vs?)\s+([A-Za-z]{2})([A-Za-z]{2})\s+(\d+)\s*[-–]\s*(\d+)$/i,
-  );
-  if (sh) {
-    const r1 = resolveInitial(sh[1]),
-      r2 = resolveInitial(sh[2]);
-    const r3 = resolveInitial(sh[3]),
-      r4 = resolveInitial(sh[4]);
-    const sA = +sh[5],
-      sB = +sh[6];
-    if (r1 && r2 && r3 && r4 && !isNaN(sA) && !isNaN(sB) && sA !== sB) {
-      return { teamA: [r1, r2], teamB: [r3, r4], scoreA: sA, scoreB: sB };
-    }
-  }
-
-  // Standard format: Player1 Player2 vs Player3 Player4 6-1
-  const m = line.match(/^(.+?)\s+(?:vs|v)\s+(.+?)\s+(\d+)\s*[-–]\s*(\d+)$/i);
-  if (!m) return null;
-  const tA = m[1].trim().split(" ").filter(Boolean),
-    tB = m[2].trim().split(" ").filter(Boolean);
-  const sA = +m[3],
-    sB = +m[4];
-  if (tA.length < 1 || tA.length > 2 || tB.length < 1 || tB.length > 2)
-    return null;
-  if (tA.length !== tB.length) return null;
-  if (isNaN(sA) || isNaN(sB) || sA === sB) return null;
-  return {
-    teamA: tA.map(resolve),
-    teamB: tB.map(resolve),
-    scoreA: sA,
-    scoreB: sB,
-  };
-}
-
-function parseBlock(raw) {
-  const parsed = [],
-    errors = [],
-    cur = { d: todayISO() };
-  raw.split("\n").forEach((line, i) => {
-    const t = line.trim();
-    if (!t) return;
-    const dt = parseDateHdr(t);
-    if (dt) {
-      cur.d = dt;
-      return;
-    }
-    const m = parseMatchLine(t);
-    if (m) parsed.push({ date: cur.d, ...m });
-    else errors.push({ ln: i + 1, text: t });
-  });
-  return { parsed, errors };
-}
+// parseDateHdr, parseBlock (+ internal resolve/resolveInitial/parseMatchLine)
+// now live in ./parser.js, imported at the top of this file. App-state deps
+// (nameMap, aliasMap, todayISO) are injected via initParserDeps() at startup.
 
 // ── PLAYER AVATARS ─────────────────────────────────────────
 const _AV_COLORS = [
