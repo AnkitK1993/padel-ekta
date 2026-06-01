@@ -21,6 +21,9 @@ import {
   fmtDate,
   playerColor,
   playerInitials,
+  getSRRatingClass,
+  _rankColor,
+  _rankBg,
 } from "./format.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -4022,12 +4025,7 @@ function getFormSparkline(playerName, width = 80, height = 28) {
             </svg>`;
 }
 
-function getSRRatingClass(normalizedSR) {
-  let c =
-    normalizedSR >= 7 ? "sr-high" : normalizedSR >= 4 ? "sr-mid" : "sr-low";
-  if (normalizedSR > 7) c += " rev-limit";
-  return c;
-}
+// getSRRatingClass now lives in ./format.js.
 
 let _hudGaugeId = 0;
 function buildHudGaugeSvg(sr, ratingClass) {
@@ -13408,14 +13406,7 @@ function _computeRankPeriods(periodType) {
   return (_rankPeriodCache[fp] = result);
 }
 
-function _rankColor(rank, maxRank) {
-  const t = (rank - 1) / Math.max(maxRank - 1, 1);
-  return `hsl(${Math.round(120 * (1 - t))},70%,55%)`;
-}
-function _rankBg(rank, maxRank) {
-  const t = (rank - 1) / Math.max(maxRank - 1, 1);
-  return `hsla(${Math.round(120 * (1 - t))},60%,50%,0.18)`;
-}
+// _rankColor, _rankBg now live in ./format.js.
 
 function _buildPodiumTrackerHtml(periodType) {
   const periods = _computeRankPeriods(periodType);

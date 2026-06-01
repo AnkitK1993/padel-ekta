@@ -87,3 +87,24 @@ export function playerInitials(name) {
     p.length >= 2 ? p[0][0] + p[p.length - 1][0] : name.slice(0, 2)
   ).toUpperCase();
 }
+
+// ── SKILL-RATING DISPLAY (CSS class + rank colours) ─────────
+// 0–10 normalised SR → CSS rating class (high/mid/low, +rev-limit above 7).
+export function getSRRatingClass(normalizedSR) {
+  let c =
+    normalizedSR >= 7 ? "sr-high" : normalizedSR >= 4 ? "sr-mid" : "sr-low";
+  if (normalizedSR > 7) c += " rev-limit";
+  return c;
+}
+
+// Rank 1..maxRank → green→red HSL colour (1 = best = green).
+export function _rankColor(rank, maxRank) {
+  const t = (rank - 1) / Math.max(maxRank - 1, 1);
+  return `hsl(${Math.round(120 * (1 - t))},70%,55%)`;
+}
+
+// Translucent background variant of _rankColor for chips/cells.
+export function _rankBg(rank, maxRank) {
+  const t = (rank - 1) / Math.max(maxRank - 1, 1);
+  return `hsla(${Math.round(120 * (1 - t))},60%,50%,0.18)`;
+}
