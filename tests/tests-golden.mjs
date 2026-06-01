@@ -5,7 +5,7 @@
 // refactor silently shifts the leaderboard numbers, this fails. Run:
 //   node tests-golden.mjs    (or: npm run test:golden)
 
-import { computeElo, computeEloHistory, computeEloPeaks } from "./elo.js";
+import { computeElo, computeEloHistory, computeEloPeaks } from "../src/engine/elo.js";
 
 let pass = 0,
   fail = 0;
