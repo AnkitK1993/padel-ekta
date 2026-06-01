@@ -616,6 +616,28 @@ async function main() {
     );
     await evaluate(client, `setSeason("all"); switchMainTab("home", true);`);
 
+    // ── Smooth Mode: player cards must stay VISIBLE ──
+    // (regression: smooth-mode used `animation:none`, which strips the
+    //  cardSlideUp forwards-fill and reverts .pc to its opacity:0 base.)
+    await evaluate(client, `switchMainTab("home", true);`);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#board .pc").length >= 4`,
+      "home cards present",
+    );
+    const sm = await evaluate(client, `(() => {
+      toggleSmoothMode(true);
+      const card = document.querySelector("#board .pc");
+      const op = getComputedStyle(card).opacity;
+      const h = card.offsetHeight;
+      toggleSmoothMode(false);
+      return { op, h };
+    })()`);
+    assert(
+      sm.op === "1" && sm.h > 0,
+      `Smooth mode: cards must stay visible (opacity=${sm.op}, h=${sm.h})`,
+    );
+
     // ── Battery Saver toggle ──────────────────────────────────
     const bs = await evaluate(client, `(() => {
       toggleBatterySaver(true);
@@ -628,6 +650,23 @@ async function main() {
     })()`);
     assert(bs.on === true && bs.lsOn === "1", "Battery Saver should enable + persist '1'");
     assert(bs.off === false && bs.lsOff === "0", "Battery Saver should disable + persist '0'");
+
+    // Battery Saver must survive a full reload (sticky persisted setting).
+    await evaluate(client, `toggleBatterySaver(true);`);
+    await client.send("Page.reload");
+    await waitFor(
+      client,
+      `document.body.classList.contains("splash-done")`,
+      "reload startup",
+    );
+    const bsReload = await evaluate(client, `(() => ({
+      ls: localStorage.getItem("padel_battery_saver"),
+      cls: document.body.classList.contains("battery-saver"),
+    }))()`);
+    assert(
+      bsReload.ls === "1" && bsReload.cls === true,
+      `Battery Saver must persist across reload (got ${JSON.stringify(bsReload)})`,
+    );
 
     const errors = browserErrors(client.events);
     assert(
