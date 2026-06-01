@@ -792,10 +792,6 @@ let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
 let _cmpEqualized = false;
-// Fixed widths (px, border-box) for each <th> index in table.cmp.
-// Index 1 (player) is skipped — JS assigns it the remaining space.
-const _CMP_COL_W = [22, 0, 26, 38, 36, 26, 26, 34, 40, 40];
-
 const _CMP_TOGGLE_COLS = [
   { key: "mp", label: "MP" },
   { key: "record", label: "W–L" },
@@ -4224,27 +4220,6 @@ function _applyCmpColClasses() {
   _CMP_TOGGLE_COLS.forEach((c) =>
     table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)),
   );
-  _applyCmpColWidths();
-}
-
-function _applyCmpColWidths() {
-  requestAnimationFrame(() => {
-    const table = document.querySelector("table.cmp");
-    if (!table) return;
-    const ths = [...table.querySelectorAll("thead tr th")];
-    if (ths.length < 2) return;
-    let used = 0;
-    ths.forEach((th, i) => {
-      if (i === 1) { th.style.width = ""; return; }
-      if (getComputedStyle(th).display === "none") { th.style.width = "0px"; return; }
-      const w = _CMP_COL_W[i] || 36;
-      th.style.width = w + "px";
-      used += w;
-    });
-    const tblW = table.offsetWidth;
-    if (!tblW) return;
-    ths[1].style.width = Math.max(56, tblW - used) + "px";
-  });
 }
 
 function onCmpFilter() {
@@ -4911,7 +4886,6 @@ function renderCompact() {
       cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
     }
   }
-  _applyCmpColWidths();
 }
 
 function updateSortArrows() {
