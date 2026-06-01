@@ -17294,23 +17294,26 @@ body.smooth-mode [style*="animation-delay"] {
   display: none !important;
 }
 
-/* Desktop: cap the entire Summary page at a readable width and center it */
-@media (min-width: 600px) {
-  #pg-compact {
-    align-items: center !important;
-  }
-  #pg-compact .page-body-scroll {
-    max-width: 720px !important;
-    width: 100% !important;
-  }
+/* Summary page: always center content and cap at 680px.
+   On mobile (≤390px) max-width has no effect since the screen is already narrower.
+   On desktop the table+matches section stays in a clean centered column. */
+#pg-compact {
+  align-items: center !important;
+}
+#pg-compact .page-body-scroll {
+  max-width: 680px !important;
+  width: 100% !important;
 }
 
 .cmp-scroll { overflow-x: hidden !important; }
 
 table.cmp {
   width: 100% !important;
+  max-width: 680px !important;
   table-layout: fixed !important;
   min-width: 0 !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 table.cmp th,
 table.cmp td {
