@@ -743,7 +743,8 @@ body {
     rgba(18, 18, 32, 0.9) 100%
   );
   border: 1px solid rgba(var(--theme-rgb), 0.22);
-  backdrop-filter: blur(24px);
+  /* No backdrop-filter: the card bg is ~92% opaque so the blur was invisible
+     yet forced a GPU blur layer per card (×11 on home). Removed. */
   border-radius: 16px;
   padding: 11px 11px 10px;
   margin-bottom: 9px;
@@ -7369,8 +7370,9 @@ body::before {
     radial-gradient(circle at 50% 100%, rgba(180, 90, 255, 0.08), transparent 35%),
     linear-gradient(180deg, #03050d 0%, #050811 35%, #060914 100%);
   background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-
-  animation: ambientShift 14s ease-in-out infinite alternate;
+  /* Was: animation: ambientShift 14s infinite — a full-screen filter:hue-rotate
+     loop that forced continuous GPU recompositing of the whole viewport on every
+     page for a barely-perceptible hue shift. Static gradient instead. */
 }
 
 
@@ -10250,7 +10252,9 @@ select.cmp-sel option {
 .amb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(72px);
+  /* blur cost scales with radius²; 72→48px roughly halves per-frame GPU work
+     while the orbs stay visually soft. */
+  filter: blur(48px);
   will-change: transform;
 }
 .b1 {
@@ -17288,6 +17292,46 @@ body.smooth-mode [style*="animation-delay"] {
    what their content needs. Player column gets the rest (names are
    the widest content → naturally absorbs the surplus space).
    ════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   PERFORMANCE / MOBILE HEAT REDUCTION
+   Infinite decorative animations (holo glow, gauge sweeps, ambient
+   orbs) are the dominant GPU/CPU cost. These rules stop them paying
+   that cost when they can't be seen, plus honour the OS reduced-motion
+   setting. No visual change while you are actively looking at a page.
+   ════════════════════════════════════════════════════════════ */
+
+/* Pause every animation on pages that aren't the active one — the home
+   leaderboard alone runs ~44 infinite animations across its cards, all of
+   which kept burning the GPU even while you were on another tab. */
+.page:not(.active) *,
+.page:not(.active) *::before,
+.page:not(.active) *::after {
+  animation-play-state: paused !important;
+}
+
+/* App backgrounded / screen off → freeze everything, including the fixed
+   ambient layers that live outside .page. Toggled from JS on visibilitychange. */
+body.app-bg *,
+body.app-bg *::before,
+body.app-bg *::after {
+  animation-play-state: paused !important;
+}
+
+/* Respect the user's OS "reduce motion" preference: drop the infinite
+   decorative loops and the heaviest blurs entirely. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.08s !important;
+  }
+  .amb {
+    filter: blur(36px);
+  }
+}
+
 /* Sort arrows that have no content (inactive columns) collapse to zero width,
    freeing ~10px per inactive header. Active arrows still show normally. */
 .sort-arrow:empty {
