@@ -445,10 +445,21 @@ async function main() {
       /:(hover|active|focus|focus-visible|focus-within|target|visited|checked|disabled|enabled|valid|invalid|placeholder-shown|autofill)/;
 
     // Source corpus for the "dynamically built class name" filter.
-    // Must include every file that can set a class on an element — utils.js
-    // applies theme/splash/tab classes to <body>, so omitting it produces
-    // false "dead" positives for theme-scoped rules.
-    const corpus = ["app.js", "index.html", "utils.js", "elo.js"]
+    // Must include every file that can set a class on an element. The app is
+    // split across many ES modules (render-*.js, charts.js, …), so scan ALL
+    // root + features/ JS plus index.html dynamically — a hardcoded list goes
+    // stale on every module split and yields false "dead" positives. Test
+    // files are excluded so they can't mask a genuinely-unused class.
+    const corpusFiles = ["index.html"];
+    try {
+      for (const f of fs.readdirSync(ROOT))
+        if (f.endsWith(".js") && !/^tests/.test(f)) corpusFiles.push(f);
+    } catch (e) {}
+    try {
+      for (const f of fs.readdirSync(path.join(ROOT, "features")))
+        if (f.endsWith(".js")) corpusFiles.push(path.join("features", f));
+    } catch (e) {}
+    const corpus = corpusFiles
       .map((f) => {
         try {
           return fs.readFileSync(path.join(ROOT, f), "utf8");
