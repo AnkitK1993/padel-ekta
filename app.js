@@ -14,7 +14,14 @@ import {
 } from "./elo.js";
 import { computeStats, _normScores } from "./stats.js";
 import { initParserDeps, parseBlock, parseDateHdr } from "./parser.js";
-import { escHtml, jsArg, toLocalISODate, fmtDate } from "./format.js";
+import {
+  escHtml,
+  jsArg,
+  toLocalISODate,
+  fmtDate,
+  playerColor,
+  playerInitials,
+} from "./format.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
@@ -2655,31 +2662,7 @@ function lastWeekRange() {
 // (nameMap, aliasMap, todayISO) are injected via initParserDeps() at startup.
 
 // ── PLAYER AVATARS ─────────────────────────────────────────
-const _AV_COLORS = [
-  "#18d7ff",
-  "#36d47e",
-  "#f5c842",
-  "#f04f4f",
-  "#b06dff",
-  "#ff7a3d",
-  "#62b6ff",
-  "#ff5fa0",
-  "#4ec9b0",
-  "#c8a96e",
-];
-
-function playerColor(name) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++)
-    h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  return _AV_COLORS[h % _AV_COLORS.length];
-}
-function playerInitials(name) {
-  const p = name.trim().split(/\s+/);
-  return (
-    p.length >= 2 ? p[0][0] + p[p.length - 1][0] : name.slice(0, 2)
-  ).toUpperCase();
-}
+// _AV_COLORS, playerColor, playerInitials now live in ./format.js.
 function playerAvatar(name, size = 26) {
   const col = playerColor(name);
   const fs = Math.round(size * 0.38);

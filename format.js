@@ -57,3 +57,33 @@ export function fmtDate(raw) {
   if (m) return Number(m[2]) + " " + MONTHS_SHORT[Number(m[1]) - 1];
   return s;
 }
+
+// ── PLAYER IDENTITY (deterministic colour + initials) ───────
+const _AV_COLORS = [
+  "#18d7ff",
+  "#36d47e",
+  "#f5c842",
+  "#f04f4f",
+  "#b06dff",
+  "#ff7a3d",
+  "#62b6ff",
+  "#ff5fa0",
+  "#4ec9b0",
+  "#c8a96e",
+];
+
+// Stable colour for a player name (same name → same colour every render).
+export function playerColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++)
+    h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return _AV_COLORS[h % _AV_COLORS.length];
+}
+
+// 1–2 letter avatar initials from a player name.
+export function playerInitials(name) {
+  const p = name.trim().split(/\s+/);
+  return (
+    p.length >= 2 ? p[0][0] + p[p.length - 1][0] : name.slice(0, 2)
+  ).toUpperCase();
+}
