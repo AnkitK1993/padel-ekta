@@ -17288,15 +17288,29 @@ body.smooth-mode [style*="animation-delay"] {
    what their content needs. Player column gets the rest (names are
    the widest content → naturally absorbs the surplus space).
    ════════════════════════════════════════════════════════════ */
+/* Sort arrows that have no content (inactive columns) collapse to zero width,
+   freeing ~10px per inactive header. Active arrows still show normally. */
+.sort-arrow:empty {
+  display: none !important;
+}
+
+/* Desktop: cap the entire Summary page at a readable width and center it */
+@media (min-width: 600px) {
+  #pg-compact {
+    align-items: center !important;
+  }
+  #pg-compact .page-body-scroll {
+    max-width: 720px !important;
+    width: 100% !important;
+  }
+}
+
 .cmp-scroll { overflow-x: hidden !important; }
 
 table.cmp {
   width: 100% !important;
-  max-width: 620px !important;
   table-layout: fixed !important;
   min-width: 0 !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
 }
 table.cmp th,
 table.cmp td {
