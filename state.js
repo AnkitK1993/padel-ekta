@@ -9,4 +9,5 @@
 // collide with the persisted Firestore/localStorage schema keys.
 export const state = {
   matches: [], // was the module-level `allMatches` array
+  seasons: [], // was the module-level `seasons` array (user-defined date ranges)
 };
