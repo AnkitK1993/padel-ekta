@@ -18,6 +18,7 @@ const STATIC = [
   BASE + "charts.js",
   BASE + "render-match-rows.js",
   BASE + "render-history-summary.js",
+  BASE + "render-anim.js",
   BASE + "selectors.js",
   BASE + "americano.js",
   BASE + "manifest.json",
