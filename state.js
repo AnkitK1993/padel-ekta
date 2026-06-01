@@ -12,4 +12,5 @@ export const state = {
   seasons: [], // was the module-level `seasons` array (user-defined date ranges)
   nameMap: {}, // alias/token → canonical player name
   aliasMap: {}, // canonical player name → [aliases]
+  players: {}, // roster: { [id]: { id, name, email, image, isGuest } }
 };
