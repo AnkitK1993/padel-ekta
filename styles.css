@@ -17303,6 +17303,11 @@ table.cmp td {
   vertical-align: middle !important;
 }
 
+/* Body cells: 11px so 3-digit numbers and long W-L fit without truncation */
+table.cmp tbody td { font-size: 11px !important; }
+/* rec-cell has its own font-size:12px !important — override it here */
+table.cmp tbody .rec-cell { font-size: 11px !important; }
+
 /* ── Rank ── */
 table.cmp th:nth-child(1),
 table.cmp td:nth-child(1) {
@@ -17311,10 +17316,9 @@ table.cmp td:nth-child(1) {
   padding-left: 3px !important;
   padding-right: 2px !important;
 }
-/* ── Player: width:auto in table-layout:fixed = absorbs all remaining space
-   after the explicit-width columns claim their share.
-   Earlier !important rules (width:96px, max-width:96px) are overridden here
-   because this block appears LAST in the stylesheet. ── */
+/* ── Player: width:auto in table-layout:fixed = absorbs all remaining space.
+   Overrides the earlier width:96px + max-width:96px !important blocks
+   because this block is LAST in the stylesheet. ── */
 table.cmp th:nth-child(2),
 table.cmp td:nth-child(2) {
   width: auto !important;
@@ -17327,15 +17331,15 @@ table.cmp td:nth-child(2) {
 /* ── MP ── */
 table.cmp th:nth-child(3),
 table.cmp td:nth-child(3) {
-  width: 28px !important;
+  width: 26px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 3px !important;
 }
-/* ── W-L ── */
+/* ── W-L: widened to 46px to fit "58–27" at 11px (was 38px, truncated) ── */
 table.cmp th:nth-child(4),
 table.cmp td:nth-child(4) {
-  width: 38px !important;
+  width: 46px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 3px !important;
@@ -17343,15 +17347,15 @@ table.cmp td:nth-child(4) {
 /* ── W% ── */
 table.cmp th:nth-child(5),
 table.cmp td:nth-child(5) {
-  width: 38px !important;
+  width: 36px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 3px !important;
 }
-/* ── GW ── */
+/* ── GW: widened to 32px for 3-digit game counts (was 28px, truncated) ── */
 table.cmp th:nth-child(6),
 table.cmp td:nth-child(6) {
-  width: 28px !important;
+  width: 32px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 3px !important;
@@ -17359,7 +17363,7 @@ table.cmp td:nth-child(6) {
 /* ── GL ── */
 table.cmp th:nth-child(7),
 table.cmp td:nth-child(7) {
-  width: 28px !important;
+  width: 32px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 3px !important;
@@ -17372,18 +17376,18 @@ table.cmp td:nth-child(8) {
   padding-left: 3px !important;
   padding-right: 3px !important;
 }
-/* ── ELO ── */
+/* ── ELO: trimmed from 42→40px (content had visible slack) ── */
 table.cmp th:nth-child(9),
 table.cmp td:nth-child(9) {
-  width: 42px !important;
+  width: 40px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 3px !important;
 }
-/* ── SR ── */
+/* ── SR: trimmed from 44→42px ── */
 table.cmp th:nth-child(10),
 table.cmp td:nth-child(10) {
-  width: 44px !important;
+  width: 42px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 4px !important;
