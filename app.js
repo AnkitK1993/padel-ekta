@@ -111,7 +111,7 @@ async function _maybeBackup() {
     await setDoc(doc(db, "backups", today), {
       ts: Date.now(),
       matches: state.matches,
-      players,
+      players: state.players,
       playerAliasMap,
       nextPlayerId,
       seasons: state.seasons,
@@ -702,7 +702,7 @@ function checkMilestones(prevMatches, newMatches) {
 // nameMap now lives in shared state (./state.js)
 // aliasMap now lives in shared state (./state.js)
 // Source-of-truth player roster (replaces aliasMap/nameMap as stored data)
-let players = {}; // { [id]: { id, name, email, image, isGuest } }
+// players now lives in shared state.players (./state.js) // { [id]: { id, name, email, image, isGuest } }
 let playerAliasMap = {}; // { [id]: [alias1, alias2, ...] }
 let nextPlayerId = 1;
 // ── SEASONS ────────────────────────────────────────────────
@@ -1149,13 +1149,13 @@ async function saveCloudData() {
   _dataVersion++;
   const payload = {
     matches: state.matches,
-    players,
+    players: state.players,
     playerAliasMap,
     nextPlayerId,
     seasons: state.seasons,
   };
   if (window.appCache)
-    window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
+    window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
   try {
     localStorage.setItem("padel_matches", JSON.stringify(state.matches));
   } catch (e) {}
@@ -1195,7 +1195,7 @@ async function _trySyncNow() {
   if (!_hasPendingSync()) return;
   const payload = {
     matches: state.matches,
-    players,
+    players: state.players,
     playerAliasMap,
     nextPlayerId,
     seasons: state.seasons,
@@ -1282,7 +1282,7 @@ function _resubscribeFirestore() {
             );
             // Keep local player roster (may have new names added offline)
             // push merged data back to Firestore
-            players = pls;
+            state.players = pls;
             playerAliasMap = pam;
             nextPlayerId = npid;
             rebuildNameMaps();
@@ -1302,7 +1302,7 @@ function _resubscribeFirestore() {
         } else {
           state.matches = incoming;
         }
-        players = pls;
+        state.players = pls;
         playerAliasMap = pam;
         nextPlayerId = npid;
         rebuildNameMaps();
@@ -1466,7 +1466,7 @@ function _showSyncConflict(
     overlay.remove();
     resolveFn(
       merged,
-      { ...cloudPls, ...players },
+      { ...cloudPls, ...state.players },
       { ...cloudPam, ...playerAliasMap },
       Math.max(cloudNpid || 1, nextPlayerId),
       true,
@@ -1478,7 +1478,7 @@ function _showSyncConflict(
   };
   overlay.querySelector("#sc-local").onclick = () => {
     overlay.remove();
-    resolveFn(state.matches, players, playerAliasMap, nextPlayerId, true);
+    resolveFn(state.matches, state.players, playerAliasMap, nextPlayerId, true);
     showToast("Keeping local data", "📱");
   };
 }
@@ -1689,14 +1689,14 @@ function loadCloudData() {
     } else {
       state.matches = matches;
     }
-    players = pls;
+    state.players = pls;
     playerAliasMap = pam;
     nextPlayerId = npid || 1;
     rebuildNameMaps();
     _invalidateEloMemo();
     autoSaveWeeklySnap();
     if (window.appCache)
-      window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
+      window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
 
     const _onAddPage = () =>
       document.querySelector(".page.active")?.id === "pg-add";
@@ -2862,7 +2862,7 @@ function _ingestSeasons(arr) {
 function activeMatches() {
   const s = _activeSeason();
   const excludedArr = [
-    ...Object.values(players)
+    ...Object.values(state.players)
       .filter((p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name))
       .map((p) => p.name),
     ..._excludedPlayers,
@@ -2942,7 +2942,7 @@ function normPlayer(name) {
 function rebuildNameMaps() {
   state.aliasMap = {};
   state.nameMap = {};
-  Object.values(players).forEach((p) => {
+  Object.values(state.players).forEach((p) => {
     const aliases = playerAliasMap[p.id] || [];
     state.aliasMap[p.name] = aliases;
     aliases.forEach((a) => {
@@ -3002,7 +3002,7 @@ function sameMatch(a, b) {
 }
 
 function getAllPlayerNamesFromMatches() {
-  const names = new Set(Object.values(players).map((p) => p.name));
+  const names = new Set(Object.values(state.players).map((p) => p.name));
   state.matches.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
       names.add(normPlayer(p)),
@@ -3014,7 +3014,7 @@ function getAllPlayerNamesFromMatches() {
 // Sort player names alphabetically, guests pushed to end
 function sortPlayersGuestsLast(names) {
   const guestSet = new Set(
-    Object.values(players)
+    Object.values(state.players)
       .filter((p) => p.isGuest)
       .map((p) => p.name),
   );
@@ -3447,12 +3447,12 @@ function saveNames() {
 
   // Merge into players: update existing by name, add new
   Object.entries(importMap).forEach(([displayName, aliases]) => {
-    const existing = Object.values(players).find((p) => p.name === displayName);
+    const existing = Object.values(state.players).find((p) => p.name === displayName);
     if (existing) {
       playerAliasMap[existing.id] = aliases;
     } else {
       const id = nextPlayerId++;
-      players[id] = {
+      state.players[id] = {
         id,
         name: displayName,
         email: "",
@@ -3475,7 +3475,7 @@ function saveNames() {
 function loadNames() {
   const ta = document.getElementById("namesTA");
   if (ta) {
-    ta.value = Object.values(players)
+    ta.value = Object.values(state.players)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((p) => `${p.name} - ${(playerAliasMap[p.id] || []).join(", ")}`)
       .join("\n");
@@ -3484,13 +3484,13 @@ function loadNames() {
 
 function editNameEntry(displayName) {
   // Legacy shim — find player by name and open the edit sheet
-  const p = Object.values(players).find((x) => x.name === displayName);
+  const p = Object.values(state.players).find((x) => x.name === displayName);
   if (p) openPlayerEditSheet(p.id);
 }
 
 function renderNamesTable() {
   const table = document.getElementById("names-table");
-  const sorted = Object.values(players).sort((a, b) =>
+  const sorted = Object.values(state.players).sort((a, b) =>
     (a.name || "").localeCompare(b.name || "", undefined, {
       sensitivity: "base",
     }),
@@ -3610,7 +3610,7 @@ function clearMatches() {
 }
 function clearNames() {
   if (!confirm("Clear all players?")) return;
-  players = {};
+  state.players = {};
   playerAliasMap = {};
   nextPlayerId = 1;
   rebuildNameMaps();
@@ -3622,7 +3622,7 @@ function exportData() {
   navigator.clipboard
     .writeText(
       JSON.stringify(
-        { matches: state.matches, players, playerAliasMap, nextPlayerId },
+        { matches: state.matches, players: state.players, playerAliasMap, nextPlayerId },
         null,
         2,
       ),
@@ -3705,7 +3705,7 @@ function importData() {
   if (!confirm) return;
   state.matches = merged;
   if (data.players && typeof data.players === "object") {
-    players = { ...players, ...data.players };
+    state.players = { ...state.players, ...data.players };
     playerAliasMap = { ...playerAliasMap, ...(data.playerAliasMap || {}) };
     if (data.nextPlayerId > nextPlayerId) nextPlayerId = data.nextPlayerId;
     rebuildNameMaps();
@@ -3779,7 +3779,7 @@ function _saveExcludedPlayers() {
 function _updateExcludeBtn() {
   const btn = document.getElementById("cmpExcludeBtn");
   if (!btn) return;
-  const guestCount = Object.values(players).filter(
+  const guestCount = Object.values(state.players).filter(
     (p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name),
   ).length;
   const n = guestCount + _excludedPlayers.size;
@@ -3793,7 +3793,7 @@ function openExcludeSheet() {
   const list = document.getElementById("exclude-sheet-list");
   if (!overlay || !sheet || !list) return;
   const guestNames = new Set(
-    Object.values(players)
+    Object.values(state.players)
       .filter((p) => p.isGuest)
       .map((p) => p.name),
   );
@@ -3806,7 +3806,7 @@ function openExcludeSheet() {
       if (!guestNames.has(n)) nonGuestNames.add(n);
     }),
   );
-  Object.values(players).forEach((p) => {
+  Object.values(state.players).forEach((p) => {
     if (!p.isGuest) nonGuestNames.add(state.nameMap[p.name] || p.name);
   });
   const nonGuestSorted = [...nonGuestNames]
@@ -3841,7 +3841,7 @@ function openExcludeSheet() {
 }
 
 function toggleExcludePlayer(name) {
-  const isGuest = Object.values(players).some(
+  const isGuest = Object.values(state.players).some(
     (p) => p.isGuest && p.name === name,
   );
   if (isGuest) {
@@ -3880,7 +3880,7 @@ function clearExcludedPlayers() {
   _excludedPlayers.clear();
   _saveExcludedPlayers();
   // Also session-unexclude all guests so "CLEAR ALL" truly shows everyone
-  Object.values(players)
+  Object.values(state.players)
     .filter((p) => p.isGuest)
     .forEach((p) => _sessionGuestUnexcluded.add(p.name));
   _updateExcludeBtn();
@@ -6754,7 +6754,7 @@ function saveQuickName() {
     : [];
 
   const id = nextPlayerId++;
-  players[id] = { id, name: display, email, isGuest };
+  state.players[id] = { id, name: display, email, isGuest };
   playerAliasMap[id] = aliases;
   rebuildNameMaps();
   saveCloudData();
@@ -18636,7 +18636,7 @@ async function sendBackupEmail(isAuto = false) {
   try {
     const todayStr = todayISO();
     const jsonData = JSON.stringify(
-      { matches: state.matches, players, playerAliasMap, nextPlayerId },
+      { matches: state.matches, players: state.players, playerAliasMap, nextPlayerId },
       null,
       2,
     );
@@ -19553,7 +19553,7 @@ function endLiveMatch() {
     _saveSessionState(); // Enhancement 13: persist session for resume
     _invalidateEloMemo();
     if (window.appCache)
-      window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
+      window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
     try {
       localStorage.setItem("padel_matches", JSON.stringify(state.matches));
     } catch (e) {}
@@ -21251,7 +21251,7 @@ function _reattachPendingMatches() {
     _sessionPendingCount = pending.length;
     _invalidateEloMemo();
     if (window.appCache)
-      window.appCache.save(state.matches, players, playerAliasMap, nextPlayerId);
+      window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
   } catch (e) {}
 }
 function _clearSessionState() {
@@ -21474,7 +21474,7 @@ let _editingPlayerId = null;
 function openPlayerEditSheet(id) {
   _editingPlayerId = id || null;
   const isNew = !id;
-  const p = isNew ? { name: "", email: "", isGuest: false } : players[id] || {};
+  const p = isNew ? { name: "", email: "", isGuest: false } : state.players[id] || {};
   const aliases = isNew ? [] : playerAliasMap[id] || [];
   const { first, last } = isNew
     ? { first: null, last: null }
@@ -21533,8 +21533,8 @@ function savePlayerEdit() {
     : [];
 
   const id = _editingPlayerId || nextPlayerId++;
-  const existing = players[id] || {};
-  players[id] = { ...existing, id, name, email, isGuest };
+  const existing = state.players[id] || {};
+  state.players[id] = { ...existing, id, name, email, isGuest };
   playerAliasMap[id] = aliases;
   rebuildNameMaps();
   saveCloudData();
@@ -21545,9 +21545,9 @@ window.savePlayerEdit = savePlayerEdit;
 
 function deletePlayerEntry() {
   if (!_editingPlayerId) return;
-  const p = players[_editingPlayerId];
+  const p = state.players[_editingPlayerId];
   if (!confirm(`Delete player "${p?.name}"?`)) return;
-  delete players[_editingPlayerId];
+  delete state.players[_editingPlayerId];
   delete playerAliasMap[_editingPlayerId];
   rebuildNameMaps();
   saveCloudData();
