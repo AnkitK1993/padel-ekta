@@ -17288,9 +17288,8 @@ body.smooth-mode [style*="animation-delay"] {
    what their content needs. Player column gets the rest (names are
    the widest content → naturally absorbs the surplus space).
    ════════════════════════════════════════════════════════════ */
-.cmp-scroll {
-  overflow-x: hidden !important;
-}
+.cmp-scroll { overflow-x: hidden !important; }
+
 table.cmp {
   width: 100% !important;
   table-layout: fixed !important;
@@ -17301,30 +17300,93 @@ table.cmp td {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  vertical-align: middle !important;
 }
 
-/* Rank + stat columns — widths are set via JS (_applyCmpColWidths).
-   Padding & alignment only here. */
+/* ── Rank ── */
 table.cmp th:nth-child(1),
 table.cmp td:nth-child(1) {
+  width: 24px !important;
   text-align: center !important;
-  padding-left: 4px !important;
+  padding-left: 3px !important;
   padding-right: 2px !important;
 }
-/* Player — JS sets the explicit px width; alignment & overflow only here */
+/* ── Player: width:auto in table-layout:fixed = absorbs all remaining space
+   after the explicit-width columns claim their share.
+   Earlier !important rules (width:96px, max-width:96px) are overridden here
+   because this block appears LAST in the stylesheet. ── */
 table.cmp th:nth-child(2),
 table.cmp td:nth-child(2) {
+  width: auto !important;
+  min-width: 56px !important;
+  max-width: none !important;
   text-align: left !important;
   padding-left: 4px !important;
   padding-right: 4px !important;
-  max-width: none !important;
 }
-/* Stat columns */
-table.cmp th:nth-child(n+3),
-table.cmp td:nth-child(n+3) {
+/* ── MP ── */
+table.cmp th:nth-child(3),
+table.cmp td:nth-child(3) {
+  width: 28px !important;
   text-align: center !important;
   padding-left: 3px !important;
   padding-right: 3px !important;
+}
+/* ── W-L ── */
+table.cmp th:nth-child(4),
+table.cmp td:nth-child(4) {
+  width: 38px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+/* ── W% ── */
+table.cmp th:nth-child(5),
+table.cmp td:nth-child(5) {
+  width: 38px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+/* ── GW ── */
+table.cmp th:nth-child(6),
+table.cmp td:nth-child(6) {
+  width: 28px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+/* ── GL ── */
+table.cmp th:nth-child(7),
+table.cmp td:nth-child(7) {
+  width: 28px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+/* ── G% ── */
+table.cmp th:nth-child(8),
+table.cmp td:nth-child(8) {
+  width: 36px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+/* ── ELO ── */
+table.cmp th:nth-child(9),
+table.cmp td:nth-child(9) {
+  width: 42px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+/* ── SR ── */
+table.cmp th:nth-child(10),
+table.cmp td:nth-child(10) {
+  width: 44px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 4px !important;
 }
 
 /* ── SEASONS ─────────────────────────────────────────────── */
