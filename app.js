@@ -830,31 +830,30 @@ if (localStorage.getItem("smooth_mode") === "1") {
   const _smCb = document.getElementById("smooth-mode-toggle");
   if (_smCb) _smCb.checked = true;
 }
-// Battery Saver: explicit pref ("1"/"0") wins; otherwise auto-follow battery.
+// Battery Saver is a sticky, persisted toggle. If it has ever been set ("1"/"0")
+// that wins. On the very first launch only, seed a sensible default FROM the
+// battery once and persist it — so thereafter it behaves like any other saved
+// setting and never silently flips on refresh. (The previous version toggled
+// the class on every battery event without persisting, so a fresh refresh
+// re-evaluated live battery and could reset to off — the reported bug.)
 {
   const _bsPref = localStorage.getItem("padel_battery_saver");
   if (_bsPref === "1") {
     document.body.classList.add("battery-saver");
     const _bsCb = document.getElementById("battery-saver-toggle");
     if (_bsCb) _bsCb.checked = true;
-  }
-  if (_bsPref == null && navigator.getBattery) {
+  } else if (_bsPref == null && navigator.getBattery) {
     navigator
       .getBattery()
       .then((bat) => {
-        const _auto = () => {
-          // Stop auto-following the moment the user sets it manually.
-          if (localStorage.getItem("padel_battery_saver") != null) return;
-          document.body.classList.toggle(
-            "battery-saver",
-            bat.level <= 0.2 && !bat.charging,
-          );
-          const cb = document.getElementById("battery-saver-toggle");
-          if (cb) cb.checked = document.body.classList.contains("battery-saver");
-        };
-        _auto();
-        bat.addEventListener("levelchange", _auto);
-        bat.addEventListener("chargingchange", _auto);
+        if (localStorage.getItem("padel_battery_saver") != null) return;
+        // Default ON only when genuinely low & unplugged; persist either way.
+        if (bat.level <= 0.2 && !bat.charging) toggleBatterySaver(true);
+        else {
+          try {
+            localStorage.setItem("padel_battery_saver", "0");
+          } catch (e) {}
+        }
       })
       .catch(() => {});
   }

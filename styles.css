@@ -17074,7 +17074,12 @@ body.smooth-mode .ana-card,
 body.smooth-mode .ana-sec,
 body.smooth-mode #ambient-bg .amb,
 body.smooth-mode [style*="animation-delay"] {
-  animation: none !important;
+  /* Collapse the duration instead of `animation: none` — the latter strips the
+     cardSlideUp entrance entirely, leaving .pc stuck at its opacity:0 pre-entry
+     state (invisible). Duration:0 lets the forwards-fill land on the visible
+     end-state while still showing no motion; infinite loops run once and stop. */
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
 }
 
 /* Baseline: honor the OS "reduce motion" setting even without the toggle. */
