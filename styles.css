@@ -17293,41 +17293,38 @@ body.smooth-mode [style*="animation-delay"] {
 }
 table.cmp {
   width: 100% !important;
-  table-layout: auto !important;
+  table-layout: fixed !important;
   min-width: 0 !important;
 }
 table.cmp th,
 table.cmp td {
   white-space: nowrap !important;
   overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-/* Rank — just the medal or number, no extra space */
+/* Rank + stat columns — widths are set via JS (_applyCmpColWidths).
+   Padding & alignment only here. */
 table.cmp th:nth-child(1),
 table.cmp td:nth-child(1) {
-  width: 1% !important;
-  padding-left: 5px !important;
-  padding-right: 3px !important;
+  text-align: center !important;
+  padding-left: 4px !important;
+  padding-right: 2px !important;
 }
-/* Player — width:100% is the CSS table trick for "absorb all spare space
-   after other columns take their minimum". Stat columns with width:1% take
-   only their content minimum, so the player column gets everything left. */
+/* Player — JS sets the explicit px width; alignment & overflow only here */
 table.cmp th:nth-child(2),
 table.cmp td:nth-child(2) {
-  width: 100% !important;
-  min-width: 56px !important;
-  max-width: none !important;
   text-align: left !important;
-  text-overflow: ellipsis !important;
   padding-left: 4px !important;
   padding-right: 4px !important;
+  max-width: none !important;
 }
-/* Stat columns — width:1% collapses each to its content minimum */
+/* Stat columns */
 table.cmp th:nth-child(n+3),
 table.cmp td:nth-child(n+3) {
-  width: 1% !important;
-  padding-left: 4px !important;
-  padding-right: 4px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
 }
 
 /* ── SEASONS ─────────────────────────────────────────────── */
