@@ -14,6 +14,7 @@ import {
 } from "./elo.js";
 import { computeStats, _normScores } from "./stats.js";
 import { initParserDeps, parseBlock, parseDateHdr } from "./parser.js";
+import { escHtml, jsArg, toLocalISODate, fmtDate } from "./format.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
@@ -157,56 +158,8 @@ function morphList(container, html) {
 }
 
 // ── HTML ESCAPE ───────────────────────────────────────────────
-function escHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function jsArg(value) {
-  return escHtml(JSON.stringify(String(value ?? "")));
-}
-
-function toLocalISODate(date = new Date()) {
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-// ── DATE FORMATTER ────────────────────────────────────────────
-const MONTHS_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-function fmtDate(raw) {
-  if (!raw) return "—";
-  const s = String(raw);
-  // Full date: YYYY-MM-DD → DD MMM YYYY
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m)
-    return Number(m[3]) + " " + MONTHS_SHORT[Number(m[2]) - 1] + " " + m[1];
-  // Short: MM-DD → DD MMM
-  m = s.match(/^(\d{2})-(\d{2})$/);
-  if (m) return Number(m[2]) + " " + MONTHS_SHORT[Number(m[1]) - 1];
-  return s;
-}
+// escHtml, jsArg, toLocalISODate, fmtDate (+ MONTHS_SHORT) now live in
+// ./format.js — imported at the top of this file.
 
 // ── UNDO TOAST ────────────────────────────────────────────
 function showUndoToast(msg, undoFn, ms = 5000) {
