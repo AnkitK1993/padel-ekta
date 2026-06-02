@@ -3721,40 +3721,41 @@ async function _ensureDriveToken() {
   }
 }
 
-async function exportBackupFile() {
-  const json = JSON.stringify(_backupPayload(), null, 2);
+// Upload backup directly to Google Drive.
+async function backupToDrive() {
+  const blob = new Blob([JSON.stringify(_backupPayload(), null, 2)], {
+    type: "application/json",
+  });
   const filename = _backupFilename();
-  const blob = new Blob([json], { type: "application/json" });
-
-  // ── Path B: upload directly to Google Drive ──
-  if (window.isAdmin) {
-    const hasToken = await _ensureDriveToken();
-    if (hasToken) {
-      showToast("Uploading to Drive…", "☁️");
-      try {
-        const link = await _uploadToDrive(blob, filename);
-        showToast("Saved to Drive!", "✅");
-        // Also offer the direct file link
-        const el = document.getElementById("expOk");
-        if (el) {
-          el.innerHTML = `Saved! <a href="${escHtml(link)}" target="_blank"
-            style="color:var(--theme);text-decoration:underline">Open in Drive ↗</a>`;
-          el.classList.add("show");
-          setTimeout(() => {
-            el.classList.remove("show");
-            el.innerHTML = "";
-          }, 8000);
-        }
-        return;
-      } catch (e) {
-        const msg = e?.message || String(e);
-        console.error("Drive upload failed:", msg, e);
-        showToast(`Drive error: ${msg} — downloading instead`, "⚠️");
-      }
-    }
+  const hasToken = await _ensureDriveToken();
+  if (!hasToken) {
+    showToast("Sign in to use Drive backup", "⚠️");
+    return;
   }
+  showToast("Uploading to Drive…", "☁️");
+  try {
+    const link = await _uploadToDrive(blob, filename);
+    showToast("Saved to Drive!", "✅");
+    const el = document.getElementById("expOk");
+    if (el) {
+      el.innerHTML = `Saved! <a href="${escHtml(link)}" target="_blank"
+        style="color:var(--theme);text-decoration:underline">Open in Drive ↗</a>`;
+      el.classList.add("show");
+      setTimeout(() => { el.classList.remove("show"); el.innerHTML = ""; }, 8000);
+    }
+  } catch (e) {
+    const msg = e?.message || String(e);
+    console.error("Drive upload failed:", msg, e);
+    showToast(`Drive error: ${msg}`, "⚠️");
+  }
+}
 
-  // ── Path A fallback: native share (→ Drive on mobile) or download ──
+// Download backup JSON file to device.
+async function exportJsonFile() {
+  const blob = new Blob([JSON.stringify(_backupPayload(), null, 2)], {
+    type: "application/json",
+  });
+  const filename = _backupFilename();
   const file = new File([blob], filename, { type: "application/json" });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share({
@@ -3769,14 +3770,17 @@ async function exportBackupFile() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    const el = document.getElementById("expOk");
-    if (el) {
-      el.textContent = "Downloaded!";
-      el.classList.add("show");
-      setTimeout(() => el.classList.remove("show"), 2500);
-    }
+  }
+  const el = document.getElementById("expOk");
+  if (el) {
+    el.textContent = "Downloaded!";
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 2500);
   }
 }
+
+// Keep the old name as an alias so any saved bookmarks / existing calls still work.
+async function exportBackupFile() { return backupToDrive(); }
 
 // Upload a Blob to Drive using the multipart upload API.
 // Returns the web-view link of the created file.
@@ -3906,6 +3910,90 @@ function importBackupFile() {
     _applyImportedData(data);
   };
   input.click();
+}
+
+// List backup files the app previously uploaded (drive.file scope only sees
+// files this app created) and let the admin pick one to restore from.
+async function importFromDrive() {
+  const hasToken = await _ensureDriveToken();
+  if (!hasToken) {
+    showToast("Sign in first to access Drive backups", "⚠️");
+    return;
+  }
+  showToast("Fetching Drive backups…", "☁️");
+  let files;
+  try {
+    const q = encodeURIComponent(
+      "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
+    );
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,createdTime)&pageSize=20`,
+      { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
+    );
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      if (resp.status === 401 || resp.status === 403) _driveAccessToken = null;
+      let msg = `HTTP ${resp.status}`;
+      try { msg = JSON.parse(body)?.error?.message || msg; } catch {}
+      throw new Error(msg);
+    }
+    files = (await resp.json()).files || [];
+  } catch (e) {
+    console.error("Drive list failed:", e);
+    showToast(`Drive error: ${e.message}`, "⚠️");
+    return;
+  }
+  if (!files.length) {
+    showToast("No backups found in Drive", "📂");
+    return;
+  }
+  // Build a simple pick-sheet
+  const existing = document.getElementById("drive-pick-sheet");
+  if (existing) existing.remove();
+  const sheet = document.createElement("div");
+  sheet.id = "drive-pick-sheet";
+  sheet.className = "live-sheet-wrap live-sheet-open";
+  sheet.innerHTML = `
+    <div class="live-sheet-overlay" onclick="document.getElementById('drive-pick-sheet')?.remove()"></div>
+    <div class="live-sheet">
+      <div class="live-sheet-handle"></div>
+      <div style="font-size:13px;font-weight:800;padding:4px 0 12px;letter-spacing:0.04em">
+        ☁️ RESTORE FROM DRIVE
+      </div>
+      ${files.map(f => {
+        const d = new Date(f.createdTime).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" });
+        return `<button class="live-sheet-item" onclick="
+          document.getElementById('drive-pick-sheet')?.remove();
+          _downloadDriveBackup(${JSON.stringify(f.id)},${JSON.stringify(f.name)})
+        " style="flex-direction:column;align-items:flex-start;gap:2px">
+          <span style="font-weight:700;font-size:12px">${escHtml(f.name)}</span>
+          <span style="font-size:10px;color:var(--muted)">${d}</span>
+        </button>`;
+      }).join("")}
+      <button class="live-sheet-item" style="color:var(--muted);margin-top:4px"
+        onclick="document.getElementById('drive-pick-sheet')?.remove()">Cancel</button>
+    </div>`;
+  document.body.appendChild(sheet);
+}
+
+async function _downloadDriveBackup(fileId, filename) {
+  const hasToken = await _ensureDriveToken();
+  if (!hasToken) { showToast("Token expired — sign in again", "⚠️"); return; }
+  showToast(`Downloading ${filename}…`, "☁️");
+  try {
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = JSON.parse(await resp.text());
+    if (!data.matches && !data.allMatches)
+      throw new Error("File doesn't look like an Ekta Padel backup.");
+    _applyImportedData(data);
+  } catch (e) {
+    console.error("Drive download failed:", e);
+    showToast(`Download failed: ${e.message}`, "⚠️");
+  }
 }
 
 // Legacy paste-import — kept for backwards compat; now delegates to the
@@ -17389,6 +17477,8 @@ Object.assign(window, {
   exportData,
   exportCSV,
   exportBackupFile,
+  backupToDrive,
+  exportJsonFile,
   setScreenshotChoiceSetting,
   setAnimLevel,
   toggleSmoothMode,
@@ -17461,6 +17551,7 @@ Object.assign(window, {
   editNameEntry,
   importData,
   importBackupFile,
+  importFromDrive,
   openFabModal,
   openNameAddModal,
   closeNameAddModal,

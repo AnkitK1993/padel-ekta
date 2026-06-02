@@ -953,37 +953,29 @@ Puneet - Pun, PK
                 <span class="mng-card-icon">💾</span>
                 <span class="mng-card-title">Data</span>
               </div>
-              <!-- Primary: Drive backup / restore -->
-              <button
-                class="btn-p"
-                onclick="exportBackupFile()"
-                style="width:100%;margin-bottom:8px;font-weight:800"
-              >
-                ☁️ Backup to Drive
-              </button>
-              <button
-                class="btn-p"
-                onclick="importBackupFile()"
-                style="width:100%;margin-bottom:12px"
-              >
-                📂 Restore from file
-              </button>
-              <!-- Legacy exports -->
-              <div class="mng-actions-grid">
-                <button class="btn-p" onclick="exportData()">
-                  📋 Copy JSON
-                </button>
-                <button class="btn-p" onclick="exportCSV()">
-                  📊 Export CSV
-                </button>
+
+              <div class="data-row-label">Google Drive</div>
+              <div class="data-row">
+                <button class="btn-p" onclick="backupToDrive()">☁️ Backup</button>
+                <button class="btn-p" onclick="importFromDrive()">☁️ Restore</button>
               </div>
-              <button
-                class="btn-p"
-                onclick="importData()"
-                style="width: 100%; margin-top: 8px"
-              >
-                📥 Paste JSON
-              </button>
+
+              <div class="data-row-label">JSON File</div>
+              <div class="data-row">
+                <button class="btn-p" onclick="exportJsonFile()">📤 Export</button>
+                <button class="btn-p" onclick="importBackupFile()">📥 Import</button>
+              </div>
+
+              <div class="data-row-label">Clipboard / CSV</div>
+              <div class="data-row">
+                <button class="btn-p" onclick="exportData()">📋 Copy JSON</button>
+                <button class="btn-p" onclick="importData()">📋 Paste JSON</button>
+              </div>
+              <div class="data-row">
+                <button class="btn-p" onclick="exportCSV()">📊 Export CSV</button>
+                <button class="btn-p" style="visibility:hidden;pointer-events:none" aria-hidden="true"></button>
+              </div>
+
               <div
                 id="doc-size-readout"
                 style="

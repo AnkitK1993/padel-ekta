@@ -2567,6 +2567,28 @@ body.no-cascade .analytics-card {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+/* Compact 2-up rows used in the Data card — override the global min-height */
+.data-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.data-row .btn-p {
+  font-size: 11px;
+  padding: 9px 6px;
+  min-height: unset;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+.data-row-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin: 10px 0 4px;
+}
 .mng-actions-grid .btn-danger {
   margin-top: 0;
   width: 100%;
