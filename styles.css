@@ -212,20 +212,6 @@ body {
   color: var(--accent);
   text-shadow: 0 0 22px rgba(var(--theme-rgb), 0.35);
 }
-.nav-btn {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-family: "DM Sans", sans-serif;
-  flex-shrink: 0;
-}
-.nav-btn.ac {
-  color: var(--accent);
-}
 
 #loginBtn {
   background: linear-gradient(
@@ -606,19 +592,6 @@ body {
 }
 .st:last-child {
   border-right: none;
-}
-.stv {
-  font-family: "Bebas Neue", sans-serif;
-  font-size: 18px;
-  color: var(--accent);
-  line-height: 1;
-}
-.stl {
-  font-size: 6.5px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-top: 1px;
 }
 
 .scroll {
@@ -1157,12 +1130,6 @@ body {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 3px;
-}
-.row4 {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  margin-top: 4px;
 }
 .cs {
   background: var(--surface2);
@@ -2997,20 +2964,6 @@ body.no-cascade .analytics-card {
 }
 
 /* ── SESSION RECAP ──────────────────────── */
-.session-recap-card {
-  margin: 12px 11px 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--theme-rgb), 0.07),
-    rgba(var(--theme-rgb), 0.02)
-  );
-  border: 1px solid rgba(var(--theme-rgb), 0.2);
-  border-radius: 14px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
 
 
 
@@ -3065,23 +3018,6 @@ body.no-cascade .analytics-card {
 }
 
 /* ── SESSION STREAK BADGE ─────────────────────────────────── */
-.session-streak-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(
-    135deg,
-    rgba(245, 200, 66, 0.14),
-    rgba(200, 155, 48, 0.08)
-  );
-  border: 1px solid rgba(245, 200, 66, 0.4);
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #f5c842;
-  letter-spacing: 0.02em;
-}
 
 /* ── SYNC CONFLICT SHEET ──────────────────────────────────── */
 .sync-conflict-sheet {
@@ -3457,29 +3393,6 @@ body.no-cascade .analytics-card {
 #session-resume-banner span { flex: 1; }
 
 /* ── FEATURES 1-5 CARD ROWS ──────────────────── */
-.row5 {
-  display: flex;
-  gap: 4px;
-  margin-top: 6px;
-  padding: 6px 4px;
-  background: rgba(255, 255, 255, 0.025);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-.row5 .cs {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-.cv-sm {
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--text);
-  letter-spacing: 0.01em;
-}
 
 .fd {
   display: inline-flex;
@@ -5434,22 +5347,6 @@ select.input-modern option[value=""] {
   color: var(--muted);
 }
 
-.tool-btn {
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: "DM Sans", sans-serif;
-}
-.tool-btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #09090f;
-}
 
 .stat-chip.sr {
   color: var(--accent);
@@ -5876,9 +5773,6 @@ select.input-modern option[value=""] {
 .preview-warn {
   color: var(--accent);
 }
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
 
 ::-webkit-scrollbar {
   width: 4px;
@@ -6033,7 +5927,6 @@ body {
 .btn-p,
 .btn-s,
 .action-btn,
-.tool-btn,
 .save-modern-btn {
   min-height: 44px;
 }
@@ -6114,9 +6007,6 @@ table.cmp {
   }
 
   .row3,
-  .row4 {
-    gap: 5px;
-  }
 
   .cv {
     font-size: 11px;
@@ -6459,10 +6349,6 @@ table.cmp {
   box-shadow: 0 0 20px rgba(255, 180, 0, 0.28) !important;
 }
 
-.row4 {
-  gap: 10px !important;
-  margin-top: 14px !important;
-}
 
 .cs {
   background: linear-gradient(
@@ -6523,19 +6409,6 @@ table.cmp {
   gap: 5px;
   white-space: nowrap;
   padding-left: 2px;
-}
-.sr-pill-bar {
-  width: 36px;
-  height: 5px;
-  border-radius: 99px;
-  background: var(--border);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.sr-pill-fill {
-  height: 100%;
-  border-radius: 99px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sr-pill-val {
   font-family: "Bebas Neue", sans-serif;
@@ -6780,9 +6653,6 @@ table.cmp {
   }
 
   .row3,
-  .row4 {
-    gap: 2px !important;
-  }
 
   .cs {
     padding: 3px 2px !important;
@@ -7404,13 +7274,6 @@ select {
   border-color: rgba(240, 80, 80, 0.2) !important;
 }
 
-.stv,
-.ss-val,
-.skill-num {
-  text-shadow:
-    0 0 16px rgba(var(--theme-rgb), 0.18),
-    0 0 28px rgba(var(--theme-rgb), 0.08);
-}
 
 .pvp-wrap {
   background: linear-gradient(
@@ -12361,24 +12224,6 @@ select:focus,
 }
 
 /* ── ELO before/after in Highlights card ──────────────── */
-.elo-ba-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 108px;
-  flex-shrink: 0;
-}
-.elo-ba-num {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  display: inline-block;
-  width: 34px;
-  text-align: center;
-}
 .elo-ba-after,
 .elo-ba-a {
   color: var(--text);
@@ -14874,17 +14719,6 @@ body.holo-mode #themeBtn {
 }
 
 /* ── ELO TIMELINE overlay selector ── */
-.elo-tl-overlay {
-  flex: 1;
-  padding: 5px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(var(--theme-rgb), 0.25);
-  background: rgba(0, 0, 0, 0.3);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 10px;
-  font-family: "Bebas Neue", sans-serif;
-  letter-spacing: 0.08em;
-}
 .elo-tl-clear {
   width: 26px;
   height: 26px;
@@ -15944,11 +15778,6 @@ body.midnight-oled-mode #themeBtn {
 
 
 
-.lmc-match {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 
 
 
@@ -16906,12 +16735,6 @@ body.midnight-oled-mode #themeBtn {
 
 
 
-.lsd-live-match {
-  background: var(--surface);
-  border: 1px solid rgba(255, 60, 60, 0.3);
-  border-radius: 14px;
-  padding: 14px;
-}
 
 /* ════════════════════════════════════════════════════════
    SMOOTH MODE — opt-in scroll/paint smoothness (architecture #4)
@@ -17020,12 +16843,6 @@ body.smooth-mode [style*="animation-delay"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.am-vs {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--text-muted);
-  flex-shrink: 0;
 }
 .am-sit {
   font-size: 10px;
