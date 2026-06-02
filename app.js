@@ -3747,8 +3747,9 @@ async function exportBackupFile() {
         }
         return;
       } catch (e) {
-        console.warn("Drive upload failed, falling back to download:", e);
-        showToast("Drive upload failed — downloading instead", "⚠️");
+        const msg = e?.message || String(e);
+        console.error("Drive upload failed:", msg, e);
+        showToast(`Drive error: ${msg} — downloading instead`, "⚠️");
       }
     }
   }
@@ -3801,10 +3802,13 @@ async function _uploadToDrive(blob, filename) {
     },
   );
   if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    // Token expired (401) → clear so next call re-auths
-    if (resp.status === 401) _driveAccessToken = null;
-    throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+    const body = await resp.text().catch(() => "");
+    let errMsg = `HTTP ${resp.status}`;
+    try { errMsg = JSON.parse(body)?.error?.message || errMsg; } catch {}
+    console.error("Drive API error", resp.status, body);
+    // Token expired/invalid → clear so next call triggers re-auth
+    if (resp.status === 401 || resp.status === 403) _driveAccessToken = null;
+    throw new Error(errMsg);
   }
   const data = await resp.json();
   return data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`;
