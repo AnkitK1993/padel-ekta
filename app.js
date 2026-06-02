@@ -1144,38 +1144,99 @@ function openLiveMode() {
 }
 
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
-async function saveCloudData() {
-  _invalidateEloMemo();
-  // Any local data change bumps the version so every non-active page (incl.
-  // the now version-gated history feed) re-renders on its next navigation.
-  // commit() also bumps for the session-buffered path that skips this write.
-  _dataVersion++;
-  const payload = {
+// The whole dataset lives in one Firestore doc (padel/main) and is rewritten
+// wholesale on every save. Local durability (appCache + localStorage) is
+// applied IMMEDIATELY; only the network setDoc is debounced so a burst of
+// edits (e.g. pasting a batch of matches) collapses into one upload.
+let _cloudSaveTimer = null;
+const _CLOUD_SAVE_DEBOUNCE_MS = 400;
+
+function _buildCloudPayload() {
+  return {
     matches: state.matches,
     players: state.players,
     playerAliasMap,
     nextPlayerId,
     seasons: state.seasons,
   };
+}
+
+// opts.immediate=true bypasses the debounce and resolves only once the network
+// write completes — used by one-shot session pushes that toggle _forcedOffline
+// around the call and therefore can't tolerate a deferred write.
+function saveCloudData(opts) {
+  _invalidateEloMemo();
+  // Any local data change bumps the version so every non-active page (incl.
+  // the now version-gated history feed) re-renders on its next navigation.
+  // commit() also bumps for the session-buffered path that skips this write.
+  _dataVersion++;
+  const payload = _buildCloudPayload();
+  // Local durability first — cheap and must survive an app close mid-debounce.
   if (window.appCache)
     window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
   try {
     localStorage.setItem("padel_matches", JSON.stringify(state.matches));
   } catch (e) {}
+  _checkDocSize(payload);
+  if (!navigator.onLine || _forcedOffline) {
+    _setPendingSync(true);
+    return Promise.resolve();
+  }
+  // Mark pending until the debounced write lands, so closing the app inside
+  // the debounce window is recovered by _trySyncNow on next launch.
+  _setPendingSync(true);
+  clearTimeout(_cloudSaveTimer);
+  _cloudSaveTimer = null;
+  if (opts && opts.immediate) return _flushCloudSave();
+  _cloudSaveTimer = setTimeout(_flushCloudSave, _CLOUD_SAVE_DEBOUNCE_MS);
+  return Promise.resolve();
+}
+
+async function _flushCloudSave() {
+  _cloudSaveTimer = null;
   if (!navigator.onLine || _forcedOffline) {
     _setPendingSync(true);
     return;
   }
+  if (!(auth.currentUser && window.isAdmin)) return;
   try {
-    if (auth.currentUser && window.isAdmin) {
-      _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the snapshot that echoes this write
-      await setDoc(doc(db, "padel", "main"), payload);
-      _setPendingSync(false);
-    }
+    _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the echoing snapshot
+    await setDoc(doc(db, "padel", "main"), _buildCloudPayload());
+    _setPendingSync(false);
   } catch (err) {
     console.error("Firestore save failed:", err);
     _setPendingSync(true);
   }
+}
+
+// Firestore caps a document at 1 MiB (hard limit — writes FAIL past it). The
+// single-doc model grows with total history, so surface the headroom and warn
+// before it becomes a silent write failure. Byte length of the JSON is a close
+// proxy for Firestore's UTF-8 size accounting.
+const _DOC_SIZE_LIMIT_KB = 1024;
+const _DOC_SIZE_WARN_KB = 700;
+let _docSizeWarnedAt = 0;
+function _checkDocSize(payload) {
+  try {
+    const bytes = new Blob([JSON.stringify(payload)]).size;
+    const kb = Math.round(bytes / 1024);
+    window._docSizeKB = kb;
+    const pct = Math.round((kb / _DOC_SIZE_LIMIT_KB) * 100);
+    const el = document.getElementById("doc-size-readout");
+    if (el) {
+      el.textContent = `Cloud doc: ${kb} KB / ${_DOC_SIZE_LIMIT_KB} KB (${pct}%)`;
+      el.style.color =
+        kb > 900 ? "var(--red)" : kb > _DOC_SIZE_WARN_KB ? "var(--gold)" : "var(--muted)";
+    }
+    // Warn (once per minute) once past the soft threshold so it isn't spammy.
+    if (kb > _DOC_SIZE_WARN_KB && Date.now() - _docSizeWarnedAt > 60000) {
+      _docSizeWarnedAt = Date.now();
+      showToast(
+        `⚠️ Cloud data ${kb} KB of ${_DOC_SIZE_LIMIT_KB} KB limit — consider archiving old seasons`,
+        "⚠️",
+      );
+    }
+  } catch (e) {}
 }
 
 function _hasPendingSync() {
@@ -1196,16 +1257,9 @@ async function _trySyncNow() {
   )
     return;
   if (!_hasPendingSync()) return;
-  const payload = {
-    matches: state.matches,
-    players: state.players,
-    playerAliasMap,
-    nextPlayerId,
-    seasons: state.seasons,
-  };
   try {
     _lastLocalSaveTime = Date.now();
-    await setDoc(doc(db, "padel", "main"), payload);
+    await setDoc(doc(db, "padel", "main"), _buildCloudPayload());
     _setPendingSync(false);
     showToast("Synced to cloud", "☁️");
   } catch (err) {
@@ -2606,6 +2660,7 @@ function refreshManage() {
   renderEmailStatus();
   renderTrash();
   renderEloConfigCard();
+  _checkDocSize(_buildCloudPayload());
 }
 
 // ── DATE HELPERS ───────────────────────────────────────────
@@ -18959,7 +19014,7 @@ async function syncSession() {
   const count = _sessionPendingCount;
   const wasForced = _forcedOffline;
   _forcedOffline = false; // one-shot push — bypass forced offline
-  await saveCloudData();
+  await saveCloudData({ immediate: true });
   _forcedOffline = wasForced;
   _sessionPendingCount = 0;
   _sessionRedoStack = []; // sync is a checkpoint — redo history is committed and cleared
@@ -20022,7 +20077,7 @@ async function confirmEndSession() {
   closeSessionSummary();
   _stopSessionTimer();
   if (_sessionPendingCount > 0) {
-    await saveCloudData();
+    await saveCloudData({ immediate: true });
     _sessionPendingCount = 0;
     _updateSyncBadge();
   }
