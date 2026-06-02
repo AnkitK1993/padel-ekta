@@ -4669,7 +4669,7 @@ function buildMatchCards(matches, showAdmin) {
       ) || display.slice(0, 3).toUpperCase();
     const cls = d.delta >= 0 ? "elo-gain" : "elo-loss";
     const arrow = d.delta >= 0 ? "↑" : "↓";
-    return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${short}</span><span class="elo-pval">${d.after}</span><span class="elo-parrow">${arrow}${Math.abs(d.delta)}</span></span>`;
+    return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${escHtml(short)}</span><span class="elo-pval">${d.after}</span><span class="elo-parrow">${arrow}${Math.abs(d.delta)}</span></span>`;
   };
 
   const mkTeamBlock = (players, won, score, hasZeroEmoji, preMatchRankMap) => {
@@ -4683,14 +4683,14 @@ function buildMatchCards(matches, showAdmin) {
     if (players.length >= 2) {
       const p2Suffix = hasZeroEmoji ? " 😭" : "";
       return `<div class="team-block team-block-split">
-        <span class="team-p1 ${winCls}">${crown}${players[0]}</span>
+        <span class="team-p1 ${winCls}">${crown}${escHtml(players[0])}</span>
         <span class="team-amp">&</span>
-        <span class="team-p2 ${winCls}">${players[1]}${p2Suffix}</span>
+        <span class="team-p2 ${winCls}">${escHtml(players[1])}${p2Suffix}</span>
         <div class="team-score ${scoreCls}" data-final="${score}">0</div>
         ${rankHtml}
       </div>`;
     }
-    const label = (players[0] || "") + (hasZeroEmoji ? " 😭" : "");
+    const label = escHtml(players[0] || "") + (hasZeroEmoji ? " 😭" : "");
     return `<div class="team-block">
       <div class="team-name ${winCls}">${crown}${label}</div>
       <div class="team-score ${scoreCls}" data-final="${score}">0</div>
@@ -7361,7 +7361,7 @@ function openPlayerDetail(name) {
             : d.margin < 0
               ? "var(--red)"
               : "var(--muted)";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${opp}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p} MP</span><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${escHtml(opp)}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p} MP</span><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
       })
       .join("");
     if (!rows5) return "";
@@ -7440,7 +7440,7 @@ function openPlayerDetail(name) {
           eloDelta !== undefined
             ? `<span style="font-size:10px;font-weight:700;color:${eloDelta >= 0 ? "var(--green)" : "var(--red)"}">${eloDelta >= 0 ? "+" : ""}${eloDelta}</span>`
             : "";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${eloStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${escHtml(partner)}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${eloStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
       })
       .join("");
     if (!rows6) return "";
@@ -9499,7 +9499,7 @@ function openPairDetail(key) {
       const pct = Math.round((rec.w / tot) * 100);
       const col =
         pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--text)";
-      return `<div class="chem-row"><div class="chem-names" style="font-size:10px">${opp}</div><div class="chem-wl">${rec.w}–${rec.l}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pct}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pct}%</div></div>`;
+      return `<div class="chem-row"><div class="chem-names" style="font-size:10px">${escHtml(opp)}</div><div class="chem-wl">${rec.w}–${rec.l}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pct}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pct}%</div></div>`;
     })
     .join("");
 
@@ -9517,7 +9517,7 @@ function openPairDetail(key) {
         m.date,
       )
         .replace(/\s+\d{4}$/, "")
-        .toUpperCase()}</div><div class="chem-names" style="font-size:10px">vs ${opp}</div><div style="font-size:11px;font-weight:800;color:${won ? "var(--green)" : "var(--red)"};flex-shrink:0">${pScore}–${oScore}</div></div>`;
+        .toUpperCase()}</div><div class="chem-names" style="font-size:10px">vs ${escHtml(opp)}</div><div style="font-size:11px;font-weight:800;color:${won ? "var(--green)" : "var(--red)"};flex-shrink:0">${pScore}–${oScore}</div></div>`;
     })
     .join("");
 
@@ -12603,7 +12603,7 @@ function _renderWhatIfRows(playerName, playerMatches) {
         <div class="wi-outcome-dot" style="background:${effectiveWon ? "var(--green)" : "var(--red)"}"></div>
         <div class="wi-match-info">
           <span class="wi-date">${fmtDate(m.date)}</span>
-          <span class="wi-vs">w/ ${partner || "—"} vs ${opp}</span>
+          <span class="wi-vs">w/ ${escHtml(partner || "—")} vs ${escHtml(opp)}</span>
           <span class="wi-score${flipped ? " wi-score-flipped" : ""}">${m.scoreA}–${m.scoreB}${flipped ? " →FLIPPED" : ""}</span>
         </div>
         <div class="wi-actions">
@@ -19187,14 +19187,13 @@ function openMatchIntro(idx) {
   rankBEl.textContent = rankB;
   rankBEl.style.visibility = rankB ? "visible" : "hidden";
 
-  document.getElementById("mio-name-a").innerHTML = nameA.replace(
-    " & ",
-    "<br>& ",
-  );
-  document.getElementById("mio-name-b").innerHTML = nameB.replace(
-    " & ",
-    "<br>& ",
-  );
+  // Escape each player name (HTML context); join with the <br> layout markup.
+  document.getElementById("mio-name-a").innerHTML = m.teamA
+    .map((p) => escHtml(normPlayer(p)))
+    .join("<br>& ");
+  document.getElementById("mio-name-b").innerHTML = m.teamB
+    .map((p) => escHtml(normPlayer(p)))
+    .join("<br>& ");
   const teamAvgLvl = (players) => {
     const levels = players.map(
       (p) => getPlayerLevel(computePlayerXP(normPlayer(p))).level,
