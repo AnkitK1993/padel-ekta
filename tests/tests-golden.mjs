@@ -6,6 +6,8 @@
 //   node tests-golden.mjs    (or: npm run test:golden)
 
 import { computeElo, computeEloHistory, computeEloPeaks } from "../src/engine/elo.js";
+import { computeStats } from "../src/engine/stats.js";
+import { computeBadges, initBadgesDeps } from "../src/engine/badges.js";
 
 let pass = 0,
   fail = 0;
@@ -98,6 +100,63 @@ ok(
   "peak ELO is always >= current ELO",
   Object.keys(elo).every((k) => (peaks[k].elo ?? peaks[k]) >= elo[k] - 0.01),
 );
+
+// ── computeBadges (real src/engine/badges.js) ───────────────────────────────
+console.log(
+  "\n\x1b[36m── Badges golden (real badges.js) ───────────────────────\x1b[0m",
+);
+// Inject real compute helpers; stub the app-coupled ones (getPairStats lives in
+// app.js; the date helpers are deterministic stubs so "this week" = all-time).
+initBadgesDeps({
+  computeStats,
+  computeElo,
+  getPairStats: () => [], // disables the Best Duo badge in this fixture
+  lastWeekRange: () => ({ from: "2000-01-01" }), // everything counts as "this week"
+  fmtDate: (d) => d,
+});
+const hasBadge = (badges, label) => badges.some((b) => b.label === label);
+const tierOf = (badges, label) =>
+  (badges.find((b) => b.label === label) || {}).tier;
+
+// 10 weekday matches (skipping the 06-07 weekend) where Alice wins every one 4-0.
+const BADGE_SEASON = [
+  "2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05",
+  "2024-01-08", "2024-01-09", "2024-01-10", "2024-01-11", "2024-01-12",
+].map((d) => M(d, ["Alice", "Bob"], ["Carol", "Dave"], 4, 0));
+const bStats = computeStats(BADGE_SEASON);
+const bElo = computeElo(BADGE_SEASON);
+const aliceBadges = computeBadges("Alice", null, bElo, BADGE_SEASON, bStats);
+const carolBadges = computeBadges("Carol", null, bElo, BADGE_SEASON, bStats);
+
+ok("King badge → SR #1 player (Alice)", hasBadge(aliceBadges, "King"));
+ok("King badge NOT given to a loser (Carol)", !hasBadge(carolBadges, "King"));
+ok("On Fire badge → 5+ win streak (Alice 10-0)", hasBadge(aliceBadges, "On Fire"));
+ok("Ironman badge → most matches played", hasBadge(aliceBadges, "Ironman"));
+ok(
+  "Veteran bronze at 10 matches",
+  tierOf(aliceBadges, "Veteran") === "bronze",
+  `tier=${tierOf(aliceBadges, "Veteran")}`,
+);
+ok(
+  "Win Machine bronze at 10 wins",
+  tierOf(aliceBadges, "Win Machine") === "bronze",
+  `tier=${tierOf(aliceBadges, "Win Machine")}`,
+);
+ok(
+  "Dominator (10 wins by 4-margin) ≥ silver",
+  ["silver", "gold"].includes(tierOf(aliceBadges, "Dominator")),
+  `tier=${tierOf(aliceBadges, "Dominator")}`,
+);
+ok(
+  "Ice Cold badge → 5+ loss streak (Carol 0-10)",
+  hasBadge(carolBadges, "Ice Cold"),
+);
+ok(
+  "computeBadges is deterministic",
+  JSON.stringify(computeBadges("Alice", null, bElo, BADGE_SEASON, bStats)) ===
+    JSON.stringify(aliceBadges),
+);
+ok("empty match set → no badges", computeBadges("Nobody", null, {}, [], []).length === 0);
 
 console.log(
   `\n\x1b[1mGolden: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`,
