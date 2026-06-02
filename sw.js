@@ -88,22 +88,51 @@ async function putRuntime(request, response) {
 }
 
 // Fetch buildinfo.json from network, compare to stored version.
-// If changed: wipe and re-cache static files, return true.
+// If changed: atomically swap to a freshly-populated cache so a partial
+// download (network blip, CDN propagation lag) never leaves the app broken.
 async function checkForUpdates() {
   try {
     const res = await fetch(BASE + "buildinfo.json", { cache: "no-store" });
     const { v } = await res.json();
-    const cache = await caches.open(STATIC_CACHE);
-    const stored = await cache.match(BUILD_KEY);
+    const existing = await caches.open(STATIC_CACHE);
+    const stored = await existing.match(BUILD_KEY);
     const storedV = stored ? await stored.text() : null;
     if (storedV === String(v)) return false;
-    // Only refresh the app shell. The runtime cache holds version-pinned CDN
-    // libs (Firebase/emailjs/html2canvas) that don't change between deploys —
-    // wiping it every build (and we deploy on every edit) just forces needless
-    // re-downloads of hundreds of KB.
-    await caches.delete(STATIC_CACHE);
-    await cacheStaticAssets(v);
-    return true;
+
+    // Build into a staging cache first — if any fetch fails we abort and
+    // keep the existing cache intact so the app stays usable.
+    const STAGING = STATIC_CACHE + "-staging";
+    await caches.delete(STAGING);
+    const staging = await caches.open(STAGING);
+    const ok = await Promise.all(
+      STATIC.map((u) =>
+        fetch(new Request(u, { cache: "reload" }))
+          .then((r) => {
+            if (!r || !r.ok) throw new Error(`${r?.status} ${u}`);
+            return staging.put(u, r);
+          })
+          .catch(() => false),
+      ),
+    );
+    // If every file was fetched successfully, atomic swap.
+    if (ok.every(Boolean)) {
+      await staging.put(BUILD_KEY, new Response(String(v)));
+      await caches.delete(STATIC_CACHE);
+      const live = await caches.open(STATIC_CACHE);
+      const keys = await staging.keys();
+      await Promise.all(
+        keys.map(async (req) => {
+          const resp = await staging.match(req);
+          return live.put(req, resp);
+        }),
+      );
+      await caches.delete(STAGING);
+      return true;
+    } else {
+      // Partial download — clean up staging and try again next check.
+      await caches.delete(STAGING);
+      return false;
+    }
   } catch {
     return false;
   }

@@ -1754,7 +1754,12 @@ Puneet - Pun, PK
             "padding:11px 18px;border-radius:999px;box-shadow:0 6px 22px rgba(0,0,0,.45);" +
             "cursor:pointer;max-width:90vw;text-align:center";
           b.onclick = function () {
-            window.location.reload();
+            b.textContent = "Updating…";
+            b.style.opacity = "0.7";
+            b.style.pointerEvents = "none";
+            // Brief delay lets the SW finish any in-flight cache writes
+            // before we reload into the freshly-populated cache.
+            setTimeout(function () { window.location.reload(); }, 400);
           };
           document.body.appendChild(b);
         }
