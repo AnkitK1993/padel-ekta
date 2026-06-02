@@ -431,11 +431,6 @@ export function computeMatchStories(matches) {
 
     const date = m.date;
 
-    // Story: Streak ended
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      const prevStreak = streaks[p].count === 1 ? null : null; // tracked below
-    });
-
     // Story: Upset (lower ELO team wins)
     const eloDiff = Math.abs(avgA - avgB);
     if (eloDiff >= 60) {
