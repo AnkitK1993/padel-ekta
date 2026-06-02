@@ -21,6 +21,8 @@ const STATIC = [
   BASE + "src/ui/render-anim.js",
   BASE + "src/engine/selectors.js",
   BASE + "src/engine/americano.js",
+  BASE + "src/engine/pairs.js",
+  BASE + "src/engine/xp.js",
   BASE + "src/engine/badges.js",
   BASE + "src/engine/player-analytics.js",
   BASE + "manifest.json",
@@ -116,6 +118,16 @@ self.addEventListener("message", (e) => {
       checkForUpdates().then((updated) =>
         updated ? notifyClientsNewBuild() : undefined,
       ),
+    );
+  }
+  if (e.data && e.data.type === "SHOW_NOTIFICATION") {
+    e.waitUntil(
+      self.registration.showNotification(e.data.title || "Ekta Padel 🎾", {
+        body: e.data.body || "",
+        icon: BASE + "icons/icon.svg",
+        badge: BASE + "icons/icon.svg",
+        data: { url: BASE },
+      }),
     );
   }
 });

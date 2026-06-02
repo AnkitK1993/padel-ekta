@@ -7,6 +7,8 @@
 
 import { computeElo, computeEloHistory, computeEloPeaks } from "../src/engine/elo.js";
 import { computeStats } from "../src/engine/stats.js";
+import { initPairsDeps, getPairStats, getPairKey } from "../src/engine/pairs.js";
+import { initXpDeps, xpThreshold, getPlayerLevel, getPrestigeTier } from "../src/engine/xp.js";
 import { computeBadges, initBadgesDeps } from "../src/engine/badges.js";
 import {
   initPlayerAnalyticsDeps,
@@ -113,12 +115,13 @@ ok(
 console.log(
   "\n\x1b[36m── Badges golden (real badges.js) ───────────────────────\x1b[0m",
 );
-// Inject real compute helpers; stub the app-coupled ones (getPairStats lives in
-// app.js; the date helpers are deterministic stubs so "this week" = all-time).
+// Wire the real pairs module (normPlayer identity for test names).
+initPairsDeps({ normPlayer: (n) => n });
+// Inject real compute helpers; date helpers are deterministic stubs.
 initBadgesDeps({
   computeStats,
   computeElo,
-  getPairStats: () => [], // disables the Best Duo badge in this fixture
+  getPairStats, // real module now — enables Best Duo badge when pairs qualify
   lastWeekRange: () => ({ from: "2000-01-01" }), // everything counts as "this week"
   fmtDate: (d) => d,
 });
@@ -170,9 +173,8 @@ ok("empty match set → no badges", computeBadges("Nobody", null, {}, [], []).le
 console.log(
   "\n\x1b[36m── Player analytics golden (real module) ────────────────\x1b[0m",
 );
-// getPairStats lives in app.js → stub (returns []) for chemistry; toLocalISODate
-// is a real pure util imported from format.js (exercises the injected date path).
-initPlayerAnalyticsDeps({ getPairStats: () => [], toLocalISODate });
+// getPairStats is now the real module; toLocalISODate from format.js.
+initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 
 const ach = computeAchievements("Alice", BADGE_SEASON);
 ok("computeAchievements returns an array", Array.isArray(ach), typeof ach);
@@ -210,9 +212,40 @@ ok(
 const form = computePlayerForm("Alice", BADGE_SEASON);
 ok("computePlayerForm runs without throwing", form !== undefined);
 ok(
-  "computeChemistryScores runs with stubbed getPairStats",
+  "computeChemistryScores runs with real getPairStats",
   computeChemistryScores(BADGE_SEASON) !== undefined,
 );
+
+// ── pairs golden (real src/engine/pairs.js) ─────────────────────────────────
+console.log(
+  "\n\x1b[36m── Pairs golden (real pairs.js) ─────────────────────────\x1b[0m",
+);
+const pairs = getPairStats(BADGE_SEASON);
+ok("getPairStats returns an array", Array.isArray(pairs));
+ok("Alice+Bob (always winners) top the pair stats", pairs.length > 0 && pairs[0].winPct === 100, `top=${pairs[0]?.key} ${pairs[0]?.winPct}%`);
+ok("pairs have expected shape (key/played/wins/winPct/diff)", pairs.every(p => "key" in p && "played" in p && "wins" in p && "winPct" in p && "diff" in p));
+ok("getPairKey is order-independent", getPairKey(["Alice","Bob"]) === getPairKey(["Bob","Alice"]));
+ok("getPairKey normalises to sorted & format", getPairKey(["Bob","Alice"]) === "Alice & Bob");
+ok("getPairStats is deterministic", JSON.stringify(getPairStats(BADGE_SEASON)) === JSON.stringify(pairs));
+
+// ── XP golden (real src/engine/xp.js) ───────────────────────────────────────
+console.log("\n\x1b[36m── XP/Level golden (real xp.js) ─────────────────────────\x1b[0m");
+// computePlayerXP reads matches — stub with empty activeMatches; match-type
+// helpers not needed for pure level/prestige tests.
+initXpDeps({ normPlayer: (n) => n, activeMatches: () => [], isFireMatch: () => false, isDominatingMatch: () => false, isZeroMatch: () => false });
+ok("xpThreshold(1) === 0", xpThreshold(1) === 0);
+ok("xpThreshold(2) === 60", xpThreshold(2) === 60);
+ok("thresholds strictly increase", xpThreshold(3) > xpThreshold(2) && xpThreshold(5) > xpThreshold(3));
+const lvl1 = getPlayerLevel(0);
+ok("0 XP → level 1", lvl1.level === 1);
+ok("progress is in [0,1]", lvl1.progress >= 0 && lvl1.progress <= 1);
+const lvl2 = getPlayerLevel(xpThreshold(2));
+ok("XP at threshold → level up", lvl2.level === 2 && lvl2.progress === 0);
+ok("prestige: level 1 → rookie", getPrestigeTier(1) === "rookie");
+ok("prestige: level 5 → bronze", getPrestigeTier(5) === "bronze");
+ok("prestige: level 10 → silver", getPrestigeTier(10) === "silver");
+ok("prestige: level 15 → gold", getPrestigeTier(15) === "gold");
+ok("prestige: level 20 → diamond", getPrestigeTier(20) === "diamond");
 
 console.log(
   `\n\x1b[1mGolden: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`,

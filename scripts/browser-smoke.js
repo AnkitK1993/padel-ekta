@@ -167,6 +167,17 @@ async function waitFor(client, expression, label, timeoutMs = 7000) {
     if (result.result.value) return;
     await delay(150);
   }
+  // Dump any JS console errors to help diagnose timeout cause
+  const errors = await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    expression: `window.__smokeErrors||[]`,
+  }).catch(() => ({ result: { value: [] } }));
+  if (errors.result.value?.length) console.error("JS errors:", errors.result.value);
+  const domErr = await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    expression: `document.querySelector(".splash")?.textContent||""`,
+  }).catch(() => ({ result: { value: "" } }));
+  console.error(`Splash state: "${domErr.result.value}"`);
   throw new Error(`Timed out waiting for ${label}`);
 }
 
@@ -232,6 +243,9 @@ async function main() {
     await client.send("Log.enable");
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        window.__smokeErrors = [];
+        window.addEventListener("error", e => window.__smokeErrors.push(e.message));
+        window.addEventListener("unhandledrejection", e => window.__smokeErrors.push(String(e.reason)));
         localStorage.setItem("padel_forced_offline", "1");
         localStorage.setItem("padel_cache_v5", JSON.stringify({
           ts: Date.now(),

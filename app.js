@@ -51,6 +51,21 @@ import {
 } from "./src/ui/render-history-summary.js";
 import { initBadgesDeps, computeBadges } from "./src/engine/badges.js";
 import {
+  initPairsDeps,
+  getPairKey,
+  getPairStats,
+  getHeadToHeadStats,
+  pairInMatch,
+  playersOpposed,
+} from "./src/engine/pairs.js";
+import {
+  initXpDeps,
+  xpThreshold,
+  getPlayerLevel,
+  getPrestigeTier,
+  computePlayerXP,
+} from "./src/engine/xp.js";
+import {
   initPlayerAnalyticsDeps,
   computeAchievements,
   computeArchetype,
@@ -871,6 +886,14 @@ if (localStorage.getItem("smooth_mode") === "1") {
       .catch(() => {});
   }
 }
+// Restore notification toggle state on load.
+{
+  const _notifEnabled = localStorage.getItem("padel_notif_enabled") === "1";
+  if (_notifEnabled) {
+    const _ncb = document.getElementById("notif-toggle");
+    if (_ncb) _ncb.checked = true;
+  }
+}
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
@@ -1021,6 +1044,11 @@ initSelectorsDeps({
 // History summary card needs three still-in-app helpers (hoisted decls).
 initHistorySummaryDeps({ normPlayer, getPairStats, memoElo: _memoElo });
 // Award badges: pure compute, fed the stats/elo/pair + date helpers it needs.
+// Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
+initPairsDeps({ normPlayer });
+// XP / Level / Prestige — computePlayerXP needs normPlayer + activeMatches +
+// the three match-type helpers (isFireMatch/isDominating/isZero) from render-match-rows.
+initXpDeps({ normPlayer, activeMatches, isFireMatch, isDominatingMatch, isZeroMatch });
 initBadgesDeps({ computeStats, computeElo, getPairStats, lastWeekRange, fmtDate });
 // Player analytics (form/archetype/power/chemistry/stories/achievements).
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
@@ -1792,11 +1820,20 @@ function loadCloudData() {
       }
       fired = true;
       window.dismissSplash("Ready ✓");
+      document.dispatchEvent(new CustomEvent("padel-data-ready"));
       setTimeout(_checkAnniversaries, 1800);
       setTimeout(checkResumeSession, 800); // Enhancement 13: show session resume banner if saved state exists
       // Pre-render analytics in background after primary tab settles
       if (activePageId !== "pg-analytics") _scheduleAnalyticsPrefetch();
     } else {
+      // Genuine new data from Firestore — notify if new matches arrived and the
+      // user has opted in to notifications and the page is backgrounded.
+      const prevCount = state.matches.length; // still holds the old value here
+      const newCount = matches.length;
+      if (newCount > prevCount && localStorage.getItem("padel_notif_enabled") === "1") {
+        const added = newCount - prevCount;
+        _sendMatchNotification(added, matches[matches.length - 1]);
+      }
       // Genuine new data from Firestore: fade board out, re-render, fade back in — no blur flash
       const board = document.getElementById("board");
       if (board) {
@@ -3038,92 +3075,15 @@ function sortPlayersGuestsLast(names) {
   });
 }
 
-function getPairKey(team) {
-  return [...team].map(normPlayer).sort().join(" & ");
-}
+// getPairKey → src/engine/pairs.js
 
-function getPairStats(matches) {
-  if (matches === undefined) matches = activeMatches();
-  const pairs = {};
-  matches.forEach((m) => {
-    const aWon = Number(m.scoreA) > Number(m.scoreB);
-    [
-      {
-        team: m.teamA || [],
-        gf: Number(m.scoreA),
-        ga: Number(m.scoreB),
-        won: aWon,
-      },
-      {
-        team: m.teamB || [],
-        gf: Number(m.scoreB),
-        ga: Number(m.scoreA),
-        won: !aWon,
-      },
-    ].forEach((row) => {
-      if (row.team.length < 2) return;
-      const key = getPairKey(row.team);
-      if (!pairs[key])
-        pairs[key] = {
-          key,
-          players: key.split(" & "),
-          played: 0,
-          wins: 0,
-          gf: 0,
-          ga: 0,
-        };
-      pairs[key].played++;
-      pairs[key].wins += row.won ? 1 : 0;
-      pairs[key].gf += row.gf;
-      pairs[key].ga += row.ga;
-    });
-  });
-  return Object.values(pairs)
-    .map((p) => ({
-      ...p,
-      losses: p.played - p.wins,
-      winPct: p.played ? Math.round((p.wins / p.played) * 100) : 0,
-      diff: p.gf - p.ga,
-    }))
-    .sort(
-      (a, b) => b.winPct - a.winPct || b.played - a.played || b.diff - a.diff,
-    );
-}
+// getPairStats → src/engine/pairs.js
 
-function pairInMatch(m, pairKey) {
-  if (!pairKey) return true;
-  return (
-    getPairKey(m.teamA || []) === pairKey ||
-    getPairKey(m.teamB || []) === pairKey
-  );
-}
+// pairInMatch → src/engine/pairs.js
 
-function playersOpposed(m, a, b) {
-  if (!a || !b) return true;
-  const na = a.toLowerCase();
-  const nb = b.toLowerCase();
-  const inA1 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === na);
-  const inA2 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === nb);
-  const inB1 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === na);
-  const inB2 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === nb);
-  return (inA1 && inB2) || (inB1 && inA2);
-}
+// playersOpposed → src/engine/pairs.js
 
-function getHeadToHeadStats(a, b, matches) {
-  if (matches === undefined) matches = activeMatches();
-  const rows = matches.filter((m) => playersOpposed(m, a, b));
-  let aWins = 0,
-    bWins = 0,
-    diff = 0;
-  rows.forEach((m) => {
-    const aInTeamA = (m.teamA || []).some((p) => normPlayer(p) === a);
-    const aWon = aInTeamA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-    if (aWon) aWins++;
-    else bWins++;
-    diff += aInTeamA ? m.scoreA - m.scoreB : m.scoreB - m.scoreA;
-  });
-  return { matches: rows, aWins, bWins, diff };
-}
+// getHeadToHeadStats → src/engine/pairs.js
 
 function getPlayerDetail(name) {
   const matches = activeMatches().filter((m) =>
@@ -4890,7 +4850,7 @@ function _matchCardPrecompute() {
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
   const elo = {};
-  const allPairsList = getPairStats(); // all pairs ever formed
+  const allPairsList = getPairStats(activeMatches()); // all pairs ever formed
   [...state.matches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
     .forEach((m) => {
@@ -5816,7 +5776,7 @@ function setHistMargin(val) {
 function filterSheetSearch(query) {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const pairs = getPairStats();
+  const pairs = getPairStats(activeMatches());
   const q = (query || "").toLowerCase().trim();
   const filtered = q
     ? pairs.filter((p) => p.key.toLowerCase().includes(q))
@@ -8959,6 +8919,26 @@ function doShareDownload() {
   closeSharePreview();
 }
 
+// Build a shareable deep-link to the current leaderboard state.
+// Anyone opening the URL lands on the Summary tab with the same season + filter.
+function copyLeaderboardLink() {
+  const base = location.origin + location.pathname;
+  const params = new URLSearchParams();
+  params.set("tab", "summary");
+  if (_activeSeasonId && _activeSeasonId !== "all")
+    params.set("season", _activeSeasonId);
+  if (cmpFilter && cmpFilter !== "all")
+    params.set("filter", cmpFilter);
+  const url = `${base}?${params.toString()}`;
+  navigator.clipboard
+    .writeText(url)
+    .then(() => showToast("Link copied!", "🔗"))
+    .catch(() => {
+      // Fallback: prompt so they can copy manually.
+      prompt("Copy this link:", url);
+    });
+}
+
 function openSummaryScreenshot() {
   const leaderTableEl = document.querySelector(".cmp-body-scroll .cmp");
   if (!leaderTableEl) {
@@ -10026,7 +10006,7 @@ function buildH2HMatrixCompact(players) {
         matrix[a][b] = null;
         return;
       }
-      const h2h = getHeadToHeadStats(a, b);
+      const h2h = getHeadToHeadStats(a, b, activeMatches());
       const total = h2h.aWins + h2h.bWins;
       matrix[a][b] = total > 0 ? { wins: h2h.aWins, total } : null;
     });
@@ -10330,7 +10310,7 @@ function renderH2HDeepDive() {
       '<div class="sub" style="padding:8px;color:var(--red)">Select two different players.</div>';
     return;
   }
-  const h2h = getHeadToHeadStats(p1, p2);
+  const h2h = getHeadToHeadStats(p1, p2, activeMatches());
   const total = h2h.aWins + h2h.bWins;
   if (total === 0) {
     result.innerHTML =
@@ -11064,42 +11044,13 @@ function _pillOnUp(e) {
 }
 
 // ── XP + LEVELS ────────────────────────────────────────────
-function xpThreshold(level) {
-  if (level <= 1) return 0;
-  return Math.floor(60 * Math.pow(level - 1, 1.8));
-}
+// xpThreshold → src/engine/xp.js
 
-function computePlayerXP(displayName) {
-  let xp = 0;
-  activeMatches().forEach((m) => {
-    const inA = (m.teamA || []).some((p) => normPlayer(p) === displayName);
-    const inB = (m.teamB || []).some((p) => normPlayer(p) === displayName);
-    if (!inA && !inB) return;
-    xp += 15;
-    const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-    if (won) xp += 25;
-    if (isFireMatch(m)) xp += 8;
-    if (isDominatingMatch(m) && won) xp += 8;
-    if (isZeroMatch(m) && won) xp += 12;
-  });
-  return xp;
-}
+// computePlayerXP → src/engine/xp.js
 
-function getPlayerLevel(xp) {
-  let level = 1;
-  while (xpThreshold(level + 1) <= xp) level++;
-  const thisXp = xpThreshold(level);
-  const nextXp = xpThreshold(level + 1);
-  return { level, xp, progress: (xp - thisXp) / (nextXp - thisXp) };
-}
+// getPlayerLevel → src/engine/xp.js
 
-function getPrestigeTier(level) {
-  if (level >= 20) return "diamond";
-  if (level >= 15) return "gold";
-  if (level >= 10) return "silver";
-  if (level >= 5) return "bronze";
-  return "rookie";
-}
+// getPrestigeTier → src/engine/xp.js
 
 function mkLvlRow(displayName) {
   const xp = computePlayerXP(displayName);
@@ -14461,7 +14412,7 @@ function renderAnalyticsPage() {
       if (playedDiff !== 0) return playedDiff;
       return b.gw / b.gt - a.gw / a.gt;
     })[0];
-  const pairLeaderboard = getPairStats().slice(0, 8);
+  const pairLeaderboard = getPairStats(activeMatches()).slice(0, 8);
   const playersByMatches = _h2hSortPlayers(getAllPlayerNamesFromMatches());
   const matrixSortBar = `<div class="h2h-sort-bar">
     <span class="h2h-sort-lbl">SORT</span>
@@ -14653,7 +14604,7 @@ function renderAnalyticsPage() {
     (a, b) => b[1] - a[1],
   )[0];
   const [rivalA, rivalB] = topRivalEntry?.[0]?.split("|") || [null, null];
-  const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB) : null;
+  const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB, activeMatches()) : null;
 
   const uniqueMonths = Object.keys(monthlyStats).sort();
   const top5 = [...players]
@@ -14742,7 +14693,7 @@ function renderAnalyticsPage() {
   const bestPairPerP = compList
     .map((p) => ({ name: p.name, partner: p.bestPartner, wins: p.mw }))
     .filter((p) => p.partner && p.wins >= 1);
-  const pairFormData = getPairStats()
+  const pairFormData = getPairStats(activeMatches())
     .filter((p) => p.played >= 3)
     .map((pair) => {
       const pm = sortedM
@@ -17517,6 +17468,30 @@ function _scheduleDriveBackup() {
   }, target - now);
 }
 
+// ── DEEP-LINK PARAM HANDLING ────────────────────────────────
+// Honour ?tab=summary&season=xyz&filter=today links (e.g. from copyLeaderboardLink).
+{
+  const _p = new URLSearchParams(location.search);
+  const _tab = _p.get("tab");
+  const _pSeason = _p.get("season");
+  const _pFilter = _p.get("filter");
+  if (_tab === "summary") {
+    // Defer until data + splash are ready so the tab switch doesn't race startup.
+    document.addEventListener("padel-data-ready", () => {
+      // Let the initial render settle before switching tab.
+      setTimeout(() => {
+        if (_pSeason) setSeason(_pSeason);
+        if (_pFilter) {
+          cmpFilter = _pFilter;
+          const el = document.getElementById("cmpFilter");
+          if (el) el.value = _pFilter;
+        }
+        switchMainTab("compact", true);
+      }, 100);
+    }, { once: true });
+  }
+}
+
 // ── INIT ───────────────────────────────────────────────────
 // loadCloudData() orchestrates: cache-first render → Firestore refresh.
 // renderHome/renderCompact are called inside it after data is ready.
@@ -17567,6 +17542,7 @@ Object.assign(window, {
   setAnimLevel,
   toggleSmoothMode,
   toggleBatterySaver,
+  toggleMatchNotifications,
   openAmericanoSheet,
   closeAmericano,
   setAmericanoMode,
@@ -17677,6 +17653,7 @@ Object.assign(window, {
   openShareCard,
   openWeeklyDigest,
   openSummaryShare,
+  copyLeaderboardLink,
   closeScreenshotChoiceSheet,
   doSummaryScreenshot,
   closeSharePreview,
@@ -18487,7 +18464,7 @@ function openMatchIntro(idx) {
 
   // Pre-match individual and pair ranks
   const indivRanked = Object.entries(priorElo).sort((a, b) => b[1] - a[1]);
-  const allPairs = getPairStats();
+  const allPairs = getPairStats(activeMatches());
   const pairsByElo = allPairs
     .map((p) => ({
       key: p.key,
@@ -20290,6 +20267,59 @@ function _requestNotifPermission() {
   if (!("Notification" in window) || Notification.permission !== "default")
     return;
   Notification.requestPermission().catch(() => {});
+}
+
+// ── MATCH NOTIFICATIONS ────────────────────────────────────
+// Shows a local notification (via SW if available, falls back to
+// Notification API) when new matches arrive from Firestore while the
+// app is backgrounded or in a different tab.
+function _sendMatchNotification(count, latestMatch) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  // Don't notify if the page is visible — the live update already visible.
+  if (!document.hidden) return;
+  const players = [
+    ...(latestMatch?.teamA || []),
+    ...(latestMatch?.teamB || []),
+  ]
+    .map((p) => normPlayer(p).split(" ")[0])
+    .join(", ");
+  const body =
+    count === 1
+      ? `New match added${players ? `: ${players}` : ""}`
+      : `${count} new matches added`;
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SHOW_NOTIFICATION",
+      title: "Ekta Padel 🎾",
+      body,
+    });
+  } else {
+    try {
+      new Notification("Ekta Padel 🎾", {
+        body,
+        icon: "/padel-ekta/icons/icon.svg",
+      });
+    } catch (e) {}
+  }
+}
+
+function toggleMatchNotifications(on) {
+  try {
+    localStorage.setItem("padel_notif_enabled", on ? "1" : "0");
+  } catch (e) {}
+  const cb = document.getElementById("notif-toggle");
+  if (cb) cb.checked = on;
+  if (on && "Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().then((perm) => {
+      if (perm !== "granted") {
+        localStorage.setItem("padel_notif_enabled", "0");
+        if (cb) cb.checked = false;
+        showToast("Notifications blocked by browser", "⚠️");
+      }
+    }).catch(() => {});
+  }
+  showToast(on ? "Match notifications on 🔔" : "Match notifications off 🔕");
 }
 
 // ── MATCH CONFIRM SHEET ────────────────────────────────────
