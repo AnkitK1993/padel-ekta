@@ -6644,8 +6644,11 @@ function openPlayerDetail(name) {
           </div>`;
         };
         return `<div class="ana-card">
-          <span class="badge">Achievements (${unlocked.length}/${achievements.length})</span>
-          <div class="ach-list">${ordered.map(renderCard).join("")}</div>
+          <div onclick="const c=this.nextElementSibling,h=c.style.display==='none';c.style.display=h?'':'none';this.querySelector('.cc-chev').textContent=h?'▴':'▾'" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span class="badge">Achievements (${unlocked.length}/${achievements.length})</span>
+            <span class="cc-chev" style="font-size:11px;color:var(--muted)">▾</span>
+          </div>
+          <div class="ach-list" style="display:none">${ordered.map(renderCard).join("")}</div>
         </div>`;
       })()
     : "";
@@ -6831,47 +6834,16 @@ function openPlayerDetail(name) {
     [...(m.teamA || []), ...(m.teamB || [])].includes(name),
   );
 
-  // Enhancement 14: dangerous opponent — opponent with highest win rate AGAINST this player
-  const dangerousOppHtml = (() => {
-    const oppData = {};
-    pdPlayerMs.forEach((m) => {
-      const inA = (m.teamA || []).includes(name);
-      const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const opps = inA ? m.teamB || [] : m.teamA || [];
-      opps.forEach((o) => {
-        if (!oppData[o]) oppData[o] = { w: 0, p: 0 };
-        oppData[o].p++;
-        if (!won) oppData[o].w++;
-      });
-    });
-    const best = Object.entries(oppData)
-      .filter(([, d]) => d.p >= 3)
-      .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p)[0];
-    if (!best) return "";
-    const [oppName, d] = best;
-    const pct = Math.round((d.w / d.p) * 100);
-    if (pct < 55) return "";
-    return `<div class="det-conn">
-      <div class="det-conn-icon">⚠️</div>
-      <div class="det-conn-body">
-        <div class="det-conn-name">${oppName}</div>
-        <div class="det-conn-meta"><span class="n">${pct}% win rate vs me</span> · ${d.p}g</div>
-      </div>
-      <div class="det-conn-tag">Dangerous Opp.</div>
-    </div>`;
-  })();
-
   const connectionsHtml =
     bestPartnerHtml ||
     worstPartnerHtml ||
     nemesisHtml ||
     favOppHtml ||
     mostCommonPartnerHtml ||
-    mostCommonOppHtml ||
-    dangerousOppHtml
+    mostCommonOppHtml
       ? `<div class="ana-card">
               <span class="badge">Connections</span>
-              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}${dangerousOppHtml}</div>
+              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}</div>
             </div>`
       : "";
 
@@ -6949,7 +6921,7 @@ function openPlayerDetail(name) {
   // Badges
   const badges = computeBadges(name, s, eloMap, activeMatches());
   const badgesHtml = badges.length
-    ? `<div class="ana-card"><span class="badge">Award Badges</span><div class="badge-chips" style="margin-top:10px">${badges.map((b) => `<div class="badge-chip${b.tier ? " badge-tier-" + b.tier : ""}" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span>${b.tier ? `<span class="badge-tier-lbl">${b.tier.toUpperCase()}</span>` : ""}</div>`).join("")}</div></div>`
+    ? `<div class="ana-card"><div onclick="const c=this.nextElementSibling,h=c.style.display==='none';c.style.display=h?'':'none';this.querySelector('.cc-chev').textContent=h?'▴':'▾'" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px"><span class="badge">Award Badges (${badges.length})</span><span class="cc-chev" style="font-size:11px;color:var(--muted)">▾</span></div><div class="badge-chips" style="display:none">${badges.map((b) => `<div class="badge-chip${b.tier ? " badge-tier-" + b.tier : ""}" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span>${b.tier ? `<span class="badge-tier-lbl">${b.tier.toUpperCase()}</span>` : ""}</div>`).join("")}</div></div>`
     : "";
 
   // Streak Calendar — last 52 weeks
@@ -7223,7 +7195,8 @@ function openPlayerDetail(name) {
           : "";
         const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
         const scoreColor = won4 ? "var(--green)" : "var(--red)";
-        return `<div class="ana-card det-match-card">
+        const _miIdx = state.matches.indexOf(m);
+        return `<div class="ana-card det-match-card"${_miIdx >= 0 ? ` onclick="document.getElementById('player-detail-modal')?.remove();openMatchIntro(${_miIdx})" style="cursor:pointer"` : ""}>
         <div class="det-match-result" style="color:${scoreColor}">${won4 ? "W" : "L"}</div>
         <div class="det-match-body">
           <div class="det-match-score">${score}</div>
@@ -7269,7 +7242,7 @@ function openPlayerDetail(name) {
             : d.margin < 0
               ? "var(--red)"
               : "var(--muted)";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${opp}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${opp}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p} MP</span><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
       })
       .join("");
     if (!rows5) return "";
@@ -7597,7 +7570,8 @@ function openPlayerDetail(name) {
       (a, b) => b[1].w - a[1].w || b[1].p - a[1].p,
     )[0];
     const peakEloVal = _memoEloPeaks()[name] || playerElo;
-    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
+    const lowEloVal = _memoEloLows()[name] || playerElo;
+    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${lowEloVal}</div><div class="sub">Low ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
   })();
 
   // ── MONTHLY WIN-RATE SPARKLINE ────────────────────────────
