@@ -4725,151 +4725,7 @@ function filterMatchTab(f) {
 
 // ── MATCH OF THE DAY + BIGGEST UPSET ──────────────────────
 
-function buildMatchOfTheDay() {
-  if (!state.matches.length) return "";
-  const latestDate = state.matches.reduce(
-    (max, m) => (m.date > max ? m.date : max),
-    "",
-  );
-  const sessionMatches = state.matches.filter((m) => m.date === latestDate);
-  if (!sessionMatches.length) return "";
-
-  // ── MATCH OF THE DAY: closest scoreline, then highest total ──
-  const scored = sessionMatches.map((m) => ({
-    m,
-    diff: Math.abs(m.scoreA - m.scoreB),
-    total: m.scoreA + m.scoreB,
-  }));
-  scored.sort((a, b) => a.diff - b.diff || b.total - a.total);
-  const { m: motd } = scored[0];
-
-  const aWon = motd.scoreA > motd.scoreB;
-  const teamA = motd.teamA.join(" & ");
-  const teamB = motd.teamB.join(" & ");
-  const winner = aWon ? teamA : teamB;
-  const loser = aWon ? teamB : teamA;
-  const wScore = aWon ? motd.scoreA : motd.scoreB;
-  const lScore = aWon ? motd.scoreB : motd.scoreA;
-  const isThriller = Math.abs(motd.scoreA - motd.scoreB) <= 1;
-  const motdLabel = isThriller ? "🎭 THRILLER" : "⚡ MATCH OF THE DAY";
-  const motdSub = isThriller
-    ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} game${Math.abs(motd.scoreA - motd.scoreB) === 1 ? "" : "s"}!`
-    : `Most dramatic result of the session`;
-
-  const motdHtml = `<div class="motd-card">
-              <div class="motd-header">
-                <span class="motd-label">${motdLabel}</span>
-                <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
-              </div>
-              <div class="motd-teams">
-                <div class="motd-team winner">
-                  <div class="motd-name">👑 ${winner}</div>
-                  <div class="motd-score win" data-final="${wScore}">0</div>
-                </div>
-                <div class="motd-vs">VS</div>
-                <div class="motd-team">
-                  <div class="motd-name">${loser}</div>
-                  <div class="motd-score" data-final="${lScore}">0</div>
-                </div>
-              </div>
-              <div class="motd-sub">${motdSub}</div>
-            </div>`;
-
-  // ── BIGGEST UPSET: lower-ELO pair beats higher-ELO pair ──
-  let upsetHtml = "";
-  // Chronological ELO walk — capture pre-match pair rank for each session match
-  const _allPairsForUpset = getPairStats();
-  const upsetMatchRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  {
-    const elo = {};
-    [...state.matches]
-      .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-      .forEach((m) => {
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-          if (!(p in elo)) elo[p] = 1000;
-        });
-        if (sessionMatches.includes(m)) {
-          upsetMatchRankMap.set(
-            m,
-            new Map(
-              _allPairsForUpset
-                .map((p) => ({
-                  key: p.key,
-                  avgElo:
-                    p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
-                    p.players.length,
-                }))
-                .sort((a, b) => b.avgElo - a.avgElo)
-                .map(({ key }, i) => [key, i + 1]),
-            ),
-          );
-        }
-        const aWon = m.scoreA > m.scoreB;
-        const avgA =
-          m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-        const avgB =
-          m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-        const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-        const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-        const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-        m.teamA.forEach((p) => {
-          elo[p] = (elo[p] || 1000) + dA;
-        });
-        m.teamB.forEach((p) => {
-          elo[p] = (elo[p] || 1000) + dB;
-        });
-      });
-  }
-  const getPairEloRank = (m, team) =>
-    upsetMatchRankMap.get(m)?.get([...team].sort().join(" & ")) || "?";
-
-  let bestUpset = null,
-    bestGap = 0;
-  sessionMatches.forEach((m) => {
-    const winTeam = m.scoreA > m.scoreB ? m.teamA : m.teamB;
-    const loseTeam = m.scoreA > m.scoreB ? m.teamB : m.teamA;
-    const mRankMap = upsetMatchRankMap.get(m);
-    if (!mRankMap) return;
-    const winRank = mRankMap.get([...winTeam].sort().join(" & ")) || 999;
-    const loseRank = mRankMap.get([...loseTeam].sort().join(" & ")) || 999;
-    // Upset = winner had a worse (higher number) rank than loser
-    const gap = winRank - loseRank;
-    if (gap > 0 && gap > bestGap) {
-      bestGap = gap;
-      bestUpset = { m, winTeam, loseTeam };
-    }
-  });
-
-  if (bestUpset) {
-    const { m: um, winTeam, loseTeam } = bestUpset;
-    const uWin = um.scoreA > um.scoreB ? um.scoreA : um.scoreB;
-    const uLose = um.scoreA > um.scoreB ? um.scoreB : um.scoreA;
-    const winEloRank = getPairEloRank(um, winTeam);
-    const loseEloRank = getPairEloRank(um, loseTeam);
-    upsetHtml = `<div class="motd-card upset-card">
-                <div class="motd-header">
-                  <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
-                  <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
-                </div>
-                <div class="motd-teams">
-                  <div class="motd-team winner">
-                    <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
-                    <div class="motd-score win" data-final="${uWin}">0</div>
-                    <div class="upset-rank">ELO #${winEloRank}</div>
-                  </div>
-                  <div class="motd-vs">VS</div>
-                  <div class="motd-team">
-                    <div class="motd-name">${loseTeam.join(" & ")}</div>
-                    <div class="motd-score" data-final="${uLose}">0</div>
-                    <div class="upset-rank">ELO #${loseEloRank} favored</div>
-                  </div>
-                </div>
-                <div class="motd-sub">Lower-ELO pair pulled off a shock win 😤</div>
-              </div>`;
-  }
-
-  return motdHtml + upsetHtml;
-}
+// buildMatchOfTheDay (MOTD / Thriller / Biggest Upset cards) removed — History shows only filtered matches.
 
 // buildHistorySummary → ./render-history-summary.js
 
@@ -4999,7 +4855,14 @@ function calDayClick(iso) {
   switchMainTab("history");
 }
 
+let _renderModernGen = 0;
 function renderModernMatches() {
+  // Generation token: any later render invalidates a still-running first-paint
+  // cascade, so stale setTimeout callbacks (which append cards + run the score
+  // count-up) bail instead of clobbering/duplicating the freshly-rendered feed.
+  // Without this, a re-render mid-cascade (commit / Firebase snapshot / filter)
+  // could make the Thriller & Upset feature cards intermittently fail to load.
+  const _gen = ++_renderModernGen;
   const query = (
     document.getElementById("modern-match-search")?.value || ""
   ).toLowerCase();
@@ -5197,27 +5060,17 @@ function renderModernMatches() {
             </div>` + summary;
     }
   }
-  const isFiltered =
-    matchTabFilter !== "today" ||
-    histPlayerFilter ||
-    histPairFilter ||
-    histOutcomeFilter !== "all" ||
-    histMarginFilter !== "all" ||
-    histScorelineFilter ||
-    h2hFilterA ||
-    h2hFilterB;
-  const motdHtml = isFiltered ? "" : buildMatchOfTheDay();
   const histList = document.getElementById("modern-match-list");
 
-  // Parse all content into a temp container
+  // Parse all content into a temp container. The History feed is the filtered
+  // match list plus, when a pair/h2h filter is active, that pair's stats card.
   const tmpAll = document.createElement("div");
-  tmpAll.innerHTML = motdHtml + summary + buildMatchCards(matches, true);
+  tmpAll.innerHTML = summary + buildMatchCards(matches, true);
 
-  // Collect feature cards first, then match cards
+  // Collect feature cards first, then match cards. The only feature card left
+  // is the pair/h2h stats card (shown when those filters are active).
   const featureCards = Array.from(
-    tmpAll.querySelectorAll(
-      ".motd-card, .upset-card, .thriller-card, .pair-stats-card",
-    ),
+    tmpAll.querySelectorAll(".pair-stats-card"),
   );
   const matchCards = Array.from(tmpAll.querySelectorAll(".match-card"));
   const emptyEl = tmpAll.querySelector(".empty");
@@ -5226,8 +5079,7 @@ function renderModernMatches() {
   // wiping + re-animating the whole feed. Match cards key on their state.matches
   // index (stable across filters); feature cards key on their type.
   featureCards.forEach((el) => {
-    const m = el.className.match(/(motd|upset|thriller|pair-stats)-card/);
-    el.setAttribute("data-key", "feat-" + (m ? m[1] : "x"));
+    el.setAttribute("data-key", "feat-pair-stats");
   });
   matchCards.forEach((el) =>
     el.setAttribute(
@@ -5248,6 +5100,7 @@ function renderModernMatches() {
       el.style.opacity = "0";
       el.style.animation = "none";
       setTimeout(() => {
+        if (_renderModernGen !== _gen) return; // a newer render superseded this
         el.style.animation = "";
         el.style.opacity = "";
         el.classList.add("card-anim");
@@ -5273,6 +5126,7 @@ function renderModernMatches() {
     });
     if (instant.length) {
       setTimeout(() => {
+        if (_renderModernGen !== _gen) return; // superseded by a newer render
         instant.forEach((el) => {
           el.querySelectorAll(
             ".team-score[data-final], .motd-score[data-final]",

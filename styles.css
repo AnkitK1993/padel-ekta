@@ -3492,7 +3492,6 @@ body.no-cascade .analytics-card {
 
 
 .session-summary-card,
-.motd-card,
 .pvp-wrap,
 .manage-stat,
 .mng-card,
@@ -3511,7 +3510,6 @@ body.no-cascade .analytics-card {
 }
 
 .session-summary-card:hover,
-.motd-card:hover,
 .pvp-wrap:hover,
 .mng-card:hover,
 .mng-danger-card:hover,
@@ -5102,127 +5100,7 @@ body.no-cascade .analytics-card {
 
 
 
-.motd-card {
-  background: linear-gradient(
-    135deg,
-    rgba(var(--theme-rgb), 0.08),
-    rgba(var(--theme-rgb), 0.03)
-  );
-  border: 1.5px solid rgba(var(--theme-rgb), 0.45);
-  border-radius: 16px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 28px rgba(var(--theme-rgb), 0.1);
-}
-.motd-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    var(--accent2),
-    var(--accent),
-    var(--accent2)
-  );
-}
-.motd-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.motd-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-  background: rgba(var(--theme-rgb), 0.12);
-  padding: 3px 9px;
-  border-radius: 20px;
-  border: 1px solid rgba(var(--theme-rgb), 0.25);
-}
-.motd-date {
-  font-size: 10px;
-  color: var(--muted);
-}
-.motd-teams {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.motd-team {
-  flex: 1;
-  text-align: center;
-}
-.motd-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
-  line-height: 1.4;
-}
-.motd-team.winner .motd-name {
-  color: var(--green);
-}
-.motd-score {
-  font-family: "Bebas Neue", sans-serif;
-  font-size: 38px;
-  color: var(--text);
-  line-height: 1;
-  margin-top: 4px;
-}
-.motd-score.win {
-  color: var(--accent);
-}
-.motd-vs {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  flex-shrink: 0;
-}
-.upset-card {
-  background: linear-gradient(
-    135deg,
-    rgba(240, 80, 80, 0.08),
-    rgba(200, 50, 50, 0.04)
-  );
-  border-color: rgba(240, 80, 80, 0.45);
-  box-shadow: 0 0 28px rgba(240, 80, 80, 0.1);
-  margin-top: -6px;
-}
-.upset-card::before {
-  background: linear-gradient(
-    90deg,
-    var(--red),
-    rgba(240, 80, 80, 0.4),
-    var(--red)
-  );
-}
-.upset-label {
-  color: var(--red) !important;
-  background: rgba(240, 80, 80, 0.12) !important;
-  border-color: rgba(240, 80, 80, 0.25) !important;
-}
-.upset-rank {
-  font-size: 9px;
-  color: var(--muted);
-  margin-top: 3px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.motd-sub {
-  font-size: 10px;
-  color: var(--muted);
-  text-align: center;
-  font-style: italic;
-}
+/* MOTD / Thriller / Upset card styles removed with their feature. */
 
 .cmp-scroll table.cmp tbody {
   background: transparent;
@@ -6119,7 +5997,6 @@ body {
 .match-card,
 .ana-card,
 .session-summary-card,
-.motd-card,
 .sr-ring,
 .tabbar,
 .nav {
@@ -6237,10 +6114,6 @@ table.cmp {
     font-size: 26px;
   }
 
-  .motd-score {
-    font-size: 30px;
-  }
-
   .filters,
   .hist-filter-row,
   .itabs {
@@ -6313,8 +6186,7 @@ table.cmp {
     font-size: 20px;
   }
 
-  .team-score,
-  .motd-score {
+  .team-score {
     font-size: 22px;
   }
 
@@ -8245,7 +8117,6 @@ table.cmp td:nth-child(8) {
 /* ── CAPITALISE ALL PLAYER / TEAM DATA ── */
 .pname,
 .team-name,
-.motd-name,
 .ftable-name,
 .lrace-name,
 .chem-names,
@@ -10415,7 +10286,6 @@ select.cmp-sel:hover,
 
 /* ══ Universal spring-pop: cards ══ */
 .ana-card,
-.motd-card,
 .session-summary-card,
 .mng-card,
 .mng-danger-card,
@@ -10429,7 +10299,6 @@ select.cmp-sel:hover,
     background 0.22s ease;
 }
 .ana-card:hover,
-.motd-card:hover,
 .session-summary-card:hover,
 .mng-card:hover,
 .mng-danger-card:hover,
