@@ -551,16 +551,22 @@ async function main() {
         subtabCount: document.querySelectorAll(".ana-subtab").length,
         hasOldAntiPodium: html.includes("Anti-Podium Tracker"),
         hasDayOfWeek: html.includes("Day-of-Week"),
-        hasStreakBoard: html.includes("Streak Leaderboard"),
         hasUpsets: html.includes("Biggest Upsets"),
-        hasRadar: html.includes("Player Radar Compare"),
         // Merged sections: these features now live as sub-tabs, not top-level cards.
         hasSeasonCompare: subLabels("seasonmode").includes("Comparison"),
         hasMilestones: subLabels("milestones").includes("Upcoming"),
         eloHasPeakLow: subLabels("elo").includes("Peak / Low"),
         rivalryHasMatrix: subLabels("rivalry").includes("Matrix"),
         formHasStreaks: subLabels("form").includes("Streak Leaderboard"),
-        noOldSecs: ["pvp","peakelo","eloTimeline","eloWinProb","streakboard","upcomingmilestones","seasoncompare"]
+        hasRadar: subLabels("playerstats").includes("Radar"),
+        standingsHasPower: subLabels("lrace").includes("Power"),
+        standingsHasReplay: subLabels("lrace").includes("Replay"),
+        perfHasCarry: subLabels("clutchrank").includes("Carry"),
+        predictHasSim: subLabels("predacc").includes("Match Sim"),
+        pairsHasSynergy: subLabels("pairs").includes("Synergy"),
+        chemHasH2H: subLabels("pairmatrix").includes("H2H Records"),
+        noOldSecs: ["pvp","peakelo","eloTimeline","eloWinProb","streakboard","upcomingmilestones","seasoncompare",
+          "simulator","eloproj","powerrankings","podiumtracker","rankreign","lreplay","qualitywins","dominance","carryfactor","radar","partnership","pairedh2h"]
           .every((k) => !document.querySelector('.ana-sec[data-key="' + k + '"]')),
         hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
         emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
@@ -572,7 +578,6 @@ async function main() {
       "Expected some sections flagged empty with sparse seed data",
     );
     for (const k of [
-      "hasStreakBoard",
       "hasUpsets",
       "hasRadar",
       "hasSeasonCompare",
@@ -580,11 +585,17 @@ async function main() {
       "eloHasPeakLow",
       "rivalryHasMatrix",
       "formHasStreaks",
+      "standingsHasPower",
+      "standingsHasReplay",
+      "perfHasCarry",
+      "predictHasSim",
+      "pairsHasSynergy",
+      "chemHasH2H",
     ])
       assert(awards[k], `Expected merged section sub-tab present: ${k}`);
     assert(
       awards.noOldSecs,
-      "Expected retired standalone sections (pvp/peakelo/eloTimeline/eloWinProb/streakboard/upcomingmilestones/seasoncompare) to be merged away",
+      "Expected retired standalone analytics sections to be merged away",
     );
     assert(
       awards.subtabCount >= 12,

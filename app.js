@@ -11882,19 +11882,6 @@ function computeSeasons(matches) {
     .reverse();
 }
 
-function _partnerTab(btn, tab) {
-  const panels = ["chemistry", "partners", "synergy", "form"];
-  panels.forEach((t) => {
-    const el = document.getElementById(`partner-tab-${t}`);
-    if (el) el.style.display = t === tab ? "" : "none";
-  });
-  btn
-    .closest(".partner-tabs")
-    ?.querySelectorAll(".partner-tab")
-    .forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
-}
-
 // ── GENERIC IN-CARD SUB-TABS (merged analytics sections) ──────
 // Build a tabbed body from [{label, html}]. Used to fold several same-topic
 // sections into one card. Panels are scoped to their own .ana-sec-body so
@@ -17450,19 +17437,43 @@ function renderAnalyticsPage() {
     {
       key: "predacc",
       cat: "records",
-      title: "🔮 Predictions",
+      title: "🔮 Predict & Simulate",
       body: _tabbedSection([
         { label: "Predict", html: _buildMatchPredictHtml() },
         { label: "Accuracy", html: predAccHtml },
-      ]),
-    },
-    {
-      key: "simulator",
-      cat: "records",
-      title: "🎮 Simulators",
-      body: _tabbedSection([
         { label: "Match Sim", html: simulatorHtml },
         { label: "What-If", html: whatIfHtml },
+        {
+          label: "ELO Projection",
+          html: (() => {
+            const formN = window._eloProj?.formN || 10;
+            const futureM = window._eloProj?.futureM || 20;
+            return `<div class="ana-card" style="padding:10px 12px">
+          <div class="ep-controls">
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">FORM WINDOW</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
+                <span class="ep-step-unit">games</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)">+</button>
+              </div>
+            </div>
+            <div class="ep-ctrl-divider"></div>
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">PROJECT AHEAD</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
+                <span class="ep-step-unit">matches</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)">+</button>
+              </div>
+            </div>
+          </div>
+          <div id="eloproj-table"></div>
+        </div>`;
+          })(),
+        },
       ]),
     },
     {
@@ -17486,16 +17497,15 @@ function renderAnalyticsPage() {
     {
       key: "lrace",
       cat: "players",
-      title: "🏎️ Leaderboard Race",
-      body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
-    },
-    {
-      key: "podiumtracker",
-      cat: "players",
-      title: "🥇 Podium",
+      title: "🏆 Standings",
       body: _tabbedSection([
+        { label: "Power", html: _buildPowerRankingsHtml() },
         {
-          label: "🥇 Top 3",
+          label: "Race",
+          html: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
+        },
+        {
+          label: "🥇 Podium",
           html: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
@@ -17507,7 +17517,7 @@ function renderAnalyticsPage() {
       </div>`,
         },
         {
-          label: "🪣 Bottom 3",
+          label: "🪣 Anti-Podium",
           html: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_antiPodiumSetPeriod(this,'today')">DAILY</button>
@@ -17518,24 +17528,24 @@ function renderAnalyticsPage() {
         <div class="antipodium-content">${_secBody(() => _buildAntiPodiumTrackerHtml("today"))}</div>
       </div>`,
         },
-      ]),
-    },
-    {
-      key: "rankreign",
-      cat: "players",
-      title: "👑 Rank History",
-      body: _tabbedSection([
         { label: "Reign", html: _secBody(() => _buildRankReignHtml()) },
-        { label: "Timeline", html: _secBody(() => _buildRankTimelineHtml("today")) },
+        {
+          label: "Timeline",
+          html: _secBody(() => _buildRankTimelineHtml("today")),
+        },
+        { label: "Replay", html: _buildLeaderboardReplayHtml() },
       ]),
     },
     {
       key: "clutchrank",
       cat: "players",
-      title: "🎯 Clutch",
+      title: "🎯 Performance",
       body: _tabbedSection([
-        { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>` },
-        { label: "Trends", html: clutchTrendHtml },
+        { label: "Clutch", html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>` },
+        { label: "Clutch Trends", html: clutchTrendHtml },
+        { label: "Quality", html: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>` },
+        { label: "Dominance", html: _dominanceHtml },
+        { label: "Carry", html: carryHtml },
       ]),
     },
     {
@@ -17546,12 +17556,6 @@ function renderAnalyticsPage() {
         { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>` },
         { label: "ELO Volatility", html: eloVolatilityHtml },
       ]),
-    },
-    {
-      key: "qualitywins",
-      cat: "players",
-      title: "💎 Quality Wins",
-      body: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
     },
     {
       // Always present — winChartHtml carries a helpful note when the active
@@ -17571,23 +17575,6 @@ function renderAnalyticsPage() {
         { label: "Heatmap", html: _scoreHeatmapHtml },
         { label: "Margin Trend", html: _scoreMargTrendHtml },
       ]),
-    },
-    {
-      key: "partnership",
-      cat: "pairs",
-      title: "🤝 Partnership Analytics",
-      body: `<div class="partner-tabs">
-        <button class="partner-tab active" onclick="_partnerTab(this,'synergy')">Synergy</button>
-        <button class="partner-tab" onclick="_partnerTab(this,'form')">Form</button>
-      </div>
-      <div id="partner-tab-synergy" class="partner-tab-panel">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div>
-        <div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div>
-      </div>
-      <div id="partner-tab-form" class="partner-tab-panel" style="display:none">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div>
-        <div class="ana-card" style="padding:10px 12px">${pfHtml}</div>
-      </div>`,
     },
     {
       key: "rivalry",
@@ -17672,25 +17659,21 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      key: "carryfactor",
-      cat: "players",
-      title: "🏋️ Carry Factor",
-      body: carryHtml,
-    },
-    {
       key: "pairs",
       cat: "pairs",
       title: "🤝 Pairs",
       body: _tabbedSection([
         { label: "Top 10", html: _pairLeaderboardHtml },
         { label: "All Pairs", html: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>` },
+        {
+          label: "Synergy",
+          html: `<div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner (vs solo avg)</div>${synergyHtml}</div>`,
+        },
+        {
+          label: "Form",
+          html: `<div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
+        },
       ]),
-    },
-    {
-      key: "pairedh2h",
-      cat: "pairs",
-      title: "⚔️ Paired H2H Records",
-      body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
     },
     {
       key: "elo",
@@ -17713,6 +17696,10 @@ function renderAnalyticsPage() {
       body: _tabbedSection([
         { label: "Matrix", html: pairMatrixHtml },
         { label: "Leaderboard", html: _buildChemistryLeaderboardHtml() },
+        {
+          label: "H2H Records",
+          html: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
+        },
       ]),
     },
     {
@@ -17740,8 +17727,11 @@ function renderAnalyticsPage() {
     {
       key: "playerstats",
       cat: "players",
-      title: "📊 Player Stats Deep Dive",
-      body: _playerStatsTableHtml,
+      title: "📊 Compare Players",
+      body: _tabbedSection([
+        { label: "Deep Dive", html: _playerStatsTableHtml },
+        { label: "Radar", html: _buildRadarCompareHtml() },
+      ]),
     },
     ...(uniqueMonths.length >= 1
       ? [
@@ -17754,24 +17744,12 @@ function renderAnalyticsPage() {
         ]
       : []),
     {
-      key: "dominance",
-      cat: "players",
-      title: "🦁 Dominance Index",
-      body: _dominanceHtml,
-    },
-    {
       key: "absencetracker",
       cat: "players",
       title: "👻 Absence Tracker",
       body: _absenceTrackerHtml,
     },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
-    {
-      key: "powerrankings",
-      cat: "players",
-      title: "⚡ Power Rankings",
-      body: _buildPowerRankingsHtml(),
-    },
     {
       key: "storyfeed",
       cat: "records",
@@ -17792,52 +17770,7 @@ function renderAnalyticsPage() {
         { label: "Comparison", html: _buildSeasonComparisonHtml() },
       ]),
     },
-    {
-      key: "lreplay",
-      cat: "players",
-      title: "▶️ Leaderboard Replay",
-      body: _buildLeaderboardReplayHtml(),
-    },
-    {
-      key: "eloproj",
-      cat: "players",
-      title: "🔮 ELO Projection",
-      body: (() => {
-        const formN = window._eloProj?.formN || 10;
-        const futureM = window._eloProj?.futureM || 20;
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div class="ep-controls">
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">FORM WINDOW</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)">−</button>
-                <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
-                <span class="ep-step-unit">games</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)">+</button>
-              </div>
-            </div>
-            <div class="ep-ctrl-divider"></div>
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">PROJECT AHEAD</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)">−</button>
-                <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
-                <span class="ep-step-unit">matches</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)">+</button>
-              </div>
-            </div>
-          </div>
-          <div id="eloproj-table"></div>
-        </div>`;
-      })(),
-    },
     // ── NEW SECTIONS ───────────────────────────────────────────
-    {
-      key: "radar",
-      cat: "players",
-      title: "🕸️ Player Radar Compare",
-      body: _buildRadarCompareHtml(),
-    },
     {
       key: "biggestupsets",
       cat: "records",
@@ -18297,7 +18230,6 @@ Object.assign(window, {
   openSimSheet,
   _showAllPairs,
   openSessionHighlights,
-  _partnerTab,
   renderDigestCard,
   openDigestPlayerSheet,
   openWhatIfPlayerSheet,

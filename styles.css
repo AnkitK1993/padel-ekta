@@ -11461,31 +11461,6 @@ select.cmp-sel:hover,
   color: var(--muted);
 }
 
-/* ── Partnership Tabs ───────────────────────────────────────── */
-.partner-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.partner-tab {
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  letter-spacing: 0.03em;
-  font-family: "DM Sans", sans-serif;
-}
-.partner-tab.active {
-  border-color: rgba(var(--theme-rgb), 0.5);
-  background: rgba(var(--theme-rgb), 0.1);
-  color: var(--theme);
-}
 .digest-filter-btn {
   padding: 5px 12px;
   border-radius: 20px;
