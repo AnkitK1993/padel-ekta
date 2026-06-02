@@ -527,18 +527,21 @@ async function main() {
       "Expected active season to equal the ongoing season id",
     );
 
-    // #2: with user-defined Seasons present, the analytics award section is
-    // titled "Season Awards" and bucketed by those seasons (the seeded May
-    // matches land in the "May 2026" season card), not auto monthly buckets.
+    // #2: with user-defined Seasons present, the merged "Seasons" section is
+    // bucketed by those seasons (the seeded May matches land in the "May 2026"
+    // season card under its Awards tab), not auto monthly buckets.
     await evaluate(client, `switchMainTab("home", true);`);
     await evaluate(client, `switchMainTab("analytics", true);`);
     await waitFor(
       client,
-      `document.getElementById("analytics-page-content")?.innerHTML.includes("Season Awards")`,
-      "Analytics shows 'Season Awards' (driven by manual seasons)",
+      `!!document.querySelector('.ana-sec[data-key="seasonmode"]')`,
+      "Analytics rendered the merged Seasons section",
     );
     const awards = await evaluate(client, `(() => {
       const html = document.getElementById("analytics-page-content").innerHTML;
+      const subLabels = (key) =>
+        [...document.querySelectorAll('.ana-sec[data-key="' + key + '"] .ana-subtab')]
+          .map((b) => b.textContent.trim());
       return {
         hasMay: html.includes("May 2026"),
         hasRecap: html.includes("Monthly Recap"),
@@ -551,8 +554,14 @@ async function main() {
         hasStreakBoard: html.includes("Streak Leaderboard"),
         hasUpsets: html.includes("Biggest Upsets"),
         hasRadar: html.includes("Player Radar Compare"),
-        hasSeasonCompare: html.includes("Season Comparison"),
-        hasMilestones: html.includes("Upcoming Milestones"),
+        // Merged sections: these features now live as sub-tabs, not top-level cards.
+        hasSeasonCompare: subLabels("seasonmode").includes("Comparison"),
+        hasMilestones: subLabels("milestones").includes("Upcoming"),
+        eloHasPeakLow: subLabels("elo").includes("Peak / Low"),
+        rivalryHasMatrix: subLabels("rivalry").includes("Matrix"),
+        formHasStreaks: subLabels("form").includes("Streak Leaderboard"),
+        noOldSecs: ["pvp","peakelo","eloTimeline","eloWinProb","streakboard","upcomingmilestones","seasoncompare"]
+          .every((k) => !document.querySelector('.ana-sec[data-key="' + k + '"]')),
         hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
         emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
       };
@@ -568,8 +577,15 @@ async function main() {
       "hasRadar",
       "hasSeasonCompare",
       "hasMilestones",
+      "eloHasPeakLow",
+      "rivalryHasMatrix",
+      "formHasStreaks",
     ])
-      assert(awards[k], `Expected new section present: ${k}`);
+      assert(awards[k], `Expected merged section sub-tab present: ${k}`);
+    assert(
+      awards.noOldSecs,
+      "Expected retired standalone sections (pvp/peakelo/eloTimeline/eloWinProb/streakboard/upcomingmilestones/seasoncompare) to be merged away",
+    );
     assert(
       awards.subtabCount >= 12,
       `Expected merged sections to render sub-tabs, got ${awards.subtabCount}`,

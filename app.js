@@ -12295,9 +12295,9 @@ function openEloTLOverlaySheet() {
 }
 
 function _rerenderEloTLSection() {
-  const el = document.querySelector(
-    '.ana-sec[data-key="eloTimeline"] .ana-sec-body',
-  );
+  // ELO History Chart is a tab inside the merged "⚡ ELO" section; target its
+  // stable wrapper rather than a top-level section body.
+  const el = document.getElementById("elo-tl-section");
   if (el) el.innerHTML = buildEloTimelineHtml(_eloTLFilter);
 }
 
@@ -17466,12 +17466,6 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      key: "pvp",
-      cat: "players",
-      title: "⚔️ Player vs Player Matrix",
-      body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
-    },
-    {
       key: "awards",
       cat: "records",
       title: "🏅 Awards Board",
@@ -17480,8 +17474,14 @@ function renderAnalyticsPage() {
     {
       key: "form",
       cat: "players",
-      title: "⚡ Current Form",
-      body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
+      title: "🔥 Form & Streaks",
+      body: _tabbedSection([
+        {
+          label: "Current Form",
+          html: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
+        },
+        { label: "Streak Leaderboard", html: _buildStreakLeaderboardHtml() },
+      ]),
     },
     {
       key: "lrace",
@@ -17596,6 +17596,10 @@ function renderAnalyticsPage() {
       body: _tabbedSection([
         { label: "Spotlight", html: `<div class="ana-card">${rivalHtml}</div>` },
         {
+          label: "Matrix",
+          html: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
+        },
+        {
           label: "Head-to-Head",
           html: (() => {
             const enc = {};
@@ -17688,18 +17692,19 @@ function renderAnalyticsPage() {
       title: "⚔️ Paired H2H Records",
       body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
     },
-    { key: "elo", cat: "elo", title: "⚡ ELO Rankings", body: eloHtml },
     {
-      key: "eloTimeline",
+      key: "elo",
       cat: "elo",
-      title: "📈 ELO History Chart",
-      body: buildEloTimelineHtml("all"),
-    },
-    {
-      key: "eloWinProb",
-      cat: "elo",
-      title: "🎯 ELO Win Probability",
-      body: eloWinProbHtml,
+      title: "⚡ ELO",
+      body: _tabbedSection([
+        { label: "Rankings", html: eloHtml },
+        {
+          label: "History Chart",
+          html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
+        },
+        { label: "Peak / Low", html: _peakEloHtml },
+        { label: "Win Probability", html: eloWinProbHtml },
+      ]),
     },
     {
       key: "pairmatrix",
@@ -17719,8 +17724,11 @@ function renderAnalyticsPage() {
     {
       key: "milestones",
       cat: "records",
-      title: "🎖️ Milestone History",
-      body: milestoneHtml,
+      title: "🎖️ Milestones",
+      body: _tabbedSection([
+        { label: "Achieved", html: milestoneHtml },
+        { label: "Upcoming", html: _buildUpcomingMilestonesHtml() },
+      ]),
     },
     {
       key: "calendar",
@@ -17745,12 +17753,6 @@ function renderAnalyticsPage() {
           },
         ]
       : []),
-    {
-      key: "peakelo",
-      cat: "elo",
-      title: "📈 High Low ELO",
-      body: _peakEloHtml,
-    },
     {
       key: "dominance",
       cat: "players",
@@ -17781,8 +17783,14 @@ function renderAnalyticsPage() {
       cat: "records",
       // Driven by user-defined Seasons when any exist, else auto monthly buckets.
       // (Distinct from the separate "Monthly Awards" section above.)
-      title: state.seasons.length ? "🏆 Season Awards" : "📅 Monthly Recap",
-      body: _buildSeasonModeHtml(),
+      title: state.seasons.length ? "🏆 Seasons" : "📅 Monthly Recap",
+      body: _tabbedSection([
+        {
+          label: state.seasons.length ? "Awards" : "Recap",
+          html: _buildSeasonModeHtml(),
+        },
+        { label: "Comparison", html: _buildSeasonComparisonHtml() },
+      ]),
     },
     {
       key: "lreplay",
@@ -17825,34 +17833,16 @@ function renderAnalyticsPage() {
     },
     // ── NEW SECTIONS ───────────────────────────────────────────
     {
-      key: "streakboard",
-      cat: "players",
-      title: "🔥 Streak Leaderboard",
-      body: _buildStreakLeaderboardHtml(),
-    },
-    {
       key: "radar",
       cat: "players",
       title: "🕸️ Player Radar Compare",
       body: _buildRadarCompareHtml(),
     },
     {
-      key: "upcomingmilestones",
-      cat: "records",
-      title: "⏳ Upcoming Milestones",
-      body: _buildUpcomingMilestonesHtml(),
-    },
-    {
       key: "biggestupsets",
       cat: "records",
       title: "💥 Biggest Upsets",
       body: _buildBiggestUpsetsHtml(),
-    },
-    {
-      key: "seasoncompare",
-      cat: "records",
-      title: "🗓️ Season Comparison",
-      body: _buildSeasonComparisonHtml(),
     },
   ];
 
