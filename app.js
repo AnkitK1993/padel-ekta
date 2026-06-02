@@ -101,6 +101,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+// Request Drive file scope so backup-to-Drive works without a second popup.
+provider.addScope("https://www.googleapis.com/auth/drive.file");
+let _driveAccessToken = null; // set on sign-in, cleared on sign-out
 
 // ── ERROR-LOG FIRESTORE MIRROR ────────────────────────────
 // utils.js captures uncaught errors into a localStorage ring buffer; here we
@@ -1866,11 +1869,14 @@ function loadCloudData() {
 document.getElementById("loginBtn").addEventListener("click", async () => {
   try {
     if (auth.currentUser) {
+      _driveAccessToken = null;
       await signOut(auth);
       closeHamburgerMenu();
       return;
     }
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    _driveAccessToken =
+      GoogleAuthProvider.credentialFromResult(result)?.accessToken || null;
     closeHamburgerMenu();
   } catch (err) {
     if (err.code === "auth/popup-blocked")
@@ -1879,7 +1885,14 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   }
 });
 
-getRedirectResult(auth).catch(console.error);
+getRedirectResult(auth)
+  .then((result) => {
+    if (result) {
+      _driveAccessToken =
+        GoogleAuthProvider.credentialFromResult(result)?.accessToken || null;
+    }
+  })
+  .catch(console.error);
 
 let _authInitialFired = false;
 // Enhancement 21: offline indicator
@@ -3670,56 +3683,242 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
-function importData() {
-  const raw = prompt(
-    "Paste JSON export data to import (matches + names + aliases):",
-  );
-  if (!raw) return;
-  let data;
+// ── BACKUP / RESTORE (round-trip file + Google Drive) ──────
+// The backup envelope is a versioned superset of the Firestore payload:
+// it includes seasons (which the old clipboard exportData() omitted) and
+// a format tag so importBackupFile can validate before merging.
+function _backupPayload() {
+  return {
+    format: "ekta-padel-backup",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    matches: state.matches,
+    players: state.players,
+    playerAliasMap,
+    nextPlayerId,
+    seasons: state.seasons,
+  };
+}
+
+function _backupFilename() {
+  const d = new Date().toISOString().slice(0, 10);
+  return `ekta-padel-backup-${d}.json`;
+}
+
+// Try to get a fresh Drive access token if we don't have one (e.g. after a
+// page refresh). Triggers a silent re-auth popup — the user has already
+// consented to the drive.file scope, so this is usually instant.
+async function _ensureDriveToken() {
+  if (_driveAccessToken) return true;
+  if (!auth.currentUser) return false;
   try {
-    data = JSON.parse(raw);
-  } catch (err) {
-    alert("Invalid JSON data");
-    return;
+    const result = await signInWithPopup(auth, provider);
+    _driveAccessToken =
+      GoogleAuthProvider.credentialFromResult(result)?.accessToken || null;
+    return !!_driveAccessToken;
+  } catch (e) {
+    return false;
   }
+}
+
+async function exportBackupFile() {
+  const json = JSON.stringify(_backupPayload(), null, 2);
+  const filename = _backupFilename();
+  const blob = new Blob([json], { type: "application/json" });
+
+  // ── Path B: upload directly to Google Drive ──
+  if (window.isAdmin) {
+    const hasToken = await _ensureDriveToken();
+    if (hasToken) {
+      showToast("Uploading to Drive…", "☁️");
+      try {
+        const link = await _uploadToDrive(blob, filename);
+        showToast("Saved to Drive!", "✅");
+        // Also offer the direct file link
+        const el = document.getElementById("expOk");
+        if (el) {
+          el.innerHTML = `Saved! <a href="${escHtml(link)}" target="_blank"
+            style="color:var(--theme);text-decoration:underline">Open in Drive ↗</a>`;
+          el.classList.add("show");
+          setTimeout(() => {
+            el.classList.remove("show");
+            el.innerHTML = "";
+          }, 8000);
+        }
+        return;
+      } catch (e) {
+        console.warn("Drive upload failed, falling back to download:", e);
+        showToast("Drive upload failed — downloading instead", "⚠️");
+      }
+    }
+  }
+
+  // ── Path A fallback: native share (→ Drive on mobile) or download ──
+  const file = new File([blob], filename, { type: "application/json" });
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({
+      files: [file],
+      title: "Ekta Padel Backup",
+      text: `Full backup — ${state.matches.length} matches`,
+    }).catch(() => {});
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    const el = document.getElementById("expOk");
+    if (el) {
+      el.textContent = "Downloaded!";
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 2500);
+    }
+  }
+}
+
+// Upload a Blob to Drive using the multipart upload API.
+// Returns the web-view link of the created file.
+async function _uploadToDrive(blob, filename) {
+  const metadata = {
+    name: filename,
+    mimeType: "application/json",
+    // All backups land in a dedicated app folder for easy discovery
+    description: `Ekta Padel backup — ${state.matches.length} matches, exported ${new Date().toLocaleDateString()}`,
+  };
+  const form = new FormData();
+  form.append(
+    "metadata",
+    new Blob([JSON.stringify(metadata)], { type: "application/json" }),
+  );
+  form.append("file", blob);
+  const resp = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${_driveAccessToken}` },
+      body: form,
+    },
+  );
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    // Token expired (401) → clear so next call re-auths
+    if (resp.status === 401) _driveAccessToken = null;
+    throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  return data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`;
+}
+
+// ── Shared import logic ─────────────────────────────────────
+// Used by both importData (paste) and importBackupFile (file picker).
+function _applyImportedData(data) {
   const incomingMatches = data.matches || data.allMatches;
   if (!Array.isArray(incomingMatches)) {
     alert("JSON must include a matches array.");
-    return;
+    return false;
   }
-  // Enhancement 22: auto-merge instead of full replace
-  const incoming = incomingMatches;
-  const existingKeys = new Set(state.matches.map((m) => _mkMatchKey(m)));
-  const newMatches = incoming.filter((m) => !existingKeys.has(_mkMatchKey(m)));
-  const merged = [...state.matches, ...newMatches];
-  merged.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const existingKeys = new Set(state.matches.map(_mkMatchKey));
+  const newMatches = incomingMatches.filter(
+    (m) => !existingKeys.has(_mkMatchKey(m)),
+  );
   if (newMatches.length === 0) {
     alert("All matches already exist — nothing new to import.");
-    return;
+    return false;
   }
-  const confirm = window.confirm(
-    `Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`,
+  const skipped = incomingMatches.length - newMatches.length;
+  const seasonCount = Array.isArray(data.seasons) ? data.seasons.length : 0;
+  const msg =
+    `Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added` +
+    (skipped ? ` (${skipped} duplicate${skipped !== 1 ? "s" : ""} skipped)` : "") +
+    (seasonCount ? `, ${seasonCount} season${seasonCount !== 1 ? "s" : ""} merged` : "") +
+    ". Continue?";
+  if (!window.confirm(msg)) return false;
+
+  // Merge matches
+  const merged = [...state.matches, ...newMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
   );
-  if (!confirm) return;
   state.matches = merged;
+
+  // Merge players / aliases
   if (data.players && typeof data.players === "object") {
     state.players = { ...state.players, ...data.players };
     playerAliasMap = { ...playerAliasMap, ...(data.playerAliasMap || {}) };
     if (data.nextPlayerId > nextPlayerId) nextPlayerId = data.nextPlayerId;
     rebuildNameMaps();
-  } else {
+  } else if (data.aliasMap || data.nameMap) {
     state.aliasMap = { ...state.aliasMap, ...(data.aliasMap || {}) };
     state.nameMap = { ...state.nameMap, ...(data.nameMap || {}) };
   }
+
+  // Merge seasons (dedup by id)
+  if (Array.isArray(data.seasons) && data.seasons.length) {
+    const existingIds = new Set(state.seasons.map((s) => s.id));
+    const newSeasons = data.seasons.filter((s) => s.id && !existingIds.has(s.id));
+    if (newSeasons.length) {
+      state.seasons = [...state.seasons, ...newSeasons].sort((a, b) =>
+        (a.start || "").localeCompare(b.start || ""),
+      );
+      _persistSeasons();
+    }
+  }
+
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
   commit();
   refreshManage();
   renderNamesTable();
-  alert(
-    `Import complete: ${newMatches.length} match${newMatches.length !== 1 ? "es" : ""} added.`,
+  const added = newMatches.length;
+  showToast(
+    `Import complete: ${added} match${added !== 1 ? "es" : ""} added.`,
+    "✅",
   );
+  return true;
+}
+
+// File-picker import — accepts the versioned backup format OR the old
+// clipboard JSON so either file can be dragged in.
+function importBackupFile() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      alert("Could not parse file — make sure it's a valid JSON backup.");
+      return;
+    }
+    // Validate it's a recognisable backup
+    if (!data.matches && !data.allMatches) {
+      alert("This file doesn't look like an Ekta Padel backup (no matches array).");
+      return;
+    }
+    _applyImportedData(data);
+  };
+  input.click();
+}
+
+// Legacy paste-import — kept for backwards compat; now delegates to the
+// shared merge so it also picks up seasons from old clipboard exports.
+function importData() {
+  const raw = prompt(
+    "Paste JSON export data to import (matches + players + aliases):",
+  );
+  if (!raw) return;
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    alert("Invalid JSON — paste the full contents of an export file.");
+    return;
+  }
+  _applyImportedData(data);
 }
 
 // ── RENDER HOME ────────────────────────────────────────────
@@ -17185,6 +17384,7 @@ Object.assign(window, {
   sendBackupEmail,
   exportData,
   exportCSV,
+  exportBackupFile,
   setScreenshotChoiceSetting,
   setAnimLevel,
   toggleSmoothMode,
@@ -17256,6 +17456,7 @@ Object.assign(window, {
   renderNamesTable,
   editNameEntry,
   importData,
+  importBackupFile,
   openFabModal,
   openNameAddModal,
   closeNameAddModal,

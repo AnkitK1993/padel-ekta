@@ -953,9 +953,25 @@ Puneet - Pun, PK
                 <span class="mng-card-icon">💾</span>
                 <span class="mng-card-title">Data</span>
               </div>
+              <!-- Primary: Drive backup / restore -->
+              <button
+                class="btn-p"
+                onclick="exportBackupFile()"
+                style="width:100%;margin-bottom:8px;font-weight:800"
+              >
+                ☁️ Backup to Drive
+              </button>
+              <button
+                class="btn-p"
+                onclick="importBackupFile()"
+                style="width:100%;margin-bottom:12px"
+              >
+                📂 Restore from file
+              </button>
+              <!-- Legacy exports -->
               <div class="mng-actions-grid">
                 <button class="btn-p" onclick="exportData()">
-                  📤 Export JSON
+                  📋 Copy JSON
                 </button>
                 <button class="btn-p" onclick="exportCSV()">
                   📊 Export CSV
@@ -966,7 +982,7 @@ Puneet - Pun, PK
                 onclick="importData()"
                 style="width: 100%; margin-top: 8px"
               >
-                📥 Import JSON
+                📥 Paste JSON
               </button>
               <div
                 id="doc-size-readout"
