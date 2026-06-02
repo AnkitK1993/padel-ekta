@@ -17479,8 +17479,14 @@ function renderAnalyticsPage() {
     {
       key: "awards",
       cat: "records",
-      title: "🏅 Awards Board",
-      body: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
+      title: "🏅 Awards & Records",
+      body: _tabbedSection([
+        {
+          label: "Awards Board",
+          html: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
+        },
+        { label: "Personal Bests", html: personalBestsHtml },
+      ]),
     },
     {
       key: "form",
@@ -17643,12 +17649,6 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      key: "session",
-      cat: "activity",
-      title: "📋 Session Stats",
-      body: sessHtml,
-    },
-    {
       key: "dayofweek",
       cat: "activity",
       title: "📅 Day-of-Week",
@@ -17703,12 +17703,6 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      key: "personalbests",
-      cat: "players",
-      title: "🏅 Personal Bests",
-      body: personalBestsHtml,
-    },
-    {
       key: "milestones",
       cat: "records",
       title: "🎖️ Milestones",
@@ -17718,10 +17712,22 @@ function renderAnalyticsPage() {
       ]),
     },
     {
+      // Keeps key "calendar" so the lazy-render wiring in toggleAnaSection /
+      // the first-paint rAF (both keyed on "calendar") still fires when this
+      // card is expanded. Calendar is the first tab so it's visible on expand.
       key: "calendar",
       cat: "activity",
-      title: "📅 Match Calendar",
-      body: `<div id="match-calendar" class="match-calendar"></div>`,
+      title: "📅 Activity",
+      body: _tabbedSection([
+        {
+          label: "Calendar",
+          html: `<div id="match-calendar" class="match-calendar"></div>`,
+        },
+        { label: "Sessions", html: sessHtml },
+        ...(uniqueMonths.length >= 1
+          ? [{ label: "Monthly", html: _monthlyStatsTableHtml }]
+          : []),
+      ]),
     },
     // ── TODO BATCH: Statistics enhancements ────────────────────
     {
@@ -17733,16 +17739,6 @@ function renderAnalyticsPage() {
         { label: "Radar", html: _buildRadarCompareHtml() },
       ]),
     },
-    ...(uniqueMonths.length >= 1
-      ? [
-          {
-            key: "monthlystats",
-            cat: "activity",
-            title: "📅 Monthly Stats",
-            body: _monthlyStatsTableHtml,
-          },
-        ]
-      : []),
     {
       key: "absencetracker",
       cat: "players",

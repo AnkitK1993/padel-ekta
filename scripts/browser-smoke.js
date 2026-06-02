@@ -565,8 +565,11 @@ async function main() {
         predictHasSim: subLabels("predacc").includes("Match Sim"),
         pairsHasSynergy: subLabels("pairs").includes("Synergy"),
         chemHasH2H: subLabels("pairmatrix").includes("H2H Records"),
+        activityHasSessions: subLabels("calendar").includes("Sessions"),
+        awardsHasPB: subLabels("awards").includes("Personal Bests"),
         noOldSecs: ["pvp","peakelo","eloTimeline","eloWinProb","streakboard","upcomingmilestones","seasoncompare",
-          "simulator","eloproj","powerrankings","podiumtracker","rankreign","lreplay","qualitywins","dominance","carryfactor","radar","partnership","pairedh2h"]
+          "simulator","eloproj","powerrankings","podiumtracker","rankreign","lreplay","qualitywins","dominance","carryfactor","radar","partnership","pairedh2h",
+          "session","monthlystats","personalbests"]
           .every((k) => !document.querySelector('.ana-sec[data-key="' + k + '"]')),
         hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
         emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
@@ -591,6 +594,8 @@ async function main() {
       "predictHasSim",
       "pairsHasSynergy",
       "chemHasH2H",
+      "activityHasSessions",
+      "awardsHasPB",
     ])
       assert(awards[k], `Expected merged section sub-tab present: ${k}`);
     assert(
