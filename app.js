@@ -12263,30 +12263,58 @@ function _buildRankReignHtml() {
     eloRankOf[name] = i + 1;
   });
 
-  // For each match day compute cumulative ALL TIME rank up to that day,
-  // then tally how many days each player held each rank position.
+  // For each match day compute cumulative rank up to that day, then tally
+  // how many days each player held each rank position.
+  // INCREMENTAL: walk matches chronologically once, applying ELO as we go
+  // rather than recomputing computeElo(snap) from scratch for every date.
+  // Reduces O(days × matches) → O(matches) — critical for large datasets.
   const sorted = [...allM].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
+  const runElo = {}; // incremental ELO map
+  const runMp = {}, runMw = {}, runGw = {}, runGl = {}; // for SR proxy rank
+  let mIdx = 0; // pointer into sorted[]
   let maxRank = 1;
   const tally = {};
   allDates.forEach((date) => {
+    // Advance the incremental ELO up to (and including) this date
+    while (mIdx < sorted.length && (sorted[mIdx].date || "") <= date) {
+      const m = sorted[mIdx++];
+      const players = [...(m.teamA || []), ...(m.teamB || [])];
+      players.forEach((p) => { if (!(p in runElo)) runElo[p] = 1000; });
+      const aWon = m.scoreA > m.scoreB;
+      const avgA = (m.teamA || []).reduce((s, p) => s + runElo[p], 0) / Math.max((m.teamA || []).length, 1);
+      const avgB = (m.teamB || []).reduce((s, p) => s + runElo[p], 0) / Math.max((m.teamB || []).length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      (m.teamA || []).forEach((p) => {
+        runElo[p] = (runElo[p] || 1000) + dA;
+        runMp[p] = (runMp[p] || 0) + 1; runMw[p] = (runMw[p] || 0) + (aWon ? 1 : 0);
+        runGw[p] = (runGw[p] || 0) + m.scoreA; runGl[p] = (runGl[p] || 0) + m.scoreB;
+      });
+      (m.teamB || []).forEach((p) => {
+        runElo[p] = (runElo[p] || 1000) + dB;
+        runMp[p] = (runMp[p] || 0) + 1; runMw[p] = (runMw[p] || 0) + (!aWon ? 1 : 0);
+        runGw[p] = (runGw[p] || 0) + m.scoreB; runGl[p] = (runGl[p] || 0) + m.scoreA;
+      });
+    }
     const dayMatches = sorted.filter((m) => m.date === date);
     if (dayMatches.length < 2) return; // skip days with fewer than 2 matches
     const dayPlayers = new Set(
       dayMatches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]),
     );
-    const snap = sorted.filter((m) => (m.date || "") <= date);
-    const statsSnap = computeStats(snap, computeElo(snap));
+    // Rank by current incremental ELO (same criterion as computeStats uses)
+    const ranked = Object.entries(runElo).sort((a, b) => b[1] - a[1]);
     let qualRank = 0;
-    statsSnap.forEach((p) => {
-      if (!dayPlayers.has(p.name)) return; // only players who appeared that day
+    ranked.forEach(([name]) => {
+      if (!dayPlayers.has(name)) return;
       qualRank++;
-      if (!tally[p.name])
-        tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
-      tally[p.name].days++;
-      tally[p.name].rankCounts[qualRank] =
-        (tally[p.name].rankCounts[qualRank] || 0) + 1;
+      if (!tally[name])
+        tally[name] = { name, rankCounts: {}, days: 0 };
+      tally[name].days++;
+      tally[name].rankCounts[qualRank] =
+        (tally[name].rankCounts[qualRank] || 0) + 1;
       if (qualRank > maxRank) maxRank = qualRank;
     });
   });
