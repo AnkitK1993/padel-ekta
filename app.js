@@ -1914,10 +1914,11 @@ onAuthStateChanged(auth, (user) => {
   window.isAdmin = !!user && user.email === ADMIN_EMAIL;
   updateAdminUI(user);
   if (window.isAdmin) scheduleAutoEmail();
+  if (window.isAdmin) _scheduleDriveBackup();
   if (window.isAdmin) setTimeout(_maybeBackup, 6000); // once data has loaded
-  else if (_emailTimer) {
-    clearTimeout(_emailTimer);
-    _emailTimer = null;
+  else {
+    if (_emailTimer) { clearTimeout(_emailTimer); _emailTimer = null; }
+    if (_driveBackupTimer) { clearTimeout(_driveBackupTimer); _driveBackupTimer = null; }
   }
   // Skip re-render on the initial auth state resolution at startup —
   // loadCloudData() already handles the first render. Only re-render
@@ -17430,6 +17431,89 @@ function scheduleAutoEmail() {
       if (!ok) localStorage.removeItem("padel_last_email");
       scheduleAutoEmail();
     });
+  }, target - now);
+}
+
+// ── AUTO DRIVE BACKUP ────────────────────────────────────────
+// Fires at 13:00 daily (same window as the email backup) when the admin
+// is signed in and has a valid Drive token. Uses its own localStorage
+// key so it's independent of the email scheduler — either can be
+// unconfigured without affecting the other.
+const _DRIVE_BACKUP_KEY = "padel_last_drive_backup";
+
+async function _maybeAutoDriveBackup() {
+  if (!window.isAdmin) return;
+  if (!_driveAccessToken) return; // no token this session — skip silently
+  const today = todayISO();
+  if (localStorage.getItem(_DRIVE_BACKUP_KEY) === today) return;
+  // Claim the slot before the async work to prevent multi-tab race.
+  localStorage.setItem(_DRIVE_BACKUP_KEY, today);
+  try {
+    const blob = new Blob([JSON.stringify(_backupPayload(), null, 2)], {
+      type: "application/json",
+    });
+    await _uploadToDrive(blob, _backupFilename());
+    // Prune files older than 7 days right after a successful backup.
+    _pruneDriveBackups(7).catch(() => {});
+  } catch (e) {
+    // Release the slot so it can retry if the page is reloaded today.
+    localStorage.removeItem(_DRIVE_BACKUP_KEY);
+    console.warn("Auto Drive backup failed:", e?.message || e);
+  }
+}
+
+// Delete app-created backup files on Drive that are older than maxAgeDays.
+async function _pruneDriveBackups(maxAgeDays = 7) {
+  if (!_driveAccessToken) return;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - maxAgeDays);
+  const q = encodeURIComponent(
+    "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
+  );
+  const resp = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=50`,
+    { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
+  );
+  if (!resp.ok) return;
+  const { files = [] } = await resp.json();
+  const stale = files.filter((f) => new Date(f.createdTime) < cutoff);
+  await Promise.all(
+    stale.map((f) =>
+      fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${_driveAccessToken}` },
+      }).catch(() => {}),
+    ),
+  );
+  if (stale.length)
+    console.log(`Drive: pruned ${stale.length} backup(s) older than ${maxAgeDays} days`);
+}
+
+// Piggyback on the email scheduler's 13:00 target so both run at the
+// same time. Called from scheduleAutoEmail's timer path and startup.
+let _driveBackupTimer = null;
+function _scheduleDriveBackup() {
+  if (_driveBackupTimer) { clearTimeout(_driveBackupTimer); _driveBackupTimer = null; }
+  if (!window.isAdmin) return;
+
+  const now = new Date();
+  const today = todayISO();
+  const target = new Date(now);
+  target.setHours(13, 0, 0, 0);
+
+  // Already past 13:00 today and not yet backed up → run now.
+  if (localStorage.getItem(_DRIVE_BACKUP_KEY) !== today && now >= target) {
+    _maybeAutoDriveBackup().then(() => _scheduleDriveBackup());
+    return;
+  }
+
+  // Already backed up today → schedule for 13:00 tomorrow.
+  if (localStorage.getItem(_DRIVE_BACKUP_KEY) === today) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  _driveBackupTimer = setTimeout(() => {
+    _maybeAutoDriveBackup().then(() => _scheduleDriveBackup());
   }, target - now);
 }
 
