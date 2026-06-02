@@ -8394,7 +8394,24 @@ function _animEloCounts() {
 }
 
 let _shareBlob = null,
-  _shareLabel = "";
+  _shareLabel = "",
+  _shareCaption = "";
+
+// Human-readable caption for the share sheet / WhatsApp text. Kept separate
+// from _shareLabel (which is reused as a filename token, so it stays free of
+// spaces and apostrophes).
+function _leaderboardCaption(filter) {
+  const m = {
+    all: "All-Time",
+    today: "Today's",
+    week: "This Week's",
+    lastweek: "Last Week's",
+    weekend: "Weekend",
+    month: "This Month's",
+    range: "Custom Range",
+  };
+  return `${m[filter] || "Summary"} Leaderboard`;
+}
 
 function openSummaryShare() {
   if (!window.html2canvas) {
@@ -8465,6 +8482,7 @@ async function doSummaryScreenshot(includeMatches) {
     range: "Custom",
   };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
+  _shareCaption = _leaderboardCaption(cmpFilter);
   const restore = () => {
     highlights.forEach((el) => (el.style.display = ""));
     if (!includeMatches) {
@@ -8520,7 +8538,7 @@ async function doShareWhatsApp() {
       .share({
         files: [file],
         title: "Ekta Padel",
-        text: `${_shareLabel} Leaderboard`,
+        text: _shareCaption || `${_shareLabel} Leaderboard`,
       })
       .catch(() => {});
   } else {
@@ -8651,6 +8669,7 @@ async function shareSnapshot() {
     range: "Custom",
   };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
+  _shareCaption = _leaderboardCaption(cmpFilter);
   try {
     const canvas = await window.html2canvas(snapEl, {
       backgroundColor: "#030309",
