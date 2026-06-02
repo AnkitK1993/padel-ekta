@@ -19098,6 +19098,7 @@ async function syncSession() {
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
 let _mioTimers = [];
 let _mioFinalize = null;
+let _mioEloMemo = null; // { idx, amRef, priorElo, afterElo } — see openMatchIntro
 function _mioSched(fn, delay) {
   const id = setTimeout(() => {
     _mioTimers = _mioTimers.filter((t) => t !== id);
@@ -19121,10 +19122,21 @@ function openMatchIntro(idx) {
   _mioFinalize = null;
 
   const _amE = activeMatches();
-  const _upToInclE = new Set(state.matches.slice(0, idx + 1));
-  const _upToBeforeE = new Set(state.matches.slice(0, idx));
-  const priorElo = computeElo(_amE.filter((m) => _upToBeforeE.has(m)));
-  const afterElo = computeElo(_amE.filter((m) => _upToInclE.has(m)));
+  // Pre/post-match ELO over the active set. Two O(n) computeElo passes; cached
+  // on (idx, activeMatches identity) so re-opening the same banner — or any
+  // re-trigger — skips the recompute. activeMatches() returns a memoized array,
+  // so a season/exclusion/data change yields a new ref and invalidates this.
+  let priorElo, afterElo;
+  if (_mioEloMemo && _mioEloMemo.idx === idx && _mioEloMemo.amRef === _amE) {
+    priorElo = _mioEloMemo.priorElo;
+    afterElo = _mioEloMemo.afterElo;
+  } else {
+    const _upToInclE = new Set(state.matches.slice(0, idx + 1));
+    const _upToBeforeE = new Set(state.matches.slice(0, idx));
+    priorElo = computeElo(_amE.filter((mm) => _upToBeforeE.has(mm)));
+    afterElo = computeElo(_amE.filter((mm) => _upToInclE.has(mm)));
+    _mioEloMemo = { idx, amRef: _amE, priorElo, afterElo };
+  }
   const aWon = m.scoreA > m.scoreB;
 
   // Pre-match individual and pair ranks
