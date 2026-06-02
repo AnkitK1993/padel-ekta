@@ -4568,59 +4568,97 @@ function _computeMatchEloDeltas(matches) {
 // buildSummaryMatchRow → ./render-match-rows.js
 // buildSummaryMatchRows → ./render-match-rows.js
 
+// Heavy precompute for the history feed: one chronological ELO walk yielding
+// per-match ELO deltas + pre-match pair ranks, plus the pair-vs-pair H2H map.
+// Depends only on state.matches, so it's memoized on (_dataVersion, array
+// identity). buildMatchCards runs on every history render/filter and this walk
+// is O(matches × pairs) — recomputing it each time was a mobile hot spot.
+let _mcPrecompMemo = null;
+function _matchCardPrecompute() {
+  if (
+    _mcPrecompMemo &&
+    _mcPrecompMemo.version === _dataVersion &&
+    _mcPrecompMemo.matchesRef === state.matches
+  )
+    return _mcPrecompMemo;
+  const eloMatchMap = new Map();
+  const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
+  const elo = {};
+  const allPairsList = getPairStats(); // all pairs ever formed
+  [...state.matches]
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in elo)) elo[p] = 1000;
+      });
+      // Rank all pairs by their avg ELO right now (before this match)
+      matchPairRankMap.set(
+        m,
+        new Map(
+          allPairsList
+            .map((p) => ({
+              key: p.key,
+              avgElo:
+                p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
+                p.players.length,
+            }))
+            .sort((a, b) => b.avgElo - a.avgElo)
+            .map(({ key }, i) => [key, i + 1]),
+        ),
+      );
+      const aWon = m.scoreA > m.scoreB;
+      const avgA =
+        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB =
+        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      const mData = {};
+      (m.teamA || []).forEach((p) => {
+        const after = (elo[p] || 1000) + dA;
+        mData[p] = { delta: dA, after };
+        elo[p] = after;
+      });
+      (m.teamB || []).forEach((p) => {
+        const after = (elo[p] || 1000) + dB;
+        mData[p] = { delta: dB, after };
+        elo[p] = after;
+      });
+      eloMatchMap.set(m, mData);
+    });
+  // Enhancement 8: pre-compute pair-vs-pair H2H records
+  const pvpMap = {};
+  state.matches.forEach((hm) => {
+    const pa = (hm.teamA || []).slice().sort().join("&");
+    const pb = (hm.teamB || []).slice().sort().join("&");
+    if (!pa || !pb) return;
+    const key = pa <= pb ? `${pa}|${pb}` : `${pb}|${pa}`;
+    if (!pvpMap[key]) pvpMap[key] = { a: 0, b: 0, aFirst: pa <= pb };
+    const aWonH = hm.scoreA > hm.scoreB;
+    const paFirst = pvpMap[key].aFirst;
+    if (paFirst ? aWonH : !aWonH) pvpMap[key].a++;
+    else pvpMap[key].b++;
+  });
+  _mcPrecompMemo = {
+    version: _dataVersion,
+    matchesRef: state.matches,
+    eloMatchMap,
+    matchPairRankMap,
+    pvpMap,
+  };
+  return _mcPrecompMemo;
+}
+
 function buildMatchCards(matches, showAdmin) {
   if (!matches.length)
     return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
-  // Single chronological walk: compute per-match ELO deltas AND pre-match pair ranks
-  const eloMatchMap = new Map();
-  const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  const _finalElo = {};
-  const _allPairsList = getPairStats(); // all pairs ever formed
-  {
-    const elo = _finalElo;
-    [...state.matches]
-      .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-      .forEach((m) => {
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-          if (!(p in elo)) elo[p] = 1000;
-        });
-        // Rank all pairs by their avg ELO right now (before this match)
-        matchPairRankMap.set(
-          m,
-          new Map(
-            _allPairsList
-              .map((p) => ({
-                key: p.key,
-                avgElo:
-                  p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
-                  p.players.length,
-              }))
-              .sort((a, b) => b.avgElo - a.avgElo)
-              .map(({ key }, i) => [key, i + 1]),
-          ),
-        );
-        const aWon = m.scoreA > m.scoreB;
-        const avgA =
-          m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-        const avgB =
-          m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-        const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-        const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-        const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-        const mData = {};
-        (m.teamA || []).forEach((p) => {
-          const after = (elo[p] || 1000) + dA;
-          mData[p] = { delta: dA, after };
-          elo[p] = after;
-        });
-        (m.teamB || []).forEach((p) => {
-          const after = (elo[p] || 1000) + dB;
-          mData[p] = { delta: dB, after };
-          elo[p] = after;
-        });
-        eloMatchMap.set(m, mData);
-      });
-  }
+  // Memoized: per-match ELO deltas, pre-match pair ranks, pair-vs-pair H2H.
+  const {
+    eloMatchMap,
+    matchPairRankMap,
+    pvpMap: _pvpMap,
+  } = _matchCardPrecompute();
   const mkEloPill = (p, eloData) => {
     const d = eloData[p];
     if (!d) return "";
@@ -4659,20 +4697,6 @@ function buildMatchCards(matches, showAdmin) {
       ${rankHtml}
     </div>`;
   };
-
-  // Enhancement 8: pre-compute pair-vs-pair H2H records
-  const _pvpMap = {};
-  state.matches.forEach((hm) => {
-    const pa = (hm.teamA || []).slice().sort().join("&");
-    const pb = (hm.teamB || []).slice().sort().join("&");
-    if (!pa || !pb) return;
-    const key = pa <= pb ? `${pa}|${pb}` : `${pb}|${pa}`;
-    if (!_pvpMap[key]) _pvpMap[key] = { a: 0, b: 0, aFirst: pa <= pb };
-    const aWonH = hm.scoreA > hm.scoreB;
-    const paFirst = _pvpMap[key].aFirst;
-    if (paFirst ? aWonH : !aWonH) _pvpMap[key].a++;
-    else _pvpMap[key].b++;
-  });
 
   return [...matches]
     .reverse()
@@ -4931,6 +4955,18 @@ function calDayClick(iso) {
   switchMainTab("history");
 }
 
+// History-feed windowing: render only the most recent _histWindow matches and
+// reveal older ones in batches via a "show older" button. Fail-safe — when the
+// filtered set is <= the window, rendering is byte-identical to no windowing.
+const _HIST_WINDOW_DEFAULT = 60;
+const _HIST_WINDOW_BATCH = 60;
+let _histWindow = _HIST_WINDOW_DEFAULT;
+let _histWindowKey = null;
+function _histShowMore() {
+  _histWindow += _HIST_WINDOW_BATCH;
+  renderModernMatches();
+}
+
 let _renderModernGen = 0;
 function renderModernMatches() {
   // Generation token: any later render invalidates a still-running first-paint
@@ -5138,10 +5174,30 @@ function renderModernMatches() {
   }
   const histList = document.getElementById("modern-match-list");
 
+  // Windowing: reset to the default window whenever the result set (filters +
+  // search) changes; "show older" keeps the same signature so the expanded
+  // window survives its re-render. matches is chronological-ascending, so the
+  // newest _histWindow are the tail; buildMatchCards reverses to newest-first.
+  const _winSig = _histFilterKey() + "|" + query;
+  if (_winSig !== _histWindowKey) {
+    _histWindow = _HIST_WINDOW_DEFAULT;
+    _histWindowKey = _winSig;
+  }
+  const _windowed =
+    matches.length > _histWindow
+      ? matches.slice(matches.length - _histWindow)
+      : matches;
+  const _hidden = matches.length - _windowed.length;
+  const _moreBtnHtml =
+    _hidden > 0
+      ? `<button class="hist-show-more" data-key="hist-more" onclick="_histShowMore()">↓ Show older matches · ${_hidden} more</button>`
+      : "";
+
   // Parse all content into a temp container. The History feed is the filtered
   // match list plus, when a pair/h2h filter is active, that pair's stats card.
   const tmpAll = document.createElement("div");
-  tmpAll.innerHTML = summary + buildMatchCards(matches, true);
+  tmpAll.innerHTML = summary + buildMatchCards(_windowed, true) + _moreBtnHtml;
+  const moreBtn = tmpAll.querySelector(".hist-show-more");
 
   // Collect feature cards first, then match cards. The only feature card left
   // is the pair/h2h stats card (shown when those filters are active).
@@ -5219,6 +5275,12 @@ function renderModernMatches() {
     if (!allAnimated.length && !instant.length && emptyEl) {
       histList.appendChild(emptyEl);
     }
+    if (moreBtn) {
+      setTimeout(() => {
+        if (_renderModernGen !== _gen) return;
+        histList.appendChild(moreBtn);
+      }, (allAnimated.length + 1) * 100);
+    }
   } else {
     // Re-render (or no-cascade): reconcile in place. Resolve final scores up
     // front (no count-up), then morph — unchanged cards keep their DOM so the
@@ -5234,14 +5296,16 @@ function renderModernMatches() {
     if (ordered.length) {
       const touched = morphList(
         histList,
-        ordered.map((el) => el.outerHTML).join(""),
+        ordered.map((el) => el.outerHTML).join("") +
+          (moreBtn ? moreBtn.outerHTML : ""),
       );
       // Don't replay entrance animations when filtering reveals many cards.
       touched.forEach((el) => {
         if (el.style) el.style.animation = "none";
       });
     } else {
-      histList.innerHTML = emptyEl ? emptyEl.outerHTML : "";
+      histList.innerHTML =
+        (emptyEl ? emptyEl.outerHTML : "") + (moreBtn ? moreBtn.outerHTML : "");
     }
   }
   populateHistoryPlayerChips();
@@ -18185,6 +18249,7 @@ Object.assign(window, {
   renderCompact,
   setCmpSort,
   renderModernMatches,
+  _histShowMore,
   setHistPlayerFilter,
   setHistOutcome,
   setHistMargin,

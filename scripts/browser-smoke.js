@@ -292,6 +292,26 @@ async function main() {
       `document.getElementById("modern-match-list").innerText.toLowerCase().includes("ankit")`,
       "History match list",
     );
+    // Windowing fail-safe: with a tiny seed (< window) no "show older" button
+    // appears, and invoking _histShowMore re-renders without error (wiring check).
+    const win = await evaluate(client, `(() => {
+      const before = document.querySelectorAll("#modern-match-list .match-card").length;
+      const btnBefore = !!document.querySelector(".hist-show-more");
+      let threw = false;
+      try { window._histShowMore(); } catch (e) { threw = true; }
+      const after = document.querySelectorAll("#modern-match-list .match-card").length;
+      return { before, btnBefore, threw, after };
+    })()`);
+    assert(win.before > 0, "History feed rendered match cards");
+    assert(
+      !win.btnBefore,
+      "No 'show older' button when matches fit in one window (fail-safe)",
+    );
+    assert(!win.threw, "_histShowMore() runs without error");
+    assert(
+      win.after > 0,
+      "Feed still renders cards after a show-more re-render",
+    );
 
     await evaluate(client, `switchMainTab("analytics", true);`);
     await waitFor(

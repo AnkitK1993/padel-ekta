@@ -2619,6 +2619,27 @@ body.no-cascade .analytics-card {
 }
 
 
+.hist-show-more {
+  display: block;
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 11px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hist-show-more:hover {
+  background: rgba(var(--theme-rgb), 0.1);
+  border-color: rgba(var(--theme-rgb), 0.4);
+  color: var(--theme);
+}
 .match-card {
   background: var(--card);
   border: 1px solid var(--border);
