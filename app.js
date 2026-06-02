@@ -4196,8 +4196,18 @@ function renderCompact() {
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
     elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
-    sr: (a, b) =>
-      (_cmpEqualized ? a.eqSR - b.eqSR : a.sr - b.sr) || a.gamePct - b.gamePct,
+    sr: (a, b) => {
+      // Compare at display precision (SR 2dp, G% 0dp) so two players that
+      // look identical on screen resolve to a real tie instead of being
+      // split by sub-pixel float noise. Order: SR -> G% -> GW.
+      const sa = _cmpEqualized ? (a.eqSR ?? a.sr) : a.sr;
+      const sb = _cmpEqualized ? (b.eqSR ?? b.sr) : b.sr;
+      return (
+        Math.round(sa * 100) - Math.round(sb * 100) ||
+        Math.round(a.gamePct) - Math.round(b.gamePct) ||
+        a.gw - b.gw
+      );
+    },
   };
   const sorted = [...stats].sort((a, b) => {
     const cmp = sortFns[cmpSortKey](a, b);
@@ -4205,6 +4215,16 @@ function renderCompact() {
     return a.name.localeCompare(b.name, undefined, {
       sensitivity: "base",
     });
+  });
+  // Competition ranking (1-2-2-4): players the active sort treats as equal
+  // share a rank — for the default SR sort that means identical SR, G% and GW
+  // — and the next distinct player skips the tied positions (two 4ths -> 6th).
+  const _cmpRankByName = {};
+  sorted.forEach((p, i) => {
+    _cmpRankByName[p.name] =
+      i > 0 && sortFns[cmpSortKey](sorted[i - 1], p) === 0
+        ? _cmpRankByName[sorted[i - 1].name]
+        : i + 1;
   });
   const maxSR = sorted.length ? sorted[0].sr || 1 : 1;
   const fname = {
@@ -4245,15 +4265,16 @@ function renderCompact() {
     srRankMap[p.name] = j + 1;
   });
   const leaderRowHtmls = sorted.map((p, i) => {
-    const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
+    const rank = _cmpRankByName[p.name];
+    const rc = rank === 1 ? "rg" : rank === 2 ? "rs" : rank === 3 ? "rb2" : "";
     const ri =
-      i === 0
+      rank === 1
         ? "🥇"
-        : i === 1
+        : rank === 2
           ? "🥈"
-          : i === 2
+          : rank === 3
             ? "🥉"
-            : `<span class="rn">${i + 1}</span>`;
+            : `<span class="rn">${rank}</span>`;
     const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
     const gc = p.gamePct >= 50 ? "tp" : "tn";
     const displaySR = _cmpEqualized ? (p.eqSR ?? p.sr) : p.sr;
@@ -4262,7 +4283,7 @@ function renderCompact() {
     const momentumBadge = getMomentumBadge(p.name);
     const animClass = "";
     const prevRank = prevRankMap[p.name];
-    const curRank = i + 1;
+    const curRank = rank;
     let rankDelta = "";
     if (prevRank) {
       const diff = prevRank - curRank;
