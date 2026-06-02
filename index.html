@@ -122,6 +122,14 @@
             </label>
           </div>
           <div class="hmenu-divider"></div>
+          <div class="hmenu-item">
+            <span class="hmenu-label">🔔 Match Alerts</span>
+            <label class="hmenu-toggle">
+              <input type="checkbox" id="notif-toggle" onchange="toggleMatchNotifications(this.checked)">
+              <span class="hmenu-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="hmenu-divider"></div>
           <div class="hmenu-item" id="offline-mode-item" style="display:none">
             <span class="hmenu-label">Offline Mode</span>
             <label class="hmenu-toggle">
@@ -350,6 +358,7 @@
             <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()" title="Equalized mode: smooths out stats for players with fewer matches so they're not unfairly penalized for low sample size (Bayesian smoothing toward 50% win rate)">⚖</button>
             <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
             <button class="ss-eq-btn" id="cmpColBtn" onclick="openColSheet()" title="Show/hide columns">⊞</button>
+            <button class="ss-eq-btn" onclick="copyLeaderboardLink()" title="Copy shareable link to this leaderboard">🔗</button>
             <button class="ss-snap-btn" onclick="openSummaryShare()">📸</button>
           </div>
         </div>
@@ -953,21 +962,39 @@ Puneet - Pun, PK
                 <span class="mng-card-icon">💾</span>
                 <span class="mng-card-title">Data</span>
               </div>
-              <div class="mng-actions-grid">
-                <button class="btn-p" onclick="exportData()">
-                  📤 Export JSON
-                </button>
-                <button class="btn-p" onclick="exportCSV()">
-                  📊 Export CSV
-                </button>
+
+              <div class="data-row-label">Google Drive</div>
+              <div class="data-row">
+                <button class="btn-p" onclick="backupToDrive()">☁️ Backup</button>
+                <button class="btn-p" onclick="importFromDrive()">☁️ Restore</button>
               </div>
-              <button
-                class="btn-p"
-                onclick="importData()"
-                style="width: 100%; margin-top: 8px"
-              >
-                📥 Import JSON
-              </button>
+
+              <div class="data-row-label">JSON File</div>
+              <div class="data-row">
+                <button class="btn-p" onclick="exportJsonFile()">📤 Export</button>
+                <button class="btn-p" onclick="importBackupFile()">📥 Import</button>
+              </div>
+
+              <div class="data-row-label">Clipboard / CSV</div>
+              <div class="data-row">
+                <button class="btn-p" onclick="exportData()">📋 Copy JSON</button>
+                <button class="btn-p" onclick="importData()">📋 Paste JSON</button>
+              </div>
+              <div class="data-row">
+                <button class="btn-p" onclick="exportCSV()">📊 Export CSV</button>
+                <button class="btn-p" style="visibility:hidden;pointer-events:none" aria-hidden="true"></button>
+              </div>
+
+              <div
+                id="doc-size-readout"
+                style="
+                  margin-top: 8px;
+                  font-size: 11px;
+                  font-weight: 700;
+                  color: var(--muted);
+                  text-align: center;
+                "
+              ></div>
               <div class="msg ok" id="expOk"></div>
             </div>
 
@@ -1727,7 +1754,12 @@ Puneet - Pun, PK
             "padding:11px 18px;border-radius:999px;box-shadow:0 6px 22px rgba(0,0,0,.45);" +
             "cursor:pointer;max-width:90vw;text-align:center";
           b.onclick = function () {
-            window.location.reload();
+            b.textContent = "Updating…";
+            b.style.opacity = "0.7";
+            b.style.pointerEvents = "none";
+            // Brief delay lets the SW finish any in-flight cache writes
+            // before we reload into the freshly-populated cache.
+            setTimeout(function () { window.location.reload(); }, 400);
           };
           document.body.appendChild(b);
         }

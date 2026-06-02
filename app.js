@@ -49,6 +49,31 @@ import {
   initHistorySummaryDeps,
   buildHistorySummary,
 } from "./src/ui/render-history-summary.js";
+import { initBadgesDeps, computeBadges } from "./src/engine/badges.js";
+import {
+  initPairsDeps,
+  getPairKey,
+  getPairStats,
+  getHeadToHeadStats,
+  pairInMatch,
+  playersOpposed,
+} from "./src/engine/pairs.js";
+import {
+  initXpDeps,
+  xpThreshold,
+  getPlayerLevel,
+  getPrestigeTier,
+  computePlayerXP,
+} from "./src/engine/xp.js";
+import {
+  initPlayerAnalyticsDeps,
+  computeAchievements,
+  computeArchetype,
+  computePlayerForm,
+  computePowerRankings,
+  computeChemistryScores,
+  computeMatchStories,
+} from "./src/engine/player-analytics.js";
 import {
   morphList,
   animateGauges,
@@ -91,6 +116,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+// Request Drive file scope so backup-to-Drive works without a second popup.
+provider.addScope("https://www.googleapis.com/auth/drive.file");
+let _driveAccessToken = null; // set on sign-in, cleared on sign-out
 
 // ── ERROR-LOG FIRESTORE MIRROR ────────────────────────────
 // utils.js captures uncaught errors into a localStorage ring buffer; here we
@@ -858,6 +886,14 @@ if (localStorage.getItem("smooth_mode") === "1") {
       .catch(() => {});
   }
 }
+// Restore notification toggle state on load.
+{
+  const _notifEnabled = localStorage.getItem("padel_notif_enabled") === "1";
+  if (_notifEnabled) {
+    const _ncb = document.getElementById("notif-toggle");
+    if (_ncb) _ncb.checked = true;
+  }
+}
 let deletedMatches = [];
 const DELETED_KEY = "padel_deleted";
 function loadDeletedMatches() {
@@ -1007,6 +1043,16 @@ initSelectorsDeps({
 });
 // History summary card needs three still-in-app helpers (hoisted decls).
 initHistorySummaryDeps({ normPlayer, getPairStats, memoElo: _memoElo });
+// Award badges: pure compute, fed the stats/elo/pair + date helpers it needs.
+// Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
+initPairsDeps({ normPlayer });
+// XP / Level / Prestige — computePlayerXP needs normPlayer + activeMatches +
+// the three match-type helpers (isFireMatch/isDominating/isZero) from render-match-rows.
+initXpDeps({ normPlayer, activeMatches, isFireMatch, isDominatingMatch, isZeroMatch });
+// Analytics section builders — HTML generators for the Statistics page.
+initBadgesDeps({ computeStats, computeElo, getPairStats, lastWeekRange, fmtDate });
+// Player analytics (form/archetype/power/chemistry/stories/achievements).
+initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 
 function _memoElo(decay = false) {
   // A CLOSED season (end date already past) is a finished competition: its ELO
@@ -1144,38 +1190,99 @@ function openLiveMode() {
 }
 
 // ── SAVE HELPER — writes to Firestore AND updates cache ─────
-async function saveCloudData() {
-  _invalidateEloMemo();
-  // Any local data change bumps the version so every non-active page (incl.
-  // the now version-gated history feed) re-renders on its next navigation.
-  // commit() also bumps for the session-buffered path that skips this write.
-  _dataVersion++;
-  const payload = {
+// The whole dataset lives in one Firestore doc (padel/main) and is rewritten
+// wholesale on every save. Local durability (appCache + localStorage) is
+// applied IMMEDIATELY; only the network setDoc is debounced so a burst of
+// edits (e.g. pasting a batch of matches) collapses into one upload.
+let _cloudSaveTimer = null;
+const _CLOUD_SAVE_DEBOUNCE_MS = 400;
+
+function _buildCloudPayload() {
+  return {
     matches: state.matches,
     players: state.players,
     playerAliasMap,
     nextPlayerId,
     seasons: state.seasons,
   };
+}
+
+// opts.immediate=true bypasses the debounce and resolves only once the network
+// write completes — used by one-shot session pushes that toggle _forcedOffline
+// around the call and therefore can't tolerate a deferred write.
+function saveCloudData(opts) {
+  _invalidateEloMemo();
+  // Any local data change bumps the version so every non-active page (incl.
+  // the now version-gated history feed) re-renders on its next navigation.
+  // commit() also bumps for the session-buffered path that skips this write.
+  _dataVersion++;
+  const payload = _buildCloudPayload();
+  // Local durability first — cheap and must survive an app close mid-debounce.
   if (window.appCache)
     window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
   try {
     localStorage.setItem("padel_matches", JSON.stringify(state.matches));
   } catch (e) {}
+  _checkDocSize(payload);
+  if (!navigator.onLine || _forcedOffline) {
+    _setPendingSync(true);
+    return Promise.resolve();
+  }
+  // Mark pending until the debounced write lands, so closing the app inside
+  // the debounce window is recovered by _trySyncNow on next launch.
+  _setPendingSync(true);
+  clearTimeout(_cloudSaveTimer);
+  _cloudSaveTimer = null;
+  if (opts && opts.immediate) return _flushCloudSave();
+  _cloudSaveTimer = setTimeout(_flushCloudSave, _CLOUD_SAVE_DEBOUNCE_MS);
+  return Promise.resolve();
+}
+
+async function _flushCloudSave() {
+  _cloudSaveTimer = null;
   if (!navigator.onLine || _forcedOffline) {
     _setPendingSync(true);
     return;
   }
+  if (!(auth.currentUser && window.isAdmin)) return;
   try {
-    if (auth.currentUser && window.isAdmin) {
-      _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the snapshot that echoes this write
-      await setDoc(doc(db, "padel", "main"), payload);
-      _setPendingSync(false);
-    }
+    _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the echoing snapshot
+    await setDoc(doc(db, "padel", "main"), _buildCloudPayload());
+    _setPendingSync(false);
   } catch (err) {
     console.error("Firestore save failed:", err);
     _setPendingSync(true);
   }
+}
+
+// Firestore caps a document at 1 MiB (hard limit — writes FAIL past it). The
+// single-doc model grows with total history, so surface the headroom and warn
+// before it becomes a silent write failure. Byte length of the JSON is a close
+// proxy for Firestore's UTF-8 size accounting.
+const _DOC_SIZE_LIMIT_KB = 1024;
+const _DOC_SIZE_WARN_KB = 700;
+let _docSizeWarnedAt = 0;
+function _checkDocSize(payload) {
+  try {
+    const bytes = new Blob([JSON.stringify(payload)]).size;
+    const kb = Math.round(bytes / 1024);
+    window._docSizeKB = kb;
+    const pct = Math.round((kb / _DOC_SIZE_LIMIT_KB) * 100);
+    const el = document.getElementById("doc-size-readout");
+    if (el) {
+      el.textContent = `Cloud doc: ${kb} KB / ${_DOC_SIZE_LIMIT_KB} KB (${pct}%)`;
+      el.style.color =
+        kb > 900 ? "var(--red)" : kb > _DOC_SIZE_WARN_KB ? "var(--gold)" : "var(--muted)";
+    }
+    // Warn (once per minute) once past the soft threshold so it isn't spammy.
+    if (kb > _DOC_SIZE_WARN_KB && Date.now() - _docSizeWarnedAt > 60000) {
+      _docSizeWarnedAt = Date.now();
+      showToast(
+        `⚠️ Cloud data ${kb} KB of ${_DOC_SIZE_LIMIT_KB} KB limit — consider archiving old seasons`,
+        "⚠️",
+      );
+    }
+  } catch (e) {}
 }
 
 function _hasPendingSync() {
@@ -1196,16 +1303,9 @@ async function _trySyncNow() {
   )
     return;
   if (!_hasPendingSync()) return;
-  const payload = {
-    matches: state.matches,
-    players: state.players,
-    playerAliasMap,
-    nextPlayerId,
-    seasons: state.seasons,
-  };
   try {
     _lastLocalSaveTime = Date.now();
-    await setDoc(doc(db, "padel", "main"), payload);
+    await setDoc(doc(db, "padel", "main"), _buildCloudPayload());
     _setPendingSync(false);
     showToast("Synced to cloud", "☁️");
   } catch (err) {
@@ -1721,11 +1821,20 @@ function loadCloudData() {
       }
       fired = true;
       window.dismissSplash("Ready ✓");
+      document.dispatchEvent(new CustomEvent("padel-data-ready"));
       setTimeout(_checkAnniversaries, 1800);
       setTimeout(checkResumeSession, 800); // Enhancement 13: show session resume banner if saved state exists
       // Pre-render analytics in background after primary tab settles
       if (activePageId !== "pg-analytics") _scheduleAnalyticsPrefetch();
     } else {
+      // Genuine new data from Firestore — notify if new matches arrived and the
+      // user has opted in to notifications and the page is backgrounded.
+      const prevCount = state.matches.length; // still holds the old value here
+      const newCount = matches.length;
+      if (newCount > prevCount && localStorage.getItem("padel_notif_enabled") === "1") {
+        const added = newCount - prevCount;
+        _sendMatchNotification(added, matches[matches.length - 1]);
+      }
       // Genuine new data from Firestore: fade board out, re-render, fade back in — no blur flash
       const board = document.getElementById("board");
       if (board) {
@@ -1798,11 +1907,14 @@ function loadCloudData() {
 document.getElementById("loginBtn").addEventListener("click", async () => {
   try {
     if (auth.currentUser) {
+      _driveAccessToken = null;
       await signOut(auth);
       closeHamburgerMenu();
       return;
     }
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    _driveAccessToken =
+      GoogleAuthProvider.credentialFromResult(result)?.accessToken || null;
     closeHamburgerMenu();
   } catch (err) {
     if (err.code === "auth/popup-blocked")
@@ -1811,7 +1923,14 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   }
 });
 
-getRedirectResult(auth).catch(console.error);
+getRedirectResult(auth)
+  .then((result) => {
+    if (result) {
+      _driveAccessToken =
+        GoogleAuthProvider.credentialFromResult(result)?.accessToken || null;
+    }
+  })
+  .catch(console.error);
 
 let _authInitialFired = false;
 // Enhancement 21: offline indicator
@@ -1833,10 +1952,11 @@ onAuthStateChanged(auth, (user) => {
   window.isAdmin = !!user && user.email === ADMIN_EMAIL;
   updateAdminUI(user);
   if (window.isAdmin) scheduleAutoEmail();
+  if (window.isAdmin) _scheduleDriveBackup();
   if (window.isAdmin) setTimeout(_maybeBackup, 6000); // once data has loaded
-  else if (_emailTimer) {
-    clearTimeout(_emailTimer);
-    _emailTimer = null;
+  else {
+    if (_emailTimer) { clearTimeout(_emailTimer); _emailTimer = null; }
+    if (_driveBackupTimer) { clearTimeout(_driveBackupTimer); _driveBackupTimer = null; }
   }
   // Skip re-render on the initial auth state resolution at startup —
   // loadCloudData() already handles the first render. Only re-render
@@ -2606,6 +2726,7 @@ function refreshManage() {
   renderEmailStatus();
   renderTrash();
   renderEloConfigCard();
+  _checkDocSize(_buildCloudPayload());
 }
 
 // ── DATE HELPERS ───────────────────────────────────────────
@@ -2955,92 +3076,15 @@ function sortPlayersGuestsLast(names) {
   });
 }
 
-function getPairKey(team) {
-  return [...team].map(normPlayer).sort().join(" & ");
-}
+// getPairKey → src/engine/pairs.js
 
-function getPairStats(matches) {
-  if (matches === undefined) matches = activeMatches();
-  const pairs = {};
-  matches.forEach((m) => {
-    const aWon = Number(m.scoreA) > Number(m.scoreB);
-    [
-      {
-        team: m.teamA || [],
-        gf: Number(m.scoreA),
-        ga: Number(m.scoreB),
-        won: aWon,
-      },
-      {
-        team: m.teamB || [],
-        gf: Number(m.scoreB),
-        ga: Number(m.scoreA),
-        won: !aWon,
-      },
-    ].forEach((row) => {
-      if (row.team.length < 2) return;
-      const key = getPairKey(row.team);
-      if (!pairs[key])
-        pairs[key] = {
-          key,
-          players: key.split(" & "),
-          played: 0,
-          wins: 0,
-          gf: 0,
-          ga: 0,
-        };
-      pairs[key].played++;
-      pairs[key].wins += row.won ? 1 : 0;
-      pairs[key].gf += row.gf;
-      pairs[key].ga += row.ga;
-    });
-  });
-  return Object.values(pairs)
-    .map((p) => ({
-      ...p,
-      losses: p.played - p.wins,
-      winPct: p.played ? Math.round((p.wins / p.played) * 100) : 0,
-      diff: p.gf - p.ga,
-    }))
-    .sort(
-      (a, b) => b.winPct - a.winPct || b.played - a.played || b.diff - a.diff,
-    );
-}
+// getPairStats → src/engine/pairs.js
 
-function pairInMatch(m, pairKey) {
-  if (!pairKey) return true;
-  return (
-    getPairKey(m.teamA || []) === pairKey ||
-    getPairKey(m.teamB || []) === pairKey
-  );
-}
+// pairInMatch → src/engine/pairs.js
 
-function playersOpposed(m, a, b) {
-  if (!a || !b) return true;
-  const na = a.toLowerCase();
-  const nb = b.toLowerCase();
-  const inA1 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === na);
-  const inA2 = (m.teamA || []).some((p) => normPlayer(p).toLowerCase() === nb);
-  const inB1 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === na);
-  const inB2 = (m.teamB || []).some((p) => normPlayer(p).toLowerCase() === nb);
-  return (inA1 && inB2) || (inB1 && inA2);
-}
+// playersOpposed → src/engine/pairs.js
 
-function getHeadToHeadStats(a, b, matches) {
-  if (matches === undefined) matches = activeMatches();
-  const rows = matches.filter((m) => playersOpposed(m, a, b));
-  let aWins = 0,
-    bWins = 0,
-    diff = 0;
-  rows.forEach((m) => {
-    const aInTeamA = (m.teamA || []).some((p) => normPlayer(p) === a);
-    const aWon = aInTeamA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-    if (aWon) aWins++;
-    else bWins++;
-    diff += aInTeamA ? m.scoreA - m.scoreB : m.scoreB - m.scoreA;
-  });
-  return { matches: rows, aWins, bWins, diff };
-}
+// getHeadToHeadStats → src/engine/pairs.js
 
 function getPlayerDetail(name) {
   const matches = activeMatches().filter((m) =>
@@ -3601,56 +3645,334 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
-function importData() {
-  const raw = prompt(
-    "Paste JSON export data to import (matches + names + aliases):",
-  );
-  if (!raw) return;
-  let data;
+// ── BACKUP / RESTORE (round-trip file + Google Drive) ──────
+// The backup envelope is a versioned superset of the Firestore payload:
+// it includes seasons (which the old clipboard exportData() omitted) and
+// a format tag so importBackupFile can validate before merging.
+function _backupPayload() {
+  return {
+    format: "ekta-padel-backup",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    matches: state.matches,
+    players: state.players,
+    playerAliasMap,
+    nextPlayerId,
+    seasons: state.seasons,
+  };
+}
+
+function _backupFilename() {
+  const d = new Date().toISOString().slice(0, 10);
+  return `ekta-padel-backup-${d}.json`;
+}
+
+// Try to get a fresh Drive access token if we don't have one (e.g. after a
+// page refresh). Triggers a silent re-auth popup — the user has already
+// consented to the drive.file scope, so this is usually instant.
+async function _ensureDriveToken() {
+  if (_driveAccessToken) return true;
+  if (!auth.currentUser) return false;
   try {
-    data = JSON.parse(raw);
-  } catch (err) {
-    alert("Invalid JSON data");
+    const result = await signInWithPopup(auth, provider);
+    _driveAccessToken =
+      GoogleAuthProvider.credentialFromResult(result)?.accessToken || null;
+    return !!_driveAccessToken;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Upload backup directly to Google Drive.
+async function backupToDrive() {
+  const blob = new Blob([JSON.stringify(_backupPayload(), null, 2)], {
+    type: "application/json",
+  });
+  const filename = _backupFilename();
+  const hasToken = await _ensureDriveToken();
+  if (!hasToken) {
+    showToast("Sign in to use Drive backup", "⚠️");
     return;
   }
+  showToast("Uploading to Drive…", "☁️");
+  try {
+    const link = await _uploadToDrive(blob, filename);
+    showToast("Saved to Drive!", "✅");
+    const el = document.getElementById("expOk");
+    if (el) {
+      el.innerHTML = `Saved! <a href="${escHtml(link)}" target="_blank"
+        style="color:var(--theme);text-decoration:underline">Open in Drive ↗</a>`;
+      el.classList.add("show");
+      setTimeout(() => { el.classList.remove("show"); el.innerHTML = ""; }, 8000);
+    }
+  } catch (e) {
+    const msg = e?.message || String(e);
+    console.error("Drive upload failed:", msg, e);
+    showToast(`Drive error: ${msg}`, "⚠️");
+  }
+}
+
+// Download backup JSON file to device.
+async function exportJsonFile() {
+  const blob = new Blob([JSON.stringify(_backupPayload(), null, 2)], {
+    type: "application/json",
+  });
+  const filename = _backupFilename();
+  const file = new File([blob], filename, { type: "application/json" });
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({
+      files: [file],
+      title: "Ekta Padel Backup",
+      text: `Full backup — ${state.matches.length} matches`,
+    }).catch(() => {});
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  const el = document.getElementById("expOk");
+  if (el) {
+    el.textContent = "Downloaded!";
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 2500);
+  }
+}
+
+// Keep the old name as an alias so any saved bookmarks / existing calls still work.
+async function exportBackupFile() { return backupToDrive(); }
+
+// Upload a Blob to Drive using the multipart upload API.
+// Returns the web-view link of the created file.
+async function _uploadToDrive(blob, filename) {
+  const metadata = {
+    name: filename,
+    mimeType: "application/json",
+    // All backups land in a dedicated app folder for easy discovery
+    description: `Ekta Padel backup — ${state.matches.length} matches, exported ${new Date().toLocaleDateString()}`,
+  };
+  const form = new FormData();
+  form.append(
+    "metadata",
+    new Blob([JSON.stringify(metadata)], { type: "application/json" }),
+  );
+  form.append("file", blob);
+  const resp = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${_driveAccessToken}` },
+      body: form,
+    },
+  );
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    let errMsg = `HTTP ${resp.status}`;
+    try { errMsg = JSON.parse(body)?.error?.message || errMsg; } catch {}
+    console.error("Drive API error", resp.status, body);
+    // Token expired/invalid → clear so next call triggers re-auth
+    if (resp.status === 401 || resp.status === 403) _driveAccessToken = null;
+    throw new Error(errMsg);
+  }
+  const data = await resp.json();
+  return data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`;
+}
+
+// ── Shared import logic ─────────────────────────────────────
+// Used by both importData (paste) and importBackupFile (file picker).
+function _applyImportedData(data) {
   const incomingMatches = data.matches || data.allMatches;
   if (!Array.isArray(incomingMatches)) {
     alert("JSON must include a matches array.");
-    return;
+    return false;
   }
-  // Enhancement 22: auto-merge instead of full replace
-  const incoming = incomingMatches;
-  const existingKeys = new Set(state.matches.map((m) => _mkMatchKey(m)));
-  const newMatches = incoming.filter((m) => !existingKeys.has(_mkMatchKey(m)));
-  const merged = [...state.matches, ...newMatches];
-  merged.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const existingKeys = new Set(state.matches.map(_mkMatchKey));
+  const newMatches = incomingMatches.filter(
+    (m) => !existingKeys.has(_mkMatchKey(m)),
+  );
   if (newMatches.length === 0) {
     alert("All matches already exist — nothing new to import.");
-    return;
+    return false;
   }
-  const confirm = window.confirm(
-    `Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added (${incoming.length - newMatches.length} duplicates skipped). Continue?`,
+  const skipped = incomingMatches.length - newMatches.length;
+  const seasonCount = Array.isArray(data.seasons) ? data.seasons.length : 0;
+  const msg =
+    `Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added` +
+    (skipped ? ` (${skipped} duplicate${skipped !== 1 ? "s" : ""} skipped)` : "") +
+    (seasonCount ? `, ${seasonCount} season${seasonCount !== 1 ? "s" : ""} merged` : "") +
+    ". Continue?";
+  if (!window.confirm(msg)) return false;
+
+  // Merge matches
+  const merged = [...state.matches, ...newMatches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
   );
-  if (!confirm) return;
   state.matches = merged;
+
+  // Merge players / aliases
   if (data.players && typeof data.players === "object") {
     state.players = { ...state.players, ...data.players };
     playerAliasMap = { ...playerAliasMap, ...(data.playerAliasMap || {}) };
     if (data.nextPlayerId > nextPlayerId) nextPlayerId = data.nextPlayerId;
     rebuildNameMaps();
-  } else {
+  } else if (data.aliasMap || data.nameMap) {
     state.aliasMap = { ...state.aliasMap, ...(data.aliasMap || {}) };
     state.nameMap = { ...state.nameMap, ...(data.nameMap || {}) };
   }
+
+  // Merge seasons (dedup by id)
+  if (Array.isArray(data.seasons) && data.seasons.length) {
+    const existingIds = new Set(state.seasons.map((s) => s.id));
+    const newSeasons = data.seasons.filter((s) => s.id && !existingIds.has(s.id));
+    if (newSeasons.length) {
+      state.seasons = [...state.seasons, ...newSeasons].sort((a, b) =>
+        (a.start || "").localeCompare(b.start || ""),
+      );
+      _persistSeasons();
+    }
+  }
+
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
   saveCloudData();
   commit();
   refreshManage();
   renderNamesTable();
-  alert(
-    `Import complete: ${newMatches.length} match${newMatches.length !== 1 ? "es" : ""} added.`,
+  const added = newMatches.length;
+  showToast(
+    `Import complete: ${added} match${added !== 1 ? "es" : ""} added.`,
+    "✅",
   );
+  return true;
+}
+
+// File-picker import — accepts the versioned backup format OR the old
+// clipboard JSON so either file can be dragged in.
+function importBackupFile() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      alert("Could not parse file — make sure it's a valid JSON backup.");
+      return;
+    }
+    // Validate it's a recognisable backup
+    if (!data.matches && !data.allMatches) {
+      alert("This file doesn't look like an Ekta Padel backup (no matches array).");
+      return;
+    }
+    _applyImportedData(data);
+  };
+  input.click();
+}
+
+// List backup files the app previously uploaded (drive.file scope only sees
+// files this app created) and let the admin pick one to restore from.
+async function importFromDrive() {
+  const hasToken = await _ensureDriveToken();
+  if (!hasToken) {
+    showToast("Sign in first to access Drive backups", "⚠️");
+    return;
+  }
+  showToast("Fetching Drive backups…", "☁️");
+  let files;
+  try {
+    const q = encodeURIComponent(
+      "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
+    );
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,createdTime)&pageSize=20`,
+      { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
+    );
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      if (resp.status === 401 || resp.status === 403) _driveAccessToken = null;
+      let msg = `HTTP ${resp.status}`;
+      try { msg = JSON.parse(body)?.error?.message || msg; } catch {}
+      throw new Error(msg);
+    }
+    files = (await resp.json()).files || [];
+  } catch (e) {
+    console.error("Drive list failed:", e);
+    showToast(`Drive error: ${e.message}`, "⚠️");
+    return;
+  }
+  if (!files.length) {
+    showToast("No backups found in Drive", "📂");
+    return;
+  }
+  // Build a simple pick-sheet
+  const existing = document.getElementById("drive-pick-sheet");
+  if (existing) existing.remove();
+  const sheet = document.createElement("div");
+  sheet.id = "drive-pick-sheet";
+  sheet.className = "live-sheet-wrap live-sheet-open";
+  sheet.innerHTML = `
+    <div class="live-sheet-overlay" onclick="document.getElementById('drive-pick-sheet')?.remove()"></div>
+    <div class="live-sheet">
+      <div class="live-sheet-handle"></div>
+      <div style="font-size:13px;font-weight:800;padding:4px 0 12px;letter-spacing:0.04em">
+        ☁️ RESTORE FROM DRIVE
+      </div>
+      ${files.map(f => {
+        const d = new Date(f.createdTime).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" });
+        return `<button class="live-sheet-item" onclick="
+          document.getElementById('drive-pick-sheet')?.remove();
+          _downloadDriveBackup(${JSON.stringify(f.id)},${JSON.stringify(f.name)})
+        " style="flex-direction:column;align-items:flex-start;gap:2px">
+          <span style="font-weight:700;font-size:12px">${escHtml(f.name)}</span>
+          <span style="font-size:10px;color:var(--muted)">${d}</span>
+        </button>`;
+      }).join("")}
+      <button class="live-sheet-item" style="color:var(--muted);margin-top:4px"
+        onclick="document.getElementById('drive-pick-sheet')?.remove()">Cancel</button>
+    </div>`;
+  document.body.appendChild(sheet);
+}
+
+async function _downloadDriveBackup(fileId, filename) {
+  const hasToken = await _ensureDriveToken();
+  if (!hasToken) { showToast("Token expired — sign in again", "⚠️"); return; }
+  showToast(`Downloading ${filename}…`, "☁️");
+  try {
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = JSON.parse(await resp.text());
+    if (!data.matches && !data.allMatches)
+      throw new Error("File doesn't look like an Ekta Padel backup.");
+    _applyImportedData(data);
+  } catch (e) {
+    console.error("Drive download failed:", e);
+    showToast(`Download failed: ${e.message}`, "⚠️");
+  }
+}
+
+// Legacy paste-import — kept for backwards compat; now delegates to the
+// shared merge so it also picks up seasons from old clipboard exports.
+function importData() {
+  const raw = prompt(
+    "Paste JSON export data to import (matches + players + aliases):",
+  );
+  if (!raw) return;
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    alert("Invalid JSON — paste the full contents of an export file.");
+    return;
+  }
+  _applyImportedData(data);
 }
 
 // ── RENDER HOME ────────────────────────────────────────────
@@ -4196,8 +4518,18 @@ function renderCompact() {
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
     elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
-    sr: (a, b) =>
-      (_cmpEqualized ? a.eqSR - b.eqSR : a.sr - b.sr) || a.gamePct - b.gamePct,
+    sr: (a, b) => {
+      // Compare at display precision (SR 2dp, G% 0dp) so two players that
+      // look identical on screen resolve to a real tie instead of being
+      // split by sub-pixel float noise. Order: SR -> G% -> GW.
+      const sa = _cmpEqualized ? (a.eqSR ?? a.sr) : a.sr;
+      const sb = _cmpEqualized ? (b.eqSR ?? b.sr) : b.sr;
+      return (
+        Math.round(sa * 100) - Math.round(sb * 100) ||
+        Math.round(a.gamePct) - Math.round(b.gamePct) ||
+        a.gw - b.gw
+      );
+    },
   };
   const sorted = [...stats].sort((a, b) => {
     const cmp = sortFns[cmpSortKey](a, b);
@@ -4205,6 +4537,16 @@ function renderCompact() {
     return a.name.localeCompare(b.name, undefined, {
       sensitivity: "base",
     });
+  });
+  // Competition ranking (1-2-2-4): players the active sort treats as equal
+  // share a rank — for the default SR sort that means identical SR, G% and GW
+  // — and the next distinct player skips the tied positions (two 4ths -> 6th).
+  const _cmpRankByName = {};
+  sorted.forEach((p, i) => {
+    _cmpRankByName[p.name] =
+      i > 0 && sortFns[cmpSortKey](sorted[i - 1], p) === 0
+        ? _cmpRankByName[sorted[i - 1].name]
+        : i + 1;
   });
   const maxSR = sorted.length ? sorted[0].sr || 1 : 1;
   const fname = {
@@ -4245,15 +4587,16 @@ function renderCompact() {
     srRankMap[p.name] = j + 1;
   });
   const leaderRowHtmls = sorted.map((p, i) => {
-    const rc = i === 0 ? "rg" : i === 1 ? "rs" : i === 2 ? "rb2" : "";
+    const rank = _cmpRankByName[p.name];
+    const rc = rank === 1 ? "rg" : rank === 2 ? "rs" : rank === 3 ? "rb2" : "";
     const ri =
-      i === 0
+      rank === 1
         ? "🥇"
-        : i === 1
+        : rank === 2
           ? "🥈"
-          : i === 2
+          : rank === 3
             ? "🥉"
-            : `<span class="rn">${i + 1}</span>`;
+            : `<span class="rn">${rank}</span>`;
     const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
     const gc = p.gamePct >= 50 ? "tp" : "tn";
     const displaySR = _cmpEqualized ? (p.eqSR ?? p.sr) : p.sr;
@@ -4262,7 +4605,7 @@ function renderCompact() {
     const momentumBadge = getMomentumBadge(p.name);
     const animClass = "";
     const prevRank = prevRankMap[p.name];
-    const curRank = i + 1;
+    const curRank = rank;
     let rankDelta = "";
     if (prevRank) {
       const diff = prevRank - curRank;
@@ -4492,59 +4835,97 @@ function _computeMatchEloDeltas(matches) {
 // buildSummaryMatchRow → ./render-match-rows.js
 // buildSummaryMatchRows → ./render-match-rows.js
 
+// Heavy precompute for the history feed: one chronological ELO walk yielding
+// per-match ELO deltas + pre-match pair ranks, plus the pair-vs-pair H2H map.
+// Depends only on state.matches, so it's memoized on (_dataVersion, array
+// identity). buildMatchCards runs on every history render/filter and this walk
+// is O(matches × pairs) — recomputing it each time was a mobile hot spot.
+let _mcPrecompMemo = null;
+function _matchCardPrecompute() {
+  if (
+    _mcPrecompMemo &&
+    _mcPrecompMemo.version === _dataVersion &&
+    _mcPrecompMemo.matchesRef === state.matches
+  )
+    return _mcPrecompMemo;
+  const eloMatchMap = new Map();
+  const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
+  const elo = {};
+  const allPairsList = getPairStats(activeMatches()); // all pairs ever formed
+  [...state.matches]
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in elo)) elo[p] = 1000;
+      });
+      // Rank all pairs by their avg ELO right now (before this match)
+      matchPairRankMap.set(
+        m,
+        new Map(
+          allPairsList
+            .map((p) => ({
+              key: p.key,
+              avgElo:
+                p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
+                p.players.length,
+            }))
+            .sort((a, b) => b.avgElo - a.avgElo)
+            .map(({ key }, i) => [key, i + 1]),
+        ),
+      );
+      const aWon = m.scoreA > m.scoreB;
+      const avgA =
+        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB =
+        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      const mData = {};
+      (m.teamA || []).forEach((p) => {
+        const after = (elo[p] || 1000) + dA;
+        mData[p] = { delta: dA, after };
+        elo[p] = after;
+      });
+      (m.teamB || []).forEach((p) => {
+        const after = (elo[p] || 1000) + dB;
+        mData[p] = { delta: dB, after };
+        elo[p] = after;
+      });
+      eloMatchMap.set(m, mData);
+    });
+  // Enhancement 8: pre-compute pair-vs-pair H2H records
+  const pvpMap = {};
+  state.matches.forEach((hm) => {
+    const pa = (hm.teamA || []).slice().sort().join("&");
+    const pb = (hm.teamB || []).slice().sort().join("&");
+    if (!pa || !pb) return;
+    const key = pa <= pb ? `${pa}|${pb}` : `${pb}|${pa}`;
+    if (!pvpMap[key]) pvpMap[key] = { a: 0, b: 0, aFirst: pa <= pb };
+    const aWonH = hm.scoreA > hm.scoreB;
+    const paFirst = pvpMap[key].aFirst;
+    if (paFirst ? aWonH : !aWonH) pvpMap[key].a++;
+    else pvpMap[key].b++;
+  });
+  _mcPrecompMemo = {
+    version: _dataVersion,
+    matchesRef: state.matches,
+    eloMatchMap,
+    matchPairRankMap,
+    pvpMap,
+  };
+  return _mcPrecompMemo;
+}
+
 function buildMatchCards(matches, showAdmin) {
   if (!matches.length)
     return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
-  // Single chronological walk: compute per-match ELO deltas AND pre-match pair ranks
-  const eloMatchMap = new Map();
-  const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  const _finalElo = {};
-  const _allPairsList = getPairStats(); // all pairs ever formed
-  {
-    const elo = _finalElo;
-    [...state.matches]
-      .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-      .forEach((m) => {
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-          if (!(p in elo)) elo[p] = 1000;
-        });
-        // Rank all pairs by their avg ELO right now (before this match)
-        matchPairRankMap.set(
-          m,
-          new Map(
-            _allPairsList
-              .map((p) => ({
-                key: p.key,
-                avgElo:
-                  p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
-                  p.players.length,
-              }))
-              .sort((a, b) => b.avgElo - a.avgElo)
-              .map(({ key }, i) => [key, i + 1]),
-          ),
-        );
-        const aWon = m.scoreA > m.scoreB;
-        const avgA =
-          m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-        const avgB =
-          m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-        const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-        const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-        const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-        const mData = {};
-        (m.teamA || []).forEach((p) => {
-          const after = (elo[p] || 1000) + dA;
-          mData[p] = { delta: dA, after };
-          elo[p] = after;
-        });
-        (m.teamB || []).forEach((p) => {
-          const after = (elo[p] || 1000) + dB;
-          mData[p] = { delta: dB, after };
-          elo[p] = after;
-        });
-        eloMatchMap.set(m, mData);
-      });
-  }
+  // Memoized: per-match ELO deltas, pre-match pair ranks, pair-vs-pair H2H.
+  const {
+    eloMatchMap,
+    matchPairRankMap,
+    pvpMap: _pvpMap,
+  } = _matchCardPrecompute();
   const mkEloPill = (p, eloData) => {
     const d = eloData[p];
     if (!d) return "";
@@ -4555,7 +4936,7 @@ function buildMatchCards(matches, showAdmin) {
       ) || display.slice(0, 3).toUpperCase();
     const cls = d.delta >= 0 ? "elo-gain" : "elo-loss";
     const arrow = d.delta >= 0 ? "↑" : "↓";
-    return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${short}</span><span class="elo-pval">${d.after}</span><span class="elo-parrow">${arrow}${Math.abs(d.delta)}</span></span>`;
+    return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${escHtml(short)}</span><span class="elo-pval">${d.after}</span><span class="elo-parrow">${arrow}${Math.abs(d.delta)}</span></span>`;
   };
 
   const mkTeamBlock = (players, won, score, hasZeroEmoji, preMatchRankMap) => {
@@ -4569,34 +4950,20 @@ function buildMatchCards(matches, showAdmin) {
     if (players.length >= 2) {
       const p2Suffix = hasZeroEmoji ? " 😭" : "";
       return `<div class="team-block team-block-split">
-        <span class="team-p1 ${winCls}">${crown}${players[0]}</span>
+        <span class="team-p1 ${winCls}">${crown}${escHtml(players[0])}</span>
         <span class="team-amp">&</span>
-        <span class="team-p2 ${winCls}">${players[1]}${p2Suffix}</span>
+        <span class="team-p2 ${winCls}">${escHtml(players[1])}${p2Suffix}</span>
         <div class="team-score ${scoreCls}" data-final="${score}">0</div>
         ${rankHtml}
       </div>`;
     }
-    const label = (players[0] || "") + (hasZeroEmoji ? " 😭" : "");
+    const label = escHtml(players[0] || "") + (hasZeroEmoji ? " 😭" : "");
     return `<div class="team-block">
       <div class="team-name ${winCls}">${crown}${label}</div>
       <div class="team-score ${scoreCls}" data-final="${score}">0</div>
       ${rankHtml}
     </div>`;
   };
-
-  // Enhancement 8: pre-compute pair-vs-pair H2H records
-  const _pvpMap = {};
-  state.matches.forEach((hm) => {
-    const pa = (hm.teamA || []).slice().sort().join("&");
-    const pb = (hm.teamB || []).slice().sort().join("&");
-    if (!pa || !pb) return;
-    const key = pa <= pb ? `${pa}|${pb}` : `${pb}|${pa}`;
-    if (!_pvpMap[key]) _pvpMap[key] = { a: 0, b: 0, aFirst: pa <= pb };
-    const aWonH = hm.scoreA > hm.scoreB;
-    const paFirst = _pvpMap[key].aFirst;
-    if (paFirst ? aWonH : !aWonH) _pvpMap[key].a++;
-    else _pvpMap[key].b++;
-  });
 
   return [...matches]
     .reverse()
@@ -4725,151 +5092,7 @@ function filterMatchTab(f) {
 
 // ── MATCH OF THE DAY + BIGGEST UPSET ──────────────────────
 
-function buildMatchOfTheDay() {
-  if (!state.matches.length) return "";
-  const latestDate = state.matches.reduce(
-    (max, m) => (m.date > max ? m.date : max),
-    "",
-  );
-  const sessionMatches = state.matches.filter((m) => m.date === latestDate);
-  if (!sessionMatches.length) return "";
-
-  // ── MATCH OF THE DAY: closest scoreline, then highest total ──
-  const scored = sessionMatches.map((m) => ({
-    m,
-    diff: Math.abs(m.scoreA - m.scoreB),
-    total: m.scoreA + m.scoreB,
-  }));
-  scored.sort((a, b) => a.diff - b.diff || b.total - a.total);
-  const { m: motd } = scored[0];
-
-  const aWon = motd.scoreA > motd.scoreB;
-  const teamA = motd.teamA.join(" & ");
-  const teamB = motd.teamB.join(" & ");
-  const winner = aWon ? teamA : teamB;
-  const loser = aWon ? teamB : teamA;
-  const wScore = aWon ? motd.scoreA : motd.scoreB;
-  const lScore = aWon ? motd.scoreB : motd.scoreA;
-  const isThriller = Math.abs(motd.scoreA - motd.scoreB) <= 1;
-  const motdLabel = isThriller ? "🎭 THRILLER" : "⚡ MATCH OF THE DAY";
-  const motdSub = isThriller
-    ? `Closest game of the session — decided by just ${Math.abs(motd.scoreA - motd.scoreB)} game${Math.abs(motd.scoreA - motd.scoreB) === 1 ? "" : "s"}!`
-    : `Most dramatic result of the session`;
-
-  const motdHtml = `<div class="motd-card">
-              <div class="motd-header">
-                <span class="motd-label">${motdLabel}</span>
-                <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
-              </div>
-              <div class="motd-teams">
-                <div class="motd-team winner">
-                  <div class="motd-name">👑 ${winner}</div>
-                  <div class="motd-score win" data-final="${wScore}">0</div>
-                </div>
-                <div class="motd-vs">VS</div>
-                <div class="motd-team">
-                  <div class="motd-name">${loser}</div>
-                  <div class="motd-score" data-final="${lScore}">0</div>
-                </div>
-              </div>
-              <div class="motd-sub">${motdSub}</div>
-            </div>`;
-
-  // ── BIGGEST UPSET: lower-ELO pair beats higher-ELO pair ──
-  let upsetHtml = "";
-  // Chronological ELO walk — capture pre-match pair rank for each session match
-  const _allPairsForUpset = getPairStats();
-  const upsetMatchRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  {
-    const elo = {};
-    [...state.matches]
-      .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-      .forEach((m) => {
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-          if (!(p in elo)) elo[p] = 1000;
-        });
-        if (sessionMatches.includes(m)) {
-          upsetMatchRankMap.set(
-            m,
-            new Map(
-              _allPairsForUpset
-                .map((p) => ({
-                  key: p.key,
-                  avgElo:
-                    p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
-                    p.players.length,
-                }))
-                .sort((a, b) => b.avgElo - a.avgElo)
-                .map(({ key }, i) => [key, i + 1]),
-            ),
-          );
-        }
-        const aWon = m.scoreA > m.scoreB;
-        const avgA =
-          m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-        const avgB =
-          m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-        const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-        const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-        const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-        m.teamA.forEach((p) => {
-          elo[p] = (elo[p] || 1000) + dA;
-        });
-        m.teamB.forEach((p) => {
-          elo[p] = (elo[p] || 1000) + dB;
-        });
-      });
-  }
-  const getPairEloRank = (m, team) =>
-    upsetMatchRankMap.get(m)?.get([...team].sort().join(" & ")) || "?";
-
-  let bestUpset = null,
-    bestGap = 0;
-  sessionMatches.forEach((m) => {
-    const winTeam = m.scoreA > m.scoreB ? m.teamA : m.teamB;
-    const loseTeam = m.scoreA > m.scoreB ? m.teamB : m.teamA;
-    const mRankMap = upsetMatchRankMap.get(m);
-    if (!mRankMap) return;
-    const winRank = mRankMap.get([...winTeam].sort().join(" & ")) || 999;
-    const loseRank = mRankMap.get([...loseTeam].sort().join(" & ")) || 999;
-    // Upset = winner had a worse (higher number) rank than loser
-    const gap = winRank - loseRank;
-    if (gap > 0 && gap > bestGap) {
-      bestGap = gap;
-      bestUpset = { m, winTeam, loseTeam };
-    }
-  });
-
-  if (bestUpset) {
-    const { m: um, winTeam, loseTeam } = bestUpset;
-    const uWin = um.scoreA > um.scoreB ? um.scoreA : um.scoreB;
-    const uLose = um.scoreA > um.scoreB ? um.scoreB : um.scoreA;
-    const winEloRank = getPairEloRank(um, winTeam);
-    const loseEloRank = getPairEloRank(um, loseTeam);
-    upsetHtml = `<div class="motd-card upset-card">
-                <div class="motd-header">
-                  <span class="motd-label upset-label">🚨 BIGGEST UPSET</span>
-                  <span class="motd-date">📅 ${fmtDate(latestDate)}</span>
-                </div>
-                <div class="motd-teams">
-                  <div class="motd-team winner">
-                    <div class="motd-name">👑 ${winTeam.join(" & ")}</div>
-                    <div class="motd-score win" data-final="${uWin}">0</div>
-                    <div class="upset-rank">ELO #${winEloRank}</div>
-                  </div>
-                  <div class="motd-vs">VS</div>
-                  <div class="motd-team">
-                    <div class="motd-name">${loseTeam.join(" & ")}</div>
-                    <div class="motd-score" data-final="${uLose}">0</div>
-                    <div class="upset-rank">ELO #${loseEloRank} favored</div>
-                  </div>
-                </div>
-                <div class="motd-sub">Lower-ELO pair pulled off a shock win 😤</div>
-              </div>`;
-  }
-
-  return motdHtml + upsetHtml;
-}
+// buildMatchOfTheDay (MOTD / Thriller / Biggest Upset cards) removed — History shows only filtered matches.
 
 // buildHistorySummary → ./render-history-summary.js
 
@@ -4999,7 +5222,26 @@ function calDayClick(iso) {
   switchMainTab("history");
 }
 
+// History-feed windowing: render only the most recent _histWindow matches and
+// reveal older ones in batches via a "show older" button. Fail-safe — when the
+// filtered set is <= the window, rendering is byte-identical to no windowing.
+const _HIST_WINDOW_DEFAULT = 60;
+const _HIST_WINDOW_BATCH = 60;
+let _histWindow = _HIST_WINDOW_DEFAULT;
+let _histWindowKey = null;
+function _histShowMore() {
+  _histWindow += _HIST_WINDOW_BATCH;
+  renderModernMatches();
+}
+
+let _renderModernGen = 0;
 function renderModernMatches() {
+  // Generation token: any later render invalidates a still-running first-paint
+  // cascade, so stale setTimeout callbacks (which append cards + run the score
+  // count-up) bail instead of clobbering/duplicating the freshly-rendered feed.
+  // Without this, a re-render mid-cascade (commit / Firebase snapshot / filter)
+  // could make the Thriller & Upset feature cards intermittently fail to load.
+  const _gen = ++_renderModernGen;
   const query = (
     document.getElementById("modern-match-search")?.value || ""
   ).toLowerCase();
@@ -5197,27 +5439,37 @@ function renderModernMatches() {
             </div>` + summary;
     }
   }
-  const isFiltered =
-    matchTabFilter !== "today" ||
-    histPlayerFilter ||
-    histPairFilter ||
-    histOutcomeFilter !== "all" ||
-    histMarginFilter !== "all" ||
-    histScorelineFilter ||
-    h2hFilterA ||
-    h2hFilterB;
-  const motdHtml = isFiltered ? "" : buildMatchOfTheDay();
   const histList = document.getElementById("modern-match-list");
 
-  // Parse all content into a temp container
-  const tmpAll = document.createElement("div");
-  tmpAll.innerHTML = motdHtml + summary + buildMatchCards(matches, true);
+  // Windowing: reset to the default window whenever the result set (filters +
+  // search) changes; "show older" keeps the same signature so the expanded
+  // window survives its re-render. matches is chronological-ascending, so the
+  // newest _histWindow are the tail; buildMatchCards reverses to newest-first.
+  const _winSig = _histFilterKey() + "|" + query;
+  if (_winSig !== _histWindowKey) {
+    _histWindow = _HIST_WINDOW_DEFAULT;
+    _histWindowKey = _winSig;
+  }
+  const _windowed =
+    matches.length > _histWindow
+      ? matches.slice(matches.length - _histWindow)
+      : matches;
+  const _hidden = matches.length - _windowed.length;
+  const _moreBtnHtml =
+    _hidden > 0
+      ? `<button class="hist-show-more" data-key="hist-more" onclick="_histShowMore()">↓ Show older matches · ${_hidden} more</button>`
+      : "";
 
-  // Collect feature cards first, then match cards
+  // Parse all content into a temp container. The History feed is the filtered
+  // match list plus, when a pair/h2h filter is active, that pair's stats card.
+  const tmpAll = document.createElement("div");
+  tmpAll.innerHTML = summary + buildMatchCards(_windowed, true) + _moreBtnHtml;
+  const moreBtn = tmpAll.querySelector(".hist-show-more");
+
+  // Collect feature cards first, then match cards. The only feature card left
+  // is the pair/h2h stats card (shown when those filters are active).
   const featureCards = Array.from(
-    tmpAll.querySelectorAll(
-      ".motd-card, .upset-card, .thriller-card, .pair-stats-card",
-    ),
+    tmpAll.querySelectorAll(".pair-stats-card"),
   );
   const matchCards = Array.from(tmpAll.querySelectorAll(".match-card"));
   const emptyEl = tmpAll.querySelector(".empty");
@@ -5226,8 +5478,7 @@ function renderModernMatches() {
   // wiping + re-animating the whole feed. Match cards key on their state.matches
   // index (stable across filters); feature cards key on their type.
   featureCards.forEach((el) => {
-    const m = el.className.match(/(motd|upset|thriller|pair-stats)-card/);
-    el.setAttribute("data-key", "feat-" + (m ? m[1] : "x"));
+    el.setAttribute("data-key", "feat-pair-stats");
   });
   matchCards.forEach((el) =>
     el.setAttribute(
@@ -5248,6 +5499,7 @@ function renderModernMatches() {
       el.style.opacity = "0";
       el.style.animation = "none";
       setTimeout(() => {
+        if (_renderModernGen !== _gen) return; // a newer render superseded this
         el.style.animation = "";
         el.style.opacity = "";
         el.classList.add("card-anim");
@@ -5273,6 +5525,7 @@ function renderModernMatches() {
     });
     if (instant.length) {
       setTimeout(() => {
+        if (_renderModernGen !== _gen) return; // superseded by a newer render
         instant.forEach((el) => {
           el.querySelectorAll(
             ".team-score[data-final], .motd-score[data-final]",
@@ -5289,6 +5542,12 @@ function renderModernMatches() {
     if (!allAnimated.length && !instant.length && emptyEl) {
       histList.appendChild(emptyEl);
     }
+    if (moreBtn) {
+      setTimeout(() => {
+        if (_renderModernGen !== _gen) return;
+        histList.appendChild(moreBtn);
+      }, (allAnimated.length + 1) * 100);
+    }
   } else {
     // Re-render (or no-cascade): reconcile in place. Resolve final scores up
     // front (no count-up), then morph — unchanged cards keep their DOM so the
@@ -5304,14 +5563,16 @@ function renderModernMatches() {
     if (ordered.length) {
       const touched = morphList(
         histList,
-        ordered.map((el) => el.outerHTML).join(""),
+        ordered.map((el) => el.outerHTML).join("") +
+          (moreBtn ? moreBtn.outerHTML : ""),
       );
       // Don't replay entrance animations when filtering reveals many cards.
       touched.forEach((el) => {
         if (el.style) el.style.animation = "none";
       });
     } else {
-      histList.innerHTML = emptyEl ? emptyEl.outerHTML : "";
+      histList.innerHTML =
+        (emptyEl ? emptyEl.outerHTML : "") + (moreBtn ? moreBtn.outerHTML : "");
     }
   }
   populateHistoryPlayerChips();
@@ -5516,7 +5777,7 @@ function setHistMargin(val) {
 function filterSheetSearch(query) {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const pairs = getPairStats();
+  const pairs = getPairStats(activeMatches());
   const q = (query || "").toLowerCase().trim();
   const filtered = q
     ? pairs.filter((p) => p.key.toLowerCase().includes(q))
@@ -6769,8 +7030,11 @@ function openPlayerDetail(name) {
           </div>`;
         };
         return `<div class="ana-card">
-          <span class="badge">Achievements (${unlocked.length}/${achievements.length})</span>
-          <div class="ach-list">${ordered.map(renderCard).join("")}</div>
+          <div onclick="const c=this.nextElementSibling,h=c.style.display==='none';c.style.display=h?'':'none';this.querySelector('.cc-chev').textContent=h?'▴':'▾'" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span class="badge">Achievements (${unlocked.length}/${achievements.length})</span>
+            <span class="cc-chev" style="font-size:11px;color:var(--muted)">▾</span>
+          </div>
+          <div class="ach-list" style="display:none">${ordered.map(renderCard).join("")}</div>
         </div>`;
       })()
     : "";
@@ -6956,47 +7220,16 @@ function openPlayerDetail(name) {
     [...(m.teamA || []), ...(m.teamB || [])].includes(name),
   );
 
-  // Enhancement 14: dangerous opponent — opponent with highest win rate AGAINST this player
-  const dangerousOppHtml = (() => {
-    const oppData = {};
-    pdPlayerMs.forEach((m) => {
-      const inA = (m.teamA || []).includes(name);
-      const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-      const opps = inA ? m.teamB || [] : m.teamA || [];
-      opps.forEach((o) => {
-        if (!oppData[o]) oppData[o] = { w: 0, p: 0 };
-        oppData[o].p++;
-        if (!won) oppData[o].w++;
-      });
-    });
-    const best = Object.entries(oppData)
-      .filter(([, d]) => d.p >= 3)
-      .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p)[0];
-    if (!best) return "";
-    const [oppName, d] = best;
-    const pct = Math.round((d.w / d.p) * 100);
-    if (pct < 55) return "";
-    return `<div class="det-conn">
-      <div class="det-conn-icon">⚠️</div>
-      <div class="det-conn-body">
-        <div class="det-conn-name">${oppName}</div>
-        <div class="det-conn-meta"><span class="n">${pct}% win rate vs me</span> · ${d.p}g</div>
-      </div>
-      <div class="det-conn-tag">Dangerous Opp.</div>
-    </div>`;
-  })();
-
   const connectionsHtml =
     bestPartnerHtml ||
     worstPartnerHtml ||
     nemesisHtml ||
     favOppHtml ||
     mostCommonPartnerHtml ||
-    mostCommonOppHtml ||
-    dangerousOppHtml
+    mostCommonOppHtml
       ? `<div class="ana-card">
               <span class="badge">Connections</span>
-              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}${dangerousOppHtml}</div>
+              <div class="det-conn-list">${bestPartnerHtml}${worstPartnerHtml}${nemesisHtml}${favOppHtml}${mostCommonPartnerHtml}${mostCommonOppHtml}</div>
             </div>`
       : "";
 
@@ -7074,7 +7307,7 @@ function openPlayerDetail(name) {
   // Badges
   const badges = computeBadges(name, s, eloMap, activeMatches());
   const badgesHtml = badges.length
-    ? `<div class="ana-card"><span class="badge">Award Badges</span><div class="badge-chips" style="margin-top:10px">${badges.map((b) => `<div class="badge-chip${b.tier ? " badge-tier-" + b.tier : ""}" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span>${b.tier ? `<span class="badge-tier-lbl">${b.tier.toUpperCase()}</span>` : ""}</div>`).join("")}</div></div>`
+    ? `<div class="ana-card"><div onclick="const c=this.nextElementSibling,h=c.style.display==='none';c.style.display=h?'':'none';this.querySelector('.cc-chev').textContent=h?'▴':'▾'" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px"><span class="badge">Award Badges (${badges.length})</span><span class="cc-chev" style="font-size:11px;color:var(--muted)">▾</span></div><div class="badge-chips" style="display:none">${badges.map((b) => `<div class="badge-chip${b.tier ? " badge-tier-" + b.tier : ""}" title="${b.desc}"><span>${b.icon}</span><span class="badge-chip-lbl">${b.label}</span>${b.tier ? `<span class="badge-tier-lbl">${b.tier.toUpperCase()}</span>` : ""}</div>`).join("")}</div></div>`
     : "";
 
   // Streak Calendar — last 52 weeks
@@ -7348,7 +7581,8 @@ function openPlayerDetail(name) {
           : "";
         const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
         const scoreColor = won4 ? "var(--green)" : "var(--red)";
-        return `<div class="ana-card det-match-card">
+        const _miIdx = state.matches.indexOf(m);
+        return `<div class="ana-card det-match-card"${_miIdx >= 0 ? ` onclick="document.getElementById('player-detail-modal')?.remove();openMatchIntro(${_miIdx})" style="cursor:pointer"` : ""}>
         <div class="det-match-result" style="color:${scoreColor}">${won4 ? "W" : "L"}</div>
         <div class="det-match-body">
           <div class="det-match-score">${score}</div>
@@ -7394,7 +7628,7 @@ function openPlayerDetail(name) {
             : d.margin < 0
               ? "var(--red)"
               : "var(--muted)";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${opp}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${escHtml(opp)}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p} MP</span><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
       })
       .join("");
     if (!rows5) return "";
@@ -7473,7 +7707,7 @@ function openPlayerDetail(name) {
           eloDelta !== undefined
             ? `<span style="font-size:10px;font-weight:700;color:${eloDelta >= 0 ? "var(--green)" : "var(--red)"}">${eloDelta >= 0 ? "+" : ""}${eloDelta}</span>`
             : "";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${partner}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${eloStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${escHtml(partner)}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${eloStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
       })
       .join("");
     if (!rows6) return "";
@@ -7722,7 +7956,8 @@ function openPlayerDetail(name) {
       (a, b) => b[1].w - a[1].w || b[1].p - a[1].p,
     )[0];
     const peakEloVal = _memoEloPeaks()[name] || playerElo;
-    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
+    const lowEloVal = _memoEloLows()[name] || playerElo;
+    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${lowEloVal}</div><div class="sub">Low ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
   })();
 
   // ── MONTHLY WIN-RATE SPARKLINE ────────────────────────────
@@ -8519,7 +8754,24 @@ function _animEloCounts() {
 }
 
 let _shareBlob = null,
-  _shareLabel = "";
+  _shareLabel = "",
+  _shareCaption = "";
+
+// Human-readable caption for the share sheet / WhatsApp text. Kept separate
+// from _shareLabel (which is reused as a filename token, so it stays free of
+// spaces and apostrophes).
+function _leaderboardCaption(filter) {
+  const m = {
+    all: "All-Time",
+    today: "Today's",
+    week: "This Week's",
+    lastweek: "Last Week's",
+    weekend: "Weekend",
+    month: "This Month's",
+    range: "Custom Range",
+  };
+  return `${m[filter] || "Summary"} Leaderboard`;
+}
 
 function openSummaryShare() {
   if (!window.html2canvas) {
@@ -8590,6 +8842,7 @@ async function doSummaryScreenshot(includeMatches) {
     range: "Custom",
   };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
+  _shareCaption = _leaderboardCaption(cmpFilter);
   const restore = () => {
     highlights.forEach((el) => (el.style.display = ""));
     if (!includeMatches) {
@@ -8645,7 +8898,7 @@ async function doShareWhatsApp() {
       .share({
         files: [file],
         title: "Ekta Padel",
-        text: `${_shareLabel} Leaderboard`,
+        text: _shareCaption || `${_shareLabel} Leaderboard`,
       })
       .catch(() => {});
   } else {
@@ -8665,6 +8918,26 @@ function doShareDownload() {
   a.download = `EktaPadel-${_shareLabel}.png`;
   a.click();
   closeSharePreview();
+}
+
+// Build a shareable deep-link to the current leaderboard state.
+// Anyone opening the URL lands on the Summary tab with the same season + filter.
+function copyLeaderboardLink() {
+  const base = location.origin + location.pathname;
+  const params = new URLSearchParams();
+  params.set("tab", "summary");
+  if (_activeSeasonId && _activeSeasonId !== "all")
+    params.set("season", _activeSeasonId);
+  if (cmpFilter && cmpFilter !== "all")
+    params.set("filter", cmpFilter);
+  const url = `${base}?${params.toString()}`;
+  navigator.clipboard
+    .writeText(url)
+    .then(() => showToast("Link copied!", "🔗"))
+    .catch(() => {
+      // Fallback: prompt so they can copy manually.
+      prompt("Copy this link:", url);
+    });
 }
 
 function openSummaryScreenshot() {
@@ -8776,6 +9049,7 @@ async function shareSnapshot() {
     range: "Custom",
   };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
+  _shareCaption = _leaderboardCaption(cmpFilter);
   try {
     const canvas = await window.html2canvas(snapEl, {
       backgroundColor: "#030309",
@@ -9512,7 +9786,7 @@ function openPairDetail(key) {
       const pct = Math.round((rec.w / tot) * 100);
       const col =
         pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--text)";
-      return `<div class="chem-row"><div class="chem-names" style="font-size:10px">${opp}</div><div class="chem-wl">${rec.w}–${rec.l}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pct}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pct}%</div></div>`;
+      return `<div class="chem-row"><div class="chem-names" style="font-size:10px">${escHtml(opp)}</div><div class="chem-wl">${rec.w}–${rec.l}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pct}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pct}%</div></div>`;
     })
     .join("");
 
@@ -9530,7 +9804,7 @@ function openPairDetail(key) {
         m.date,
       )
         .replace(/\s+\d{4}$/, "")
-        .toUpperCase()}</div><div class="chem-names" style="font-size:10px">vs ${opp}</div><div style="font-size:11px;font-weight:800;color:${won ? "var(--green)" : "var(--red)"};flex-shrink:0">${pScore}–${oScore}</div></div>`;
+        .toUpperCase()}</div><div class="chem-names" style="font-size:10px">vs ${escHtml(opp)}</div><div style="font-size:11px;font-weight:800;color:${won ? "var(--green)" : "var(--red)"};flex-shrink:0">${pScore}–${oScore}</div></div>`;
     })
     .join("");
 
@@ -9733,7 +10007,7 @@ function buildH2HMatrixCompact(players) {
         matrix[a][b] = null;
         return;
       }
-      const h2h = getHeadToHeadStats(a, b);
+      const h2h = getHeadToHeadStats(a, b, activeMatches());
       const total = h2h.aWins + h2h.bWins;
       matrix[a][b] = total > 0 ? { wins: h2h.aWins, total } : null;
     });
@@ -10037,7 +10311,7 @@ function renderH2HDeepDive() {
       '<div class="sub" style="padding:8px;color:var(--red)">Select two different players.</div>';
     return;
   }
-  const h2h = getHeadToHeadStats(p1, p2);
+  const h2h = getHeadToHeadStats(p1, p2, activeMatches());
   const total = h2h.aWins + h2h.bWins;
   if (total === 0) {
     result.innerHTML =
@@ -10771,42 +11045,13 @@ function _pillOnUp(e) {
 }
 
 // ── XP + LEVELS ────────────────────────────────────────────
-function xpThreshold(level) {
-  if (level <= 1) return 0;
-  return Math.floor(60 * Math.pow(level - 1, 1.8));
-}
+// xpThreshold → src/engine/xp.js
 
-function computePlayerXP(displayName) {
-  let xp = 0;
-  activeMatches().forEach((m) => {
-    const inA = (m.teamA || []).some((p) => normPlayer(p) === displayName);
-    const inB = (m.teamB || []).some((p) => normPlayer(p) === displayName);
-    if (!inA && !inB) return;
-    xp += 15;
-    const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-    if (won) xp += 25;
-    if (isFireMatch(m)) xp += 8;
-    if (isDominatingMatch(m) && won) xp += 8;
-    if (isZeroMatch(m) && won) xp += 12;
-  });
-  return xp;
-}
+// computePlayerXP → src/engine/xp.js
 
-function getPlayerLevel(xp) {
-  let level = 1;
-  while (xpThreshold(level + 1) <= xp) level++;
-  const thisXp = xpThreshold(level);
-  const nextXp = xpThreshold(level + 1);
-  return { level, xp, progress: (xp - thisXp) / (nextXp - thisXp) };
-}
+// getPlayerLevel → src/engine/xp.js
 
-function getPrestigeTier(level) {
-  if (level >= 20) return "diamond";
-  if (level >= 15) return "gold";
-  if (level >= 10) return "silver";
-  if (level >= 5) return "bronze";
-  return "rookie";
-}
+// getPrestigeTier → src/engine/xp.js
 
 function mkLvlRow(displayName) {
   const xp = computePlayerXP(displayName);
@@ -10826,1076 +11071,28 @@ function mkLvlRow(displayName) {
   return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">${level}</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
 }
 
-function computeBadges(name, stats, eloMap, allMatchesArr, precomputedStats) {
-  const badges = [];
-  const allStats = precomputedStats || computeStats(allMatchesArr);
-  const sr = allStats;
-
-  // 👑 King: ranked #1 by SR
-  if (sr.length && sr[0].name === name)
-    badges.push({ icon: "👑", label: "King", desc: "Ranked #1 overall" });
-
-  // 🔥 On Fire / 🧊 Ice Cold
-  const ps = allStats.find((p) => p.name === name);
-  if (ps) {
-    if (ps.curType === "W" && ps.curStreak >= 5)
-      badges.push({
-        icon: "🔥",
-        label: "On Fire",
-        desc: `${ps.curStreak} match win streak`,
-      });
-    if (ps.curType === "L" && ps.curStreak >= 5)
-      badges.push({
-        icon: "🧊",
-        label: "Ice Cold",
-        desc: `${ps.curStreak} match loss streak`,
-      });
-  }
-
-  // 💪 Ironman: most matches played
-  const maxMp = Math.max(...allStats.map((p) => p.mp));
-  if (ps && ps.mp === maxMp && maxMp > 0)
-    badges.push({
-      icon: "💪",
-      label: "Ironman",
-      desc: `Most matches played (${maxMp})`,
-    });
-
-  // 🎯 Sniper: won 2+ matches in a session without conceding any games
-  const sessionDates = [
-    ...new Set(allMatchesArr.map((m) => m.date).filter(Boolean)),
-  ];
-  for (const date of sessionDates) {
-    const sm = allMatchesArr.filter(
-      (m) =>
-        m.date === date &&
-        [...(m.teamA || []), ...(m.teamB || [])].includes(name),
-    );
-    let shutoutWins = 0;
-    sm.forEach((m) => {
-      const inA = (m.teamA || []).includes(name);
-      const own = inA ? m.scoreA : m.scoreB;
-      const opp = inA ? m.scoreB : m.scoreA;
-      if (own > opp && opp === 0) shutoutWins++;
-    });
-    if (shutoutWins >= 2) {
-      badges.push({
-        icon: "🎯",
-        label: "Sniper",
-        desc: "Won 2+ matches X-0 in one session",
-      });
-      break;
-    }
-  }
-
-  // 🧗 Climber: biggest positive ELO gain this week
-  const { from: wkFrom } = lastWeekRange();
-  const preWkElo = computeElo(
-    allMatchesArr.filter((m) => (m.date || "") < wkFrom),
-  );
-  const eloGains = allStats.map((p) => ({
-    name: p.name,
-    gain: (eloMap[p.name] || 1000) - (preWkElo[p.name] || 1000),
-  }));
-  const topGainer = eloGains.sort((a, b) => b.gain - a.gain)[0];
-  if (topGainer && topGainer.name === name && topGainer.gain > 0)
-    badges.push({
-      icon: "🧗",
-      label: "Climber",
-      desc: `+${topGainer.gain} ELO this week`,
-    });
-
-  // 🦁 Clutch King: best win% in close matches (margin <= 1) with ≥3 close games
-  const closeW = {},
-    closeP = {};
-  allMatchesArr.forEach((m) => {
-    if (Math.abs(m.scoreA - m.scoreB) > 1) return;
-    const aWon = m.scoreA > m.scoreB;
-    [...(m.teamA || [])].forEach((p) => {
-      closeP[p] = (closeP[p] || 0) + 1;
-      if (aWon) closeW[p] = (closeW[p] || 0) + 1;
-    });
-    [...(m.teamB || [])].forEach((p) => {
-      closeP[p] = (closeP[p] || 0) + 1;
-      if (!aWon) closeW[p] = (closeW[p] || 0) + 1;
-    });
-  });
-  const clutchPlayers = Object.keys(closeP).filter((p) => closeP[p] >= 3);
-  if (clutchPlayers.length) {
-    const best = clutchPlayers.sort(
-      (a, b) => (closeW[b] || 0) / closeP[b] - (closeW[a] || 0) / closeP[a],
-    )[0];
-    if (best === name)
-      badges.push({
-        icon: "🦁",
-        label: "Clutch King",
-        desc: `${Math.round(((closeW[name] || 0) / closeP[name]) * 100)}% in close matches`,
-      });
-  }
-
-  // 🤝 Best Duo: part of pair with highest win% (≥4 games)
-  const pairs = getPairStats(allMatchesArr).filter((p) => p.played >= 4);
-  if (pairs.length && pairs[0].players.includes(name))
-    badges.push({
-      icon: "🤝",
-      label: "Best Duo",
-      desc: `${pairs[0].winPct}% with ${pairs[0].players.find((p) => p !== name)}`,
-    });
-
-  // 🃏 Giant Killer: beaten 2+ players with higher SR
-  if (ps) {
-    const srMap = {};
-    allStats.forEach((p) => {
-      srMap[p.name] = p.sr;
-    });
-    const beatenHigher = new Set();
-    allMatchesArr.forEach((m) => {
-      const aWon = m.scoreA > m.scoreB;
-      const inA = (m.teamA || []).includes(name);
-      const inB = (m.teamB || []).includes(name);
-      if (!inA && !inB) return;
-      const won = (inA && aWon) || (inB && !aWon);
-      if (!won) return;
-      const opps = inA ? m.teamB || [] : m.teamA || [];
-      opps.forEach((opp) => {
-        if ((srMap[opp] || 0) > (srMap[name] || 0)) beatenHigher.add(opp);
-      });
-    });
-    if (beatenHigher.size >= 2)
-      badges.push({
-        icon: "🃏",
-        label: "Giant Killer",
-        desc: `Beaten ${beatenHigher.size} higher-rated players`,
-      });
-  }
-
-  // ── MULTI-TIER BADGES ────────────────────────────────────
-  // Veteran: matches played
-  if (ps) {
-    const mp = ps.mp;
-    if (mp >= 50)
-      badges.push({
-        icon: "🎖️",
-        label: "Veteran",
-        desc: `${mp} matches played`,
-        tier: "gold",
-      });
-    else if (mp >= 25)
-      badges.push({
-        icon: "🎖️",
-        label: "Veteran",
-        desc: `${mp} matches played`,
-        tier: "silver",
-      });
-    else if (mp >= 10)
-      badges.push({
-        icon: "🎖️",
-        label: "Veteran",
-        desc: `${mp} matches played`,
-        tier: "bronze",
-      });
-  }
-
-  // Win Machine: total wins
-  if (ps) {
-    const w = ps.mw;
-    if (w >= 40)
-      badges.push({
-        icon: "🏆",
-        label: "Win Machine",
-        desc: `${w} wins`,
-        tier: "gold",
-      });
-    else if (w >= 20)
-      badges.push({
-        icon: "🏆",
-        label: "Win Machine",
-        desc: `${w} wins`,
-        tier: "silver",
-      });
-    else if (w >= 10)
-      badges.push({
-        icon: "🏆",
-        label: "Win Machine",
-        desc: `${w} wins`,
-        tier: "bronze",
-      });
-  }
-
-  // Comeback King: most wins after trailing (win with lower score first)
-  if (ps) {
-    let comebacks = 0;
-    const pMatches = allMatchesArr.filter(
-      (m) => (m.teamA || []).includes(name) || (m.teamB || []).includes(name),
-    );
-    pMatches.forEach((m) => {
-      const inA = (m.teamA || []).includes(name);
-      const myScore = inA ? m.scoreA : m.scoreB;
-      const theirScore = inA ? m.scoreB : m.scoreA;
-      if (myScore > theirScore && theirScore > 0 && myScore - theirScore <= 2)
-        comebacks++;
-    });
-    if (comebacks >= 10)
-      badges.push({
-        icon: "💪",
-        label: "Comeback King",
-        desc: `${comebacks} close wins`,
-        tier: "gold",
-      });
-    else if (comebacks >= 5)
-      badges.push({
-        icon: "💪",
-        label: "Comeback King",
-        desc: `${comebacks} close wins`,
-        tier: "silver",
-      });
-    else if (comebacks >= 2)
-      badges.push({
-        icon: "💪",
-        label: "Comeback King",
-        desc: `${comebacks} close wins`,
-        tier: "bronze",
-      });
-  }
-
-  // Dominator: wins by 3+ margin
-  if (ps) {
-    const dominWins = allMatchesArr.filter((m) => {
-      const inA = (m.teamA || []).includes(name),
-        inB = (m.teamB || []).includes(name);
-      if (!inA && !inB) return false;
-      const aWon = m.scoreA > m.scoreB;
-      return (
-        ((inA && aWon) || (inB && !aWon)) && Math.abs(m.scoreA - m.scoreB) >= 3
-      );
-    }).length;
-    if (dominWins >= 20)
-      badges.push({
-        icon: "💀",
-        label: "Dominator",
-        desc: `${dominWins} dominant wins`,
-        tier: "gold",
-      });
-    else if (dominWins >= 10)
-      badges.push({
-        icon: "💀",
-        label: "Dominator",
-        desc: `${dominWins} dominant wins`,
-        tier: "silver",
-      });
-    else if (dominWins >= 5)
-      badges.push({
-        icon: "💀",
-        label: "Dominator",
-        desc: `${dominWins} dominant wins`,
-        tier: "bronze",
-      });
-  }
-
-  // Weekend Warrior: most matches on weekends
-  if (ps) {
-    const wkMatches = allMatchesArr.filter((m) => {
-      if (!m.date) return false;
-      const d = new Date(m.date + "T00:00:00").getDay();
-      return (
-        (d === 0 || d === 6) &&
-        [...(m.teamA || []), ...(m.teamB || [])].includes(name)
-      );
-    }).length;
-    if (wkMatches >= 30)
-      badges.push({
-        icon: "🏖️",
-        label: "Weekend Warrior",
-        desc: `${wkMatches} weekend matches`,
-        tier: "gold",
-      });
-    else if (wkMatches >= 15)
-      badges.push({
-        icon: "🏖️",
-        label: "Weekend Warrior",
-        desc: `${wkMatches} weekend matches`,
-        tier: "silver",
-      });
-    else if (wkMatches >= 5)
-      badges.push({
-        icon: "🏖️",
-        label: "Weekend Warrior",
-        desc: `${wkMatches} weekend matches`,
-        tier: "bronze",
-      });
-  }
-
-  // Perfect Day: won all matches in a session
-  for (const date of sessionDates) {
-    const sm = allMatchesArr.filter(
-      (m) =>
-        m.date === date &&
-        [...(m.teamA || []), ...(m.teamB || [])].includes(name),
-    );
-    if (sm.length >= 3) {
-      const allWon = sm.every((m) => {
-        const inA = (m.teamA || []).includes(name);
-        return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-      });
-      if (allWon) {
-        badges.push({
-          icon: "⭐",
-          label: "Perfect Day",
-          desc: `Won all ${sm.length} on ${fmtDate(date)}`,
-          tier: sm.length >= 5 ? "gold" : sm.length >= 4 ? "silver" : "bronze",
-        });
-        break;
-      }
-    }
-  }
-
-  // Underdog: won as the lower-ELO team
-  if (ps) {
-    const eloMapCur = eloMap;
-    let underdogWins = 0;
-    allMatchesArr.forEach((m) => {
-      const inA = (m.teamA || []).includes(name),
-        inB = (m.teamB || []).includes(name);
-      if (!inA && !inB) return;
-      const aWon = m.scoreA > m.scoreB;
-      const myWon = (inA && aWon) || (inB && !aWon);
-      if (!myWon) return;
-      const myTeam = inA ? m.teamA : m.teamB;
-      const oppTeam = inA ? m.teamB : m.teamA;
-      const myAvg =
-        myTeam.reduce((s, p) => s + (eloMapCur[p] || 1000), 0) / myTeam.length;
-      const oppAvg =
-        oppTeam.reduce((s, p) => s + (eloMapCur[p] || 1000), 0) /
-        oppTeam.length;
-      if (myAvg < oppAvg - 30) underdogWins++;
-    });
-    if (underdogWins >= 10)
-      badges.push({
-        icon: "🐉",
-        label: "Underdog",
-        desc: `${underdogWins} underdog wins`,
-        tier: "gold",
-      });
-    else if (underdogWins >= 5)
-      badges.push({
-        icon: "🐉",
-        label: "Underdog",
-        desc: `${underdogWins} underdog wins`,
-        tier: "silver",
-      });
-    else if (underdogWins >= 2)
-      badges.push({
-        icon: "🐉",
-        label: "Underdog",
-        desc: `${underdogWins} underdog wins`,
-        tier: "bronze",
-      });
-  }
-
-  return badges;
-}
+// computeBadges → src/engine/badges.js (injected via initBadgesDeps)
 
 // ══════════════════════════════════════════════════════════════
 // ── PHASE 1: PLAYER FORM ENGINE ───────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-function computePlayerForm(name, matches) {
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  const playerMs = sorted.filter((m) =>
-    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
-  );
-  if (playerMs.length < 3) return null;
-
-  const eloMap = computeElo(matches);
-  const last10 = playerMs.slice(-10);
-  const prev10 = playerMs.slice(-20, -10);
-
-  // Win % last 10
-  const wins10 = last10.filter((m) => {
-    const inA = (m.teamA || []).includes(name);
-    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-  }).length;
-  const winPct10 = last10.length > 0 ? wins10 / last10.length : 0;
-
-  // Average margin last 10
-  const avgMargin10 =
-    last10.reduce((s, m) => {
-      const inA = (m.teamA || []).includes(name);
-      const myScore = inA ? m.scoreA : m.scoreB;
-      const theirScore = inA ? m.scoreB : m.scoreA;
-      return s + (myScore - theirScore);
-    }, 0) / Math.max(last10.length, 1);
-
-  // Win quality: avg opponent ELO in last 10 wins
-  let qualSum = 0,
-    qualCount = 0;
-  last10.forEach((m) => {
-    const inA = (m.teamA || []).includes(name);
-    const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-    if (!won) return;
-    const opps = inA ? m.teamB || [] : m.teamA || [];
-    opps.forEach((opp) => {
-      qualSum += eloMap[opp] || 1000;
-      qualCount++;
-    });
-  });
-  const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
-
-  // Pressure (close match win %, diff ≤ 2)
-  const closeMs = playerMs.filter((m) => Math.abs(m.scoreA - m.scoreB) <= 2);
-  const closeWins = closeMs.filter((m) => {
-    const inA = (m.teamA || []).includes(name);
-    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-  }).length;
-  const pressureScore = closeMs.length >= 3 ? closeWins / closeMs.length : 0.5;
-
-  // Momentum: compare last 5 vs previous 5 win %
-  const last5 = playerMs.slice(-5);
-  const prev5 = playerMs.slice(-10, -5);
-  const w5 = last5.filter((m) => {
-    const inA = (m.teamA || []).includes(name);
-    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-  }).length;
-  const wp5 = prev5.filter((m) => {
-    const inA = (m.teamA || []).includes(name);
-    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-  }).length;
-  const momentumDelta =
-    last5.length > 0 && prev5.length > 0
-      ? (w5 / last5.length - wp5 / prev5.length) * 100
-      : 0;
-
-  // Composite form score 0–10
-  const formScore = Math.min(
-    10,
-    Math.max(
-      0,
-      winPct10 * 4 +
-        Math.min(1, Math.max(0, (avgMargin10 + 5) / 10)) * 2.5 +
-        Math.min(1, (winQuality - 900) / 300) * 2 +
-        pressureScore * 1.5,
-    ),
-  );
-
-  // Labels
-  const momentumLabel =
-    momentumDelta > 8
-      ? "Rising ↑"
-      : momentumDelta < -8
-        ? "Falling ↓"
-        : "Stable →";
-  const momentumColor =
-    momentumDelta > 8
-      ? "var(--green)"
-      : momentumDelta < -8
-        ? "var(--red)"
-        : "var(--muted)";
-  const pressureLabel =
-    pressureScore >= 0.7 ? "Elite" : pressureScore >= 0.5 ? "Solid" : "Shaky";
-  const pressureColor =
-    pressureScore >= 0.7
-      ? "var(--green)"
-      : pressureScore >= 0.5
-        ? "var(--gold)"
-        : "var(--red)";
-  const formEmoji =
-    formScore >= 8
-      ? "🔥"
-      : formScore >= 6
-        ? "⚡"
-        : formScore >= 4
-          ? "😐"
-          : "❄️";
-
-  return {
-    score: Math.round(formScore * 10) / 10,
-    formEmoji,
-    winPct10: Math.round(winPct10 * 100),
-    avgMargin10: Math.round(avgMargin10 * 10) / 10,
-    momentumDelta: Math.round(momentumDelta),
-    momentumLabel,
-    momentumColor,
-    pressureScore: Math.round(pressureScore * 100),
-    pressureLabel,
-    pressureColor,
-    closeMatches: closeMs.length,
-    last10count: last10.length,
-    winQuality: Math.round(winQuality),
-  };
-}
+// computePlayerForm → src/engine/player-analytics.js
 
 // ── PLAY STYLE ARCHETYPE ──────────────────────────────────────
-function computeArchetype(name, matches) {
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  const playerMs = sorted.filter((m) =>
-    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
-  );
-  if (playerMs.length < 5) return null;
-
-  const eloMap = computeElo(matches);
-  const wins = playerMs.filter((m) => {
-    const inA = (m.teamA || []).includes(name);
-    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-  });
-  const winPct = wins.length / playerMs.length;
-
-  // Close match win %
-  const close = playerMs.filter((m) => Math.abs(m.scoreA - m.scoreB) <= 2);
-  const closeWinPct =
-    close.length > 0
-      ? close.filter((m) => {
-          const inA = (m.teamA || []).includes(name);
-          return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-        }).length / close.length
-      : 0.5;
-
-  // Avg margin
-  const avgMargin =
-    playerMs.reduce((s, m) => {
-      const inA = (m.teamA || []).includes(name);
-      return s + ((inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA));
-    }, 0) / playerMs.length;
-
-  // Streak volatility (how often streak direction changes)
-  let changes = 0;
-  for (let i = 1; i < playerMs.length; i++) {
-    const prev = playerMs[i - 1],
-      cur = playerMs[i];
-    const prevWon = (prev.teamA || []).includes(name)
-      ? prev.scoreA > prev.scoreB
-      : prev.scoreB > prev.scoreA;
-    const curWon = (cur.teamA || []).includes(name)
-      ? cur.scoreA > cur.scoreB
-      : cur.scoreB > cur.scoreA;
-    if (prevWon !== curWon) changes++;
-  }
-  const volatility = changes / Math.max(playerMs.length - 1, 1);
-
-  // Win quality (avg opponent ELO in wins)
-  let qualSum = 0,
-    qualCount = 0;
-  wins.forEach((m) => {
-    const opps = (m.teamA || []).includes(name) ? m.teamB || [] : m.teamA || [];
-    opps.forEach((opp) => {
-      qualSum += eloMap[opp] || 1000;
-      qualCount++;
-    });
-  });
-  const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
-
-  // Classify
-  if (closeWinPct >= 0.65 && close.length >= 4)
-    return {
-      label: "Clutch Player",
-      icon: "🧊",
-      desc: "Thrives under pressure, wins the close ones",
-      color: "#00c8ff",
-    };
-  if (avgMargin >= 2.5 && winPct >= 0.6)
-    return {
-      label: "Finisher",
-      icon: "🎯",
-      desc: "Wins decisively, rarely drops close sets",
-      color: "#00ff9d",
-    };
-  if (winQuality >= 1050 && wins.length >= 5)
-    return {
-      label: "Giant Slayer",
-      icon: "⚔️",
-      desc: "Elevates against strong opponents",
-      color: "var(--gold)",
-    };
-  if (volatility < 0.35 && winPct >= 0.55)
-    return {
-      label: "Consistent",
-      icon: "🛡",
-      desc: "Rock-solid, rarely goes on bad runs",
-      color: "#b44dff",
-    };
-  if (volatility > 0.55)
-    return {
-      label: "Streaky",
-      icon: "🎲",
-      desc: "Runs hot and cold — dangerous on a good day",
-      color: "#ff9d00",
-    };
-  if (winPct >= 0.65)
-    return {
-      label: "Aggressor",
-      icon: "🔥",
-      desc: "High win rate, dominates most matchups",
-      color: "#ff2d78",
-    };
-  return {
-    label: "Balanced",
-    icon: "⚖️",
-    desc: "Well-rounded, no glaring weakness",
-    color: "var(--muted)",
-  };
-}
+// computeArchetype → src/engine/player-analytics.js
 
 // ── SMART POWER RANKINGS ──────────────────────────────────────
-function computePowerRankings(matches) {
-  const eloMap = computeElo(matches);
-  const stats = computeStats(matches, eloMap);
-  if (!stats.length) return [];
-
-  const maxElo = Math.max(...Object.values(eloMap));
-  const minElo = Math.min(...Object.values(eloMap));
-  const eloRange = Math.max(maxElo - minElo, 1);
-
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  const maxMp = Math.max(...stats.map((s) => s.mp), 1);
-
-  return stats
-    .map((p) => {
-      const form = computePlayerForm(p.name, matches);
-      const eloNorm = ((eloMap[p.name] || 1000) - minElo) / eloRange;
-      const formNorm = form ? form.score / 10 : p.mw / Math.max(p.mp, 1);
-      const activityNorm = p.mp / maxMp;
-
-      // Win quality: avg ELO of opponents beaten
-      let qualSum = 0,
-        qualCount = 0;
-      sorted
-        .filter((m) =>
-          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
-        )
-        .forEach((m) => {
-          const inA = (m.teamA || []).includes(p.name);
-          const won =
-            (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-          if (!won) return;
-          const opps = inA ? m.teamB || [] : m.teamA || [];
-          opps.forEach((opp) => {
-            qualSum += eloMap[opp] || 1000;
-            qualCount++;
-          });
-        });
-      const winQualNorm =
-        qualCount > 0 ? Math.min(1, (qualSum / qualCount - 900) / 400) : 0;
-
-      const score =
-        eloNorm * 0.4 + formNorm * 0.3 + winQualNorm * 0.2 + activityNorm * 0.1;
-
-      return {
-        name: p.name,
-        score: Math.round(score * 1000) / 10,
-        elo: eloMap[p.name] || 1000,
-        winPct: Math.round((p.mw / Math.max(p.mp, 1)) * 100),
-        mp: p.mp,
-        form: form ? form.score : null,
-        formEmoji: form ? form.formEmoji : "—",
-      };
-    })
-    .sort((a, b) => b.score - a.score);
-}
+// computePowerRankings → src/engine/player-analytics.js
 
 // ── PARTNERSHIP CHEMISTRY SCORE ───────────────────────────────
-function computeChemistryScores(matches) {
-  const eloMap = computeElo(matches);
-  const pairs = getPairStats(matches).filter((p) => p.played >= 3);
-  if (!pairs.length) return [];
-
-  const maxPlayed = Math.max(...pairs.map((p) => p.played), 1);
-  const allElos = Object.values(eloMap);
-  const avgElo =
-    allElos.reduce((s, v) => s + v, 0) / Math.max(allElos.length, 1);
-
-  return pairs
-    .map((p) => {
-      const [n1, n2] = p.players;
-      const avgMargin = p.played ? (p.gf - p.ga) / p.played : 0;
-      const winPctNorm = p.winPct / 100;
-      const marginNorm = Math.min(1, Math.max(0, (avgMargin + 5) / 10));
-      const activityNorm = p.played / maxPlayed;
-
-      // vs-strong: wins against above-average ELO opponents
-      const sorted = [...matches].sort((a, b) =>
-        (a.date || "").localeCompare(b.date || ""),
-      );
-      let strongWins = 0,
-        strongPlayed = 0;
-      sorted.forEach((m) => {
-        const inA =
-          (m.teamA || []).includes(n1) && (m.teamA || []).includes(n2);
-        const inB =
-          (m.teamB || []).includes(n1) && (m.teamB || []).includes(n2);
-        if (!inA && !inB) return;
-        const opps = inA ? m.teamB || [] : m.teamA || [];
-        const oppAvgElo =
-          opps.reduce((s, op) => s + (eloMap[op] || 1000), 0) /
-          Math.max(opps.length, 1);
-        if (oppAvgElo < avgElo) return;
-        strongPlayed++;
-        const aWon = m.scoreA > m.scoreB;
-        if ((inA && aWon) || (inB && !aWon)) strongWins++;
-      });
-      const vsStrongNorm = strongPlayed >= 2 ? strongWins / strongPlayed : 0.5;
-
-      const chemScore =
-        winPctNorm * 0.4 +
-        marginNorm * 0.25 +
-        vsStrongNorm * 0.25 +
-        activityNorm * 0.1;
-      const score10 = Math.min(10, Math.round(chemScore * 10 * 10) / 10);
-      const tier =
-        score10 >= 8.5 ? "S" : score10 >= 7 ? "A" : score10 >= 5.5 ? "B" : "C";
-      const tierColor =
-        tier === "S"
-          ? "var(--gold)"
-          : tier === "A"
-            ? "var(--green)"
-            : tier === "B"
-              ? "var(--theme)"
-              : "var(--muted)";
-
-      return {
-        players: p.players,
-        played: p.played,
-        wins: p.wins,
-        winPct: p.winPct,
-        avgMargin,
-        score: score10,
-        tier,
-        tierColor,
-      };
-    })
-    .sort((a, b) => b.score - a.score);
-}
+// computeChemistryScores → src/engine/player-analytics.js
 
 // ── MATCH STORY CARDS ─────────────────────────────────────────
-function computeMatchStories(matches) {
-  if (matches.length < 2) return [];
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  const stories = [];
-  const eloHistory = {};
-  const streaks = {};
-
-  sorted.forEach((m, idx) => {
-    const allP = [...(m.teamA || []), ...(m.teamB || [])];
-    allP.forEach((p) => {
-      if (!(p in eloHistory)) eloHistory[p] = 1000;
-      if (!(p in streaks)) streaks[p] = { type: null, count: 0 };
-    });
-
-    const aWon = m.scoreA > m.scoreB;
-    const avgA =
-      m.teamA.reduce((s, p) => s + eloHistory[p], 0) /
-      Math.max(m.teamA.length, 1);
-    const avgB =
-      m.teamB.reduce((s, p) => s + eloHistory[p], 0) /
-      Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-
-    const prevElos = { ...eloHistory };
-
-    m.teamA.forEach((p) => {
-      eloHistory[p] = (eloHistory[p] || 1000) + dA;
-    });
-    m.teamB.forEach((p) => {
-      eloHistory[p] = (eloHistory[p] || 1000) + dB;
-    });
-
-    // Update streaks
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      const won =
-        (m.teamA.includes(p) && aWon) || (m.teamB.includes(p) && !aWon);
-      const type = won ? "W" : "L";
-      if (streaks[p].type === type) streaks[p].count++;
-      else {
-        streaks[p].type = type;
-        streaks[p].count = 1;
-      }
-    });
-
-    const date = m.date;
-
-    // Story: Streak ended
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      const prevStreak = streaks[p].count === 1 ? null : null; // tracked below
-    });
-
-    // Story: Upset (lower ELO team wins)
-    const eloDiff = Math.abs(avgA - avgB);
-    if (eloDiff >= 60) {
-      const upsetTeam =
-        aWon && avgA < avgB ? m.teamA : !aWon && avgB < avgA ? m.teamB : null;
-      const favoriteTeam = upsetTeam === m.teamA ? m.teamB : m.teamA;
-      if (upsetTeam) {
-        stories.push({
-          icon: "😱",
-          type: "upset",
-          text: `${upsetTeam.join(" & ")} upset ${favoriteTeam.join(" & ")} (+${Math.round(eloDiff)} ELO gap)`,
-          date,
-          score: `${m.scoreA}–${m.scoreB}`,
-          matchIdx: idx,
-        });
-      }
-    }
-
-    // Story: ELO milestone (1050, 1100, 1150, 1200)
-    allP.forEach((p) => {
-      [1050, 1100, 1150, 1200, 1250].forEach((milestone) => {
-        if (prevElos[p] < milestone && eloHistory[p] >= milestone) {
-          stories.push({
-            icon: "🏆",
-            type: "milestone",
-            text: `${p} crossed ELO ${milestone} for the first time!`,
-            date,
-            score: `ELO ${Math.round(eloHistory[p])}`,
-            matchIdx: idx,
-          });
-        }
-      });
-    });
-
-    // Story: Shutout (X–0)
-    if (m.scoreA === 0 || m.scoreB === 0) {
-      const winner = aWon ? m.teamA : m.teamB;
-      const loser = aWon ? m.teamB : m.teamA;
-      stories.push({
-        icon: "💀",
-        type: "shutout",
-        text: `${winner.join(" & ")} shut out ${loser.join(" & ")} ${m.scoreA}–${m.scoreB}`,
-        date,
-        score: `${m.scoreA}–${m.scoreB}`,
-        matchIdx: idx,
-      });
-    }
-  });
-
-  // Story: Longest win streak per player (all-time)
-  const allStats = computeStats(matches);
-  allStats.forEach((p) => {
-    if (p.bestWinStreak >= 7) {
-      stories.push({
-        icon: "🔥",
-        type: "streak",
-        text: `${p.name} holds the all-time record: ${p.bestWinStreak}-match win streak`,
-        date: null,
-        score: `${p.bestWinStreak} wins`,
-        matchIdx: null,
-      });
-    }
-  });
-
-  // Most recent stories first, limit 30
-  return stories.reverse().slice(0, 30);
-}
+// computeMatchStories → src/engine/player-analytics.js
 
 // ── ACHIEVEMENTS (new additions beyond computeBadges) ─────────
-function computeAchievements(name, matches) {
-  const sorted = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  const playerMs = sorted.filter((m) =>
-    [...(m.teamA || []), ...(m.teamB || [])].includes(name),
-  );
-  const eloMap = computeElo(matches);
-  const eloHistory = computeEloHistory(matches);
-  const pts = eloHistory[name] || [];
-  const allStats = computeStats(matches, eloMap);
-  const ps = allStats.find((p) => p.name === name);
-  if (!ps) return [];
-
-  const ach = [];
-  const add = (icon, label, desc, unlocked, progress = null) =>
-    ach.push({ icon, label, desc, unlocked, progress });
-
-  const wins = playerMs.filter((m) => {
-    const inA = (m.teamA || []).includes(name);
-    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-  });
-  const closeMs = playerMs.filter((m) => Math.abs(m.scoreA - m.scoreB) <= 2);
-  const closeWins = closeMs.filter((m) => {
-    const inA = (m.teamA || []).includes(name);
-    return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-  });
-
-  // Ice Cold — win 5 close games
-  add(
-    "🧊",
-    "Ice Cold",
-    "Win 5 close games (≤2 pt diff)",
-    closeWins.length >= 5,
-    `${Math.min(closeWins.length, 5)}/5`,
-  );
-
-  // King Slayer — beat the #1 ranked player
-  const ranked = allStats;
-  const topPlayer = ranked[0]?.name;
-  const beatTop =
-    topPlayer &&
-    topPlayer !== name &&
-    wins.some((m) => {
-      const opps = (m.teamA || []).includes(name)
-        ? m.teamB || []
-        : m.teamA || [];
-      return opps.includes(topPlayer);
-    });
-  add("👑", "King Slayer", `Beat the #1 ranked player`, beatTop);
-
-  // Untouchable — 10-win streak
-  add(
-    "⚡",
-    "Untouchable",
-    "Achieve a 10-match win streak",
-    ps.bestWinStreak >= 10,
-    `${Math.min(ps.bestWinStreak, 10)}/10`,
-  );
-
-  // Wall — concede ≤10 pts in a match
-  const wallMatch = playerMs.some((m) => {
-    const inA = (m.teamA || []).includes(name);
-    const conceded = inA ? m.scoreB : m.scoreA;
-    const myScore = inA ? m.scoreA : m.scoreB;
-    return myScore > conceded && conceded === 0;
-  });
-  add("🛡", "Wall", "Win a match conceding 0 games", wallMatch);
-
-  // Sharpshooter — 75%+ win rate (min 10 matches)
-  const winPct = ps.mp >= 10 ? Math.round((ps.mw / ps.mp) * 100) : 0;
-  add(
-    "🎯",
-    "Sharpshooter",
-    "80%+ win rate (min 10 matches)",
-    ps.mp >= 10 && winPct >= 80,
-    ps.mp >= 10 ? `${winPct}%` : `${ps.mp}/10 played`,
-  );
-
-  // On Fire — 5-match win streak
-  add(
-    "🔥",
-    "On Fire",
-    "Win 5 matches in a row",
-    ps.bestWinStreak >= 5,
-    `${Math.min(ps.bestWinStreak, 5)}/5`,
-  );
-
-  // Diamond — reach ELO 1200
-  const peakElo =
-    pts.length > 0 ? Math.max(...pts.map((p) => p.elo)) : eloMap[name] || 1000;
-  add(
-    "💎",
-    "Diamond",
-    "Reach ELO 1200",
-    peakElo >= 1200,
-    `Peak: ${Math.round(peakElo)}`,
-  );
-
-  // Chemistry Lab — 10 wins with same partner
-  const partnerWins = ps.partnerWins || {};
-  const bestPartnerWins = Math.max(0, ...Object.values(partnerWins));
-  const bestPartnerName =
-    Object.keys(partnerWins).find((k) => partnerWins[k] === bestPartnerWins) ||
-    null;
-  add(
-    "🤝",
-    "Chemistry Lab",
-    "Win 10 matches with the same partner",
-    bestPartnerWins >= 10,
-    bestPartnerName ? `${bestPartnerWins}/10 with ${bestPartnerName}` : "0/10",
-  );
-
-  // Climber — rise 5+ ranks in a month
-  const monthAgo = new Date();
-  monthAgo.setDate(monthAgo.getDate() - 30);
-  const monthAgoStr = toLocalISODate(monthAgo);
-  const oldMs = matches.filter((m) => (m.date || "") < monthAgoStr);
-  const oldRank = computeStats(oldMs).findIndex((p) => p.name === name) + 1;
-  const curRank = allStats.findIndex((p) => p.name === name) + 1;
-  const rankRise = oldRank > 0 && curRank > 0 ? oldRank - curRank : 0;
-  add(
-    "⬆️",
-    "Climber",
-    "Rise 5+ ranks in a month",
-    rankRise >= 5,
-    rankRise > 0 ? `+${rankRise} ranks` : "—",
-  );
-
-  // Comeback Kid — win 3 close matches from behind concept (close wins)
-  add(
-    "😤",
-    "Comeback Kid",
-    "Win 3 tense close matches",
-    closeWins.length >= 3,
-    `${Math.min(closeWins.length, 3)}/3`,
-  );
-
-  // Upset Artist — beat 3 higher-ELO opponents in a row
-  let consecUpsets = 0,
-    maxConsecUpsets = 0;
-  playerMs.forEach((m) => {
-    const inA = (m.teamA || []).includes(name);
-    const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-    if (!won) {
-      consecUpsets = 0;
-      return;
-    }
-    const myTeam = inA ? m.teamA : m.teamB;
-    const oppTeam = inA ? m.teamB : m.teamA;
-    const myAvg =
-      myTeam.reduce((s, p) => s + (eloMap[p] || 1000), 0) / myTeam.length;
-    const oppAvg =
-      oppTeam.reduce((s, p) => s + (eloMap[p] || 1000), 0) / oppTeam.length;
-    if (oppAvg > myAvg + 20) {
-      consecUpsets++;
-      maxConsecUpsets = Math.max(maxConsecUpsets, consecUpsets);
-    } else consecUpsets = 0;
-  });
-  add(
-    "🎲",
-    "Upset Artist",
-    "Beat 3 higher-ELO opponents in a row",
-    maxConsecUpsets >= 3,
-    `${Math.min(maxConsecUpsets, 3)}/3`,
-  );
-
-  // Regular — play every week for 4 weeks
-  const weeks = new Set(
-    playerMs
-      .map((m) => {
-        if (!m.date) return null;
-        const d = new Date(m.date + "T00:00:00");
-        const jan1 = new Date(d.getFullYear(), 0, 1);
-        return `${d.getFullYear()}-${Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7)}`;
-      })
-      .filter(Boolean),
-  );
-  add(
-    "📅",
-    "Regular",
-    "Play at least once a week for 4 weeks",
-    weeks.size >= 4,
-    `${Math.min(weeks.size, 4)}/4 weeks`,
-  );
-
-  // Season MVP placeholder — top SR in any month
-  const monthStats = {};
-  matches.forEach((m) => {
-    const mo = (m.date || "").slice(0, 7);
-    if (!monthStats[mo]) monthStats[mo] = [];
-    monthStats[mo].push(m);
-  });
-  const isMVP = Object.values(monthStats).some((ms) => {
-    const st = computeStats(ms);
-    return st.length && st[0].name === name;
-  });
-  add("🥇", "Season MVP", "Finish #1 in any month", isMVP);
-
-  return ach;
-}
+// computeAchievements → src/engine/player-analytics.js
 
 // ── SEASON AWARDS ─────────────────────────────────────────────
 // Award set for one period (a month or a user-defined season). `priorMs` is the
@@ -12012,19 +11209,6 @@ function computeSeasons(matches) {
       };
     })
     .reverse();
-}
-
-function _partnerTab(btn, tab) {
-  const panels = ["chemistry", "partners", "synergy", "form"];
-  panels.forEach((t) => {
-    const el = document.getElementById(`partner-tab-${t}`);
-    if (el) el.style.display = t === tab ? "" : "none";
-  });
-  btn
-    .closest(".partner-tabs")
-    ?.querySelectorAll(".partner-tab")
-    .forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
 }
 
 // ── GENERIC IN-CARD SUB-TABS (merged analytics sections) ──────
@@ -12427,9 +11611,9 @@ function openEloTLOverlaySheet() {
 }
 
 function _rerenderEloTLSection() {
-  const el = document.querySelector(
-    '.ana-sec[data-key="eloTimeline"] .ana-sec-body',
-  );
+  // ELO History Chart is a tab inside the merged "⚡ ELO" section; target its
+  // stable wrapper rather than a top-level section body.
+  const el = document.getElementById("elo-tl-section");
   if (el) el.innerHTML = buildEloTimelineHtml(_eloTLFilter);
 }
 
@@ -12629,7 +11813,7 @@ function _renderWhatIfRows(playerName, playerMatches) {
         <div class="wi-outcome-dot" style="background:${effectiveWon ? "var(--green)" : "var(--red)"}"></div>
         <div class="wi-match-info">
           <span class="wi-date">${fmtDate(m.date)}</span>
-          <span class="wi-vs">w/ ${partner || "—"} vs ${opp}</span>
+          <span class="wi-vs">w/ ${escHtml(partner || "—")} vs ${escHtml(opp)}</span>
           <span class="wi-score${flipped ? " wi-score-flipped" : ""}">${m.scoreA}–${m.scoreB}${flipped ? " →FLIPPED" : ""}</span>
         </div>
         <div class="wi-actions">
@@ -13079,30 +12263,58 @@ function _buildRankReignHtml() {
     eloRankOf[name] = i + 1;
   });
 
-  // For each match day compute cumulative ALL TIME rank up to that day,
-  // then tally how many days each player held each rank position.
+  // For each match day compute cumulative rank up to that day, then tally
+  // how many days each player held each rank position.
+  // INCREMENTAL: walk matches chronologically once, applying ELO as we go
+  // rather than recomputing computeElo(snap) from scratch for every date.
+  // Reduces O(days × matches) → O(matches) — critical for large datasets.
   const sorted = [...allM].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
+  const runElo = {}; // incremental ELO map
+  const runMp = {}, runMw = {}, runGw = {}, runGl = {}; // for SR proxy rank
+  let mIdx = 0; // pointer into sorted[]
   let maxRank = 1;
   const tally = {};
   allDates.forEach((date) => {
+    // Advance the incremental ELO up to (and including) this date
+    while (mIdx < sorted.length && (sorted[mIdx].date || "") <= date) {
+      const m = sorted[mIdx++];
+      const players = [...(m.teamA || []), ...(m.teamB || [])];
+      players.forEach((p) => { if (!(p in runElo)) runElo[p] = 1000; });
+      const aWon = m.scoreA > m.scoreB;
+      const avgA = (m.teamA || []).reduce((s, p) => s + runElo[p], 0) / Math.max((m.teamA || []).length, 1);
+      const avgB = (m.teamB || []).reduce((s, p) => s + runElo[p], 0) / Math.max((m.teamB || []).length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      (m.teamA || []).forEach((p) => {
+        runElo[p] = (runElo[p] || 1000) + dA;
+        runMp[p] = (runMp[p] || 0) + 1; runMw[p] = (runMw[p] || 0) + (aWon ? 1 : 0);
+        runGw[p] = (runGw[p] || 0) + m.scoreA; runGl[p] = (runGl[p] || 0) + m.scoreB;
+      });
+      (m.teamB || []).forEach((p) => {
+        runElo[p] = (runElo[p] || 1000) + dB;
+        runMp[p] = (runMp[p] || 0) + 1; runMw[p] = (runMw[p] || 0) + (!aWon ? 1 : 0);
+        runGw[p] = (runGw[p] || 0) + m.scoreB; runGl[p] = (runGl[p] || 0) + m.scoreA;
+      });
+    }
     const dayMatches = sorted.filter((m) => m.date === date);
     if (dayMatches.length < 2) return; // skip days with fewer than 2 matches
     const dayPlayers = new Set(
       dayMatches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]),
     );
-    const snap = sorted.filter((m) => (m.date || "") <= date);
-    const statsSnap = computeStats(snap, computeElo(snap));
+    // Rank by current incremental ELO (same criterion as computeStats uses)
+    const ranked = Object.entries(runElo).sort((a, b) => b[1] - a[1]);
     let qualRank = 0;
-    statsSnap.forEach((p) => {
-      if (!dayPlayers.has(p.name)) return; // only players who appeared that day
+    ranked.forEach(([name]) => {
+      if (!dayPlayers.has(name)) return;
       qualRank++;
-      if (!tally[p.name])
-        tally[p.name] = { name: p.name, rankCounts: {}, days: 0 };
-      tally[p.name].days++;
-      tally[p.name].rankCounts[qualRank] =
-        (tally[p.name].rankCounts[qualRank] || 0) + 1;
+      if (!tally[name])
+        tally[name] = { name, rankCounts: {}, days: 0 };
+      tally[name].days++;
+      tally[name].rankCounts[qualRank] =
+        (tally[name].rankCounts[qualRank] || 0) + 1;
       if (qualRank > maxRank) maxRank = qualRank;
     });
   });
@@ -15229,7 +14441,7 @@ function renderAnalyticsPage() {
       if (playedDiff !== 0) return playedDiff;
       return b.gw / b.gt - a.gw / a.gt;
     })[0];
-  const pairLeaderboard = getPairStats().slice(0, 8);
+  const pairLeaderboard = getPairStats(activeMatches()).slice(0, 8);
   const playersByMatches = _h2hSortPlayers(getAllPlayerNamesFromMatches());
   const matrixSortBar = `<div class="h2h-sort-bar">
     <span class="h2h-sort-lbl">SORT</span>
@@ -15421,7 +14633,7 @@ function renderAnalyticsPage() {
     (a, b) => b[1] - a[1],
   )[0];
   const [rivalA, rivalB] = topRivalEntry?.[0]?.split("|") || [null, null];
-  const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB) : null;
+  const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB, activeMatches()) : null;
 
   const uniqueMonths = Object.keys(monthlyStats).sort();
   const top5 = [...players]
@@ -15510,7 +14722,7 @@ function renderAnalyticsPage() {
   const bestPairPerP = compList
     .map((p) => ({ name: p.name, partner: p.bestPartner, wins: p.mw }))
     .filter((p) => p.partner && p.wins >= 1);
-  const pairFormData = getPairStats()
+  const pairFormData = getPairStats(activeMatches())
     .filter((p) => p.played >= 3)
     .map((pair) => {
       const pm = sortedM
@@ -17582,52 +16794,81 @@ function renderAnalyticsPage() {
     {
       key: "predacc",
       cat: "records",
-      title: "🔮 Predictions",
+      title: "🔮 Predict & Simulate",
       body: _tabbedSection([
         { label: "Predict", html: _buildMatchPredictHtml() },
         { label: "Accuracy", html: predAccHtml },
-      ]),
-    },
-    {
-      key: "simulator",
-      cat: "records",
-      title: "🎮 Simulators",
-      body: _tabbedSection([
         { label: "Match Sim", html: simulatorHtml },
         { label: "What-If", html: whatIfHtml },
+        {
+          label: "ELO Projection",
+          html: (() => {
+            const formN = window._eloProj?.formN || 10;
+            const futureM = window._eloProj?.futureM || 20;
+            return `<div class="ana-card" style="padding:10px 12px">
+          <div class="ep-controls">
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">FORM WINDOW</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
+                <span class="ep-step-unit">games</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)">+</button>
+              </div>
+            </div>
+            <div class="ep-ctrl-divider"></div>
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">PROJECT AHEAD</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)">−</button>
+                <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
+                <span class="ep-step-unit">matches</span>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)">+</button>
+              </div>
+            </div>
+          </div>
+          <div id="eloproj-table"></div>
+        </div>`;
+          })(),
+        },
       ]),
-    },
-    {
-      key: "pvp",
-      cat: "players",
-      title: "⚔️ Player vs Player Matrix",
-      body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
     },
     {
       key: "awards",
       cat: "records",
-      title: "🏅 Awards Board",
-      body: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
+      title: "🏅 Awards & Records",
+      body: _tabbedSection([
+        {
+          label: "Awards Board",
+          html: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
+        },
+        { label: "Personal Bests", html: personalBestsHtml },
+      ]),
     },
     {
       key: "form",
       cat: "players",
-      title: "⚡ Current Form",
-      body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
+      title: "🔥 Form & Streaks",
+      body: _tabbedSection([
+        {
+          label: "Current Form",
+          html: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
+        },
+        { label: "Streak Leaderboard", html: _buildStreakLeaderboardHtml() },
+      ]),
     },
     {
       key: "lrace",
       cat: "players",
-      title: "🏎️ Leaderboard Race",
-      body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
-    },
-    {
-      key: "podiumtracker",
-      cat: "players",
-      title: "🥇 Podium",
+      title: "🏆 Standings",
       body: _tabbedSection([
+        { label: "Power", html: _buildPowerRankingsHtml() },
         {
-          label: "🥇 Top 3",
+          label: "Race",
+          html: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
+        },
+        {
+          label: "🥇 Podium",
           html: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
@@ -17639,7 +16880,7 @@ function renderAnalyticsPage() {
       </div>`,
         },
         {
-          label: "🪣 Bottom 3",
+          label: "🪣 Anti-Podium",
           html: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_antiPodiumSetPeriod(this,'today')">DAILY</button>
@@ -17650,24 +16891,24 @@ function renderAnalyticsPage() {
         <div class="antipodium-content">${_secBody(() => _buildAntiPodiumTrackerHtml("today"))}</div>
       </div>`,
         },
-      ]),
-    },
-    {
-      key: "rankreign",
-      cat: "players",
-      title: "👑 Rank History",
-      body: _tabbedSection([
         { label: "Reign", html: _secBody(() => _buildRankReignHtml()) },
-        { label: "Timeline", html: _secBody(() => _buildRankTimelineHtml("today")) },
+        {
+          label: "Timeline",
+          html: _secBody(() => _buildRankTimelineHtml("today")),
+        },
+        { label: "Replay", html: _buildLeaderboardReplayHtml() },
       ]),
     },
     {
       key: "clutchrank",
       cat: "players",
-      title: "🎯 Clutch",
+      title: "🎯 Performance",
       body: _tabbedSection([
-        { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>` },
-        { label: "Trends", html: clutchTrendHtml },
+        { label: "Clutch", html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>` },
+        { label: "Clutch Trends", html: clutchTrendHtml },
+        { label: "Quality", html: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>` },
+        { label: "Dominance", html: _dominanceHtml },
+        { label: "Carry", html: carryHtml },
       ]),
     },
     {
@@ -17678,12 +16919,6 @@ function renderAnalyticsPage() {
         { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>` },
         { label: "ELO Volatility", html: eloVolatilityHtml },
       ]),
-    },
-    {
-      key: "qualitywins",
-      cat: "players",
-      title: "💎 Quality Wins",
-      body: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
     },
     {
       // Always present — winChartHtml carries a helpful note when the active
@@ -17705,28 +16940,15 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      key: "partnership",
-      cat: "pairs",
-      title: "🤝 Partnership Analytics",
-      body: `<div class="partner-tabs">
-        <button class="partner-tab active" onclick="_partnerTab(this,'synergy')">Synergy</button>
-        <button class="partner-tab" onclick="_partnerTab(this,'form')">Form</button>
-      </div>
-      <div id="partner-tab-synergy" class="partner-tab-panel">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">SYNERGY DELTA (vs solo avg)</div>
-        <div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner</div>${synergyHtml}</div>
-      </div>
-      <div id="partner-tab-form" class="partner-tab-panel" style="display:none">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);margin:6px 0 4px;letter-spacing:0.06em">PAIR RECENT FORM</div>
-        <div class="ana-card" style="padding:10px 12px">${pfHtml}</div>
-      </div>`,
-    },
-    {
       key: "rivalry",
       cat: "players",
       title: "🔥 Rivalries",
       body: _tabbedSection([
         { label: "Spotlight", html: `<div class="ana-card">${rivalHtml}</div>` },
+        {
+          label: "Matrix",
+          html: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
+        },
         {
           label: "Head-to-Head",
           html: (() => {
@@ -17784,12 +17006,6 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      key: "session",
-      cat: "activity",
-      title: "📋 Session Stats",
-      body: sessHtml,
-    },
-    {
       key: "dayofweek",
       cat: "activity",
       title: "📅 Day-of-Week",
@@ -17800,38 +17016,35 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      key: "carryfactor",
-      cat: "players",
-      title: "🏋️ Carry Factor",
-      body: carryHtml,
-    },
-    {
       key: "pairs",
       cat: "pairs",
       title: "🤝 Pairs",
       body: _tabbedSection([
         { label: "Top 10", html: _pairLeaderboardHtml },
         { label: "All Pairs", html: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>` },
+        {
+          label: "Synergy",
+          html: `<div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner (vs solo avg)</div>${synergyHtml}</div>`,
+        },
+        {
+          label: "Form",
+          html: `<div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
+        },
       ]),
     },
     {
-      key: "pairedh2h",
-      cat: "pairs",
-      title: "⚔️ Paired H2H Records",
-      body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
-    },
-    { key: "elo", cat: "elo", title: "⚡ ELO Rankings", body: eloHtml },
-    {
-      key: "eloTimeline",
+      key: "elo",
       cat: "elo",
-      title: "📈 ELO History Chart",
-      body: buildEloTimelineHtml("all"),
-    },
-    {
-      key: "eloWinProb",
-      cat: "elo",
-      title: "🎯 ELO Win Probability",
-      body: eloWinProbHtml,
+      title: "⚡ ELO",
+      body: _tabbedSection([
+        { label: "Rankings", html: eloHtml },
+        {
+          label: "History Chart",
+          html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
+        },
+        { label: "Peak / Low", html: _peakEloHtml },
+        { label: "Win Probability", html: eloWinProbHtml },
+      ]),
     },
     {
       key: "pairmatrix",
@@ -17840,54 +17053,48 @@ function renderAnalyticsPage() {
       body: _tabbedSection([
         { label: "Matrix", html: pairMatrixHtml },
         { label: "Leaderboard", html: _buildChemistryLeaderboardHtml() },
+        {
+          label: "H2H Records",
+          html: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
+        },
       ]),
-    },
-    {
-      key: "personalbests",
-      cat: "players",
-      title: "🏅 Personal Bests",
-      body: personalBestsHtml,
     },
     {
       key: "milestones",
       cat: "records",
-      title: "🎖️ Milestone History",
-      body: milestoneHtml,
+      title: "🎖️ Milestones",
+      body: _tabbedSection([
+        { label: "Achieved", html: milestoneHtml },
+        { label: "Upcoming", html: _buildUpcomingMilestonesHtml() },
+      ]),
     },
     {
+      // Keeps key "calendar" so the lazy-render wiring in toggleAnaSection /
+      // the first-paint rAF (both keyed on "calendar") still fires when this
+      // card is expanded. Calendar is the first tab so it's visible on expand.
       key: "calendar",
       cat: "activity",
-      title: "📅 Match Calendar",
-      body: `<div id="match-calendar" class="match-calendar"></div>`,
+      title: "📅 Activity",
+      body: _tabbedSection([
+        {
+          label: "Calendar",
+          html: `<div id="match-calendar" class="match-calendar"></div>`,
+        },
+        { label: "Sessions", html: sessHtml },
+        ...(uniqueMonths.length >= 1
+          ? [{ label: "Monthly", html: _monthlyStatsTableHtml }]
+          : []),
+      ]),
     },
     // ── TODO BATCH: Statistics enhancements ────────────────────
     {
       key: "playerstats",
       cat: "players",
-      title: "📊 Player Stats Deep Dive",
-      body: _playerStatsTableHtml,
-    },
-    ...(uniqueMonths.length >= 1
-      ? [
-          {
-            key: "monthlystats",
-            cat: "activity",
-            title: "📅 Monthly Stats",
-            body: _monthlyStatsTableHtml,
-          },
-        ]
-      : []),
-    {
-      key: "peakelo",
-      cat: "elo",
-      title: "📈 High Low ELO",
-      body: _peakEloHtml,
-    },
-    {
-      key: "dominance",
-      cat: "players",
-      title: "🦁 Dominance Index",
-      body: _dominanceHtml,
+      title: "📊 Compare Players",
+      body: _tabbedSection([
+        { label: "Deep Dive", html: _playerStatsTableHtml },
+        { label: "Radar", html: _buildRadarCompareHtml() },
+      ]),
     },
     {
       key: "absencetracker",
@@ -17896,12 +17103,6 @@ function renderAnalyticsPage() {
       body: _absenceTrackerHtml,
     },
     // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
-    {
-      key: "powerrankings",
-      cat: "players",
-      title: "⚡ Power Rankings",
-      body: _buildPowerRankingsHtml(),
-    },
     {
       key: "storyfeed",
       cat: "records",
@@ -17913,78 +17114,21 @@ function renderAnalyticsPage() {
       cat: "records",
       // Driven by user-defined Seasons when any exist, else auto monthly buckets.
       // (Distinct from the separate "Monthly Awards" section above.)
-      title: state.seasons.length ? "🏆 Season Awards" : "📅 Monthly Recap",
-      body: _buildSeasonModeHtml(),
-    },
-    {
-      key: "lreplay",
-      cat: "players",
-      title: "▶️ Leaderboard Replay",
-      body: _buildLeaderboardReplayHtml(),
-    },
-    {
-      key: "eloproj",
-      cat: "players",
-      title: "🔮 ELO Projection",
-      body: (() => {
-        const formN = window._eloProj?.formN || 10;
-        const futureM = window._eloProj?.futureM || 20;
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div class="ep-controls">
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">FORM WINDOW</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)">−</button>
-                <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
-                <span class="ep-step-unit">games</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)">+</button>
-              </div>
-            </div>
-            <div class="ep-ctrl-divider"></div>
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">PROJECT AHEAD</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)">−</button>
-                <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
-                <span class="ep-step-unit">matches</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)">+</button>
-              </div>
-            </div>
-          </div>
-          <div id="eloproj-table"></div>
-        </div>`;
-      })(),
+      title: state.seasons.length ? "🏆 Seasons" : "📅 Monthly Recap",
+      body: _tabbedSection([
+        {
+          label: state.seasons.length ? "Awards" : "Recap",
+          html: _buildSeasonModeHtml(),
+        },
+        { label: "Comparison", html: _buildSeasonComparisonHtml() },
+      ]),
     },
     // ── NEW SECTIONS ───────────────────────────────────────────
-    {
-      key: "streakboard",
-      cat: "players",
-      title: "🔥 Streak Leaderboard",
-      body: _buildStreakLeaderboardHtml(),
-    },
-    {
-      key: "radar",
-      cat: "players",
-      title: "🕸️ Player Radar Compare",
-      body: _buildRadarCompareHtml(),
-    },
-    {
-      key: "upcomingmilestones",
-      cat: "records",
-      title: "⏳ Upcoming Milestones",
-      body: _buildUpcomingMilestonesHtml(),
-    },
     {
       key: "biggestupsets",
       cat: "records",
       title: "💥 Biggest Upsets",
       body: _buildBiggestUpsetsHtml(),
-    },
-    {
-      key: "seasoncompare",
-      cat: "records",
-      title: "🗓️ Season Comparison",
-      body: _buildSeasonComparisonHtml(),
     },
   ];
 
@@ -18270,6 +17414,113 @@ function scheduleAutoEmail() {
   }, target - now);
 }
 
+// ── AUTO DRIVE BACKUP ────────────────────────────────────────
+// Fires at 13:00 daily (same window as the email backup) when the admin
+// is signed in and has a valid Drive token. Uses its own localStorage
+// key so it's independent of the email scheduler — either can be
+// unconfigured without affecting the other.
+const _DRIVE_BACKUP_KEY = "padel_last_drive_backup";
+
+async function _maybeAutoDriveBackup() {
+  if (!window.isAdmin) return;
+  if (!_driveAccessToken) return; // no token this session — skip silently
+  const today = todayISO();
+  if (localStorage.getItem(_DRIVE_BACKUP_KEY) === today) return;
+  // Claim the slot before the async work to prevent multi-tab race.
+  localStorage.setItem(_DRIVE_BACKUP_KEY, today);
+  try {
+    const blob = new Blob([JSON.stringify(_backupPayload(), null, 2)], {
+      type: "application/json",
+    });
+    await _uploadToDrive(blob, _backupFilename());
+    // Prune files older than 7 days right after a successful backup.
+    _pruneDriveBackups(7).catch(() => {});
+  } catch (e) {
+    // Release the slot so it can retry if the page is reloaded today.
+    localStorage.removeItem(_DRIVE_BACKUP_KEY);
+    console.warn("Auto Drive backup failed:", e?.message || e);
+  }
+}
+
+// Delete app-created backup files on Drive that are older than maxAgeDays.
+async function _pruneDriveBackups(maxAgeDays = 7) {
+  if (!_driveAccessToken) return;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - maxAgeDays);
+  const q = encodeURIComponent(
+    "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
+  );
+  const resp = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=50`,
+    { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
+  );
+  if (!resp.ok) return;
+  const { files = [] } = await resp.json();
+  const stale = files.filter((f) => new Date(f.createdTime) < cutoff);
+  await Promise.all(
+    stale.map((f) =>
+      fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${_driveAccessToken}` },
+      }).catch(() => {}),
+    ),
+  );
+  if (stale.length)
+    console.log(`Drive: pruned ${stale.length} backup(s) older than ${maxAgeDays} days`);
+}
+
+// Piggyback on the email scheduler's 13:00 target so both run at the
+// same time. Called from scheduleAutoEmail's timer path and startup.
+let _driveBackupTimer = null;
+function _scheduleDriveBackup() {
+  if (_driveBackupTimer) { clearTimeout(_driveBackupTimer); _driveBackupTimer = null; }
+  if (!window.isAdmin) return;
+
+  const now = new Date();
+  const today = todayISO();
+  const target = new Date(now);
+  target.setHours(13, 0, 0, 0);
+
+  // Already past 13:00 today and not yet backed up → run now.
+  if (localStorage.getItem(_DRIVE_BACKUP_KEY) !== today && now >= target) {
+    _maybeAutoDriveBackup().then(() => _scheduleDriveBackup());
+    return;
+  }
+
+  // Already backed up today → schedule for 13:00 tomorrow.
+  if (localStorage.getItem(_DRIVE_BACKUP_KEY) === today) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  _driveBackupTimer = setTimeout(() => {
+    _maybeAutoDriveBackup().then(() => _scheduleDriveBackup());
+  }, target - now);
+}
+
+// ── DEEP-LINK PARAM HANDLING ────────────────────────────────
+// Honour ?tab=summary&season=xyz&filter=today links (e.g. from copyLeaderboardLink).
+{
+  const _p = new URLSearchParams(location.search);
+  const _tab = _p.get("tab");
+  const _pSeason = _p.get("season");
+  const _pFilter = _p.get("filter");
+  if (_tab === "summary") {
+    // Defer until data + splash are ready so the tab switch doesn't race startup.
+    document.addEventListener("padel-data-ready", () => {
+      // Let the initial render settle before switching tab.
+      setTimeout(() => {
+        if (_pSeason) setSeason(_pSeason);
+        if (_pFilter) {
+          cmpFilter = _pFilter;
+          const el = document.getElementById("cmpFilter");
+          if (el) el.value = _pFilter;
+        }
+        switchMainTab("compact", true);
+      }, 100);
+    }, { once: true });
+  }
+}
+
 // ── INIT ───────────────────────────────────────────────────
 // loadCloudData() orchestrates: cache-first render → Firestore refresh.
 // renderHome/renderCompact are called inside it after data is ready.
@@ -18313,10 +17564,14 @@ Object.assign(window, {
   sendBackupEmail,
   exportData,
   exportCSV,
+  exportBackupFile,
+  backupToDrive,
+  exportJsonFile,
   setScreenshotChoiceSetting,
   setAnimLevel,
   toggleSmoothMode,
   toggleBatterySaver,
+  toggleMatchNotifications,
   openAmericanoSheet,
   closeAmericano,
   setAmericanoMode,
@@ -18343,6 +17598,7 @@ Object.assign(window, {
   renderCompact,
   setCmpSort,
   renderModernMatches,
+  _histShowMore,
   setHistPlayerFilter,
   setHistOutcome,
   setHistMargin,
@@ -18383,6 +17639,8 @@ Object.assign(window, {
   renderNamesTable,
   editNameEntry,
   importData,
+  importBackupFile,
+  importFromDrive,
   openFabModal,
   openNameAddModal,
   closeNameAddModal,
@@ -18424,6 +17682,7 @@ Object.assign(window, {
   openShareCard,
   openWeeklyDigest,
   openSummaryShare,
+  copyLeaderboardLink,
   closeScreenshotChoiceSheet,
   doSummaryScreenshot,
   closeSharePreview,
@@ -18439,7 +17698,6 @@ Object.assign(window, {
   openSimSheet,
   _showAllPairs,
   openSessionHighlights,
-  _partnerTab,
   renderDigestCard,
   openDigestPlayerSheet,
   openWhatIfPlayerSheet,
@@ -19173,7 +18431,7 @@ async function syncSession() {
   const count = _sessionPendingCount;
   const wasForced = _forcedOffline;
   _forcedOffline = false; // one-shot push — bypass forced offline
-  await saveCloudData();
+  await saveCloudData({ immediate: true });
   _forcedOffline = wasForced;
   _sessionPendingCount = 0;
   _sessionRedoStack = []; // sync is a checkpoint — redo history is committed and cleared
@@ -19192,6 +18450,7 @@ async function syncSession() {
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
 let _mioTimers = [];
 let _mioFinalize = null;
+let _mioEloMemo = null; // { idx, amRef, priorElo, afterElo } — see openMatchIntro
 function _mioSched(fn, delay) {
   const id = setTimeout(() => {
     _mioTimers = _mioTimers.filter((t) => t !== id);
@@ -19215,15 +18474,26 @@ function openMatchIntro(idx) {
   _mioFinalize = null;
 
   const _amE = activeMatches();
-  const _upToInclE = new Set(state.matches.slice(0, idx + 1));
-  const _upToBeforeE = new Set(state.matches.slice(0, idx));
-  const priorElo = computeElo(_amE.filter((m) => _upToBeforeE.has(m)));
-  const afterElo = computeElo(_amE.filter((m) => _upToInclE.has(m)));
+  // Pre/post-match ELO over the active set. Two O(n) computeElo passes; cached
+  // on (idx, activeMatches identity) so re-opening the same banner — or any
+  // re-trigger — skips the recompute. activeMatches() returns a memoized array,
+  // so a season/exclusion/data change yields a new ref and invalidates this.
+  let priorElo, afterElo;
+  if (_mioEloMemo && _mioEloMemo.idx === idx && _mioEloMemo.amRef === _amE) {
+    priorElo = _mioEloMemo.priorElo;
+    afterElo = _mioEloMemo.afterElo;
+  } else {
+    const _upToInclE = new Set(state.matches.slice(0, idx + 1));
+    const _upToBeforeE = new Set(state.matches.slice(0, idx));
+    priorElo = computeElo(_amE.filter((mm) => _upToBeforeE.has(mm)));
+    afterElo = computeElo(_amE.filter((mm) => _upToInclE.has(mm)));
+    _mioEloMemo = { idx, amRef: _amE, priorElo, afterElo };
+  }
   const aWon = m.scoreA > m.scoreB;
 
   // Pre-match individual and pair ranks
   const indivRanked = Object.entries(priorElo).sort((a, b) => b[1] - a[1]);
-  const allPairs = getPairStats();
+  const allPairs = getPairStats(activeMatches());
   const pairsByElo = allPairs
     .map((p) => ({
       key: p.key,
@@ -19269,14 +18539,13 @@ function openMatchIntro(idx) {
   rankBEl.textContent = rankB;
   rankBEl.style.visibility = rankB ? "visible" : "hidden";
 
-  document.getElementById("mio-name-a").innerHTML = nameA.replace(
-    " & ",
-    "<br>& ",
-  );
-  document.getElementById("mio-name-b").innerHTML = nameB.replace(
-    " & ",
-    "<br>& ",
-  );
+  // Escape each player name (HTML context); join with the <br> layout markup.
+  document.getElementById("mio-name-a").innerHTML = m.teamA
+    .map((p) => escHtml(normPlayer(p)))
+    .join("<br>& ");
+  document.getElementById("mio-name-b").innerHTML = m.teamB
+    .map((p) => escHtml(normPlayer(p)))
+    .join("<br>& ");
   const teamAvgLvl = (players) => {
     const levels = players.map(
       (p) => getPlayerLevel(computePlayerXP(normPlayer(p))).level,
@@ -20236,7 +19505,7 @@ async function confirmEndSession() {
   closeSessionSummary();
   _stopSessionTimer();
   if (_sessionPendingCount > 0) {
-    await saveCloudData();
+    await saveCloudData({ immediate: true });
     _sessionPendingCount = 0;
     _updateSyncBadge();
   }
@@ -21027,6 +20296,59 @@ function _requestNotifPermission() {
   if (!("Notification" in window) || Notification.permission !== "default")
     return;
   Notification.requestPermission().catch(() => {});
+}
+
+// ── MATCH NOTIFICATIONS ────────────────────────────────────
+// Shows a local notification (via SW if available, falls back to
+// Notification API) when new matches arrive from Firestore while the
+// app is backgrounded or in a different tab.
+function _sendMatchNotification(count, latestMatch) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  // Don't notify if the page is visible — the live update already visible.
+  if (!document.hidden) return;
+  const players = [
+    ...(latestMatch?.teamA || []),
+    ...(latestMatch?.teamB || []),
+  ]
+    .map((p) => normPlayer(p).split(" ")[0])
+    .join(", ");
+  const body =
+    count === 1
+      ? `New match added${players ? `: ${players}` : ""}`
+      : `${count} new matches added`;
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SHOW_NOTIFICATION",
+      title: "Ekta Padel 🎾",
+      body,
+    });
+  } else {
+    try {
+      new Notification("Ekta Padel 🎾", {
+        body,
+        icon: "/padel-ekta/icons/icon.svg",
+      });
+    } catch (e) {}
+  }
+}
+
+function toggleMatchNotifications(on) {
+  try {
+    localStorage.setItem("padel_notif_enabled", on ? "1" : "0");
+  } catch (e) {}
+  const cb = document.getElementById("notif-toggle");
+  if (cb) cb.checked = on;
+  if (on && "Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().then((perm) => {
+      if (perm !== "granted") {
+        localStorage.setItem("padel_notif_enabled", "0");
+        if (cb) cb.checked = false;
+        showToast("Notifications blocked by browser", "⚠️");
+      }
+    }).catch(() => {});
+  }
+  showToast(on ? "Match notifications on 🔔" : "Match notifications off 🔕");
 }
 
 // ── MATCH CONFIRM SHEET ────────────────────────────────────

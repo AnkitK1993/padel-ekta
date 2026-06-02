@@ -167,6 +167,17 @@ async function waitFor(client, expression, label, timeoutMs = 7000) {
     if (result.result.value) return;
     await delay(150);
   }
+  // Dump any JS console errors to help diagnose timeout cause
+  const errors = await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    expression: `window.__smokeErrors||[]`,
+  }).catch(() => ({ result: { value: [] } }));
+  if (errors.result.value?.length) console.error("JS errors:", errors.result.value);
+  const domErr = await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    expression: `document.querySelector(".splash")?.textContent||""`,
+  }).catch(() => ({ result: { value: "" } }));
+  console.error(`Splash state: "${domErr.result.value}"`);
   throw new Error(`Timed out waiting for ${label}`);
 }
 
@@ -232,6 +243,9 @@ async function main() {
     await client.send("Log.enable");
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        window.__smokeErrors = [];
+        window.addEventListener("error", e => window.__smokeErrors.push(e.message));
+        window.addEventListener("unhandledrejection", e => window.__smokeErrors.push(String(e.reason)));
         localStorage.setItem("padel_forced_offline", "1");
         localStorage.setItem("padel_cache_v5", JSON.stringify({
           ts: Date.now(),
@@ -291,6 +305,26 @@ async function main() {
       client,
       `document.getElementById("modern-match-list").innerText.toLowerCase().includes("ankit")`,
       "History match list",
+    );
+    // Windowing fail-safe: with a tiny seed (< window) no "show older" button
+    // appears, and invoking _histShowMore re-renders without error (wiring check).
+    const win = await evaluate(client, `(() => {
+      const before = document.querySelectorAll("#modern-match-list .match-card").length;
+      const btnBefore = !!document.querySelector(".hist-show-more");
+      let threw = false;
+      try { window._histShowMore(); } catch (e) { threw = true; }
+      const after = document.querySelectorAll("#modern-match-list .match-card").length;
+      return { before, btnBefore, threw, after };
+    })()`);
+    assert(win.before > 0, "History feed rendered match cards");
+    assert(
+      !win.btnBefore,
+      "No 'show older' button when matches fit in one window (fail-safe)",
+    );
+    assert(!win.threw, "_histShowMore() runs without error");
+    assert(
+      win.after > 0,
+      "Feed still renders cards after a show-more re-render",
     );
 
     await evaluate(client, `switchMainTab("analytics", true);`);
@@ -527,18 +561,21 @@ async function main() {
       "Expected active season to equal the ongoing season id",
     );
 
-    // #2: with user-defined Seasons present, the analytics award section is
-    // titled "Season Awards" and bucketed by those seasons (the seeded May
-    // matches land in the "May 2026" season card), not auto monthly buckets.
+    // #2: with user-defined Seasons present, the merged "Seasons" section is
+    // bucketed by those seasons (the seeded May matches land in the "May 2026"
+    // season card under its Awards tab), not auto monthly buckets.
     await evaluate(client, `switchMainTab("home", true);`);
     await evaluate(client, `switchMainTab("analytics", true);`);
     await waitFor(
       client,
-      `document.getElementById("analytics-page-content")?.innerHTML.includes("Season Awards")`,
-      "Analytics shows 'Season Awards' (driven by manual seasons)",
+      `!!document.querySelector('.ana-sec[data-key="seasonmode"]')`,
+      "Analytics rendered the merged Seasons section",
     );
     const awards = await evaluate(client, `(() => {
       const html = document.getElementById("analytics-page-content").innerHTML;
+      const subLabels = (key) =>
+        [...document.querySelectorAll('.ana-sec[data-key="' + key + '"] .ana-subtab')]
+          .map((b) => b.textContent.trim());
       return {
         hasMay: html.includes("May 2026"),
         hasRecap: html.includes("Monthly Recap"),
@@ -548,11 +585,26 @@ async function main() {
         subtabCount: document.querySelectorAll(".ana-subtab").length,
         hasOldAntiPodium: html.includes("Anti-Podium Tracker"),
         hasDayOfWeek: html.includes("Day-of-Week"),
-        hasStreakBoard: html.includes("Streak Leaderboard"),
         hasUpsets: html.includes("Biggest Upsets"),
-        hasRadar: html.includes("Player Radar Compare"),
-        hasSeasonCompare: html.includes("Season Comparison"),
-        hasMilestones: html.includes("Upcoming Milestones"),
+        // Merged sections: these features now live as sub-tabs, not top-level cards.
+        hasSeasonCompare: subLabels("seasonmode").includes("Comparison"),
+        hasMilestones: subLabels("milestones").includes("Upcoming"),
+        eloHasPeakLow: subLabels("elo").includes("Peak / Low"),
+        rivalryHasMatrix: subLabels("rivalry").includes("Matrix"),
+        formHasStreaks: subLabels("form").includes("Streak Leaderboard"),
+        hasRadar: subLabels("playerstats").includes("Radar"),
+        standingsHasPower: subLabels("lrace").includes("Power"),
+        standingsHasReplay: subLabels("lrace").includes("Replay"),
+        perfHasCarry: subLabels("clutchrank").includes("Carry"),
+        predictHasSim: subLabels("predacc").includes("Match Sim"),
+        pairsHasSynergy: subLabels("pairs").includes("Synergy"),
+        chemHasH2H: subLabels("pairmatrix").includes("H2H Records"),
+        activityHasSessions: subLabels("calendar").includes("Sessions"),
+        awardsHasPB: subLabels("awards").includes("Personal Bests"),
+        noOldSecs: ["pvp","peakelo","eloTimeline","eloWinProb","streakboard","upcomingmilestones","seasoncompare",
+          "simulator","eloproj","powerrankings","podiumtracker","rankreign","lreplay","qualitywins","dominance","carryfactor","radar","partnership","pairedh2h",
+          "session","monthlystats","personalbests"]
+          .every((k) => !document.querySelector('.ana-sec[data-key="' + k + '"]')),
         hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
         emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
       };
@@ -563,13 +615,27 @@ async function main() {
       "Expected some sections flagged empty with sparse seed data",
     );
     for (const k of [
-      "hasStreakBoard",
       "hasUpsets",
       "hasRadar",
       "hasSeasonCompare",
       "hasMilestones",
+      "eloHasPeakLow",
+      "rivalryHasMatrix",
+      "formHasStreaks",
+      "standingsHasPower",
+      "standingsHasReplay",
+      "perfHasCarry",
+      "predictHasSim",
+      "pairsHasSynergy",
+      "chemHasH2H",
+      "activityHasSessions",
+      "awardsHasPB",
     ])
-      assert(awards[k], `Expected new section present: ${k}`);
+      assert(awards[k], `Expected merged section sub-tab present: ${k}`);
+    assert(
+      awards.noOldSecs,
+      "Expected retired standalone analytics sections to be merged away",
+    );
     assert(
       awards.subtabCount >= 12,
       `Expected merged sections to render sub-tabs, got ${awards.subtabCount}`,
