@@ -8,6 +8,14 @@
 import { computeElo, computeEloHistory, computeEloPeaks } from "../src/engine/elo.js";
 import { computeStats } from "../src/engine/stats.js";
 import { computeBadges, initBadgesDeps } from "../src/engine/badges.js";
+import {
+  initPlayerAnalyticsDeps,
+  computeAchievements,
+  computePlayerForm,
+  computePowerRankings,
+  computeChemistryScores,
+} from "../src/engine/player-analytics.js";
+import { toLocalISODate } from "../src/ui/format.js";
 
 let pass = 0,
   fail = 0;
@@ -157,6 +165,54 @@ ok(
     JSON.stringify(aliceBadges),
 );
 ok("empty match set → no badges", computeBadges("Nobody", null, {}, [], []).length === 0);
+
+// ── player-analytics (real src/engine/player-analytics.js) ──────────────────
+console.log(
+  "\n\x1b[36m── Player analytics golden (real module) ────────────────\x1b[0m",
+);
+// getPairStats lives in app.js → stub (returns []) for chemistry; toLocalISODate
+// is a real pure util imported from format.js (exercises the injected date path).
+initPlayerAnalyticsDeps({ getPairStats: () => [], toLocalISODate });
+
+const ach = computeAchievements("Alice", BADGE_SEASON);
+ok("computeAchievements returns an array", Array.isArray(ach), typeof ach);
+ok(
+  "achievement objects have the expected shape",
+  ach.length > 0 &&
+    ach.every(
+      (a) =>
+        "icon" in a && "label" in a && "desc" in a && "unlocked" in a,
+    ),
+  `len=${ach.length}`,
+);
+ok(
+  "a 10-0 player has unlocked achievements",
+  ach.some((a) => a.unlocked),
+);
+ok(
+  "computeAchievements is deterministic",
+  JSON.stringify(computeAchievements("Alice", BADGE_SEASON)) ===
+    JSON.stringify(ach),
+);
+ok(
+  "computeAchievements on empty matches → []",
+  computeAchievements("Nobody", []).length === 0,
+);
+
+const power = computePowerRankings(BADGE_SEASON);
+ok("computePowerRankings returns an array", Array.isArray(power));
+ok(
+  "Alice (won all) tops the power rankings",
+  power.length > 0 && power[0].name === "Alice",
+  `top=${power[0]?.name}`,
+);
+
+const form = computePlayerForm("Alice", BADGE_SEASON);
+ok("computePlayerForm runs without throwing", form !== undefined);
+ok(
+  "computeChemistryScores runs with stubbed getPairStats",
+  computeChemistryScores(BADGE_SEASON) !== undefined,
+);
 
 console.log(
   `\n\x1b[1mGolden: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`,

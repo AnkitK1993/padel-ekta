@@ -22,6 +22,7 @@ const STATIC = [
   BASE + "src/engine/selectors.js",
   BASE + "src/engine/americano.js",
   BASE + "src/engine/badges.js",
+  BASE + "src/engine/player-analytics.js",
   BASE + "manifest.json",
   BASE + "icons/icon.svg",
 ];
