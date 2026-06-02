@@ -1,4 +1,4 @@
-const STATIC_CACHE = "ekta-padel-static-v10";
+const STATIC_CACHE = "ekta-padel-static-v11";
 const RUNTIME_CACHE = "ekta-padel-runtime-v1";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
@@ -56,6 +56,23 @@ self.addEventListener("install", (e) => {
   e.waitUntil(cacheStaticAssets().then(() => self.skipWaiting()));
 });
 
+// On activate: delete old caches, then verify every STATIC entry is actually
+// present (install's catch(() => null) can silently drop files on CDN blips).
+// Any gap is refetched before we claim clients, so the first load never hits
+// a missing-module import error.
+async function _healCache() {
+  const cache = await caches.open(STATIC_CACHE);
+  await Promise.all(
+    STATIC.map(async (u) => {
+      const hit = await cache.match(u);
+      if (hit) return;
+      return fetch(new Request(u, { cache: "reload" }))
+        .then((r) => (r && r.ok ? cache.put(u, r) : null))
+        .catch(() => null);
+    }),
+  );
+}
+
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
@@ -67,6 +84,7 @@ self.addEventListener("activate", (e) => {
             .map((k) => caches.delete(k)),
         ),
       )
+      .then(() => _healCache())
       .then(() => self.clients.claim()),
   );
 });
