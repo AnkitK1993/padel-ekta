@@ -1049,6 +1049,7 @@ initPairsDeps({ normPlayer });
 // XP / Level / Prestige — computePlayerXP needs normPlayer + activeMatches +
 // the three match-type helpers (isFireMatch/isDominating/isZero) from render-match-rows.
 initXpDeps({ normPlayer, activeMatches, isFireMatch, isDominatingMatch, isZeroMatch });
+// Analytics section builders — HTML generators for the Statistics page.
 initBadgesDeps({ computeStats, computeElo, getPairStats, lastWeekRange, fmtDate });
 // Player analytics (form/archetype/power/chemistry/stories/achievements).
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
