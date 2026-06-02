@@ -73,6 +73,7 @@ import {
   computePowerRankings,
   computeChemistryScores,
   computeMatchStories,
+  computeAnalyticsPageData,
 } from "./src/engine/player-analytics.js";
 import {
   morphList,
@@ -6800,6 +6801,235 @@ function streakCalDayClick(date, playerName) {
   }
 }
 
+// ── PLAYER DETAIL SECTION BUILDERS ───────────────────────────────────────────
+// Each function is extracted from the openPlayerDetail IIFE it replaces.
+// They call app.js globals directly (state, _memoElo, activeMatches, etc.)
+// so no additional imports are needed.
+
+function _pdBuildRadarHtml(name, form) {
+  const eloMap = _memoElo();
+  const allStats = computeStats(activeMatches(), eloMap);
+  const ps = allStats.find((p) => p.name === name);
+  if (!ps || ps.mp < 3) return "";
+  const allElos = Object.values(eloMap);
+  const maxElo = Math.max(...allElos), minElo = Math.min(...allElos);
+  const eloNorm = maxElo > minElo ? ((eloMap[name] || 1000) - minElo) / (maxElo - minElo) : 0.5;
+  const winRateNorm = ps.mp > 0 ? ps.mw / ps.mp : 0;
+  const closeMs = activeMatches().filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].includes(name) && Math.abs(m.scoreA - m.scoreB) <= 2,
+  );
+  const clutchNorm = closeMs.length >= 2
+    ? closeMs.filter((m) => { const inA = (m.teamA || []).includes(name); return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA); }).length / closeMs.length
+    : 0.5;
+  const formNorm = form ? form.score / 10 : winRateNorm;
+  const maxMp = Math.max(...allStats.map((p) => p.mp), 1);
+  const actNorm = ps.mp / maxMp;
+  const margins = state.matches.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name))
+    .map((m) => { const inA = (m.teamA || []).includes(name); return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA); });
+  const avgM = margins.reduce((s, v) => s + v, 0) / Math.max(margins.length, 1);
+  const consistNorm = Math.min(1, Math.max(0, (avgM + 5) / 10));
+  const activePlayers = allStats.filter((p) => p.mp >= 3);
+  const _avg = (fn) => activePlayers.reduce((s, p) => s + fn(p), 0) / Math.max(activePlayers.length, 1);
+  const avgWinRate = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
+  const avgElo = _avg((p) => maxElo > minElo ? ((eloMap[p.name] || 1000) - minElo) / (maxElo - minElo) : 0.5);
+  const avgClutch = _avg((p) => {
+    const cMs = activeMatches().filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) && Math.abs(m.scoreA - m.scoreB) <= 2);
+    return cMs.length >= 2 ? cMs.filter((m) => { const inA = (m.teamA || []).includes(p.name); return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA); }).length / cMs.length : 0.5;
+  });
+  const avgForm = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
+  const avgAct  = _avg((p) => p.mp / maxMp);
+  const avgConsist = _avg((p) => {
+    const ms2 = state.matches.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))
+      .map((m) => { const inA = (m.teamA || []).includes(p.name); return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA); });
+    const a2 = ms2.reduce((a, v) => a + v, 0) / Math.max(ms2.length, 1);
+    return Math.min(1, Math.max(0, (a2 + 5) / 10));
+  });
+  const axes = [
+    { label: "WIN RATE", val: winRateNorm, avg: avgWinRate },
+    { label: "ELO",      val: eloNorm,     avg: avgElo      },
+    { label: "CLUTCH",   val: clutchNorm,  avg: avgClutch   },
+    { label: "FORM",     val: formNorm,    avg: avgForm     },
+    { label: "ACTIVITY", val: actNorm,     avg: avgAct      },
+    { label: "MARGIN",   val: consistNorm, avg: avgConsist  },
+  ];
+  const N = axes.length, cx = 110, cy = 110, R = 78;
+  const col = playerColor(name);
+  const xy = (i, scale) => { const angle = (Math.PI * 2 * i) / N - Math.PI / 2; return { x: cx + scale * R * Math.cos(angle), y: cy + scale * R * Math.sin(angle) }; };
+  const playerPts = axes.map((a, i) => xy(i, a.val));
+  const avgPts    = axes.map((a, i) => xy(i, a.avg));
+  const gridLines = [0.25, 0.5, 0.75, 1].map((sc) => {
+    const g = axes.map((_, i) => { const p = xy(i, sc); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(" ");
+    return `<polygon points="${g}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+  }).join("");
+  const spokes = axes.map((_, i) => { const p = xy(i, 1); return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`; }).join("");
+  const polyPts    = playerPts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const avgPolyPts = avgPts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const labels = axes.map((a, i) => {
+    const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
+    const lx = cx + (R + 22) * Math.cos(angle), ly = cy + (R + 22) * Math.sin(angle);
+    const anchor = Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
+    return `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="DM Sans,sans-serif">${a.label}</text>`;
+  }).join("");
+  return `<div class="ana-card" style="overflow:visible"><span class="badge">Radar Profile</span>
+    <svg viewBox="0 0 220 220" width="100%" style="max-width:260px;display:block;margin:8px auto 0;overflow:visible">
+      ${gridLines}${spokes}
+      <polygon points="${avgPolyPts}" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.28)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>
+      <polygon points="${polyPts}" fill="${col}" fill-opacity="0.18" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
+      ${playerPts.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${col}"/>`).join("")}
+      ${labels}
+    </svg>
+    <div style="display:flex;gap:14px;justify-content:center;margin-top:8px">
+      <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:10px;border-radius:50%;background:${col}"></div><span style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">YOU</span></div>
+      <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:0;border-top:1.5px dashed rgba(255,255,255,0.35)"></div><span style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">AVG</span></div>
+    </div></div>`;
+}
+
+function _pdBuildFormGraphHtml(name, graphMatches) {
+  if (graphMatches.length < 3) return "";
+  const WINDOW = 5, W = 260, H = 56, PAD = 8;
+  const wins = graphMatches.map((m) => {
+    const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
+    const own = inA ? Number(m.scoreA) : Number(m.scoreB);
+    const opp = inA ? Number(m.scoreB) : Number(m.scoreA);
+    return own > opp ? 1 : 0;
+  });
+  const rates = wins.map((_, i) => { const sl = wins.slice(Math.max(0, i - WINDOW + 1), i + 1); return sl.reduce((s, v) => s + v, 0) / sl.length; });
+  const n = rates.length;
+  const xs = rates.map((_, i) => PAD + (i / (n - 1)) * (W - PAD * 2));
+  const ys = rates.map((r) => H - PAD - r * (H - PAD * 2));
+  const pathD = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
+  const areaD = pathD + ` L${xs[n - 1].toFixed(1)},${(H - PAD).toFixed(1)} L${xs[0].toFixed(1)},${(H - PAD).toFixed(1)} Z`;
+  const last = rates[n - 1];
+  const lineColor = last >= 0.6 ? "#36d47e" : last <= 0.4 ? "#f04f4f" : "#f5c842";
+  const gId = `fg_${name.replace(/\W+/g, "_")}`;
+  const dots = xs.map((x, i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.5" fill="${wins[i] ? "#36d47e" : "#f04f4f"}"/>`).join("");
+  return `<div class="ana-card">
+    <span class="badge">Form Graph</span>
+    <div style="margin-top:10px">
+      <svg width="100%" height="56" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;overflow:visible">
+        <defs><linearGradient id="${gId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/><stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/></linearGradient></defs>
+        <line x1="${PAD}" y1="${(H / 2).toFixed(1)}" x2="${(W - PAD).toFixed(1)}" y2="${(H / 2).toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4,4"/>
+        <path d="${areaD}" fill="url(#${gId})"/>
+        <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dots}
+      </svg>
+      <div style="display:flex;justify-content:space-between;margin-top:5px">
+        <span class="sub">rolling 5-match win rate · last ${n}</span>
+        <span style="font-size:11px;font-weight:800;color:${lineColor}">${(last * 100).toFixed(0)}%</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _pdBuildEloTimelineHtml(name) {
+  const sorted = [...state.matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const playerMs = sorted.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+  if (playerMs.length < 3) return "";
+  const elo = {}, pts = [];
+  sorted.forEach((m) => {
+    const allP = [...(m.teamA || []), ...(m.teamB || [])];
+    allP.forEach((p) => { if (!(p in elo)) elo[p] = 1000; });
+    const aWon = m.scoreA > m.scoreB;
+    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    m.teamA.forEach((p) => { elo[p] = (elo[p] || 1000) + dA; });
+    m.teamB.forEach((p) => { elo[p] = (elo[p] || 1000) + dB; });
+    if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
+      const inA = (m.teamA || []).includes(name);
+      pts.push({ elo: elo[name], date: m.date, won: inA ? aWon : !aWon });
+    }
+  });
+  if (pts.length < 3) return "";
+  const W = 300, H = 90, pl = 36, pr = 8, pt = 8, pb = 18, cW = W - pl - pr, cH = H - pt - pb;
+  const minE = Math.min(...pts.map((p) => p.elo)) - 20;
+  const maxE = Math.max(...pts.map((p) => p.elo)) + 20;
+  const eRange = Math.max(1, maxE - minE);
+  const toX = (i) => pl + (i / (pts.length - 1 || 1)) * cW;
+  const toY = (e) => pt + (1 - (e - minE) / eRange) * cH;
+  const yLines = [minE + eRange * 0.25, minE + eRange * 0.5, minE + eRange * 0.75].map((ev) => {
+    const y = toY(ev);
+    return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${Math.round(ev)}</text>`;
+  }).join("");
+  const polyline = pts.map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ");
+  const area = `M${toX(0).toFixed(1)},${(H - pb).toFixed(1)} ` + pts.map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ") + ` L${toX(pts.length - 1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
+  const col = playerColor(name);
+  const circles = pts.map((p, i) => `<circle cx="${toX(i).toFixed(1)}" cy="${toY(p.elo).toFixed(1)}" r="2.5" fill="${p.won ? "var(--green)" : "var(--red)"}" stroke="rgba(0,0,0,0.4)" stroke-width="0.5"><title>${p.date}: ELO ${p.elo} (${p.won ? "W" : "L"})</title></circle>`).join("");
+  const lastElo = pts[pts.length - 1].elo, firstElo = pts[0].elo;
+  const netChange = lastElo - firstElo;
+  const netStr = netChange > 0 ? `+${netChange}` : `${netChange}`;
+  const netCol = netChange > 0 ? "var(--green)" : netChange < 0 ? "var(--red)" : "var(--muted)";
+  const peakElo = Math.max(...pts.map((p) => p.elo));
+  const peakPt  = pts.find((p) => p.elo === peakElo);
+  const valleyElo = Math.min(...pts.map((p) => p.elo));
+  const valleyPt  = pts.find((p) => p.elo === valleyElo);
+  const fromPeak  = lastElo - peakElo;
+  const fromPeakLabel = fromPeak === 0
+    ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
+    : `<span style="color:var(--red);font-weight:700">${fromPeak} from peak</span>`;
+  return `<div class="ana-card"><span class="badge">ELO Timeline</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px">
+      <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
+      <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO total</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-size:9px;color:var(--muted)">▲ Peak: <span style="color:var(--green);font-weight:800;font-size:11px">${peakElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
+      <div style="font-size:9px">${fromPeakLabel}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:9px;color:var(--muted)">▼ Low: <span style="color:var(--red);font-weight:800;font-size:11px">${valleyElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(valleyPt?.date)})</span></div>
+      <div style="font-size:9px;color:var(--muted)">Range: <span style="font-weight:700;color:var(--fg)">${peakElo - valleyElo}</span></div>
+    </div>
+    <div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
+      ${yLines}
+      <defs><linearGradient id="etg_${name.replace(/\s/g, "")}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.25"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#etg_${name.replace(/\s/g, "")})" />
+      <polyline points="${polyline}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${circles}
+      <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastElo) - 5).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="800" fill="${col}">${lastElo}</text>
+    </svg></div>
+  </div>`;
+}
+
+function _pdBuildBestDayHtml(name, playerMs) {
+  const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const played = Array(7).fill(0), won = Array(7).fill(0);
+  playerMs.forEach((m) => {
+    if (!m.date) return;
+    const d = new Date(m.date + "T00:00:00").getDay();
+    const inA = (m.teamA || []).includes(name);
+    played[d]++;
+    if (inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA) won[d]++;
+  });
+  const rows = DAY.map((label, d) => {
+    if (!played[d]) return "";
+    const wr = Math.round((won[d] / played[d]) * 100);
+    const col = wr >= 60 ? "var(--green)" : wr <= 40 ? "var(--red)" : "var(--muted)";
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <span style="font-size:10px;font-weight:700;width:28px;flex-shrink:0">${label}</span>
+      <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px"><div style="height:100%;width:${wr}%;background:${col};border-radius:3px"></div></div>
+      <span style="font-size:10px;font-weight:800;color:${col};width:32px;text-align:right">${wr}%</span>
+      <span style="font-size:9px;color:var(--muted);width:20px;text-align:right">${played[d]}g</span>
+    </div>`;
+  }).join("");
+  if (!rows.replace(/\s/g, "")) return "";
+  const best = DAY.reduce((b, _, d) => {
+    if (played[d] < 2) return b;
+    const wr = won[d] / played[d];
+    return b.d === undefined || wr > b.wr ? { d, wr } : b;
+  }, {});
+  const chip = best.d !== undefined
+    ? `<div style="margin-top:10px;padding:7px 10px;background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px">📅</span>
+        <div><div style="font-size:8px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</div>
+        <div style="font-size:13px;font-weight:900;color:var(--accent)">${DAY[best.d]} <span style="font-size:10px;color:var(--green);font-weight:700">${Math.round(best.wr * 100)}% win rate</span></div></div>
+      </div>`
+    : "";
+  return `<div class="ana-card"><span class="badge">Day of Week</span><div style="margin-top:8px">${rows}</div>${chip}</div>`;
+}
+
 function openPlayerDetail(name) {
   document.getElementById("player-detail-modal")?.remove();
   const detail = getPlayerDetail(name);
@@ -6847,155 +7077,7 @@ function openPlayerDetail(name) {
     : "";
 
   // ── RADAR CHART ──────────────────────────────────────────────
-  const radarHtml = (() => {
-    const eloMap = _memoElo();
-    const allStats = computeStats(activeMatches(), eloMap);
-    const ps = allStats.find((p) => p.name === name);
-    if (!ps || ps.mp < 3) return "";
-    const allElos = Object.values(eloMap);
-    const maxElo = Math.max(...allElos),
-      minElo = Math.min(...allElos);
-    const eloNorm =
-      maxElo > minElo
-        ? ((eloMap[name] || 1000) - minElo) / (maxElo - minElo)
-        : 0.5;
-    const winRateNorm = ps.mp > 0 ? ps.mw / ps.mp : 0;
-    const closeMs = activeMatches().filter(
-      (m) =>
-        [...(m.teamA || []), ...(m.teamB || [])].includes(name) &&
-        Math.abs(m.scoreA - m.scoreB) <= 2,
-    );
-    const clutchNorm =
-      closeMs.length >= 2
-        ? closeMs.filter((m) => {
-            const inA = (m.teamA || []).includes(name);
-            return (
-              (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA)
-            );
-          }).length / closeMs.length
-        : 0.5;
-    const formNorm = form ? form.score / 10 : winRateNorm;
-    const maxMp = Math.max(...allStats.map((p) => p.mp), 1);
-    const actNorm = ps.mp / maxMp;
-    const margins = state.matches
-      .filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name))
-      .map((m) => {
-        const inA = (m.teamA || []).includes(name);
-        return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA);
-      });
-    const avgM =
-      margins.reduce((s, v) => s + v, 0) / Math.max(margins.length, 1);
-    const consistNorm = Math.min(1, Math.max(0, (avgM + 5) / 10));
-
-    // Avg values across all active players for comparison overlay
-    const activePlayers = allStats.filter((p) => p.mp >= 3);
-    const _avg = (fn) =>
-      activePlayers.reduce((s, p) => s + fn(p), 0) /
-      Math.max(activePlayers.length, 1);
-    const avgWinRate = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
-    const avgElo = _avg((p) =>
-      maxElo > minElo
-        ? ((eloMap[p.name] || 1000) - minElo) / (maxElo - minElo)
-        : 0.5,
-    );
-    const avgClutch = _avg((p) => {
-      const cMs = activeMatches().filter(
-        (m) =>
-          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) &&
-          Math.abs(m.scoreA - m.scoreB) <= 2,
-      );
-      return cMs.length >= 2
-        ? cMs.filter((m) => {
-            const inA = (m.teamA || []).includes(p.name);
-            return (
-              (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA)
-            );
-          }).length / cMs.length
-        : 0.5;
-    });
-    const avgForm = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
-    const avgAct = _avg((p) => p.mp / maxMp);
-    const avgConsist = _avg((p) => {
-      const ms2 = state.matches
-        .filter((m) =>
-          [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
-        )
-        .map((m) => {
-          const inA = (m.teamA || []).includes(p.name);
-          return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA);
-        });
-      const a2 = ms2.reduce((a, v) => a + v, 0) / Math.max(ms2.length, 1);
-      return Math.min(1, Math.max(0, (a2 + 5) / 10));
-    });
-
-    const axes = [
-      { label: "WIN RATE", val: winRateNorm, avg: avgWinRate },
-      { label: "ELO", val: eloNorm, avg: avgElo },
-      { label: "CLUTCH", val: clutchNorm, avg: avgClutch },
-      { label: "FORM", val: formNorm, avg: avgForm },
-      { label: "ACTIVITY", val: actNorm, avg: avgAct },
-      { label: "MARGIN", val: consistNorm, avg: avgConsist },
-    ];
-    const N = axes.length;
-    const cx = 110,
-      cy = 110,
-      R = 78;
-    const col = playerColor(name);
-    const xy = (i, scale) => {
-      const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
-      return {
-        x: cx + scale * R * Math.cos(angle),
-        y: cy + scale * R * Math.sin(angle),
-      };
-    };
-    const playerPts = axes.map((a, i) => xy(i, a.val));
-    const avgPts = axes.map((a, i) => xy(i, a.avg));
-    const gridLines = [0.25, 0.5, 0.75, 1]
-      .map((sc) => {
-        const g = axes
-          .map((_, i) => {
-            const p = xy(i, sc);
-            return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-          })
-          .join(" ");
-        return `<polygon points="${g}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
-      })
-      .join("");
-    const spokes = axes
-      .map((_, i) => {
-        const p = xy(i, 1);
-        return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
-      })
-      .join("");
-    const polyPts = playerPts
-      .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
-      .join(" ");
-    const avgPolyPts = avgPts
-      .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
-      .join(" ");
-    const labels = axes
-      .map((a, i) => {
-        const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
-        const lx = cx + (R + 22) * Math.cos(angle);
-        const ly = cy + (R + 22) * Math.sin(angle);
-        const anchor =
-          Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
-        return `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="DM Sans,sans-serif">${a.label}</text>`;
-      })
-      .join("");
-    return `<div class="ana-card" style="overflow:visible"><span class="badge">Radar Profile</span>
-      <svg viewBox="0 0 220 220" width="100%" style="max-width:260px;display:block;margin:8px auto 0;overflow:visible">
-        ${gridLines}${spokes}
-        <polygon points="${avgPolyPts}" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.28)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>
-        <polygon points="${polyPts}" fill="${col}" fill-opacity="0.18" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
-        ${playerPts.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${col}"/>`).join("")}
-        ${labels}
-      </svg>
-      <div style="display:flex;gap:14px;justify-content:center;margin-top:8px">
-        <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:10px;border-radius:50%;background:${col}"></div><span style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">YOU</span></div>
-        <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:0;border-top:1.5px dashed rgba(255,255,255,0.35)"></div><span style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">AVG</span></div>
-      </div></div>`;
-  })();
+  const radarHtml = _pdBuildRadarHtml(name, form);
 
   // Achievements with progress bars
   const achievements = computeAchievements(name, activeMatches());
@@ -7078,65 +7160,7 @@ function openPlayerDetail(name) {
         new Date(a.date || "1970-01-01") - new Date(b.date || "1970-01-01"),
     )
     .slice(-15);
-  const formGraphHtml = (() => {
-    if (graphMatches.length < 3) return "";
-    const WINDOW = 5,
-      W = 260,
-      H = 56,
-      PAD = 8;
-    const wins = graphMatches.map((m) => {
-      const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
-      const own = inA ? Number(m.scoreA) : Number(m.scoreB);
-      const opp = inA ? Number(m.scoreB) : Number(m.scoreA);
-      return own > opp ? 1 : 0;
-    });
-    const rates = wins.map((_, i) => {
-      const sl = wins.slice(Math.max(0, i - WINDOW + 1), i + 1);
-      return sl.reduce((s, v) => s + v, 0) / sl.length;
-    });
-    const n = rates.length;
-    const xs = rates.map((_, i) => PAD + (i / (n - 1)) * (W - PAD * 2));
-    const ys = rates.map((r) => H - PAD - r * (H - PAD * 2));
-    const pathD = xs
-      .map(
-        (x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`,
-      )
-      .join(" ");
-    const areaD =
-      pathD +
-      ` L${xs[n - 1].toFixed(1)},${(H - PAD).toFixed(1)} L${xs[0].toFixed(1)},${(H - PAD).toFixed(1)} Z`;
-    const last = rates[n - 1];
-    const lineColor =
-      last >= 0.6 ? "#36d47e" : last <= 0.4 ? "#f04f4f" : "#f5c842";
-    const gId = `fg_${name.replace(/\W+/g, "_")}`;
-    const dots = xs
-      .map(
-        (x, i) =>
-          `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.5" fill="${wins[i] ? "#36d47e" : "#f04f4f"}"/>`,
-      )
-      .join("");
-    return `<div class="ana-card">
-      <span class="badge">Form Graph</span>
-      <div style="margin-top:10px">
-        <svg width="100%" height="56" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;overflow:visible">
-          <defs>
-            <linearGradient id="${gId}" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
-              <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <line x1="${PAD}" y1="${(H / 2).toFixed(1)}" x2="${(W - PAD).toFixed(1)}" y2="${(H / 2).toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4,4"/>
-          <path d="${areaD}" fill="url(#${gId})"/>
-          <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          ${dots}
-        </svg>
-        <div style="display:flex;justify-content:space-between;margin-top:5px">
-          <span class="sub">rolling 5-match win rate · last ${n}</span>
-          <span style="font-size:11px;font-weight:800;color:${lineColor}">${(last * 100).toFixed(0)}%</span>
-        </div>
-      </div>
-    </div>`;
-  })();
+  const formGraphHtml = _pdBuildFormGraphHtml(name, graphMatches);
 
   // Feature 2: best / worst partner
   const bestPartnerHtml = s.bestPartner
@@ -7411,122 +7435,7 @@ function openPlayerDetail(name) {
     </div>`;
 
   // ── ELO TIMELINE CHART ─────────────────────────────────
-  const eloTimelineHtml = (() => {
-    const sorted = [...state.matches].sort((a, b) =>
-      (a.date || "").localeCompare(b.date || ""),
-    );
-    const playerMs = sorted.filter((m) =>
-      [...(m.teamA || []), ...(m.teamB || [])].includes(name),
-    );
-    if (playerMs.length < 3) return "";
-    const elo = {};
-    const pts = [];
-    sorted.forEach((m) => {
-      const allP = [...(m.teamA || []), ...(m.teamB || [])];
-      allP.forEach((p) => {
-        if (!(p in elo)) elo[p] = 1000;
-      });
-      const aWon = m.scoreA > m.scoreB;
-      const avgA =
-        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB =
-        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      m.teamA.forEach((p) => {
-        elo[p] = (elo[p] || 1000) + dA;
-      });
-      m.teamB.forEach((p) => {
-        elo[p] = (elo[p] || 1000) + dB;
-      });
-      if ([...(m.teamA || []), ...(m.teamB || [])].includes(name)) {
-        const inA = (m.teamA || []).includes(name);
-        pts.push({ elo: elo[name], date: m.date, won: inA ? aWon : !aWon });
-      }
-    });
-    if (pts.length < 3) return "";
-    const W = 300,
-      H = 90,
-      pl = 36,
-      pr = 8,
-      pt = 8,
-      pb = 18,
-      cW = W - pl - pr,
-      cH = H - pt - pb;
-    const minE = Math.min(...pts.map((p) => p.elo)) - 20;
-    const maxE = Math.max(...pts.map((p) => p.elo)) + 20;
-    const eRange = Math.max(1, maxE - minE);
-    const toX = (i) => pl + (i / (pts.length - 1 || 1)) * cW;
-    const toY = (e) => pt + (1 - (e - minE) / eRange) * cH;
-    const yLines = [
-      minE + eRange * 0.25,
-      minE + eRange * 0.5,
-      minE + eRange * 0.75,
-    ]
-      .map((ev) => {
-        const y = toY(ev);
-        return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${Math.round(ev)}</text>`;
-      })
-      .join("");
-    const polyline = pts
-      .map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`)
-      .join(" ");
-    const area =
-      `M${toX(0).toFixed(1)},${(H - pb).toFixed(1)} ` +
-      pts
-        .map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`)
-        .join(" ") +
-      ` L${toX(pts.length - 1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
-    const col = playerColor(name);
-    const circles = pts
-      .map(
-        (p, i) =>
-          `<circle cx="${toX(i).toFixed(1)}" cy="${toY(p.elo).toFixed(1)}" r="2.5" fill="${p.won ? "var(--green)" : "var(--red)"}" stroke="rgba(0,0,0,0.4)" stroke-width="0.5"><title>${p.date}: ELO ${p.elo} (${p.won ? "W" : "L"})</title></circle>`,
-      )
-      .join("");
-    const lastElo = pts[pts.length - 1].elo;
-    const firstElo = pts[0].elo;
-    const netChange = lastElo - firstElo;
-    const netStr = netChange > 0 ? `+${netChange}` : `${netChange}`;
-    const netCol =
-      netChange > 0
-        ? "var(--green)"
-        : netChange < 0
-          ? "var(--red)"
-          : "var(--muted)";
-    const peakElo = Math.max(...pts.map((p) => p.elo));
-    const peakPt = pts.find((p) => p.elo === peakElo);
-    const valleyElo = Math.min(...pts.map((p) => p.elo));
-    const valleyPt = pts.find((p) => p.elo === valleyElo);
-    const fromPeak = lastElo - peakElo;
-    const fromPeakLabel =
-      fromPeak === 0
-        ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
-        : `<span style="color:var(--red);font-weight:700">${fromPeak} from peak</span>`;
-    return `<div class="ana-card"><span class="badge">ELO Timeline</span>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px">
-        <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
-        <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO total</div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <div style="font-size:9px;color:var(--muted)">▲ Peak: <span style="color:var(--green);font-weight:800;font-size:11px">${peakElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
-        <div style="font-size:9px">${fromPeakLabel}</div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:9px;color:var(--muted)">▼ Low: <span style="color:var(--red);font-weight:800;font-size:11px">${valleyElo}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(valleyPt?.date)})</span></div>
-        <div style="font-size:9px;color:var(--muted)">Range: <span style="font-weight:700;color:var(--fg)">${peakElo - valleyElo}</span></div>
-      </div>
-      <div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
-        ${yLines}
-        <defs><linearGradient id="etg_${name.replace(/\s/g, "")}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.25"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
-        <path d="${area}" fill="url(#etg_${name.replace(/\s/g, "")})" />
-        <polyline points="${polyline}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        ${circles}
-        <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastElo) - 5).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="800" fill="${col}">${lastElo}</text>
-      </svg></div>
-    </div>`;
-  })();
+  const eloTimelineHtml = _pdBuildEloTimelineHtml(name);
 
   // ── RECENT MATCH CARDS (from match log with ELO delta) ───
   const recentMatchCards = (() => {
@@ -7753,47 +7662,7 @@ function openPlayerDetail(name) {
   })();
 
   // ── BEST DAY TO PLAY ─────────────────────────────────────
-  const bestDayHtml = (() => {
-    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const played = Array(7).fill(0),
-      won = Array(7).fill(0);
-    pdPlayerMs.forEach((m) => {
-      if (!m.date) return;
-      const d = new Date(m.date + "T00:00:00").getDay();
-      const inA = (m.teamA || []).includes(name);
-      played[d]++;
-      if (inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA) won[d]++;
-    });
-    const rows = DAY.map((label, d) => {
-      if (!played[d]) return "";
-      const wr = Math.round((won[d] / played[d]) * 100);
-      const col =
-        wr >= 60 ? "var(--green)" : wr <= 40 ? "var(--red)" : "var(--muted)";
-      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-        <span style="font-size:10px;font-weight:700;width:28px;flex-shrink:0">${label}</span>
-        <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px">
-          <div style="height:100%;width:${wr}%;background:${col};border-radius:3px"></div>
-        </div>
-        <span style="font-size:10px;font-weight:800;color:${col};width:32px;text-align:right">${wr}%</span>
-        <span style="font-size:9px;color:var(--muted);width:20px;text-align:right">${played[d]}g</span>
-      </div>`;
-    }).join("");
-    if (!rows.replace(/\s/g, "")) return "";
-    const best = DAY.reduce((b, _, d) => {
-      if (played[d] < 2) return b;
-      const wr = won[d] / played[d];
-      return b.d === undefined || wr > b.wr ? { d, wr } : b;
-    }, {});
-    const chip =
-      best.d !== undefined
-        ? `<div style="margin-top:10px;padding:7px 10px;background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
-          <span style="font-size:18px">📅</span>
-          <div><div style="font-size:8px;font-weight:800;color:var(--muted);letter-spacing:0.08em">BEST DAY TO PLAY</div>
-          <div style="font-size:13px;font-weight:900;color:var(--accent)">${DAY[best.d]} <span style="font-size:10px;color:var(--green);font-weight:700">${Math.round(best.wr * 100)}% win rate</span></div></div>
-        </div>`
-        : "";
-    return `<div class="ana-card"><span class="badge">Day of Week</span><div style="margin-top:8px">${rows}</div>${chip}</div>`;
-  })();
+  const bestDayHtml = _pdBuildBestDayHtml(name, pdPlayerMs);
 
   // ── ELO PROJECTION CHART ─────────────────────────────────
   const eloProjectionHtml = (() => {
@@ -14259,188 +14128,16 @@ function renderAnalyticsPage() {
     return;
   }
 
-  // ── DATA COLLECTION ────────────────────────────────────
-  const stats = {},
-    shutoutWins = {},
-    shutoutLosses = {};
-  const highestMargins = [],
-    partnerships = {},
-    teamMatchups = {};
-  const monthlyStats = {},
-    dateCounts = {},
-    scoreDist = {},
-    rivalryCount = {};
-  const closeWins = {},
-    closePlayed = {};
-
-  const sortedM = [...state.matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-
-  sortedM.forEach((m) => {
-    const aWon = m.scoreA > m.scoreB;
-    const winners = aWon ? m.teamA : m.teamB,
-      losers = aWon ? m.teamB : m.teamA;
-    const winScore = aWon ? m.scoreA : m.scoreB,
-      loseScore = aWon ? m.scoreB : m.scoreA;
-    const margin = Math.abs(m.scoreA - m.scoreB);
-
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      if (!stats[p])
-        stats[p] = {
-          name: p,
-          wins: 0,
-          losses: 0,
-          matches: 0,
-          streak: 0,
-          bestStreak: 0,
-          teammates: {},
-        };
-    });
-    winners.forEach((p) => {
-      stats[p].wins++;
-      stats[p].matches++;
-      stats[p].streak++;
-      if (stats[p].streak > stats[p].bestStreak)
-        stats[p].bestStreak = stats[p].streak;
-    });
-    losers.forEach((p) => {
-      stats[p].losses++;
-      stats[p].matches++;
-      stats[p].streak = 0;
-    });
-
-    if (loseScore === 0) {
-      winners.forEach((p) => {
-        shutoutWins[p] = (shutoutWins[p] || 0) + 1;
-      });
-      losers.forEach((p) => {
-        shutoutLosses[p] = (shutoutLosses[p] || 0) + 1;
-      });
-    }
-    winners.forEach((p) =>
-      highestMargins.push({
-        player: p,
-        margin,
-        score: `${winScore}-${loseScore}`,
-      }),
-    );
-
-    if (m.teamA.length === 2 && m.teamB.length === 2) {
-      const addP = (t, won, ownScore, oppScore) => {
-        const key = [...t].sort().join(" & ");
-        if (!partnerships[key])
-          partnerships[key] = {
-            players: [...t].sort(),
-            wins: 0,
-            played: 0,
-            diff: 0,
-            gw: 0,
-            gt: 0,
-          };
-        partnerships[key].played++;
-        partnerships[key].gw += ownScore;
-        partnerships[key].gt += ownScore + oppScore;
-        if (won) {
-          partnerships[key].wins++;
-          partnerships[key].diff += margin;
-        } else partnerships[key].diff -= margin;
-      };
-      addP(m.teamA, aWon, m.scoreA, m.scoreB);
-      addP(m.teamB, !aWon, m.scoreB, m.scoreA);
-      // Team vs Team matchup tracking
-      const tkA = [...m.teamA].sort().join(" & ");
-      const tkB = [...m.teamB].sort().join(" & ");
-      const mk = [tkA, tkB].sort().join(" vs ");
-      if (!teamMatchups[mk])
-        teamMatchups[mk] = {
-          teamA: [...m.teamA].sort(),
-          teamB: [...m.teamB].sort(),
-          wins: { [tkA]: 0, [tkB]: 0 },
-          played: 0,
-          matches: [],
-        };
-      teamMatchups[mk].played++;
-      teamMatchups[mk].wins[aWon ? tkA : tkB]++;
-      teamMatchups[mk].matches.push(m);
-    }
-    if (m.teamA.length === 2) {
-      const [a, b] = m.teamA;
-      stats[a].teammates[b] = (stats[a].teammates[b] || 0) + 1;
-      stats[b].teammates[a] = (stats[b].teammates[a] || 0) + 1;
-    }
-    if (m.teamB.length === 2) {
-      const [a, b] = m.teamB;
-      stats[a].teammates[b] = (stats[a].teammates[b] || 0) + 1;
-      stats[b].teammates[a] = (stats[b].teammates[a] || 0) + 1;
-    }
-
-    // Monthly win rates
-    const mo = (m.date || "").substring(0, 7);
-    if (mo) {
-      if (!monthlyStats[mo]) monthlyStats[mo] = {};
-      m.teamA.forEach((p) => {
-        if (!monthlyStats[mo][p]) monthlyStats[mo][p] = { w: 0, m: 0 };
-        monthlyStats[mo][p].m++;
-        if (aWon) monthlyStats[mo][p].w++;
-      });
-      m.teamB.forEach((p) => {
-        if (!monthlyStats[mo][p]) monthlyStats[mo][p] = { w: 0, m: 0 };
-        monthlyStats[mo][p].m++;
-        if (!aWon) monthlyStats[mo][p].w++;
-      });
-    }
-    if (m.date) dateCounts[m.date] = (dateCounts[m.date] || 0) + 1;
-
-    const hi = Math.max(m.scoreA, m.scoreB),
-      lo = Math.min(m.scoreA, m.scoreB);
-    scoreDist[`${hi}-${lo}`] = (scoreDist[`${hi}-${lo}`] || 0) + 1;
-
-    m.teamA.forEach((a) =>
-      m.teamB.forEach((b) => {
-        const k = [a, b].sort().join("|");
-        rivalryCount[k] = (rivalryCount[k] || 0) + 1;
-      }),
-    );
-
-    if (margin <= 1) {
-      winners.forEach((p) => {
-        closeWins[p] = (closeWins[p] || 0) + 1;
-        closePlayed[p] = (closePlayed[p] || 0) + 1;
-      });
-      losers.forEach((p) => {
-        closePlayed[p] = (closePlayed[p] || 0) + 1;
-      });
-    }
-  });
+  // ── DATA COLLECTION + DERIVED (pure, moved to player-analytics.js) ─────────
+  const {
+    stats, shutoutWins, shutoutLosses, highestMargins, partnerships, teamMatchups,
+    monthlyStats, dateCounts, scoreDist, rivalryCount, closeWins, closePlayed,
+    mostActive, topWinRate, topStreak, mostShutoutWinsEntry,
+    maxLosses, mostShutoutLosses, biggestWin, bestPartnership,
+  } = computeAnalyticsPageData(state.matches);
 
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _memoElo(true);
-
-  // ── DERIVED ────────────────────────────────────────────
-  const players = Object.values(stats);
-  const mostActive = [...players].sort((a, b) => b.matches - a.matches)[0];
-  const topWinRate = [...players]
-    .filter((p) => p.matches >= 3)
-    .sort((a, b) => b.wins / b.matches - a.wins / a.matches)[0];
-  const topStreak = [...players].sort((a, b) => b.bestStreak - a.bestStreak)[0];
-  const mostShutoutWinsEntry = Object.entries(shutoutWins).sort(
-    (a, b) => b[1] - a[1],
-  )[0];
-  const maxLosses = Math.max(...Object.values(shutoutLosses), 0);
-  const mostShutoutLosses = Object.entries(shutoutLosses)
-    .filter(([, v]) => v === maxLosses)
-    .map(([k]) => k);
-  const biggestWin = [...highestMargins].sort((a, b) => b.margin - a.margin)[0];
-  const bestPartnership = Object.values(partnerships)
-    .filter((p) => p.played >= 2)
-    .sort((a, b) => {
-      const winPctDiff = b.wins / b.played - a.wins / a.played;
-      if (Math.abs(winPctDiff) > 1e-9) return winPctDiff;
-      const playedDiff = b.played - a.played;
-      if (playedDiff !== 0) return playedDiff;
-      return b.gw / b.gt - a.gw / a.gt;
-    })[0];
   const pairLeaderboard = getPairStats(activeMatches()).slice(0, 8);
   const playersByMatches = _h2hSortPlayers(getAllPlayerNamesFromMatches());
   const matrixSortBar = `<div class="h2h-sort-bar">
@@ -17086,7 +16783,6 @@ function renderAnalyticsPage() {
           : []),
       ]),
     },
-    // ── TODO BATCH: Statistics enhancements ────────────────────
     {
       key: "playerstats",
       cat: "players",
