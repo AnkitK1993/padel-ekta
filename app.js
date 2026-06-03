@@ -6317,6 +6317,12 @@ function closeMatchEdit() {
     if (src) src.classList.remove("edit-active");
     setTimeout(() => el.remove(), 260);
   });
+  // The standalone edit modal (openEditMatch) — animate out, then remove.
+  const modal = document.getElementById("match-edit-modal");
+  if (modal) {
+    modal.querySelector(".mem-panel")?.classList.remove("open");
+    setTimeout(() => modal.remove(), 220);
+  }
 }
 
 function editMatchByIndex(i, btn) {
@@ -6388,6 +6394,65 @@ function editMatchByIndex(i, btn) {
   setTimeout(
     () => el.scrollIntoView({ behavior: "smooth", block: "nearest" }),
     60,
+  );
+}
+
+// Self-contained edit modal — works from anywhere (Summary/History match-intro
+// overlay, History long-press sheet) since it doesn't anchor to a card like
+// editMatchByIndex does. Reuses the exact field IDs that saveMatchEdit reads.
+function openEditMatch(idx) {
+  const m = state.matches[idx];
+  if (!m) return;
+  closeMatchEdit();
+  const players = getAllPlayerNamesFromMatches();
+  const opts = (val) =>
+    players
+      .map(
+        (p) =>
+          `<option value="${escHtml(p)}"${p === val ? " selected" : ""}>${escHtml(p)}</option>`,
+      )
+      .join("");
+  const ov = document.createElement("div");
+  ov.id = "match-edit-modal";
+  ov.className = "match-edit-modal";
+  ov.innerHTML = `
+    <div class="mem-backdrop" onclick="closeMatchEdit()"></div>
+    <div class="mem-panel">
+      <div class="mei-header">
+        <span class="mei-title">✏ EDIT MATCH</span>
+        <button class="mei-close" onclick="closeMatchEdit()">✕</button>
+      </div>
+      <div class="mei-section-lbl">DATE</div>
+      <input id="edit-match-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${m.date || todayISO()}">
+      <div class="mei-section-lbl" style="color:var(--green)">TEAM A</div>
+      <div class="mei-row">
+        <select id="edit-a1" class="mei-sel"><option value="">P1</option>${opts(m.teamA[0])}</select>
+        <select id="edit-a2" class="mei-sel"><option value="">P2</option>${opts(m.teamA[1])}</select>
+      </div>
+      <div class="mei-section-lbl" style="color:var(--red)">TEAM B</div>
+      <div class="mei-row">
+        <select id="edit-b1" class="mei-sel"><option value="">P1</option>${opts(m.teamB[0])}</select>
+        <select id="edit-b2" class="mei-sel"><option value="">P2</option>${opts(m.teamB[1])}</select>
+      </div>
+      <div class="mei-section-lbl">SCORE</div>
+      <div class="mei-row" style="align-items:center;margin-bottom:10px">
+        <input id="edit-sa" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
+        <span style="color:var(--muted);font-weight:900;font-size:18px;padding:0 4px">–</span>
+        <input id="edit-sb" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
+      </div>
+      <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${escHtml(m.note || "")}">
+      <div id="edit-match-err" style="color:var(--red);font-size:12px;margin-bottom:6px;display:none"></div>
+      <div class="mei-actions">
+        <button class="mei-cancel" onclick="closeMatchEdit()">Cancel</button>
+        <button class="mei-save" onclick="saveMatchEdit(${idx})">Save Changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      ov.querySelector(".mem-panel")?.classList.add("open"),
+    ),
   );
 }
 
@@ -17332,6 +17397,7 @@ Object.assign(window, {
   purgeTrash,
   renderTrash,
   editMatchByIndex,
+  openEditMatch,
   saveMatchEdit,
   closeMatchEdit,
   openModernAddModal,
@@ -18238,6 +18304,18 @@ function openMatchIntro(idx) {
   const _matchNum = _sortedForNum.indexOf(m) + 1;
   document.getElementById("mio-date-bar").textContent =
     `${fmtDate(m.date).toUpperCase()} · MATCH #${_matchNum}`;
+
+  // Admin-only edit affordance: tap a match (Summary or History) → this overlay
+  // → Edit. stopPropagation so it isn't swallowed by the tap-to-close backdrop.
+  const _mioEditBtn = document.getElementById("mio-edit-btn");
+  if (_mioEditBtn) {
+    _mioEditBtn.style.display = window.isAdmin ? "" : "none";
+    _mioEditBtn.onclick = (e) => {
+      e.stopPropagation();
+      closeMatchIntro();
+      openEditMatch(idx);
+    };
+  }
 
   const rankA = mkRankLabel(m.teamA);
   const rankB = mkRankLabel(m.teamB);
