@@ -490,6 +490,16 @@ async function main() {
       `document.querySelectorAll("#cmpBody tr").length >= 4`,
       "Summary populated before exclusion",
     );
+    // Tapping a Summary match row must open the match-intro overlay (regressed
+    // once when openMatchIntro threw a ReferenceError before reaching .active).
+    const tapOpensOverlay = await evaluate(client, `(() => {
+      const row = document.querySelector("#cmpMatches .smr-inner");
+      if (!row) return false;
+      row.click();
+      return document.getElementById("match-intro-overlay").classList.contains("active");
+    })();`);
+    assert(tapOpensOverlay, "Tapping a Summary match did not open the match-intro overlay");
+    await evaluate(client, `closeMatchIntro && closeMatchIntro();`);
     // Dynamic column layout: no horizontal scroll, table always fills 100%
     // width. With all columns shown AND with some hidden, the table must
     // not overflow its container.
