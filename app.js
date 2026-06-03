@@ -1075,6 +1075,8 @@ let _statNamesMemo = null,
   _statNamesKey = "";
 let _statsMemo = null,
   _statsMemoKey = "";
+let _pairStatsMemo = null,
+  _pairStatsKey = "";
 initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
@@ -1157,6 +1159,21 @@ function _memoStats() {
   return _statsMemo.slice();
 }
 
+// Pair stats over the active set, memoized. Several sections call
+// _memoPairStats() independently (≥4 per analytics render), each a
+// full O(matches) pass. Same safety as _memoStats: pair objects (and their
+// `players` string array) are read-only app-wide; the .slice() guards array
+// sorting. Callers passing a different match set keep calling getPairStats.
+function _memoPairStats() {
+  const am = activeMatches();
+  const key = `${_dataVersion}|${_lightFingerprint(am)}`;
+  if (_pairStatsKey !== key || !_pairStatsMemo) {
+    _pairStatsKey = key;
+    _pairStatsMemo = getPairStats(am);
+  }
+  return _pairStatsMemo.slice();
+}
+
 function _memoEloHistory() {
   const am = activeMatches();
   const key = _lightFingerprint(am);
@@ -1202,6 +1219,8 @@ function _invalidateEloMemo() {
   _statNamesMemo = null;
   _statsMemoKey = "";
   _statsMemo = null;
+  _pairStatsKey = "";
+  _pairStatsMemo = null;
   // Bound the per-fingerprint section caches: keyed by a dataset fingerprint and
   // never evicted, they otherwise grow one entry per distinct dataset for the
   // life of the session (a slow leak). Any data change invalidates them anyway.
@@ -4942,7 +4961,7 @@ function _matchCardPrecompute() {
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
   const elo = {};
-  const allPairsList = getPairStats(activeMatches()); // all pairs ever formed
+  const allPairsList = _memoPairStats(); // all pairs ever formed
   [...state.matches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
     .forEach((m) => {
@@ -5873,7 +5892,7 @@ function setHistMargin(val) {
 function filterSheetSearch(query) {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const pairs = getPairStats(activeMatches());
+  const pairs = _memoPairStats();
   const q = (query || "").toLowerCase().trim();
   const filtered = q
     ? pairs.filter((p) => p.key.toLowerCase().includes(q))
@@ -7788,7 +7807,7 @@ function openPlayerDetail(name) {
 
   // ── PARTNER COMPATIBILITY SCORE ──────────────────────────
   const partnerCompatHtml = (() => {
-    const pairStats = getPairStats(activeMatches())
+    const pairStats = _memoPairStats()
       .filter(
         (ps) =>
           ps.players.map(normPlayer).includes(normPlayer(name)) &&
@@ -14448,7 +14467,7 @@ function renderAnalyticsPage() {
 
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _memoElo(true);
-  const pairLeaderboard = getPairStats(activeMatches()).slice(0, 8);
+  const pairLeaderboard = _memoPairStats().slice(0, 8);
   const playersByMatches = _h2hSortPlayers(getAllPlayerNamesFromMatches());
   const matrixSortBar = `<div class="h2h-sort-bar">
     <span class="h2h-sort-lbl">SORT</span>
@@ -14729,7 +14748,7 @@ function renderAnalyticsPage() {
   const bestPairPerP = compList
     .map((p) => ({ name: p.name, partner: p.bestPartner, wins: p.mw }))
     .filter((p) => p.partner && p.wins >= 1);
-  const pairFormData = getPairStats(activeMatches())
+  const pairFormData = _memoPairStats()
     .filter((p) => p.played >= 3)
     .map((pair) => {
       const pm = sortedM
@@ -15640,13 +15659,13 @@ function renderAnalyticsPage() {
 
   // ── PAIR CHEMISTRY MATRIX ──────────────────────────────
   const pairMatrixPlayers = [
-    ...new Set(getPairStats(activeMatches()).flatMap((p) => p.players)),
+    ...new Set(_memoPairStats().flatMap((p) => p.players)),
   ].sort();
   const pairMatrixHtml = (() => {
     if (pairMatrixPlayers.length < 2)
       return '<div class="sub" style="padding:8px">Need more pair data.</div>';
     const pairLookup = {};
-    getPairStats(activeMatches()).forEach((p) => {
+    _memoPairStats().forEach((p) => {
       pairLookup[p.key] = p;
     });
     const colHeaders = pairMatrixPlayers
@@ -18487,7 +18506,7 @@ function openMatchIntro(idx) {
 
   // Pre-match individual and pair ranks
   const indivRanked = Object.entries(priorElo).sort((a, b) => b[1] - a[1]);
-  const allPairs = getPairStats(activeMatches());
+  const allPairs = _memoPairStats();
   const pairsByElo = allPairs
     .map((p) => ({
       key: p.key,
