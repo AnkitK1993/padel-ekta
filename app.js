@@ -14465,6 +14465,18 @@ function renderAnalyticsPage() {
     (a.date || "").localeCompare(b.date || ""),
   );
 
+  // Reusable indexes built in ONE pass, so the section builders below don't each
+  // re-filter sortedM per player/date (those were O(players × matches) loops).
+  // matchesByPlayer preserves sortedM's chronological order (callers slice tails).
+  const matchesByPlayer = {};
+  const matchCountByDate = {};
+  sortedM.forEach((m) => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      (matchesByPlayer[p] || (matchesByPlayer[p] = [])).push(m);
+    });
+    if (m.date) matchCountByDate[m.date] = (matchCountByDate[m.date] || 0) + 1;
+  });
+
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _memoElo(true);
   const pairLeaderboard = _memoPairStats().slice(0, 8);
@@ -15053,9 +15065,7 @@ function renderAnalyticsPage() {
       bestDiff = -Infinity;
     for (const p of pNames) {
       const overall = stats[p].wins / stats[p].matches;
-      const pMatches = sortedM.filter((m) =>
-        [...(m.teamA || []), ...(m.teamB || [])].includes(p),
-      );
+      const pMatches = matchesByPlayer[p] || [];
       const recent = pMatches.slice(-10);
       if (recent.length < 3) continue;
       const recWins = recent.filter((m) =>
@@ -15701,9 +15711,7 @@ function renderAnalyticsPage() {
     if (!pbStats.length)
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
     const rows = pbStats.map((p) => {
-      const playerMs = sortedM.filter((m) =>
-        [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
-      );
+      const playerMs = matchesByPlayer[p.name] || [];
       // Longest win streak ever = bestWinStreak from computeStats
       const longestWS = p.bestWinStreak;
       // Biggest win margin
@@ -15737,7 +15745,7 @@ function renderAnalyticsPage() {
       let mostDayStr = "—";
       if (mostMatchesDay) {
         const [mdDate, mdData] = mostMatchesDay;
-        const totalOnDay = sortedM.filter((m) => m.date === mdDate).length;
+        const totalOnDay = matchCountByDate[mdDate] || 0;
         mostDayStr = `${mdData.played}/${totalOnDay}`;
       }
       return `<div class="pb-row"><div class="pb-name">${p.name}</div><div class="pb-stat" title="Longest win streak">🔥${longestWS}W</div><div class="pb-stat" title="Biggest win">${biggestScore ? `💥${biggestScore}` : "—"}</div><div class="pb-stat" title="Best day wins">⭐${bestDay ? `${bestDay.wins}W/${bestDay.played}` : "—"}</div><div class="pb-stat" title="Most matches in a day">📅${mostDayStr}</div></div>`;
@@ -16225,10 +16233,16 @@ function renderAnalyticsPage() {
   const _pairLeaderboardHtml = (() => {
     const pairAQ = {},
       pairStrk = {};
+    // Build a pair-key → matches index in this same pass, so the per-partnership
+    // loop below is an O(1) lookup instead of re-filtering sortedM per pair
+    // (was O(pairs × matches), and pairs grows ~quadratically with players).
+    const matchesByPairKey = {};
     sortedM.forEach((m) => {
       if (m.teamA.length !== 2 || m.teamB.length !== 2) return;
       const tkA = [...m.teamA].sort().join(" & "),
         tkB = [...m.teamB].sort().join(" & ");
+      (matchesByPairKey[tkA] || (matchesByPairKey[tkA] = [])).push(m);
+      (matchesByPairKey[tkB] || (matchesByPairKey[tkB] = [])).push(m);
       [tkA, tkB].forEach((tk, ti) => {
         const opp = ti === 0 ? m.teamB : m.teamA;
         if (!pairAQ[tk]) pairAQ[tk] = { t: 0, c: 0 };
@@ -16238,12 +16252,7 @@ function renderAnalyticsPage() {
       });
     });
     Object.entries(partnerships).forEach(([key, pd]) => {
-      const pms = sortedM.filter((m) => {
-        if (m.teamA.length !== 2 || m.teamB.length !== 2) return false;
-        const ak = [...m.teamA].sort().join(" & "),
-          bk = [...m.teamB].sort().join(" & ");
-        return ak === key || bk === key;
-      });
+      const pms = matchesByPairKey[key] || [];
       let sk = 0,
         st = null;
       for (let i = pms.length - 1; i >= 0; i--) {
