@@ -17270,7 +17270,7 @@ function renderEmailStatus() {
       : last
         ? `Last sent: ${last}`
         : "Never sent";
-  el.innerHTML = `${sentText} &nbsp;·&nbsp; Auto-sends daily at 1 pm`;
+  el.innerHTML = `${sentText} &nbsp;·&nbsp; Manual only — tap “Send Backup Now”`;
 }
 
 async function sendBackupEmail(isAuto = false) {
@@ -17317,44 +17317,16 @@ async function sendBackupEmail(isAuto = false) {
   }
 }
 
+// Automatic 1 pm email backup was removed — email is now MANUAL ONLY (the
+// "Send Backup Now" button → sendBackupEmail(false)). This is kept as a no-op
+// that cancels any timer a previously-running build may have scheduled, so the
+// auto-send stops the moment this build loads. Daily Drive backup is separate
+// (_scheduleDriveBackup) and unaffected.
 function scheduleAutoEmail() {
   if (_emailTimer) {
     clearTimeout(_emailTimer);
     _emailTimer = null;
   }
-  if (!window.isAdmin) return;
-  if (!emailConfig.serviceId || !emailConfig.recipientEmail) return;
-
-  const now = new Date();
-  const today = todayISO();
-  const target = new Date(now);
-  target.setHours(13, 0, 0, 0);
-
-  if (localStorage.getItem("padel_last_email") !== today && now >= target) {
-    localStorage.setItem("padel_last_email", today); // claim slot before async to prevent multi-tab race
-    sendBackupEmail(true).then((ok) => {
-      if (!ok) localStorage.removeItem("padel_last_email"); // release on failure so it can retry
-      scheduleAutoEmail();
-    });
-    return;
-  }
-
-  if (localStorage.getItem("padel_last_email") === today) {
-    target.setDate(target.getDate() + 1);
-  }
-
-  _emailTimer = setTimeout(() => {
-    const _today = todayISO();
-    if (localStorage.getItem("padel_last_email") === _today) {
-      scheduleAutoEmail();
-      return;
-    }
-    localStorage.setItem("padel_last_email", _today);
-    sendBackupEmail(true).then((ok) => {
-      if (!ok) localStorage.removeItem("padel_last_email");
-      scheduleAutoEmail();
-    });
-  }, target - now);
 }
 
 // ── AUTO DRIVE BACKUP ────────────────────────────────────────
