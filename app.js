@@ -18271,13 +18271,18 @@ function openMatchIntro(idx) {
   // on (idx, activeMatches identity) so re-opening the same banner — or any
   // re-trigger — skips the recompute. activeMatches() returns a memoized array,
   // so a season/exclusion/data change yields a new ref and invalidates this.
+  // _upToBeforeE (matches strictly before this one) is used throughout the rest
+  // of this function (H2H, last-meeting, context lines), so it must live at the
+  // function scope — NOT inside the memo else-branch, or it's undefined on the
+  // memo-hit path and a ReferenceError elsewhere (which silently aborts the
+  // whole overlay).
+  const _upToBeforeE = new Set(state.matches.slice(0, idx));
   let priorElo, afterElo;
   if (_mioEloMemo && _mioEloMemo.idx === idx && _mioEloMemo.amRef === _amE) {
     priorElo = _mioEloMemo.priorElo;
     afterElo = _mioEloMemo.afterElo;
   } else {
     const _upToInclE = new Set(state.matches.slice(0, idx + 1));
-    const _upToBeforeE = new Set(state.matches.slice(0, idx));
     priorElo = computeElo(_amE.filter((mm) => _upToBeforeE.has(mm)));
     afterElo = computeElo(_amE.filter((mm) => _upToInclE.has(mm)));
     _mioEloMemo = { idx, amRef: _amE, priorElo, afterElo };
