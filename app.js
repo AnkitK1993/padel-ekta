@@ -1071,6 +1071,8 @@ let _eloPeaksMemo = null,
   _eloPeaksKey = "";
 let _eloLowsMemo = null,
   _eloLowsKey = "";
+let _statNamesMemo = null,
+  _statNamesKey = "";
 initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
@@ -1122,6 +1124,21 @@ function _memoElo(decay = false) {
   return _eloMemo;
 }
 
+// Sorted list of player names over the active set. Many analytics sections only
+// need "who played" (e.g. to seed a comparison list) and were each doing a full
+// computeStats() pass just to .map(s => s.name) — ~10 passes per analytics
+// render. Cache it once; names are strings, so the returned copy is fully
+// mutation-safe (callers may sort/filter it freely).
+function _statPlayerNames() {
+  const am = activeMatches();
+  const key = `${_dataVersion}|${_lightFingerprint(am)}`;
+  if (_statNamesKey !== key || !_statNamesMemo) {
+    _statNamesKey = key;
+    _statNamesMemo = computeStats(am).map((s) => s.name);
+  }
+  return _statNamesMemo.slice();
+}
+
 function _memoEloHistory() {
   const am = activeMatches();
   const key = _lightFingerprint(am);
@@ -1163,6 +1180,8 @@ function _invalidateEloMemo() {
   _eloPeaksMemo = null;
   _eloLowsKey = "";
   _eloLowsMemo = null;
+  _statNamesKey = "";
+  _statNamesMemo = null;
   // Bound the per-fingerprint section caches: keyed by a dataset fingerprint and
   // never evicted, they otherwise grow one entry per distinct dataset for the
   // life of the session (a slow leak). Any data change invalidates them anyway.
@@ -9290,7 +9309,7 @@ function openDigestPlayerSheet() {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
   const players = sortPlayersGuestsLast(
-    computeStats(activeMatches()).map((s) => s.name),
+    _statPlayerNames(),
   );
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
@@ -10244,7 +10263,7 @@ function openCmpSheet(slot) {
   const taken = slot === "A" ? _cmpPlayerB : _cmpPlayerA;
   const selected = slot === "A" ? _cmpPlayerA : _cmpPlayerB;
   const players = sortPlayersGuestsLast(
-    computeStats(activeMatches()).map((s) => s.name),
+    _statPlayerNames(),
   );
   list.innerHTML = players
     .map((p) => {
@@ -10401,7 +10420,7 @@ function renderCompareSelector() {
     return;
   }
   const players = sortPlayersGuestsLast(
-    computeStats(activeMatches()).map((s) => s.name),
+    _statPlayerNames(),
   );
   const opts =
     `<option value="">P1</option>` +
@@ -11805,7 +11824,7 @@ function openEloProbSheet(slot) {
   const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
   const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
   const players = sortPlayersGuestsLast(
-    computeStats(activeMatches()).map((s) => s.name),
+    _statPlayerNames(),
   );
   list.innerHTML = players
     .map((p) => {
@@ -11828,7 +11847,7 @@ function openWhatIfPlayerSheet() {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
   const players = sortPlayersGuestsLast(
-    computeStats(activeMatches()).map((s) => s.name),
+    _statPlayerNames(),
   );
   list.innerHTML = players
     .map((p) => {
@@ -13283,7 +13302,7 @@ let _simA1 = "",
   _simB2 = "";
 
 function _buildMatchPredictHtml() {
-  const players = computeStats(activeMatches()).map((p) => p.name);
+  const players = _statPlayerNames();
   if (players.length < 2)
     return '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
   return `<div class="ana-card" style="padding:12px">
@@ -13331,7 +13350,7 @@ function openPredictSheet(slot) {
     _predictPartnerB,
   ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
   const players = sortPlayersGuestsLast(
-    computeStats(activeMatches()).map((s) => s.name),
+    _statPlayerNames(),
   );
   const selected =
     slot === "a1"
@@ -13371,7 +13390,7 @@ function openSimSheet(slot) {
     .map(([, v]) => v)
     .filter(Boolean);
   const players = sortPlayersGuestsLast(
-    computeStats(activeMatches()).map((s) => s.name),
+    _statPlayerNames(),
   );
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
@@ -15855,7 +15874,7 @@ function renderAnalyticsPage() {
   // ── CARRY FACTOR ───────────────────────────────────────
   const carryHtml = (() => {
     const eloMapFull = _memoElo();
-    const playerList = computeStats(activeMatches()).map((p) => p.name);
+    const playerList = _statPlayerNames();
     if (playerList.length < 2)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
     const rows = playerList
@@ -15971,7 +15990,7 @@ function renderAnalyticsPage() {
       "Nov",
       "Dec",
     ];
-    const playerList = computeStats(activeMatches()).map((p) => p.name);
+    const playerList = _statPlayerNames();
     const byPlayer = {};
     sortedM.forEach((m) => {
       if (!m.date || Math.abs(m.scoreA - m.scoreB) > 1) return;
