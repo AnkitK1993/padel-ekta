@@ -25,8 +25,11 @@ export function initSelectorsDeps(d) {
 // ── activeMatches() memo (invalidated by app.js on any data change) ──
 let _amMemo = null,
   _amMemoKey = "";
+let _hmMemo = null,
+  _hmMemoKey = "";
 export function invalidateAmMemo() {
   _amMemo = null;
+  _hmMemo = null;
 }
 
 // ── SEASON HELPERS ─────────────────────────────────────────
@@ -53,15 +56,30 @@ export function _seasonMatchCount(s) {
   return n;
 }
 
+// Names of players currently treated as guests (and not temporarily re-included
+// for this session). Guests are kept out of all statistics.
+export function guestNames() {
+  return Object.values(state.players)
+    .filter((p) => p.isGuest && !deps.getSessionGuestUnexcluded().has(p.name))
+    .map((p) => p.name);
+}
+
+// Drop every match that involves a current guest. For stats surfaces that are
+// inherently cross-season (Season Comparison, Leaderboard Replay) and therefore
+// can't go through the season-scoped activeMatches(), but must still ignore
+// guests. Same whole-match semantics activeMatches() uses.
+export function withoutGuestMatches(matches) {
+  const g = new Set(guestNames());
+  if (!g.size) return matches;
+  return matches.filter(
+    (m) => ![...(m.teamA || []), ...(m.teamB || [])].some((p) => g.has(p)),
+  );
+}
+
 // ── ACTIVE MATCHES (season-scoped + guest/excluded filtered, memoised) ──
 export function activeMatches() {
   const s = _activeSeason();
-  const excludedArr = [
-    ...Object.values(state.players)
-      .filter((p) => p.isGuest && !deps.getSessionGuestUnexcluded().has(p.name))
-      .map((p) => p.name),
-    ...deps.getExcludedPlayers(),
-  ];
+  const excludedArr = [...guestNames(), ...deps.getExcludedPlayers()];
   const key = `${deps.getDataVersion()}|${deps.getActiveSeasonId()}|${excludedArr.sort().join(",")}`;
   if (_amMemoKey === key && _amMemo) return _amMemo;
   let base = state.matches;
@@ -79,15 +97,39 @@ export function activeMatches() {
   return result;
 }
 
-// ── DATE-RANGE FILTER (over activeMatches) ─────────────────
-export function filterMatches(f, from, to) {
+// ── HISTORY MATCHES (season-scoped, INCLUDES guests) ───────
+// The History page is a raw match log, so it shows guest matches (unlike the
+// stats-facing activeMatches()). Still honours the season + manual excluded
+// players. Separate memo so it doesn't thrash activeMatches().
+export function historyMatches() {
+  const s = _activeSeason();
+  const excludedArr = [...deps.getExcludedPlayers()]; // manual excludes only — keep guests
+  const key = `${deps.getDataVersion()}|${deps.getActiveSeasonId()}|${excludedArr.sort().join(",")}`;
+  if (_hmMemoKey === key && _hmMemo) return _hmMemo;
+  let base = state.matches;
+  if (s) base = base.filter((m) => _inSeason(s, m.date));
+  let result = base;
+  if (excludedArr.length) {
+    const excluded = new Set(excludedArr);
+    result = base.filter(
+      (m) =>
+        ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
+    );
+  }
+  _hmMemoKey = key;
+  _hmMemo = result;
+  return result;
+}
+
+// ── DATE-RANGE FILTER ──────────────────────────────────────
+function _applyDateFilter(base, f, from, to) {
   const t = deps.todayISO(),
     sw = deps.weekISO(),
     swe = t,
     sm = deps.monthISO(),
     wr = deps.weekendRange(),
     lwr = deps.lastWeekRange();
-  return activeMatches().filter((m) => {
+  return base.filter((m) => {
     if (f === "all") return true;
     if (f === "today") return m.date === t;
     if (f === "week") return m.date >= sw && m.date <= swe;
@@ -104,4 +146,13 @@ export function filterMatches(f, from, to) {
     }
     return true;
   });
+}
+
+// Stats / leaderboards: guest-excluded base.
+export function filterMatches(f, from, to) {
+  return _applyDateFilter(activeMatches(), f, from, to);
+}
+// History log: guest-inclusive base.
+export function filterHistoryMatches(f, from, to) {
+  return _applyDateFilter(historyMatches(), f, from, to);
 }

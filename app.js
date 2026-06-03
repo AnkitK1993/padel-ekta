@@ -39,7 +39,9 @@ import {
 import {
   initSelectorsDeps,
   activeMatches,
+  withoutGuestMatches,
   filterMatches,
+  filterHistoryMatches,
   _activeSeason,
   _inSeason,
   _seasonMatchCount,
@@ -5296,7 +5298,9 @@ function renderModernMatches() {
     matchTabFilter === "range"
       ? document.getElementById("matchTo")?.value || null
       : null;
-  let matches = filterMatches(matchTabFilter, mfrom, mto);
+  // History is a raw log → guest-inclusive (filterHistoryMatches), unlike the
+  // stats-facing Summary which uses the guest-excluded filterMatches.
+  let matches = filterHistoryMatches(matchTabFilter, mfrom, mto);
   if (query) {
     const q = query.toLowerCase();
     matches = matches.filter((m) => {
@@ -6688,6 +6692,7 @@ function saveQuickName() {
   playerAliasMap[id] = aliases;
   rebuildNameMaps();
   saveCloudData();
+  commit(); // guest flag affects which matches are "active" → recompute stats
   closeNameAddModal();
   renderNamesTable();
 
@@ -13572,12 +13577,14 @@ function _buildSeasonComparisonHtml() {
   const ordered = [...state.seasons].sort((a, b) =>
     (a.start || "").localeCompare(b.start || ""),
   );
+  // Cross-season, but still exclude guest players from the comparison.
+  const _allM = withoutGuestMatches(state.matches);
   const perSeason = ordered.map((s) => {
-    const sm = state.matches.filter((m) => _inSeason(s, m.date));
+    const sm = _allM.filter((m) => _inSeason(s, m.date));
     return { s, elo: computeElo(sm), stats: computeStats(sm) };
   });
   const totals = {};
-  state.matches.forEach((m) =>
+  _allM.forEach((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].forEach(
       (p) => (totals[p] = (totals[p] || 0) + 1),
     ),
@@ -13710,7 +13717,8 @@ let _replayIdx = 0,
   _replayPrevRanks = {};
 
 function _replaySorted() {
-  return [...state.matches].sort((a, b) =>
+  // Leaderboard replay is all-time (cross-season) but still skips guests.
+  return [...withoutGuestMatches(state.matches)].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
 }
@@ -14213,7 +14221,10 @@ function renderAnalyticsPage() {
     container.querySelector(".ana-sec")
   )
     return;
-  if (!state.matches.length) {
+  // Statistics run over the season-scoped, GUEST-EXCLUDED set — never raw
+  // state.matches — so players marked as guest don't appear in any stat.
+  const am = activeMatches();
+  if (!am.length) {
     container.innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
     return;
@@ -14225,11 +14236,11 @@ function renderAnalyticsPage() {
     monthlyStats, dateCounts, scoreDist, rivalryCount, closeWins, closePlayed,
     mostActive, topWinRate, topStreak, mostShutoutWinsEntry,
     maxLosses, mostShutoutLosses, biggestWin, bestPartnership,
-  } = computeAnalyticsPageData(state.matches);
+  } = computeAnalyticsPageData(am);
   // Two locals the render body still needs (the data fn derives them internally
   // but returns only the rolled-up stats): the player list and sorted matches.
   const players = Object.values(stats);
-  const sortedM = [...state.matches].sort((a, b) =>
+  const sortedM = [...am].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
 
@@ -14349,7 +14360,7 @@ function renderAnalyticsPage() {
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
   const eloMapFull = _memoElo();
   const qualityWins = {};
-  state.matches.forEach((m) => {
+  am.forEach((m) => {
     const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
     const losers = m.scoreA > m.scoreB ? m.teamB : m.teamA;
     const loserAvgElo =
@@ -14373,7 +14384,7 @@ function renderAnalyticsPage() {
   // Hardest single win = match with highest combined opponent ELO
   let _hardestWinMatch = null,
     _hardestCombinedElo = 0;
-  state.matches.forEach((m) => {
+  am.forEach((m) => {
     const _aw = m.scoreA > m.scoreB;
     const _losers2 = _aw ? m.teamB : m.teamA;
     const _combElo = _losers2.reduce((s, p) => s + (eloMapFull[p] || 1000), 0);
@@ -14738,7 +14749,7 @@ function renderAnalyticsPage() {
     const statsBar = `<div class="hm-stats-row">
       <div class="hm-stat"><div class="hm-stat-val">${totalSessions}</div><div class="hm-stat-lbl">Session Days</div></div>
       <div class="hm-stat-div"></div>
-      <div class="hm-stat"><div class="hm-stat-val">${state.matches.length}</div><div class="hm-stat-lbl">Total Matches</div></div>
+      <div class="hm-stat"><div class="hm-stat-val">${am.length}</div><div class="hm-stat-lbl">Total Matches</div></div>
       <div class="hm-stat-div"></div>
       <div class="hm-stat"><div class="hm-stat-val">${busiestMonthLabel}</div><div class="hm-stat-lbl">Busiest Month</div></div>
       <div class="hm-stat-div"></div>
@@ -14766,7 +14777,7 @@ function renderAnalyticsPage() {
       ).toFixed(1)
     : "—";
   const _sdCallout = _topScore
-    ? `<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">MOST COMMON SCORE</div><div style="font-size:20px;font-weight:900;color:var(--theme)">${_topScore[0]}</div><div style="font-size:9px;color:var(--muted)">${_topScore[1]}× · ${Math.round((_topScore[1] / state.matches.length) * 100)}%</div></div><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">AVG MARGIN</div><div style="font-size:20px;font-weight:900;color:var(--accent)">${_avgMarginOverall}</div><div style="font-size:9px;color:var(--muted)">games per match</div></div></div>`
+    ? `<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">MOST COMMON SCORE</div><div style="font-size:20px;font-weight:900;color:var(--theme)">${_topScore[0]}</div><div style="font-size:9px;color:var(--muted)">${_topScore[1]}× · ${Math.round((_topScore[1] / am.length) * 100)}%</div></div><div style="flex:1;background:rgba(var(--theme-rgb),0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted);letter-spacing:0.06em;margin-bottom:3px">AVG MARGIN</div><div style="font-size:20px;font-weight:900;color:var(--accent)">${_avgMarginOverall}</div><div style="font-size:9px;color:var(--muted)">games per match</div></div></div>`
     : "";
   const sdHtml = scoreDistSorted
     .map(
@@ -15224,7 +15235,7 @@ function renderAnalyticsPage() {
     if (gap > longestGap) longestGap = gap;
   }
   const avgMatchesPerSession = totalSessions
-    ? (state.matches.length / totalSessions).toFixed(1)
+    ? (am.length / totalSessions).toFixed(1)
     : 0;
   const maxPlayersSession = allSessionEntries.reduce(
     (max, [, d]) => Math.max(max, d.players.size),
@@ -15515,9 +15526,9 @@ function renderAnalyticsPage() {
 
   // ── SCORE PREDICTION ACCURACY ─────────────────────────
   const predAccHtml = (() => {
-    if (state.matches.length < 5)
+    if (am.length < 5)
       return '<div class="sub" style="padding:8px">Need more matches.</div>';
-    const sorted2 = [...state.matches].sort((a, b) =>
+    const sorted2 = [...am].sort((a, b) =>
       (a.date || "").localeCompare(b.date || ""),
     );
     const runElo = {};
@@ -20257,6 +20268,7 @@ function savePlayerEdit() {
   playerAliasMap[id] = aliases;
   rebuildNameMaps();
   saveCloudData();
+  commit(); // guest flag affects which matches are "active" → recompute stats
   closePlayerEditSheet();
   renderNamesTable();
 }
