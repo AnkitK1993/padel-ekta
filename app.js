@@ -1268,6 +1268,11 @@ function renderAnalyticsFeature() {
 let _anaPrefetchScheduled = false;
 function _scheduleAnalyticsPrefetch() {
   if (_anaPrefetchScheduled) return;
+  // Battery-saver: skip the speculative background render of the Statistics page
+  // (the heaviest render in the app) — it runs on every data load/sync even for
+  // users who never open the tab. In saver mode we render lazily on first open
+  // instead, trading a one-time open cost for no wasted background CPU/battery.
+  if (document.body.classList.contains("battery-saver")) return;
   _anaPrefetchScheduled = true;
   const run = () => {
     _anaPrefetchScheduled = false;
