@@ -40,6 +40,38 @@ const SEED_PLAYERS = {
   4: { id: 4, name: "Puneet" },
 };
 
+// ── Analytics output-snapshot fixture ──────────────────────────────────────
+// A rich, fixed dataset (5 players, 14 matches, fixed past dates) used with a
+// FROZEN clock to make the analytics page deterministic. The snapshot step
+// hashes the normalized analytics HTML so a pure relocation of the analytics
+// code (the planned code-split) can be proven to change nothing; a mis-wired
+// dependency (wrong number / a section throwing) flips the hash.
+const SNAP_PLAYERS = {
+  1: { id: 1, name: "Ann" }, 2: { id: 2, name: "Bo" }, 3: { id: 3, name: "Cy" },
+  4: { id: 4, name: "Di" }, 5: { id: 5, name: "Eve" },
+};
+const SNAP_ALIASES = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+const _sm = (date, a, b, sa, sb) => ({ date, teamA: a, teamB: b, scoreA: sa, scoreB: sb });
+const SNAPSHOT_MATCHES = [
+  _sm("2026-05-01", ["Ann", "Bo"], ["Cy", "Di"], 6, 3),
+  _sm("2026-05-02", ["Ann", "Cy"], ["Bo", "Di"], 4, 6),
+  _sm("2026-05-03", ["Ann", "Di"], ["Bo", "Cy"], 6, 1),
+  _sm("2026-05-04", ["Eve", "Ann"], ["Cy", "Di"], 6, 4),
+  _sm("2026-05-05", ["Bo", "Eve"], ["Ann", "Cy"], 3, 6),
+  _sm("2026-05-06", ["Cy", "Eve"], ["Bo", "Di"], 6, 2),
+  _sm("2026-05-07", ["Di", "Eve"], ["Ann", "Bo"], 4, 6),
+  _sm("2026-05-08", ["Ann", "Bo"], ["Cy", "Eve"], 6, 5),
+  _sm("2026-05-09", ["Ann", "Di"], ["Bo", "Eve"], 2, 6),
+  _sm("2026-05-10", ["Cy", "Di"], ["Ann", "Eve"], 6, 3),
+  _sm("2026-05-11", ["Bo", "Cy"], ["Di", "Eve"], 6, 4),
+  _sm("2026-05-12", ["Ann", "Cy"], ["Bo", "Di"], 5, 6),
+  _sm("2026-05-13", ["Ann", "Bo"], ["Di", "Eve"], 6, 2),
+  _sm("2026-05-14", ["Cy", "Eve"], ["Ann", "Di"], 4, 6),
+];
+// Update intentionally when analytics OUTPUT legitimately changes. "PENDING"
+// makes the first run print the computed hash without failing.
+const ANALYTICS_SNAPSHOT_HASH = "5ae521ac";
+
 function findBrowser() {
   const candidates = [
     process.env.CHROME_PATH,
@@ -202,19 +234,33 @@ async function evaluate(client, expression) {
   return result.result.value;
 }
 
+// Firestore can't reach its backend in the offline test harness — that's by
+// design (the app runs forced-offline), so its connection/unavailable logs are
+// environmental noise, not app bugs. Everything else is a real error.
+function _isBenignNoise(text) {
+  return (
+    /firestore/i.test(text) &&
+    /(could not reach|unavailable|offline|backend|connection failed)/i.test(text)
+  );
+}
+function _eventText(event) {
+  if (event.method === "Runtime.exceptionThrown")
+    return event.params?.exceptionDetails?.exception?.description ||
+      event.params?.exceptionDetails?.text || "";
+  if (event.method === "Runtime.consoleAPICalled")
+    return (event.params?.args || []).map((a) => a.value || a.description || "").join(" ");
+  if (event.method === "Log.entryAdded") return event.params?.entry?.text || "";
+  return "";
+}
+
 function browserErrors(events) {
   return events.filter((event) => {
-    if (event.method === "Runtime.exceptionThrown") return true;
-    if (
-      event.method === "Runtime.consoleAPICalled" &&
-      event.params?.type === "error"
-    ) {
-      return true;
-    }
-    return (
-      event.method === "Log.entryAdded" &&
-      event.params?.entry?.level === "error"
-    );
+    const isErr =
+      event.method === "Runtime.exceptionThrown" ||
+      (event.method === "Runtime.consoleAPICalled" && event.params?.type === "error") ||
+      (event.method === "Log.entryAdded" && event.params?.entry?.level === "error");
+    if (!isErr) return false;
+    return !_isBenignNoise(_eventText(event));
   });
 }
 
@@ -777,6 +823,67 @@ async function main() {
       `Battery Saver must persist across reload (got ${JSON.stringify(bsReload)})`,
     );
 
+    // ── ANALYTICS OUTPUT SNAPSHOT (code-split regression guard) ──────────────
+    // Reload with the rich fixture + a frozen clock, render analytics, and hash
+    // the normalized HTML. This is the safety net for relocating the analytics
+    // subsystem: a pure move must keep this hash identical.
+    await client.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `
+        (function(){
+          // Freeze "today" so date-relative output is deterministic, while
+          // keeping new Date(arg)/parse working (the app parses match dates).
+          var FIXED = Date.parse("2026-06-15T12:00:00");
+          var RD = Date;
+          function FD(){ return arguments.length ? new RD(...arguments) : new RD(FIXED); }
+          FD.now = function(){ return FIXED; };
+          FD.parse = RD.parse; FD.UTC = RD.UTC; FD.prototype = RD.prototype;
+          window.Date = FD;
+        })();
+        localStorage.setItem("padel_forced_offline","1");
+        localStorage.setItem("padel_battery_saver","0");
+        localStorage.removeItem("padel_active_season");
+        localStorage.removeItem("padel_seasons");
+        localStorage.setItem("padel_cache_v5", JSON.stringify({
+          ts: Date.now(), matches: ${JSON.stringify(SNAPSHOT_MATCHES)},
+          players: ${JSON.stringify(SNAP_PLAYERS)},
+          playerAliasMap: ${JSON.stringify(SNAP_ALIASES)}, nextPlayerId: 6
+        }));
+      `,
+    });
+    await client.send("Page.navigate", { url: `http://127.0.0.1:${appPort}/index.html` });
+    await waitFor(
+      client,
+      `document.body.classList.contains("splash-done")`,
+      "snapshot fixture startup",
+    );
+    await evaluate(client, `switchMainTab("analytics", true);`);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#analytics-page-content .ana-sec").length > 5`,
+      "snapshot analytics render",
+    );
+    const snap = await evaluate(client, `(() => {
+      let h = document.getElementById("analytics-page-content").innerHTML;
+      // Strip non-semantic volatility: generated ids, svg id-refs, anim delays.
+      h = h.replace(/\\sid="[^"]*"/g, "")
+           .replace(/url\\(#[^)]*\\)/g, "url(#)")
+           .replace(/animation-delay:[^;"']*/g, "");
+      let hash = 0x811c9dc5;            // FNV-1a 32-bit
+      for (let i = 0; i < h.length; i++) { hash ^= h.charCodeAt(i); hash = (hash * 0x01000193) >>> 0; }
+      return { hash: hash.toString(16), len: h.length,
+               secs: document.querySelectorAll("#analytics-page-content .ana-sec").length,
+               unavailable: (h.match(/Section unavailable/g) || []).length };
+    })()`);
+    console.log("ANALYTICS SNAPSHOT:", JSON.stringify(snap));
+    assert(
+      snap.unavailable === 0,
+      `Analytics snapshot: ${snap.unavailable} section(s) threw ("Section unavailable")`,
+    );
+    assert(
+      ANALYTICS_SNAPSHOT_HASH === "PENDING" || snap.hash === ANALYTICS_SNAPSHOT_HASH,
+      `Analytics output changed: got ${snap.hash} (len ${snap.len}), expected ${ANALYTICS_SNAPSHOT_HASH}. If intentional, update ANALYTICS_SNAPSHOT_HASH; otherwise a refactor altered rendered values.`,
+    );
+
     const errors = browserErrors(client.events);
     assert(
       errors.length === 0,
@@ -784,7 +891,7 @@ async function main() {
     );
 
     console.log(
-      "Browser smoke passed: offline startup, tab switching, lazy Analytics/Live, add-match flow, seasons filter.",
+      "Browser smoke passed: offline startup, tab switching, lazy Analytics/Live, add-match flow, seasons filter, analytics snapshot.",
     );
   } finally {
     if (client) client.close();
