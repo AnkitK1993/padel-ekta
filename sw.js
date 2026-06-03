@@ -27,6 +27,9 @@ const STATIC = [
   BASE + "src/engine/player-analytics.js",
   BASE + "manifest.json",
   BASE + "icons/icon.svg",
+  BASE + "icons/icon-180.png",
+  BASE + "icons/icon-192.png",
+  BASE + "icons/icon-512.png",
 ];
 const RUNTIME_MAX_ENTRIES = 40;
 

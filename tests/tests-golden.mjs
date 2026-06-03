@@ -13,9 +13,11 @@ import { computeBadges, initBadgesDeps } from "../src/engine/badges.js";
 import {
   initPlayerAnalyticsDeps,
   computeAchievements,
+  computeArchetype,
   computePlayerForm,
   computePowerRankings,
   computeChemistryScores,
+  computeMatchStories,
 } from "../src/engine/player-analytics.js";
 import { toLocalISODate } from "../src/ui/format.js";
 
@@ -214,6 +216,52 @@ ok("computePlayerForm runs without throwing", form !== undefined);
 ok(
   "computeChemistryScores runs with real getPairStats",
   computeChemistryScores(BADGE_SEASON) !== undefined,
+);
+
+// ── computeArchetype ──────────────────────────────────────────────────────────
+const arch = computeArchetype("Alice", BADGE_SEASON);
+ok("computeArchetype returns non-null for 10+ matches", arch !== null, "got null");
+ok(
+  "archetype object has required shape (icon/label/desc/color)",
+  arch !== null && "icon" in arch && "label" in arch && "desc" in arch && "color" in arch,
+  `got ${JSON.stringify(arch)}`,
+);
+ok(
+  "Alice (10-0, +4 margin) classified as Finisher",
+  arch?.label === "Finisher",
+  `label=${arch?.label}`,
+);
+ok(
+  "computeArchetype returns null for < 5 matches",
+  computeArchetype("Alice", BADGE_SEASON.slice(0, 3)) === null,
+);
+ok(
+  "computeArchetype is deterministic",
+  JSON.stringify(computeArchetype("Alice", BADGE_SEASON)) === JSON.stringify(arch),
+);
+
+// ── computeMatchStories ───────────────────────────────────────────────────────
+const stories = computeMatchStories(SEASON);
+ok("computeMatchStories returns an array", Array.isArray(stories), typeof stories);
+ok(
+  "story objects have required shape (icon/type/text/date)",
+  stories.length === 0 ||
+    stories.every((s) => "icon" in s && "type" in s && "text" in s && "date" in s),
+  `first=${JSON.stringify(stories[0])}`,
+);
+ok(
+  "computeMatchStories on < 2 matches returns []",
+  computeMatchStories([SEASON[0]]).length === 0,
+);
+ok(
+  "computeMatchStories is deterministic",
+  JSON.stringify(computeMatchStories(SEASON)) === JSON.stringify(stories),
+);
+// SEASON has varied ELO swings — expect at least some stories generated
+ok(
+  "SEASON generates at least one story",
+  stories.length > 0,
+  `got ${stories.length} stories`,
 );
 
 // ── pairs golden (real src/engine/pairs.js) ─────────────────────────────────

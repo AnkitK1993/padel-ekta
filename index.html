@@ -16,7 +16,8 @@
     <meta name="theme-color" content="#09090f" />
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <!-- iOS ignores SVG for the home-screen icon; PNG is required. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
     <title>Padel Leaderboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -34,8 +35,9 @@
     </noscript>
     <link rel="stylesheet" href="styles.css" />
     <script src="utils.js"></script>
-    <script async src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script async src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- emailjs + html2canvas are loaded on demand (see _ensureEmailjs /
+         _ensureHtml2Canvas in app.js) so the ~160 KB they weigh isn't fetched
+         or parsed by the 99% of viewers who never screenshot or email. -->
   </head>
   <body>
     <div id="ambient-bg" aria-hidden="true">
@@ -225,7 +227,7 @@
           <div class="tp-panel">
             <div class="tp-header">
               <div class="tp-title">PICK A THEME</div>
-              <button class="tp-close" onclick="closeThemePicker()">✕</button>
+              <button class="tp-close" aria-label="Close" onclick="closeThemePicker()">✕</button>
             </div>
             <div class="tp-grid" id="tp-grid"></div>
           </div>
@@ -247,7 +249,7 @@
                 oninput="_globalSearchInput(this.value)"
                 autocomplete="off"
               />
-              <button class="gs-close" onclick="closeGlobalSearch()">✕</button>
+              <button class="gs-close" aria-label="Close" onclick="closeGlobalSearch()">✕</button>
             </div>
             <div class="gs-results" id="gs-results"></div>
           </div>
@@ -358,8 +360,8 @@
             <button class="ss-eq-btn" id="cmpEqBtn" onclick="toggleCmpEqualized()" title="Equalized mode: smooths out stats for players with fewer matches so they're not unfairly penalized for low sample size (Bayesian smoothing toward 50% win rate)">⚖</button>
             <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
             <button class="ss-eq-btn" id="cmpColBtn" onclick="openColSheet()" title="Show/hide columns">⊞</button>
-            <button class="ss-eq-btn" onclick="copyLeaderboardLink()" title="Copy shareable link to this leaderboard">🔗</button>
-            <button class="ss-snap-btn" onclick="openSummaryShare()">📸</button>
+            <button class="ss-eq-btn" onclick="copyLeaderboardLink()" aria-label="Copy shareable link to this leaderboard" title="Copy shareable link to this leaderboard">🔗</button>
+            <button class="ss-snap-btn" aria-label="Share leaderboard screenshot" onclick="openSummaryShare()">📸</button>
           </div>
         </div>
         <select
@@ -754,7 +756,7 @@
               oninput="anaSearchInput(this.value)"
               onkeydown="anaSearchKey(event)"
             />
-            <button class="ana-sov-close" onclick="closeAnaSearch()">✕</button>
+            <button class="ana-sov-close" aria-label="Close" onclick="closeAnaSearch()">✕</button>
           </div>
           <div class="ana-sov-results" id="ana-sov-results"></div>
         </div>
@@ -1366,7 +1368,7 @@ Puneet - Pun, PK
         id="live-sheet-overlay"
         onclick="closeLivePlayerSheet()"
       ></div>
-      <div class="live-sheet" id="live-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="live-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title" id="live-sheet-title">SELECT PLAYER</div>
         <div class="live-sheet-list" id="live-sheet-list"></div>
@@ -1374,7 +1376,7 @@ Puneet - Pun, PK
 
       <!-- Session Setup Sheet -->
       <div class="live-sheet-overlay" id="session-setup-overlay" onclick="closeSessionSetup()"></div>
-      <div class="live-sheet" id="session-setup-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="session-setup-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">START SESSION</div>
         <div style="padding:2px 14px 8px;font-size:12px;color:var(--text-muted);text-align:center">Select players present today</div>
@@ -1389,7 +1391,7 @@ Puneet - Pun, PK
 
       <!-- Add Player Mid-Session Sheet -->
       <div class="live-sheet-overlay" id="add-player-overlay" onclick="closeAddPlayerSheet()"></div>
-      <div class="live-sheet" id="add-player-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="add-player-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">ADD PLAYER</div>
         <div id="add-player-list" style="padding:0 14px;max-height:50vh;overflow-y:auto"></div>
@@ -1398,7 +1400,7 @@ Puneet - Pun, PK
 
       <!-- Americano / Matchup Generator -->
       <div class="live-sheet-overlay" id="americano-overlay" onclick="closeAmericano()"></div>
-      <div class="live-sheet" id="americano-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="americano-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">🎾 AMERICANO</div>
         <div id="americano-setup">
@@ -1437,7 +1439,7 @@ Puneet - Pun, PK
 
       <!-- Seasons -->
       <div class="live-sheet-overlay" id="season-overlay" onclick="closeSeasonSheet()"></div>
-      <div class="live-sheet" id="season-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="season-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">🗓️ SEASONS</div>
         <!-- LIST VIEW -->
@@ -1481,7 +1483,7 @@ Puneet - Pun, PK
 
       <!-- Session Summary Sheet -->
       <div class="live-sheet-overlay" id="session-summary-overlay" onclick="closeSessionSummary()"></div>
-      <div class="live-sheet live-sheet-tall" id="session-summary-sheet">
+      <div class="live-sheet live-sheet-tall" role="dialog" aria-modal="true" id="session-summary-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">SESSION SUMMARY</div>
         <div id="session-summary-body" style="padding:0 14px;overflow-y:auto;max-height:62vh"></div>
@@ -1494,7 +1496,7 @@ Puneet - Pun, PK
 
       <!-- Match Confirm Sheet (shown after all 4 players selected) -->
       <div class="live-sheet-overlay" id="match-confirm-overlay" onclick="closeMatchConfirmSheet()"></div>
-      <div class="live-sheet" id="match-confirm-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="match-confirm-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">MATCH READY</div>
         <div id="match-confirm-matchup" class="match-confirm-matchup"></div>
@@ -1507,7 +1509,7 @@ Puneet - Pun, PK
 
       <!-- Undo Confirm Sheet -->
       <div class="live-sheet-overlay" id="undo-confirm-overlay" onclick="closeUndoConfirmSheet()" style="display:none"></div>
-      <div class="live-sheet" id="undo-confirm-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="undo-confirm-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">UNDO MATCH?</div>
         <div id="undo-confirm-body" style="padding:4px 14px 2px;text-align:center"></div>
@@ -1520,7 +1522,7 @@ Puneet - Pun, PK
 
       <!-- Suggest Next Match Sheet -->
       <div class="live-sheet-overlay" id="suggest-sheet-overlay" onclick="window._closeSuggestSheet()" style="display:none"></div>
-      <div class="live-sheet" id="suggest-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="suggest-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">🎲 NEXT MATCH SUGGESTIONS</div>
         <div id="suggest-sheet-body" style="padding:0 14px 8px;overflow-y:auto;max-height:60vh"></div>
@@ -1529,7 +1531,7 @@ Puneet - Pun, PK
 
       <!-- Match Save Sheet (shown when match is won) -->
       <div class="live-sheet-overlay" id="match-save-overlay" onclick="closeMatchSaveSheet()"></div>
-      <div class="live-sheet" id="match-save-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="match-save-sheet">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">MATCH OVER 🎾</div>
         <div id="match-save-result" class="match-save-result"></div>
@@ -1544,7 +1546,7 @@ Puneet - Pun, PK
 
     <!-- Player edit / add sheet -->
     <div class="live-sheet-overlay" id="player-edit-overlay" onclick="closePlayerEditSheet()"></div>
-    <div class="live-sheet" id="player-edit-sheet" style="max-height:92vh;overflow-y:auto">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="player-edit-sheet" style="max-height:92vh;overflow-y:auto">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="pes-title">EDIT PLAYER</div>
       <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:12px">
@@ -1579,7 +1581,7 @@ Puneet - Pun, PK
 
     <!-- Duplicate match confirmation sheet (global) -->
     <div class="live-sheet-overlay" id="dup-confirm-overlay" onclick="closeDupConfirmSheet()"></div>
-    <div class="live-sheet" id="dup-confirm-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="dup-confirm-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">DUPLICATE MATCH</div>
       <div id="dup-confirm-msg" style="padding:0 16px 12px;font-size:13px;color:var(--muted);line-height:1.5;text-align:center"></div>
@@ -1616,7 +1618,7 @@ Puneet - Pun, PK
       </div>
     </div>
 
-    <div id="modern-add-modal" class="modern-modal">
+    <div id="modern-add-modal" class="modern-modal" role="dialog" aria-modal="true" aria-label="Add matches">
       <div class="modern-sheet">
         <div class="sheet-title">Quick Add Match</div>
         <div class="fab-team-row">
@@ -1712,7 +1714,7 @@ Puneet - Pun, PK
     </div>
 
     <!-- Quick-add name modal -->
-    <div id="name-add-modal" class="modern-modal">
+    <div id="name-add-modal" class="modern-modal" role="dialog" aria-modal="true" aria-label="Manage player names">
       <div class="modern-sheet">
         <div class="sheet-title">Add Player</div>
         <input id="name-display" class="input-modern" placeholder="Display Name (e.g., Ankit)" />
@@ -1823,7 +1825,7 @@ Puneet - Pun, PK
     </script>
 
     <!-- MATCH INTRO OVERLAY -->
-    <div id="match-intro-overlay" onclick="closeMatchIntro()">
+    <div id="match-intro-overlay" role="dialog" aria-modal="true" aria-label="Match details" onclick="closeMatchIntro()">
       <div class="mio-hint">TAP ANYWHERE TO CLOSE</div>
       <div class="mio-date-bar" id="mio-date-bar"></div>
       <div class="mio-arena">
@@ -1864,7 +1866,7 @@ Puneet - Pun, PK
       id="filter-sheet-overlay"
       onclick="closeFilterSheet()"
     ></div>
-    <div class="live-sheet" id="filter-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="filter-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="filter-sheet-title">SELECT</div>
       <div class="filter-sheet-search-wrap" id="filter-sheet-search-wrap" style="display:none">
@@ -1881,7 +1883,7 @@ Puneet - Pun, PK
       id="exclude-sheet-overlay"
       onclick="closeExcludeSheet()"
     ></div>
-    <div class="live-sheet" id="exclude-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="exclude-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>EXCLUDE PLAYERS</span>
@@ -1899,7 +1901,7 @@ Puneet - Pun, PK
       id="col-sheet-overlay"
       onclick="closeColSheet()"
     ></div>
-    <div class="live-sheet" id="col-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="col-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">SHOW / HIDE COLUMNS</div>
       <div class="col-chip-wrap" id="col-chip-list"></div>
@@ -1914,7 +1916,7 @@ Puneet - Pun, PK
       id="h2h-sheet-overlay"
       onclick="closeH2HSheet()"
     ></div>
-    <div class="live-sheet" id="h2h-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="h2h-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="h2h-sheet-title">SELECT PLAYER</div>
       <div class="live-sheet-list" id="h2h-sheet-list"></div>
@@ -1926,7 +1928,7 @@ Puneet - Pun, PK
       id="screenshot-choice-overlay"
       onclick="closeScreenshotChoiceSheet()"
     ></div>
-    <div class="live-sheet" id="screenshot-choice-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="screenshot-choice-sheet">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">SCREENSHOT</div>
       <div class="live-sheet-list">

@@ -517,25 +517,6 @@ body {
 .filters::-webkit-scrollbar {
   display: none;
 }
-.filt {
-  flex-shrink: 0;
-  padding: 5px 11px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-family: "DM Sans", sans-serif;
-}
-.filt.on {
-  background: linear-gradient(135deg, var(--accent), var(--accent3));
-  color: #09090f;
-  border-color: rgba(var(--theme-rgb), 0.45);
-  box-shadow: 0 0 18px rgba(var(--theme-rgb), 0.16);
-  animation: pulse 3s ease-in-out infinite;
-}
 .dr-wrap {
   flex-shrink: 0;
   display: none;
@@ -5200,7 +5181,6 @@ body.no-cascade .analytics-card {
     box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.28);
   }
   .tbb,
-  .filt,
   .btn-go,
   .hist-filter-row,
   .hist-filter-group,
@@ -5806,23 +5786,6 @@ select.input-modern option[value=""] {
 
 
 
-.achievement-banner .banner-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.achievement-banner .banner-title .title {
-  font-size: 16px;
-  font-weight: 900;
-}
-.achievement-banner .banner-title .sub {
-  font-size: 12px;
-  color: var(--muted);
-  max-width: 220px;
-  line-height: 1.4;
-}
 
 
 .achievement-pill .badge {
@@ -5942,7 +5905,6 @@ body {
 }
 
 .tbb,
-.filt,
 .hfilt,
 .itab,
 .btn-go,
@@ -6053,7 +6015,6 @@ table.cmp {
     scroll-snap-type: x proximity;
   }
 
-  .filt,
   .hfilt,
   .itab {
     scroll-snap-align: start;
@@ -16726,18 +16687,6 @@ body.midnight-oled-mode #themeBtn {
   display: none;
 }
 
-.live-banner-session_start {
-  background: linear-gradient(160deg, #0a2a14 0%, #0a0f18 100%);
-}
-.live-banner-session_end {
-  background: linear-gradient(160deg, #1a0f05 0%, #0a0f18 100%);
-}
-.live-banner-match_start {
-  background: rgba(0, 0, 0, 0.95);
-}
-.live-banner-match_end_ufc {
-  background: rgba(0, 0, 0, 0.97);
-}
 
 /* ── LIVE SESSION DETAIL ─────────────────────────────────── */
 @keyframes lsdIn {

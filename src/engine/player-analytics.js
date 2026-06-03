@@ -431,11 +431,6 @@ export function computeMatchStories(matches) {
 
     const date = m.date;
 
-    // Story: Streak ended
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      const prevStreak = streaks[p].count === 1 ? null : null; // tracked below
-    });
-
     // Story: Upset (lower ELO team wins)
     const eloDiff = Math.abs(avgA - avgB);
     if (eloDiff >= 60) {
@@ -704,4 +699,130 @@ export function computeAchievements(name, matches) {
   add("🥇", "Season MVP", "Finish #1 in any month", isMVP);
 
   return ach;
+}
+
+// ── Analytics page data prep ───────────────────────────────
+// Pure data computation for renderAnalyticsPage. Returns a single object
+// with all derived stats so the renderer only handles HTML building.
+export function computeAnalyticsPageData(matches) {
+  const stats = {}, shutoutWins = {}, shutoutLosses = {};
+  const highestMargins = [], partnerships = {}, teamMatchups = {};
+  const monthlyStats = {}, dateCounts = {}, scoreDist = {}, rivalryCount = {};
+  const closeWins = {}, closePlayed = {};
+
+  const sortedM = [...matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+
+  sortedM.forEach((m) => {
+    const aWon = m.scoreA > m.scoreB;
+    const winners = aWon ? m.teamA : m.teamB;
+    const losers  = aWon ? m.teamB : m.teamA;
+    const winScore = aWon ? m.scoreA : m.scoreB;
+    const loseScore = aWon ? m.scoreB : m.scoreA;
+    const margin = Math.abs(m.scoreA - m.scoreB);
+
+    [...m.teamA, ...m.teamB].forEach((p) => {
+      if (!stats[p])
+        stats[p] = { name: p, wins: 0, losses: 0, matches: 0, streak: 0, bestStreak: 0, teammates: {} };
+    });
+    winners.forEach((p) => {
+      stats[p].wins++; stats[p].matches++; stats[p].streak++;
+      if (stats[p].streak > stats[p].bestStreak) stats[p].bestStreak = stats[p].streak;
+    });
+    losers.forEach((p) => { stats[p].losses++; stats[p].matches++; stats[p].streak = 0; });
+
+    if (loseScore === 0) {
+      winners.forEach((p) => { shutoutWins[p]  = (shutoutWins[p]  || 0) + 1; });
+      losers.forEach( (p) => { shutoutLosses[p] = (shutoutLosses[p] || 0) + 1; });
+    }
+    winners.forEach((p) => highestMargins.push({ player: p, margin, score: `${winScore}-${loseScore}` }));
+
+    if (m.teamA.length === 2 && m.teamB.length === 2) {
+      const addP = (t, won, ownScore, oppScore) => {
+        const key = [...t].sort().join(" & ");
+        if (!partnerships[key])
+          partnerships[key] = { players: [...t].sort(), wins: 0, played: 0, diff: 0, gw: 0, gt: 0 };
+        partnerships[key].played++;
+        partnerships[key].gw += ownScore;
+        partnerships[key].gt += ownScore + oppScore;
+        if (won) { partnerships[key].wins++; partnerships[key].diff += margin; }
+        else       partnerships[key].diff -= margin;
+      };
+      addP(m.teamA, aWon,  m.scoreA, m.scoreB);
+      addP(m.teamB, !aWon, m.scoreB, m.scoreA);
+      const tkA = [...m.teamA].sort().join(" & ");
+      const tkB = [...m.teamB].sort().join(" & ");
+      const mk  = [tkA, tkB].sort().join(" vs ");
+      if (!teamMatchups[mk])
+        teamMatchups[mk] = { teamA: [...m.teamA].sort(), teamB: [...m.teamB].sort(), wins: { [tkA]: 0, [tkB]: 0 }, played: 0, matches: [] };
+      teamMatchups[mk].played++;
+      teamMatchups[mk].wins[aWon ? tkA : tkB]++;
+      teamMatchups[mk].matches.push(m);
+    }
+    if (m.teamA.length === 2) {
+      const [a, b] = m.teamA;
+      stats[a].teammates[b] = (stats[a].teammates[b] || 0) + 1;
+      stats[b].teammates[a] = (stats[b].teammates[a] || 0) + 1;
+    }
+    if (m.teamB.length === 2) {
+      const [a, b] = m.teamB;
+      stats[a].teammates[b] = (stats[a].teammates[b] || 0) + 1;
+      stats[b].teammates[a] = (stats[b].teammates[a] || 0) + 1;
+    }
+
+    const mo = (m.date || "").substring(0, 7);
+    if (mo) {
+      if (!monthlyStats[mo]) monthlyStats[mo] = {};
+      m.teamA.forEach((p) => {
+        if (!monthlyStats[mo][p]) monthlyStats[mo][p] = { w: 0, m: 0 };
+        monthlyStats[mo][p].m++; if (aWon) monthlyStats[mo][p].w++;
+      });
+      m.teamB.forEach((p) => {
+        if (!monthlyStats[mo][p]) monthlyStats[mo][p] = { w: 0, m: 0 };
+        monthlyStats[mo][p].m++; if (!aWon) monthlyStats[mo][p].w++;
+      });
+    }
+    if (m.date) dateCounts[m.date] = (dateCounts[m.date] || 0) + 1;
+
+    const hi = Math.max(m.scoreA, m.scoreB), lo = Math.min(m.scoreA, m.scoreB);
+    scoreDist[`${hi}-${lo}`] = (scoreDist[`${hi}-${lo}`] || 0) + 1;
+
+    m.teamA.forEach((a) =>
+      m.teamB.forEach((b) => {
+        const k = [a, b].sort().join("|");
+        rivalryCount[k] = (rivalryCount[k] || 0) + 1;
+      }),
+    );
+
+    if (margin <= 1) {
+      winners.forEach((p) => { closeWins[p]  = (closeWins[p]  || 0) + 1; closePlayed[p] = (closePlayed[p] || 0) + 1; });
+      losers.forEach( (p) => { closePlayed[p] = (closePlayed[p] || 0) + 1; });
+    }
+  });
+
+  const players = Object.values(stats);
+  const mostActive         = [...players].sort((a, b) => b.matches - a.matches)[0];
+  const topWinRate         = [...players].filter((p) => p.matches >= 3).sort((a, b) => b.wins / b.matches - a.wins / a.matches)[0];
+  const topStreak          = [...players].sort((a, b) => b.bestStreak - a.bestStreak)[0];
+  const mostShutoutWinsEntry = Object.entries(shutoutWins).sort((a, b) => b[1] - a[1])[0];
+  const maxLosses          = Math.max(...Object.values(shutoutLosses), 0);
+  const mostShutoutLosses  = Object.entries(shutoutLosses).filter(([, v]) => v === maxLosses).map(([k]) => k);
+  const biggestWin         = [...highestMargins].sort((a, b) => b.margin - a.margin)[0];
+  const bestPartnership    = Object.values(partnerships)
+    .filter((p) => p.played >= 2)
+    .sort((a, b) => {
+      const wd = b.wins / b.played - a.wins / a.played;
+      if (Math.abs(wd) > 1e-9) return wd;
+      const pd = b.played - a.played;
+      if (pd !== 0) return pd;
+      return b.gw / b.gt - a.gw / a.gt;
+    })[0];
+
+  return {
+    stats, shutoutWins, shutoutLosses, highestMargins, partnerships, teamMatchups,
+    monthlyStats, dateCounts, scoreDist, rivalryCount, closeWins, closePlayed,
+    mostActive, topWinRate, topStreak, mostShutoutWinsEntry,
+    maxLosses, mostShutoutLosses, biggestWin, bestPartnership,
+  };
 }
