@@ -18,7 +18,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22+ is required: browser-smoke.js / css-coverage.js drive Chrome
+          # over CDP using the built-in global `WebSocket`, which only became a
+          # global (no flag) in Node 22.4. On Node 20 they throw
+          # "WebSocket is not defined".
+          node-version: 22
 
       - name: Unit + golden + americano tests
         run: npm test

@@ -1,5 +1,14 @@
 "use strict";
 
+// Requires Node 22.4+ — this script drives Chrome over CDP using the built-in
+// global `WebSocket`, which only became available without a flag in 22.4.
+if (typeof WebSocket === "undefined") {
+  console.error(
+    `This script needs Node 22.4+ (global WebSocket). You are on ${process.version}.`,
+  );
+  process.exit(1);
+}
+
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
