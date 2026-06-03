@@ -1642,6 +1642,26 @@ select.cmp-sel:focus {
 .smr-wrap.swipe-revealed .swipe-delete-reveal {
   opacity: 1;
 }
+/* Right-swipe → edit (left side), Summary rows only */
+.smr-edit-reveal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  background: rgba(var(--theme-rgb), 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 0;
+}
+.smr-wrap.swipe-revealed-r .smr-edit-reveal {
+  opacity: 1;
+}
 /* Override table-specific cmr-team sizing for flex row context */
 .smr-inner .cmr-team {
   max-width: none;

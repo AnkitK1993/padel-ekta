@@ -2473,9 +2473,11 @@ document.addEventListener(
   "touchstart",
   (e) => {
     if (e.touches.length !== 1) return;
-    const card =
-      (window.isAdmin ? e.target.closest(".match-card") : null) ||
-      e.target.closest(".smr-wrap");
+    // Swipe actions (delete / edit) are admin-only, so only arm the gesture for
+    // admins — non-admins can still TAP a row to open the match overlay.
+    const card = window.isAdmin
+      ? e.target.closest(".match-card") || e.target.closest(".smr-wrap")
+      : null;
     if (!card) return;
     _swipeTouchStartX = e.touches[0].clientX;
     _swipeTouchStartY = e.touches[0].clientY;
@@ -2497,19 +2499,30 @@ document.addEventListener(
     }
     if (!_swipeActive && Math.abs(dx) > 8) _swipeActive = true;
     if (!_swipeActive) return;
+    const inner = _swipeCard.querySelector(".match-card-inner, .smr-inner");
+    // Right-swipe → edit is offered on Summary rows only.
+    const _canEditSwipe = _swipeCard.classList.contains("smr-wrap");
     if (dx < 0) {
+      // Left swipe → reveal delete (right side)
       const reveal = Math.min(72, Math.abs(dx));
-      const inner = _swipeCard.querySelector(".match-card-inner, .smr-inner");
       if (inner) {
         inner.style.transform = `translateX(${-reveal}px)`;
         _swipeCard.classList.add("swiping");
       }
-      if (reveal >= 52) _swipeCard.classList.add("swipe-revealed");
-      else _swipeCard.classList.remove("swipe-revealed");
+      _swipeCard.classList.toggle("swipe-revealed", reveal >= 52);
+      _swipeCard.classList.remove("swipe-revealed-r");
+    } else if (dx > 0 && _canEditSwipe) {
+      // Right swipe → reveal edit (left side)
+      const reveal = Math.min(72, dx);
+      if (inner) {
+        inner.style.transform = `translateX(${reveal}px)`;
+        _swipeCard.classList.add("swiping");
+      }
+      _swipeCard.classList.toggle("swipe-revealed-r", reveal >= 52);
+      _swipeCard.classList.remove("swipe-revealed");
     } else {
-      const inner = _swipeCard.querySelector(".match-card-inner, .smr-inner");
       if (inner) inner.style.transform = "";
-      _swipeCard.classList.remove("swipe-revealed", "swiping");
+      _swipeCard.classList.remove("swipe-revealed", "swipe-revealed-r", "swiping");
     }
   },
   { passive: true },
@@ -2528,8 +2541,13 @@ document.addEventListener(
         inner.style.transition = "transform 0.25s ease";
         inner.style.transform = "translateX(-72px)";
       }
+    } else if (card.classList.contains("swipe-revealed-r")) {
+      if (inner) {
+        inner.style.transition = "transform 0.25s ease";
+        inner.style.transform = "translateX(72px)";
+      }
     } else {
-      card.classList.remove("swipe-revealed", "swiping");
+      card.classList.remove("swipe-revealed", "swipe-revealed-r", "swiping");
       if (inner) {
         inner.style.transition = "transform 0.25s ease";
         inner.style.transform = "";
