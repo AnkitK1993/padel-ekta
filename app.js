@@ -3762,6 +3762,8 @@ async function backupToDrive() {
   showToast("Uploading to Drive…", "☁️");
   try {
     const link = await _uploadToDrive(blob, filename);
+    // Keep only the 7 newest backups (manual uploads count too).
+    _pruneDriveBackups(7).catch(() => {});
     showToast("Saved to Drive!", "✅");
     const el = document.getElementById("expOk");
     if (el) {
@@ -17348,7 +17350,7 @@ async function _maybeAutoDriveBackup() {
       type: "application/json",
     });
     await _uploadToDrive(blob, _backupFilename());
-    // Prune files older than 7 days right after a successful backup.
+    // Keep only the 7 newest backups (delete the oldest once an 8th exists).
     _pruneDriveBackups(7).catch(() => {});
   } catch (e) {
     // Release the slot so it can retry if the page is reloaded today.
@@ -17357,21 +17359,23 @@ async function _maybeAutoDriveBackup() {
   }
 }
 
-// Delete app-created backup files on Drive that are older than maxAgeDays.
-async function _pruneDriveBackups(maxAgeDays = 7) {
+// Keep only the `keep` most-recent app-created backup files on Drive; delete the
+// rest. So when a new upload makes the 8th file, the oldest one is removed —
+// retention is by COUNT, not age.
+async function _pruneDriveBackups(keep = 7) {
   if (!_driveAccessToken) return;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - maxAgeDays);
   const q = encodeURIComponent(
     "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
   );
   const resp = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=50`,
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&orderBy=createdTime desc&pageSize=100`,
     { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
   );
   if (!resp.ok) return;
   const { files = [] } = await resp.json();
-  const stale = files.filter((f) => new Date(f.createdTime) < cutoff);
+  // Sort newest-first defensively (don't rely solely on the API's orderBy).
+  files.sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime));
+  const stale = files.slice(keep); // everything past the newest `keep`
   await Promise.all(
     stale.map((f) =>
       fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
@@ -17381,7 +17385,7 @@ async function _pruneDriveBackups(maxAgeDays = 7) {
     ),
   );
   if (stale.length)
-    console.log(`Drive: pruned ${stale.length} backup(s) older than ${maxAgeDays} days`);
+    console.log(`Drive: pruned ${stale.length} old backup(s), keeping newest ${keep}`);
 }
 
 // Piggyback on the email scheduler's 13:00 target so both run at the
