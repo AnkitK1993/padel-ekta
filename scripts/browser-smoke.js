@@ -235,6 +235,11 @@ async function main() {
       `--remote-debugging-port=${debugPort}`,
       `--user-data-dir=${userDataDir}`,
       "--disable-gpu",
+      // Required on CI runners: the Chrome sandbox can't initialise in the
+      // GitHub Actions environment, and /dev/shm is too small for the default
+      // shared-memory backing. Harmless for an ephemeral localhost test browser.
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
       "--no-first-run",
       "--no-default-browser-check",
       "about:blank",

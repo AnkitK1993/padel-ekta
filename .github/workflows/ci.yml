@@ -24,13 +24,20 @@ jobs:
           # "WebSocket is not defined".
           node-version: 22
 
+      # Install Chrome and expose its path, so findBrowser() locates it
+      # deterministically instead of relying on the runner image's layout.
+      - uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+
       - name: Unit + golden + americano tests
         run: npm test
 
       - name: CSS coverage report
         run: npm run css:coverage
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
 
       - name: Browser smoke (headless Chrome)
-        # ubuntu-latest ships Google Chrome at /usr/bin/google-chrome, which
-        # browser-smoke.js probes for automatically.
         run: npm run test:browser
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}

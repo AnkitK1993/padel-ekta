@@ -287,6 +287,9 @@ async function main() {
       `--remote-debugging-port=${debugPort}`,
       `--user-data-dir=${userDataDir}`,
       "--disable-gpu",
+      // Required on CI runners (see browser-smoke.js for rationale).
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
       "--no-first-run",
       "--no-default-browser-check",
       "about:blank",
