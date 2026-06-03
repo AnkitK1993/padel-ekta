@@ -1163,6 +1163,11 @@ function _invalidateEloMemo() {
   _eloPeaksMemo = null;
   _eloLowsKey = "";
   _eloLowsMemo = null;
+  // Bound the per-fingerprint section caches: keyed by a dataset fingerprint and
+  // never evicted, they otherwise grow one entry per distinct dataset for the
+  // life of the session (a slow leak). Any data change invalidates them anyway.
+  for (const k in _reignCache) delete _reignCache[k];
+  for (const k in _rankPeriodCache) delete _rankPeriodCache[k];
 }
 
 let _anaObserver = null;
@@ -9972,7 +9977,30 @@ function buildH2HMatrixCompact(players) {
   if (players.length < 2)
     return '<div style="color:var(--muted);font-size:11px">Need at least 2 players with matches.</div>';
 
-  // Build head-to-head matrix
+  // Build the head-to-head matrix in ONE O(matches) pass. The old path called
+  // getHeadToHeadStats (itself an O(matches) filter) for every player pair —
+  // O(players² × matches), e.g. 20 players × 500 matches ≈ 200k scans per open.
+  // winsVs[a][b] = times a's team beat b's; metVs[a][b] = times a & b opposed.
+  const playerSet = new Set(players);
+  const winsVs = {};
+  const metVs = {};
+  const _bump = (obj, a, b) => {
+    (obj[a] || (obj[a] = {}))[b] = (obj[a][b] || 0) + 1;
+  };
+  activeMatches().forEach((m) => {
+    const A = (m.teamA || []).map(normPlayer).filter((p) => playerSet.has(p));
+    const B = (m.teamB || []).map(normPlayer).filter((p) => playerSet.has(p));
+    if (!A.length || !B.length) return;
+    const aWon = m.scoreA > m.scoreB;
+    A.forEach((a) =>
+      B.forEach((b) => {
+        _bump(metVs, a, b);
+        _bump(metVs, b, a);
+        if (aWon) _bump(winsVs, a, b);
+        else _bump(winsVs, b, a);
+      }),
+    );
+  });
   const matrix = {};
   players.forEach((a) => {
     matrix[a] = {};
@@ -9981,9 +10009,9 @@ function buildH2HMatrixCompact(players) {
         matrix[a][b] = null;
         return;
       }
-      const h2h = getHeadToHeadStats(a, b, activeMatches());
-      const total = h2h.aWins + h2h.bWins;
-      matrix[a][b] = total > 0 ? { wins: h2h.aWins, total } : null;
+      const total = (metVs[a] && metVs[a][b]) || 0;
+      matrix[a][b] =
+        total > 0 ? { wins: (winsVs[a] && winsVs[a][b]) || 0, total } : null;
     });
   });
 
