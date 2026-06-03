@@ -320,6 +320,16 @@ async function main() {
       `document.getElementById("modern-match-list").innerText.toLowerCase().includes("ankit")`,
       "History match list",
     );
+    // "Pick a Day" must reveal the date input (regressed: .dr-wrap is display:none
+    // by default and the day picker wasn't being made visible).
+    const dayPicker = await evaluate(client, `(() => {
+      setHistoryDateFilter("day");
+      const dp = document.getElementById("matchDayPicker");
+      return { visible: getComputedStyle(dp).display !== "none",
+               inputVisible: !!document.getElementById("matchDayInput")?.offsetParent };
+    })();`);
+    assert(dayPicker.visible && dayPicker.inputVisible, "Pick-a-Day date input did not become visible");
+    await evaluate(client, `setHistoryDateFilter("all");`);
     // Windowing fail-safe: with a tiny seed (< window) no "show older" button
     // appears, and invoking _histShowMore re-renders without error (wiring check).
     const win = await evaluate(client, `(() => {
