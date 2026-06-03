@@ -862,6 +862,9 @@ async function main() {
       `document.querySelectorAll("#analytics-page-content .ana-sec").length > 5`,
       "snapshot analytics render",
     );
+    // Let async sub-renders (charts / count-ups) settle before hashing — without
+    // this the hash can be captured mid-render and flake.
+    await delay(600);
     const snap = await evaluate(client, `(() => {
       let h = document.getElementById("analytics-page-content").innerHTML;
       // Strip non-semantic volatility: generated ids, svg id-refs, anim delays.
