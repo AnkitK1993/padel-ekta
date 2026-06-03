@@ -4666,7 +4666,12 @@ function renderCompact() {
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
-  const matchEloDeltas = _computeMatchEloDeltas(filtered);
+  // ELO deltas are always computed over the ALL-TIME (active-season) trajectory,
+  // not the current date filter — so a match's "+12/−8" reflects its real ELO
+  // impact regardless of whether Today/This Week/etc. is selected. The map is
+  // keyed by match identity, so the filtered rows below still resolve their own
+  // delta from the full walk.
+  const matchEloDeltas = _computeMatchEloDeltas(activeMatches());
   const reversedMatches = [...filtered].reverse();
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
@@ -8838,24 +8843,6 @@ function doShareDownload() {
 
 // Build a shareable deep-link to the current leaderboard state.
 // Anyone opening the URL lands on the Summary tab with the same season + filter.
-function copyLeaderboardLink() {
-  const base = location.origin + location.pathname;
-  const params = new URLSearchParams();
-  params.set("tab", "summary");
-  if (_activeSeasonId && _activeSeasonId !== "all")
-    params.set("season", _activeSeasonId);
-  if (cmpFilter && cmpFilter !== "all")
-    params.set("filter", cmpFilter);
-  const url = `${base}?${params.toString()}`;
-  navigator.clipboard
-    .writeText(url)
-    .then(() => showToast("Link copied!", "🔗"))
-    .catch(() => {
-      // Fallback: prompt so they can copy manually.
-      prompt("Copy this link:", url);
-    });
-}
-
 function openSummaryScreenshot() {
   const leaderTableEl = document.querySelector(".cmp-body-scroll .cmp");
   if (!leaderTableEl) {
@@ -17247,7 +17234,8 @@ function _scheduleDriveBackup() {
 }
 
 // ── DEEP-LINK PARAM HANDLING ────────────────────────────────
-// Honour ?tab=summary&season=xyz&filter=today links (e.g. from copyLeaderboardLink).
+// Honour ?tab=summary&season=xyz&filter=today links (still supported for any
+// previously-shared URLs, though the in-app "copy link" button was removed).
 {
   const _p = new URLSearchParams(location.search);
   const _tab = _p.get("tab");
@@ -17431,7 +17419,6 @@ Object.assign(window, {
   openShareCard,
   openWeeklyDigest,
   openSummaryShare,
-  copyLeaderboardLink,
   closeScreenshotChoiceSheet,
   doSummaryScreenshot,
   closeSharePreview,
