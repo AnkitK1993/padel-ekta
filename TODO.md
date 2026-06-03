@@ -111,6 +111,38 @@ _All items complete._
 
 ---
 
+## Known structural limits & deferred engineering
+
+These are not features — they're scaling/quality items to tackle when warranted.
+
+- **Firestore single-doc ceiling.** All matches live in one document, `padel/main`.
+  Firestore's hard limit is **1 MiB per document**. `_checkDocSize()` already warns
+  as it approaches, but at a few thousand matches this will need **sharding**
+  (e.g. one doc per season/year, or a `matches` subcollection). Until then the
+  single doc keeps reads/writes simple and atomic. Watch the `#doc-size-readout`
+  in Manage → Data.
+
+- **CSS audit (`styles.css` ≈ 17k lines / 382 KB, 868 `!important`).** The
+  `css:coverage` script's "review" bucket (~1,200) is mostly false positives
+  (dynamic/pseudo/attribute selectors built in JS template strings), so there is
+  **no safe automated trim** — it needs a manual pass with real-browser coverage
+  capture across every page/modal state to avoid visual regressions. The high
+  `!important` count is the bigger maintainability cost and should be unwound
+  gradually as sections are touched.
+
+- **app.js code-splitting.** External libs (html2canvas, emailjs) now load on
+  demand. Moving the big in-file subsystems (`renderAnalyticsPage` ~3k lines,
+  `openPlayerDetail`) into dynamically-imported modules is still blocked on the
+  home/compact **view-state migration** (the renderers and ~15 window handlers
+  share mutable view-state that must move to a `viewState` object first).
+
+> ⚠️ **Testing note:** the golden tests don't exercise the DOM renderers
+> (`renderAnalyticsPage`, `openPlayerDetail`). Always run `npm run test:browser`
+> after touching them — the browser smoke is the only check that catches a
+> broken render (it caught a real `players is not defined` regression).
+
+---
+
 ## Where to find all features
 
 **Live app:** https://ankitk1993.github.io/padel-ekta/

@@ -1,0 +1,32 @@
+name: CI
+
+# Runs the test suites on every push and PR. `main` auto-deploys to GitHub
+# Pages, so this is the gate that keeps a broken build from reaching production.
+# The project is zero-dependency (no node_modules), so there is no install step.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Unit + golden + americano tests
+        run: npm test
+
+      - name: CSS coverage report
+        run: npm run css:coverage
+
+      - name: Browser smoke (headless Chrome)
+        # ubuntu-latest ships Google Chrome at /usr/bin/google-chrome, which
+        # browser-smoke.js probes for automatically.
+        run: npm run test:browser

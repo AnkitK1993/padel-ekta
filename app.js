@@ -121,6 +121,49 @@ const provider = new GoogleAuthProvider();
 provider.addScope("https://www.googleapis.com/auth/drive.file");
 let _driveAccessToken = null; // set on sign-in, cleared on sign-out
 
+// ── ON-DEMAND EXTERNAL LIBS ───────────────────────────────
+// html2canvas (~150 KB) and emailjs are only needed for occasional admin
+// actions (screenshots, backup email). Loading them lazily keeps them off the
+// critical path for every viewer; the call sites await _ensure* before use.
+const _scriptPromises = {};
+function _loadScript(src) {
+  if (_scriptPromises[src]) return _scriptPromises[src];
+  _scriptPromises[src] = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = () => resolve(true);
+    s.onerror = () => {
+      delete _scriptPromises[src]; // allow a later retry
+      reject(new Error("Failed to load " + src));
+    };
+    document.head.appendChild(s);
+  });
+  return _scriptPromises[src];
+}
+async function _ensureHtml2Canvas() {
+  if (window.html2canvas) return true;
+  try {
+    await _loadScript(
+      "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    );
+  } catch (e) {
+    return false;
+  }
+  return !!window.html2canvas;
+}
+async function _ensureEmailjs() {
+  if (typeof emailjs !== "undefined") return true;
+  try {
+    await _loadScript(
+      "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js",
+    );
+  } catch (e) {
+    return false;
+  }
+  return typeof emailjs !== "undefined";
+}
+
 // ── ERROR-LOG FIRESTORE MIRROR ────────────────────────────
 // utils.js captures uncaught errors into a localStorage ring buffer; here we
 // best-effort mirror them to errors/{clientId} so real-world breakage on any
@@ -7931,11 +7974,11 @@ function openPlayerDetail(name) {
   })();
 
   const html = `
-          <div id="player-detail-modal">
+          <div id="player-detail-modal" role="dialog" aria-modal="true" aria-label="${escHtml(name)} player detail">
             <div class="analytics-inner">
               <div class="analytics-header">
                 <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${playerAvatar(name, 64)}</div><span>${escHtml(name)}</span></div>
-                <button class="analytics-close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
+                <button class="analytics-close" aria-label="Close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
               </div>
               <div class="analytics-cards">
 
@@ -8642,8 +8685,8 @@ function _leaderboardCaption(filter) {
   return `${m[filter] || "Summary"} Leaderboard`;
 }
 
-function openSummaryShare() {
-  if (!window.html2canvas) {
+async function openSummaryShare() {
+  if (!(await _ensureHtml2Canvas())) {
     showToast("Capture not available", "❌");
     return;
   }
@@ -8671,6 +8714,10 @@ function closeScreenshotChoiceSheet() {
 }
 
 async function doSummaryScreenshot(includeMatches) {
+  if (!(await _ensureHtml2Canvas())) {
+    showToast("Capture not available", "❌");
+    return;
+  }
   closeScreenshotChoiceSheet();
   showToast("Capturing…", "📸");
   const captureEl = document.querySelector("#pg-compact .cmp-body-scroll");
@@ -8901,7 +8948,7 @@ function closeSnapshot() {
 }
 
 async function shareSnapshot() {
-  if (!window.html2canvas) {
+  if (!(await _ensureHtml2Canvas())) {
     showToast("Capture not available", "❌");
     return;
   }
@@ -14135,6 +14182,12 @@ function renderAnalyticsPage() {
     mostActive, topWinRate, topStreak, mostShutoutWinsEntry,
     maxLosses, mostShutoutLosses, biggestWin, bestPartnership,
   } = computeAnalyticsPageData(state.matches);
+  // Two locals the render body still needs (the data fn derives them internally
+  // but returns only the rolled-up stats): the player list and sorted matches.
+  const players = Object.values(stats);
+  const sortedM = [...state.matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
 
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _memoElo(true);
@@ -17027,7 +17080,7 @@ function renderEmailStatus() {
 }
 
 async function sendBackupEmail(isAuto = false) {
-  if (typeof emailjs === "undefined") {
+  if (!(await _ensureEmailjs())) {
     if (!isAuto) showToast("EmailJS not loaded", "❌");
     return false;
   }
@@ -18609,8 +18662,32 @@ document.addEventListener("click", (e) => {
   if (!isNaN(idx)) openMatchIntro(idx);
 });
 
+// Global Escape-to-close. Closes the topmost open dialog. Each bottom-sheet
+// has a backdrop overlay whose existing onclick already runs the correct close
+// (with any state cleanup), so Esc reuses that tested path rather than guessing.
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeMatchIntro();
+  if (e.key !== "Escape") return;
+  // Richest modals first — these manage their own teardown.
+  if (document.getElementById("player-detail-modal")) {
+    document.getElementById("player-detail-modal").remove();
+    return;
+  }
+  const mi = document.getElementById("match-intro-overlay");
+  if (mi && mi.classList.contains("active")) {
+    closeMatchIntro();
+    return;
+  }
+  // Any visible bottom-sheet backdrop — trigger its own close handler.
+  const overlays = [
+    ...document.querySelectorAll(
+      ".live-sheet-overlay, .ana-search-overlay, .modern-modal",
+    ),
+  ].filter((el) => {
+    const cs = getComputedStyle(el);
+    return cs.display !== "none" && cs.visibility !== "hidden" && el.offsetParent !== null;
+  });
+  const top = overlays[overlays.length - 1];
+  if (top && typeof top.onclick === "function") top.click();
 });
 
 // Feature 4B: Card tilt parallax on home leaderboard cards
@@ -18686,7 +18763,7 @@ document.addEventListener("keydown", (e) => {
 
 // ── PLAYER REPORT CARD ────────────────────────────────────────
 async function openPlayerReportCard(name) {
-  if (!window.html2canvas) {
+  if (!(await _ensureHtml2Canvas())) {
     showToast("Capture not available", "❌");
     return;
   }
