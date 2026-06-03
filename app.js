@@ -1073,6 +1073,8 @@ let _eloLowsMemo = null,
   _eloLowsKey = "";
 let _statNamesMemo = null,
   _statNamesKey = "";
+let _statsMemo = null,
+  _statsMemoKey = "";
 initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
@@ -1139,6 +1141,22 @@ function _statPlayerNames() {
   return _statNamesMemo.slice();
 }
 
+// Full per-player stats over the active set with decay-free ELO. Several
+// sections recompute _memoStats() independently —
+// each a full O(matches) pass. Cache it once per dataset and hand back a fresh
+// array (cheap O(players) slice). Audited: stat objects are read-only app-wide,
+// so sharing the element objects across callers is safe; the slice guards
+// against in-place array sorting.
+function _memoStats() {
+  const am = activeMatches();
+  const key = `${_dataVersion}|${_lightFingerprint(am)}`;
+  if (_statsMemoKey !== key || !_statsMemo) {
+    _statsMemoKey = key;
+    _statsMemo = computeStats(am, _memoElo());
+  }
+  return _statsMemo.slice();
+}
+
 function _memoEloHistory() {
   const am = activeMatches();
   const key = _lightFingerprint(am);
@@ -1182,6 +1200,8 @@ function _invalidateEloMemo() {
   _eloLowsMemo = null;
   _statNamesKey = "";
   _statNamesMemo = null;
+  _statsMemoKey = "";
+  _statsMemo = null;
   // Bound the per-fingerprint section caches: keyed by a dataset fingerprint and
   // never evicted, they otherwise grow one entry per distinct dataset for the
   // life of the session (a slow leak). Any data change invalidates them anyway.
@@ -1745,7 +1765,7 @@ function autoSaveWeeklySnap() {
   const weekOf = toLocalISODate(monday);
   const existing = getWeeklySnaps().find((s) => s.weekOf === weekOf);
   if (existing) return; // already snapped this week
-  const stats = computeStats(activeMatches(), _memoElo());
+  const stats = _memoStats();
   const rankMap = {};
   stats.forEach((p, i) => {
     rankMap[p.name] = i + 1;
@@ -3181,7 +3201,7 @@ function getPlayerDetail(name) {
       (p) => normPlayer(p) === name,
     ),
   );
-  const stats = computeStats(activeMatches(), _memoElo()).find(
+  const stats = _memoStats().find(
     (p) => p.name === name,
   );
   const teammateCounts = {};
@@ -8061,7 +8081,7 @@ function openPlayerDetail(name) {
       tags.push({ t: "⚔️ Clutch Performer", c: "var(--green)" });
     else if (closePlayed >= 3 && clutchPct < 40)
       tags.push({ t: "😰 Struggles in Close Matches", c: "var(--red)" });
-    const allStats2 = computeStats(activeMatches(), _memoElo());
+    const allStats2 = _memoStats();
     const ps2 = allStats2.find((p) => p.name === name);
     if (ps2?.avgMargin > 2)
       tags.push({ t: "💥 Dominant in wins", c: "var(--green)" });
@@ -13637,7 +13657,7 @@ function _buildSeasonModeHtml() {
 
 // Everyone's CURRENT win/loss streak, ranked (hot streaks first).
 function _buildStreakLeaderboardHtml() {
-  const stats = computeStats(activeMatches(), _memoElo()).filter((p) => p.mp >= 1);
+  const stats = _memoStats().filter((p) => p.mp >= 1);
   if (!stats.length)
     return '<div class="sub" style="padding:8px">No matches yet.</div>';
   const sorted = [...stats].sort((a, b) => {
@@ -13851,7 +13871,7 @@ function _radarSvg(stats, aName, bName) {
     </div>`;
 }
 function _buildRadarCompareHtml() {
-  const stats = computeStats(activeMatches(), _memoElo()).filter((p) => p.mp >= 3);
+  const stats = _memoStats().filter((p) => p.mp >= 3);
   if (stats.length < 2)
     return '<div class="sub" style="padding:8px">Need 2+ players with 3+ matches.</div>';
   const byElo = [...stats].sort((a, b) => b.sr - a.sr);
@@ -13883,7 +13903,7 @@ function _radarPick(slot, name) {
   window._radarSel[slot] = name;
   const box = document.getElementById("radar-box");
   if (!box) return;
-  const stats = computeStats(activeMatches(), _memoElo()).filter((p) => p.mp >= 3);
+  const stats = _memoStats().filter((p) => p.mp >= 3);
   box.innerHTML = _radarSvg(stats, window._radarSel.a, window._radarSel.b);
 }
 
@@ -14448,7 +14468,7 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = computeStats(activeMatches(), _memoElo());
+  const compList = _memoStats();
   const clutchP = Object.keys(closePlayed)
     .filter((p) => closePlayed[p] >= 3)
     .sort(
