@@ -828,7 +828,6 @@ let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
-let _cmpEqualized = false;
 const _CMP_TOGGLE_COLS = [
   { key: "mp", label: "MP" },
   { key: "record", label: "W–L" },
@@ -4050,17 +4049,6 @@ function onHomeFilterChange(val) {
   }
 }
 
-function toggleCmpEqualized() {
-  _cmpEqualized = !_cmpEqualized;
-  const btn = document.getElementById("cmpEqBtn");
-  if (btn) btn.classList.toggle("ss-eq-btn-on", _cmpEqualized);
-  const th = document.getElementById("cmp-sr-th");
-  if (th)
-    th.innerHTML = _cmpEqualized
-      ? 'EQ <span class="sort-arrow" id="sort-sr"></span>'
-      : 'SR <span class="sort-arrow" id="sort-sr"></span>';
-  renderCompact();
-}
 
 function _saveExcludedPlayers() {
   try {
@@ -4535,14 +4523,6 @@ function renderCompact() {
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const _cmpEloMap = computeElo(filtered);
   const stats = computeStats(filtered, _cmpEloMap);
-  if (_cmpEqualized) {
-    stats.forEach((p) => {
-      const c = p.mp / (p.mp + 5);
-      const wScore = p.mwr * c + 0.5 * (1 - c);
-      const gScore = p.gwr * c + 0.5 * (1 - c);
-      p.eqSR = (wScore * 0.65 + gScore * 0.35) * 10;
-    });
-  }
   const sortFns = {
     name: (a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -4566,10 +4546,8 @@ function renderCompact() {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
       // look identical on screen resolve to a real tie instead of being
       // split by sub-pixel float noise. Order: SR -> G% -> GW.
-      const sa = _cmpEqualized ? (a.eqSR ?? a.sr) : a.sr;
-      const sb = _cmpEqualized ? (b.eqSR ?? b.sr) : b.sr;
       return (
-        Math.round(sa * 100) - Math.round(sb * 100) ||
+        Math.round(a.sr * 100) - Math.round(b.sr * 100) ||
         Math.round(a.gamePct) - Math.round(b.gamePct) ||
         a.gw - b.gw
       );
@@ -4621,11 +4599,7 @@ function renderCompact() {
   const splashDone = document.body.classList.contains("splash-done");
 
   const prevRankMap = getPrevWeekRankMap();
-  const srSorted = [...sorted].sort((a, b) => {
-    const sa = _cmpEqualized ? (a.eqSR ?? a.sr) : a.sr;
-    const sb = _cmpEqualized ? (b.eqSR ?? b.sr) : b.sr;
-    return sb - sa;
-  });
+  const srSorted = [...sorted].sort((a, b) => b.sr - a.sr);
   const srRankMap = {};
   srSorted.forEach((p, j) => {
     srRankMap[p.name] = j + 1;
@@ -4643,7 +4617,7 @@ function renderCompact() {
             : `<span class="rn">${rank}</span>`;
     const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
     const gc = p.gamePct >= 50 ? "tp" : "tn";
-    const displaySR = _cmpEqualized ? (p.eqSR ?? p.sr) : p.sr;
+    const displaySR = p.sr;
     const normalizedSR = Math.max(0, Math.min(10, displaySR));
     const ratingClass = getSRRatingClass(normalizedSR);
     const momentumBadge = getMomentumBadge(p.name);
@@ -17284,7 +17258,6 @@ Object.assign(window, {
   applyCmpDay,
   renderHome,
   onCmpFilter,
-  toggleCmpEqualized,
   openExcludeSheet,
   closeExcludeSheet,
   toggleExcludePlayer,
