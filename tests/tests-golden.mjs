@@ -20,6 +20,15 @@ import {
   computeMatchStories,
 } from "../src/engine/player-analytics.js";
 import { toLocalISODate } from "../src/ui/format.js";
+import { state } from "../src/engine/state.js";
+import {
+  initSelectorsDeps,
+  activeMatches,
+  historyMatches,
+  filterHistoryMatches,
+  filterMatches,
+  invalidateAmMemo,
+} from "../src/engine/selectors.js";
 
 let pass = 0,
   fail = 0;
@@ -262,6 +271,56 @@ ok(
   "SEASON generates at least one story",
   stories.length > 0,
   `got ${stories.length} stories`,
+);
+
+// ── selectors: guest handling (Statistics excludes, History includes) ───────
+console.log(
+  "\n\x1b[36m── Selectors guest golden (real selectors.js) ───────────\x1b[0m",
+);
+// One match is all-regular; the other involves the guest "Zoe".
+state.matches = [
+  { date: "2026-06-01", teamA: ["Ann", "Bo"], teamB: ["Cy", "Di"], scoreA: 6, scoreB: 3 },
+  { date: "2026-06-02", teamA: ["Ann", "Zoe"], teamB: ["Cy", "Di"], scoreA: 4, scoreB: 2 },
+];
+state.players = {
+  1: { id: 1, name: "Ann", isGuest: false },
+  9: { id: 9, name: "Zoe", isGuest: true },
+};
+initSelectorsDeps({
+  getDataVersion: () => 1,
+  getActiveSeasonId: () => "all",
+  getExcludedPlayers: () => new Set(),
+  getSessionGuestUnexcluded: () => new Set(),
+  todayISO: () => "2026-06-03",
+});
+invalidateAmMemo();
+ok(
+  "activeMatches() drops the guest match (stats exclude guests)",
+  activeMatches().length === 1,
+  `got ${activeMatches().length}`,
+);
+ok(
+  "historyMatches() keeps the guest match (History shows guests)",
+  historyMatches().length === 2,
+  `got ${historyMatches().length}`,
+);
+ok(
+  "filterMatches('all') is guest-excluded (stats path)",
+  filterMatches("all").length === 1,
+  `got ${filterMatches("all").length}`,
+);
+ok(
+  "filterHistoryMatches('all') is guest-inclusive (log path)",
+  filterHistoryMatches("all").length === 2,
+  `got ${filterHistoryMatches("all").length}`,
+);
+// Re-including the guest for the session brings their match back into stats.
+initSelectorsDeps({ getSessionGuestUnexcluded: () => new Set(["Zoe"]) });
+invalidateAmMemo();
+ok(
+  "session-unexcluded guest re-enters activeMatches()",
+  activeMatches().length === 2,
+  `got ${activeMatches().length}`,
 );
 
 // ── pairs golden (real src/engine/pairs.js) ─────────────────────────────────
