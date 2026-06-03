@@ -2697,6 +2697,57 @@ body.no-cascade .analytics-card {
   border-bottom-left-radius: 6px !important;
   border-bottom-right-radius: 6px !important;
 }
+
+/* Standalone edit modal (openEditMatch) — bottom sheet, reuses .mei-* fields */
+.match-edit-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.match-edit-modal .mem-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(2px);
+}
+.match-edit-modal .mem-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--surface2);
+  border: 1px solid rgba(var(--theme-rgb), 0.35);
+  border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.match-edit-modal .mem-panel.open {
+  transform: translateY(0);
+}
+
+/* Edit button inside the match-intro overlay (admin only) */
+.mio-edit-btn {
+  display: block;
+  margin: 18px auto 0;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--theme-rgb), 0.5);
+  background: rgba(var(--theme-rgb), 0.16);
+  color: var(--fg);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.mio-edit-btn:active {
+  transform: scale(0.96);
+}
 .mei-header {
   display: flex;
   align-items: center;
