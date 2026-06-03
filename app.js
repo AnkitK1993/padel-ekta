@@ -39,6 +39,7 @@ import {
 import {
   initSelectorsDeps,
   activeMatches,
+  historyMatches,
   withoutGuestMatches,
   filterMatches,
   filterHistoryMatches,
@@ -5121,7 +5122,10 @@ function filterMatchTab(f) {
   }
   if (dp) {
     if (f === "day") {
-      dp.style.display = "";
+      // Explicit flex — .dr-wrap defaults to display:none, and (unlike the range
+      // picker) the day picker doesn't get the .show class, so an empty inline
+      // display would fall back to none and the date input would stay hidden.
+      dp.style.display = "flex";
       const di = document.getElementById("matchDayInput");
       if (di && !di.value) di.value = todayISO();
     } else {
@@ -5889,8 +5893,10 @@ function openFilterSheet(mode) {
     if (title) title.textContent = "SELECT PLAYER";
     const sw = document.getElementById("filter-sheet-search-wrap");
     if (sw) sw.style.display = "none";
+    // Guest-inclusive: the History player filter lists anyone who played a match
+    // in this view (guests included), matching the guest-inclusive match list.
     const names = new Set();
-    activeMatches().forEach((m) =>
+    historyMatches().forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
         names.add(state.nameMap[p] || p),
       ),
