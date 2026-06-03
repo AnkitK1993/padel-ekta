@@ -99,7 +99,94 @@ function collectPatternNames(pat, out) {
   }
 }
 
+// Attribute every identifier reference in the file to the top-level function
+// that encloses it (or "<top>" for module-level code), tagging analytics vs not.
+function ownershipCounts() {
+  const counts = new Map(); // name → { ana, other }
+  walk.ancestor(ast, {
+    Identifier(n, _s, ancestors) {
+      const parent = ancestors[ancestors.length - 2];
+      if (parent) {
+        if (parent.type === "MemberExpression" && parent.property === n && !parent.computed) return;
+        if (parent.type === "Property" && parent.key === n && !parent.computed) return;
+      }
+      // enclosing top-level FunctionDeclaration = ancestors[1] when it's a child of Program
+      let ownerAnalytics = false;
+      const top = ancestors[1];
+      if (top && top.type === "FunctionDeclaration" && top.id && ANALYTICS_FNS.has(top.id.name))
+        ownerAnalytics = true;
+      const c = counts.get(n.name) || { ana: 0, other: 0 };
+      if (ownerAnalytics) c.ana++; else c.other++;
+      counts.set(n.name, c);
+    },
+  });
+  return counts;
+}
+
+// Find identifiers REASSIGNED (= / += / ++ etc.) inside analytics fns. These are
+// the only true blockers: if such a symbol is also used outside analytics and is
+// a primitive (not an in-place-mutated object), a read-only import won't do — it
+// needs to move into the module or use a setter.
+function reassignedInAnalytics() {
+  const out = new Set();
+  for (const name of ANALYTICS_FNS) {
+    const fn = topFns.get(name);
+    if (!fn) continue;
+    walk.full(fn.node, (n) => {
+      if (n.type === "AssignmentExpression" && n.left.type === "Identifier") out.add(n.left.name);
+      if (n.type === "UpdateExpression" && n.argument.type === "Identifier") out.add(n.argument.name);
+    });
+  }
+  // subtract names locally bound somewhere in those fns (params/decls) — keep only
+  // those that are module-scoped (i.e., not declared inside any analytics fn).
+  const locallyDeclared = new Set();
+  for (const name of ANALYTICS_FNS) {
+    const fn = topFns.get(name);
+    if (!fn) continue;
+    const { bound } = analyzeFn(fn.node);
+    bound.forEach((b) => locallyDeclared.add(b));
+  }
+  return [...out].filter((n) => !ANALYTICS_FNS.has(n));
+}
+
 const cmd = process.argv[2] || "analyze";
+
+if (cmd === "writes") {
+  const counts = ownershipCounts();
+  const reassigned = reassignedInAnalytics();
+  console.log("\n── Reassigned inside analytics fns (module would WRITE these) ──");
+  for (const d of reassigned.sort()) {
+    const c = counts.get(d) || { ana: 0, other: 0 };
+    const elsewhere = c.other > 1; // >1 means used beyond its own declaration
+    console.log(`${d.padEnd(24)} usedElsewhere=${elsewhere ? "YES(" + c.other + ")" : "no"}  srcImport=${SRC_IMPORTS.has(d)}`);
+  }
+}
+
+if (cmd === "ownership") {
+  // Recompute the app-local dep set (same as analyze).
+  const appLocal = new Set();
+  for (const name of ANALYTICS_FNS) {
+    const fn = topFns.get(name);
+    if (!fn) continue;
+    const { bound, referenced } = analyzeFn(fn.node);
+    for (const r of referenced)
+      if (!bound.has(r) && !GLOBALS.has(r) && !ANALYTICS_FNS.has(r) && !SRC_IMPORTS.has(r))
+        appLocal.add(r);
+  }
+  const counts = ownershipCounts();
+  const relocate = [], importRead = [];
+  for (const d of [...appLocal].sort()) {
+    const c = counts.get(d) || { ana: 0, other: 0 };
+    // "other" includes the symbol's own declaration site (top-level), so a
+    // declared-once analytics-only symbol shows other===1 (its declaration).
+    if (c.other <= 1) relocate.push(`${d}`);
+    else importRead.push(`${d}(${c.other})`);
+  }
+  console.log(`\n── RELOCATE into module (analytics-only, ${relocate.length}) ──`);
+  console.log(relocate.join("  "));
+  console.log(`\n── KEEP in app.js, import/expose (used elsewhere too, ${importRead.length}) ──`);
+  console.log(importRead.join("  "));
+}
 
 if (cmd === "analyze") {
   const missing = [...ANALYTICS_FNS].filter((n) => !topFns.has(n));
