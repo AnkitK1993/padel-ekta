@@ -18,6 +18,7 @@ import {
   computePowerRankings,
   computeChemistryScores,
   computeMatchStories,
+  computePartnerOpponentMatrix,
 } from "../src/engine/player-analytics.js";
 import { toLocalISODate } from "../src/ui/format.js";
 import { state } from "../src/engine/state.js";
@@ -272,6 +273,54 @@ ok(
   stories.length > 0,
   `got ${stories.length} stories`,
 );
+
+// ── computePartnerOpponentMatrix (partner/opponent grid) ────────────────────
+console.log(
+  "\n\x1b[36m── Partner/Opponent matrix golden ───────────────────────\x1b[0m",
+);
+// Alice+Bob partner twice; once they face Alice+Carol (so Alice opposes Carol,
+// Bob opposes Carol). Carol+Dave partner once.
+const POM = [
+  M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 6, 3),
+  M("2024-01-02", ["Alice", "Bob"], ["Eve", "Dave"], 6, 4),
+  M("2024-01-03", ["Alice", "Carol"], ["Bob", "Dave"], 5, 7),
+];
+const pom = computePartnerOpponentMatrix(POM);
+ok(
+  "Alice & Bob partnered 2, opposed 1",
+  pom.Alice?.Bob?.partnered === 2 && pom.Alice?.Bob?.opposed === 1,
+  `got ${JSON.stringify(pom.Alice?.Bob)}`,
+);
+ok(
+  "matrix is symmetric (Bob→Alice == Alice→Bob)",
+  pom.Bob?.Alice?.partnered === 2 && pom.Bob?.Alice?.opposed === 1,
+  `got ${JSON.stringify(pom.Bob?.Alice)}`,
+);
+ok(
+  "Alice & Carol partnered 1 (match 3) + opposed 1 (match 1)",
+  pom.Alice?.Carol?.partnered === 1 && pom.Alice?.Carol?.opposed === 1,
+  `got ${JSON.stringify(pom.Alice?.Carol)}`,
+);
+ok(
+  "Alice never played Eve as partner, opposed once",
+  (pom.Alice?.Eve?.partnered || 0) === 0 && pom.Alice?.Eve?.opposed === 1,
+  `got ${JSON.stringify(pom.Alice?.Eve)}`,
+);
+ok(
+  "partnered+opposed = matches both played (Alice&Bob: 3)",
+  pom.Alice.Bob.partnered + pom.Alice.Bob.opposed === 3,
+);
+ok(
+  "norm fn is applied (lowercase alias collapses)",
+  (() => {
+    const m = computePartnerOpponentMatrix(
+      [M("2024-01-01", ["a", "B"], ["c", "d"], 6, 0)],
+      (n) => n.toUpperCase(),
+    );
+    return m.A?.B?.partnered === 1;
+  })(),
+);
+ok("empty matches → {}", Object.keys(computePartnerOpponentMatrix([])).length === 0);
 
 // ── selectors: guest handling (Statistics excludes, History includes) ───────
 console.log(
