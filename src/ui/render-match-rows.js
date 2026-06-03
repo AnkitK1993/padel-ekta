@@ -105,7 +105,12 @@ export function buildSummaryMatchRow(
       <span class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}${_mkD(eloD?.dB)}</span>
       <span class="cmr-meta">${badge}</span>
     </div>
-    ${matchIdx !== null ? `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})">🗑</div>` : ""}
+    ${
+      window.isAdmin && matchIdx !== null
+        ? `<div class="smr-edit-reveal" onclick="event.stopPropagation();openEditMatch(${matchIdx})" title="Edit match">✏️</div>` +
+          `<div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteMatchByIndex(${matchIdx})" title="Delete match">🗑</div>`
+        : ""
+    }
   </div>`;
 }
 
