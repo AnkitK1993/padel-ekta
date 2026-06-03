@@ -77,6 +77,7 @@ import {
   computeChemistryScores,
   computeMatchStories,
   computeAnalyticsPageData,
+  computePartnerOpponentMatrix,
 } from "./src/engine/player-analytics.js";
 import {
   morphList,
@@ -10044,6 +10045,132 @@ function _h2hHighlightRow(tr) {
   }
 }
 
+// ── PARTNER / OPPONENT MATRIX ─────────────────────────────────
+// Player×player grid: how often each pair were teammates vs opponents, over the
+// chosen period. COUNT mode shows 🤝partnered / ⚔️opposed; PARTNER% mode shows
+// the likelihood they teamed up when both played (rest of the time = opponents).
+let _pairMatrixPeriod = "all"; // today | week | weekend | month | all
+let _pairMatrixMode = "count"; // count | pct
+
+function _pairMatrixSetPeriod(btn, period) {
+  _pairMatrixPeriod = period;
+  _refreshPairMatrix();
+}
+function _pairMatrixSetMode(btn, mode) {
+  _pairMatrixMode = mode;
+  _refreshPairMatrix();
+}
+function _refreshPairMatrix() {
+  const box = document.getElementById("pair-matrix-box");
+  if (box) box.innerHTML = _secBody(() => _pairMatrixInner());
+}
+
+function _buildPairMatrixHtml() {
+  return `<div class="ana-card" style="padding:10px 8px" id="pair-matrix-box">${_pairMatrixInner()}</div>`;
+}
+
+function _pairMatrixInner() {
+  const period = _pairMatrixPeriod;
+  const mode = _pairMatrixMode;
+  const matches = filterMatches(period); // season-scoped, guest-excluded, date-filtered
+
+  const periodPills =
+    `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">` +
+    [
+      ["today", "DAILY"],
+      ["week", "WEEKLY"],
+      ["weekend", "WEEKEND"],
+      ["month", "MONTHLY"],
+      ["all", "ALL TIME"],
+    ]
+      .map(
+        ([v, l]) =>
+          `<button class="digest-filter-btn${period === v ? " active" : ""}" onclick="_pairMatrixSetPeriod(this,'${v}')">${l}</button>`,
+      )
+      .join("") +
+    `</div>`;
+  const modePills =
+    `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">` +
+    [
+      ["count", "🤝/⚔️ COUNT"],
+      ["pct", "PARTNER %"],
+    ]
+      .map(
+        ([v, l]) =>
+          `<button class="digest-filter-btn${mode === v ? " active" : ""}" onclick="_pairMatrixSetMode(this,'${v}')">${l}</button>`,
+      )
+      .join("") +
+    `</div>`;
+
+  // Players in this period, ordered by matches played (desc) then name.
+  const played = {};
+  matches.forEach((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      const n = normPlayer(p);
+      played[n] = (played[n] || 0) + 1;
+    }),
+  );
+  const players = Object.keys(played).sort(
+    (a, b) => played[b] - played[a] || a.localeCompare(b),
+  );
+
+  const caption =
+    mode === "count"
+      ? `Each cell — <strong style="color:var(--green)">🤝 partnered</strong> / <strong style="color:var(--red)">⚔️ opposed</strong> (times the <strong style="color:var(--accent)">row</strong> player teamed with / faced the column player). — = never both played.`
+      : `% = how often the <strong style="color:var(--accent)">row</strong> &amp; column players were <strong style="color:var(--green)">PARTNERS</strong> when both played that period (the rest = opponents). <sub>n</sub> = matches both played.`;
+
+  if (players.length < 2)
+    return `${periodPills}${modePills}<div style="color:var(--muted);font-size:12px;padding:10px 0">Need at least 2 players with matches in this period.</div>`;
+
+  const matrix = computePartnerOpponentMatrix(matches, normPlayer);
+
+  const colHeaders = players
+    .map(
+      (p) =>
+        `<th class="pvp-th" title="${escHtml(p)}">${getMatrixAlias(state.aliasMap[p])}</th>`,
+    )
+    .join("");
+
+  const rows = players
+    .map((a) => {
+      const cells = players
+        .map((b) => {
+          if (a === b) return `<td class="pvp-td pvp-self">·</td>`;
+          const d = (matrix[a] && matrix[a][b]) || { partnered: 0, opposed: 0 };
+          const both = d.partnered + d.opposed;
+          if (!both) return `<td class="pvp-td pvp-none">—</td>`;
+          if (mode === "count") {
+            return `<td class="pvp-td" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}, opposed ${d.opposed}`)}"><span style="color:var(--green);font-weight:800">${d.partnered}</span><span style="color:var(--muted);font-size:8px;margin:0 1px">/</span><span style="color:var(--red);font-weight:800">${d.opposed}</span></td>`;
+          }
+          const pct = Math.round((d.partnered / both) * 100);
+          const cls = pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
+          return `<td class="pvp-td ${cls}" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}/${both} (${pct}%), opposed ${d.opposed}/${both} (${100 - pct}%)`)}">${pct}%<sub class="pvp-total">${both}</sub></td>`;
+        })
+        .join("");
+      return `<tr><td class="pvp-row-hdr pvp-row-hdr-click" title="${escHtml(a)}" onclick="_h2hHighlightRow(this.closest('tr'))">${escHtml(getMatrixAlias(state.aliasMap[a]))}</td>${cells}</tr>`;
+    })
+    .join("");
+
+  const legend = players
+    .map(
+      (p) =>
+        `<span class="pvp-legend-item"><strong>${escHtml(getMatrixAlias(state.aliasMap[p]))}</strong> ${escHtml(p.toUpperCase())}</span>`,
+    )
+    .join("");
+
+  return `${periodPills}${modePills}
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">${caption}</div>
+    <div class="pvp-wrap">
+      <div class="pvp-scroll-wrap">
+        <table class="pvp-table">
+          <thead><tr><th class="pvp-corner"></th>${colHeaders}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="pvp-legend">${legend}</div>
+    </div>`;
+}
+
 
 // ── PLAYER COMPARISON ─────────────────────────────────────
 const CMP_DATE_OPTS = [
@@ -16817,6 +16944,12 @@ function renderAnalyticsPage() {
       ]),
     },
     {
+      key: "partnergrid",
+      cat: "players",
+      title: "🤝 Partner / Opponent Grid",
+      body: _buildPairMatrixHtml(),
+    },
+    {
       key: "dayofweek",
       cat: "activity",
       title: "📅 Day-of-Week",
@@ -17605,6 +17738,9 @@ Object.assign(window, {
   _antiPodiumSetPeriod,
   _reignSetPeriod,
   _timelineSetPeriod,
+  _pairMatrixSetPeriod,
+  _pairMatrixSetMode,
+  _h2hHighlightRow,
   _openPodiumDrill,
   _openAntiPodiumDrill,
   _podiumDrillGoTo,

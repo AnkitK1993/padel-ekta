@@ -826,3 +826,37 @@ export function computeAnalyticsPageData(matches) {
     maxLosses, mostShutoutLosses, biggestWin, bestPartnership,
   };
 }
+
+// Partner / opponent counts for every player pair in a match set.
+// data[a][b] = { partnered, opposed } and is symmetric. In standard 2v2 a pair
+// that both appeared in a match are either teammates or opponents, so
+// partnered + opposed = matches where both played — the denominator for "how
+// often did a partner / oppose b". `norm` maps stored names → display names.
+export function computePartnerOpponentMatrix(matches, norm = (n) => n) {
+  const data = {};
+  const cell = (a, b) => {
+    if (!data[a]) data[a] = {};
+    if (!data[a][b]) data[a][b] = { partnered: 0, opposed: 0 };
+    return data[a][b];
+  };
+  (matches || []).forEach((m) => {
+    const A = (m.teamA || []).map(norm);
+    const B = (m.teamB || []).map(norm);
+    const within = (t) => {
+      for (let i = 0; i < t.length; i++)
+        for (let j = i + 1; j < t.length; j++) {
+          cell(t[i], t[j]).partnered++;
+          cell(t[j], t[i]).partnered++;
+        }
+    };
+    within(A);
+    within(B);
+    A.forEach((a) =>
+      B.forEach((b) => {
+        cell(a, b).opposed++;
+        cell(b, a).opposed++;
+      }),
+    );
+  });
+  return data;
+}

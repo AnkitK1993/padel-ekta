@@ -635,6 +635,14 @@ async function main() {
         chemHasH2H: subLabels("pairmatrix").includes("H2H Records"),
         activityHasSessions: subLabels("calendar").includes("Sessions"),
         awardsHasPB: subLabels("awards").includes("Personal Bests"),
+        // Partner/Opponent grid renders and its period/mode toggles are wired.
+        partnerGrid: (() => {
+          const sec = document.querySelector('.ana-sec[data-key="partnergrid"]');
+          if (!sec || !document.getElementById("pair-matrix-box")) return false;
+          if (typeof window._pairMatrixSetMode !== "function") return false;
+          window._pairMatrixSetMode({}, "pct"); // exercise the re-render path
+          return !!document.getElementById("pair-matrix-box");
+        })(),
         noOldSecs: ["pvp","peakelo","eloTimeline","eloWinProb","streakboard","upcomingmilestones","seasoncompare",
           "simulator","eloproj","powerrankings","podiumtracker","rankreign","lreplay","qualitywins","dominance","carryfactor","radar","partnership","pairedh2h",
           "session","monthlystats","personalbests"]
@@ -664,6 +672,7 @@ async function main() {
       "chemHasH2H",
       "activityHasSessions",
       "awardsHasPB",
+      "partnerGrid",
     ])
       assert(awards[k], `Expected merged section sub-tab present: ${k}`);
     assert(
