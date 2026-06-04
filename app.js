@@ -49,6 +49,11 @@ import {
 } from "./src/infra/ana-prefs.js";
 import { viewState } from "./src/ui/view-state.js";
 import {
+  emptyState,
+  loadingState,
+  errorState,
+} from "./src/ui/components.js";
+import {
   getAnimLevelRaw,
   resolveAnimLevel,
   setAnimLevelRaw,
@@ -1257,6 +1262,18 @@ let _anaObserver = null;
 function _handleFeatureLoadError(name, err) {
   console.error(`${name} feature failed to load:`, err);
   showToast(`${name} could not load`, "❌");
+  // Replace the stuck "Loading…" placeholder with an actionable error state so a
+  // failed lazy import (e.g. flaky network) is recoverable, not a dead spinner.
+  if (name === "Analytics") {
+    _analyticsFeaturePromise = null; // drop the rejected import so Retry re-fetches
+    const c = document.getElementById("analytics-page-content");
+    if (c)
+      c.innerHTML = errorState({
+        title: "Couldn't load Analytics",
+        message: "Check your connection and try again.",
+        retry: { onClick: "switchMainTab('analytics')" },
+      });
+  }
 }
 
 function _loadAnalyticsFeature() {
@@ -1269,8 +1286,7 @@ function _loadAnalyticsFeature() {
 function renderAnalyticsFeature() {
   const container = document.getElementById("analytics-page-content");
   if (container && !container.innerHTML.trim()) {
-    container.innerHTML =
-      '<div style="padding:40px;text-align:center;color:var(--muted)">Loading analytics...</div>';
+    container.innerHTML = loadingState({ message: "Loading analytics…", size: "lg" });
   }
   return _loadAnalyticsFeature()
     .then((feature) =>
@@ -6367,8 +6383,11 @@ function renderTrash() {
   const el = document.getElementById("trash-list");
   if (!el) return;
   if (!deletedMatches.length) {
-    el.innerHTML =
-      '<div style="color:var(--muted);font-size:12px;padding:4px 0">Trash is empty.</div>';
+    el.innerHTML = emptyState({
+      icon: "🗑️",
+      message: "Trash is empty.",
+      size: "sm",
+    });
     document
       .getElementById("trash-purge-btn")
       ?.style.setProperty("display", "none");
