@@ -15500,6 +15500,375 @@ body.midnight-oled-mode #themeBtn {
 }
 
 /* ════════════════════════════════════════════════════════
+   EMERALD LUX THEME — body.emerald-lux-mode  (rgb 46,230,160)
+   ════════════════════════════════════════════════════════ */
+body.emerald-lux-mode {
+  background: linear-gradient(180deg, #02120c 0%, #010a07 100%) !important;
+}
+body.emerald-lux-mode::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 40% at 50% -5%,
+    rgba(46, 230, 160, 0.07),
+    transparent 70%
+  );
+  z-index: 0;
+}
+body.emerald-lux-mode .topbar,
+body.emerald-lux-mode .nav-inner {
+  background: rgba(2, 10, 7, 0.97) !important;
+  border-bottom: 1px solid rgba(46, 230, 160, 0.18) !important;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.9) !important;
+}
+body.emerald-lux-mode .home-filter-bar {
+  background: rgba(2, 18, 12, 0.85) !important;
+  border-bottom: 1px solid rgba(46, 230, 160, 0.12) !important;
+}
+body.emerald-lux-mode #board {
+  background: transparent !important;
+}
+body.emerald-lux-mode .pc {
+  background:
+    radial-gradient(circle at top right, rgba(46, 230, 160, 0.06), transparent 22%),
+    linear-gradient(180deg, rgba(8, 26, 18, 0.97), rgba(4, 16, 11, 0.99)) !important;
+  border-color: rgba(46, 230, 160, 0.22) !important;
+}
+body.emerald-lux-mode .pc.r1 {
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(46, 230, 160, 0.08),
+    inset 0 1px 0 rgba(46, 230, 160, 0.08) !important;
+}
+body.emerald-lux-mode .ana-sec-hdr,
+body.emerald-lux-mode .ana-section-title {
+  color: #2ee6a0 !important;
+  text-shadow: 0 0 12px rgba(46, 230, 160, 0.4);
+}
+body.emerald-lux-mode .ana-card,
+body.emerald-lux-mode .ov-card {
+  background: linear-gradient(135deg, #0a1f17, #06140e) !important;
+  border: 1px solid rgba(46, 230, 160, 0.18) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(46, 230, 160, 0.05) !important;
+}
+body.emerald-lux-mode .match-card,
+body.emerald-lux-mode .match-card-inner,
+body.emerald-lux-mode .history-card {
+  background: linear-gradient(135deg, #0a1f17, #06140e) !important;
+  border: 1px solid rgba(46, 230, 160, 0.14) !important;
+}
+body.emerald-lux-mode .date-separator,
+body.emerald-lux-mode .hist-date-hdr {
+  color: #2ee6a0 !important;
+  border-bottom-color: rgba(46, 230, 160, 0.18) !important;
+}
+body.emerald-lux-mode .cmp th {
+  background: rgba(46, 230, 160, 0.07) !important;
+  color: #2ee6a0 !important;
+  border-bottom: 1px solid rgba(46, 230, 160, 0.22) !important;
+}
+body.emerald-lux-mode table.cmp thead th:last-child {
+  box-shadow: none !important;
+}
+body.emerald-lux-mode .cmp td {
+  border-bottom: 1px solid rgba(46, 230, 160, 0.07) !important;
+}
+body.emerald-lux-mode .cmp tr:hover td {
+  background: rgba(46, 230, 160, 0.04) !important;
+}
+body.emerald-lux-mode .pc-row {
+  background: linear-gradient(135deg, #0a1f17, #06140e) !important;
+  border: 1px solid rgba(46, 230, 160, 0.15) !important;
+}
+body.emerald-lux-mode .live-score-a,
+body.emerald-lux-mode .live-score-b {
+  text-shadow: 0 0 20px rgba(46, 230, 160, 0.6) !important;
+}
+body.emerald-lux-mode .live-mode-bar {
+  background: rgba(2, 18, 12, 0.88) !important;
+  border-bottom: 1px solid rgba(46, 230, 160, 0.2) !important;
+}
+body.emerald-lux-mode .tbb.active,
+body.emerald-lux-mode .bottom-nav-item.active {
+  text-shadow: 0 0 14px rgba(46, 230, 160, 0.7);
+}
+body.emerald-lux-mode #themeBtn {
+  background: radial-gradient(circle, #2ee6a0, #0a6e4a) !important;
+  box-shadow: 0 0 12px rgba(46, 230, 160, 0.55) !important;
+}
+.tp-dot-emerald-lux {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #06241a, #02120c);
+  border: 1px solid rgba(46, 230, 160, 0.65);
+  box-shadow:
+    0 0 8px rgba(46, 230, 160, 0.4),
+    inset 0 0 4px rgba(46, 230, 160, 0.12);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(46, 230, 160, 0.9);
+}
+.tp-dot-emerald-lux::after {
+  content: "❖";
+}
+
+/* ════════════════════════════════════════════════════════
+   CRIMSON ROYALE THEME — body.crimson-royale-mode  (rgb 255,59,99)
+   ════════════════════════════════════════════════════════ */
+body.crimson-royale-mode {
+  background: linear-gradient(180deg, #120407 0%, #0c0205 100%) !important;
+}
+body.crimson-royale-mode::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 40% at 50% -5%,
+    rgba(255, 59, 99, 0.07),
+    transparent 70%
+  );
+  z-index: 0;
+}
+body.crimson-royale-mode .topbar,
+body.crimson-royale-mode .nav-inner {
+  background: rgba(12, 2, 5, 0.97) !important;
+  border-bottom: 1px solid rgba(255, 59, 99, 0.18) !important;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.9) !important;
+}
+body.crimson-royale-mode .home-filter-bar {
+  background: rgba(18, 4, 7, 0.85) !important;
+  border-bottom: 1px solid rgba(255, 59, 99, 0.12) !important;
+}
+body.crimson-royale-mode #board {
+  background: transparent !important;
+}
+body.crimson-royale-mode .pc {
+  background:
+    radial-gradient(circle at top right, rgba(255, 59, 99, 0.06), transparent 22%),
+    linear-gradient(180deg, rgba(28, 8, 12, 0.97), rgba(16, 4, 7, 0.99)) !important;
+  border-color: rgba(255, 59, 99, 0.22) !important;
+}
+body.crimson-royale-mode .pc.r1 {
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(255, 59, 99, 0.08),
+    inset 0 1px 0 rgba(255, 59, 99, 0.08) !important;
+}
+body.crimson-royale-mode .ana-sec-hdr,
+body.crimson-royale-mode .ana-section-title {
+  color: #ff3b63 !important;
+  text-shadow: 0 0 12px rgba(255, 59, 99, 0.4);
+}
+body.crimson-royale-mode .ana-card,
+body.crimson-royale-mode .ov-card {
+  background: linear-gradient(135deg, #1c080c, #100407) !important;
+  border: 1px solid rgba(255, 59, 99, 0.18) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 59, 99, 0.05) !important;
+}
+body.crimson-royale-mode .match-card,
+body.crimson-royale-mode .match-card-inner,
+body.crimson-royale-mode .history-card {
+  background: linear-gradient(135deg, #1c080c, #100407) !important;
+  border: 1px solid rgba(255, 59, 99, 0.14) !important;
+}
+body.crimson-royale-mode .date-separator,
+body.crimson-royale-mode .hist-date-hdr {
+  color: #ff3b63 !important;
+  border-bottom-color: rgba(255, 59, 99, 0.18) !important;
+}
+body.crimson-royale-mode .cmp th {
+  background: rgba(255, 59, 99, 0.07) !important;
+  color: #ff3b63 !important;
+  border-bottom: 1px solid rgba(255, 59, 99, 0.22) !important;
+}
+body.crimson-royale-mode table.cmp thead th:last-child {
+  box-shadow: none !important;
+}
+body.crimson-royale-mode .cmp td {
+  border-bottom: 1px solid rgba(255, 59, 99, 0.07) !important;
+}
+body.crimson-royale-mode .cmp tr:hover td {
+  background: rgba(255, 59, 99, 0.04) !important;
+}
+body.crimson-royale-mode .pc-row {
+  background: linear-gradient(135deg, #1c080c, #100407) !important;
+  border: 1px solid rgba(255, 59, 99, 0.15) !important;
+}
+body.crimson-royale-mode .live-score-a,
+body.crimson-royale-mode .live-score-b {
+  text-shadow: 0 0 20px rgba(255, 59, 99, 0.6) !important;
+}
+body.crimson-royale-mode .live-mode-bar {
+  background: rgba(18, 4, 7, 0.88) !important;
+  border-bottom: 1px solid rgba(255, 59, 99, 0.2) !important;
+}
+body.crimson-royale-mode .tbb.active,
+body.crimson-royale-mode .bottom-nav-item.active {
+  text-shadow: 0 0 14px rgba(255, 59, 99, 0.7);
+}
+body.crimson-royale-mode #themeBtn {
+  background: radial-gradient(circle, #ff3b63, #7a1228) !important;
+  box-shadow: 0 0 12px rgba(255, 59, 99, 0.55) !important;
+}
+.tp-dot-crimson-royale {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #2a0a10, #120407);
+  border: 1px solid rgba(255, 59, 99, 0.65);
+  box-shadow:
+    0 0 8px rgba(255, 59, 99, 0.4),
+    inset 0 0 4px rgba(255, 59, 99, 0.12);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(255, 59, 99, 0.9);
+}
+.tp-dot-crimson-royale::after {
+  content: "♦";
+}
+
+/* ════════════════════════════════════════════════════════
+   AMETHYST HAZE THEME — body.amethyst-mode  (rgb 176,108,255)
+   ════════════════════════════════════════════════════════ */
+body.amethyst-mode {
+  background: linear-gradient(180deg, #0b0614 0%, #07040d 100%) !important;
+}
+body.amethyst-mode::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 40% at 50% -5%,
+    rgba(176, 108, 255, 0.08),
+    transparent 70%
+  );
+  z-index: 0;
+}
+body.amethyst-mode .topbar,
+body.amethyst-mode .nav-inner {
+  background: rgba(7, 4, 13, 0.97) !important;
+  border-bottom: 1px solid rgba(176, 108, 255, 0.18) !important;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.9) !important;
+}
+body.amethyst-mode .home-filter-bar {
+  background: rgba(11, 6, 20, 0.85) !important;
+  border-bottom: 1px solid rgba(176, 108, 255, 0.12) !important;
+}
+body.amethyst-mode #board {
+  background: transparent !important;
+}
+body.amethyst-mode .pc {
+  background:
+    radial-gradient(circle at top right, rgba(176, 108, 255, 0.07), transparent 22%),
+    linear-gradient(180deg, rgba(20, 12, 34, 0.97), rgba(12, 7, 22, 0.99)) !important;
+  border-color: rgba(176, 108, 255, 0.22) !important;
+}
+body.amethyst-mode .pc.r1 {
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(176, 108, 255, 0.1),
+    inset 0 1px 0 rgba(176, 108, 255, 0.08) !important;
+}
+body.amethyst-mode .ana-sec-hdr,
+body.amethyst-mode .ana-section-title {
+  color: #b06cff !important;
+  text-shadow: 0 0 12px rgba(176, 108, 255, 0.45);
+}
+body.amethyst-mode .ana-card,
+body.amethyst-mode .ov-card {
+  background: linear-gradient(135deg, #150e25, #0d0818) !important;
+  border: 1px solid rgba(176, 108, 255, 0.18) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(176, 108, 255, 0.05) !important;
+}
+body.amethyst-mode .match-card,
+body.amethyst-mode .match-card-inner,
+body.amethyst-mode .history-card {
+  background: linear-gradient(135deg, #150e25, #0d0818) !important;
+  border: 1px solid rgba(176, 108, 255, 0.14) !important;
+}
+body.amethyst-mode .date-separator,
+body.amethyst-mode .hist-date-hdr {
+  color: #b06cff !important;
+  border-bottom-color: rgba(176, 108, 255, 0.18) !important;
+}
+body.amethyst-mode .cmp th {
+  background: rgba(176, 108, 255, 0.07) !important;
+  color: #b06cff !important;
+  border-bottom: 1px solid rgba(176, 108, 255, 0.22) !important;
+}
+body.amethyst-mode table.cmp thead th:last-child {
+  box-shadow: none !important;
+}
+body.amethyst-mode .cmp td {
+  border-bottom: 1px solid rgba(176, 108, 255, 0.07) !important;
+}
+body.amethyst-mode .cmp tr:hover td {
+  background: rgba(176, 108, 255, 0.04) !important;
+}
+body.amethyst-mode .pc-row {
+  background: linear-gradient(135deg, #150e25, #0d0818) !important;
+  border: 1px solid rgba(176, 108, 255, 0.15) !important;
+}
+body.amethyst-mode .live-score-a,
+body.amethyst-mode .live-score-b {
+  text-shadow: 0 0 20px rgba(176, 108, 255, 0.6) !important;
+}
+body.amethyst-mode .live-mode-bar {
+  background: rgba(11, 6, 20, 0.88) !important;
+  border-bottom: 1px solid rgba(176, 108, 255, 0.2) !important;
+}
+body.amethyst-mode .tbb.active,
+body.amethyst-mode .bottom-nav-item.active {
+  text-shadow: 0 0 14px rgba(176, 108, 255, 0.7);
+}
+body.amethyst-mode #themeBtn {
+  background: radial-gradient(circle, #b06cff, #4a2a7a) !important;
+  box-shadow: 0 0 12px rgba(176, 108, 255, 0.55) !important;
+}
+.tp-dot-amethyst {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #1d1233, #0b0614);
+  border: 1px solid rgba(176, 108, 255, 0.65);
+  box-shadow:
+    0 0 8px rgba(176, 108, 255, 0.4),
+    inset 0 0 4px rgba(176, 108, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(176, 108, 255, 0.9);
+}
+.tp-dot-amethyst::after {
+  content: "✦";
+}
+
+/* ════════════════════════════════════════════════════════
    FAB PLAYER PICKER — slot buttons + bottom sheet
    ════════════════════════════════════════════════════════ */
 
