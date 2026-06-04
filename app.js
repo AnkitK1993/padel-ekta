@@ -3828,7 +3828,7 @@ async function backupToDrive() {
   showToast("Uploading to Drive…", "☁️");
   try {
     const link = await _uploadToDrive(blob, filename);
-    // Keep only the 7 newest backups (manual uploads count too).
+    // Retain the newest backup per day for the last 7 days (prunes same-day dups).
     _pruneDriveBackups(7).catch(() => {});
     showToast("Saved to Drive!", "✅");
     const el = document.getElementById("expOk");
@@ -17112,7 +17112,7 @@ async function _maybeAutoDriveBackup() {
       type: "application/json",
     });
     await _uploadToDrive(blob, _backupFilename());
-    // Keep only the 7 newest backups (delete the oldest once an 8th exists).
+    // Retain the newest backup per day for the last 7 days (prunes same-day dups).
     _pruneDriveBackups(7).catch(() => {});
   } catch (e) {
     // Release the slot so it can retry if the page is reloaded today.
@@ -17121,9 +17121,10 @@ async function _maybeAutoDriveBackup() {
   }
 }
 
-// Keep only the `keep` most-recent app-created backup files on Drive; delete the
-// rest. So when a new upload makes the 8th file, the oldest one is removed —
-// retention is by COUNT, not age.
+// Day-aware retention for app-created Drive backups: keep the newest file per
+// calendar day across the most-recent `keep` days; delete older same-day
+// duplicates and anything beyond that window. Retention is by DAY, not file
+// count — so several backups in one day no longer shrink the recovery window.
 async function _pruneDriveBackups(keep = 7) {
   if (!_driveAccessToken) return;
   const q = encodeURIComponent(
@@ -17137,7 +17138,25 @@ async function _pruneDriveBackups(keep = 7) {
   const { files = [] } = await resp.json();
   // Sort newest-first defensively (don't rely solely on the API's orderBy).
   files.sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime));
-  const stale = files.slice(keep); // everything past the newest `keep`
+  // Day-aware retention: keep the NEWEST file per calendar day, for the newest
+  // `keep` days. Prunes both older same-day duplicates (multi-device auto-backups
+  // + manual uploads pile several up per day) AND days beyond the newest `keep`.
+  // Gives a real `keep`-DAY recovery window instead of `keep` files (which, with
+  // multiple backups a day, only covered ~2 days of history).
+  const dayOf = (f) => {
+    const m = /(\d{4}-\d{2}-\d{2})/.exec(f.name || "");
+    return m ? m[1] : (f.createdTime || "").slice(0, 10);
+  };
+  const keepIds = new Set();
+  const keptDays = new Set();
+  for (const f of files) {
+    const day = dayOf(f);
+    if (keptDays.has(day)) continue; // older duplicate of a day already kept
+    if (keptDays.size >= keep) continue; // beyond the newest `keep` days
+    keptDays.add(day);
+    keepIds.add(f.id);
+  }
+  const stale = files.filter((f) => !keepIds.has(f.id));
   await Promise.all(
     stale.map((f) =>
       fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
@@ -17147,7 +17166,9 @@ async function _pruneDriveBackups(keep = 7) {
     ),
   );
   if (stale.length)
-    console.log(`Drive: pruned ${stale.length} old backup(s), keeping newest ${keep}`);
+    console.log(
+      `Drive: pruned ${stale.length} backup(s) — keeping newest-per-day across ${keptDays.size} day(s)`,
+    );
 }
 
 // Piggyback on the email scheduler's 13:00 target so both run at the
