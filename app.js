@@ -17015,17 +17015,33 @@ function renderEmailStatus() {
   el.innerHTML = `${sentText} &nbsp;·&nbsp; Manual only — tap “Send Backup Now”`;
 }
 
+// Re-entrancy guard. Without it, rapid taps (or any double trigger) fire
+// overlapping emailjs.send() calls — the observed cause of duplicate backup
+// emails landing in the same second. One send at a time; callers are ignored
+// while a send is in flight.
+let _emailSending = false;
 async function sendBackupEmail(isAuto = false) {
-  if (!(await _ensureEmailjs())) {
-    if (!isAuto) showToast("EmailJS not loaded", "❌");
+  if (_emailSending) {
+    if (!isAuto) showToast("Backup already sending…", "⏳");
     return false;
   }
-  const { serviceId, templateId, publicKey, recipientEmail } = emailConfig;
-  if (!serviceId || !templateId || !publicKey || !recipientEmail) {
-    if (!isAuto) showToast("Complete email config first", "⚠️");
-    return false;
+  _emailSending = true;
+  const btn = document.getElementById("send-email-btn");
+  const btnLabel = btn ? btn.textContent : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Sending…";
   }
   try {
+    if (!(await _ensureEmailjs())) {
+      if (!isAuto) showToast("EmailJS not loaded", "❌");
+      return false;
+    }
+    const { serviceId, templateId, publicKey, recipientEmail } = emailConfig;
+    if (!serviceId || !templateId || !publicKey || !recipientEmail) {
+      if (!isAuto) showToast("Complete email config first", "⚠️");
+      return false;
+    }
     const todayStr = todayISO();
     const jsonData = JSON.stringify(
       { matches: state.matches, players: state.players, playerAliasMap, nextPlayerId },
@@ -17056,6 +17072,12 @@ async function sendBackupEmail(isAuto = false) {
     console.error("Backup email error:", err);
     if (!isAuto) showToast("Email failed — check config", "❌");
     return false;
+  } finally {
+    _emailSending = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btnLabel;
+    }
   }
 }
 
