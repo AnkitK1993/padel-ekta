@@ -5824,7 +5824,7 @@ function _openMatchQuickActions(idx2, cardEl) {
       <div class="mqs-title">${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} · ${m.scoreA}–${m.scoreB}</div>
       <button class="mqs-btn" onclick="openMatchIntro(${idx2});document.getElementById('match-quick-sheet').remove()">👁 View Details</button>
       ${window.isAdmin ? `<button class="mqs-btn" onclick="openEditMatch(${idx2});document.getElementById('match-quick-sheet').remove()">✏️ Edit Match</button>` : ""}
-      ${window.isAdmin ? `<button class="mqs-btn mqs-btn-danger" onclick="deleteModernMatch(${idx2});document.getElementById('match-quick-sheet').remove()">🗑 Delete Match</button>` : ""}
+      ${window.isAdmin ? `<button class="mqs-btn mqs-btn-danger" onclick="deleteMatchByIndex(${idx2});document.getElementById('match-quick-sheet').remove()">🗑 Delete Match</button>` : ""}
       <button class="mqs-btn mqs-btn-cancel" onclick="document.getElementById('match-quick-sheet').remove()">Cancel</button>
     </div>`;
   document.body.appendChild(sheet);
@@ -17280,6 +17280,8 @@ Object.assign(window, {
   restoreMatch,
   purgeTrash,
   renderTrash,
+  _storyShowMore,
+  _downloadDriveBackup,
   editMatchByIndex,
   openEditMatch,
   saveMatchEdit,

@@ -1,9 +1,10 @@
 {
   "private": true,
   "scripts": {
-    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-americano.mjs",
+    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-americano.mjs && node scripts/handler-audit.mjs",
     "test:golden": "node tests/tests-golden.mjs",
     "test:americano": "node tests/tests-americano.mjs",
+    "test:handlers": "node scripts/handler-audit.mjs",
     "test:browser": "node scripts/browser-smoke.js",
     "css:coverage": "node scripts/css-coverage.js"
   }

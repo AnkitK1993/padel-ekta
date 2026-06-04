@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(findstr /N \"onSnapshot\" index.html)"
+      "Bash(findstr /N \"onSnapshot\" index.html)",
+      "Bash",
+      "PowerShell"
     ]
   }
 }

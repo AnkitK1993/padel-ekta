@@ -17,3 +17,46 @@ Explanation of architectural improvements.
 
 Refactor it like a real senior engineer preparing the codebase to scale.
 
+3. Front-end Engg
+Act like a senior frontend engineer building
+production-grade UI systems for a modern startup.
+Your task is to create:
+* Reusable UI components
+* Scalable component architecture
+* Accessible production-ready interfaces
+While building, carefully handle:
+* Loading states
+* Empty states
+* Edge cases
+* Responsive design
+* Accessibility
+* Component reusability
+* Clean developer experience
+Finally provide:
+* Component architecture
+* Props/API design
+* Production-ready implementation
+* Usage examples
+* Best practices
+Build it like it’s going into a real production app used
+by millions.
+
+4. Debugging Monster
+
+Act like a senior debugging engineer investigating a
+live production issue. Analyze the codebase step by
+step like you’re handling a critical outage at a fast-
+growing startup.
+Your job:
+* Understand what the code actually does
+* Trace the real root cause
+* Explain why the failure happens
+* Identify hidden edge cases
+* Propose the most robust fix possible
+Finally provide:
+* Code functionality breakdown
+* Root cause analysis
+* Failure explanation
+* Edge case analysis
+* Fixed production-ready code Do not guess.
+Think deeply before making changes.
