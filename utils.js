@@ -244,17 +244,7 @@ body.paused-animations *{
 
 // ── THEME SWITCHER (plain script — must be global for onclick) ──
       var THEMES = [
-        { name: "Neon Blue", hex: "#18d7ff", r: 24, g: 215, b: 255 },
-        { name: "Gold", hex: "#f5c842", r: 245, g: 200, b: 66 },
-        { name: "Neon Green", hex: "#00ff9d", r: 0, g: 255, b: 157 },
-        { name: "Neon Pink", hex: "#ff2d78", r: 255, g: 45, b: 120 },
-        { name: "Neon Purple", hex: "#b44dff", r: 180, g: 77, b: 255 },
-        { name: "Red", hex: "#ff3b3b", r: 255, g: 59, b: 59 },
-        { name: "Royal Blue", hex: "#2563eb", r: 37, g: 99, b: 235 },
-        { name: "Crimson", hex: "#dc2626", r: 220, g: 38, b: 38 },
-        { name: "Forest", hex: "#15803d", r: 21, g: 128, b: 61 },
         { name: "Cyberpunk", hex: "#ff00d4", r: 255, g: 0, b: 212 },
-        { name: "Mono", hex: "#c0c0c0", r: 192, g: 192, b: 192 },
         { name: "Holo HUD", hex: "#5cd0ff", r: 92, g: 208, b: 255, mode: "holo" },
         { name: "Royal Gold", hex: "#fbbf24", r: 251, g: 191, b: 36, mode: "royal-gold" },
         { name: "Midnight OLED", hex: "#00c8ff", r: 0, g: 200, b: 255, mode: "midnight-oled" },
@@ -308,7 +298,9 @@ body.paused-animations *{
             ",0.18)";
         }
         try {
-          localStorage.setItem("padel-theme-idx", _themeIdx);
+          // Persist by NAME, not array index — so adding/removing/reordering
+          // themes never silently switches a user to a different theme.
+          localStorage.setItem("padel-theme-name", t.name);
         } catch (e) {}
       }
 
@@ -336,12 +328,29 @@ body.paused-animations *{
       window.setThemeByIdx = setThemeByIdx;
       window.getThemeIdx = function () { return _themeIdx; };
 
-      // Restore saved theme immediately
+      // Restore saved theme immediately (by name; migrate legacy index once)
       (function () {
         try {
-          var saved = parseInt(localStorage.getItem("padel-theme-idx"), 10);
-          if (!isNaN(saved) && saved >= 0 && saved < THEMES.length) {
-            _themeIdx = saved;
+          // The original index order, used only to migrate users who still have
+          // the legacy padel-theme-idx key to the new name-based storage. Kept
+          // themes survive; users on a since-removed theme fall back to default.
+          var LEGACY_ORDER = [
+            "Neon Blue", "Gold", "Neon Green", "Neon Pink", "Neon Purple",
+            "Red", "Royal Blue", "Crimson", "Forest", "Cyberpunk", "Mono",
+            "Holo HUD", "Royal Gold", "Midnight OLED", "Emerald Lux",
+            "Crimson Royale", "Amethyst Haze",
+          ];
+          var name = localStorage.getItem("padel-theme-name");
+          if (!name) {
+            var oldIdx = parseInt(localStorage.getItem("padel-theme-idx"), 10);
+            if (!isNaN(oldIdx) && oldIdx >= 0 && oldIdx < LEGACY_ORDER.length)
+              name = LEGACY_ORDER[oldIdx];
+          }
+          var idx = -1;
+          for (var i = 0; i < THEMES.length; i++)
+            if (THEMES[i].name === name) { idx = i; break; }
+          if (idx >= 0) {
+            _themeIdx = idx;
             // Apply after DOM is ready so the button element exists
             document.addEventListener("DOMContentLoaded", function () {
               applyTheme(THEMES[_themeIdx]);
