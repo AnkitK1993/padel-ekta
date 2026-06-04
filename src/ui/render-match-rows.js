@@ -5,6 +5,7 @@
 // resolve against window at click time, so only their names appear here.
 import { escHtml, fmtDate } from "./format.js";
 import { state } from "../engine/state.js";
+import { emptyState } from "./components.js";
 
 // ── Match classification flags ─────────────────────────────
 export function isFireMatch(m) {
@@ -62,7 +63,7 @@ export function buildMatchRowHtml(m, extraClass = "", delay = null, matchIdx = n
 
 export function buildCompactMatchRows(matches) {
   if (!matches.length)
-    return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+    return emptyState({ card: true, size: "sm", icon: "🏓", message: "No matches found" });
   return `<table class="cmp-match-rows"><tbody>${[...matches]
     .reverse()
     .map((m) => buildMatchRowHtml(m, "", null, state.matches.indexOf(m)))
@@ -116,7 +117,7 @@ export function buildSummaryMatchRow(
 
 export function buildSummaryMatchRows(matches) {
   if (!matches.length)
-    return `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+    return emptyState({ card: true, size: "sm", icon: "🏓", message: "No matches found" });
   return `<div class="smr-list">${[...matches]
     .reverse()
     .map((m) => buildSummaryMatchRow(m, "", state.matches.indexOf(m)))

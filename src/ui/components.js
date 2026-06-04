@@ -125,6 +125,9 @@ export function iconButton({
  * @param {boolean} [o.inline=false]    Minimal 1-line muted label (no icon) for
  *                                      tight in-card slots where a full block
  *                                      would be too heavy. Still role="status".
+ * @param {boolean} [o.card=false]      Prominent card chrome (gradient + border +
+ *                                      blur + shadow) for full-page/standalone
+ *                                      empty states. Composes with size.
  * @returns {string} HTML
  */
 export function emptyState({
@@ -134,6 +137,7 @@ export function emptyState({
   action = null,
   size = "md",
   inline = false,
+  card = false,
 } = {}) {
   if (inline) {
     return `<div class="ui-empty-inline" role="status">${escHtml(message)}</div>`;
@@ -149,7 +153,7 @@ export function emptyState({
       })
     : "";
   return (
-    `<div class="ui-empty ui-empty-${size}" role="status">` +
+    `<div class="ui-empty ui-empty-${size}${card ? " ui-empty-card" : ""}" role="status">` +
     `<div class="ui-empty-icon" aria-hidden="true">${icon}</div>` +
     head +
     msg +
