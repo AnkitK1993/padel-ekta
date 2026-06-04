@@ -4415,7 +4415,13 @@ function renderHome() {
   const uniqD = new Set(filtered.map((m) => m.date)).size;
   const board = document.getElementById("board");
   if (!stats.length) {
-    board.innerHTML = `<div class="empty"><div class="ico">🏓</div><p>No matches yet.<br>Tap <strong style="color:var(--accent)">+ Add</strong> to get started.</p><button class="add-cta" onclick="goTo('add')">Add Matches</button></div>`;
+    board.innerHTML = emptyState({
+      card: true,
+      icon: "🏓",
+      title: "No matches yet",
+      message: "Tap + Add to log your first match.",
+      action: { label: "Add Matches", onClick: "goTo('add')", variant: "primary" },
+    });
     const sb = document.getElementById("session-streak-badge");
     if (sb) sb.style.display = "none";
     return;
@@ -4817,7 +4823,7 @@ function renderCompact() {
       }
     } else {
       setTimeout(() => {
-        cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+        cmpMatchesEl.innerHTML = emptyState({ card: true, size: "sm", icon: "🏓", message: "No matches found" });
       }, matchStartDelay);
     }
   } else {
@@ -4844,7 +4850,7 @@ function renderCompact() {
         buildHistorySummary(filtered, cmpFilter);
       setTimeout(_animEloCounts, 80);
     } else {
-      cmpMatchesEl.innerHTML = `<div class="empty" style="padding:20px 0"><div class="ico">🏓</div><p>No matches found</p></div>`;
+      cmpMatchesEl.innerHTML = emptyState({ card: true, size: "sm", icon: "🏓", message: "No matches found" });
     }
   }
 }
@@ -5032,7 +5038,7 @@ function _matchCardPrecompute() {
 
 function buildMatchCards(matches, showAdmin) {
   if (!matches.length)
-    return `<div class="empty"><div class="ico">🏓</div><p>No matches found</p></div>`;
+    return emptyState({ card: true, icon: "🏓", message: "No matches found" });
   // Memoized: per-match ELO deltas, pre-match pair ranks, pair-vs-pair H2H.
   const {
     eloMatchMap,
@@ -5590,7 +5596,7 @@ function renderModernMatches() {
     tmpAll.querySelectorAll(".pair-stats-card"),
   );
   const matchCards = Array.from(tmpAll.querySelectorAll(".match-card"));
-  const emptyEl = tmpAll.querySelector(".empty");
+  const emptyEl = tmpAll.querySelector(".ui-empty");
 
   // Stable keys so re-renders (filter changes) reconcile in place instead of
   // wiping + re-animating the whole feed. Match cards key on their state.matches

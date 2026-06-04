@@ -1140,32 +1140,8 @@ body {
   letter-spacing: 0.07em;
   margin-top: 2px;
 }
-.empty {
-  text-align: center;
-  padding: 50px 20px;
-  color: var(--muted);
-}
-.empty .ico {
-  font-size: 46px;
-  margin-bottom: 10px;
-}
-.empty p {
-  font-size: 13px;
-  line-height: 1.7;
-}
-.add-cta {
-  margin-top: 14px;
-  display: inline-block;
-  background: var(--accent);
-  color: #09090f;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: "DM Sans", sans-serif;
-}
+/* Legacy .empty / .add-cta removed — folded into the emptyState component's
+   `card` variant (.ui-empty-card) for full empty-state unification. */
 
 .history-filter-panel {
   flex-shrink: 0;
@@ -7416,21 +7392,6 @@ select {
   );
 
   filter: blur(0.2px);
-}
-
-.empty {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.03),
-    rgba(255, 255, 255, 0.015)
-  );
-
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 24px;
-
-  backdrop-filter: blur(20px);
-
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.36);
 }
 
 .history-filter-panel {
@@ -17918,6 +17879,30 @@ table.cmp td:nth-child(10) {
   font-size: 12px;
   padding: 8px;
   text-align: center;
+}
+/* Prominent card chrome for standalone/full-page empty states (folds in the
+   old .empty card look so every empty state flows through one component). */
+.ui-empty-card {
+  padding: 50px 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.015)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.36);
+}
+.ui-empty-card .ui-empty-icon {
+  font-size: 46px;
+  opacity: 1;
+}
+.ui-empty-card.ui-empty-sm {
+  padding: 20px;
+}
+.ui-empty-card.ui-empty-sm .ui-empty-icon {
+  font-size: 36px;
 }
 
 /* ── Skeleton ── */
