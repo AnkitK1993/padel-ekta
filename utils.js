@@ -258,6 +258,9 @@ body.paused-animations *{
         { name: "Holo HUD", hex: "#5cd0ff", r: 92, g: 208, b: 255, mode: "holo" },
         { name: "Royal Gold", hex: "#fbbf24", r: 251, g: 191, b: 36, mode: "royal-gold" },
         { name: "Midnight OLED", hex: "#00c8ff", r: 0, g: 200, b: 255, mode: "midnight-oled" },
+        { name: "Emerald Lux", hex: "#2ee6a0", r: 46, g: 230, b: 160, mode: "emerald-lux" },
+        { name: "Crimson Royale", hex: "#ff3b63", r: 255, g: 59, b: 99, mode: "crimson-royale" },
+        { name: "Amethyst Haze", hex: "#b06cff", r: 176, g: 108, b: 255, mode: "amethyst" },
       ];
       window.THEMES = THEMES;
       var _themeIdx = 0;
@@ -270,11 +273,17 @@ body.paused-animations *{
           "--theme2",
           "rgba(" + t.r + "," + t.g + "," + t.b + ",0.6)",
         );
-        // Special modes (e.g. Holo HUD restructures the Detailed cards)
+        // Special modes (e.g. Holo HUD restructures the Detailed cards). Toggle
+        // every theme's {mode}-mode class off except the active one — data-driven
+        // so a new themed mode only needs its THEMES entry + CSS, nothing here.
         if (document.body) {
-          document.body.classList.toggle("holo-mode", t.mode === "holo");
-          document.body.classList.toggle("royal-gold-mode", t.mode === "royal-gold");
-          document.body.classList.toggle("midnight-oled-mode", t.mode === "midnight-oled");
+          THEMES.forEach(function (th) {
+            if (th.mode)
+              document.body.classList.toggle(
+                th.mode + "-mode",
+                th.mode === t.mode,
+              );
+          });
         }
         // Re-render Home so the active mode picks up the right card template
         try {

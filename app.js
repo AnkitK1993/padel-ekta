@@ -540,14 +540,10 @@ function openThemePicker() {
   grid.innerHTML = themes
     .map((t, i) => {
       const modeClass = t.mode ? ` tp-swatch-${t.mode}` : "";
-      const dot =
-        t.mode === "holo"
-          ? `<span class="tp-dot tp-dot-holo"></span>`
-          : t.mode === "royal-gold"
-            ? `<span class="tp-dot tp-dot-royal-gold"></span>`
-            : t.mode === "midnight-oled"
-              ? `<span class="tp-dot tp-dot-midnight-oled"></span>`
-              : `<span class="tp-dot" style="background:${t.hex}"></span>`;
+      // Themed modes get a bespoke swatch via .tp-dot-{mode}; plain themes use hex.
+      const dot = t.mode
+        ? `<span class="tp-dot tp-dot-${t.mode}"></span>`
+        : `<span class="tp-dot" style="background:${t.hex}"></span>`;
       return `<button class="tp-swatch${i === cur ? " tp-swatch-active" : ""}${modeClass}" onclick="pickTheme(${i})" style="--sw:${t.hex};--sw-rgb:${t.r},${t.g},${t.b}">
           ${dot}
           <span class="tp-name">${t.name}</span>
