@@ -349,21 +349,27 @@ body.paused-animations *{
           var idx = -1;
           for (var i = 0; i < THEMES.length; i++)
             if (THEMES[i].name === name) { idx = i; break; }
-          if (idx >= 0) {
-            _themeIdx = idx;
-            // Apply after DOM is ready so the button element exists
-            document.addEventListener("DOMContentLoaded", function () {
-              applyTheme(THEMES[_themeIdx]);
-            });
-            // Also apply CSS vars immediately (button may not exist yet but vars will)
-            var root = document.documentElement;
-            var t = THEMES[_themeIdx];
-            root.style.setProperty("--theme", t.hex);
-            root.style.setProperty(
-              "--theme-rgb",
-              t.r + ", " + t.g + ", " + t.b,
-            );
+          // Default theme for new users (no saved pick) or anyone whose saved
+          // theme was since removed: Holo HUD. Fall back to index 0 only if it
+          // were ever dropped from THEMES.
+          if (idx < 0) {
+            for (var j = 0; j < THEMES.length; j++)
+              if (THEMES[j].name === "Holo HUD") { idx = j; break; }
+            if (idx < 0) idx = 0;
           }
+          _themeIdx = idx;
+          // Apply after DOM is ready so the button element exists
+          document.addEventListener("DOMContentLoaded", function () {
+            applyTheme(THEMES[_themeIdx]);
+          });
+          // Also apply CSS vars immediately (button may not exist yet but vars will)
+          var root = document.documentElement;
+          var t = THEMES[_themeIdx];
+          root.style.setProperty("--theme", t.hex);
+          root.style.setProperty(
+            "--theme-rgb",
+            t.r + ", " + t.g + ", " + t.b,
+          );
         } catch (e) {}
       })();
 
