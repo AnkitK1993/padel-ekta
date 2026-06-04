@@ -28,6 +28,13 @@ import {
 import { buildHudGaugeSvg } from "./src/ui/charts.js";
 import { state } from "./src/engine/state.js";
 import {
+  todayISO,
+  weekISO,
+  weekendRange,
+  monthISO,
+  lastWeekRange,
+} from "./src/engine/dates.js";
+import {
   isFireMatch,
   isDominatingMatch,
   isZeroMatch,
@@ -2876,48 +2883,7 @@ function refreshManage() {
 }
 
 // ── DATE HELPERS ───────────────────────────────────────────
-function todayISO() {
-  return toLocalISODate();
-}
-function weekISO() {
-  const d = new Date(),
-    day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Monday
-  d.setDate(d.getDate() + diff);
-  return toLocalISODate(d);
-}
-function weekendRange() {
-  const now = new Date(),
-    day = now.getDay();
-  const sat = new Date(now);
-  sat.setDate(now.getDate() + (day === 0 ? -1 : 6 - day));
-  const sun = new Date(sat);
-  sun.setDate(sat.getDate() + 1);
-  return {
-    from: toLocalISODate(sat),
-    to: toLocalISODate(sun),
-  };
-}
-function monthISO() {
-  const d = new Date();
-  d.setDate(1);
-  return toLocalISODate(d);
-}
-function lastWeekRange() {
-  const d = new Date(),
-    day = d.getDay();
-  const daysToMonday = day === 0 ? 6 : day - 1;
-  const thisMonday = new Date(d);
-  thisMonday.setDate(d.getDate() - daysToMonday);
-  const lastMonday = new Date(thisMonday);
-  lastMonday.setDate(thisMonday.getDate() - 7);
-  const lastSunday = new Date(thisMonday);
-  lastSunday.setDate(thisMonday.getDate() - 1);
-  return {
-    from: toLocalISODate(lastMonday),
-    to: toLocalISODate(lastSunday),
-  };
-}
+// todayISO/weekISO/weekendRange/monthISO/lastWeekRange → ./src/engine/dates.js
 
 // parseDateHdr, parseBlock (+ internal resolve/resolveInitial/parseMatchLine)
 // now live in ./parser.js, imported at the top of this file. App-state deps

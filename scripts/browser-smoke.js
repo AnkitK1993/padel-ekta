@@ -70,7 +70,9 @@ const SNAPSHOT_MATCHES = [
 ];
 // Update intentionally when analytics OUTPUT legitimately changes. "PENDING"
 // makes the first run print the computed hash without failing.
-const ANALYTICS_SNAPSHOT_HASH = "5ae521ac";
+// Settled-state hash (captured after the 600ms render-settle delay below). The
+// earlier 5ae521ac was a pre-settle capture; this is the deterministic value.
+const ANALYTICS_SNAPSHOT_HASH = "4a96a30";
 
 function findBrowser() {
   const candidates = [
