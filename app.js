@@ -8253,7 +8253,7 @@ function openPlayerDetail(name) {
 
               </div>
               <div style="margin-top:20px;font-size:13px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Matches</div>
-              <div class="analytics-cards">${recentMatchCards || '<div class="ana-card"><div class="sub">No matches yet.</div></div>'}</div>
+              <div class="analytics-cards">${recentMatchCards || `<div class="ana-card">${emptyState({ inline: true, message: "No matches yet." })}</div>`}</div>
             </div>
           </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
@@ -8568,7 +8568,7 @@ function openH2HDetail(a, b) {
 
           <div class="h2h-matches-title">RECENT MATCHES</div>
           <div class="h2h-match-list">
-            ${recentCards || '<div style="color:var(--muted);padding:8px;font-size:11px">No matches yet.</div>'}
+            ${recentCards || emptyState({ inline: true, message: "No matches yet." })}
           </div>
         </div>
       </div>
@@ -9939,12 +9939,12 @@ function openPairDetail(key) {
                 <!-- vs Opponents -->
                 <div class="ana-card">
                   <span class="badge">vs Opponents</span>
-                  <div style="margin-top:8px">${oppHtml || '<div class="sub">No data.</div>'}</div>
+                  <div style="margin-top:8px">${oppHtml || emptyState({ inline: true, message: "No data." })}</div>
                 </div>
 
               </div>
               <div style="margin-top:20px;font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Recent Matches</div>
-              <div class="ana-card" style="padding:8px 12px">${recentHtml || '<div class="sub">No matches.</div>'}</div>
+              <div class="ana-card" style="padding:8px 12px">${recentHtml || emptyState({ inline: true, message: "No matches." })}</div>
             </div>
           </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
@@ -14082,8 +14082,12 @@ function renderAnalyticsPage() {
   // state.matches — so players marked as guest don't appear in any stat.
   const am = activeMatches();
   if (!am.length) {
-    container.innerHTML =
-      '<div style="padding:40px;text-align:center;color:var(--muted)">No matches yet.</div>';
+    container.innerHTML = emptyState({
+      icon: "📊",
+      title: "No matches yet",
+      message: "Add a match to start tracking stats and rankings.",
+      action: { label: "Add match", onClick: "switchMainTab('add')" },
+    });
     return;
   }
 
@@ -18800,7 +18804,7 @@ function _checkRematchWarning() {
 function _buildSessionLeaderboard() {
   const sessionPlayers = _liveSessionData?.sessionPlayers || [];
   if (!sessionPlayers.length || !_sessionMatchHistory.length)
-    return '<div style="font-size:11px;color:var(--muted);padding:8px 0;text-align:center">No matches yet</div>';
+    return emptyState({ inline: true, message: "No matches yet" });
   const stats = {};
   sessionPlayers.forEach((p) => (stats[p] = { w: 0, l: 0, m: 0 }));
   _sessionMatchHistory.forEach((mt) => {
