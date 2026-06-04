@@ -47,6 +47,7 @@ import {
   saveAnaCollapsed,
   hasAnaCollapsedPref,
 } from "./src/infra/ana-prefs.js";
+import { viewState } from "./src/ui/view-state.js";
 import {
   getAnimLevelRaw,
   resolveAnimLevel,
@@ -882,10 +883,6 @@ function _loadCmpHiddenCols() {
   return new Set([]);
 }
 let _cmpHiddenCols = _loadCmpHiddenCols();
-let _eloTLPlayer = "";
-let _eloTLFilter = "all";
-let _eloTLOverlay = "";
-let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
 let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a local save
@@ -1260,9 +1257,6 @@ function _invalidateEloMemo() {
 }
 
 let _anaObserver = null;
-let _pairSort = { key: "winPct", dir: -1 };
-let _pairsData = [];
-let _pairsShowAll = false;
 
 function _handleFeatureLoadError(name, err) {
   console.error(`${name} feature failed to load:`, err);
@@ -6178,30 +6172,30 @@ function selectFilterItem(value) {
   } else if (mode === "eloTLOverlay") {
     _eloTLSetOverlay(value);
   } else if (mode === "eloprobp1") {
-    _eloProbP1 = value;
+    viewState.eloProbP1 = value;
     _updateEloProbSlots();
   } else if (mode === "eloprobp2") {
-    _eloProbP2 = value;
+    viewState.eloProbP2 = value;
     _updateEloProbSlots();
   } else if (mode === "cmpplayerA") {
-    _cmpPlayerA = value;
+    viewState.cmpPlayerA = value;
     _updateCmpSlots();
   } else if (mode === "cmpplayerB") {
-    _cmpPlayerB = value;
+    viewState.cmpPlayerB = value;
     _updateCmpSlots();
   } else if (mode && mode.startsWith("sim_")) {
     const slot = mode.split("_")[1];
-    if (slot === "a1") _simA1 = value;
-    else if (slot === "a2") _simA2 = value;
-    else if (slot === "b1") _simB1 = value;
-    else if (slot === "b2") _simB2 = value;
+    if (slot === "a1") viewState.simA1 = value;
+    else if (slot === "a2") viewState.simA2 = value;
+    else if (slot === "b1") viewState.simB1 = value;
+    else if (slot === "b2") viewState.simB2 = value;
     _simUpdateSlots();
   } else if (mode && mode.startsWith("predict_")) {
     const slot = mode.split("_")[1];
-    if (slot === "a1") _predictPlayerA = value;
-    else if (slot === "a2") _predictPartnerA = value;
-    else if (slot === "b1") _predictPlayerB = value;
-    else if (slot === "b2") _predictPartnerB = value;
+    if (slot === "a1") viewState.predictPlayerA = value;
+    else if (slot === "a2") viewState.predictPartnerA = value;
+    else if (slot === "b1") viewState.predictPlayerB = value;
+    else if (slot === "b2") viewState.predictPartnerB = value;
     const el = document.getElementById(`pred-label-${slot}`);
     const btn = document.getElementById(`pred-slot-${slot}`);
     if (el) el.textContent = value || "—";
@@ -6213,12 +6207,12 @@ function _updateCmpSlots() {
   const aBtn = document.getElementById("cmpSlotA");
   const bBtn = document.getElementById("cmpSlotB");
   if (aBtn) {
-    document.getElementById("cmpLabelA").textContent = _cmpPlayerA || "P1";
-    aBtn.classList.toggle("h2h-slot-filled", !!_cmpPlayerA);
+    document.getElementById("cmpLabelA").textContent = viewState.cmpPlayerA || "P1";
+    aBtn.classList.toggle("h2h-slot-filled", !!viewState.cmpPlayerA);
   }
   if (bBtn) {
-    document.getElementById("cmpLabelB").textContent = _cmpPlayerB || "P2";
-    bBtn.classList.toggle("h2h-slot-filled", !!_cmpPlayerB);
+    document.getElementById("cmpLabelB").textContent = viewState.cmpPlayerB || "P2";
+    bBtn.classList.toggle("h2h-slot-filled", !!viewState.cmpPlayerB);
   }
 }
 
@@ -9215,8 +9209,6 @@ function openShareCard(name) {
   document.body.appendChild(overlay);
 }
 
-let _digestFilter = "week";
-let _digestPlayer = "";
 
 function _digestMatches(filter, player) {
   const today = todayISO();
@@ -9316,22 +9308,22 @@ function _buildDigestContent(filter, player) {
 }
 
 function renderDigestCard(filter, player) {
-  _digestFilter = filter || _digestFilter;
-  _digestPlayer = player !== undefined ? player : _digestPlayer;
+  viewState.digestFilter = filter || viewState.digestFilter;
+  viewState.digestPlayer = player !== undefined ? player : viewState.digestPlayer;
   const content = document.getElementById("digest-content");
   if (content)
-    content.innerHTML = _buildDigestContent(_digestFilter, _digestPlayer);
+    content.innerHTML = _buildDigestContent(viewState.digestFilter, viewState.digestPlayer);
   // Update active filter button
   document
     .querySelectorAll(".digest-filter-btn")
     .forEach((b) =>
-      b.classList.toggle("active", b.dataset.f === _digestFilter),
+      b.classList.toggle("active", b.dataset.f === viewState.digestFilter),
     );
   // Update player label
   const lbl = document.getElementById("digest-player-label");
-  if (lbl) lbl.textContent = _digestPlayer || "ALL PLAYERS";
+  if (lbl) lbl.textContent = viewState.digestPlayer || "ALL PLAYERS";
   const btn = document.getElementById("digest-player-btn");
-  if (btn) btn.classList.toggle("filter-fab-active", !!_digestPlayer);
+  if (btn) btn.classList.toggle("filter-fab-active", !!viewState.digestPlayer);
 }
 
 function openDigestPlayerSheet() {
@@ -9526,9 +9518,9 @@ function openWeeklyDigest() {
 
 function _pairsHeaderHtml() {
   const arrow = (col) => {
-    if (_pairSort.key !== col)
+    if (viewState.pairSort.key !== col)
       return '<span style="opacity:0.25;font-size:7px;margin-left:2px">◇</span>';
-    return `<span style="font-size:7px;margin-left:2px">${_pairSort.dir < 0 ? "▼" : "▲"}</span>`;
+    return `<span style="font-size:7px;margin-left:2px">${viewState.pairSort.dir < 0 ? "▼" : "▲"}</span>`;
   };
   return `<div class="chem-header">
     <div class="chem-rank">RANK</div>
@@ -9544,8 +9536,8 @@ function _pairsHeaderHtml() {
 
 const PAIRS_PAGE_LIMIT = 15;
 function _pairsSortedRows() {
-  const { key, dir } = _pairSort;
-  const sorted = [..._pairsData].sort((a, b) => {
+  const { key, dir } = viewState.pairSort;
+  const sorted = [...viewState.pairsData].sort((a, b) => {
     let av, bv;
     if (key === "name") {
       av = a.key;
@@ -9573,7 +9565,7 @@ function _pairsSortedRows() {
     if (av !== bv) return dir < 0 ? bv - av : av - bv;
     return b.played - a.played;
   });
-  const toShow = _pairsShowAll ? sorted : sorted.slice(0, PAIRS_PAGE_LIMIT);
+  const toShow = viewState.pairsShowAll ? sorted : sorted.slice(0, PAIRS_PAGE_LIMIT);
   const moreCount = sorted.length - PAIRS_PAGE_LIMIT;
   const rowsHtml = toShow
     .map((p, i) => {
@@ -9594,23 +9586,23 @@ function _pairsSortedRows() {
     })
     .join("");
   const showMoreHtml =
-    !_pairsShowAll && moreCount > 0
+    !viewState.pairsShowAll && moreCount > 0
       ? `<div onclick="_showAllPairs()" style="text-align:center;padding:10px;font-size:11px;font-weight:700;color:var(--theme);cursor:pointer;border-top:1px solid var(--border)">SHOW ${moreCount} MORE ▼</div>`
       : "";
   return rowsHtml + showMoreHtml;
 }
 function _showAllPairs() {
-  _pairsShowAll = true;
+  viewState.pairsShowAll = true;
   const el = document.getElementById("all-pairs-table");
   if (el) el.innerHTML = _pairsHeaderHtml() + _pairsSortedRows();
 }
 
 function sortPairsBy(key) {
-  if (_pairSort.key === key) {
-    _pairSort.dir *= -1;
+  if (viewState.pairSort.key === key) {
+    viewState.pairSort.dir *= -1;
   } else {
-    _pairSort.key = key;
-    _pairSort.dir = key === "eloRank" || key === "name" ? 1 : -1;
+    viewState.pairSort.key = key;
+    viewState.pairSort.dir = key === "eloRank" || key === "name" ? 1 : -1;
   }
   const el = document.getElementById("all-pairs-table");
   if (el) el.innerHTML = _pairsHeaderHtml() + _pairsSortedRows();
@@ -9968,7 +9960,6 @@ function getMatrixAlias(name) {
 }
 
 // ── P VS P MATRIX (COMPACT, NO SCROLL) ────────────────────
-let _h2hMatrixSort = "matches";
 
 function _h2hSortPlayers(players) {
   if (!Array.isArray(players)) return [];
@@ -9990,26 +9981,26 @@ function _h2hSortPlayers(players) {
     winPct[p] = played > 0 ? wins / played : 0;
   });
   const sorted = [...players];
-  if (_h2hMatrixSort === "matches") {
+  if (viewState.h2hMatrixSort === "matches") {
     sorted.sort(
       (a, b) =>
         (matchCount[b] || 0) - (matchCount[a] || 0) ||
         (eloMap[b] || 0) - (eloMap[a] || 0),
     );
-  } else if (_h2hMatrixSort === "winrate") {
+  } else if (viewState.h2hMatrixSort === "winrate") {
     sorted.sort(
       (a, b) =>
         (winPct[b] || 0) - (winPct[a] || 0) ||
         (matchCount[b] || 0) - (matchCount[a] || 0),
     );
-  } else if (_h2hMatrixSort === "name") {
+  } else if (viewState.h2hMatrixSort === "name") {
     return sortPlayersGuestsLast(sorted);
   }
   return sorted;
 }
 
 function _h2hSetSort(key) {
-  _h2hMatrixSort = key;
+  viewState.h2hMatrixSort = key;
   document.querySelectorAll(".h2h-sort-pill").forEach((b) => {
     const isActive =
       (b.textContent.trim() === "MATCHES" && key === "matches") ||
@@ -10130,15 +10121,13 @@ function _h2hHighlightRow(tr) {
 // Player×player grid: how often each pair were teammates vs opponents, over the
 // chosen period. COUNT mode shows 🤝partnered / ⚔️opposed; PARTNER% mode shows
 // the likelihood they teamed up when both played (rest of the time = opponents).
-let _pairMatrixPeriod = "all"; // today | week | weekend | month | all
-let _pairMatrixMode = "count"; // count | pct
 
 function _pairMatrixSetPeriod(btn, period) {
-  _pairMatrixPeriod = period;
+  viewState.pairMatrixPeriod = period;
   _refreshPairMatrix();
 }
 function _pairMatrixSetMode(btn, mode) {
-  _pairMatrixMode = mode;
+  viewState.pairMatrixMode = mode;
   _refreshPairMatrix();
 }
 function _refreshPairMatrix() {
@@ -10151,8 +10140,8 @@ function _buildPairMatrixHtml() {
 }
 
 function _pairMatrixInner() {
-  const period = _pairMatrixPeriod;
-  const mode = _pairMatrixMode;
+  const period = viewState.pairMatrixPeriod;
+  const mode = viewState.pairMatrixMode;
   const matches = filterMatches(period); // season-scoped, guest-excluded, date-filtered
 
   const periodPills =
@@ -10263,23 +10252,20 @@ const CMP_DATE_OPTS = [
   { v: "month", l: "THIS MONTH" },
 ];
 
-let _cmpPlayerA = "";
-let _cmpPlayerB = "";
-let _cmpDateFilter = "all";
 
 function _cmpSelectorHtml() {
   const datePills = CMP_DATE_OPTS.map(
     (o) =>
-      `<button class="digest-filter-btn${o.v === _cmpDateFilter ? " active" : ""}" onclick="_cmpSetDate('${o.v}')">${o.l}</button>`,
+      `<button class="digest-filter-btn${o.v === viewState.cmpDateFilter ? " active" : ""}" onclick="_cmpSetDate('${o.v}')">${o.l}</button>`,
   ).join("");
   return `
     <div class="cmp-inline-selectors">
-      <button class="h2h-slot-btn${_cmpPlayerA ? " h2h-slot-filled" : ""}" id="cmpSlotA" onclick="openCmpSheet('A')" style="flex:1">
-        <span id="cmpLabelA" style="font-size:12px;font-weight:800">${_cmpPlayerA || "P1"}</span>
+      <button class="h2h-slot-btn${viewState.cmpPlayerA ? " h2h-slot-filled" : ""}" id="cmpSlotA" onclick="openCmpSheet('A')" style="flex:1">
+        <span id="cmpLabelA" style="font-size:12px;font-weight:800">${viewState.cmpPlayerA || "P1"}</span>
       </button>
       <span class="cmp-inline-vs">VS</span>
-      <button class="h2h-slot-btn${_cmpPlayerB ? " h2h-slot-filled" : ""}" id="cmpSlotB" onclick="openCmpSheet('B')" style="flex:1">
-        <span id="cmpLabelB" style="font-size:12px;font-weight:800">${_cmpPlayerB || "P2"}</span>
+      <button class="h2h-slot-btn${viewState.cmpPlayerB ? " h2h-slot-filled" : ""}" id="cmpSlotB" onclick="openCmpSheet('B')" style="flex:1">
+        <span id="cmpLabelB" style="font-size:12px;font-weight:800">${viewState.cmpPlayerB || "P2"}</span>
       </button>
     </div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0">${datePills}</div>
@@ -10292,8 +10278,8 @@ function openCmpSheet(slot) {
   if (el) el.textContent = slot === "A" ? "SELECT P1" : "SELECT P2";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const taken = slot === "A" ? _cmpPlayerB : _cmpPlayerA;
-  const selected = slot === "A" ? _cmpPlayerA : _cmpPlayerB;
+  const taken = slot === "A" ? viewState.cmpPlayerB : viewState.cmpPlayerA;
+  const selected = slot === "A" ? viewState.cmpPlayerA : viewState.cmpPlayerB;
   const players = sortPlayersGuestsLast(
     _statPlayerNames(),
   );
@@ -10312,7 +10298,7 @@ function openCmpSheet(slot) {
 }
 
 function _cmpSetDate(v) {
-  _cmpDateFilter = v;
+  viewState.cmpDateFilter = v;
   document
     .querySelectorAll("#compare-card .digest-filter-btn")
     .forEach((b) =>
@@ -10332,9 +10318,9 @@ function _cmpSetDate(v) {
 }
 
 function triggerCompare() {
-  const a = _cmpPlayerA;
-  const b = _cmpPlayerB;
-  const dateF = _cmpDateFilter || "all";
+  const a = viewState.cmpPlayerA;
+  const b = viewState.cmpPlayerB;
+  const dateF = viewState.cmpDateFilter || "all";
   if (!a || !b || a === b) {
     showToast("Select two different players", "⚠️", 2000);
     return;
@@ -10400,9 +10386,9 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
   const noData = (n) =>
     `<span style="color:var(--muted);font-size:11px">${n} — no data for this period</span>`;
 
-  _cmpPlayerA = nameA;
-  _cmpPlayerB = nameB;
-  _cmpDateFilter = dateFilter;
+  viewState.cmpPlayerA = nameA;
+  viewState.cmpPlayerB = nameB;
+  viewState.cmpDateFilter = dateFilter;
   card.dataset.mode = "result";
   card.style.display = "block";
   card.innerHTML = `
@@ -10464,9 +10450,9 @@ function renderCompareSelector() {
     players
       .map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`)
       .join("");
-  _cmpPlayerA = "";
-  _cmpPlayerB = "";
-  _cmpDateFilter = "all";
+  viewState.cmpPlayerA = "";
+  viewState.cmpPlayerB = "";
+  viewState.cmpDateFilter = "all";
   card.dataset.mode = "selector";
   card.style.display = "block";
   card.innerHTML = `
@@ -10667,7 +10653,7 @@ function toggleAnaFav(key, e) {
     if (star) star.classList.toggle("active", idx === -1);
   }
   // If currently viewing favs, re-apply filter
-  if (_anaActiveCat === "favs") anaFilterCategory("favs", true);
+  if (viewState.anaActiveCat === "favs") anaFilterCategory("favs", true);
 }
 
 function toggleAnaHidden(key, e) {
@@ -10689,7 +10675,7 @@ function toggleAnaHidden(key, e) {
       btn.textContent = isNowHidden ? "+" : "−";
     }
   }
-  anaFilterCategory(_anaActiveCat, true);
+  anaFilterCategory(viewState.anaActiveCat, true);
 }
 
 function toggleAnaSection(key) {
@@ -10731,7 +10717,6 @@ function toggleAnaSection(key) {
 let _anaDragKey = null;
 let _anaClone = null;
 let _anaDragOffsetY = 0;
-let _anaActiveCat = "all";
 
 function _togglePairForm(btn) {
   const expanded = btn.dataset.expanded === "1";
@@ -10754,8 +10739,6 @@ function _toggleSynergyMore(btn) {
 }
 
 // ── ANALYTICS SECTION SEARCH ───────────────────────────────
-let _anaSections = [];
-let _anaSearchIdx = -1;
 
 function openAnaSearch() {
   const overlay = document.getElementById("ana-search-overlay");
@@ -10763,7 +10746,7 @@ function openAnaSearch() {
   if (!overlay) return;
   overlay.classList.add("active");
   document.getElementById("ana-sov-results").innerHTML = "";
-  _anaSearchIdx = -1;
+  viewState.anaSearchIdx = -1;
   setTimeout(() => input && input.focus(), 60);
 }
 
@@ -10773,20 +10756,20 @@ function closeAnaSearch() {
   const input = document.getElementById("ana-sov-input");
   if (input) input.value = "";
   document.getElementById("ana-sov-results").innerHTML = "";
-  _anaSearchIdx = -1;
+  viewState.anaSearchIdx = -1;
 }
 
 function anaSearchInput(q) {
   const res = document.getElementById("ana-sov-results");
   if (!res) return;
-  _anaSearchIdx = -1;
+  viewState.anaSearchIdx = -1;
   const query = (q || "").trim().toLowerCase();
   if (!query) {
     res.innerHTML = "";
     return;
   }
 
-  const matches = _anaSections.filter(
+  const matches = viewState.anaSections.filter(
     (s) =>
       s.title
         .toLowerCase()
@@ -10827,16 +10810,16 @@ function anaSearchKey(e) {
     return;
   }
   if (e.key === "ArrowDown") {
-    _anaSearchIdx = Math.min(_anaSearchIdx + 1, items.length - 1);
+    viewState.anaSearchIdx = Math.min(viewState.anaSearchIdx + 1, items.length - 1);
   } else if (e.key === "ArrowUp") {
-    _anaSearchIdx = Math.max(_anaSearchIdx - 1, 0);
-  } else if (e.key === "Enter" && _anaSearchIdx >= 0) {
-    const key = items[_anaSearchIdx]?.dataset.key;
+    viewState.anaSearchIdx = Math.max(viewState.anaSearchIdx - 1, 0);
+  } else if (e.key === "Enter" && viewState.anaSearchIdx >= 0) {
+    const key = items[viewState.anaSearchIdx]?.dataset.key;
     if (key) anaSearchSelect(key);
     return;
   } else return;
   items.forEach((el, i) =>
-    el.classList.toggle("ana-sov-item-focus", i === _anaSearchIdx),
+    el.classList.toggle("ana-sov-item-focus", i === viewState.anaSearchIdx),
   );
   e.preventDefault();
 }
@@ -10845,7 +10828,7 @@ function anaSearchSelect(key) {
   closeAnaSearch();
   const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
   if (!el) return;
-  if (_anaActiveCat !== "all" && el.dataset.cat !== _anaActiveCat)
+  if (viewState.anaActiveCat !== "all" && el.dataset.cat !== viewState.anaActiveCat)
     anaFilterCategory("all", true);
   if (el.classList.contains("collapsed")) toggleAnaSection(key);
   setTimeout(
@@ -10859,7 +10842,7 @@ function anaSearchSelect(key) {
 }
 
 function anaFilterCategory(cat, skipPillUpdate) {
-  _anaActiveCat = cat;
+  viewState.anaActiveCat = cat;
   if (!skipPillUpdate) {
     document
       .querySelectorAll(".ana-filter-pill")
@@ -11396,7 +11379,7 @@ function _anaSubTab(btn, tab) {
 }
 
 function _simUpdateSlots() {
-  const slots = { a1: _simA1, a2: _simA2, b1: _simB1, b2: _simB2 };
+  const slots = { a1: viewState.simA1, a2: viewState.simA2, b1: viewState.simB1, b2: viewState.simB2 };
   Object.entries(slots).forEach(([k, v]) => {
     const lbl = document.getElementById(`sim-label-${k}`);
     const btn = document.getElementById(`sim-slot-${k}`);
@@ -11406,10 +11389,10 @@ function _simUpdateSlots() {
 }
 
 function runMatchSimulator() {
-  const a1 = _simA1;
-  const a2 = _simA2;
-  const b1 = _simB1;
-  const b2 = _simB2;
+  const a1 = viewState.simA1;
+  const a2 = viewState.simA2;
+  const b1 = viewState.simB1;
+  const b2 = viewState.simB2;
   const result = document.getElementById("sim-result");
   if (!result) return;
 
@@ -11473,8 +11456,8 @@ function runMatchSimulator() {
 }
 
 function buildEloTimelineHtml(filterKey) {
-  filterKey = filterKey || _eloTLFilter || "all";
-  _eloTLFilter = filterKey;
+  filterKey = filterKey || viewState.eloTLFilter || "all";
+  viewState.eloTLFilter = filterKey;
   const history = _memoEloHistory();
   const eloNow = _memoElo();
   const players = Object.keys(history)
@@ -11482,8 +11465,8 @@ function buildEloTimelineHtml(filterKey) {
     .sort((a, b) => (eloNow[b] || 1000) - (eloNow[a] || 1000));
   if (!players.length)
     return '<div class="sub" style="padding:8px">No ELO data yet.</div>';
-  if (!_eloTLPlayer || !history[_eloTLPlayer]) _eloTLPlayer = players[0];
-  const name = _eloTLPlayer;
+  if (!viewState.eloTLPlayer || !history[viewState.eloTLPlayer]) viewState.eloTLPlayer = players[0];
+  const name = viewState.eloTLPlayer;
   let pts = [...(history[name] || [])];
   const now = new Date();
   const todayStr = toLocalISODate(now);
@@ -11523,7 +11506,7 @@ function buildEloTimelineHtml(filterKey) {
   } else if (filterKey === "today") {
     pts = pts.filter((p) => p.date === todayStr);
   }
-  _eloTLPts = pts;
+  viewState.eloTLPts = pts;
   const chips = players
     .map(
       (p) =>
@@ -11551,8 +11534,8 @@ function buildEloTimelineHtml(filterKey) {
   } else {
     // Pre-compute overlay pts so Y range includes both players
     let overlayPts = [];
-    if (_eloTLOverlay && _eloTLOverlay !== name && history[_eloTLOverlay]) {
-      let rawOpts = [...history[_eloTLOverlay]];
+    if (viewState.eloTLOverlay && viewState.eloTLOverlay !== name && history[viewState.eloTLOverlay]) {
+      let rawOpts = [...history[viewState.eloTLOverlay]];
       if (filterKey === "3m") {
         const c = new Date(now);
         c.setMonth(c.getMonth() - 3);
@@ -11661,7 +11644,7 @@ function buildEloTimelineHtml(filterKey) {
     // Overlay: 2nd player line (uses pre-computed overlayPts)
     let overlayHtml = "";
     if (overlayPts.length >= 2) {
-      const overlayCol = playerColor(_eloTLOverlay);
+      const overlayCol = playerColor(viewState.eloTLOverlay);
       const overlayPoly = overlayPts
         .map(
           (p, i) =>
@@ -11669,7 +11652,7 @@ function buildEloTimelineHtml(filterKey) {
         )
         .join(" ");
       overlayHtml = `<polyline points="${overlayPoly}" fill="none" stroke="${overlayCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3" opacity="0.85"/>
-        <text x="${(toX(pts.length - 1) - 4).toFixed(1)}" y="${(toY(overlayPts[overlayPts.length - 1].elo) - 5).toFixed(1)}" text-anchor="end" font-size="9" font-weight="800" fill="${overlayCol}">${_eloTLOverlay}</text>`;
+        <text x="${(toX(pts.length - 1) - 4).toFixed(1)}" y="${(toY(overlayPts[overlayPts.length - 1].elo) - 5).toFixed(1)}" text-anchor="end" font-size="9" font-weight="800" fill="${overlayCol}">${viewState.eloTLOverlay}</text>`;
     }
 
     chartHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px">
@@ -11695,8 +11678,8 @@ function buildEloTimelineHtml(filterKey) {
   }
   // Build overlay selector
   const overlaySelector = `<div style="display:flex;align-items:center;gap:6px;margin:6px 0">
-    <button class="filter-fab-btn${_eloTLOverlay ? " filter-fab-active" : ""}" onclick="openEloTLOverlaySheet()" style="flex:1;text-align:left"><span>${_eloTLOverlay || "+ COMPARE WITH…"}</span></button>
-    ${_eloTLOverlay ? `<button class="elo-tl-clear" onclick="_eloTLSetOverlay('')">✕</button>` : ""}
+    <button class="filter-fab-btn${viewState.eloTLOverlay ? " filter-fab-active" : ""}" onclick="openEloTLOverlaySheet()" style="flex:1;text-align:left"><span>${viewState.eloTLOverlay || "+ COMPARE WITH…"}</span></button>
+    ${viewState.eloTLOverlay ? `<button class="elo-tl-clear" onclick="_eloTLSetOverlay('')">✕</button>` : ""}
   </div>`;
   return `<div class="ana-card" style="padding:10px 12px">
     <div class="elo-tl-players">${chips}</div>
@@ -11707,7 +11690,7 @@ function buildEloTimelineHtml(filterKey) {
 }
 
 function _eloTLSetOverlay(name) {
-  _eloTLOverlay = name || "";
+  viewState.eloTLOverlay = name || "";
   _rerenderEloTLSection();
 }
 
@@ -11719,13 +11702,13 @@ function openEloTLOverlaySheet() {
   if (!list) return;
   const history = _memoEloHistory();
   const players = sortPlayersGuestsLast(
-    Object.keys(history).filter((p) => p !== _eloTLPlayer),
+    Object.keys(history).filter((p) => p !== viewState.eloTLPlayer),
   );
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
       .map((p) => {
-        const sel = p === _eloTLOverlay ? " live-sheet-item-selected" : "";
+        const sel = p === viewState.eloTLOverlay ? " live-sheet-item-selected" : "";
         return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
       })
       .join("");
@@ -11739,21 +11722,21 @@ function _rerenderEloTLSection() {
   // ELO History Chart is a tab inside the merged "⚡ ELO" section; target its
   // stable wrapper rather than a top-level section body.
   const el = document.getElementById("elo-tl-section");
-  if (el) el.innerHTML = buildEloTimelineHtml(_eloTLFilter);
+  if (el) el.innerHTML = buildEloTimelineHtml(viewState.eloTLFilter);
 }
 
 function selectEloTLPlayer(name) {
-  _eloTLPlayer = name;
+  viewState.eloTLPlayer = name;
   _rerenderEloTLSection();
 }
 
 function filterEloTimeline(key) {
-  _eloTLFilter = key;
+  viewState.eloTLFilter = key;
   _rerenderEloTLSection();
 }
 
 function showEloMatchDetail(idx) {
-  const p = _eloTLPts[idx];
+  const p = viewState.eloTLPts[idx];
   const d = document.getElementById("elo-tl-detail");
   if (!d || !p) return;
   const dStr = p.delta > 0 ? `+${p.delta}` : String(p.delta);
@@ -11778,15 +11761,15 @@ function _updateEloProbSlots() {
   const bBtn = document.getElementById("eloProb-slot-p2");
   if (aBtn) {
     document.getElementById("eloProb-label-p1").textContent =
-      _eloProbP1 || "P1";
-    aBtn.classList.toggle("h2h-slot-filled", !!_eloProbP1);
+      viewState.eloProbP1 || "P1";
+    aBtn.classList.toggle("h2h-slot-filled", !!viewState.eloProbP1);
   }
   if (bBtn) {
     document.getElementById("eloProb-label-p2").textContent =
-      _eloProbP2 || "P2";
-    bBtn.classList.toggle("h2h-slot-filled", !!_eloProbP2);
+      viewState.eloProbP2 || "P2";
+    bBtn.classList.toggle("h2h-slot-filled", !!viewState.eloProbP2);
   }
-  if (_eloProbP1 && _eloProbP2 && _eloProbP1 !== _eloProbP2) calcEloWinProb();
+  if (viewState.eloProbP1 && viewState.eloProbP2 && viewState.eloProbP1 !== viewState.eloProbP2) calcEloWinProb();
   else {
     const r = document.getElementById("elo-prob-result");
     if (r) r.innerHTML = "";
@@ -11799,8 +11782,8 @@ function openEloProbSheet(slot) {
   if (el) el.textContent = slot === "p1" ? "SELECT P1" : "SELECT P2";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const taken = slot === "p1" ? _eloProbP2 : _eloProbP1;
-  const selected = slot === "p1" ? _eloProbP1 : _eloProbP2;
+  const taken = slot === "p1" ? viewState.eloProbP2 : viewState.eloProbP1;
+  const selected = slot === "p1" ? viewState.eloProbP1 : viewState.eloProbP2;
   const players = sortPlayersGuestsLast(
     _statPlayerNames(),
   );
@@ -11829,7 +11812,7 @@ function openWhatIfPlayerSheet() {
   );
   list.innerHTML = players
     .map((p) => {
-      const sel = p === _whatIfPlayer ? " live-sheet-item-selected" : "";
+      const sel = p === viewState.whatIfPlayer ? " live-sheet-item-selected" : "";
       return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
     })
     .join("");
@@ -11840,8 +11823,8 @@ function openWhatIfPlayerSheet() {
 }
 
 function calcEloWinProb() {
-  const p1 = _eloProbP1;
-  const p2 = _eloProbP2;
+  const p1 = viewState.eloProbP1;
+  const p2 = viewState.eloProbP2;
   const result = document.getElementById("elo-prob-result");
   if (!result) return;
   if (!p1 || !p2 || p1 === p2) {
@@ -11879,18 +11862,13 @@ function calcEloWinProb() {
 }
 
 // ── ELO WIN PROBABILITY STATE ──────────────────────────────
-let _eloProbP1 = "";
-let _eloProbP2 = "";
 
 // ── WHAT-IF SIMULATOR STATE ────────────────────────────────
-let _whatIfToggles = {}; // matchIdx -> bool (false = excluded)
-let _whatIfFlips = {}; // matchIdx -> bool (true = flip outcome)
-let _whatIfPlayer = "";
 
 function renderWhatIfSection(playerName) {
-  _whatIfPlayer = playerName;
-  _whatIfToggles = {};
-  _whatIfFlips = {};
+  viewState.whatIfPlayer = playerName;
+  viewState.whatIfToggles = {};
+  viewState.whatIfFlips = {};
   const matchesEl = document.getElementById("whatif-matches");
   const resultEl = document.getElementById("whatif-result");
   const ctrlEl = document.getElementById("whatif-controls");
@@ -11907,8 +11885,8 @@ function renderWhatIfSection(playerName) {
       [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
     );
   playerMatches.forEach(({ i }) => {
-    _whatIfToggles[i] = true;
-    _whatIfFlips[i] = false;
+    viewState.whatIfToggles[i] = true;
+    viewState.whatIfFlips[i] = false;
   });
   if (ctrlEl) ctrlEl.style.display = "flex";
   _renderWhatIfRows(playerName, playerMatches);
@@ -11927,9 +11905,9 @@ function _renderWhatIfRows(playerName, playerMatches) {
         const inA = (m.teamA || []).includes(playerName);
         const baseWon =
           (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-        const flipped = !!_whatIfFlips[i];
+        const flipped = !!viewState.whatIfFlips[i];
         const effectiveWon = flipped ? !baseWon : baseWon;
-        const excluded = _whatIfToggles[i] === false;
+        const excluded = viewState.whatIfToggles[i] === false;
         const partner = (inA ? m.teamA : m.teamB)
           .filter((p) => p !== playerName)
           .join(" & ");
@@ -11954,62 +11932,62 @@ function _renderWhatIfRows(playerName, playerMatches) {
 }
 
 function toggleWhatIfMatch(idx) {
-  _whatIfToggles[idx] = _whatIfToggles[idx] === false ? true : false;
-  if (_whatIfToggles[idx] === false) _whatIfFlips[idx] = false; // can't flip excluded
+  viewState.whatIfToggles[idx] = viewState.whatIfToggles[idx] === false ? true : false;
+  if (viewState.whatIfToggles[idx] === false) viewState.whatIfFlips[idx] = false; // can't flip excluded
   _refreshWhatIfRows();
 }
 
 function toggleWhatIfFlip(idx) {
-  _whatIfFlips[idx] = !_whatIfFlips[idx];
+  viewState.whatIfFlips[idx] = !viewState.whatIfFlips[idx];
   _refreshWhatIfRows();
 }
 
 function whatIfFlipAllLosses() {
   const eloMap = _memoElo();
   state.matches.forEach((m, i) => {
-    if (!_whatIfToggles.hasOwnProperty(i)) return;
-    const inA = (m.teamA || []).includes(_whatIfPlayer);
+    if (!viewState.whatIfToggles.hasOwnProperty(i)) return;
+    const inA = (m.teamA || []).includes(viewState.whatIfPlayer);
     const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-    if (!won && _whatIfToggles[i] !== false) _whatIfFlips[i] = true;
+    if (!won && viewState.whatIfToggles[i] !== false) viewState.whatIfFlips[i] = true;
   });
   _refreshWhatIfRows();
 }
 
 function whatIfReset() {
-  Object.keys(_whatIfToggles).forEach((i) => {
-    _whatIfToggles[i] = true;
-    _whatIfFlips[i] = false;
+  Object.keys(viewState.whatIfToggles).forEach((i) => {
+    viewState.whatIfToggles[i] = true;
+    viewState.whatIfFlips[i] = false;
   });
   _refreshWhatIfRows();
   document.getElementById("whatif-result").innerHTML = "";
 }
 
 function _refreshWhatIfRows() {
-  if (!_whatIfPlayer) return;
+  if (!viewState.whatIfPlayer) return;
   const playerMatches = state.matches
     .map((m, i) => ({ m, i }))
     .filter(({ m }) =>
-      [...(m.teamA || []), ...(m.teamB || [])].includes(_whatIfPlayer),
+      [...(m.teamA || []), ...(m.teamB || [])].includes(viewState.whatIfPlayer),
     );
-  _renderWhatIfRows(_whatIfPlayer, playerMatches);
+  _renderWhatIfRows(viewState.whatIfPlayer, playerMatches);
 }
 
 function recomputeWhatIfElo() {
   const resultEl = document.getElementById("whatif-result");
-  if (!resultEl || !_whatIfPlayer) return;
+  if (!resultEl || !viewState.whatIfPlayer) return;
   // Build the modified match list
   const whatIfMatches = state.matches
-    .filter((m, i) => _whatIfToggles[i] !== false)
+    .filter((m, i) => viewState.whatIfToggles[i] !== false)
     .map((m) => {
       const i = state.matches.indexOf(m);
-      if (_whatIfFlips[i]) {
+      if (viewState.whatIfFlips[i]) {
         // Flip: swap scores so the outcome reverses
         return { ...m, scoreA: m.scoreB, scoreB: m.scoreA };
       }
       return m;
     });
-  const actualElo = _memoElo()[_whatIfPlayer] || 1000;
-  const whatIfElo = computeElo(whatIfMatches)[_whatIfPlayer] || 1000;
+  const actualElo = _memoElo()[viewState.whatIfPlayer] || 1000;
+  const whatIfElo = computeElo(whatIfMatches)[viewState.whatIfPlayer] || 1000;
   const diff = whatIfElo - actualElo;
   const col =
     diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
@@ -12019,8 +11997,8 @@ function recomputeWhatIfElo() {
   const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort(
     (a, b) => b[1] - a[1],
   );
-  const actualRank = actualRanked.findIndex(([n]) => n === _whatIfPlayer) + 1;
-  const whatIfRank = whatIfRanked.findIndex(([n]) => n === _whatIfPlayer) + 1;
+  const actualRank = actualRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
+  const whatIfRank = whatIfRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
   const rankDiff = actualRank - whatIfRank;
   const rankStr =
     rankDiff > 0
@@ -12034,8 +12012,8 @@ function recomputeWhatIfElo() {
       : rankDiff < 0
         ? "var(--red)"
         : "var(--muted)";
-  const excluded = Object.values(_whatIfToggles).filter((v) => !v).length;
-  const flipped = Object.values(_whatIfFlips).filter((v) => v).length;
+  const excluded = Object.values(viewState.whatIfToggles).filter((v) => !v).length;
+  const flipped = Object.values(viewState.whatIfFlips).filter((v) => v).length;
   const eloPillCls = diff > 0 ? "positive" : diff < 0 ? "negative" : "neutral";
   const rankPillCls =
     rankDiff > 0 ? "positive" : rankDiff < 0 ? "negative" : "neutral";
@@ -13269,15 +13247,7 @@ function _buildChemistryLeaderboardHtml() {
   </div>`;
 }
 
-let _predictPlayerA = "",
-  _predictPlayerB = "",
-  _predictPartnerA = "",
-  _predictPartnerB = "";
-
-let _simA1 = "",
-  _simA2 = "",
-  _simB1 = "",
-  _simB2 = "";
+// predict/sim selector view-state → viewState (src/ui/view-state.js)
 
 function _buildMatchPredictHtml() {
   const players = _statPlayerNames();
@@ -13288,25 +13258,25 @@ function _buildMatchPredictHtml() {
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
       <div>
         <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:4px">TEAM A</div>
-        <button class="h2h-slot-btn${_predictPlayerA ? " h2h-slot-filled" : ""}" id="pred-slot-a1" onclick="openPredictSheet('a1')" style="width:100%;margin-bottom:6px">
+        <button class="h2h-slot-btn${viewState.predictPlayerA ? " h2h-slot-filled" : ""}" id="pred-slot-a1" onclick="openPredictSheet('a1')" style="width:100%;margin-bottom:6px">
           <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-          <span id="pred-label-a1" style="font-size:11px;font-weight:800">${_predictPlayerA || "—"}</span>
+          <span id="pred-label-a1" style="font-size:11px;font-weight:800">${viewState.predictPlayerA || "—"}</span>
         </button>
-        <button class="h2h-slot-btn${_predictPartnerA ? " h2h-slot-filled" : ""}" id="pred-slot-a2" onclick="openPredictSheet('a2')" style="width:100%">
+        <button class="h2h-slot-btn${viewState.predictPartnerA ? " h2h-slot-filled" : ""}" id="pred-slot-a2" onclick="openPredictSheet('a2')" style="width:100%">
           <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-          <span id="pred-label-a2" style="font-size:11px;font-weight:800">${_predictPartnerA || "—"}</span>
+          <span id="pred-label-a2" style="font-size:11px;font-weight:800">${viewState.predictPartnerA || "—"}</span>
         </button>
       </div>
       <div style="font-size:14px;font-weight:900;color:var(--muted)">VS</div>
       <div>
         <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:4px">TEAM B</div>
-        <button class="h2h-slot-btn${_predictPlayerB ? " h2h-slot-filled" : ""}" id="pred-slot-b1" onclick="openPredictSheet('b1')" style="width:100%;margin-bottom:6px">
+        <button class="h2h-slot-btn${viewState.predictPlayerB ? " h2h-slot-filled" : ""}" id="pred-slot-b1" onclick="openPredictSheet('b1')" style="width:100%;margin-bottom:6px">
           <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-          <span id="pred-label-b1" style="font-size:11px;font-weight:800">${_predictPlayerB || "—"}</span>
+          <span id="pred-label-b1" style="font-size:11px;font-weight:800">${viewState.predictPlayerB || "—"}</span>
         </button>
-        <button class="h2h-slot-btn${_predictPartnerB ? " h2h-slot-filled" : ""}" id="pred-slot-b2" onclick="openPredictSheet('b2')" style="width:100%">
+        <button class="h2h-slot-btn${viewState.predictPartnerB ? " h2h-slot-filled" : ""}" id="pred-slot-b2" onclick="openPredictSheet('b2')" style="width:100%">
           <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-          <span id="pred-label-b2" style="font-size:11px;font-weight:800">${_predictPartnerB || "—"}</span>
+          <span id="pred-label-b2" style="font-size:11px;font-weight:800">${viewState.predictPartnerB || "—"}</span>
         </button>
       </div>
     </div>
@@ -13322,22 +13292,22 @@ function openPredictSheet(slot) {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
   const taken = [
-    _predictPlayerA,
-    _predictPartnerA,
-    _predictPlayerB,
-    _predictPartnerB,
+    viewState.predictPlayerA,
+    viewState.predictPartnerA,
+    viewState.predictPlayerB,
+    viewState.predictPartnerB,
   ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
   const players = sortPlayersGuestsLast(
     _statPlayerNames(),
   );
   const selected =
     slot === "a1"
-      ? _predictPlayerA
+      ? viewState.predictPlayerA
       : slot === "a2"
-        ? _predictPartnerA
+        ? viewState.predictPartnerA
         : slot === "b1"
-          ? _predictPlayerB
-          : _predictPartnerB;
+          ? viewState.predictPlayerB
+          : viewState.predictPartnerB;
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
@@ -13361,7 +13331,7 @@ function openSimSheet(slot) {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const taken = { a1: _simA1, a2: _simA2, b1: _simB1, b2: _simB2 };
+  const taken = { a1: viewState.simA1, a2: viewState.simA2, b1: viewState.simB1, b2: viewState.simB2 };
   const current = taken[slot];
   const others = Object.entries(taken)
     .filter(([k]) => k !== slot)
@@ -13388,8 +13358,8 @@ function openSimSheet(slot) {
 }
 
 function runMatchPrediction() {
-  const teamA = [_predictPlayerA, _predictPartnerA].filter(Boolean);
-  const teamB = [_predictPlayerB, _predictPartnerB].filter(Boolean);
+  const teamA = [viewState.predictPlayerA, viewState.predictPartnerA].filter(Boolean);
+  const teamB = [viewState.predictPlayerB, viewState.predictPartnerB].filter(Boolean);
   const res = document.getElementById("predict-result");
   if (!res) return;
   if (!teamA.length || !teamB.length) {
@@ -14137,7 +14107,7 @@ function renderAnalyticsPage() {
     ]
       .map(
         ([k, l]) =>
-          `<button class="h2h-sort-pill${_h2hMatrixSort === k ? " active" : ""}" onclick="_h2hSetSort('${k}')">${l}</button>`,
+          `<button class="h2h-sort-pill${viewState.h2hMatrixSort === k ? " active" : ""}" onclick="_h2hSetSort('${k}')">${l}</button>`,
       )
       .join("")}
   </div>`;
@@ -14987,9 +14957,9 @@ function renderAnalyticsPage() {
     pairChemMap.set(key, Math.round(0.6 * winComp + 0.4 * eloNorm));
   });
 
-  _pairSort = { key: "winPct", dir: -1 };
-  _pairsShowAll = false;
-  _pairsData = allPairsRanked.map(([key, p]) => ({
+  viewState.pairSort = { key: "winPct", dir: -1 };
+  viewState.pairsShowAll = false;
+  viewState.pairsData = allPairsRanked.map(([key, p]) => ({
     key,
     players: p.players,
     wins: p.wins,
@@ -14998,7 +14968,7 @@ function renderAnalyticsPage() {
     chem: pairChemMap.get(key) || 0,
   }));
 
-  const allPairsHtml = _pairsData.length
+  const allPairsHtml = viewState.pairsData.length
     ? `<div id="all-pairs-table">${_pairsHeaderHtml()}${_pairsSortedRows()}</div>`
     : '<div class="sub" style="padding:8px">No pair data.</div>';
 
@@ -15499,25 +15469,25 @@ function renderAnalyticsPage() {
       <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
         <div>
           <div class="sim-team-label" style="color:var(--green);font-size:9px;font-weight:700;margin-bottom:4px">TEAM A</div>
-          <button class="h2h-slot-btn${_simA1 ? " h2h-slot-filled" : ""}" id="sim-slot-a1" onclick="openSimSheet('a1')" style="width:100%;margin-bottom:6px">
+          <button class="h2h-slot-btn${viewState.simA1 ? " h2h-slot-filled" : ""}" id="sim-slot-a1" onclick="openSimSheet('a1')" style="width:100%;margin-bottom:6px">
             <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-            <span id="sim-label-a1" style="font-size:11px;font-weight:800">${_simA1 || "—"}</span>
+            <span id="sim-label-a1" style="font-size:11px;font-weight:800">${viewState.simA1 || "—"}</span>
           </button>
-          <button class="h2h-slot-btn${_simA2 ? " h2h-slot-filled" : ""}" id="sim-slot-a2" onclick="openSimSheet('a2')" style="width:100%">
+          <button class="h2h-slot-btn${viewState.simA2 ? " h2h-slot-filled" : ""}" id="sim-slot-a2" onclick="openSimSheet('a2')" style="width:100%">
             <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-            <span id="sim-label-a2" style="font-size:11px;font-weight:800">${_simA2 || "—"}</span>
+            <span id="sim-label-a2" style="font-size:11px;font-weight:800">${viewState.simA2 || "—"}</span>
           </button>
         </div>
         <div class="sim-vs">VS</div>
         <div>
           <div class="sim-team-label" style="color:var(--red);font-size:9px;font-weight:700;margin-bottom:4px">TEAM B</div>
-          <button class="h2h-slot-btn${_simB1 ? " h2h-slot-filled" : ""}" id="sim-slot-b1" onclick="openSimSheet('b1')" style="width:100%;margin-bottom:6px">
+          <button class="h2h-slot-btn${viewState.simB1 ? " h2h-slot-filled" : ""}" id="sim-slot-b1" onclick="openSimSheet('b1')" style="width:100%;margin-bottom:6px">
             <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-            <span id="sim-label-b1" style="font-size:11px;font-weight:800">${_simB1 || "—"}</span>
+            <span id="sim-label-b1" style="font-size:11px;font-weight:800">${viewState.simB1 || "—"}</span>
           </button>
-          <button class="h2h-slot-btn${_simB2 ? " h2h-slot-filled" : ""}" id="sim-slot-b2" onclick="openSimSheet('b2')" style="width:100%">
+          <button class="h2h-slot-btn${viewState.simB2 ? " h2h-slot-filled" : ""}" id="sim-slot-b2" onclick="openSimSheet('b2')" style="width:100%">
             <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-            <span id="sim-label-b2" style="font-size:11px;font-weight:800">${_simB2 || "—"}</span>
+            <span id="sim-label-b2" style="font-size:11px;font-weight:800">${viewState.simB2 || "—"}</span>
           </button>
         </div>
       </div>
@@ -15805,10 +15775,10 @@ function renderAnalyticsPage() {
 
   // ── MILESTONE HISTORY ──────────────────────────────────
   // ── DIGEST CARD ────────────────────────────────────────
-  _digestFilter = "week";
-  _digestPlayer = "";
-  _eloProbP1 = "";
-  _eloProbP2 = "";
+  viewState.digestFilter = "week";
+  viewState.digestPlayer = "";
+  viewState.eloProbP1 = "";
+  viewState.eloProbP2 = "";
   const digestHtml = `<div style="background:linear-gradient(160deg,rgba(13,13,26,0.95),rgba(17,17,31,0.95));border-radius:16px;border:1px solid rgba(255,255,255,0.07);padding:14px 14px 10px;position:relative;overflow:hidden">
     <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--theme),transparent)"></div>
     <div style="font-size:10px;font-weight:800;color:var(--theme);letter-spacing:0.14em;margin-bottom:8px">DIGEST</div>
@@ -16853,7 +16823,7 @@ function renderAnalyticsPage() {
   const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row" oncontextmenu="event.preventDefault()">${_catLabels
     .map(
       (c) =>
-        `<button class="ana-filter-pill${_anaActiveCat === c.id ? " active" : ""}"
+        `<button class="ana-filter-pill${viewState.anaActiveCat === c.id ? " active" : ""}"
         data-cat="${c.id}"
         onpointerdown="_pillPointerDown(event,'${c.id}')"
         oncontextmenu="event.preventDefault()">${c.label}</button>`,
@@ -16861,7 +16831,7 @@ function renderAnalyticsPage() {
     .join("")}</div>`;
 
   // Cache sections for search autocomplete
-  _anaSections = allSecs.map((s) => ({
+  viewState.anaSections = allSecs.map((s) => ({
     key: s.key,
     title: s.title,
     cat: s.cat,
@@ -16892,7 +16862,7 @@ function renderAnalyticsPage() {
   _anaRenderedVersion = _dataVersion;
 
   // Re-apply active category filter after re-render
-  anaFilterCategory(_anaActiveCat, true);
+  anaFilterCategory(viewState.anaActiveCat, true);
 
   if (!collapsed.has("calendar"))
     requestAnimationFrame(() => renderMatchCalendar());
