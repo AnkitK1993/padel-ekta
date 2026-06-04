@@ -7267,7 +7267,7 @@ function _pdBuildBestDayHtml(name, playerMs) {
     return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
       <span style="font-size:10px;font-weight:700;width:28px;flex-shrink:0">${label}</span>
       <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px"><div style="height:100%;width:${wr}%;background:${col};border-radius:3px"></div></div>
-      <span style="font-size:10px;font-weight:800;color:${col};width:32px;text-align:right">${wr}%</span>
+      <span onclick="_dowDayRecord(${jsArg(name)},${d})" title="Tap for W–L record" style="font-size:10px;font-weight:800;color:${col};width:32px;text-align:right;cursor:pointer;text-decoration:underline dotted">${wr}%</span>
       <span style="font-size:9px;color:var(--muted);width:20px;text-align:right">${played[d]}g</span>
     </div>`;
   }).join("");
@@ -7285,6 +7285,61 @@ function _pdBuildBestDayHtml(name, playerMs) {
       </div>`
     : "";
   return `<div class="ana-card"><span class="badge">Day of Week</span><div style="margin-top:8px">${rows}</div>${chip}</div>`;
+}
+
+// Popup: a player's W–L record on a given weekday, with the match breakdown.
+// Wired to the day-of-week Win% values (player-detail card + the per-player
+// grid on the Statistics page) — tapping a Win% reveals what's behind it (the
+// hover title is invisible on touch). Recomputes from active matches so it's
+// independent of how it was invoked.
+function _dowDayRecord(player, dow) {
+  const DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const ms = activeMatches()
+    .filter(
+      (m) =>
+        m.date &&
+        new Date(m.date + "T00:00:00").getDay() === dow &&
+        [...(m.teamA || []), ...(m.teamB || [])].includes(player),
+    )
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  let w = 0,
+    l = 0;
+  const list = ms
+    .map((m) => {
+      const inA = (m.teamA || []).includes(player);
+      const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+      won ? w++ : l++;
+      const opp = (inA ? m.teamB : m.teamA) || [];
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:10px;font-weight:900;width:14px;color:${won ? "var(--green)" : "var(--red)"}">${won ? "W" : "L"}</span>
+        <span style="flex:1;min-width:0;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">vs ${escHtml(opp.join(" & ")) || "—"}</span>
+        <span style="font-size:11px;font-weight:800">${m.scoreA}–${m.scoreB}</span>
+        <span style="font-size:9px;color:var(--muted);width:46px;text-align:right;flex-shrink:0">${fmtDate(m.date)}</span>
+      </div>`;
+    })
+    .join("");
+  const total = w + l;
+  const pct = total ? Math.round((w / total) * 100) : 0;
+  document.getElementById("dow-rec-popup")?.remove();
+  const el = document.createElement("div");
+  el.id = "dow-rec-popup";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", `${player} record on ${DAY[dow]}`);
+  el.style.cssText =
+    "position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
+  el.onclick = (e) => {
+    if (e.target === el) el.remove();
+  };
+  el.innerHTML = `<div style="background:var(--bg-card,#12121c);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:16px;padding:16px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:900;color:var(--text)">${escHtml(player)} · ${DAY[dow]}</div>
+      <button onclick="document.getElementById('dow-rec-popup').remove()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
+    </div>
+    <div style="font-size:22px;font-weight:900;color:var(--text)"><span style="color:var(--green)">${w}W</span> <span style="color:var(--muted);font-weight:700">–</span> <span style="color:var(--red)">${l}L</span> <span style="font-size:12px;color:var(--muted);font-weight:700">· ${pct}%</span></div>
+    <div style="font-size:9px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin:2px 0 10px">${total} match${total === 1 ? "" : "es"} on ${DAY[dow]}s</div>
+    <div style="max-height:240px;overflow-y:auto">${list || '<div class="sub" style="padding:8px 0">No matches.</div>'}</div>
+  </div>`;
+  document.body.appendChild(el);
 }
 
 function openPlayerDetail(name) {
@@ -16206,7 +16261,7 @@ function renderAnalyticsPage() {
                 : pct <= 40
                   ? "var(--red)"
                   : "var(--gold)";
-            return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col}" title="${dd.w}W–${dd.p - dd.w}L">${pct}%</td>`;
+            return `<td onclick="_dowDayRecord(${jsArg(p)},${d})" title="${dd.w}W–${dd.p - dd.w}L · tap for record" style="text-align:center;font-size:10px;font-weight:700;color:${col};cursor:pointer">${pct}%</td>`;
           })
           .join("");
         return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}</td>${cells3}</tr>`;
@@ -17412,6 +17467,7 @@ Object.assign(window, {
   renderTrash,
   _storyShowMore,
   _downloadDriveBackup,
+  _dowDayRecord,
   editMatchByIndex,
   openEditMatch,
   saveMatchEdit,
