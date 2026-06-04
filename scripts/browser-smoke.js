@@ -407,6 +407,54 @@ async function main() {
       "Analytics lazy tab",
     );
 
+    // ── Analytics interactive-handler safety net ───────────────────────────
+    // The snapshot guard covers rendered OUTPUT; this covers INTERACTIVITY,
+    // which nothing else tests. (a) Every function an analytics onclick/onchange
+    // attribute calls MUST exist on window — the #1 breakage mode when relocating
+    // handlers into a lazily-imported module (a missed window re-export).
+    const anaHandlers = await evaluate(client, `(() => {
+      const root = document.getElementById("analytics-page-content");
+      const names = new Set();
+      const re = /(?:^|[^.\\w$])([A-Za-z_$][\\w$]*)\\s*\\(/g;
+      root.querySelectorAll("*").forEach((el) => {
+        ["onclick", "onchange", "oninput"].forEach((a) => {
+          const v = el.getAttribute(a);
+          if (!v) return;
+          let m;
+          while ((m = re.exec(v))) names.add(m[1]);
+        });
+      });
+      const kw = new Set(["if","for","while","return","typeof","function","new","else","switch","catch","void"]);
+      const missing = [...names].filter((n) => !kw.has(n) && typeof window[n] !== "function");
+      return { total: names.size, missing };
+    })()`);
+    assert(
+      anaHandlers.missing.length === 0,
+      "Analytics onclick handler(s) not on window: " +
+        JSON.stringify(anaHandlers.missing) +
+        " (audited " + anaHandlers.total + ")",
+    );
+    console.log("ANALYTICS HANDLERS: " + anaHandlers.total + " distinct onclick fns, all on window");
+
+    // (b) Invoking core interactive handlers must not throw — catches a handler
+    // wired to an app-local dep that wasn't injected into the module.
+    const anaInteract = await evaluate(client, `(() => {
+      const errs = [];
+      const t = (d, fn) => { try { fn(); } catch (e) { errs.push(d + ": " + (e && e.message)); } };
+      t("anaFilterCategory(records)", () => anaFilterCategory("records", true));
+      t("anaFilterCategory(all)", () => anaFilterCategory("all", true));
+      t("toggleAnaHideEmpty x2", () => { toggleAnaHideEmpty(); toggleAnaHideEmpty(); });
+      if (typeof renderDigestCard === "function") t("renderDigestCard", () => renderDigestCard("lastweek"));
+      if (typeof _pairMatrixSetPeriod === "function") t("_pairMatrixSetPeriod", () => _pairMatrixSetPeriod("week"));
+      if (typeof _pairMatrixSetMode === "function") t("_pairMatrixSetMode", () => _pairMatrixSetMode("pct"));
+      if (typeof _h2hSetSort === "function") t("_h2hSetSort", () => _h2hSetSort("wins"));
+      return errs;
+    })()`);
+    assert(
+      anaInteract.length === 0,
+      "Analytics interactive handler(s) threw: " + JSON.stringify(anaInteract),
+    );
+
     await evaluate(client, `
       window.isAdmin = true;
       openLiveMode();
