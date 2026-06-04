@@ -121,7 +121,10 @@ export function iconButton({
  * @param {string} [o.title]           Short bold heading (escaped).
  * @param {string} o.message           Body line (escaped).
  * @param {{label:string,onClick:string,variant?:ButtonVariant}} [o.action]
- * @param {Size}   [o.size="md"]        "sm" for inline/cards, "lg" for full pages.
+ * @param {Size}   [o.size="md"]        "sm" for cards, "lg" for full pages.
+ * @param {boolean} [o.inline=false]    Minimal 1-line muted label (no icon) for
+ *                                      tight in-card slots where a full block
+ *                                      would be too heavy. Still role="status".
  * @returns {string} HTML
  */
 export function emptyState({
@@ -130,7 +133,11 @@ export function emptyState({
   message = "",
   action = null,
   size = "md",
+  inline = false,
 } = {}) {
+  if (inline) {
+    return `<div class="ui-empty-inline" role="status">${escHtml(message)}</div>`;
+  }
   const head = title ? `<div class="ui-empty-title">${escHtml(title)}</div>` : "";
   const msg = message ? `<div class="ui-empty-msg">${escHtml(message)}</div>` : "";
   const cta = action

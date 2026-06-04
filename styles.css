@@ -17912,6 +17912,13 @@ table.cmp td:nth-child(10) {
 .ui-empty-error .ui-empty-title {
   color: #ff6b72;
 }
+/* Minimal inline empty label for tight in-card slots (matches the old .sub look). */
+.ui-empty-inline {
+  color: var(--muted, #8b8b9a);
+  font-size: 12px;
+  padding: 8px;
+  text-align: center;
+}
 
 /* ── Skeleton ── */
 .ui-skeleton-group {
