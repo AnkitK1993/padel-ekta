@@ -241,8 +241,15 @@ async function evaluate(client, expression) {
 // environmental noise, not app bugs. Everything else is a real error.
 function _isBenignNoise(text) {
   return (
-    /firestore/i.test(text) &&
-    /(could not reach|unavailable|offline|backend|connection failed)/i.test(text)
+    (/firestore/i.test(text) &&
+      /(could not reach|unavailable|offline|backend|connection failed)/i.test(text)) ||
+    // Forced-offline harness: external fetches (Firestore transport, gstatic
+    // Firebase SDK, CDN fonts/libs) fail to load. Chrome surfaces these as
+    // error-level network logs. They are environmental, not app bugs — but they
+    // arrive nondeterministically and were intermittently failing the Chrome CI
+    // steps (flaky red builds that pass on re-run). Suppress resource-load noise.
+    /failed to load resource/i.test(text) ||
+    /net::ERR_(FAILED|INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|CONNECTION_(REFUSED|CLOSED)|ABORTED|TIMED_OUT|BLOCKED_BY_CLIENT)/i.test(text)
   );
 }
 function _eventText(event) {
