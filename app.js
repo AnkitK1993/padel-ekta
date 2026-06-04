@@ -3877,14 +3877,77 @@ async function exportJsonFile() {
 // Keep the old name as an alias so any saved bookmarks / existing calls still work.
 async function exportBackupFile() { return backupToDrive(); }
 
-// Upload a Blob to Drive using the multipart upload API.
-// Returns the web-view link of the created file.
+// Find-or-create the app-owned Drive folder that holds every backup. Under the
+// drive.file scope the app can only see files/folders IT created, so this folder
+// MUST be created by the app (a folder made elsewhere would be invisible here).
+// Cached in localStorage to avoid re-querying on every upload; re-resolves if the
+// cached folder was trashed/removed. Returns null on any failure — callers then
+// fall back to the Drive root so a backup never fails just because foldering did.
+const _DRIVE_FOLDER_KEY = "padel_drive_folder_id";
+const _DRIVE_FOLDER_NAME = "Ekta Padel Backups";
+let _driveFolderId = null;
+async function _ensureDriveBackupFolder() {
+  if (!_driveAccessToken) return null;
+  const auth = { Authorization: `Bearer ${_driveAccessToken}` };
+  // 1) Cached id — confirm it still exists and isn't trashed.
+  const cached = _driveFolderId || localStorage.getItem(_DRIVE_FOLDER_KEY);
+  if (cached) {
+    try {
+      const r = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${cached}?fields=id,trashed`,
+        { headers: auth },
+      );
+      if (r.ok) {
+        const d = await r.json();
+        if (!d.trashed) return (_driveFolderId = d.id);
+      }
+    } catch {}
+  }
+  // 2) Search for an existing app-created folder by name.
+  try {
+    const q = encodeURIComponent(
+      `mimeType='application/vnd.google-apps.folder' and name='${_DRIVE_FOLDER_NAME}' and trashed=false`,
+    );
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`,
+      { headers: auth },
+    );
+    if (r.ok) {
+      const { files = [] } = await r.json();
+      if (files[0]) {
+        localStorage.setItem(_DRIVE_FOLDER_KEY, files[0].id);
+        return (_driveFolderId = files[0].id);
+      }
+    }
+  } catch {}
+  // 3) Create it.
+  try {
+    const r = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
+      method: "POST",
+      headers: { ...auth, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: _DRIVE_FOLDER_NAME,
+        mimeType: "application/vnd.google-apps.folder",
+      }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      localStorage.setItem(_DRIVE_FOLDER_KEY, d.id);
+      return (_driveFolderId = d.id);
+    }
+  } catch {}
+  return null;
+}
+
+// Upload a Blob to Drive using the multipart upload API, into the app's backup
+// folder. Returns the web-view link of the created file.
 async function _uploadToDrive(blob, filename) {
+  const folderId = await _ensureDriveBackupFolder();
   const metadata = {
     name: filename,
     mimeType: "application/json",
-    // All backups land in a dedicated app folder for easy discovery
     description: `Ekta Padel backup — ${state.matches.length} matches, exported ${new Date().toLocaleDateString()}`,
+    ...(folderId ? { parents: [folderId] } : {}),
   };
   const form = new FormData();
   form.append(
@@ -17127,11 +17190,12 @@ async function _maybeAutoDriveBackup() {
 // count — so several backups in one day no longer shrink the recovery window.
 async function _pruneDriveBackups(keep = 7) {
   if (!_driveAccessToken) return;
+  const folderId = await _ensureDriveBackupFolder();
   const q = encodeURIComponent(
     "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
   );
   const resp = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&orderBy=createdTime desc&pageSize=100`,
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime,parents)&orderBy=createdTime desc&pageSize=100`,
     { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
   );
   if (!resp.ok) return;
@@ -17165,9 +17229,32 @@ async function _pruneDriveBackups(keep = 7) {
       }).catch(() => {}),
     ),
   );
-  if (stale.length)
+  // Consolidate: move any surviving keeper that lives outside the backup folder
+  // (e.g. legacy uploads that landed in the Drive root) into it. Best-effort —
+  // a failed move just leaves that file where it is; it's still a valid backup.
+  let _moved = 0;
+  if (folderId) {
+    const strays = files.filter(
+      (f) => keepIds.has(f.id) && !(f.parents || []).includes(folderId),
+    );
+    await Promise.all(
+      strays.map((f) => {
+        const removeParents = (f.parents || []).join(",");
+        const url =
+          `https://www.googleapis.com/drive/v3/files/${f.id}?addParents=${folderId}` +
+          (removeParents ? `&removeParents=${encodeURIComponent(removeParents)}` : "") +
+          `&fields=id`;
+        _moved++;
+        return fetch(url, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${_driveAccessToken}` },
+        }).catch(() => {});
+      }),
+    );
+  }
+  if (stale.length || _moved)
     console.log(
-      `Drive: pruned ${stale.length} backup(s) — keeping newest-per-day across ${keptDays.size} day(s)`,
+      `Drive: pruned ${stale.length}, moved ${_moved} into folder — keeping newest-per-day across ${keptDays.size} day(s)`,
     );
 }
 
