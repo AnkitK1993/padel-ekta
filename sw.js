@@ -19,6 +19,7 @@ const STATIC = [
   BASE + "src/ui/render-match-rows.js",
   BASE + "src/ui/render-history-summary.js",
   BASE + "src/ui/render-anim.js",
+  BASE + "src/ui/view-state.js",
   BASE + "src/engine/selectors.js",
   BASE + "src/engine/americano.js",
   BASE + "src/engine/pairs.js",
