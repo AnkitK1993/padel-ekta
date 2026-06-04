@@ -2322,10 +2322,14 @@ function switchMainTab(id, skipAnim = false) {
   }
 
   // ── Directional slide animation (pure visual layer on top of correct DOM state) ──
+  // Skipped entirely when the user has Animations: Off (body.no-anim): the slide
+  // momentarily paints the new page at its final spot before jumping it off-screen
+  // to slide in, which reads as a flicker — not wanted when motion is disabled.
   const curIdx = mainTabOrder.indexOf(curPage?.id.replace("pg-", ""));
   const nextIdx = mainTabOrder.indexOf(id);
   const canSlide =
     !skipAnim &&
+    !document.body.classList.contains("no-anim") &&
     curPage &&
     nextPage &&
     curPage !== nextPage &&
