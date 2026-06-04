@@ -125,22 +125,20 @@ import {
   _sweepNeedle,
   runSpeedometerSweep,
 } from "./src/ui/render-anim.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore,
+  db,
+  auth,
+  provider,
   doc,
   setDoc,
   onSnapshot,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import {
-  getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   onAuthStateChanged,
   signOut,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+} from "./src/infra/cloud/firebase.js";
 import {
   _buildLeaderboardReplayHtml,
   _replayUpdate,
@@ -155,25 +153,9 @@ import {
   _replayReset,
 } from "./features/replay.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCLXji1E8S_i2zLiYphHKjPLtpo9ODvOlI",
-  authDomain: "padelekta-99316.firebaseapp.com",
-  databaseURL:
-    "https://padelekta-99316-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "padelekta-99316",
-  storageBucket: "padelekta-99316.firebasestorage.app",
-  messagingSenderId: "742104410143",
-  appId: "1:742104410143:web:2d546ca8ab2f7ca16f4d2a",
-  measurementId: "G-LN19GL652D",
-};
-
+// Firebase init + db/auth/provider singletons live in src/infra/cloud/firebase.js
+// (imported at top). ADMIN_EMAIL + the Drive token stay here as app state.
 const ADMIN_EMAIL = "ankit.konchady@gmail.com";
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-// Request Drive file scope so backup-to-Drive works without a second popup.
-provider.addScope("https://www.googleapis.com/auth/drive.file");
 let _driveAccessToken = null; // set on sign-in, cleared on sign-out
 
 // ── ON-DEMAND EXTERNAL LIBS ───────────────────────────────
