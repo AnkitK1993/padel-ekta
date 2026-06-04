@@ -35,6 +35,19 @@ import {
   lastWeekRange,
 } from "./src/engine/dates.js";
 import {
+  getAnaPillOrder,
+  saveAnaPillOrder,
+  getAnaFavs,
+  saveAnaFavs,
+  getAnaHidden,
+  saveAnaHidden,
+  getAnaOrder,
+  saveAnaOrder,
+  getAnaCollapsed,
+  saveAnaCollapsed,
+  hasAnaCollapsedPref,
+} from "./src/infra/ana-prefs.js";
+import {
   isFireMatch,
   isDominatingMatch,
   isZeroMatch,
@@ -10640,33 +10653,10 @@ function renderH2HDeepDive() {
 }
 
 // ── ANALYTICS SECTION STATE ────────────────────────────────
-const ANA_ORDER_KEY = "ekta_ana_order";
-const ANA_COL_KEY = "ekta_ana_col";
-const ANA_PILL_ORDER_KEY = "ekta_ana_pill_order";
-const ANA_FAV_KEY = "ekta_ana_favs";
-const ANA_HIDDEN_KEY = "ekta_ana_hidden";
+// Analytics view-preference persistence lives in src/infra/ana-prefs.js
+// (getAna*/saveAna*/hasAnaCollapsedPref imported at top of file). The toggle*
+// handlers below are controller logic and stay here.
 
-function getAnaPillOrder() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(ANA_PILL_ORDER_KEY)) || [];
-    return [...new Set(raw)]; // deduplicate in case of corrupted state
-  } catch {
-    return [];
-  }
-}
-function saveAnaPillOrder(a) {
-  localStorage.setItem(ANA_PILL_ORDER_KEY, JSON.stringify(a));
-}
-function getAnaFavs() {
-  try {
-    return JSON.parse(localStorage.getItem(ANA_FAV_KEY)) || [];
-  } catch {
-    return [];
-  }
-}
-function saveAnaFavs(a) {
-  localStorage.setItem(ANA_FAV_KEY, JSON.stringify(a));
-}
 function toggleAnaFav(key, e) {
   e.stopPropagation();
   const favs = getAnaFavs();
@@ -10684,16 +10674,6 @@ function toggleAnaFav(key, e) {
   if (_anaActiveCat === "favs") anaFilterCategory("favs", true);
 }
 
-function getAnaHidden() {
-  try {
-    return JSON.parse(localStorage.getItem(ANA_HIDDEN_KEY)) || [];
-  } catch {
-    return [];
-  }
-}
-function saveAnaHidden(a) {
-  localStorage.setItem(ANA_HIDDEN_KEY, JSON.stringify(a));
-}
 function toggleAnaHidden(key, e) {
   e.stopPropagation();
   const hidden = getAnaHidden();
@@ -10714,27 +10694,6 @@ function toggleAnaHidden(key, e) {
     }
   }
   anaFilterCategory(_anaActiveCat, true);
-}
-
-function getAnaOrder() {
-  try {
-    return JSON.parse(localStorage.getItem(ANA_ORDER_KEY)) || [];
-  } catch (e) {
-    return [];
-  }
-}
-function saveAnaOrder(a) {
-  localStorage.setItem(ANA_ORDER_KEY, JSON.stringify(a));
-}
-function getAnaCollapsed() {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(ANA_COL_KEY)) || []);
-  } catch (e) {
-    return new Set();
-  }
-}
-function saveAnaCollapsed(s) {
-  localStorage.setItem(ANA_COL_KEY, JSON.stringify([...s]));
 }
 
 function toggleAnaSection(key) {
@@ -16871,7 +16830,7 @@ function renderAnalyticsPage() {
     ...validKeys.filter((k) => !storedOrder.includes(k)),
   ];
   // Collapse all sections by default on first visit (no stored state yet)
-  if (!localStorage.getItem(ANA_COL_KEY)) saveAnaCollapsed(new Set(validKeys));
+  if (!hasAnaCollapsedPref()) saveAnaCollapsed(new Set(validKeys));
   const collapsed = getAnaCollapsed();
 
   const _catBase = [
