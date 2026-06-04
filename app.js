@@ -28,6 +28,13 @@ import {
 import { buildHudGaugeSvg } from "./src/ui/charts.js";
 import { state } from "./src/engine/state.js";
 import {
+  todayISO,
+  weekISO,
+  weekendRange,
+  monthISO,
+  lastWeekRange,
+} from "./src/engine/dates.js";
+import {
   isFireMatch,
   isDominatingMatch,
   isZeroMatch,
@@ -103,6 +110,19 @@ import {
   onAuthStateChanged,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  _buildLeaderboardReplayHtml,
+  _replayUpdate,
+  _replayStep,
+  _replayJumpToMatch,
+  _replayJumpToDate,
+  _replaySetSpeed,
+  _replayToggleLoop,
+  _replayToggleReverse,
+  _replaySetSpotlight,
+  _replayPlay,
+  _replayReset,
+} from "./features/replay.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLXji1E8S_i2zLiYphHKjPLtpo9ODvOlI",
@@ -1075,6 +1095,8 @@ let _statNamesMemo = null,
   _statNamesKey = "";
 let _statsMemo = null,
   _statsMemoKey = "";
+let _pairStatsMemo = null,
+  _pairStatsKey = "";
 initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
@@ -1157,6 +1179,21 @@ function _memoStats() {
   return _statsMemo.slice();
 }
 
+// Pair stats over the active set, memoized. Several sections call
+// _memoPairStats() independently (≥4 per analytics render), each a
+// full O(matches) pass. Same safety as _memoStats: pair objects (and their
+// `players` string array) are read-only app-wide; the .slice() guards array
+// sorting. Callers passing a different match set keep calling getPairStats.
+function _memoPairStats() {
+  const am = activeMatches();
+  const key = `${_dataVersion}|${_lightFingerprint(am)}`;
+  if (_pairStatsKey !== key || !_pairStatsMemo) {
+    _pairStatsKey = key;
+    _pairStatsMemo = getPairStats(am);
+  }
+  return _pairStatsMemo.slice();
+}
+
 function _memoEloHistory() {
   const am = activeMatches();
   const key = _lightFingerprint(am);
@@ -1202,6 +1239,8 @@ function _invalidateEloMemo() {
   _statNamesMemo = null;
   _statsMemoKey = "";
   _statsMemo = null;
+  _pairStatsKey = "";
+  _pairStatsMemo = null;
   // Bound the per-fingerprint section caches: keyed by a dataset fingerprint and
   // never evicted, they otherwise grow one entry per distinct dataset for the
   // life of the session (a slow leak). Any data change invalidates them anyway.
@@ -1249,6 +1288,11 @@ function renderAnalyticsFeature() {
 let _anaPrefetchScheduled = false;
 function _scheduleAnalyticsPrefetch() {
   if (_anaPrefetchScheduled) return;
+  // Battery-saver: skip the speculative background render of the Statistics page
+  // (the heaviest render in the app) — it runs on every data load/sync even for
+  // users who never open the tab. In saver mode we render lazily on first open
+  // instead, trading a one-time open cost for no wasted background CPU/battery.
+  if (document.body.classList.contains("battery-saver")) return;
   _anaPrefetchScheduled = true;
   const run = () => {
     _anaPrefetchScheduled = false;
@@ -2839,48 +2883,7 @@ function refreshManage() {
 }
 
 // ── DATE HELPERS ───────────────────────────────────────────
-function todayISO() {
-  return toLocalISODate();
-}
-function weekISO() {
-  const d = new Date(),
-    day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Monday
-  d.setDate(d.getDate() + diff);
-  return toLocalISODate(d);
-}
-function weekendRange() {
-  const now = new Date(),
-    day = now.getDay();
-  const sat = new Date(now);
-  sat.setDate(now.getDate() + (day === 0 ? -1 : 6 - day));
-  const sun = new Date(sat);
-  sun.setDate(sat.getDate() + 1);
-  return {
-    from: toLocalISODate(sat),
-    to: toLocalISODate(sun),
-  };
-}
-function monthISO() {
-  const d = new Date();
-  d.setDate(1);
-  return toLocalISODate(d);
-}
-function lastWeekRange() {
-  const d = new Date(),
-    day = d.getDay();
-  const daysToMonday = day === 0 ? 6 : day - 1;
-  const thisMonday = new Date(d);
-  thisMonday.setDate(d.getDate() - daysToMonday);
-  const lastMonday = new Date(thisMonday);
-  lastMonday.setDate(thisMonday.getDate() - 7);
-  const lastSunday = new Date(thisMonday);
-  lastSunday.setDate(thisMonday.getDate() - 1);
-  return {
-    from: toLocalISODate(lastMonday),
-    to: toLocalISODate(lastSunday),
-  };
-}
+// todayISO/weekISO/weekendRange/monthISO/lastWeekRange → ./src/engine/dates.js
 
 // parseDateHdr, parseBlock (+ internal resolve/resolveInitial/parseMatchLine)
 // now live in ./parser.js, imported at the top of this file. App-state deps
@@ -4942,7 +4945,7 @@ function _matchCardPrecompute() {
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
   const elo = {};
-  const allPairsList = getPairStats(activeMatches()); // all pairs ever formed
+  const allPairsList = _memoPairStats(); // all pairs ever formed
   [...state.matches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
     .forEach((m) => {
@@ -5873,7 +5876,7 @@ function setHistMargin(val) {
 function filterSheetSearch(query) {
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const pairs = getPairStats(activeMatches());
+  const pairs = _memoPairStats();
   const q = (query || "").toLowerCase().trim();
   const filtered = q
     ? pairs.filter((p) => p.key.toLowerCase().includes(q))
@@ -7788,7 +7791,7 @@ function openPlayerDetail(name) {
 
   // ── PARTNER COMPATIBILITY SCORE ──────────────────────────
   const partnerCompatHtml = (() => {
-    const pairStats = getPairStats(activeMatches())
+    const pairStats = _memoPairStats()
       .filter(
         (ps) =>
           ps.players.map(normPlayer).includes(normPlayer(name)) &&
@@ -13907,299 +13910,7 @@ function _radarPick(slot, name) {
   box.innerHTML = _radarSvg(stats, window._radarSel.a, window._radarSel.b);
 }
 
-const _REPLAY_MIN = 5;
-const _REPLAY_BASE_MS = 400;
-let _replayIdx = 0,
-  _replayTimer = null,
-  _replaySpeed = 1,
-  _replayLoop = false,
-  _replayReverse = false,
-  _replaySpotlight = "",
-  _replayPrevElos = {},
-  _replayPrevRanks = {};
 
-function _replaySorted() {
-  // Leaderboard replay is all-time (cross-season) but still skips guests.
-  return [...withoutGuestMatches(state.matches)].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-}
-
-function _replayComputeMilestones(sorted) {
-  const ms = [];
-  for (let i = 25; i < sorted.length; i += 25)
-    ms.push({ idx: i, label: `Match ${i}` });
-  let big = null;
-  sorted.forEach((m, i) => {
-    const diff = Math.abs(m.scoreA - m.scoreB);
-    if (diff >= 5 && (!big || diff > big.diff))
-      big = { idx: i + 1, diff, label: `Blowout ${m.scoreA}-${m.scoreB}` };
-  });
-  if (big) ms.push(big);
-  return ms;
-}
-
-function _buildLeaderboardReplayHtml() {
-  const sorted = _replaySorted();
-  if (sorted.length < _REPLAY_MIN)
-    return '<div class="sub" style="padding:8px">Need at least 5 matches for replay.</div>';
-  _replayIdx = sorted.length;
-  _replayPrevElos = {};
-  _replayPrevRanks = {};
-  const milestones = _replayComputeMilestones(sorted);
-  const range = sorted.length - _REPLAY_MIN || 1;
-  const milestoneDots = milestones
-    .map((m) => {
-      const pct = ((m.idx - _REPLAY_MIN) / range) * 100;
-      return `<div class="lr-milestone" style="left:${pct}%" title="${escHtml(m.label)}"></div>`;
-    })
-    .join("");
-  const uniqDates = [
-    ...new Set(sorted.map((m) => m.date).filter(Boolean)),
-  ].sort();
-  const dateOpts =
-    '<option value="" disabled selected>📅 Jump to date</option>' +
-    uniqDates
-      .map(
-        (d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`,
-      )
-      .join("");
-  const topPlayers = computeStats(sorted, computeElo(sorted));
-  const spotlightOpts =
-    '<option value="">👁 Spotlight: All</option>' +
-    topPlayers
-      .map(
-        (p) =>
-          `<option value="${escHtml(p.name)}"${p.name === _replaySpotlight ? " selected" : ""}>${escHtml(p.name)}</option>`,
-      )
-      .join("");
-  return `<div class="ana-card lr-card" style="padding:12px">
-    <div class="lr-controls">
-      <button class="lr-btn" title="-10 matches" onclick="_replayStep(-10)">⏮</button>
-      <button class="lr-btn" title="-1 match" onclick="_replayStep(-1)">◀</button>
-      <button class="lr-btn lr-btn-play" id="replay-play-btn" onclick="_replayPlay()">▶</button>
-      <button class="lr-btn" title="+1 match" onclick="_replayStep(1)">▶</button>
-      <button class="lr-btn" title="+10 matches" onclick="_replayStep(10)">⏭</button>
-      <button class="lr-btn lr-reset-btn" title="Reset" onclick="_replayReset()">↺</button>
-    </div>
-    <div class="lr-toggles">
-      <div class="lr-speed-group">
-        ${[0.5, 1, 2, 4]
-          .map(
-            (s) =>
-              `<button class="lr-speed-pill${_replaySpeed === s ? " active" : ""}" onclick="_replaySetSpeed(${s})">${s}x</button>`,
-          )
-          .join("")}
-      </div>
-      <button class="lr-toggle lr-toggle-loop${_replayLoop ? " active" : ""}" onclick="_replayToggleLoop()" title="Loop">↻</button>
-      <button class="lr-toggle lr-toggle-rev${_replayReverse ? " active" : ""}" onclick="_replayToggleReverse()" title="Reverse">⇄</button>
-    </div>
-    <div class="lr-slider-wrap">
-      <div class="lr-milestones">${milestoneDots}</div>
-      <input type="range" id="replay-slider" min="${_REPLAY_MIN}" max="${sorted.length}" value="${sorted.length}" step="1" oninput="_replayUpdate(this.value)">
-    </div>
-    <div class="lr-jumps">
-      <input type="number" inputmode="numeric" pattern="[0-9]*" id="replay-jump-num" min="${_REPLAY_MIN}" max="${sorted.length}" placeholder="Match #" onchange="_replayJumpToMatch(this.value)">
-      <select id="replay-jump-date" onchange="_replayJumpToDate(this.value)">${dateOpts}</select>
-      <select id="replay-spotlight" onchange="_replaySetSpotlight(this.value)">${spotlightOpts}</select>
-    </div>
-    <div class="lr-caption" id="replay-caption"></div>
-    <div id="replay-board" class="lr-board"></div>
-  </div>`;
-}
-
-function _replayUpdate(idx) {
-  const sorted = _replaySorted();
-  _replayIdx = Math.max(
-    _REPLAY_MIN,
-    Math.min(parseInt(idx, 10) || _REPLAY_MIN, sorted.length),
-  );
-  const slice = sorted.slice(0, _replayIdx);
-  const eloMap = computeElo(slice);
-  const stats = computeStats(slice, eloMap).slice(0, 8);
-  const maxElo = Math.max(...stats.map((s) => eloMap[s.name] || 1000), 1000);
-  const board = document.getElementById("replay-board");
-  const slider = document.getElementById("replay-slider");
-  const caption = document.getElementById("replay-caption");
-  if (slider) slider.value = _replayIdx;
-  const m = sorted[_replayIdx - 1];
-  if (caption && m) {
-    const aWon = m.scoreA > m.scoreB;
-    const winners = aWon ? m.teamA : m.teamB;
-    const losers = aWon ? m.teamB : m.teamA;
-    const ws = Math.max(m.scoreA, m.scoreB);
-    const ls = Math.min(m.scoreA, m.scoreB);
-    const prevElos = computeElo(sorted.slice(0, _replayIdx - 1));
-    const winnerName = winners[0];
-    const eloDelta =
-      (eloMap[winnerName] || 1000) - (prevElos[winnerName] || 1000);
-    const sign = eloDelta >= 0 ? "+" : "";
-    caption.innerHTML = `<span class="lr-cap-num">Match ${_replayIdx}/${sorted.length}</span>
-      <span class="lr-cap-date">${m.date || ""}</span>
-      <span class="lr-cap-result">${winners.join(" & ")} <span class="lr-cap-def">def.</span> ${losers.join(" & ")} <b>${ws}-${ls}</b></span>
-      <span class="lr-cap-elo" style="color:${eloDelta >= 0 ? "var(--green)" : "var(--red)"}">${winnerName} ${sign}${eloDelta} ELO</span>`;
-  }
-  if (!board) return;
-  board.innerHTML = stats
-    .map((p, i) => {
-      const elo = eloMap[p.name] || 1000;
-      const barW = Math.round((elo / maxElo) * 100);
-      const isSpot = _replaySpotlight && p.name === _replaySpotlight;
-      const dim = _replaySpotlight && !isSpot ? " lr-dim" : "";
-      const fat = isSpot ? " lr-fat" : "";
-      const col =
-        i === 0
-          ? "var(--gold)"
-          : i === 1
-            ? "var(--theme)"
-            : i === 2
-              ? "var(--green)"
-              : "var(--accent)";
-      const prevRank = _replayPrevRanks[p.name];
-      let rankChip = '<span class="lr-rank-blank"></span>';
-      if (typeof prevRank === "number" && prevRank !== i) {
-        const diff = prevRank - i;
-        rankChip =
-          diff > 0
-            ? `<span class="lr-rank-up">↑${diff}</span>`
-            : `<span class="lr-rank-dn">↓${Math.abs(diff)}</span>`;
-      }
-      const prevElo = _replayPrevElos[p.name];
-      let eloChip = '<span class="lr-elo-d-blank"></span>';
-      if (typeof prevElo === "number") {
-        const d = elo - prevElo;
-        if (d !== 0) {
-          const s = d > 0 ? "+" : "";
-          eloChip = `<span class="lr-elo-d" style="color:${d > 0 ? "var(--green)" : "var(--red)"}">${s}${d}</span>`;
-        }
-      }
-      return `<div class="lr-row${dim}${fat}">
-        <div class="lr-rank" style="color:${col}">#${i + 1}</div>
-        ${rankChip}
-        <div class="lr-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>
-        <div class="lr-name-wrap">
-          <div class="lr-name">${p.name}</div>
-          <div class="lr-bar"><div class="lr-bar-fill" style="width:${barW}%;background:${col}"></div></div>
-        </div>
-        <div class="lr-elo" style="color:${col}">${elo}</div>
-        ${eloChip}
-      </div>`;
-    })
-    .join("");
-  _replayPrevElos = {};
-  _replayPrevRanks = {};
-  stats.forEach((p, i) => {
-    _replayPrevElos[p.name] = eloMap[p.name] || 1000;
-    _replayPrevRanks[p.name] = i;
-  });
-}
-
-function _replayStep(delta) {
-  const max = _replaySorted().length;
-  _replayUpdate(Math.max(_REPLAY_MIN, Math.min(_replayIdx + delta, max)));
-}
-
-function _replayJumpToMatch(n) {
-  const v = parseInt(n, 10);
-  if (!isNaN(v)) _replayUpdate(v);
-}
-
-function _replayJumpToDate(date) {
-  if (!date) return;
-  const sorted = _replaySorted();
-  let idx = -1;
-  for (let i = 0; i < sorted.length; i++) {
-    if ((sorted[i].date || "") <= date) idx = i;
-    else break;
-  }
-  if (idx >= 0) _replayUpdate(idx + 1);
-}
-
-function _replaySetSpeed(s) {
-  _replaySpeed = s;
-  document.querySelectorAll(".lr-speed-pill").forEach((b) => {
-    b.classList.toggle("active", parseFloat(b.textContent) === s);
-  });
-  if (_replayTimer) {
-    _replayStop();
-    _replayPlay();
-  }
-}
-
-function _replayToggleLoop() {
-  _replayLoop = !_replayLoop;
-  document
-    .querySelector(".lr-toggle-loop")
-    ?.classList.toggle("active", _replayLoop);
-}
-
-function _replayToggleReverse() {
-  _replayReverse = !_replayReverse;
-  document
-    .querySelector(".lr-toggle-rev")
-    ?.classList.toggle("active", _replayReverse);
-}
-
-function _replaySetSpotlight(name) {
-  _replaySpotlight = name || "";
-  _replayUpdate(_replayIdx);
-}
-
-function _replayStop() {
-  if (_replayTimer) {
-    clearInterval(_replayTimer);
-    _replayTimer = null;
-  }
-  const btn = document.getElementById("replay-play-btn");
-  if (btn) btn.textContent = "▶";
-}
-
-function _replayPlay() {
-  const sorted = _replaySorted();
-  const btn = document.getElementById("replay-play-btn");
-  if (_replayTimer) {
-    _replayStop();
-    return;
-  }
-  if (_replayReverse) {
-    if (_replayIdx <= _REPLAY_MIN) _replayIdx = sorted.length + 1;
-  } else if (_replayIdx >= sorted.length) {
-    _replayIdx = _REPLAY_MIN - 1;
-  }
-  if (btn) btn.textContent = "⏸";
-  const intervalMs = Math.max(50, Math.round(_REPLAY_BASE_MS / _replaySpeed));
-  _replayTimer = setInterval(() => {
-    if (_replayReverse) {
-      _replayIdx = Math.max(_REPLAY_MIN, _replayIdx - 1);
-      _replayUpdate(_replayIdx);
-      if (_replayIdx <= _REPLAY_MIN) {
-        if (_replayLoop) _replayIdx = sorted.length + 1;
-        else _replayStop();
-      }
-    } else {
-      _replayIdx = Math.min(_replayIdx + 1, sorted.length);
-      _replayUpdate(_replayIdx);
-      if (_replayIdx >= sorted.length) {
-        if (_replayLoop) _replayIdx = _REPLAY_MIN - 1;
-        else _replayStop();
-      }
-    }
-  }, intervalMs);
-}
-
-function _replayReset() {
-  _replayStop();
-  _replaySpotlight = "";
-  _replayPrevElos = {};
-  _replayPrevRanks = {};
-  const sp = document.getElementById("replay-spotlight");
-  if (sp) sp.value = "";
-  const jn = document.getElementById("replay-jump-num");
-  if (jn) jn.value = "";
-  const jd = document.getElementById("replay-jump-date");
-  if (jd) jd.value = "";
-  _replayUpdate(_REPLAY_MIN);
-}
 
 window._renderHiLoTable = function () {
   const el = document.getElementById("hi-lo-elo-body");
@@ -14446,9 +14157,21 @@ function renderAnalyticsPage() {
     (a.date || "").localeCompare(b.date || ""),
   );
 
+  // Reusable indexes built in ONE pass, so the section builders below don't each
+  // re-filter sortedM per player/date (those were O(players × matches) loops).
+  // matchesByPlayer preserves sortedM's chronological order (callers slice tails).
+  const matchesByPlayer = {};
+  const matchCountByDate = {};
+  sortedM.forEach((m) => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      (matchesByPlayer[p] || (matchesByPlayer[p] = [])).push(m);
+    });
+    if (m.date) matchCountByDate[m.date] = (matchCountByDate[m.date] || 0) + 1;
+  });
+
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _memoElo(true);
-  const pairLeaderboard = getPairStats(activeMatches()).slice(0, 8);
+  const pairLeaderboard = _memoPairStats().slice(0, 8);
   const playersByMatches = _h2hSortPlayers(getAllPlayerNamesFromMatches());
   const matrixSortBar = `<div class="h2h-sort-bar">
     <span class="h2h-sort-lbl">SORT</span>
@@ -14729,7 +14452,7 @@ function renderAnalyticsPage() {
   const bestPairPerP = compList
     .map((p) => ({ name: p.name, partner: p.bestPartner, wins: p.mw }))
     .filter((p) => p.partner && p.wins >= 1);
-  const pairFormData = getPairStats(activeMatches())
+  const pairFormData = _memoPairStats()
     .filter((p) => p.played >= 3)
     .map((pair) => {
       const pm = sortedM
@@ -15034,9 +14757,7 @@ function renderAnalyticsPage() {
       bestDiff = -Infinity;
     for (const p of pNames) {
       const overall = stats[p].wins / stats[p].matches;
-      const pMatches = sortedM.filter((m) =>
-        [...(m.teamA || []), ...(m.teamB || [])].includes(p),
-      );
+      const pMatches = matchesByPlayer[p] || [];
       const recent = pMatches.slice(-10);
       if (recent.length < 3) continue;
       const recWins = recent.filter((m) =>
@@ -15640,13 +15361,13 @@ function renderAnalyticsPage() {
 
   // ── PAIR CHEMISTRY MATRIX ──────────────────────────────
   const pairMatrixPlayers = [
-    ...new Set(getPairStats(activeMatches()).flatMap((p) => p.players)),
+    ...new Set(_memoPairStats().flatMap((p) => p.players)),
   ].sort();
   const pairMatrixHtml = (() => {
     if (pairMatrixPlayers.length < 2)
       return '<div class="sub" style="padding:8px">Need more pair data.</div>';
     const pairLookup = {};
-    getPairStats(activeMatches()).forEach((p) => {
+    _memoPairStats().forEach((p) => {
       pairLookup[p.key] = p;
     });
     const colHeaders = pairMatrixPlayers
@@ -15682,9 +15403,7 @@ function renderAnalyticsPage() {
     if (!pbStats.length)
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
     const rows = pbStats.map((p) => {
-      const playerMs = sortedM.filter((m) =>
-        [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
-      );
+      const playerMs = matchesByPlayer[p.name] || [];
       // Longest win streak ever = bestWinStreak from computeStats
       const longestWS = p.bestWinStreak;
       // Biggest win margin
@@ -15718,7 +15437,7 @@ function renderAnalyticsPage() {
       let mostDayStr = "—";
       if (mostMatchesDay) {
         const [mdDate, mdData] = mostMatchesDay;
-        const totalOnDay = sortedM.filter((m) => m.date === mdDate).length;
+        const totalOnDay = matchCountByDate[mdDate] || 0;
         mostDayStr = `${mdData.played}/${totalOnDay}`;
       }
       return `<div class="pb-row"><div class="pb-name">${p.name}</div><div class="pb-stat" title="Longest win streak">🔥${longestWS}W</div><div class="pb-stat" title="Biggest win">${biggestScore ? `💥${biggestScore}` : "—"}</div><div class="pb-stat" title="Best day wins">⭐${bestDay ? `${bestDay.wins}W/${bestDay.played}` : "—"}</div><div class="pb-stat" title="Most matches in a day">📅${mostDayStr}</div></div>`;
@@ -16206,10 +15925,16 @@ function renderAnalyticsPage() {
   const _pairLeaderboardHtml = (() => {
     const pairAQ = {},
       pairStrk = {};
+    // Build a pair-key → matches index in this same pass, so the per-partnership
+    // loop below is an O(1) lookup instead of re-filtering sortedM per pair
+    // (was O(pairs × matches), and pairs grows ~quadratically with players).
+    const matchesByPairKey = {};
     sortedM.forEach((m) => {
       if (m.teamA.length !== 2 || m.teamB.length !== 2) return;
       const tkA = [...m.teamA].sort().join(" & "),
         tkB = [...m.teamB].sort().join(" & ");
+      (matchesByPairKey[tkA] || (matchesByPairKey[tkA] = [])).push(m);
+      (matchesByPairKey[tkB] || (matchesByPairKey[tkB] = [])).push(m);
       [tkA, tkB].forEach((tk, ti) => {
         const opp = ti === 0 ? m.teamB : m.teamA;
         if (!pairAQ[tk]) pairAQ[tk] = { t: 0, c: 0 };
@@ -16219,12 +15944,7 @@ function renderAnalyticsPage() {
       });
     });
     Object.entries(partnerships).forEach(([key, pd]) => {
-      const pms = sortedM.filter((m) => {
-        if (m.teamA.length !== 2 || m.teamB.length !== 2) return false;
-        const ak = [...m.teamA].sort().join(" & "),
-          bk = [...m.teamB].sort().join(" & ");
-        return ak === key || bk === key;
-      });
+      const pms = matchesByPairKey[key] || [];
       let sk = 0,
         st = null;
       for (let i = pms.length - 1; i >= 0; i--) {
@@ -18487,7 +18207,7 @@ function openMatchIntro(idx) {
 
   // Pre-match individual and pair ranks
   const indivRanked = Object.entries(priorElo).sort((a, b) => b[1] - a[1]);
-  const allPairs = getPairStats(activeMatches());
+  const allPairs = _memoPairStats();
   const pairsByElo = allPairs
     .map((p) => ({
       key: p.key,
