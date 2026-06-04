@@ -1,0 +1,19 @@
+1.Act like a senior performance engineer optimizing a production application used by 100 users. Your goals -> maximum speed, lower memory usage, better scalability, faster rendering, cleaner execution. Carefully identify -> performance bottlenecls, inefficient logic, uneccesary rendering, expensive operations, memory leaks. Then Provide -> Performance issue breakdown, optimization strategies, improved production-ready code, Scalability recommendations . Optimize the code like your're preparing it for massive traffic.
+
+2. Rebuild messy code into clean scalable architecture.
+Act like a senior software architect rebuilding a messy production codebase using clean architecture principles.
+Your mission:
+Separate concerns properly.
+Increase Modularity.
+Reduce tight coupling.
+Improve scalability.
+Make the codebase easier to maintain longterm.
+
+Do NOT change hthe product behaviour. Only improve the architecture and code quality. Finally provide:
+New folder structure.
+Clean architecture breakdown.
+Refactored production-grade code.
+Explanation of architectural improvements. 
+
+Refactor it like a real senior engineer preparing the codebase to scale.
+
