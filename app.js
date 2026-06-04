@@ -48,6 +48,24 @@ import {
   hasAnaCollapsedPref,
 } from "./src/infra/ana-prefs.js";
 import {
+  getAnimLevelRaw,
+  resolveAnimLevel,
+  setAnimLevelRaw,
+  getSmoothMode,
+  setSmoothMode,
+  getBatterySaverPref,
+  hasBatterySaverPref,
+  setBatterySaver,
+  getNotifEnabled,
+  setNotifEnabled,
+  getForcedOffline,
+  setForcedOffline,
+  getScreenshotAsk,
+  setScreenshotAsk,
+  getAnaHideEmpty,
+  setAnaHideEmpty,
+} from "./src/infra/app-prefs.js";
+import {
   isFireMatch,
   isDominatingMatch,
   isZeroMatch,
@@ -889,7 +907,7 @@ let _eloTLPts = [];
 let prevPage = "home";
 let lastMatchSnapshot = null;
 let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a local save
-let _forcedOffline = localStorage.getItem("padel_forced_offline") === "1";
+let _forcedOffline = getForcedOffline();
 let _firestoreUnsub = null;
 let _emailTimer = null;
 // Live/session state is declared with core state because startup data loading
@@ -927,13 +945,11 @@ window.isAppBusy = function () {
   } catch (e) {}
   return false;
 };
-const _animLevel0 =
-  localStorage.getItem("anim_level") ||
-  (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
+const _animLevel0 = resolveAnimLevel();
 if (_animLevel0 === "medium" || _animLevel0 === "off")
   document.body.classList.add("no-cascade");
 if (_animLevel0 === "off") document.body.classList.add("no-anim");
-if (localStorage.getItem("smooth_mode") === "1") {
+if (getSmoothMode()) {
   document.body.classList.add("smooth-mode");
   const _smCb = document.getElementById("smooth-mode-toggle");
   if (_smCb) _smCb.checked = true;
@@ -945,7 +961,7 @@ if (localStorage.getItem("smooth_mode") === "1") {
 // the class on every battery event without persisting, so a fresh refresh
 // re-evaluated live battery and could reset to off — the reported bug.)
 {
-  const _bsPref = localStorage.getItem("padel_battery_saver");
+  const _bsPref = getBatterySaverPref();
   if (_bsPref === "1") {
     document.body.classList.add("battery-saver");
     const _bsCb = document.getElementById("battery-saver-toggle");
@@ -954,12 +970,12 @@ if (localStorage.getItem("smooth_mode") === "1") {
     navigator
       .getBattery()
       .then((bat) => {
-        if (localStorage.getItem("padel_battery_saver") != null) return;
+        if (hasBatterySaverPref()) return;
         // Default ON only when genuinely low & unplugged; persist either way.
         if (bat.level <= 0.2 && !bat.charging) toggleBatterySaver(true);
         else {
           try {
-            localStorage.setItem("padel_battery_saver", "0");
+            setBatterySaver(false);
           } catch (e) {}
         }
       })
@@ -968,7 +984,7 @@ if (localStorage.getItem("smooth_mode") === "1") {
 }
 // Restore notification toggle state on load.
 {
-  const _notifEnabled = localStorage.getItem("padel_notif_enabled") === "1";
+  const _notifEnabled = getNotifEnabled();
   if (_notifEnabled) {
     const _ncb = document.getElementById("notif-toggle");
     if (_ncb) _ncb.checked = true;
@@ -1464,7 +1480,7 @@ async function _trySyncNow() {
 function toggleOfflineMode(on) {
   _forcedOffline = on;
   if (on) {
-    localStorage.setItem("padel_forced_offline", "1");
+    setForcedOffline(true);
     if (_firestoreUnsub) {
       _firestoreUnsub();
       _firestoreUnsub = null;
@@ -1472,7 +1488,7 @@ function toggleOfflineMode(on) {
     _setPendingSync(true);
     showToast("Offline mode ON — tap SYNC to push manually", "✈️");
   } else {
-    localStorage.removeItem("padel_forced_offline");
+    setForcedOffline(false);
     _resubscribeFirestore();
     showToast("Online mode — reconnecting to cloud", "☁️");
   }
@@ -1979,7 +1995,7 @@ function loadCloudData() {
       // user has opted in to notifications and the page is backgrounded.
       const prevCount = state.matches.length; // still holds the old value here
       const newCount = matches.length;
-      if (newCount > prevCount && localStorage.getItem("padel_notif_enabled") === "1") {
+      if (newCount > prevCount && getNotifEnabled()) {
         const added = newCount - prevCount;
         _sendMatchNotification(added, matches[matches.length - 1]);
       }
@@ -2123,10 +2139,8 @@ function updateAdminUI(user) {
   updateSeasonHamburgerUI();
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle)
-    scToggle.checked = localStorage.getItem("screenshot_ask_choice") === "1";
-  const _al =
-    localStorage.getItem("anim_level") ||
-    (localStorage.getItem("cascade_anim") === "0" ? "medium" : "full");
+    scToggle.checked = getScreenshotAsk();
+  const _al = resolveAnimLevel();
   document
     .querySelectorAll(".anim-seg-btn")
     .forEach((b) => b.classList.toggle("active", b.dataset.val === _al));
@@ -3648,7 +3662,7 @@ function renderNamesTable() {
 }
 
 function setScreenshotChoiceSetting(val) {
-  localStorage.setItem("screenshot_ask_choice", val ? "1" : "0");
+  setScreenshotAsk(val);
 }
 
 // Smooth Mode (architecture #4): opt-in scroll/paint smoothness via the
@@ -3658,14 +3672,14 @@ function toggleSmoothMode(on) {
     on === undefined ? !document.body.classList.contains("smooth-mode") : !!on;
   document.body.classList.toggle("smooth-mode", enabled);
   try {
-    localStorage.setItem("smooth_mode", enabled ? "1" : "0");
+    setSmoothMode(enabled);
   } catch (e) {}
   const cb = document.getElementById("smooth-mode-toggle");
   if (cb) cb.checked = enabled;
 }
 
 function setAnimLevel(val) {
-  localStorage.setItem("anim_level", val);
+  setAnimLevelRaw(val);
   document.body.classList.toggle(
     "no-cascade",
     val === "medium" || val === "off",
@@ -3692,7 +3706,7 @@ function toggleBatterySaver(on) {
       ? !document.body.classList.contains("battery-saver")
       : !!on;
   try {
-    localStorage.setItem("padel_battery_saver", enabled ? "1" : "0");
+    setBatterySaver(enabled);
   } catch (e) {}
   _applyBatterySaver(enabled);
 }
@@ -8826,7 +8840,7 @@ async function openSummaryShare() {
     showToast("Capture not available", "❌");
     return;
   }
-  const askChoice = localStorage.getItem("screenshot_ask_choice") === "1";
+  const askChoice = getScreenshotAsk();
   if (askChoice) {
     document
       .getElementById("screenshot-choice-overlay")
@@ -11361,9 +11375,9 @@ function _tabbedSection(tabs) {
 }
 // Toggle the Hide-empty view (CSS hides .ana-sec.is-empty under .ana-hide-empty).
 function toggleAnaHideEmpty() {
-  const on = localStorage.getItem("padel_ana_hide_empty") !== "1";
+  const on = !getAnaHideEmpty();
   try {
-    localStorage.setItem("padel_ana_hide_empty", on ? "1" : "0");
+    setAnaHideEmpty(on);
   } catch (e) {}
   const c = document.getElementById("analytics-page-content");
   if (c) c.classList.toggle("ana-hide-empty", on);
@@ -16877,8 +16891,7 @@ function renderAnalyticsPage() {
   const _seasonBanner = _seasonForBanner
     ? `<div class="ana-season-banner">🗓️ <strong>${escHtml(_seasonForBanner.name)}</strong> <span style="opacity:.65">· ${escHtml(_seasonRangeLabel(_seasonForBanner))}</span></div>`
     : "";
-  const _hideEmptyOn =
-    localStorage.getItem("padel_ana_hide_empty") === "1";
+  const _hideEmptyOn = getAnaHideEmpty();
   const _hideEmptyToggle = `<div class="ana-toolbar"><button class="ana-hideempty-btn${_hideEmptyOn ? " active" : ""}" onclick="toggleAnaHideEmpty()">${_hideEmptyOn ? "☑" : "☐"} Hide empty</button></div>`;
   container.classList.toggle("ana-hide-empty", _hideEmptyOn);
 
@@ -20044,14 +20057,14 @@ function _sendMatchNotification(count, latestMatch) {
 
 function toggleMatchNotifications(on) {
   try {
-    localStorage.setItem("padel_notif_enabled", on ? "1" : "0");
+    setNotifEnabled(on);
   } catch (e) {}
   const cb = document.getElementById("notif-toggle");
   if (cb) cb.checked = on;
   if (on && "Notification" in window && Notification.permission === "default") {
     Notification.requestPermission().then((perm) => {
       if (perm !== "granted") {
-        localStorage.setItem("padel_notif_enabled", "0");
+        setNotifEnabled(false);
         if (cb) cb.checked = false;
         showToast("Notifications blocked by browser", "⚠️");
       }
