@@ -17142,14 +17142,16 @@ function renderEmailStatus() {
   el.innerHTML = `${sentText} &nbsp;·&nbsp; Manual only — tap “Send Backup Now”`;
 }
 
-// Re-entrancy guard. Without it, rapid taps (or any double trigger) fire
-// overlapping emailjs.send() calls — the observed cause of duplicate backup
-// emails landing in the same second. One send at a time; callers are ignored
-// while a send is in flight.
+// MANUAL ONLY — by construction. Email is sent solely by the "Send Backup Now"
+// button. There is intentionally NO automatic / isAuto path: the old daily
+// auto-send (which once fired ~18 duplicate emails in a minute) is gone and
+// cannot be re-triggered programmatically, because the function takes no "auto"
+// argument and nothing calls it except the button's onclick. The re-entrancy
+// guard additionally stops a rapid double-tap from sending twice.
 let _emailSending = false;
-async function sendBackupEmail(isAuto = false) {
+async function sendBackupEmail() {
   if (_emailSending) {
-    if (!isAuto) showToast("Backup already sending…", "⏳");
+    showToast("Backup already sending…", "⏳");
     return false;
   }
   _emailSending = true;
@@ -17161,12 +17163,12 @@ async function sendBackupEmail(isAuto = false) {
   }
   try {
     if (!(await _ensureEmailjs())) {
-      if (!isAuto) showToast("EmailJS not loaded", "❌");
+      showToast("EmailJS not loaded", "❌");
       return false;
     }
     const { serviceId, templateId, publicKey, recipientEmail } = emailConfig;
     if (!serviceId || !templateId || !publicKey || !recipientEmail) {
-      if (!isAuto) showToast("Complete email config first", "⚠️");
+      showToast("Complete email config first", "⚠️");
       return false;
     }
     const todayStr = todayISO();
@@ -17183,7 +17185,7 @@ async function sendBackupEmail(isAuto = false) {
         to_email: recipientEmail,
         from_name: "Ekta Padel",
         subject: `Padel Backup — ${todayStr}`,
-        send_type: isAuto ? "🤖 Automatic daily backup" : "📤 Manual backup",
+        send_type: "📤 Manual backup",
         match_count: state.matches.length,
         backup_date: todayStr,
         json_data: jsonData,
@@ -17193,11 +17195,11 @@ async function sendBackupEmail(isAuto = false) {
 
     localStorage.setItem("padel_last_email", todayStr);
     renderEmailStatus();
-    if (!isAuto) showToast("Backup email sent!", "📧");
+    showToast("Backup email sent!", "📧");
     return true;
   } catch (err) {
     console.error("Backup email error:", err);
-    if (!isAuto) showToast("Email failed — check config", "❌");
+    showToast("Email failed — check config", "❌");
     return false;
   } finally {
     _emailSending = false;
