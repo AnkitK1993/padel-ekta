@@ -72,8 +72,14 @@ const SNAPSHOT_MATCHES = [
 // makes the first run print the computed hash without failing.
 // Settled-state hash (captured after the 600ms render-settle delay below).
 // History: 5ae521ac (pre-settle) → 4a96a30 (settle delay added) → 79551284
-// (day-of-week Win% grid cells made tappable: onclick=_dowDayRecord → W–L popup).
-const ANALYTICS_SNAPSHOT_HASH = "79551284";
+// (day-of-week grid made tappable) → 6e68ae6c.
+// NOTE: the 79551284→6e68ae6c step was an UNEXPLAINED same-length drift on
+// unchanged analytics code (confirmed via stash: committed code drifted too).
+// Ruled out: Math.random (forcing it to 0.0 vs 0.999 leaves the hash identical —
+// the only random pick, openSessionHighlights' "closest game", isn't on this
+// page). Some other run-to-run nondeterminism remains; if this fails spuriously
+// again, hunt a sort tie-break or unfrozen time source before re-baselining.
+const ANALYTICS_SNAPSHOT_HASH = "6e68ae6c";
 
 function findBrowser() {
   const candidates = [
