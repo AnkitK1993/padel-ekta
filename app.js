@@ -8097,9 +8097,11 @@ function openPlayerDetail(name) {
   const personalRecordsHtml = (() => {
     if (!pdPlayerMs.length) return "";
     let biggestWin2 = null,
-      biggestWinM = 0;
+      biggestWinM = 0,
+      biggestWinMatch = null;
     let worstLoss2 = null,
-      worstLossM = 0;
+      worstLossM = 0,
+      worstLossMatch = null;
     let longestWS = 0,
       longestLS = 0,
       curWS = 0,
@@ -8114,10 +8116,12 @@ function openPlayerDetail(name) {
       if (won7 && margin7 > biggestWinM) {
         biggestWinM = margin7;
         biggestWin2 = `${own7}–${opp7}`;
+        biggestWinMatch = m;
       }
       if (!won7 && -margin7 > worstLossM) {
         worstLossM = -margin7;
         worstLoss2 = `${own7}–${opp7}`;
+        worstLossMatch = m;
       }
       if (won7) {
         curWS++;
@@ -8138,7 +8142,12 @@ function openPlayerDetail(name) {
     )[0];
     const peakEloVal = _memoEloPeaks()[name] || playerElo;
     const lowEloVal = _memoEloLows()[name] || playerElo;
-    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${lowEloVal}</div><div class="sub">Low ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
+    // Tap Best Win / Worst Loss to open that match in the UFC overlay.
+    const bwIdx = biggestWinMatch ? state.matches.indexOf(biggestWinMatch) : -1;
+    const wlIdx = worstLossMatch ? state.matches.indexOf(worstLossMatch) : -1;
+    const bwTap = bwIdx >= 0 ? ` onclick="openMatchIntro(${bwIdx})" style="cursor:pointer"` : "";
+    const wlTap = wlIdx >= 0 ? ` onclick="openMatchIntro(${wlIdx})" style="cursor:pointer"` : "";
+    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"${bwTap}><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win${bwIdx >= 0 ? " ›" : ""}</div></div><div class="det-streak-div"></div><div class="det-streak-cell"${wlTap}><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss${wlIdx >= 0 ? " ›" : ""}</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${lowEloVal}</div><div class="sub">Low ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
   })();
 
   // ── MONTHLY WIN-RATE SPARKLINE ────────────────────────────
