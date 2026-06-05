@@ -71,15 +71,17 @@ const SNAPSHOT_MATCHES = [
 // Update intentionally when analytics OUTPUT legitimately changes. "PENDING"
 // makes the first run print the computed hash without failing.
 // Settled-state hash (captured after the 600ms render-settle delay below).
-// History: 5ae521ac (pre-settle) → 4a96a30 (settle delay added) → 79551284
-// (day-of-week grid made tappable) → 6e68ae6c.
-// NOTE: the 79551284→6e68ae6c step was an UNEXPLAINED same-length drift on
-// unchanged analytics code (confirmed via stash: committed code drifted too).
-// Ruled out: Math.random (forcing it to 0.0 vs 0.999 leaves the hash identical —
-// the only random pick, openSessionHighlights' "closest game", isn't on this
-// page). Some other run-to-run nondeterminism remains; if this fails spuriously
-// again, hunt a sort tie-break or unfrozen time source before re-baselining.
-const ANALYTICS_SNAPSHOT_HASH = "6e68ae6c";
+// History: 5ae521ac → 4a96a30 → 79551284 → 6e68ae6c → bebf32f0.
+// The earlier same-length drift (e.g. 79551284→6e68ae6c on unchanged code) was
+// ROOT-CAUSED: the snapshot navigate is same-origin and was INHERITING
+// localStorage left by the 600-line main smoke flow above, which runs at REAL
+// time (no Date freeze) and leaves theme / ana-pref / last-backup / season state
+// behind — any of which perturbs the analytics render. Fixed by localStorage.clear()
+// in the fixture setup below, so the snapshot is now a deterministic function of
+// the fixture alone. (Ruled out along the way: Math.random — forcing it 0.0 vs
+// 0.999 leaves the hash identical; and ELO decay — the freeze pins new Date() to
+// 2026-06-15.)
+const ANALYTICS_SNAPSHOT_HASH = "bebf32f0";
 
 function findBrowser() {
   const candidates = [
@@ -903,10 +905,15 @@ async function main() {
           FD.parse = RD.parse; FD.UTC = RD.UTC; FD.prototype = RD.prototype;
           window.Date = FD;
         })();
+        // Isolate the snapshot from the 600-line main smoke flow that ran before
+        // it on this same origin: that flow executes at REAL time (no freeze) and
+        // leaves behind theme/ana-pref/last-backup/season state in localStorage,
+        // any of which can perturb the analytics render — the root of the
+        // same-length hash drift. Start from a clean slate, then set only the
+        // fixture keys, so the render is a deterministic function of the fixture.
+        localStorage.clear();
         localStorage.setItem("padel_forced_offline","1");
         localStorage.setItem("padel_battery_saver","0");
-        localStorage.removeItem("padel_active_season");
-        localStorage.removeItem("padel_seasons");
         localStorage.setItem("padel_cache_v5", JSON.stringify({
           ts: Date.now(), matches: ${JSON.stringify(SNAPSHOT_MATCHES)},
           players: ${JSON.stringify(SNAP_PLAYERS)},
