@@ -109,6 +109,15 @@
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item">
+            <span class="hmenu-label">Text Size</span>
+            <div class="font-seg">
+              <button class="font-seg-btn" onclick="adjustFontScale(-0.05)" aria-label="Decrease text size">A−</button>
+              <button class="font-scale-readout" id="font-scale-readout" onclick="resetFontScale()" aria-label="Reset text size to 100%">100%</button>
+              <button class="font-seg-btn" onclick="adjustFontScale(0.05)" aria-label="Increase text size">A+</button>
+            </div>
+          </div>
+          <div class="hmenu-divider"></div>
+          <div class="hmenu-item">
             <span class="hmenu-label">Smooth Mode</span>
             <label class="hmenu-toggle">
               <input type="checkbox" id="smooth-mode-toggle" onchange="toggleSmoothMode(this.checked)">

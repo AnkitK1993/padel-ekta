@@ -21,10 +21,22 @@ const K = {
   offline: "padel_forced_offline",
   screenshot: "screenshot_ask_choice",
   hideEmpty: "padel_ana_hide_empty",
+  fontScale: "padel_font_scale",
 };
 
 const _is1 = (key) => localStorage.getItem(key) === "1";
 const _set01 = (key, on) => localStorage.setItem(key, on ? "1" : "0");
+
+// ── UI text/zoom scale (1 = 100%; clamped 0.8–1.4) ──
+export const FONT_SCALE_MIN = 0.8;
+export const FONT_SCALE_MAX = 1.4;
+export function getFontScale() {
+  const v = parseFloat(localStorage.getItem(K.fontScale));
+  return v >= FONT_SCALE_MIN && v <= FONT_SCALE_MAX ? v : 1;
+}
+export function setFontScale(v) {
+  localStorage.setItem(K.fontScale, String(v));
+}
 
 // ── Animation level (anim_level, falling back to legacy cascade_anim) ──
 export function getAnimLevelRaw() {
