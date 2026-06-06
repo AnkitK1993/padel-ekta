@@ -17448,6 +17448,22 @@ body.battery-saver *::after {
   -webkit-backdrop-filter: none !important;
 }
 
+/* ── ZOOM RESILIENCE (defence-in-depth for the pinch-zoom crash) ──
+   If the page ever becomes zoomed (visualViewport.scale > 1) despite the gesture
+   block — e.g. a pinch on an iOS build that slips through, or browser zoom — drop
+   the GPU-heavy blur so WebKit has nothing expensive to re-rasterize at the
+   magnified scale (the OOM crash source). Same strip as Battery Saver, but only
+   while actually zoomed; full glassmorphism returns at 100%. */
+body.zoomed #ambient-bg {
+  display: none !important;
+}
+body.zoomed *,
+body.zoomed *::before,
+body.zoomed *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Sort arrows that have no content (inactive columns) collapse to zero width,
    freeing ~10px per inactive header. Active arrows still show normally. */
 .sort-arrow:empty {

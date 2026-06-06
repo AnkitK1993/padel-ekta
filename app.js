@@ -479,6 +479,22 @@ document.addEventListener(
   },
   { passive: false },
 );
+// Defence-in-depth: should a zoom happen anyway (a pinch the block missed, or
+// browser zoom), strip the heavy blur (body.zoomed → see styles.css) so there's
+// nothing for WebKit to OOM on at scale. visualViewport.scale tracks page zoom.
+(function _initZoomBlurGuard() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  let _raf = 0;
+  const sync = () => {
+    cancelAnimationFrame(_raf);
+    _raf = requestAnimationFrame(() => {
+      document.body.classList.toggle("zoomed", vv.scale > 1.02);
+    });
+  };
+  vv.addEventListener("resize", sync, { passive: true });
+  vv.addEventListener("scroll", sync, { passive: true });
+})();
 
 // ── HEAT/BATTERY: freeze all CSS animations while the app is backgrounded ──
 // The body.app-bg class drives a CSS rule that pauses every animation
