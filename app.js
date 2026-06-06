@@ -458,6 +458,28 @@ document.addEventListener("touchmove", _ptrMove, { passive: false });
 document.addEventListener("touchend", _ptrEnd, { passive: true });
 document.addEventListener("touchcancel", _ptrEnd, { passive: true });
 
+// ── BLOCK PINCH-ZOOM (prevents a mobile crash) ──────────────
+// iOS Safari ignores the viewport's maximum-scale, so pinch-zoom still fires.
+// Zooming forces WebKit to re-rasterize the app's heavy backdrop-filter blur
+// (49 blur layers + the full-screen ambient blobs) at the magnified scale, which
+// OOM-crashes the tab. The supported way to enlarge the UI is the hamburger's
+// "Text Size" control. gesturestart/gesturechange/gestureend are iOS-only; on
+// Android/Chrome maximum-scale already disables pinch-zoom. Double-tap zoom is
+// covered by the iOS gesture block + the viewport meta.
+["gesturestart", "gesturechange", "gestureend"].forEach((evt) =>
+  document.addEventListener(evt, (e) => e.preventDefault(), { passive: false }),
+);
+// Belt-and-suspenders for browsers that surface pinch as a 2-finger touchmove
+// with a scale: cancel it so no zoom (and no blur re-raster) occurs.
+document.addEventListener(
+  "touchmove",
+  (e) => {
+    if (e.touches && e.touches.length > 1 && typeof e.scale === "number" && e.scale !== 1)
+      e.preventDefault();
+  },
+  { passive: false },
+);
+
 // ── HEAT/BATTERY: freeze all CSS animations while the app is backgrounded ──
 // The body.app-bg class drives a CSS rule that pauses every animation
 // (including the fixed ambient orbs). Stops the GPU churning while the screen
