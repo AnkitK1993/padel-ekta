@@ -366,6 +366,7 @@ function _ptrTarget(e) {
 
 function _ptrStart(e) {
   if (_ptrRefreshing) return;
+  if (e.touches.length > 1) return; // ignore pinch-zoom (multi-touch)
   const t = _ptrTarget(e);
   if (!t) return;
   _ptrStartY = e.touches[0].clientY;
@@ -375,6 +376,19 @@ function _ptrStart(e) {
 
 function _ptrMove(e) {
   if (!_ptrPulling || _ptrRefreshing) return;
+  // A second finger landed → it's a pinch-zoom, not a pull. Abandon the pull
+  // (don't preventDefault) so the browser can zoom normally.
+  if (e.touches.length > 1) {
+    _ptrPulling = false;
+    _ptrDelta = 0;
+    const _ind = document.getElementById("ptr-indicator");
+    if (_ind) {
+      _ind.classList.remove("armed");
+      _ind.style.transform = "translate(-50%, -60px)";
+      _ind.style.opacity = 0;
+    }
+    return;
+  }
   const dy = e.touches[0].clientY - _ptrStartY;
   if (dy < 0) return;
   _ptrDelta = Math.min(dy * 0.55, 120);
@@ -18846,6 +18860,13 @@ document.addEventListener("keydown", (e) => {
   document.addEventListener(
     "touchstart",
     (e) => {
+      // Never engage on a multi-touch gesture (pinch-zoom): applying 3D tilt
+      // transforms to cards while the browser is zooming forces huge composited
+      // layers and crashes mobile WebKit. Leave pinch entirely to the browser.
+      if (e.touches.length > 1) {
+        if (_tc) { _tReset(_tc); _tc = null; }
+        return;
+      }
       const card = e.target.closest(".pc");
       if (card) _tc = card;
     },
@@ -18855,7 +18876,9 @@ document.addEventListener("keydown", (e) => {
   document.addEventListener(
     "touchmove",
     (e) => {
-      if (!_tc || _nd.active) {
+      // Bail (and undo any in-progress tilt) the moment a second finger lands,
+      // so a pinch-zoom started over a card doesn't leave a 3D-transformed layer.
+      if (!_tc || _nd.active || e.touches.length > 1) {
         if (_tc) {
           _tReset(_tc);
           _tc = null;
