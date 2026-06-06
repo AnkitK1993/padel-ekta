@@ -70,6 +70,10 @@ import {
   setScreenshotAsk,
   getAnaHideEmpty,
   setAnaHideEmpty,
+  getFontScale,
+  setFontScale,
+  FONT_SCALE_MIN,
+  FONT_SCALE_MAX,
 } from "./src/infra/app-prefs.js";
 import {
   isFireMatch,
@@ -948,6 +952,8 @@ if (getSmoothMode()) {
   const _smCb = document.getElementById("smooth-mode-toggle");
   if (_smCb) _smCb.checked = true;
 }
+// Restore saved text-size scale (CSS zoom). _applyFontScale is hoisted.
+_applyFontScale(getFontScale());
 // Battery Saver is a sticky, persisted toggle. If it has ever been set ("1"/"0")
 // that wins. On the very first launch only, seed a sensible default FROM the
 // battery once and persist it — so thereafter it behaves like any other saved
@@ -3694,6 +3700,28 @@ function setAnimLevel(val) {
   document
     .querySelectorAll(".anim-seg-btn")
     .forEach((b) => b.classList.toggle("active", b.dataset.val === val));
+}
+
+// ── TEXT SIZE ───────────────────────────────────────────────
+// App-wide text/UI scaling via CSS `zoom` on the root element. The app's CSS is
+// px-based (so root font-size wouldn't cascade); `zoom` scales text + layout
+// proportionally and is well-supported in mobile WebKit/Blink. Persisted; the
+// hamburger "Text Size" A−/A+ buttons step it. (Distinct from pinch-zoom.)
+function _applyFontScale(v) {
+  // zoom:"" (not "1") so the default state has no inline override at all.
+  document.documentElement.style.zoom = v === 1 ? "" : String(v);
+  const el = document.getElementById("font-scale-readout");
+  if (el) el.textContent = Math.round(v * 100) + "%";
+}
+function adjustFontScale(delta) {
+  let v = Math.round((getFontScale() + delta) * 100) / 100;
+  v = Math.max(FONT_SCALE_MIN, Math.min(FONT_SCALE_MAX, v));
+  setFontScale(v);
+  _applyFontScale(v);
+}
+function resetFontScale() {
+  setFontScale(1);
+  _applyFontScale(1);
 }
 
 // Battery Saver: kills the GPU-heavy decorative work (ambient orbs, every
@@ -17438,6 +17466,8 @@ Object.assign(window, {
   exportJsonFile,
   setScreenshotChoiceSetting,
   setAnimLevel,
+  adjustFontScale,
+  resetFontScale,
   toggleSmoothMode,
   toggleBatterySaver,
   toggleMatchNotifications,

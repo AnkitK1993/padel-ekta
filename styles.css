@@ -2405,6 +2405,44 @@ textarea:focus {
   color: var(--accent);
 }
 
+/* Text Size control (mirrors .anim-seg) — A− / readout / A+ */
+.font-seg {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.font-seg-btn {
+  width: 40px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  font-family: "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.font-seg-btn:active {
+  background: rgba(var(--theme-rgb), 0.28);
+}
+.font-scale-readout {
+  min-width: 48px;
+  height: 28px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(var(--theme-rgb), 0.2);
+  border-right: 1px solid rgba(var(--theme-rgb), 0.2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: "DM Sans", sans-serif;
+  cursor: pointer;
+}
+
 /* ── All animations off ─────────────────────────────────────── */
 body.no-anim *,
 body.no-anim *::before,
