@@ -261,7 +261,15 @@ function _memoEloLows()                     { return memoEloLows(); }
 function _memoStats()                       { return memoStats(); }
 function _statPlayerNames()                 { return memoStatPlayerNames(); }
 function _memoPairStats()                   { return memoPairStats(); }
-function saveCloudData(opts)                { return _cloudRepoSave(opts); }
+function saveCloudData(opts) {
+  // Stamp the local-save time at the choke point so EVERY mutation path
+  // (edits, deletes, renames — not just the add-match flows that stamp it
+  // explicitly) arms the 15 s conflict-suppression window in loadCloudData.
+  // Without this, a stale snapshot arriving right after a match edit shows a
+  // phantom sync-conflict dialog whose "Use Cloud" button reverts the edit.
+  _lastLocalSaveTime = Date.now();
+  return _cloudRepoSave(opts);
+}
 function _trySyncNow()                      { return _cloudRepoSync(); }
 function _setPendingSync(flag)              { return setPendingSync(flag); }
 function _hasPendingSync()                  { return hasPendingSync(); }
@@ -1878,6 +1886,10 @@ function loadCloudData() {
     lastDataFingerprint = fp;
     _dataVersion++;
 
+    // Captured BEFORE state.matches is reassigned below — the notification
+    // diff in the non-first-load branch needs the pre-update count.
+    const _prevMatchCount = state.matches.length;
+
     // If a live session is buffering local matches, re-attach them after the cloud update
     // so Firestore snapshots can't silently erase unsync'd session matches.
     if (_sessionBuffering && _sessionPendingCount > 0) {
@@ -1928,7 +1940,7 @@ function loadCloudData() {
     } else {
       // Genuine new data from Firestore — notify if new matches arrived and the
       // user has opted in to notifications and the page is backgrounded.
-      const prevCount = state.matches.length; // still holds the old value here
+      const prevCount = _prevMatchCount;
       const newCount = matches.length;
       if (newCount > prevCount && getNotifEnabled()) {
         const added = newCount - prevCount;
