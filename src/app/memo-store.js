@@ -13,8 +13,8 @@
 
 import { computeElo, computeEloHistory, computeEloPeaks, computeEloLows, clearEloCache, _lightFingerprint } from "../engine/elo.js";
 import { computeStats } from "../engine/stats.js";
-import { getPairStats, invalidateAmMemo } from "../engine/pairs.js";
-import { activeMatches } from "../engine/selectors.js";
+import { getPairStats } from "../engine/pairs.js";
+import { activeMatches, invalidateAmMemo } from "../engine/selectors.js";
 
 // Per-section caches that grow one entry per distinct dataset and would
 // otherwise leak unbounded across a session. Cleared on every invalidation.

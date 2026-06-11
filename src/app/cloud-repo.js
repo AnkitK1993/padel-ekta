@@ -84,6 +84,10 @@ export function scheduleDocSizeCheck() {
   }
 }
 
+export function checkDocSize(payload) {
+  return _checkDocSize(payload);
+}
+
 function _checkDocSize(payload) {
   try {
     const bytes = new Blob([JSON.stringify(payload)]).size;

@@ -197,6 +197,7 @@ import {
   hasPendingSync,
   scheduleDocSizeCheck,
   getLastLocalSaveTime,
+  checkDocSize as _checkDocSize,
 } from "./src/app/cloud-repo.js";
 import {
   initMemoStoreDeps,
@@ -276,7 +277,6 @@ function _hasPendingSync()                  { return hasPendingSync(); }
 // objects in filter-state.js. Remaining direct reads use the bridged getters.
 function _homeFilterKey()    { return homeFilterKey(); }
 function _compactFilterKey() { return compactFilterKey(); }
-function _histFilterKey()    { return historyFilterKey(); }
 
 // Firebase init + db/auth/provider singletons live in src/infra/cloud/firebase.js
 // (imported at top). ADMIN_EMAIL + the Drive token stay here as app state.
@@ -1073,6 +1073,14 @@ const _liveSlots            = { a1: null, a2: null, b1: null, b2: null };
 const _liveScoreProxy       = liveScore;
 let _liveScoreA             = 0; // kept for the rare direct += writes; synced via liveScore.scoreA
 let _liveScoreB             = 0;
+let _livePoints             = [];
+let _liveGamePtsA           = 0;
+let _liveGamePtsB           = 0;
+let _liveAdv                = null;
+let _liveMatchEnded         = false;
+let _livePointUndoStack     = [];
+let _liveGameMode           = 4;
+let _liveActiveSlot         = null;
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -3070,97 +3078,6 @@ function getMomentumBadge(playerName) {
   return "";
 }
 
-function normPlayer(name) {
-  return (state.nameMap[name] || name || "").trim();
-}
-
-// Rebuild aliasMap + nameMap from the players/playerAliasMap source-of-truth
-function rebuildNameMaps() {
-  state.aliasMap = {};
-  state.nameMap = {};
-  Object.values(state.players).forEach((p) => {
-    const aliases = playerAliasMap[p.id] || [];
-    state.aliasMap[p.name] = aliases;
-    aliases.forEach((a) => {
-      state.nameMap[a] = p.name;
-    });
-  });
-}
-
-// One-time migration from old { aliasMap } format to new players/playerAliasMap
-function migrateAliasMapToPlayers(aMap) {
-  const pls = {};
-  const pam = {};
-  let id = 1;
-  Object.keys(aMap || {})
-    .sort((a, b) => a.localeCompare(b))
-    .forEach((name) => {
-      pls[id] = { id, name, email: "", image: "", isGuest: false };
-      pam[id] = Array.isArray(aMap[name]) ? [...aMap[name]] : [];
-      id++;
-    });
-  return { players: pls, playerAliasMap: pam, nextPlayerId: id };
-}
-
-// Compute first/last played date for a display-name player
-function getPlayerDateRange(playerName) {
-  const dates = state.matches
-    .filter((m) =>
-      [...(m.teamA || []), ...(m.teamB || [])].some(
-        (p) => normPlayer(p) === playerName,
-      ),
-    )
-    .map((m) => m.date)
-    .filter(Boolean)
-    .sort();
-  return { first: dates[0] || null, last: dates[dates.length - 1] || null };
-}
-
-function normalizedScoreline(m) {
-  const hi = Math.max(Number(m.scoreA), Number(m.scoreB));
-  const lo = Math.min(Number(m.scoreA), Number(m.scoreB));
-  return `${hi}-${lo}`;
-}
-
-function sameMatch(a, b) {
-  if (!a || !b) return false;
-  const ta = [...(a.teamA || [])].sort().join("|");
-  const tb = [...(a.teamB || [])].sort().join("|");
-  const oa = [...(b.teamA || [])].sort().join("|");
-  const ob = [...(b.teamB || [])].sort().join("|");
-  return (
-    a.date === b.date &&
-    a.scoreA === b.scoreA &&
-    a.scoreB === b.scoreB &&
-    ta === oa &&
-    tb === ob
-  );
-}
-
-function getAllPlayerNamesFromMatches() {
-  const names = new Set(Object.values(state.players).map((p) => p.name));
-  state.matches.forEach((m) => {
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
-      names.add(normPlayer(p)),
-    );
-  });
-  return sortPlayersGuestsLast([...names].filter(Boolean));
-}
-
-// Sort player names alphabetically, guests pushed to end
-function sortPlayersGuestsLast(names) {
-  const guestSet = new Set(
-    Object.values(state.players)
-      .filter((p) => p.isGuest)
-      .map((p) => p.name),
-  );
-  return [...names].sort((a, b) => {
-    const ag = guestSet.has(a),
-      bg = guestSet.has(b);
-    if (ag !== bg) return ag ? 1 : -1;
-    return a.localeCompare(b, undefined, { sensitivity: "base" });
-  });
-}
 
 // getPairKey → src/engine/pairs.js
 
@@ -12224,7 +12141,6 @@ function _secBody(fn) {
   }
 }
 
-const _rankPeriodCache = {};
 const _MIN_RANK_PERIODS = 3;
 const _MIN_RANK_PLAYERS = 3;
 
@@ -12516,7 +12432,6 @@ function _buildAntiPodiumTrackerHtml(periodType) {
   </div>`;
 }
 
-const _reignCache = {};
 function _buildRankReignHtml() {
   const allM = activeMatches();
   const fp = _lightFingerprint(allM);
