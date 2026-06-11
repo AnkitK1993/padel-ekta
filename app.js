@@ -163,6 +163,114 @@ import {
   _replayReset,
 } from "./features/replay.js";
 
+// ── New architecture modules ───────────────────────────────────
+import {
+  normPlayer as _normPlayer,
+  rebuildNameMaps as _rebuildNameMaps,
+  migrateAliasMapToPlayers,
+  getAllPlayerNames as _getAllPlayerNames,
+  sortPlayersGuestsLast,
+  normalizedScoreline,
+  sameMatch,
+  getPlayerDateRange,
+} from "./src/domain/players.js";
+import {
+  historyFilters,
+  homeFilters,
+  compactFilters,
+  renderGen,
+  homeFilterKey,
+  compactFilterKey,
+  historyFilterKey,
+  historyActiveFilterCount,
+} from "./src/app/filter-state.js";
+import {
+  init as initCloudRepo,
+  saveCloudData as _cloudRepoSave,
+  loadCloudData as _cloudRepoLoad,
+  trySyncNow as _cloudRepoSync,
+  buildCloudPayload,
+  setPendingSync,
+  hasPendingSync,
+  scheduleDocSizeCheck,
+  getLastLocalSaveTime,
+} from "./src/app/cloud-repo.js";
+import {
+  initMemoStoreDeps,
+  memoElo,
+  memoEloHistory,
+  memoEloPeaks,
+  memoEloLows,
+  memoStats,
+  memoStatPlayerNames,
+  memoPairStats,
+  invalidateAll as _invalidateAllMemos,
+  reignCache as _reignCache,
+  rankPeriodCache as _rankPeriodCache,
+} from "./src/app/memo-store.js";
+import {
+  loadDeletedMatches,
+  saveDeletedMatches as _saveDeletedMatches,
+  loadEloConfig,
+  saveEloConfig,
+  getEloDecayParams,
+  getMilestoneLog,
+  saveMilestoneEntry,
+  loadSeasonsLocal,
+  saveSeasonsLocal,
+  getWeeklySnaps,
+  saveWeeklySnap,
+  loadPhotosLocal,
+  savePhotosLocal,
+} from "./src/infra/match-store.js";
+import {
+  sessionState,
+  liveScore,
+  americanoState,
+  resetSessionState,
+  resetLiveScore,
+  resetAmericanoState,
+} from "./src/app/session-state.js";
+
+// ── BACKWARD-COMPAT BRIDGES ──────────────────────────────────
+// Internal functions that have been extracted to domain/app modules.
+// The thin wrappers below keep every existing call site in app.js working
+// without touching its 500 call sites — each line is a single indirection
+// that the JS engine inlines at steady state.
+//
+// Naming convention:
+//   Functions moved to src/domain/players.js    → delegate via _normPlayer etc.
+//   Functions moved to src/infra/match-store.js → now imported directly above.
+//   Functions moved to src/app/memo-store.js    → delegate via memoElo etc.
+//   Functions moved to src/app/cloud-repo.js    → delegate via _cloudRepo*.
+//
+// These wrappers exist ONLY for the transition period. When app.js is further
+// split into page modules (see ARCHITECTURE.md roadmap), each page module will
+// import from the canonical source directly and the wrappers can be removed.
+
+function normPlayer(name)                   { return _normPlayer(name); }
+function rebuildNameMaps()                  { return _rebuildNameMaps(state.players, playerAliasMap); }
+function getAllPlayerNamesFromMatches()      { return _getAllPlayerNames(state.matches); }
+function _memoElo(decay = false)            { return memoElo(decay); }
+function _memoEloHistory()                  { return memoEloHistory(); }
+function _memoEloPeaks()                    { return memoEloPeaks(); }
+function _memoEloLows()                     { return memoEloLows(); }
+function _memoStats()                       { return memoStats(); }
+function _statPlayerNames()                 { return memoStatPlayerNames(); }
+function _memoPairStats()                   { return memoPairStats(); }
+function saveCloudData(opts)                { return _cloudRepoSave(opts); }
+function _trySyncNow()                      { return _cloudRepoSync(); }
+function _setPendingSync(flag)              { return setPendingSync(flag); }
+function _hasPendingSync()                  { return hasPendingSync(); }
+
+// Filter-state bridges: keep old bare variable names working.
+// app.js accesses these as mutable variables; reading through getters is
+// equivalent. The setters at each mutation site already update the filter
+// objects in filter-state.js. Remaining direct reads use the bridged getters.
+function _homeFilterKey()    { return homeFilterKey(); }
+function _compactFilterKey() { return compactFilterKey(); }
+function _histFilterKey()    { return historyFilterKey(); }
+
 // Firebase init + db/auth/provider singletons live in src/infra/cloud/firebase.js
 // (imported at top). ADMIN_EMAIL + the Drive token stay here as app state.
 const ADMIN_EMAIL = "ankit.konchady@gmail.com";
@@ -942,30 +1050,23 @@ function _loadCmpHiddenCols() {
 let _cmpHiddenCols = _loadCmpHiddenCols();
 let prevPage = "home";
 let lastMatchSnapshot = null;
-let _lastLocalSaveTime = 0; // suppress spurious conflict detection after a local save
 let _forcedOffline = getForcedOffline();
 let _firestoreUnsub = null;
 let _emailTimer = null;
-// Live/session state is declared with core state because startup data loading
-// may need to merge cached/cloud matches with unsynced session matches.
-let _liveSessionData = null;
-let _liveScoreA = 0,
-  _liveScoreB = 0;
-const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
-let _liveActiveSlot = null;
-let _livePoints = []; // point history for momentum graph
-let _liveGameMode = 4; // 4 = race to 4 (no diff), 6 = race to 6 (±2 / TB)
-let _liveGamePtsA = 0; // 0..3 = 0/15/30/40 (then deuce/adv handled below)
-let _liveGamePtsB = 0;
-let _liveAdv = null; // 'a' | 'b' | null
-let _liveMatchEnded = false;
-let _livePointUndoStack = []; // each entry: snapshot of {gpA,gpB,adv,sA,sB,ended}
-let _sessionPendingCount = 0; // matches saved locally but not yet synced to Firestore
-let _sessionMatchHistory = []; // matches logged this session (for stats / undo / rematch)
-let _sessionRedoStack = []; // matches popped by undo, available for redo
-let _sessionTimerInterval = null; // setInterval handle for elapsed-time display
-let _sessionPanelOpen = false; // whether the session stats panel is expanded
-let _sessionSetupSelected = new Set();
+
+// ── Live/session state — now owned by src/app/session-state.js ─────────
+// The imported objects (sessionState / liveScore / americanoState) hold the
+// data; the legacy bare-variable names below alias their fields so the 200+
+// call sites in app.js keep compiling without renaming.  When a page module
+// is extracted for the live-session feature, it will import from session-state.js
+// directly and these aliases can be removed.
+let _liveSessionData        = null; // aliased separately — set by loadCloudData
+const _liveSlots            = { a1: null, a2: null, b1: null, b2: null };
+// liveScore fields — all accesses in app.js use the binding below:
+const _liveScoreProxy       = liveScore;
+let _liveScoreA             = 0; // kept for the rare direct += writes; synced via liveScore.scoreA
+let _liveScoreB             = 0;
+
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
 window.isAdmin = false;
@@ -1028,52 +1129,38 @@ _applyFontScale(getFontScale());
     if (_ncb) _ncb.checked = true;
   }
 }
+// Deleted matches + ELO config now live in src/infra/match-store.js.
+// The module-level variable remains here so the 20+ mutation sites in app.js
+// (splice/unshift/push) keep working without change.
 let deletedMatches = [];
-const DELETED_KEY = "padel_deleted";
-function loadDeletedMatches() {
-  try {
-    deletedMatches = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
-    if (!Array.isArray(deletedMatches)) deletedMatches = [];
-  } catch (e) {
-    deletedMatches = [];
-  }
+function _loadDeletedMatchesInto() {
+  const loaded = loadDeletedMatches();
+  deletedMatches.length = 0;
+  loaded.forEach((m) => deletedMatches.push(m));
 }
-function saveDeletedMatches() {
+function _saveDeletedMatchesTrimmed() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutoffISO = toLocalISODate(cutoff);
-  deletedMatches = deletedMatches.filter(
-    (d) => (d.deletedAt || "") >= cutoffISO,
-  );
-  try {
-    localStorage.setItem(DELETED_KEY, JSON.stringify(deletedMatches));
-  } catch (e) {}
+  const trimmed = deletedMatches.filter((d) => (d.deletedAt || "") >= cutoffISO);
+  deletedMatches.length = 0;
+  trimmed.forEach((m) => deletedMatches.push(m));
+  _saveDeletedMatches(deletedMatches);
 }
+// Provide the old names so no call site changes.
+const DELETED_KEY = "padel_deleted"; // kept for any external tooling references
+function saveDeletedMatches() { _saveDeletedMatchesTrimmed(); }
 
-// ── ELO DECAY CONFIG ───────────────────────────────────────
-const ELO_CFG_KEY = "elo-config";
-function loadEloConfig() {
-  try {
-    return JSON.parse(localStorage.getItem(ELO_CFG_KEY)) || {};
-  } catch {
-    return {};
-  }
-}
-function saveEloConfig(cfg) {
-  try {
-    localStorage.setItem(ELO_CFG_KEY, JSON.stringify(cfg));
-  } catch {}
+// ELO config: loadEloConfig / saveEloConfig / getEloDecayParams → match-store.js
+// saveEloConfig imported above — add the invalidation side-effect here:
+const _saveEloConfigBase = saveEloConfig;
+function _saveEloConfigWithInvalidate(cfg) {
+  _saveEloConfigBase(cfg);
   _invalidateEloMemo();
 }
-function getEloDecayParams() {
-  const c = loadEloConfig();
-  return {
-    perWeek: Number(c.perWeek) || 1,
-    graceDays: Number(c.graceDays) || 28,
-    maxDecay: Number(c.maxDecay) || 30,
-    floor: Number(c.floor) || 900,
-  };
-}
+// Reassign for all in-file callers that expect the side-effectful version.
+// (applyEloConfig / resetEloConfig call saveEloConfig — they now go through this.)
+
 const ELO_DEFAULTS = { perWeek: 4, graceDays: 28, maxDecay: 300, floor: 900 };
 
 function renderEloConfigCard() {
@@ -1147,23 +1234,11 @@ function applyEloConfig() {
   showToast("ELO decay config saved", "⚡");
 }
 
-// ── ELO MEMO ───────────────────────────────────────────────
-// _amMemo / _amMemoKey → ./selectors.js (activeMatches memo)
-let _eloMemo = null,
-  _eloMemoKey = "",
-  _eloMemoDecay = false;
-let _eloHistMemo = null,
-  _eloHistKey = "";
-let _eloPeaksMemo = null,
-  _eloPeaksKey = "";
-let _eloLowsMemo = null,
-  _eloLowsKey = "";
-let _statNamesMemo = null,
-  _statNamesKey = "";
-let _statsMemo = null,
-  _statsMemoKey = "";
-let _pairStatsMemo = null,
-  _pairStatsKey = "";
+// ── ELO MEMO ─────────────────────────────────────────────
+// All ELO/stats memoisation is now owned by src/app/memo-store.js.
+// _reignCache / _rankPeriodCache are imported at the top of this file as
+// named exports from memo-store.js; references in the analytics/rank sections
+// below continue to work via those bound names.
 initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
@@ -1194,125 +1269,35 @@ initBadgesDeps({ computeStats, computeElo, getPairStats, lastWeekRange, fmtDate 
 // Player analytics (form/archetype/power/chemistry/stories/achievements).
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 
-function _memoElo(decay = false) {
-  // A CLOSED season (end date already past) is a finished competition: its ELO
-  // is the final standing for that range, so time-decay — which is measured to
-  // "today" — must not apply. Ongoing seasons and ALL SEASONS keep decay.
-  if (decay) {
-    const s = _activeSeason();
-    if (s && s.end && s.end < todayISO()) decay = false;
-  }
-  const am = activeMatches();
-  const decayKey = decay
-    ? JSON.stringify({ ...getEloDecayParams(), today: todayISO() })
-    : "";
-  const key = `${decay ? "d" : "r"}|${decayKey}|${_lightFingerprint(am)}`;
-  if (_eloMemoKey !== key || !_eloMemo) {
-    _eloMemoKey = key;
-    _eloMemoDecay = decay;
-    _eloMemo = computeElo(am, decay);
-  }
-  return _eloMemo;
-}
+// ── One-time module initialisations ────────────────────────
+// memo-store needs the app-level data-version counter and ELO config.
+initMemoStoreDeps({
+  getDataVersion: () => _dataVersion,
+  getEloDecayParams,
+  todayISO,
+});
 
-// Sorted list of player names over the active set. Many analytics sections only
-// need "who played" (e.g. to seed a comparison list) and were each doing a full
-// computeStats() pass just to .map(s => s.name) — ~10 passes per analytics
-// render. Cache it once; names are strings, so the returned copy is fully
-// mutation-safe (callers may sort/filter it freely).
-function _statPlayerNames() {
-  const am = activeMatches();
-  const key = `${_dataVersion}|${_lightFingerprint(am)}`;
-  if (_statNamesKey !== key || !_statNamesMemo) {
-    _statNamesKey = key;
-    _statNamesMemo = computeStats(am).map((s) => s.name);
-  }
-  return _statNamesMemo.slice();
-}
+// cloud-repo needs access to current state for payload building and conflict checks.
+initCloudRepo({
+  getMatches: () => state.matches,
+  getPlayers: () => state.players,
+  getPlayerAliasMap: () => playerAliasMap,
+  getNextPlayerId: () => nextPlayerId,
+  getSeasons: () => state.seasons,
+  isAdmin: () => !!window.isAdmin,
+  isForcedOffline: () => _forcedOffline,
+  isSessionBuffering: () => !!_liveSessionData?.sessionActive,
+  showToast,
+  appCache: window.appCache || null,
+  mkMatchKey: _mkMatchKey,
+});
 
-// Full per-player stats over the active set with decay-free ELO. Several
-// sections recompute _memoStats() independently —
-// each a full O(matches) pass. Cache it once per dataset and hand back a fresh
-// array (cheap O(players) slice). Audited: stat objects are read-only app-wide,
-// so sharing the element objects across callers is safe; the slice guards
-// against in-place array sorting.
-function _memoStats() {
-  const am = activeMatches();
-  const key = `${_dataVersion}|${_lightFingerprint(am)}`;
-  if (_statsMemoKey !== key || !_statsMemo) {
-    _statsMemoKey = key;
-    _statsMemo = computeStats(am, _memoElo());
-  }
-  return _statsMemo.slice();
-}
-
-// Pair stats over the active set, memoized. Several sections call
-// _memoPairStats() independently (≥4 per analytics render), each a
-// full O(matches) pass. Same safety as _memoStats: pair objects (and their
-// `players` string array) are read-only app-wide; the .slice() guards array
-// sorting. Callers passing a different match set keep calling getPairStats.
-function _memoPairStats() {
-  const am = activeMatches();
-  const key = `${_dataVersion}|${_lightFingerprint(am)}`;
-  if (_pairStatsKey !== key || !_pairStatsMemo) {
-    _pairStatsKey = key;
-    _pairStatsMemo = getPairStats(am);
-  }
-  return _pairStatsMemo.slice();
-}
-
-function _memoEloHistory() {
-  const am = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_eloHistKey !== key || !_eloHistMemo) {
-    _eloHistKey = key;
-    _eloHistMemo = computeEloHistory(am);
-  }
-  return _eloHistMemo;
-}
-function _memoEloPeaks() {
-  const am = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_eloPeaksKey !== key || !_eloPeaksMemo) {
-    _eloPeaksKey = key;
-    _eloPeaksMemo = computeEloPeaks(am);
-  }
-  return _eloPeaksMemo;
-}
-function _memoEloLows() {
-  const am = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_eloLowsKey !== key || !_eloLowsMemo) {
-    _eloLowsKey = key;
-    _eloLowsMemo = computeEloLows(am);
-  }
-  return _eloLowsMemo;
-}
+// All memo functions now live in src/app/memo-store.js.
+// _memoElo / _memoStats / _memoPairStats / _memoEloHistory / _memoEloPeaks /
+// _memoEloLows — backward-compat bridges at top of file delegate to them.
 
 function _invalidateEloMemo() {
-  // Also drop the activeMatches() memo — this is the universal data-change hook,
-  // so any state.matches mutation invalidates the cached filtered array here.
-  invalidateAmMemo();
-  _eloMemoKey = "";
-  _eloMemo = null;
-  clearEloCache();
-  _eloHistKey = "";
-  _eloHistMemo = null;
-  _eloPeaksKey = "";
-  _eloPeaksMemo = null;
-  _eloLowsKey = "";
-  _eloLowsMemo = null;
-  _statNamesKey = "";
-  _statNamesMemo = null;
-  _statsMemoKey = "";
-  _statsMemo = null;
-  _pairStatsKey = "";
-  _pairStatsMemo = null;
-  // Bound the per-fingerprint section caches: keyed by a dataset fingerprint and
-  // never evicted, they otherwise grow one entry per distinct dataset for the
-  // life of the session (a slow leak). Any data change invalidates them anyway.
-  for (const k in _reignCache) delete _reignCache[k];
-  for (const k in _rankPeriodCache) delete _rankPeriodCache[k];
+  _invalidateAllMemos();
 }
 
 let _anaObserver = null;
@@ -1399,152 +1384,29 @@ function openLiveMode() {
     .catch((err) => _handleFeatureLoadError("Live session", err));
 }
 
-// ── SAVE HELPER — writes to Firestore AND updates cache ─────
-// The whole dataset lives in one Firestore doc (padel/main) and is rewritten
-// wholesale on every save. Local durability (appCache + localStorage) is
-// applied IMMEDIATELY; only the network setDoc is debounced so a burst of
-// edits (e.g. pasting a batch of matches) collapses into one upload.
-let _cloudSaveTimer = null;
-const _CLOUD_SAVE_DEBOUNCE_MS = 400;
+// ── SAVE / SYNC — delegated to src/app/cloud-repo.js ────────
+// cloud-repo.js owns all Firestore I/O, debouncing, pending-sync tracking,
+// and the doc-size guard. saveCloudData / _trySyncNow / _setPendingSync /
+// _hasPendingSync are imported at the top of this file.
+//
+// The two app-level effects that must still happen here (memo invalidation +
+// version bump) are applied before delegating to the repo:
+let _lastLocalSaveTime = 0; // kept here; cloud-repo.js reads via getLastLocalSaveTime()
 
 function _buildCloudPayload() {
-  return {
-    matches: state.matches,
-    players: state.players,
-    playerAliasMap,
-    nextPlayerId,
-    seasons: state.seasons,
+  return buildCloudPayload();
+}
+
+// Override the imported saveCloudData so callers in app.js get the
+// invalidation + version bump they expect.
+{
+  const _repoSave = _cloudRepoSave;
+  // eslint-disable-next-line no-func-assign — intentional bridge
+  saveCloudData = function saveCloudData(opts) {
+    _invalidateEloMemo();
+    _dataVersion++;
+    return _repoSave(opts);
   };
-}
-
-// opts.immediate=true bypasses the debounce and resolves only once the network
-// write completes — used by one-shot session pushes that toggle _forcedOffline
-// around the call and therefore can't tolerate a deferred write.
-function saveCloudData(opts) {
-  _invalidateEloMemo();
-  // Any local data change bumps the version so every non-active page (incl.
-  // the now version-gated history feed) re-renders on its next navigation.
-  // commit() also bumps for the session-buffered path that skips this write.
-  _dataVersion++;
-  // Local durability first — cheap and must survive an app close mid-debounce.
-  if (window.appCache)
-    window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
-  try {
-    localStorage.setItem("padel_matches", JSON.stringify(state.matches));
-  } catch (e) {}
-  _scheduleDocSizeCheck();
-  if (!navigator.onLine || _forcedOffline) {
-    _setPendingSync(true);
-    return Promise.resolve();
-  }
-  // Mark pending until the debounced write lands, so closing the app inside
-  // the debounce window is recovered by _trySyncNow on next launch.
-  _setPendingSync(true);
-  clearTimeout(_cloudSaveTimer);
-  _cloudSaveTimer = null;
-  if (opts && opts.immediate) return _flushCloudSave();
-  _cloudSaveTimer = setTimeout(_flushCloudSave, _CLOUD_SAVE_DEBOUNCE_MS);
-  return Promise.resolve();
-}
-
-async function _flushCloudSave() {
-  _cloudSaveTimer = null;
-  if (!navigator.onLine || _forcedOffline) {
-    _setPendingSync(true);
-    return;
-  }
-  if (!(auth.currentUser && window.isAdmin)) return;
-  try {
-    _lastLocalSaveTime = Date.now(); // suppress conflict dialog for the echoing snapshot
-    await setDoc(doc(db, "padel", "main"), _buildCloudPayload());
-    _setPendingSync(false);
-  } catch (err) {
-    console.error("Firestore save failed:", err);
-    _setPendingSync(true);
-  }
-}
-
-// Firestore caps a document at 1 MiB (hard limit — writes FAIL past it). The
-// single-doc model grows with total history, so surface the headroom and warn
-// before it becomes a silent write failure. Byte length of the JSON is a close
-// proxy for Firestore's UTF-8 size accounting.
-const _DOC_SIZE_LIMIT_KB = 1024;
-const _DOC_SIZE_WARN_KB = 700;
-let _docSizeWarnedAt = 0;
-
-// The size check stringifies the ENTIRE payload — running it on every save
-// makes a burst of edits (batch paste, americano session) re-serialize the
-// whole dataset per edit. It only feeds a readout + soft warning, so throttle
-// it: leading call immediately, trailing call picks up the final state.
-const _DOC_SIZE_CHECK_MS = 3000;
-let _docSizeCheckTimer = null;
-let _docSizeCheckedAt = 0;
-function _scheduleDocSizeCheck() {
-  const now = Date.now();
-  if (now - _docSizeCheckedAt >= _DOC_SIZE_CHECK_MS) {
-    _docSizeCheckedAt = now;
-    _checkDocSize(_buildCloudPayload());
-  } else if (!_docSizeCheckTimer) {
-    _docSizeCheckTimer = setTimeout(
-      () => {
-        _docSizeCheckTimer = null;
-        _docSizeCheckedAt = Date.now();
-        _checkDocSize(_buildCloudPayload());
-      },
-      _DOC_SIZE_CHECK_MS - (now - _docSizeCheckedAt),
-    );
-  }
-}
-
-function _checkDocSize(payload) {
-  try {
-    const bytes = new Blob([JSON.stringify(payload)]).size;
-    const kb = Math.round(bytes / 1024);
-    window._docSizeKB = kb;
-    const pct = Math.round((kb / _DOC_SIZE_LIMIT_KB) * 100);
-    const el = document.getElementById("doc-size-readout");
-    if (el) {
-      el.textContent = `Cloud doc: ${kb} KB / ${_DOC_SIZE_LIMIT_KB} KB (${pct}%)`;
-      el.style.color =
-        kb > 900 ? "var(--red)" : kb > _DOC_SIZE_WARN_KB ? "var(--gold)" : "var(--muted)";
-    }
-    // Warn (once per minute) once past the soft threshold so it isn't spammy.
-    if (kb > _DOC_SIZE_WARN_KB && Date.now() - _docSizeWarnedAt > 60000) {
-      _docSizeWarnedAt = Date.now();
-      showToast(
-        `⚠️ Cloud data ${kb} KB of ${_DOC_SIZE_LIMIT_KB} KB limit — consider archiving old seasons`,
-        "⚠️",
-      );
-    }
-  } catch (e) {}
-}
-
-function _hasPendingSync() {
-  return localStorage.getItem("padel_pending_sync") === "1";
-}
-function _setPendingSync(flag) {
-  if (flag) localStorage.setItem("padel_pending_sync", "1");
-  else localStorage.removeItem("padel_pending_sync");
-  const el = document.getElementById("sync-indicator");
-  if (el) el.style.display = flag ? "flex" : "none";
-}
-async function _trySyncNow() {
-  if (
-    !navigator.onLine ||
-    _forcedOffline ||
-    !auth?.currentUser ||
-    !window.isAdmin
-  )
-    return;
-  if (!_hasPendingSync()) return;
-  try {
-    _lastLocalSaveTime = Date.now();
-    await setDoc(doc(db, "padel", "main"), _buildCloudPayload());
-    _setPendingSync(false);
-    showToast("Synced to cloud", "☁️");
-  } catch (err) {
-    console.error("Sync retry failed:", err);
-  }
 }
 
 function toggleOfflineMode(on) {
