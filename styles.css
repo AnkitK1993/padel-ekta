@@ -18084,3 +18084,418 @@ body.battery-saver .ui-spinner-ring {
 
 
 
+
+/* ── Badge / chip ── */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.ui-badge-neutral {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--muted, #8b8b9a);
+}
+.ui-badge-theme {
+  background: rgba(var(--theme-rgb), 0.14);
+  border-color: rgba(var(--theme-rgb), 0.35);
+  color: var(--theme);
+}
+.ui-badge-success {
+  background: rgba(54, 212, 126, 0.12);
+  border-color: rgba(54, 212, 126, 0.35);
+  color: #36d47e;
+}
+.ui-badge-warning {
+  background: rgba(245, 200, 66, 0.12);
+  border-color: rgba(245, 200, 66, 0.35);
+  color: #f5c842;
+}
+.ui-badge-danger {
+  background: rgba(255, 59, 71, 0.12);
+  border-color: rgba(255, 59, 71, 0.35);
+  color: #ff6b72;
+}
+/* Interactive chip (real button): touch target + pressed state. */
+button.ui-badge-chip {
+  cursor: pointer;
+  min-height: 30px;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+button.ui-badge-chip:focus-visible {
+  outline: 2px solid var(--theme);
+  outline-offset: 2px;
+}
+.ui-badge-on {
+  background: rgba(var(--theme-rgb), 0.22);
+  border-color: var(--theme);
+  color: var(--theme);
+}
+
+/* ── Avatar ── */
+.ui-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 800;
+  flex: none;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+}
+.ui-avatar-sm { width: 24px; height: 24px; font-size: 9px; }
+.ui-avatar-md { width: 34px; height: 34px; font-size: 12px; }
+.ui-avatar-lg { width: 48px; height: 48px; font-size: 16px; }
+
+/* ── Card ── */
+.ui-card {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.035),
+    rgba(255, 255, 255, 0.015)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.ui-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+.ui-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text, #e7e7ef);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.ui-card-action {
+  margin-left: auto;
+  flex: none;
+}
+.ui-card-flush .ui-card-body {
+  margin: 0 -14px -14px;
+}
+
+/* ── Stat tiles ── */
+.ui-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ui-stat {
+  flex: 1 1 0;
+  min-width: 64px;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.ui-stat-val {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text, #e7e7ef);
+  font-variant-numeric: tabular-nums;
+}
+.ui-stat-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #8b8b9a);
+  margin-top: 2px;
+}
+/* Tone modifiers (shared by stat values + progress fills) */
+.ui-tone-success { color: #36d47e; }
+.ui-tone-warning { color: #f5c842; }
+.ui-tone-danger  { color: #ff6b72; }
+.ui-tone-theme   { color: var(--theme); }
+.ui-tone-bg-theme   { background: var(--theme); }
+.ui-tone-bg-success { background: #36d47e; }
+.ui-tone-bg-warning { background: #f5c842; }
+.ui-tone-bg-danger  { background: #ff6b72; }
+.ui-tone-bg-neutral { background: rgba(255, 255, 255, 0.35); }
+
+/* ── Progress bar ── */
+.ui-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.ui-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.ui-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.ui-progress-txt {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #8b8b9a);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* ── Segmented control ── */
+.ui-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ui-seg::-webkit-scrollbar { display: none; }
+.ui-seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted, #8b8b9a);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 7px 12px;
+  min-height: 34px;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ui-seg-btn:focus-visible {
+  outline: 2px solid var(--theme);
+  outline-offset: -2px;
+}
+.ui-seg-on {
+  background: rgba(var(--theme-rgb), 0.18);
+  color: var(--theme);
+}
+.ui-seg-sm .ui-seg-btn {
+  min-height: 28px;
+  padding: 5px 10px;
+  font-size: 10px;
+}
+
+/* ── Form field ── */
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.ui-field-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #8b8b9a);
+}
+.ui-field-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text, #e7e7ef);
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s ease;
+}
+.ui-field-input:focus-visible {
+  outline: none;
+  border-color: var(--theme);
+}
+.ui-field-input::placeholder {
+  color: var(--muted, #8b8b9a);
+  opacity: 0.6;
+}
+.ui-field-input-err {
+  border-color: rgba(255, 59, 71, 0.6);
+}
+.ui-field-hint {
+  font-size: 10px;
+  color: var(--muted, #8b8b9a);
+  line-height: 1.4;
+}
+.ui-field-error {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ff6b72;
+  line-height: 1.4;
+}
+
+/* ── Toggle switch ── */
+.ui-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-toggle-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ui-toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #e7e7ef);
+}
+.ui-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.ui-toggle-track {
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 26px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.18s ease;
+  flex: none;
+}
+.ui-toggle-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s ease;
+}
+.ui-toggle input:checked + .ui-toggle-track {
+  background: rgba(var(--theme-rgb), 0.55);
+  border-color: rgba(var(--theme-rgb), 0.7);
+}
+.ui-toggle input:checked + .ui-toggle-track .ui-toggle-thumb {
+  transform: translateX(18px);
+}
+.ui-toggle input:focus-visible + .ui-toggle-track {
+  outline: 2px solid var(--theme);
+  outline-offset: 2px;
+}
+
+/* ── Bottom sheet ── */
+.ui-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.ui-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+.ui-sheet-panel {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 86dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2, #15151f);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: none;
+  border-radius: 22px 22px 0 0;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  animation: ui-sheet-up 0.22s ease;
+}
+@keyframes ui-sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.ui-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex: none;
+}
+.ui-sheet-title {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text, #e7e7ef);
+  margin: 0;
+}
+.ui-sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+.ui-sheet-foot {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+/* Wider screens: float the sheet as a centered dialog instead. */
+@media (min-width: 700px) {
+  .ui-sheet { align-items: center; padding: 24px; }
+  .ui-sheet-panel {
+    border-radius: 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    max-height: 80vh;
+  }
+}
+
+/* Motion safety for the new primitives. */
+body.no-anim .ui-sheet-panel,
+body.battery-saver .ui-sheet-panel {
+  animation: none;
+}
+body.no-anim .ui-progress-fill,
+body.battery-saver .ui-progress-fill,
+body.no-anim .ui-toggle-thumb,
+body.battery-saver .ui-toggle-thumb {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-sheet-panel { animation: none; }
+  .ui-progress-fill,
+  .ui-toggle-thumb { transition: none; }
+}
