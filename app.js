@@ -217,12 +217,8 @@ import {
   loadEloConfig,
   saveEloConfig,
   getEloDecayParams,
-  getMilestoneLog,
-  saveMilestoneEntry,
   loadSeasonsLocal,
   saveSeasonsLocal,
-  getWeeklySnaps,
-  saveWeeklySnap,
   loadPhotosLocal,
   savePhotosLocal,
 } from "./src/infra/match-store.js";
