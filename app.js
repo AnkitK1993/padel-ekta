@@ -52,6 +52,9 @@ import {
   emptyState,
   loadingState,
   errorState,
+  badge,
+  statRow,
+  progressBar,
 } from "./src/ui/components.js";
 import {
   getAnimLevelRaw,
@@ -4523,14 +4526,24 @@ function renderHome() {
     const mEld = monthlyEloDeltaMap[p.name];
     const eldHtml =
       mEld !== null && mEld !== undefined
-        ? `<span class="s5-elo ${mEld > 0 ? "s5-pos" : mEld < 0 ? "s5-neg" : "s5-neu"}" title="ELO change (30 days)">${mEld > 0 ? "▲" : mEld < 0 ? "▼" : "–"}${Math.abs(mEld)}</span>`
+        ? badge({
+            label: `${mEld > 0 ? "▲" : mEld < 0 ? "▼" : "–"}${Math.abs(mEld)}`,
+            tone: mEld > 0 ? "success" : mEld < 0 ? "danger" : "neutral",
+          })
         : eld !== null && eld !== undefined
-          ? `<span class="s5-elo ${eld > 0 ? "s5-pos" : eld < 0 ? "s5-neg" : "s5-neu"}">${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}</span>`
+          ? badge({
+              label: `${eld > 0 ? "▲" : eld < 0 ? "▼" : ""}${eld > 0 ? "+" : ""}${eld}`,
+              tone: eld > 0 ? "success" : eld < 0 ? "danger" : "neutral",
+            })
           : "";
-    // Enhancement 1: streak chip
+    // streak chip
     const streakChip =
       p.curStreak > 0
-        ? `<span class="card-streak-chip ${p.curType === "W" ? "csc-w" : "csc-l"}">${p.curType === "W" ? "🔥" : "❄️"}${p.curStreak}${p.curType}</span>`
+        ? badge({
+            label: `${p.curStreak}${p.curType}`,
+            icon: p.curType === "W" ? "🔥" : "❄️",
+            tone: p.curType === "W" ? "success" : "warning",
+          })
         : "";
     const hasRowData = sparklineSvg || last5DotsHtml || eldHtml;
     const sparklineHtml = hasRowData
@@ -4543,11 +4556,21 @@ function renderHome() {
       ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
       : "";
 
+    // Component-system primitives shared by both card variants
+    const srBar = progressBar({ value: p.sr, max: maxSR, label: `SR score: ${p.sr.toFixed(2)}` });
+    const statsRow = statRow([
+      { value: p.mp, label: "Played" },
+      { value: `${p.mw}W–${p.ml}L`, label: "Record", tone: p.mw > p.ml ? "success" : p.mw < p.ml ? "danger" : "neutral" },
+      { value: `${p.winPct.toFixed(0)}%`, label: "Win %" },
+      { value: `${p.gw}–${p.gl} ${ds}`, label: "G Diff", tone: p.diff > 0 ? "success" : p.diff < 0 ? "danger" : "neutral" },
+      { value: `${p.gamePct.toFixed(0)}%`, label: "G%", tone: p.gamePct >= 50 ? "success" : "danger" },
+    ]);
+
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div><div class="bar-track"><div class="bar-fill" style="width:${bw}%"></div></div><div class="row3"><div class="cs"><div class="cv">${p.mp}</div><div class="cl">Played</div></div><div class="cs"><div class="cv ${mc}">${p.mw}W–${p.ml}L</div><div class="cl">Record</div></div><div class="cs"><div class="cv">${p.winPct.toFixed(0)}%</div><div class="cl">Win %</div></div><div class="cs"><div class="cv">${p.gw}–${p.gl}<span class="cv-diff ${dc}"> ${ds}</span></div><div class="cl">G Diff</div></div><div class="cs"><div class="cv ${gc}">${p.gamePct.toFixed(0)}%</div><div class="cl">G%</div></div></div>${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
   });
 
   _renderSessionActiveCard();
