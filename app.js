@@ -1426,14 +1426,13 @@ function saveCloudData(opts) {
   // the now version-gated history feed) re-renders on its next navigation.
   // commit() also bumps for the session-buffered path that skips this write.
   _dataVersion++;
-  const payload = _buildCloudPayload();
   // Local durability first — cheap and must survive an app close mid-debounce.
   if (window.appCache)
     window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
   try {
     localStorage.setItem("padel_matches", JSON.stringify(state.matches));
   } catch (e) {}
-  _checkDocSize(payload);
+  _scheduleDocSizeCheck();
   if (!navigator.onLine || _forcedOffline) {
     _setPendingSync(true);
     return Promise.resolve();
@@ -1472,6 +1471,31 @@ async function _flushCloudSave() {
 const _DOC_SIZE_LIMIT_KB = 1024;
 const _DOC_SIZE_WARN_KB = 700;
 let _docSizeWarnedAt = 0;
+
+// The size check stringifies the ENTIRE payload — running it on every save
+// makes a burst of edits (batch paste, americano session) re-serialize the
+// whole dataset per edit. It only feeds a readout + soft warning, so throttle
+// it: leading call immediately, trailing call picks up the final state.
+const _DOC_SIZE_CHECK_MS = 3000;
+let _docSizeCheckTimer = null;
+let _docSizeCheckedAt = 0;
+function _scheduleDocSizeCheck() {
+  const now = Date.now();
+  if (now - _docSizeCheckedAt >= _DOC_SIZE_CHECK_MS) {
+    _docSizeCheckedAt = now;
+    _checkDocSize(_buildCloudPayload());
+  } else if (!_docSizeCheckTimer) {
+    _docSizeCheckTimer = setTimeout(
+      () => {
+        _docSizeCheckTimer = null;
+        _docSizeCheckedAt = Date.now();
+        _checkDocSize(_buildCloudPayload());
+      },
+      _DOC_SIZE_CHECK_MS - (now - _docSizeCheckedAt),
+    );
+  }
+}
+
 function _checkDocSize(payload) {
   try {
     const bytes = new Blob([JSON.stringify(payload)]).size;
@@ -5541,11 +5565,11 @@ function renderModernMatches() {
     });
   }
   // Player filter
+  const histPlayerLower = histPlayerFilter.toLowerCase();
   if (histPlayerFilter) {
     matches = matches.filter((m) =>
       [...m.teamA, ...m.teamB].some(
-        (p) =>
-          (state.nameMap[p] || p).toLowerCase() === histPlayerFilter.toLowerCase(),
+        (p) => (state.nameMap[p] || p).toLowerCase() === histPlayerLower,
       ),
     );
   }
@@ -5553,8 +5577,7 @@ function renderModernMatches() {
   if (histOutcomeFilter !== "all" && histPlayerFilter) {
     matches = matches.filter((m) => {
       const inA = m.teamA.some(
-        (p) =>
-          (state.nameMap[p] || p).toLowerCase() === histPlayerFilter.toLowerCase(),
+        (p) => (state.nameMap[p] || p).toLowerCase() === histPlayerLower,
       );
       const aWon = m.scoreA > m.scoreB;
       const playerWon = inA ? aWon : !aWon;
@@ -6470,8 +6493,25 @@ function renderAddMatches() {
   const query = (
     document.getElementById("add-match-search")?.value || ""
   ).toLowerCase();
+  // Field-based search (names/score/date/note) — same semantics as the History
+  // search. The old JSON.stringify(m) per match re-serialized the whole row on
+  // every keystroke and also matched JSON key names ("scoreA", "teamB"...).
   let matches = query
-    ? state.matches.filter((m) => JSON.stringify(m).toLowerCase().includes(query))
+    ? state.matches.filter((m) => {
+        const players = [...(m.teamA || []), ...(m.teamB || [])];
+        if (
+          players.some((p) => (state.nameMap[p] || p).toLowerCase().includes(query))
+        )
+          return true;
+        if (
+          `${m.scoreA}-${m.scoreB}`.includes(query) ||
+          `${m.scoreB}-${m.scoreA}`.includes(query)
+        )
+          return true;
+        if ((m.date || "").includes(query)) return true;
+        if ((m.note || "").toLowerCase().includes(query)) return true;
+        return false;
+      })
     : [...state.matches];
   const addList = document.getElementById("add-match-list");
   if (!addList) return;
@@ -10196,21 +10236,25 @@ function getMatrixAlias(name) {
 function _h2hSortPlayers(players) {
   if (!Array.isArray(players)) return [];
   const eloMap = _memoElo();
+  // One O(matches) pass for everyone's played/won counts — the old per-player
+  // scan was O(players × matches) and ran on every analytics render AND every
+  // sort-pill click.
   const matchCount = {};
+  const winsCount = {};
+  activeMatches().forEach((m) => {
+    const aWon = m.scoreA > m.scoreB;
+    (m.teamA || []).forEach((p) => {
+      matchCount[p] = (matchCount[p] || 0) + 1;
+      if (aWon) winsCount[p] = (winsCount[p] || 0) + 1;
+    });
+    (m.teamB || []).forEach((p) => {
+      matchCount[p] = (matchCount[p] || 0) + 1;
+      if (!aWon) winsCount[p] = (winsCount[p] || 0) + 1;
+    });
+  });
   const winPct = {};
   players.forEach((p) => {
-    let played = 0,
-      wins = 0;
-    activeMatches().forEach((m) => {
-      const inA = (m.teamA || []).includes(p);
-      const inB = (m.teamB || []).includes(p);
-      if (!inA && !inB) return;
-      played++;
-      const won = (inA && m.scoreA > m.scoreB) || (inB && m.scoreB > m.scoreA);
-      if (won) wins++;
-    });
-    matchCount[p] = played;
-    winPct[p] = played > 0 ? wins / played : 0;
+    winPct[p] = matchCount[p] > 0 ? (winsCount[p] || 0) / matchCount[p] : 0;
   });
   const sorted = [...players];
   if (viewState.h2hMatrixSort === "matches") {
