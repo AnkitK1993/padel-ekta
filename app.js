@@ -10351,15 +10351,10 @@ function _getPlayerWindowMatches(playerName, baseMatches, window) {
 
 function _cmpSetWindow(slot, mode) {
   const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
-  const countId = "cmpCount" + slot;
-  const count = Math.max(1, parseInt(document.getElementById(countId)?.value) || 10);
-  viewState[key] = mode === "all" ? null : { mode, count };
-  ["all", "first", "last"].forEach((m) => {
-    const btn = document.getElementById("cmpWin" + slot + m);
-    if (btn) btn.classList.toggle("active", m === mode);
-  });
-  const countEl = document.getElementById(countId);
-  if (countEl) countEl.style.display = mode === "all" ? "none" : "inline-block";
+  const prevCount = Math.max(1, parseInt(document.getElementById("cmpCount" + slot)?.value) || 10);
+  viewState[key] = mode === "all" ? null : { mode, count: prevCount };
+  const container = document.getElementById("cmpWinCtrl" + slot);
+  if (container) container.outerHTML = _cmpWindowCtrlHtml(slot);
 }
 
 function _cmpUpdateCount(slot, value) {
@@ -10373,15 +10368,14 @@ function _cmpWindowCtrlHtml(slot) {
   const w = slot === "A" ? viewState.cmpWindowA : viewState.cmpWindowB;
   const mode = w ? w.mode : "all";
   const count = w ? w.count : 10;
-  const hideCount = mode === "all" ? "display:none;" : "";
   const justify = slot === "B" ? "justify-content:flex-end;" : "";
-  return `<div style="display:flex;gap:3px;align-items:center;flex:1;${justify}">
-    <button id="cmpWin${slot}all" class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','all')" style="padding:2px 6px;font-size:9px">ALL</button>
-    <button id="cmpWin${slot}first" class="digest-filter-btn${mode === "first" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','first')" style="padding:2px 6px;font-size:9px">FIRST</button>
-    <button id="cmpWin${slot}last" class="digest-filter-btn${mode === "last" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','last')" style="padding:2px 6px;font-size:9px">LAST</button>
-    <input id="cmpCount${slot}" type="number" value="${count}" min="1" max="99"
-      style="${hideCount}width:34px;padding:2px 3px;font-size:9px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text);text-align:center"
-      onchange="_cmpUpdateCount('${slot}',this.value)">
+  return `<div id="cmpWinCtrl${slot}" style="display:flex;gap:3px;align-items:center;flex:1;${justify}">
+    <button class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','all')" style="padding:2px 6px;font-size:9px">ALL</button>
+    <button class="digest-filter-btn${mode === "first" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','first')" style="padding:2px 6px;font-size:9px">FIRST</button>
+    <button class="digest-filter-btn${mode === "last" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','last')" style="padding:2px 6px;font-size:9px">LAST</button>
+    ${mode !== "all" ? `<input id="cmpCount${slot}" type="number" value="${count}" min="1" max="99"
+      style="width:34px;padding:2px 3px;font-size:9px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text);text-align:center"
+      onchange="_cmpUpdateCount('${slot}',this.value)">` : ""}
   </div>`;
 }
 
