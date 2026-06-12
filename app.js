@@ -10345,8 +10345,8 @@ function _getPlayerWindowMatches(playerName, baseMatches, window) {
     window.mode === "first"
       ? playerMatches.slice(0, count)
       : playerMatches.slice(-count);
-  const ids = new Set(slice.map((m) => m.id));
-  return baseMatches.filter((m) => ids.has(m.id));
+  const matchSet = new Set(slice);
+  return baseMatches.filter((m) => matchSet.has(m));
 }
 
 function _cmpSetWindow(slot, mode) {
