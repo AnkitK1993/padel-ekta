@@ -17572,6 +17572,8 @@ Object.assign(window, {
   _updateEloProbSlots,
   openCmpSheet,
   _cmpSetDate,
+  _cmpSetWindow,
+  _cmpUpdateCount,
   _updateCmpSlots,
   toggleMngCard,
   toggleManageReorder,
