@@ -175,7 +175,7 @@ import {
   sortPlayersGuestsLast,
   normalizedScoreline,
   sameMatch,
-  getPlayerDateRange,
+  getPlayerDateRange as _getPlayerDateRange,
 } from "./src/domain/players.js";
 import {
   historyFilters,
@@ -258,15 +258,9 @@ function _memoEloLows()                     { return memoEloLows(); }
 function _memoStats()                       { return memoStats(); }
 function _statPlayerNames()                 { return memoStatPlayerNames(); }
 function _memoPairStats()                   { return memoPairStats(); }
-function saveCloudData(opts) {
-  // Stamp the local-save time at the choke point so EVERY mutation path
-  // (edits, deletes, renames — not just the add-match flows that stamp it
-  // explicitly) arms the 15 s conflict-suppression window in loadCloudData.
-  // Without this, a stale snapshot arriving right after a match edit shows a
-  // phantom sync-conflict dialog whose "Use Cloud" button reverts the edit.
-  _lastLocalSaveTime = Date.now();
-  return _cloudRepoSave(opts);
-}
+function saveCloudData(opts) { return _cloudRepoSave(opts); }
+// NOTE: saveCloudData is reassigned ~1150 lines below once _lastLocalSaveTime
+// and _invalidateEloMemo are available. That version is the one callers use.
 function _trySyncNow()                      { return _cloudRepoSync(); }
 function _setPendingSync(flag)              { return setPendingSync(flag); }
 function _hasPendingSync()                  { return hasPendingSync(); }
@@ -1418,6 +1412,7 @@ function _buildCloudPayload() {
   const _repoSave = _cloudRepoSave;
   // eslint-disable-next-line no-func-assign — intentional bridge
   saveCloudData = function saveCloudData(opts) {
+    _lastLocalSaveTime = Date.now(); // arm conflict-suppression window for ALL mutation paths
     _invalidateEloMemo();
     _dataVersion++;
     return _repoSave(opts);
