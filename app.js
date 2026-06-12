@@ -10598,10 +10598,14 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
         </div>
         <div class="cmp-rows">
           ${row("Matches", sA.mp, sB.mp)}
+          ${row("Wins", sA.mw, sB.mw)}
+          ${row("Losses", sA.mp - sA.mw, sB.mp - sB.mw, false)}
           ${row("Win %", sA.winPct.toFixed(0) + "%", sB.winPct.toFixed(0) + "%")}
+          ${row("Games Won", sA.gw, sB.gw)}
+          ${row("Games Lost", sA.gl, sB.gl, false)}
+          ${row("Game %", sA.gamePct.toFixed(0) + "%", sB.gamePct.toFixed(0) + "%")}
           ${row("Skill Rating", sA.sr.toFixed(2), sB.sr.toFixed(2))}
           ${row("ELO", eloMapA[nameA] || 1000, eloMapB[nameB] || 1000)}
-          ${row("Game %", sA.gamePct.toFixed(0) + "%", sB.gamePct.toFixed(0) + "%")}
           ${row("Best Streak", sA.bestWinStreak + "W", sB.bestWinStreak + "W")}
           ${row("Avg Margin", (sA.avgMargin >= 0 ? "+" : "") + sA.avgMargin.toFixed(1), (sB.avgMargin >= 0 ? "+" : "") + sB.avgMargin.toFixed(1))}
           ${sA.consistency !== null && sB.consistency !== null ? row("Consistency ±", sA.consistency, sB.consistency, false) : ""}
