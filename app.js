@@ -1027,6 +1027,7 @@ let homeFilter = "all",
 let cmpFilter = "today",
   cmpFrom = null,
   cmpTo = null;
+let _lbWindow = null; // { mode:"first"|"last", count:N } or null — per-player game window
 let cmpSortKey = "sr";
 let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
@@ -4540,6 +4541,55 @@ function renderHome() {
 
 // animateSrVal -> ./render-anim.js
 
+// ── LEADERBOARD GAME-WINDOW HELPERS ────────────────────────
+function _computeLbWindowStats(baseMatches) {
+  const playerNames = new Set();
+  baseMatches.forEach((m) => {
+    (m.teamA || []).forEach((p) => playerNames.add(p));
+    (m.teamB || []).forEach((p) => playerNames.add(p));
+  });
+  const statsList = [];
+  const eloMap = {};
+  for (const playerName of playerNames) {
+    const pm = _getPlayerWindowMatches(playerName, baseMatches, _lbWindow);
+    const pEloMap = computeElo(pm);
+    const pStats = computeStats(pm, pEloMap);
+    const ps = pStats.find((s) => s.name === playerName);
+    if (ps) {
+      statsList.push(ps);
+      eloMap[playerName] = pEloMap[playerName];
+    }
+  }
+  return { stats: statsList, eloMap };
+}
+
+function _renderLbWindowBar() {
+  const bar = document.getElementById("lbWindowBar");
+  if (!bar) return;
+  const mode = _lbWindow ? _lbWindow.mode : "all";
+  const count = _lbWindow ? _lbWindow.count : 10;
+  const chip = mode !== "all"
+    ? `<button class="cmp-count-chip" style="margin-left:2px" onclick="_lbSetWindow('${mode}')">${count}</button>`
+    : "";
+  bar.innerHTML = `<div style="display:flex;gap:4px;align-items:center;padding:4px 12px 6px">
+    <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.1em;flex-shrink:0">GAMES</span>
+    <button class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_lbSetWindow('all')" style="padding:2px 7px;font-size:9px">ALL</button>
+    <button class="digest-filter-btn${mode === "first" ? " active" : ""}" onclick="_lbSetWindow('first')" style="padding:2px 7px;font-size:9px">FIRST</button>
+    <button class="digest-filter-btn${mode === "last" ? " active" : ""}" onclick="_lbSetWindow('last')" style="padding:2px 7px;font-size:9px">LAST</button>
+    ${chip}
+  </div>`;
+}
+
+function _lbSetWindow(mode) {
+  if (mode === "all") {
+    _lbWindow = null;
+    _renderLbWindowBar();
+    renderCompact();
+  } else {
+    _cmpCountPickerOpen("lb", mode);
+  }
+}
+
 // ── RENDER COMPACT ─────────────────────────────────────────
 // _sweepNeedle -> ./render-anim.js
 
@@ -4547,7 +4597,7 @@ function renderHome() {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}`;
   _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
@@ -4588,9 +4638,17 @@ function renderCompact() {
       _cmpDateLbl.textContent =
         _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
   }
+  _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const _cmpEloMap = computeElo(filtered);
-  const stats = computeStats(filtered, _cmpEloMap);
+  let _cmpEloMap, stats;
+  if (_lbWindow) {
+    const r = _computeLbWindowStats(filtered);
+    _cmpEloMap = r.eloMap;
+    stats = r.stats;
+  } else {
+    _cmpEloMap = computeElo(filtered);
+    stats = computeStats(filtered, _cmpEloMap);
+  }
   const sortFns = {
     name: (a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -4649,8 +4707,11 @@ function renderCompact() {
     range: "Custom Range",
     day: "Selected Day",
   };
+  const _lbWinLabel = _lbWindow
+    ? ` &nbsp;·&nbsp; ${_lbWindow.mode === "first" ? "FIRST" : "LAST"} <strong>${_lbWindow.count}</strong> per player`
+    : "";
   document.getElementById("cmpMeta").innerHTML =
-    `<strong>${stats.length}</strong> players &nbsp;·&nbsp; <strong>${filtered.length}</strong> matches &nbsp;·&nbsp; ${fname[cmpFilter]}`;
+    `<strong>${stats.length}</strong> players &nbsp;·&nbsp; <strong>${filtered.length}</strong> matches &nbsp;·&nbsp; ${fname[cmpFilter]}${_lbWinLabel}`;
   const tbody = document.getElementById("cmpBody");
   if (!sorted.length) {
     _cmpLeaderHtmls = [];
@@ -10356,10 +10417,19 @@ let _cmpPickerCount = 10;
 function _cmpCountPickerOpen(slot, mode) {
   _cmpPickerSlot = slot;
   _cmpPickerMode = mode;
-  const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
-  _cmpPickerCount = viewState[key]?.count || 10;
+  if (slot === "lb") {
+    _cmpPickerCount = _lbWindow?.count || 10;
+  } else {
+    const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
+    _cmpPickerCount = viewState[key]?.count || 10;
+  }
   const title = document.getElementById("cmp-count-title");
-  if (title) title.textContent = `${mode === "first" ? "FIRST" : "LAST"} GAMES — P${slot}`;
+  if (title) {
+    const modeLabel = mode === "first" ? "FIRST" : "LAST";
+    title.textContent = slot === "lb"
+      ? `${modeLabel} GAMES — LEADERBOARD`
+      : `${modeLabel} GAMES — P${slot}`;
+  }
   const numEl = document.getElementById("cmp-count-num");
   if (numEl) numEl.textContent = _cmpPickerCount;
   document.getElementById("cmp-count-overlay")?.classList.add("live-sheet-open");
@@ -10379,11 +10449,18 @@ function _cmpCountStep(delta) {
 
 function _cmpCountApply() {
   if (!_cmpPickerSlot || !_cmpPickerMode) return;
-  const key = _cmpPickerSlot === "A" ? "cmpWindowA" : "cmpWindowB";
-  viewState[key] = { mode: _cmpPickerMode, count: _cmpPickerCount };
-  _cmpCountPickerClose();
-  const container = document.getElementById("cmpWinCtrl" + _cmpPickerSlot);
-  if (container) container.outerHTML = _cmpWindowCtrlHtml(_cmpPickerSlot);
+  if (_cmpPickerSlot === "lb") {
+    _lbWindow = { mode: _cmpPickerMode, count: _cmpPickerCount };
+    _cmpCountPickerClose();
+    _renderLbWindowBar();
+    renderCompact();
+  } else {
+    const key = _cmpPickerSlot === "A" ? "cmpWindowA" : "cmpWindowB";
+    viewState[key] = { mode: _cmpPickerMode, count: _cmpPickerCount };
+    _cmpCountPickerClose();
+    const container = document.getElementById("cmpWinCtrl" + _cmpPickerSlot);
+    if (container) container.outerHTML = _cmpWindowCtrlHtml(_cmpPickerSlot);
+  }
 }
 
 function _cmpSetWindow(slot, mode) {
@@ -17574,6 +17651,7 @@ Object.assign(window, {
   _pillPointerDown,
   setHistoryDateFilter,
   histJumpToDate,
+  _lbSetWindow,
   openPlayerCompare,
   renderCompareSelector,
   triggerCompare,
