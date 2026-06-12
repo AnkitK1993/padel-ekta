@@ -10333,6 +10333,57 @@ const CMP_DATE_OPTS = [
   { v: "month", l: "THIS MONTH" },
 ];
 
+// Returns baseMatches filtered to a player's first or last N games.
+// window = null means "use all base matches unchanged".
+function _getPlayerWindowMatches(playerName, baseMatches, window) {
+  if (!window || window.mode === "all") return baseMatches;
+  const playerMatches = baseMatches
+    .filter((m) => (m.teamA || []).includes(playerName) || (m.teamB || []).includes(playerName))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const count = Math.max(1, window.count || 10);
+  const slice =
+    window.mode === "first"
+      ? playerMatches.slice(0, count)
+      : playerMatches.slice(-count);
+  const ids = new Set(slice.map((m) => m.id));
+  return baseMatches.filter((m) => ids.has(m.id));
+}
+
+function _cmpSetWindow(slot, mode) {
+  const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
+  const countId = "cmpCount" + slot;
+  const count = Math.max(1, parseInt(document.getElementById(countId)?.value) || 10);
+  viewState[key] = mode === "all" ? null : { mode, count };
+  ["all", "first", "last"].forEach((m) => {
+    const btn = document.getElementById("cmpWin" + slot + m);
+    if (btn) btn.classList.toggle("active", m === mode);
+  });
+  const countEl = document.getElementById(countId);
+  if (countEl) countEl.style.display = mode === "all" ? "none" : "inline-block";
+}
+
+function _cmpUpdateCount(slot, value) {
+  const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
+  const count = Math.max(1, parseInt(value) || 10);
+  if (viewState[key] && viewState[key].mode !== "all") viewState[key].count = count;
+}
+
+
+function _cmpWindowCtrlHtml(slot) {
+  const w = slot === "A" ? viewState.cmpWindowA : viewState.cmpWindowB;
+  const mode = w ? w.mode : "all";
+  const count = w ? w.count : 10;
+  const hideCount = mode === "all" ? "display:none;" : "";
+  const justify = slot === "B" ? "justify-content:flex-end;" : "";
+  return `<div style="display:flex;gap:3px;align-items:center;flex:1;${justify}">
+    <button id="cmpWin${slot}all" class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','all')" style="padding:2px 6px;font-size:9px">ALL</button>
+    <button id="cmpWin${slot}first" class="digest-filter-btn${mode === "first" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','first')" style="padding:2px 6px;font-size:9px">FIRST</button>
+    <button id="cmpWin${slot}last" class="digest-filter-btn${mode === "last" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','last')" style="padding:2px 6px;font-size:9px">LAST</button>
+    <input id="cmpCount${slot}" type="number" value="${count}" min="1" max="99"
+      style="${hideCount}width:34px;padding:2px 3px;font-size:9px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text);text-align:center"
+      onchange="_cmpUpdateCount('${slot}',this.value)">
+  </div>`;
+}
 
 function _cmpSelectorHtml() {
   const datePills = CMP_DATE_OPTS.map(
@@ -10348,6 +10399,11 @@ function _cmpSelectorHtml() {
       <button class="h2h-slot-btn${viewState.cmpPlayerB ? " h2h-slot-filled" : ""}" id="cmpSlotB" onclick="openCmpSheet('B')" style="flex:1">
         <span id="cmpLabelB" style="font-size:12px;font-weight:800">${viewState.cmpPlayerB || "P2"}</span>
       </button>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;margin:4px 0">
+      ${_cmpWindowCtrlHtml("A")}
+      <div style="width:28px;flex-shrink:0"></div>
+      ${_cmpWindowCtrlHtml("B")}
     </div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0">${datePills}</div>
     <button class="cmp-ctrl cmp-full" onclick="triggerCompare()">COMPARE</button>`;
@@ -10406,17 +10462,30 @@ function triggerCompare() {
     showToast("Select two different players", "⚠️", 2000);
     return;
   }
+  // Sync number inputs in case the user typed without blur
+  const cA = Math.max(1, parseInt(document.getElementById("cmpCountA")?.value) || 10);
+  const cB = Math.max(1, parseInt(document.getElementById("cmpCountB")?.value) || 10);
+  if (viewState.cmpWindowA) viewState.cmpWindowA.count = cA;
+  if (viewState.cmpWindowB) viewState.cmpWindowB.count = cB;
   openPlayerCompare(a, b, dateF);
 }
 
 function openPlayerCompare(nameA, nameB, dateFilter = "all") {
   const card = document.getElementById("compare-card");
   if (!card) return;
-  const filtered = filterMatches(dateFilter);
-  const eloMap = computeElo(filtered);
-  const stats = computeStats(filtered, eloMap);
-  const sA = stats.find((s) => s.name === nameA);
-  const sB = stats.find((s) => s.name === nameB);
+  const baseMatches = filterMatches(dateFilter);
+
+  // Compute each player's stats from their own game window (independent)
+  const matchesA = _getPlayerWindowMatches(nameA, baseMatches, viewState.cmpWindowA);
+  const eloMapA = computeElo(matchesA);
+  const statsA = computeStats(matchesA, eloMapA);
+  const sA = statsA.find((s) => s.name === nameA);
+
+  const matchesB = _getPlayerWindowMatches(nameB, baseMatches, viewState.cmpWindowB);
+  const eloMapB = computeElo(matchesB);
+  const statsB = computeStats(matchesB, eloMapB);
+  const sB = statsB.find((s) => s.name === nameB);
+
   if (!sA || !sB) return;
 
   const row = (label, valA, valB, higherIsBetter = true) => {
@@ -10467,6 +10536,15 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
   const noData = (n) =>
     `<span style="color:var(--muted);font-size:11px">${n} — no data for this period</span>`;
 
+  const _winLabel = (w) =>
+    !w || w.mode === "all" ? null : `${w.mode === "first" ? "FIRST" : "LAST"} ${w.count}`;
+  const labelA = _winLabel(viewState.cmpWindowA);
+  const labelB = _winLabel(viewState.cmpWindowB);
+  const hasWindow = labelA || labelB;
+  const centerLabel = hasWindow
+    ? `${labelA || "ALL"} · ${labelB || "ALL"}`
+    : CMP_DATE_OPTS.find((o) => o.v === dateFilter)?.l || "ALL TIME";
+
   viewState.cmpPlayerA = nameA;
   viewState.cmpPlayerB = nameB;
   viewState.cmpDateFilter = dateFilter;
@@ -10485,15 +10563,21 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
           : `
       <div class="cmp-result-block">
         <div class="cmp-names-bar">
-          <div class="cmp-name">${nameA.split(" ")[0]}</div>
-          <div class="cmp-vs-tag">${CMP_DATE_OPTS.find((o) => o.v === dateFilter)?.l || "ALL TIME"}</div>
-          <div class="cmp-name">${nameB.split(" ")[0]}</div>
+          <div style="text-align:left">
+            <div class="cmp-name">${nameA.split(" ")[0]}</div>
+            ${labelA ? `<div style="font-size:9px;color:var(--accent);font-weight:700">${labelA}</div>` : ""}
+          </div>
+          <div class="cmp-vs-tag">${centerLabel}</div>
+          <div style="text-align:right">
+            <div class="cmp-name">${nameB.split(" ")[0]}</div>
+            ${labelB ? `<div style="font-size:9px;color:var(--accent);font-weight:700">${labelB}</div>` : ""}
+          </div>
         </div>
         <div class="cmp-rows">
           ${row("Matches", sA.mp, sB.mp)}
           ${row("Win %", sA.winPct.toFixed(0) + "%", sB.winPct.toFixed(0) + "%")}
           ${row("Skill Rating", sA.sr.toFixed(2), sB.sr.toFixed(2))}
-          ${row("ELO", eloMap[nameA] || 1000, eloMap[nameB] || 1000)}
+          ${row("ELO", eloMapA[nameA] || 1000, eloMapB[nameB] || 1000)}
           ${row("Game %", sA.gamePct.toFixed(0) + "%", sB.gamePct.toFixed(0) + "%")}
           ${row("Best Streak", sA.bestWinStreak + "W", sB.bestWinStreak + "W")}
           ${row("Avg Margin", (sA.avgMargin >= 0 ? "+" : "") + sA.avgMargin.toFixed(1), (sB.avgMargin >= 0 ? "+" : "") + sB.avgMargin.toFixed(1))}
@@ -10534,6 +10618,8 @@ function renderCompareSelector() {
   viewState.cmpPlayerA = "";
   viewState.cmpPlayerB = "";
   viewState.cmpDateFilter = "all";
+  viewState.cmpWindowA = null;
+  viewState.cmpWindowB = null;
   card.dataset.mode = "selector";
   card.style.display = "block";
   card.innerHTML = `
