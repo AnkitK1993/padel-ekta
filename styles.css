@@ -18201,22 +18201,26 @@ button.ui-badge-chip:focus-visible {
 /* ── Stat tiles ── */
 .ui-stat-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 4px;
 }
 .ui-stat {
   flex: 1 1 0;
-  min-width: 64px;
+  min-width: 0;
   text-align: center;
-  padding: 8px 4px;
+  padding: 6px 2px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
 }
 .ui-stat-val {
-  font-size: 16px;
+  font-size: 11px;
   font-weight: 900;
   color: var(--text, #e7e7ef);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ui-stat-lbl {
   font-size: 9px;
