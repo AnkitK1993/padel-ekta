@@ -1028,6 +1028,7 @@ let cmpFilter = "today",
   cmpFrom = null,
   cmpTo = null;
 let _lbWindow = null; // { mode:"first"|"last", count:N } or null — per-player game window
+let _pvpLow = 20, _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
 let cmpSortKey = "sr";
 let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
@@ -8288,6 +8289,13 @@ function openPlayerDetail(name) {
                       <div class="ov-lbl">Game %</div>
                     </div>
                   </div>
+                  ${form ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(var(--theme-rgb),0.07);border:1px solid rgba(var(--theme-rgb),0.15);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                      <div style="font-size:8px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">WIN QUALITY</div>
+                      <div style="font-size:9px;color:var(--muted);margin-top:1px">avg ELO of opponents beaten</div>
+                    </div>
+                    <div style="font-size:22px;font-weight:900;color:var(--accent)">${form.winQuality}</div>
+                  </div>` : ""}
                 </div>
 
                 ${xpCard}
@@ -10276,6 +10284,124 @@ function _h2hHighlightRow(tr) {
 // chosen period. COUNT mode shows 🤝partnered / ⚔️opposed; PARTNER% mode shows
 // the likelihood they teamed up when both played (rest of the time = opponents).
 
+function _pvpRangeOpen() {
+  document.getElementById("pvp-range-popup")?.remove();
+  let low = _pvpLow, high = _pvpHigh;
+  let dragging = null;
+
+  function grad() {
+    return `linear-gradient(to right,#f04f4f 0%,#f04f4f ${low}%,#f5c842 ${low}%,#f5c842 ${high}%,#36d47e ${high}%,#36d47e 100%)`;
+  }
+  function render() {
+    const bar = document.getElementById("pvp-rng-bar");
+    const tl  = document.getElementById("pvp-rng-tl");
+    const th  = document.getElementById("pvp-rng-th");
+    if (bar) bar.style.background = grad();
+    if (tl)  tl.style.left  = low  + "%";
+    if (th)  th.style.left  = high + "%";
+    const rl = document.getElementById("pvp-rng-rl");
+    const ol = document.getElementById("pvp-rng-ol");
+    const gl = document.getElementById("pvp-rng-gl");
+    if (rl) rl.textContent = `0 – ${low}%`;
+    if (ol) ol.textContent = `${low + 1} – ${high}%`;
+    if (gl) gl.textContent = `${high + 1} – 100%`;
+  }
+
+  const el = document.createElement("div");
+  el.id = "pvp-range-popup";
+  el.setAttribute("role", "dialog");
+  el.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
+
+  el.innerHTML = `
+    <div style="background:var(--bg-card,#12121c);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:18px;padding:20px;max-width:340px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.6)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+        <div>
+          <div style="font-size:13px;font-weight:900;color:var(--text);letter-spacing:0.04em">COLOR RANGE</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px">Drag handles to set thresholds</div>
+        </div>
+        <button onclick="window._pvpRangeClose()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
+      </div>
+
+      <div id="pvp-rng-track" style="position:relative;height:40px;margin:4px 0 8px;user-select:none">
+        <div id="pvp-rng-bar" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:14px;border-radius:7px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.35)"></div>
+        <div id="pvp-rng-tl" style="position:absolute;top:50%;width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid #f04f4f;box-shadow:0 2px 10px rgba(0,0,0,0.45);transform:translate(-50%,-50%);cursor:grab;touch-action:none;z-index:2"></div>
+        <div id="pvp-rng-th" style="position:absolute;top:50%;width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid #36d47e;box-shadow:0 2px 10px rgba(0,0,0,0.45);transform:translate(-50%,-50%);cursor:grab;touch-action:none;z-index:2"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:18px"><span>0%</span><span>100%</span></div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:rgba(240,80,80,0.1);border:1px solid rgba(240,80,80,0.22);border-radius:9px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:11px;height:11px;border-radius:50%;background:#f04f4f;flex-shrink:0"></div>
+            <span style="font-size:11px;font-weight:700;color:var(--text)">Red</span>
+          </div>
+          <span id="pvp-rng-rl" style="font-size:12px;font-weight:900;color:#f04f4f"></span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.18);border-radius:9px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:11px;height:11px;border-radius:50%;background:#f5c842;flex-shrink:0"></div>
+            <span style="font-size:11px;font-weight:700;color:var(--text)">Orange</span>
+          </div>
+          <span id="pvp-rng-ol" style="font-size:12px;font-weight:900;color:#f5c842"></span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:rgba(54,212,126,0.08);border:1px solid rgba(54,212,126,0.18);border-radius:9px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:11px;height:11px;border-radius:50%;background:#36d47e;flex-shrink:0"></div>
+            <span style="font-size:11px;font-weight:700;color:var(--text)">Green</span>
+          </div>
+          <span id="pvp-rng-gl" style="font-size:12px;font-weight:900;color:#36d47e"></span>
+        </div>
+      </div>
+
+      <button onclick="window._pvpRangeApply()" style="width:100%;padding:13px;background:var(--theme,#7c5cbf);color:#fff;border:none;border-radius:11px;font-size:13px;font-weight:900;letter-spacing:0.06em;cursor:pointer">APPLY</button>
+    </div>`;
+
+  document.body.appendChild(el);
+  render();
+
+  const track = document.getElementById("pvp-rng-track");
+  function getPct(clientX) {
+    const rect = track.getBoundingClientRect();
+    return Math.round(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)));
+  }
+  function onMove(clientX) {
+    if (!dragging) return;
+    const p = getPct(clientX);
+    if (dragging === "l") low  = Math.max(0, Math.min(p, high - 1));
+    else                  high = Math.max(low + 1, Math.min(p, 100));
+    render();
+  }
+
+  const tl = document.getElementById("pvp-rng-tl");
+  const th = document.getElementById("pvp-rng-th");
+  tl.addEventListener("mousedown",  (e) => { dragging = "l"; e.preventDefault(); });
+  th.addEventListener("mousedown",  (e) => { dragging = "h"; e.preventDefault(); });
+  tl.addEventListener("touchstart", (e) => { dragging = "l"; e.preventDefault(); }, { passive: false });
+  th.addEventListener("touchstart", (e) => { dragging = "h"; e.preventDefault(); }, { passive: false });
+
+  const mmov = (e) => onMove(e.clientX);
+  const tmov = (e) => { e.preventDefault(); onMove(e.touches[0].clientX); };
+  const mup  = () => { dragging = null; };
+  document.addEventListener("mousemove", mmov);
+  document.addEventListener("touchmove",  tmov, { passive: false });
+  document.addEventListener("mouseup",   mup);
+  document.addEventListener("touchend",  mup);
+
+  function cleanup() {
+    document.removeEventListener("mousemove", mmov);
+    document.removeEventListener("touchmove",  tmov);
+    document.removeEventListener("mouseup",   mup);
+    document.removeEventListener("touchend",  mup);
+  }
+  window._pvpRangeApply = () => {
+    _pvpLow = low; _pvpHigh = high;
+    el.remove(); cleanup();
+    _refreshPairMatrix();
+  };
+  window._pvpRangeClose = () => { el.remove(); cleanup(); };
+  el.onclick = (e) => { if (e.target === el) window._pvpRangeClose(); };
+}
+
 function _pairMatrixSetPeriod(btn, period) {
   viewState.pairMatrixPeriod = period;
   _refreshPairMatrix();
@@ -10367,7 +10493,7 @@ function _pairMatrixInner() {
             return `<td class="pvp-td" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}, opposed ${d.opposed}`)}"><span style="color:var(--green);font-weight:800">${d.partnered}</span><span style="color:var(--muted);font-size:8px;margin:0 1px">/</span><span style="color:var(--red);font-weight:800">${d.opposed}</span></td>`;
           }
           const pct = Math.round((d.partnered / both) * 100);
-          const cls = pct >= 60 ? "pvp-win" : pct <= 40 ? "pvp-loss" : "pvp-even";
+          const cls = pct >= _pvpHigh ? "pvp-win" : pct > _pvpLow ? "pvp-even" : "pvp-loss";
           return `<td class="pvp-td ${cls}" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}/${both} (${pct}%), opposed ${d.opposed}/${both} (${100 - pct}%)`)}">${pct}%<sub class="pvp-total">${both}</sub></td>`;
         })
         .join("");
@@ -10382,7 +10508,18 @@ function _pairMatrixInner() {
     )
     .join("");
 
-  return `${periodPills}${modePills}
+  const rangeBtn = mode === "pct"
+    ? `<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px">
+        <button onclick="_pvpRangeOpen()" style="display:flex;align-items:center;gap:5px;background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:700;color:var(--text);cursor:pointer;letter-spacing:0.04em">
+          <span style="font-size:12px">⚙</span> COLOR RANGE
+          <span style="background:rgba(240,80,80,0.2);color:#f04f4f;border-radius:3px;padding:1px 4px;font-size:9px">≤${_pvpLow}%</span>
+          <span style="background:rgba(245,200,66,0.15);color:#f5c842;border-radius:3px;padding:1px 4px;font-size:9px">${_pvpLow + 1}–${_pvpHigh}%</span>
+          <span style="background:rgba(54,212,126,0.15);color:#36d47e;border-radius:3px;padding:1px 4px;font-size:9px">≥${_pvpHigh + 1}%</span>
+        </button>
+      </div>`
+    : "";
+
+  return `${periodPills}${modePills}${rangeBtn}
     <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">${caption}</div>
     <div class="pvp-wrap">
       <div class="pvp-scroll-wrap">
@@ -16504,6 +16641,45 @@ function renderAnalyticsPage() {
     if (!Object.keys(beatenCounts).length)
       return '<div class="sub" style="padding:8px">No data.</div>';
     window._domCounts = beatenCounts;
+    window._domShowBeaten = function (playerName, minN) {
+      const n = Math.max(1, +minN || 1);
+      const oppCounts = window._domCounts?.[playerName] || {};
+      const beaten = Object.entries(oppCounts)
+        .filter(([, c]) => c >= n)
+        .sort((a, b) => b[1] - a[1]);
+      if (!beaten.length) return;
+      document.getElementById("dom-beaten-popup")?.remove();
+      const lbl = n === 1 ? "at least once" : `${n}+ times`;
+      const rows = beaten
+        .map(
+          ([opp, c]) =>
+            `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:12px;font-weight:700;color:var(--text)">${escHtml(opp)}</span>
+              <span style="font-size:14px;font-weight:900;color:var(--theme)">${c}×</span>
+            </div>`,
+        )
+        .join("");
+      const el = document.createElement("div");
+      el.id = "dom-beaten-popup";
+      el.setAttribute("role", "dialog");
+      el.style.cssText =
+        "position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
+      el.onclick = (e) => {
+        if (e.target === el) el.remove();
+      };
+      el.innerHTML = `<div style="background:var(--bg-card,#12121c);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:16px;padding:16px;max-width:320px;width:100%;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
+          <div>
+            <div style="font-size:13px;font-weight:900;color:var(--text)">${escHtml(playerName)}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px">beaten ${lbl}</div>
+          </div>
+          <button onclick="document.getElementById('dom-beaten-popup').remove()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
+        </div>
+        <div style="font-size:24px;font-weight:900;color:var(--theme);margin-bottom:10px">${beaten.length} opponent${beaten.length !== 1 ? "s" : ""}</div>
+        <div style="overflow-y:auto;flex:1">${rows}</div>
+      </div>`;
+      document.body.appendChild(el);
+    };
     window._domRebuild = function (minN) {
       const n = Math.max(1, Math.floor(+minN) || 1);
       const pg = "grid-template-columns:40px 1fr 60px";
@@ -16522,7 +16698,7 @@ function renderAnalyticsPage() {
         ? rows
             .map(
               (r, i) =>
-                `<div class="lrace-row" style="${pg}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`,
+                `<div class="lrace-row" style="${pg}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme);cursor:pointer;text-decoration:underline dotted" onclick="window._domShowBeaten(${jsArg(r.name)},${n})" title="Tap to see opponents">${r.count}</div></div>`,
             )
             .join("")
         : `<div style="font-size:11px;color:var(--muted);padding:8px 0">No player has beaten any opponent ${n}+ times.</div>`;
@@ -16540,7 +16716,7 @@ function renderAnalyticsPage() {
         </div>
       </div>
       <div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opp</span></div>
-      <div class="dom-rows">${initRows.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme)">${r.count}</div></div>`).join("")}</div>
+      <div class="dom-rows">${initRows.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme);cursor:pointer;text-decoration:underline dotted" onclick="window._domShowBeaten(${jsArg(r.name)},1)" title="Tap to see opponents">${r.count}</div></div>`).join("")}</div>
     </div>`;
   })();
 
@@ -17798,6 +17974,7 @@ Object.assign(window, {
   _timelineSetPeriod,
   _pairMatrixSetPeriod,
   _pairMatrixSetMode,
+  _pvpRangeOpen,
   _h2hHighlightRow,
   _openPodiumDrill,
   _openAntiPodiumDrill,
