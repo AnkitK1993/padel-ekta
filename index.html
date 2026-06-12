@@ -1872,6 +1872,23 @@ Puneet - Pun, PK
     </div>
     <div id="swipe-blur-overlay"></div>
 
+    <!-- Compare count picker sheet -->
+    <div class="live-sheet-overlay" id="cmp-count-overlay" onclick="_cmpCountPickerClose()"></div>
+    <div class="live-sheet" role="dialog" aria-modal="true" id="cmp-count-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title" id="cmp-count-title">LAST GAMES</div>
+      <div class="cmp-count-picker">
+        <div class="cmp-count-num" id="cmp-count-num">10</div>
+        <div class="cmp-count-steps">
+          <button class="cmp-count-step-btn" onclick="_cmpCountStep(-10)">−10</button>
+          <button class="cmp-count-step-btn" onclick="_cmpCountStep(-1)">−1</button>
+          <button class="cmp-count-step-btn" onclick="_cmpCountStep(1)">+1</button>
+          <button class="cmp-count-step-btn" onclick="_cmpCountStep(10)">+10</button>
+        </div>
+        <button class="cmp-count-apply" onclick="_cmpCountApply()">APPLY</button>
+      </div>
+    </div>
+
     <!-- History filter bottom sheet (player / pair) -->
     <div
       class="live-sheet-overlay"

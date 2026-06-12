@@ -10349,33 +10349,67 @@ function _getPlayerWindowMatches(playerName, baseMatches, window) {
   return baseMatches.filter((m) => matchSet.has(m));
 }
 
+let _cmpPickerSlot = null;
+let _cmpPickerMode = null;
+let _cmpPickerCount = 10;
+
+function _cmpCountPickerOpen(slot, mode) {
+  _cmpPickerSlot = slot;
+  _cmpPickerMode = mode;
+  const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
+  _cmpPickerCount = viewState[key]?.count || 10;
+  const title = document.getElementById("cmp-count-title");
+  if (title) title.textContent = `${mode === "first" ? "FIRST" : "LAST"} GAMES — P${slot}`;
+  const numEl = document.getElementById("cmp-count-num");
+  if (numEl) numEl.textContent = _cmpPickerCount;
+  document.getElementById("cmp-count-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("cmp-count-sheet")?.classList.add("live-sheet-open");
+}
+
+function _cmpCountPickerClose() {
+  document.getElementById("cmp-count-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("cmp-count-sheet")?.classList.remove("live-sheet-open");
+}
+
+function _cmpCountStep(delta) {
+  _cmpPickerCount = Math.max(1, Math.min(999, _cmpPickerCount + delta));
+  const numEl = document.getElementById("cmp-count-num");
+  if (numEl) numEl.textContent = _cmpPickerCount;
+}
+
+function _cmpCountApply() {
+  if (!_cmpPickerSlot || !_cmpPickerMode) return;
+  const key = _cmpPickerSlot === "A" ? "cmpWindowA" : "cmpWindowB";
+  viewState[key] = { mode: _cmpPickerMode, count: _cmpPickerCount };
+  _cmpCountPickerClose();
+  const container = document.getElementById("cmpWinCtrl" + _cmpPickerSlot);
+  if (container) container.outerHTML = _cmpWindowCtrlHtml(_cmpPickerSlot);
+}
+
 function _cmpSetWindow(slot, mode) {
-  const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
-  const prevCount = Math.max(1, parseInt(document.getElementById("cmpCount" + slot)?.value) || 10);
-  viewState[key] = mode === "all" ? null : { mode, count: prevCount };
-  const container = document.getElementById("cmpWinCtrl" + slot);
-  if (container) container.outerHTML = _cmpWindowCtrlHtml(slot);
+  if (mode === "all") {
+    const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
+    viewState[key] = null;
+    const container = document.getElementById("cmpWinCtrl" + slot);
+    if (container) container.outerHTML = _cmpWindowCtrlHtml(slot);
+  } else {
+    _cmpCountPickerOpen(slot, mode);
+  }
 }
-
-function _cmpUpdateCount(slot, value) {
-  const key = slot === "A" ? "cmpWindowA" : "cmpWindowB";
-  const count = Math.max(1, parseInt(value) || 10);
-  if (viewState[key] && viewState[key].mode !== "all") viewState[key].count = count;
-}
-
 
 function _cmpWindowCtrlHtml(slot) {
   const w = slot === "A" ? viewState.cmpWindowA : viewState.cmpWindowB;
   const mode = w ? w.mode : "all";
   const count = w ? w.count : 10;
   const justify = slot === "B" ? "justify-content:flex-end;" : "";
+  const chip = mode !== "all"
+    ? `<button class="cmp-count-chip" onclick="_cmpCountPickerOpen('${slot}','${mode}')">${count}</button>`
+    : "";
   return `<div id="cmpWinCtrl${slot}" style="display:flex;gap:3px;align-items:center;flex:1;${justify}">
     <button class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','all')" style="padding:2px 6px;font-size:9px">ALL</button>
     <button class="digest-filter-btn${mode === "first" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','first')" style="padding:2px 6px;font-size:9px">FIRST</button>
     <button class="digest-filter-btn${mode === "last" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','last')" style="padding:2px 6px;font-size:9px">LAST</button>
-    ${mode !== "all" ? `<input id="cmpCount${slot}" type="number" value="${count}" min="1" max="99"
-      style="width:34px;padding:2px 3px;font-size:9px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text);text-align:center"
-      onchange="_cmpUpdateCount('${slot}',this.value)">` : ""}
+    ${chip}
   </div>`;
 }
 
@@ -10456,11 +10490,6 @@ function triggerCompare() {
     showToast("Select two different players", "⚠️", 2000);
     return;
   }
-  // Sync number inputs in case the user typed without blur
-  const cA = Math.max(1, parseInt(document.getElementById("cmpCountA")?.value) || 10);
-  const cB = Math.max(1, parseInt(document.getElementById("cmpCountB")?.value) || 10);
-  if (viewState.cmpWindowA) viewState.cmpWindowA.count = cA;
-  if (viewState.cmpWindowB) viewState.cmpWindowB.count = cB;
   openPlayerCompare(a, b, dateF);
 }
 
@@ -17573,7 +17602,10 @@ Object.assign(window, {
   openCmpSheet,
   _cmpSetDate,
   _cmpSetWindow,
-  _cmpUpdateCount,
+  _cmpCountPickerOpen,
+  _cmpCountPickerClose,
+  _cmpCountStep,
+  _cmpCountApply,
   _updateCmpSlots,
   toggleMngCard,
   toggleManageReorder,
