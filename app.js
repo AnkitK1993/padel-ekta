@@ -10452,7 +10452,7 @@ function _pairMatrixInner() {
       .join("") +
     `</div>`;
 
-  // Players in this period, ordered by matches played (desc) then name.
+  // Players in this period, ordered by all-time ELO rank (desc) then name.
   const played = {};
   matches.forEach((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
@@ -10460,8 +10460,9 @@ function _pairMatrixInner() {
       played[n] = (played[n] || 0) + 1;
     }),
   );
+  const _allTimeElo = _memoElo();
   const players = Object.keys(played).sort(
-    (a, b) => played[b] - played[a] || a.localeCompare(b),
+    (a, b) => (_allTimeElo[b] || 1000) - (_allTimeElo[a] || 1000) || a.localeCompare(b),
   );
 
   const caption =
