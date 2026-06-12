@@ -4584,7 +4584,11 @@ function _lbSetWindow(mode) {
   if (mode === "all") {
     _lbWindow = null;
     _renderLbWindowBar();
+    document.body.classList.add("no-cascade");
+    const _t = document.getElementById("cmpBody");
+    if (_t) _t.innerHTML = "";
     renderCompact();
+    document.body.classList.remove("no-cascade");
   } else {
     _cmpCountPickerOpen("lb", mode);
   }
@@ -7338,6 +7342,14 @@ function openPlayerDetail(name) {
   const s = detail.stats;
   const daysPlayed = new Set(detail.matches.map((m) => m.date).filter(Boolean))
     .size;
+  const { first: _firstGameDate } = _getPlayerDateRange(name, activeMatches());
+  const firstGameLabel = _firstGameDate
+    ? (() => {
+        const [y, m, d] = _firstGameDate.split("-");
+        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        return `Since ${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
+      })()
+    : null;
 
   // ── FORM ENGINE ──────────────────────────────────────────────
   const form = computePlayerForm(name, activeMatches());
@@ -8255,7 +8267,7 @@ function openPlayerDetail(name) {
                     </div>
                     <div class="ov-record-block">
                       <div class="ov-record">${s.mw}<span class="ov-record-sep">W</span>${s.ml}<span class="ov-record-sep">L</span></div>
-                      <div class="ov-win-pct">${s.winPct.toFixed(0)}% win rate · ${s.mp} played · ${daysPlayed} day${daysPlayed !== 1 ? "s" : ""}</div>
+                      <div class="ov-win-pct">${s.winPct.toFixed(0)}% win rate · ${s.mp} played · ${daysPlayed} day${daysPlayed !== 1 ? "s" : ""}${firstGameLabel ? ` · <span style="color:var(--muted)">${firstGameLabel}</span>` : ""}</div>
                     </div>
                   </div>
                   <div class="ov-grid">
@@ -10453,7 +10465,13 @@ function _cmpCountApply() {
     _lbWindow = { mode: _cmpPickerMode, count: _cmpPickerCount };
     _cmpCountPickerClose();
     _renderLbWindowBar();
+    // Clear tbody so morphList inserts all rows fresh rather than diffing
+    // against stale outerHTML — guarantees the table reflects the new window.
+    document.body.classList.add("no-cascade");
+    const _lbTbody = document.getElementById("cmpBody");
+    if (_lbTbody) _lbTbody.innerHTML = "";
     renderCompact();
+    document.body.classList.remove("no-cascade");
   } else {
     const key = _cmpPickerSlot === "A" ? "cmpWindowA" : "cmpWindowB";
     viewState[key] = { mode: _cmpPickerMode, count: _cmpPickerCount };
