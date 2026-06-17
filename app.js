@@ -20544,7 +20544,7 @@ function _renderAmScheduleTab() {
     `<div class="am-match${played ? " am-match-played" : " am-match-upcoming"}">
       ${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}
       <div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div>
-      ${played ? `<button class="am-edit-btn-inline" onclick="window._amOpenMatchEdit(${r},${i})">✏ EDIT</button>` : ""}
+      <button class="am-edit-btn-inline${played ? "" : " am-edit-btn-score"}" onclick="window._amOpenMatchEdit(${r},${i})">✏ ${played ? "EDIT" : "SCORE"}</button>
     </div>`;
   const renderRound = (rnd, r, labelSuffix = "") => {
     const matches = rnd.matches.map((m, i) => renderMatch(m, r, i, isPlayed(r, i))).join("");
