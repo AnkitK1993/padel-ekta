@@ -1917,6 +1917,7 @@ function loadCloudData() {
         refreshManage();
         renderAddMatches();
         prefillMatchTADate();
+        renderNamesTable();
       } else {
         renderCompact();
       }
@@ -1948,6 +1949,7 @@ function loadCloudData() {
         if (_onAddPage()) {
           refreshManage();
           if (_addRenderedVersion !== _dataVersion) renderAddMatches();
+          renderNamesTable();
         }
         if (board) {
           // Suppress the per-card keyframe animation for live updates
@@ -3452,63 +3454,80 @@ function editNameEntry(displayName) {
 
 function renderNamesTable() {
   const table = document.getElementById("names-table");
-  const sorted = Object.values(state.players).sort((a, b) =>
-    (a.name || "").localeCompare(b.name || "", undefined, {
-      sensitivity: "base",
-    }),
-  );
-  if (!sorted.length) {
-    table.innerHTML =
-      '<p style="color:var(--muted);font-size:14px;text-align:center;padding:24px 0">No players yet. Tap + ADD PLAYER to get started.</p>';
+  if (!table) return;
+
+  // Merge formal registry with all players derived from match data
+  const registryByName = {};
+  Object.values(state.players).forEach((p) => { registryByName[p.name] = p; });
+  const allNames = [...new Set([
+    ...Object.keys(registryByName),
+    ...getAllPlayerNamesFromMatches(),
+  ])].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+
+  const badge = document.getElementById("names-count-badge");
+  if (badge) badge.textContent = allNames.length;
+
+  if (!allNames.length) {
+    table.innerHTML = `<div style="text-align:center;padding:40px 0 16px;color:var(--muted);font-size:13px">No players yet. Tap + ADD PLAYER to get started.</div>`;
     return;
   }
-  table.innerHTML = sorted
-    .map((p) => {
-      const aliases = playerAliasMap[p.id] || [];
-      const { first, last } = getPlayerDateRange(p.name);
-      const initials = (p.name || "?")
-        .split(" ")
-        .map((w) => w[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-      const photo = photoMap[p.name];
-      const avatarImg = photo
-        ? `<img src="${photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`
-        : `<div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#000">${escHtml(initials)}</div>`;
-      const photoControls = window.isAdmin
-        ? `<div style="display:flex;gap:4px;margin-top:4px;justify-content:center">
-            <button onclick="savePlayerPhoto(${jsArg(p.name)})" title="Upload photo" style="font-size:14px;background:none;border:none;cursor:pointer;padding:0;line-height:1">📷</button>
-            ${photo ? `<button onclick="removePlayerPhoto(${jsArg(p.name)})" title="Remove photo" style="font-size:11px;background:none;border:none;cursor:pointer;padding:0;color:var(--muted);line-height:1">✕</button>` : ""}
-          </div>`
-        : "";
-      const avatar = `<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">${avatarImg}${photoControls}</div>`;
-      const guestBadge = p.isGuest
-        ? `<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(255,165,0,0.15);color:orange;font-weight:700;letter-spacing:0.05em">GUEST</span>`
-        : "";
-      const aliasList = aliases.length
-        ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.04em">${aliases.map((a) => `${escHtml(a)} → ${escHtml(p.name)}`).join(" &nbsp;·&nbsp; ")}</div>`
-        : "";
-      const dates =
-        first || last
-          ? `<div style="font-size:10px;color:var(--muted);margin-top:4px">First: ${first ? fmtDate(first) : "—"} &nbsp;·&nbsp; Last: ${last ? fmtDate(last) : "—"}</div>`
-          : "";
-      const emailLine = p.email
-        ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">✉ ${escHtml(p.email)}</div>`
-        : "";
-      return `<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
-        ${avatar}
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-weight:700;font-size:14px;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em">${escHtml(p.name)}</span>
-            ${guestBadge}
-          </div>
-          ${aliasList}${dates}${emailLine}
+
+  table.innerHTML = allNames.map((name) => {
+    const p = registryByName[name];
+    const aliases = p ? (playerAliasMap[p.id] || []) : [];
+    const { first, last } = _getPlayerDateRange(name, state.matches);
+    const initials = (name || "?").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+    const photo = photoMap[name];
+
+    const avatarInner = photo
+      ? `<img src="${photo}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+      : `<span style="font-weight:800;font-size:13px;color:#000">${escHtml(initials)}</span>`;
+    const photoControls = window.isAdmin && p
+      ? `<div style="display:flex;gap:4px;margin-top:3px;justify-content:center">
+          <button onclick="savePlayerPhoto(${jsArg(name)})" title="Upload photo" style="font-size:12px;background:none;border:none;cursor:pointer;padding:0;line-height:1;opacity:0.5">📷</button>
+          ${photo ? `<button onclick="removePlayerPhoto(${jsArg(name)})" title="Remove photo" style="font-size:10px;background:none;border:none;cursor:pointer;padding:0;color:var(--muted);line-height:1">✕</button>` : ""}
+        </div>`
+      : "";
+
+    const guestBadge = p?.isGuest
+      ? `<span style="font-size:8px;padding:1px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:orange;font-weight:800;letter-spacing:0.06em">GUEST</span>`
+      : "";
+
+    const mappingChips = aliases.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${
+          aliases.map((a) =>
+            `<span style="font-size:9px;font-weight:700;letter-spacing:0.05em;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);color:var(--accent);border-radius:5px;padding:2px 7px">${escHtml(a)} → ${escHtml(name)}</span>`
+          ).join("")
+        }</div>`
+      : "";
+
+    const dateRange = (first || last)
+      ? `<div style="font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:0.03em">${first ? fmtDate(first) : "—"} → ${last ? fmtDate(last) : "—"}</div>`
+      : "";
+
+    const emailLine = p?.email
+      ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">✉ ${escHtml(p.email)}</div>`
+      : "";
+
+    const actionBtn = p
+      ? `<button onclick="openPlayerEditSheet(${p.id})" style="flex-shrink:0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text);font-size:10px;font-weight:700;letter-spacing:0.08em;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap">EDIT</button>`
+      : `<button onclick="openPlayerEditSheet(null)" style="flex-shrink:0;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:var(--accent);font-size:10px;font-weight:700;letter-spacing:0.08em;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap">+ ADD</button>`;
+
+    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 13px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;margin-bottom:7px">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+        <div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${avatarInner}</div>
+        ${photoControls}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-weight:800;font-size:14px;color:var(--text);letter-spacing:0.03em">${escHtml(name)}</span>
+          ${guestBadge}
         </div>
-        <button class="action-btn edit-btn" style="padding:6px 12px;font-size:11px;flex-shrink:0" onclick="openPlayerEditSheet(${p.id})">Edit</button>
-      </div>`;
-    })
-    .join("");
+        ${mappingChips}${dateRange}${emailLine}
+      </div>
+      ${actionBtn}
+    </div>`;
+  }).join("");
 }
 
 function setScreenshotChoiceSetting(val) {
