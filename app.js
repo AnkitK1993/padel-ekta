@@ -20097,30 +20097,40 @@ function _renderAmLeaderboardTab() {
   if (!container) return;
   const st = _americanoStandings();
   const hasScores = st.some((s) => s.played > 0);
-  const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`);
-  // columns: # | Player | MP | W | L | W% | PTS | +/-
-  const colGrid = "18px 1fr 24px 20px 20px 30px 28px 28px";
-  const hdr = `<div class="am-lb-hdr-row" style="grid-template-columns:${colGrid}">
-    <span></span><span>PLAYER</span>
-    <span>MP</span><span>W</span><span>L</span><span>W%</span><span>PTS</span><span>+/-</span>
-  </div>`;
+  const MEDALS = ["🥇", "🥈", "🥉"];
+  const CARD_CLS = ["am-lb-card-1", "am-lb-card-2", "am-lb-card-3"];
+
   const rows = hasScores
     ? st.map((s, i) => {
         const l = s.played - s.won;
         const wp = s.played ? Math.round(100 * s.won / s.played) : 0;
         const gd = s.pts - s.ga;
-        return `<div class="am-lb-row" style="grid-template-columns:${colGrid}">
-          <span class="am-lb-rank">${medal(i)}</span>
-          <span class="am-lb-name">${escHtml(s.name)}</span>
-          <span>${s.played}</span>
-          <span style="color:var(--accent,#00cc64)">${s.won}</span>
-          <span style="color:#ff5555">${l}</span>
-          <span style="font-weight:700;color:${wp >= 50 ? "var(--accent,#00cc64)" : "var(--muted)"}">${wp}%</span>
-          <span style="color:var(--theme);font-weight:700">${s.pts}</span>
-          <span style="color:${gd >= 0 ? "var(--accent,#00cc64)" : "#ff5555"}">${gd > 0 ? "+" : ""}${gd}</span>
+        const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
+        const gdColor = gd > 0 ? "var(--accent,#00cc64)" : gd < 0 ? "#ff5555" : "var(--text-muted)";
+        const cardCls = i < 3 ? CARD_CLS[i] : "am-lb-card-rest";
+        const rankEl = i < 3
+          ? `<div class="am-lb-card-rank">${MEDALS[i]}</div>`
+          : `<div class="am-lb-card-rank-num">${i + 1}</div>`;
+        return `<div class="am-lb-card ${cardCls}">
+          ${rankEl}
+          <span class="am-lb-card-av" style="background:${playerColor(s.name)}">${playerInitials(s.name)}</span>
+          <div class="am-lb-card-info">
+            <div class="am-lb-card-name">${escHtml(s.name)}</div>
+            <div class="am-lb-card-stats">
+              <span>${s.played}P</span>
+              <span style="color:var(--accent,#00cc64)">${s.won}W</span>
+              <span style="color:#ff5555">${l}L</span>
+              ${s.played ? `<span class="am-lb-win-badge">${wp}%</span>` : ""}
+            </div>
+          </div>
+          <div class="am-lb-card-pts">
+            <div class="am-lb-card-pts-val">${s.pts}</div>
+            <div class="am-lb-pts-label">PTS</div>
+            <div class="am-lb-card-gd" style="color:${gdColor}">${gdStr}</div>
+          </div>
         </div>`;
       }).join("")
-    : `<div style="text-align:center;padding:12px 0 16px;color:var(--muted);font-size:11px;letter-spacing:0.05em">Enter match scores to see standings</div>`;
+    : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:12px;letter-spacing:0.05em">Enter match scores to see standings</div>`;
 
   // Match history
   const played = [];
@@ -20132,13 +20142,13 @@ function _renderAmLeaderboardTab() {
     });
   });
   const historyHtml = played.length
-    ? `<div class="am-stand-hdr" style="margin:14px 0 6px">MATCH HISTORY</div>` +
+    ? `<div class="am-stand-hdr" style="margin:18px 0 8px">MATCH HISTORY</div>` +
       played.slice().reverse().map((m) => {
         const aWon = m.a > m.b, bWon = m.b > m.a;
         return `<div class="am-hist-row">
           <span class="am-hist-rnd">R${m.round}</span>
           <span class="am-hist-team${aWon ? " am-hist-win" : ""}">${m.teamA.map(escHtml).join(" &amp; ")}</span>
-          <span class="am-hist-score">${m.a} – ${m.b}</span>
+          <div class="am-hist-score-wrap"><span class="am-hist-score">${m.a} – ${m.b}</span></div>
           <span class="am-hist-team${bWon ? " am-hist-win" : ""}" style="text-align:right">${m.teamB.map(escHtml).join(" &amp; ")}</span>
         </div>`;
       }).join("")
@@ -20146,7 +20156,7 @@ function _renderAmLeaderboardTab() {
 
   container.innerHTML =
     `<div class="am-stand-hdr">🏆 LEADERBOARD</div>` +
-    hdr + rows + historyHtml;
+    rows + historyHtml;
 }
 
 // ── PLAYERS TAB ───────────────────────────────────────────
@@ -20254,20 +20264,11 @@ window.amEndSession = function() {
     return;
   }
   _amEndConfirmPending = false;
-  const today = new Date().toISOString().slice(0, 10);
-  const played = [];
-  (_americanoSchedule || []).forEach((rnd, r) => {
-    rnd.matches.forEach((m, i) => {
+  const played = (_americanoSchedule || []).reduce((n, rnd, r) =>
+    n + rnd.matches.filter((_, i) => {
       const sc = _americanoScores[r + "-" + i];
-      if (!sc || sc.a == null || (sc.a === 10 && sc.b === 10)) return;
-      played.push({ teamA: m.teamA, teamB: m.teamB, scoreA: sc.a, scoreB: sc.b, date: today });
-    });
-  });
-  if (played.length) {
-    state.matches.push(...played);
-    saveCloudData();
-    commit();
-  }
+      return sc && sc.a != null && !(sc.a === 10 && sc.b === 10);
+    }).length, 0);
   localStorage.removeItem(_AM_SESSION_KEY);
   _americanoSchedule = null;
   _americanoScores = {};
@@ -20277,7 +20278,7 @@ window.amEndSession = function() {
   _americanoLastPlayers = [];
   _amRemovedPlayers = new Set();
   closeAmericano();
-  showToast(`Session ended · ${played.length} match${played.length !== 1 ? "es" : ""} saved`, "✅");
+  showToast(`Session ended · ${played} match${played !== 1 ? "es" : ""} played`, "✅");
 };
 
 // Live standings from whatever scores have been entered so far. Americano
