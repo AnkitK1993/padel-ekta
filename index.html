@@ -1389,9 +1389,9 @@ Puneet - Pun, PK
             <button class="tb-btn tb-btn-all" onclick="americanoSelectAll()">ALL</button>
             <button class="tb-btn tb-btn-none" onclick="americanoSelectNone()">NONE</button>
             <label style="margin-left:auto;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px">Points
-              <input id="americano-points" type="number" min="0" max="99" value="24" title="Points per match (0 = free scoring). The other team auto-fills." style="width:50px;padding:5px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:center;font-weight:700" />
+              <input id="americano-points" type="number" min="0" max="99" value="21" title="Points per match (0 = free scoring). The other team auto-fills." style="width:50px;padding:5px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:center;font-weight:700" />
             </label>
-            <label id="am-rounds-wrap" style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px">Rounds
+            <label id="am-rounds-wrap" style="display:none;font-size:12px;color:var(--text-muted);align-items:center;gap:5px">Rounds
               <input id="americano-rounds" type="number" min="1" max="30" value="7" style="width:50px;padding:5px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:center;font-weight:700" />
             </label>
           </div>
@@ -1400,10 +1400,15 @@ Puneet - Pun, PK
           </div>
         </div>
         <div id="americano-result" style="display:none;padding:0 14px;max-height:62vh;overflow-y:auto"></div>
+        <div id="am-add-player-wrap" style="display:none;padding:4px 14px 0;gap:6px;align-items:center">
+          <input id="am-add-player-input" type="text" placeholder="New player name…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();americanoConfirmAddPlayer();}" style="flex:1;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px" />
+          <button class="tb-btn tb-btn-balance" onclick="americanoConfirmAddPlayer()">✓ ADD</button>
+        </div>
         <div id="americano-result-actions" style="display:none;padding:10px 14px 4px;gap:8px">
           <button class="tb-btn tb-btn-none" onclick="americanoBack()">↩ EDIT</button>
-          <button id="am-reshuffle-btn" class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄 RESHUFFLE</button>
-          <button id="am-next-btn" class="tb-btn tb-btn-balance" onclick="americanoNextRound()" style="flex:1;display:none">NEXT ROUND →</button>
+          <button class="tb-btn" onclick="toggleAmericanoAddPlayer()" style="flex-shrink:0">+ PLAYER</button>
+          <button id="am-reshuffle-btn" class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄</button>
+          <button id="am-next-btn" class="tb-btn tb-btn-balance" onclick="americanoNextRound()" style="flex:1">NEXT ROUND →</button>
         </div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>

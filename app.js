@@ -2,6 +2,7 @@
   generateAmericano,
   americanoFairness,
   nextMexicanoRound,
+  nextAmericanoRound,
 } from "./src/engine/americano.js";
 import {
   initEloDeps,
@@ -19759,12 +19760,16 @@ let _americanoSelected = new Set();
 let _americanoSchedule = null;
 let _americanoScores = {}; // "round-match" -> {a, b}
 let _americanoMode = "americano"; // "americano" | "mexicano"
-let _americanoSitCount = {}; // mexicano sit-out rotation tracking
+let _americanoSitCount = {}; // sit-out rotation tracking (both modes)
+let _americanoPartnerCounts = {}; // cumulative partnership counts (Americano mode)
+let _americanoOpponentCounts = {}; // cumulative opponent counts (Americano mode)
 
 function openAmericanoSheet() {
   _americanoPlayers = getAllPlayerNamesFromMatches();
   _americanoSelected = new Set();
   _americanoSchedule = null;
+  _americanoPartnerCounts = {};
+  _americanoOpponentCounts = {};
   if (!document.getElementById("americano-list")) return;
   _renderAmericanoList();
   _americanoShowSetup();
@@ -19980,25 +19985,16 @@ function americanoBack() {
 }
 function setAmericanoMode(mode) {
   _americanoMode = mode === "mexicano" ? "mexicano" : "americano";
-  document
-    .getElementById("am-mode-americano")
-    ?.classList.toggle("on", _americanoMode === "americano");
-  document
-    .getElementById("am-mode-mexicano")
-    ?.classList.toggle("on", _americanoMode === "mexicano");
+  document.getElementById("am-mode-americano")?.classList.toggle("on", _americanoMode === "americano");
+  document.getElementById("am-mode-mexicano")?.classList.toggle("on", _americanoMode === "mexicano");
   const hint = document.getElementById("am-mode-hint");
   if (hint)
     hint.textContent =
       _americanoMode === "mexicano"
         ? "Standings-driven — top players matched each round (1st+4th vs 2nd+3rd)"
-        : "Fixed schedule — everyone partners & opposes everyone";
-  // Mexicano builds round-by-round, so the up-front "rounds" count is hidden.
-  const rw = document.getElementById("am-rounds-wrap");
-  if (rw) rw.style.visibility = _americanoMode === "mexicano" ? "hidden" : "";
+        : "Greedy rotation — minimises repeat partners & opponents, infinite rounds";
   const gen = document.getElementById("am-generate-btn");
-  if (gen)
-    gen.textContent =
-      _americanoMode === "mexicano" ? "🎲 START ROUND 1" : "🎲 GENERATE";
+  if (gen) gen.textContent = "🎲 START ROUND 1";
 }
 function americanoSelectAll() {
   _americanoSelected = new Set(_americanoPlayers);
@@ -20015,31 +20011,29 @@ function _americanoShuffle(a) {
   }
   return a;
 }
-function generateAmericanoSchedule(shuffle) {
+function generateAmericanoSchedule() {
   let players = [..._americanoSelected];
   if (players.length < 4) {
     showToast("Pick at least 4 players", "❌");
     return;
   }
-  // Round 1 of either mode is seeded by a shuffle so each draw differs.
   players = _americanoShuffle([...players]);
   _americanoLastPlayers = players;
-  _americanoScores = {}; // fresh scoreboard for the new draw
+  _americanoScores = {};
   _americanoSitCount = {};
+  _americanoPartnerCounts = {};
+  _americanoOpponentCounts = {};
   try {
+    let r1;
     if (_americanoMode === "mexicano") {
-      const r1 = nextMexicanoRound(players, _americanoSitCount);
-      (r1.sittingOut || []).forEach(
-        (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
-      );
-      _americanoSchedule = [{ round: 1, ...r1 }];
+      r1 = nextMexicanoRound(players, _americanoSitCount);
     } else {
-      const rounds = Math.max(
-        1,
-        Math.min(30, parseInt(document.getElementById("americano-rounds")?.value, 10) || 7),
-      );
-      _americanoSchedule = generateAmericano(players, rounds);
+      r1 = nextAmericanoRound(players, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount);
     }
+    (r1.sittingOut || []).forEach(
+      (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
+    );
+    _americanoSchedule = [{ round: 1, ...r1 }];
   } catch (e) {
     showToast(e.message || "Could not generate", "❌");
     return;
@@ -20048,27 +20042,33 @@ function generateAmericanoSchedule(shuffle) {
   document.getElementById("americano-setup").style.display = "none";
   document.getElementById("americano-result").style.display = "";
   document.getElementById("americano-result-actions").style.display = "flex";
+  document.getElementById("am-add-player-wrap").style.display = "none";
   _syncAmericanoActions();
 }
-// Show RESHUFFLE for Americano, NEXT ROUND for Mexicano.
 function _syncAmericanoActions() {
   const mex = _americanoMode === "mexicano";
   const re = document.getElementById("am-reshuffle-btn");
   const nx = document.getElementById("am-next-btn");
+  // Reshuffle only meaningful for Americano (Mexicano is standings-driven)
   if (re) re.style.display = mex ? "none" : "";
-  if (nx) nx.style.display = mex ? "" : "none";
+  if (nx) nx.style.display = ""; // always visible — both modes are infinite
 }
-// Mexicano: generate the next round from the CURRENT standings, append it.
+// Generate the next round and append it. Works for both Americano and Mexicano.
 function americanoNextRound() {
-  if (!_americanoSchedule || _americanoMode !== "mexicano") return;
-  if (_americanoSchedule.length >= 30) {
-    showToast("That's plenty of rounds!", "🎾");
-    return;
-  }
-  const ordered = _americanoStandings().map((s) => s.name); // best → worst
+  if (!_americanoSchedule) return;
   let next;
   try {
-    next = nextMexicanoRound(ordered, _americanoSitCount);
+    if (_americanoMode === "mexicano") {
+      const ordered = _americanoStandings().map((s) => s.name);
+      next = nextMexicanoRound(ordered, _americanoSitCount);
+    } else {
+      next = nextAmericanoRound(
+        _americanoLastPlayers,
+        _americanoPartnerCounts,
+        _americanoOpponentCounts,
+        _americanoSitCount,
+      );
+    }
   } catch (e) {
     showToast(e.message || "Could not build round", "❌");
     return;
@@ -20079,18 +20079,49 @@ function americanoNextRound() {
   _americanoSchedule.push({ round: _americanoSchedule.length + 1, ...next });
   _renderAmericanoResult(_americanoLastPlayers, _americanoSchedule);
   _syncAmericanoActions();
-  // Scroll the newly added round into view.
   const rounds = document.querySelectorAll("#americano-result .am-round");
-  rounds[rounds.length - 1]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  rounds[rounds.length - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 let _americanoLastPlayers = [];
 function americanoRegenerate() {
-  generateAmericanoSchedule(true);
+  generateAmericanoSchedule();
 }
+
+function toggleAmericanoAddPlayer() {
+  const wrap = document.getElementById("am-add-player-wrap");
+  if (!wrap) return;
+  const showing = wrap.style.display === "flex";
+  wrap.style.display = showing ? "none" : "flex";
+  if (!showing) document.getElementById("am-add-player-input")?.focus();
+}
+window.toggleAmericanoAddPlayer = toggleAmericanoAddPlayer;
+
+function americanoConfirmAddPlayer() {
+  const inp = document.getElementById("am-add-player-input");
+  const name = (inp?.value || "").trim();
+  if (!name) return;
+  const duplicate = _americanoLastPlayers.find(
+    (p) => p.toLowerCase() === name.toLowerCase(),
+  );
+  if (duplicate) {
+    showToast(`${duplicate} is already in the session`, "⚠️");
+    return;
+  }
+  _americanoLastPlayers.push(name);
+  // sitCount = 0 → algorithm will prioritise this player in the next round
+  _americanoSitCount[name] = 0;
+  // Initialise partner/opponent maps (Americano mode); safe no-op for Mexicano
+  _americanoPartnerCounts[name] = {};
+  _americanoOpponentCounts[name] = {};
+  if (inp) inp.value = "";
+  toggleAmericanoAddPlayer();
+  _renderAmericanoResult(_americanoLastPlayers, _americanoSchedule);
+  showToast(`${name} added — plays in next round`, "✅");
+}
+window.americanoConfirmAddPlayer = americanoConfirmAddPlayer;
 function _renderAmericanoResult(players, schedule) {
   const av = (n) =>
     `<span class="am-av" style="background:${playerColor(n)}">${playerInitials(n)}</span>`;
-  // One line per team: avatars + names on the left, a points input on the right.
   const teamRow = (team, r, i, side) => {
     const sc = _americanoScores[r + "-" + i] || {};
     const val = sc[side] != null ? sc[side] : "";
@@ -20105,17 +20136,20 @@ function _renderAmericanoResult(players, schedule) {
             `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}<div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div></div>`,
         )
         .join("");
-      const sit =
-        rnd.sittingOut && rnd.sittingOut.length
-          ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
-          : "";
+      const sit = rnd.sittingOut && rnd.sittingOut.length
+        ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
+        : "";
       return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
     })
     .join("");
   const f = americanoFairness(players, schedule);
-  const summary = `<div class="am-summary">${players.length} players · ${schedule.length} rounds · partners repeat ≤ ${f.maxPartnerRepeat}× · sit-outs ${f.minSits}–${f.maxSits}</div>`;
+  const summary = `<div class="am-summary">${players.length} players · ${schedule.length} round${schedule.length !== 1 ? "s" : ""} · partners repeat ≤ ${f.maxPartnerRepeat}× · sit-outs ${f.minSits}–${f.maxSits}</div>`;
+  const goTop = `<div style="position:sticky;bottom:8px;display:flex;justify-content:flex-end;pointer-events:none;margin-top:16px;padding-bottom:4px">
+    <button onclick="document.getElementById('americano-result').scrollTop=0" style="pointer-events:all;width:38px;height:38px;border-radius:50%;background:var(--accent);color:#000;font-size:18px;font-weight:900;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center" title="Back to top">↑</button>
+  </div>`;
+  // Leaderboard first, then schedule, go-to-top anchored at bottom of scroll area
   document.getElementById("americano-result").innerHTML =
-    `<div id="americano-standings"></div>` + summary + body;
+    `<div id="americano-standings"></div>` + summary + body + goTop;
   _renderAmericanoStandings();
 }
 
@@ -20158,19 +20192,16 @@ function _renderAmericanoStandings() {
   const el = document.getElementById("americano-standings");
   if (!el) return;
   const st = _americanoStandings();
-  if (!st.some((s) => s.played > 0)) {
-    el.innerHTML = "";
-    return;
-  }
-  const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1);
+  const hasScores = st.some((s) => s.played > 0);
+  const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`);
   el.innerHTML =
-    `<div class="am-stand-hdr">🏆 STANDINGS</div>` +
-    st
-      .map(
-        (s, i) =>
-          `<div class="am-stand-row"><span class="am-stand-rank">${medal(i)}</span><span class="am-stand-name">${escHtml(s.name)}</span><span class="am-stand-meta">${s.won}W · ${s.played}p</span><span class="am-stand-pts">${s.pts}</span></div>`,
-      )
-      .join("");
+    `<div class="am-stand-hdr">🏆 LEADERBOARD</div>` +
+    (hasScores
+      ? st.map((s, i) =>
+          `<div class="am-stand-row"><span class="am-stand-rank">${medal(i)}</span><span class="am-stand-name">${escHtml(s.name)}</span><span class="am-stand-meta">${s.won}W · ${s.played}P</span><span class="am-stand-pts">${s.pts} pts</span></div>`,
+        ).join("")
+      : `<div style="text-align:center;padding:10px 0 14px;color:var(--muted);font-size:11px;letter-spacing:0.05em">Enter match scores to see standings</div>`
+    );
 }
 window._amScore = function (r, i, side, val, inputEl) {
   const k = r + "-" + i;

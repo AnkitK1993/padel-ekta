@@ -160,6 +160,49 @@ export function nextMexicanoRound(orderedPlayers, sitCount = {}) {
   return { matches, sittingOut: sitting };
 }
 
+// ── INCREMENTAL AMERICANO ────────────────────────────────────
+// Single-round generator for infinite Americano sessions. Mutates
+// partnerCounts/opponentCounts in-place (cumulative across rounds). Reads
+// sitCounts but does NOT mutate them — caller increments from sittingOut.
+// Safe to call mid-session after adding new players: missing map entries are
+// initialised to 0, so new players are immediately prioritised to play.
+export function nextAmericanoRound(players, partnerCounts, opponentCounts, sitCounts) {
+  const uniq = [...new Set((players || []).map(String).filter(Boolean))];
+  const N = uniq.length;
+  if (N < 4) throw new Error("Need at least 4 players.");
+  const courts = Math.floor(N / 4);
+  const playPerRound = courts * 4;
+  const numSitting = N - playPerRound;
+
+  // Ensure new/missing players have map entries (handles mid-session additions).
+  uniq.forEach((p) => {
+    if (!partnerCounts[p]) partnerCounts[p] = {};
+    if (!opponentCounts[p]) opponentCounts[p] = {};
+  });
+
+  // Fewest sit-outs plays next — guarantees equal play over infinite rounds.
+  const order = [...uniq].sort(
+    (a, b) => (sitCounts[a] || 0) - (sitCounts[b] || 0) || uniq.indexOf(a) - uniq.indexOf(b),
+  );
+  const sitting = order.slice(0, numSitting);
+  const playing = order.slice(numSitting);
+
+  const matches = _formMatches(playing, partnerCounts, opponentCounts);
+  matches.forEach((m) => {
+    const [a, b] = m.teamA;
+    const [c, d] = m.teamB;
+    partnerCounts[a][b] = (partnerCounts[a][b] || 0) + 1;
+    partnerCounts[b][a] = (partnerCounts[b][a] || 0) + 1;
+    partnerCounts[c][d] = (partnerCounts[c][d] || 0) + 1;
+    partnerCounts[d][c] = (partnerCounts[d][c] || 0) + 1;
+    [[a, c], [a, d], [b, c], [b, d]].forEach(([x, y]) => {
+      opponentCounts[x][y] = (opponentCounts[x][y] || 0) + 1;
+      opponentCounts[y][x] = (opponentCounts[y][x] || 0) + 1;
+    });
+  });
+  return { matches, sittingOut: sitting };
+}
+
 // Fairness summary for a generated schedule — used by tests and by the UI to
 // show "everyone partnered everyone" style reassurance.
 export function americanoFairness(players, schedule) {
