@@ -1078,6 +1078,37 @@ let _livePointUndoStack     = [];
 let _liveGameMode           = 4;
 let _liveActiveSlot         = null;
 
+// sessionState field aliases — call sites use these bare names; they read/write
+// through to the canonical sessionState object so resetSessionState() stays atomic.
+// Arrays/Sets are aliased by reference (mutations propagate automatically).
+// Scalar aliases use Object.defineProperty so ++ / = writes propagate too.
+Object.defineProperty(globalThis, "_sessionMatchHistory", {
+  get() { return sessionState.matchHistory; },
+  set(v) { sessionState.matchHistory = v; },
+  configurable: true,
+});
+Object.defineProperty(globalThis, "_sessionRedoStack", {
+  get() { return sessionState.redoStack; },
+  set(v) { sessionState.redoStack = v; },
+  configurable: true,
+});
+Object.defineProperty(globalThis, "_sessionPendingCount", {
+  get() { return sessionState.pendingCount; },
+  set(v) { sessionState.pendingCount = v; },
+  configurable: true,
+});
+Object.defineProperty(globalThis, "_sessionPanelOpen", {
+  get() { return sessionState.panelOpen; },
+  set(v) { sessionState.panelOpen = v; },
+  configurable: true,
+});
+// _sessionSetupSelected — reassigned at mutation sites; use property alias via globalThis
+Object.defineProperty(globalThis, "_sessionSetupSelected", {
+  get() { return sessionState.setupSelected; },
+  set(v) { sessionState.setupSelected = v; },
+  configurable: true,
+});
+
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
 window.isAdmin = false;
