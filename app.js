@@ -20714,14 +20714,7 @@ function _showLiveEventBanner(event) {
     }
     return;
   }
-  if (type === "session_start") {
-    showLiveBanner("session_start", "SESSION STARTED!", msg);
-    return;
-  }
-  if (type === "session_end") {
-    showLiveBanner("session_end", "SESSION ENDED", msg);
-    return;
-  }
+  if (type === "session_start" || type === "session_end") return;
 }
 
 window.openMatchConfirmSheet = openMatchConfirmSheet;
