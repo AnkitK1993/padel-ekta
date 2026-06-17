@@ -17757,8 +17757,6 @@ Object.assign(window, {
   americanoSelectAll,
   americanoSelectNone,
   generateAmericanoSchedule,
-  americanoRegenerate,
-  americanoNextRound,
   americanoBack,
   _anaSubTab,
   _radarPick,
@@ -19763,18 +19761,31 @@ let _americanoMode = "americano"; // "americano" | "mexicano"
 let _americanoSitCount = {}; // sit-out rotation tracking (both modes)
 let _americanoPartnerCounts = {}; // cumulative partnership counts (Americano mode)
 let _americanoOpponentCounts = {}; // cumulative opponent counts (Americano mode)
+let _amCurrentTab = "schedule";
+let _amDateFilter = "today";
+let _amRemovedPlayers = new Set();
+let _amEndConfirmPending = false;
+const _AM_SESSION_KEY = "padel_am_session";
+let _americanoLastPlayers = [];
 
 function openAmericanoSheet() {
   _americanoPlayers = getAllPlayerNamesFromMatches();
+  if (!document.getElementById("americano-list")) return;
+  document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
+  // Try to restore saved session
+  if (_amRestoreSession()) return;
+  // Fresh start
   _americanoSelected = new Set();
   _americanoSchedule = null;
+  _americanoScores = {};
+  _americanoSitCount = {};
   _americanoPartnerCounts = {};
   _americanoOpponentCounts = {};
-  if (!document.getElementById("americano-list")) return;
+  _americanoLastPlayers = [];
+  _amRemovedPlayers = new Set();
   _renderAmericanoList();
   _americanoShowSetup();
-  setAmericanoMode(_americanoMode); // sync the toggle UI to the current mode
-  document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
+  setAmericanoMode(_americanoMode);
 }
 // Render the player chips, reflecting the current selection (so adding a guest
 // or select-all/none re-renders without losing what's already ticked).
@@ -19977,13 +19988,20 @@ function _persistSeasons() {
 function _americanoShowSetup() {
   document.getElementById("americano-setup").style.display = "";
   document.getElementById("americano-result").style.display = "none";
-  document.getElementById("americano-result-actions").style.display = "none";
-  document.getElementById("am-add-player-wrap").style.display = "none";
   document.getElementById("am-bottom-bar").style.display = "none";
 }
 function americanoBack() {
+  localStorage.removeItem(_AM_SESSION_KEY);
+  _americanoSchedule = null;
+  _americanoScores = {};
+  _americanoSitCount = {};
+  _americanoPartnerCounts = {};
+  _americanoOpponentCounts = {};
+  _americanoLastPlayers = [];
+  _amRemovedPlayers = new Set();
   _americanoShowSetup();
 }
+window.americanoBack = americanoBack;
 function setAmericanoMode(mode) {
   _americanoMode = mode === "mexicano" ? "mexicano" : "americano";
   document.getElementById("am-mode-americano")?.classList.toggle("on", _americanoMode === "americano");
@@ -20043,93 +20061,13 @@ function generateAmericanoSchedule() {
     showToast(e.message || "Could not generate", "❌");
     return;
   }
-  _renderAmericanoResult(players, _americanoSchedule);
   document.getElementById("americano-setup").style.display = "none";
   document.getElementById("americano-result").style.display = "";
   document.getElementById("am-bottom-bar").style.display = "";
-  document.getElementById("americano-result-actions").style.display = "flex";
-  document.getElementById("am-add-player-wrap").style.display = "none";
   document.getElementById("americano-sheet").scrollTop = 0;
-  _syncAmericanoActions();
+  amSwitchTab("schedule");
+  _amSaveSession();
 }
-function _syncAmericanoActions() {
-  const mex = _americanoMode === "mexicano";
-  const re = document.getElementById("am-reshuffle-btn");
-  const nx = document.getElementById("am-next-btn");
-  // Reshuffle only meaningful for Americano (Mexicano is standings-driven)
-  if (re) re.style.display = mex ? "none" : "";
-  if (nx) nx.style.display = ""; // always visible — both modes are infinite
-}
-// Append next batch of rounds. Americano adds 5 at a time; Mexicano adds 1
-// (standings-driven — must be based on current scores, can't pre-generate).
-function americanoNextRound() {
-  if (!_americanoSchedule) return;
-  const batch = _americanoMode === "mexicano" ? 1 : 5;
-  try {
-    for (let n = 0; n < batch; n++) {
-      let next;
-      if (_americanoMode === "mexicano") {
-        const ordered = _americanoStandings().map((s) => s.name);
-        next = nextMexicanoRound(ordered, _americanoSitCount);
-      } else {
-        next = nextAmericanoRound(
-          _americanoLastPlayers,
-          _americanoPartnerCounts,
-          _americanoOpponentCounts,
-          _americanoSitCount,
-        );
-      }
-      (next.sittingOut || []).forEach(
-        (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
-      );
-      _americanoSchedule.push({ round: _americanoSchedule.length + 1, ...next });
-    }
-  } catch (e) {
-    showToast(e.message || "Could not build round", "❌");
-    return;
-  }
-  _renderAmericanoResult(_americanoLastPlayers, _americanoSchedule);
-  _syncAmericanoActions();
-  const rounds = document.querySelectorAll("#americano-result .am-round");
-  rounds[rounds.length - batch]?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-let _americanoLastPlayers = [];
-function americanoRegenerate() {
-  generateAmericanoSchedule();
-}
-
-function toggleAmericanoAddPlayer() {
-  const wrap = document.getElementById("am-add-player-wrap");
-  if (!wrap) return;
-  const showing = wrap.style.display === "flex";
-  wrap.style.display = showing ? "none" : "flex";
-  if (!showing) document.getElementById("am-add-player-input")?.focus();
-}
-window.toggleAmericanoAddPlayer = toggleAmericanoAddPlayer;
-
-function americanoConfirmAddPlayer() {
-  const inp = document.getElementById("am-add-player-input");
-  const name = (inp?.value || "").trim();
-  if (!name) return;
-  const duplicate = _americanoLastPlayers.find(
-    (p) => p.toLowerCase() === name.toLowerCase(),
-  );
-  if (duplicate) {
-    showToast(`${duplicate} is already in the session`, "⚠️");
-    return;
-  }
-  _americanoLastPlayers.push(name);
-  // sitCount = 0 → algorithm will prioritise this player in the next round
-  _americanoSitCount[name] = 0;
-  // Initialise partner/opponent maps (Americano mode); safe no-op for Mexicano
-  _americanoPartnerCounts[name] = {};
-  _americanoOpponentCounts[name] = {};
-  if (inp) inp.value = "";
-  toggleAmericanoAddPlayer();
-  _renderAmericanoResult(_americanoLastPlayers, _americanoSchedule);
-  showToast(`${name} added — plays in next round`, "✅");
-}
-window.americanoConfirmAddPlayer = americanoConfirmAddPlayer;
 function _initAmericanoTouchHandlers() {
   const result = document.getElementById("americano-result");
   if (!result || result._amHandlers) return;
@@ -20159,12 +20097,103 @@ function _initAmericanoTouchHandlers() {
   }, { passive: false });
 }
 
-function _renderAmericanoResult(players, schedule) {
+// ── AMERICANO SESSION PERSISTENCE ──────────────────────────
+function _amSaveSession() {
+  try {
+    localStorage.setItem(_AM_SESSION_KEY, JSON.stringify({
+      schedule: _americanoSchedule,
+      scores: _americanoScores,
+      sitCount: _americanoSitCount,
+      partnerCounts: _americanoPartnerCounts,
+      opponentCounts: _americanoOpponentCounts,
+      players: _americanoLastPlayers,
+      removed: [..._amRemovedPlayers],
+      mode: _americanoMode,
+      points: parseInt(document.getElementById("americano-points")?.value, 10) || 21,
+    }));
+  } catch (e) {}
+}
+function _amRestoreSession() {
+  try {
+    const raw = localStorage.getItem(_AM_SESSION_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (!d.schedule || !d.players || d.players.length < 4) return false;
+    _americanoSchedule = d.schedule;
+    _americanoScores = d.scores || {};
+    _americanoSitCount = d.sitCount || {};
+    _americanoPartnerCounts = d.partnerCounts || {};
+    _americanoOpponentCounts = d.opponentCounts || {};
+    _americanoLastPlayers = d.players;
+    _amRemovedPlayers = new Set(d.removed || []);
+    _americanoMode = d.mode || "americano";
+    const pts = document.getElementById("americano-points");
+    if (pts) pts.value = d.points || 21;
+    document.getElementById("americano-setup").style.display = "none";
+    document.getElementById("americano-result").style.display = "";
+    document.getElementById("am-bottom-bar").style.display = "";
+    amSwitchTab("schedule");
+    return true;
+  } catch (e) { return false; }
+}
+
+// ── AMERICANO TAB SYSTEM ─────────────────────────────────
+function amSwitchTab(tab) {
+  _amCurrentTab = tab;
+  ["schedule", "leaderboard", "players"].forEach((t) => {
+    document.getElementById("am-tab-" + t)?.classList.toggle("active", t === tab);
+  });
+  if (tab === "schedule") _renderAmScheduleTab();
+  else if (tab === "leaderboard") _renderAmLeaderboardTab();
+  else if (tab === "players") _renderAmPlayersTab();
+}
+window.amSwitchTab = amSwitchTab;
+
+function amSwitchDateFilter(f) {
+  _amDateFilter = f;
+  _renderAmLeaderboardTab();
+}
+window.amSwitchDateFilter = amSwitchDateFilter;
+
+// ── AUTO-EXTEND: keep 5 unplayed matches in the schedule ─
+function _amEnsureUpcoming() {
+  if (!_americanoSchedule || !_americanoLastPlayers) return;
+  const active = _americanoLastPlayers.filter((p) => !_amRemovedPlayers.has(p));
+  if (active.length < 4) return;
+  let unplayed = _americanoSchedule.reduce(
+    (sum, rnd, r) =>
+      sum + rnd.matches.filter((_, i) => !_americanoScores[r + "-" + i]).length,
+    0,
+  );
+  while (unplayed < 5) {
+    try {
+      let next;
+      if (_americanoMode === "mexicano") {
+        const ordered = _americanoStandings().map((s) => s.name);
+        next = nextMexicanoRound(ordered, _americanoSitCount);
+      } else {
+        next = nextAmericanoRound(active, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount);
+      }
+      (next.sittingOut || []).forEach(
+        (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
+      );
+      _americanoSchedule.push({ round: _americanoSchedule.length + 1, ...next });
+      unplayed += next.matches.length;
+    } catch { break; }
+  }
+}
+
+// ── SCHEDULE TAB ─────────────────────────────────────────
+function _renderAmScheduleTab() {
+  const container = document.getElementById("americano-result");
+  if (!container) return;
+  _amEnsureUpcoming();
+  const schedule = _americanoSchedule || [];
+  const total = parseInt(document.getElementById("americano-points")?.value, 10) || 21;
+  const defA = 10, defB = 10;
   const av = (n) =>
     `<span class="am-av" style="background:${playerColor(n)}">${playerInitials(n)}</span>`;
-  const total = parseInt(document.getElementById("americano-points")?.value, 10) || 21;
-  const defA = 10;  // unplayed sentinel — 10+10=20 ≠ total, so standings ignore it
-  const defB = 10;
+  const isPlayed = (r, i) => !!_americanoScores[r + "-" + i];
   const teamRow = (team, r, i, side) => {
     const sc = _americanoScores[r + "-" + i] || {};
     const val = sc[side] != null ? sc[side] : (side === "a" ? defA : defB);
@@ -20172,36 +20201,213 @@ function _renderAmericanoResult(players, schedule) {
   };
   const multiCourt = schedule.some((r) => r.matches.length > 1);
   const renderRound = (rnd, r) => {
-    const matches = rnd.matches.map(
-      (m, i) =>
-        `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}<div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div></div>`,
-    ).join("");
-    const sit = rnd.sittingOut && rnd.sittingOut.length
+    const matches = rnd.matches.map((m, i) => {
+      const played = isPlayed(r, i);
+      return `<div class="am-match${played ? " am-match-played" : " am-match-upcoming"}">
+        ${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}
+        <div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div>
+      </div>`;
+    }).join("");
+    const sit = rnd.sittingOut?.length
       ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
       : "";
     return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
   };
-  const isRoundPlayed = (r) =>
-    schedule[r].matches.some((_, i) => !!_americanoScores[r + "-" + i]);
-  const playedIdx = schedule.map((_, r) => r).filter((r) => isRoundPlayed(r));
-  const upcomingIdx = schedule.map((_, r) => r).filter((r) => !isRoundPlayed(r));
+  const playedIdx = schedule.map((_, r) => r).filter((r) => schedule[r].matches.some((_, i) => isPlayed(r, i)));
+  const upcomingIdx = schedule.map((_, r) => r).filter((r) => schedule[r].matches.every((_, i) => !isPlayed(r, i)));
   const historyHtml = playedIdx.length
     ? `<details class="am-history-details"><summary>HISTORY · ${playedIdx.length} round${playedIdx.length !== 1 ? "s" : ""} played</summary>${playedIdx.map((r) => renderRound(schedule[r], r)).join("")}</details>`
     : "";
   const upcomingHtml = upcomingIdx.length
     ? `<div class="am-upcoming-hdr">UPCOMING — ${upcomingIdx.length} round${upcomingIdx.length !== 1 ? "s" : ""}</div>${upcomingIdx.map((r) => renderRound(schedule[r], r)).join("")}`
     : `<div style="text-align:center;padding:18px 0;color:var(--muted);font-size:11px;letter-spacing:0.05em">All rounds completed</div>`;
-  const f = americanoFairness(players, schedule);
-  const summary = `<div class="am-summary">${players.length} players · ${schedule.length} round${schedule.length !== 1 ? "s" : ""} · partners repeat ≤ ${f.maxPartnerRepeat}× · sit-outs ${f.minSits}–${f.maxSits}</div>`;
-  const goTop = `<div style="position:sticky;bottom:72px;display:flex;justify-content:flex-end;pointer-events:none;margin-top:16px">
-    <button onclick="document.getElementById('americano-sheet').scrollTop=0" style="pointer-events:all;width:38px;height:38px;border-radius:50%;background:var(--accent);color:#000;font-size:18px;font-weight:900;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center" title="Back to top">↑</button>
-  </div>`;
-  // Leaderboard (non-frozen) → summary → history → upcoming → go-to-top
-  document.getElementById("americano-result").innerHTML =
-    `<div id="americano-standings"></div>` + summary + historyHtml + upcomingHtml + goTop;
-  _renderAmericanoStandings();
+  const f = americanoFairness(_americanoLastPlayers, schedule);
+  const summary = `<div class="am-summary">${_americanoLastPlayers.length} players · ${schedule.length} round${schedule.length !== 1 ? "s" : ""} · sit-outs ${f.minSits}–${f.maxSits}</div>`;
+  container.innerHTML = summary + historyHtml + upcomingHtml;
   _initAmericanoTouchHandlers();
 }
+
+// ── LEADERBOARD TAB ───────────────────────────────────────
+function _amFilteredMatches() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  let since = null;
+  if (_amDateFilter === "today") {
+    since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  } else if (_amDateFilter === "week") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 7);
+    since = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  } else if (_amDateFilter === "month") {
+    since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+  }
+  return since
+    ? (state.matches || []).filter((m) => (m.date || "") >= since)
+    : (state.matches || []);
+}
+function _renderAmLeaderboardTab() {
+  const container = document.getElementById("americano-result");
+  if (!container) return;
+  const st = _americanoStandings();
+  const hasScores = st.some((s) => s.played > 0);
+  const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`);
+  const sessionHtml = `<div style="margin-bottom:4px">
+    <div class="am-stand-hdr">🏆 SESSION</div>
+    ${hasScores
+      ? st.map((s, i) => `<div class="am-stand-row"><span class="am-stand-rank">${medal(i)}</span><span class="am-stand-name">${escHtml(s.name)}</span><span class="am-stand-meta">${s.won}W · ${s.played}P</span><span class="am-stand-pts">${s.pts} pts</span></div>`).join("")
+      : `<div style="text-align:center;padding:8px 0 12px;color:var(--muted);font-size:11px;letter-spacing:0.05em">Enter match scores to see standings</div>`
+    }
+  </div>`;
+  const filters = ["today", "week", "month", "all"];
+  const labels = { today: "TODAY", week: "WEEK", month: "MONTH", all: "ALL TIME" };
+  const filterBar = `<div class="am-date-filter">${filters.map((f) => `<button class="am-date-btn${_amDateFilter === f ? " active" : ""}" onclick="amSwitchDateFilter('${f}')">${labels[f]}</button>`).join("")}</div>`;
+  const matches = _amFilteredMatches();
+  let appHtml;
+  if (!matches.length) {
+    const label = _amDateFilter === "today" ? "today" : _amDateFilter === "week" ? "this week" : _amDateFilter === "month" ? "this month" : "";
+    appHtml = `<div style="text-align:center;padding:14px 0;color:var(--muted);font-size:11px;letter-spacing:0.05em">No matches${label ? " " + label : ""}</div>`;
+  } else {
+    const stats = computeStats(matches).filter((p) => p.mp >= 1).sort((a, b) => b.mw / (b.mp || 1) - a.mw / (a.mp || 1) || b.mp - a.mp);
+    appHtml = `<div class="am-stand-hdr" style="margin-top:8px">📊 APP LEADERBOARD</div>
+      <div style="display:grid;grid-template-columns:20px 1fr 28px 46px 34px;gap:4px 6px;font-size:10px;color:var(--muted);padding:4px 8px"># <span>PLAYER</span><span style="text-align:right">MP</span><span style="text-align:right">W-L</span><span style="text-align:right">WIN%</span></div>
+      ${stats.slice(0, 12).map((p, i) => {
+        const wp = p.mp ? Math.round(100 * p.mw / p.mp) : 0;
+        return `<div style="display:grid;grid-template-columns:20px 1fr 28px 46px 34px;gap:4px 6px;align-items:center;padding:5px 8px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:3px;font-size:11px"><span style="font-weight:800">${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span><span style="text-align:right;color:var(--muted)">${p.mp}</span><span style="text-align:right;color:var(--muted)">${p.mw}–${p.mp - p.mw}</span><span style="text-align:right;font-weight:700;color:${wp >= 50 ? "var(--accent,#00cc64)" : "var(--muted)"}">${wp}%</span></div>`;
+      }).join("")}`;
+  }
+  container.innerHTML = sessionHtml + filterBar + appHtml;
+}
+
+// ── PLAYERS TAB ───────────────────────────────────────────
+function _renderAmPlayersTab() {
+  const container = document.getElementById("americano-result");
+  if (!container) return;
+  const playedByPlayer = {};
+  (_americanoSchedule || []).forEach((rnd, r) => {
+    rnd.matches.forEach((m, i) => {
+      if (!_americanoScores[r + "-" + i]) return;
+      [...m.teamA, ...m.teamB].forEach((p) => {
+        playedByPlayer[p] = (playedByPlayer[p] || 0) + 1;
+      });
+    });
+  });
+  const rows = _americanoLastPlayers.map((p) => {
+    const isRemoved = _amRemovedPlayers.has(p);
+    const gp = playedByPlayer[p] || 0;
+    return `<div class="am-player-row${isRemoved ? " am-player-removed" : ""}">
+      <span class="am-player-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      <span class="am-player-name">${escHtml(p)}</span>
+      <span class="am-player-meta">${gp}G${isRemoved ? " · OUT" : ""}</span>
+      ${!isRemoved
+        ? `<button class="am-player-remove" onclick="window._amRemovePlayer(${jsArg(p)})">✕</button>`
+        : `<button class="am-player-remove" style="background:rgba(0,200,100,0.12);color:#00cc64" onclick="window._amReAddPlayer(${jsArg(p)})">↩</button>`}
+    </div>`;
+  }).join("");
+  const hasAnyScore = Object.keys(_americanoScores).length > 0;
+  const restartBtn = !hasAnyScore
+    ? `<button onclick="americanoBack()" style="display:block;width:100%;padding:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text-muted);border-radius:10px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:0.1em;margin-top:8px">↩ CHANGE PLAYERS</button>`
+    : "";
+  container.innerHTML = `<div style="padding:4px 0 8px">
+    <div class="am-stand-hdr">PLAYERS (${_americanoLastPlayers.length - _amRemovedPlayers.size} active)</div>
+    ${rows}
+    <div class="am-add-player-row">
+      <input id="am-new-player-input" type="text" placeholder="Add player…" autocomplete="off"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();amAddPlayerConfirm();}"
+        style="flex:1;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px"/>
+      <button class="tb-btn tb-btn-balance" onclick="amAddPlayerConfirm()">✓ ADD</button>
+    </div>
+  </div>
+  ${restartBtn}
+  <button class="am-end-session-btn" id="am-end-btn" onclick="amEndSession()">■ END SESSION</button>
+  <div style="height:6px"></div>`;
+}
+window.amAddPlayerConfirm = function() {
+  const inp = document.getElementById("am-new-player-input");
+  const name = (inp?.value || "").trim();
+  if (!name) return;
+  const existing = _americanoLastPlayers.find((p) => p.toLowerCase() === name.toLowerCase());
+  if (existing) {
+    if (_amRemovedPlayers.has(existing)) {
+      _amRemovedPlayers.delete(existing);
+      showToast(`${existing} re-added to session`, "✅");
+    } else {
+      showToast(`${existing} is already in the session`, "⚠️");
+      return;
+    }
+  } else {
+    _americanoLastPlayers.push(name);
+    _americanoSitCount[name] = 0;
+    _americanoPartnerCounts[name] = {};
+    _americanoOpponentCounts[name] = {};
+    showToast(`${name} added — will play soon`, "✅");
+  }
+  if (inp) inp.value = "";
+  _amSaveSession();
+  _renderAmPlayersTab();
+};
+window._amRemovePlayer = function(name) {
+  const hasPlayed = (_americanoSchedule || []).some((rnd, r) =>
+    rnd.matches.some((m, i) =>
+      _americanoScores[r + "-" + i] &&
+      (m.teamA.includes(name) || m.teamB.includes(name)),
+    ),
+  );
+  if (hasPlayed) {
+    _amRemovedPlayers.add(name);
+    showToast(`${name} removed from upcoming rounds`, "ℹ️");
+  } else {
+    _americanoLastPlayers = _americanoLastPlayers.filter((p) => p !== name);
+    delete _americanoSitCount[name];
+    delete _americanoPartnerCounts[name];
+    delete _americanoOpponentCounts[name];
+    showToast(`${name} removed`, "✅");
+  }
+  _amSaveSession();
+  _renderAmPlayersTab();
+};
+window._amReAddPlayer = function(name) {
+  _amRemovedPlayers.delete(name);
+  showToast(`${name} re-added to upcoming rounds`, "✅");
+  _amSaveSession();
+  _renderAmPlayersTab();
+};
+window.amEndSession = function() {
+  const btn = document.getElementById("am-end-btn");
+  if (!_amEndConfirmPending) {
+    _amEndConfirmPending = true;
+    if (btn) { btn.textContent = "■ TAP AGAIN TO CONFIRM END"; btn.style.background = "rgba(255,80,80,0.3)"; }
+    setTimeout(() => {
+      _amEndConfirmPending = false;
+      if (btn) { btn.textContent = "■ END SESSION"; btn.style.background = ""; }
+    }, 3000);
+    return;
+  }
+  _amEndConfirmPending = false;
+  const today = new Date().toISOString().slice(0, 10);
+  const played = [];
+  (_americanoSchedule || []).forEach((rnd, r) => {
+    rnd.matches.forEach((m, i) => {
+      const sc = _americanoScores[r + "-" + i];
+      if (!sc || sc.a == null || (sc.a === 10 && sc.b === 10)) return;
+      played.push({ teamA: m.teamA, teamB: m.teamB, scoreA: sc.a, scoreB: sc.b, date: today });
+    });
+  });
+  if (played.length) {
+    state.matches.push(...played);
+    saveCloudData();
+    commit();
+  }
+  localStorage.removeItem(_AM_SESSION_KEY);
+  _americanoSchedule = null;
+  _americanoScores = {};
+  _americanoSitCount = {};
+  _americanoPartnerCounts = {};
+  _americanoOpponentCounts = {};
+  _americanoLastPlayers = [];
+  _amRemovedPlayers = new Set();
+  closeAmericano();
+  showToast(`Session ended · ${played.length} match${played.length !== 1 ? "es" : ""} saved`, "✅");
+};
 
 // Live standings from whatever scores have been entered so far. Americano
 // scoring: each player banks the points their team scored, every round.
@@ -20238,42 +20444,6 @@ function _americanoStandings() {
       (x, y) => y.pts - x.pts || y.won - x.won || x.name.localeCompare(y.name),
     );
 }
-function _renderAmericanoStandings() {
-  const el = document.getElementById("americano-standings");
-  if (!el) return;
-  const st = _americanoStandings();
-  const hasScores = st.some((s) => s.played > 0);
-  const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`);
-  el.innerHTML =
-    `<div class="am-stand-hdr">🏆 LEADERBOARD</div>` +
-    (hasScores
-      ? st.map((s, i) =>
-          `<div class="am-stand-row"><span class="am-stand-rank">${medal(i)}</span><span class="am-stand-name">${escHtml(s.name)}</span><span class="am-stand-meta">${s.won}W · ${s.played}P</span><span class="am-stand-pts">${s.pts} pts</span></div>`,
-        ).join("")
-      : `<div style="text-align:center;padding:10px 0 14px;color:var(--muted);font-size:11px;letter-spacing:0.05em">Enter match scores to see standings</div>`
-    );
-}
-window._amScore = function (r, i, side, val, inputEl) {
-  const k = r + "-" + i;
-  if (!_americanoScores[k]) _americanoScores[k] = {};
-  const n = val === "" ? null : Math.max(0, parseInt(val, 10) || 0);
-  _americanoScores[k][side] = n;
-  // Configurable points: if a per-match total is set, auto-fill the other team
-  // (total − this score) so you only type one number per match.
-  const total =
-    parseInt(document.getElementById("americano-points")?.value, 10) || 0;
-  if (total > 0 && n != null && inputEl) {
-    const other = side === "a" ? "b" : "a";
-    const otherVal = Math.max(0, total - n);
-    _americanoScores[k][other] = otherVal;
-    const inputs = inputEl.closest(".am-match")?.querySelectorAll(".am-score");
-    const otherInput = inputs && (other === "a" ? inputs[0] : inputs[1]);
-    // don't clobber the field the user is currently editing
-    if (otherInput && document.activeElement !== otherInput)
-      otherInput.value = otherVal;
-  }
-  _renderAmericanoStandings();
-};
 
 // Scroll-wheel score picker: adjust one team's score by delta, mirror the other.
 window._amAdjust = function (r, i, side, delta) {
@@ -20294,12 +20464,23 @@ window._amAdjust = function (r, i, side, delta) {
     newA = total - newB;
   }
   _americanoScores[k] = { a: newA, b: newB };
-  // Patch only the two value spans — avoid full re-render to keep scroll position.
-  const aWheel = document.querySelector(`.am-score-row[data-r="${r}"][data-i="${i}"][data-side="a"]`);
-  const bWheel = document.querySelector(`.am-score-row[data-r="${r}"][data-i="${i}"][data-side="b"]`);
-  if (aWheel) aWheel.querySelector(".am-sw-val").textContent = newA;
-  if (bWheel) bWheel.querySelector(".am-sw-val").textContent = newB;
-  _renderAmericanoStandings();
+  // Patch value spans immediately for instant feedback
+  const aEl = document.querySelector(`.am-score-row[data-r="${r}"][data-i="${i}"][data-side="a"]`);
+  const bEl = document.querySelector(`.am-score-row[data-r="${r}"][data-i="${i}"][data-side="b"]`);
+  if (aEl) aEl.querySelector(".am-sw-val").textContent = newA;
+  if (bEl) bEl.querySelector(".am-sw-val").textContent = newB;
+  // Mark the match card as played
+  aEl?.closest(".am-match")?.classList.replace("am-match-upcoming", "am-match-played");
+  // Debounced: ensure upcoming matches, save, full re-render
+  clearTimeout(window._amAdjust._t);
+  window._amAdjust._t = setTimeout(() => {
+    _amEnsureUpcoming();
+    _amSaveSession();
+    const sheet = document.getElementById("americano-sheet");
+    const sy = sheet?.scrollTop || 0;
+    amSwitchTab(_amCurrentTab);
+    requestAnimationFrame(() => { if (sheet) sheet.scrollTop = sy; });
+  }, 600);
 };
 
 // Enhancement 13: session pause/resume via localStorage

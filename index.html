@@ -1403,15 +1403,19 @@ Puneet - Pun, PK
         </div>
         <div id="americano-result" style="display:none;padding:0 14px 8px"></div>
         <div id="am-bottom-bar" style="display:none">
-          <div id="am-add-player-wrap" style="display:none;padding:4px 14px 0;gap:6px;align-items:center">
-            <input id="am-add-player-input" type="text" placeholder="New player name…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();americanoConfirmAddPlayer();}" style="flex:1;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px" />
-            <button class="tb-btn tb-btn-balance" onclick="americanoConfirmAddPlayer()">✓ ADD</button>
-          </div>
-          <div id="americano-result-actions" style="display:none;padding:10px 14px;gap:8px">
-            <button class="tb-btn tb-btn-none" onclick="americanoBack()">↩ EDIT</button>
-            <button class="tb-btn" onclick="toggleAmericanoAddPlayer()" style="flex-shrink:0">+ PLAYER</button>
-            <button id="am-reshuffle-btn" class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄</button>
-            <button id="am-next-btn" class="tb-btn tb-btn-balance" onclick="americanoNextRound()" style="flex:1">NEXT ROUND →</button>
+          <div id="am-tab-bar">
+            <button class="am-tab-btn" id="am-tab-schedule" onclick="amSwitchTab('schedule')">
+              <span class="am-tab-icon">📅</span>
+              <span class="am-tab-lbl">SCHEDULE</span>
+            </button>
+            <button class="am-tab-btn" id="am-tab-leaderboard" onclick="amSwitchTab('leaderboard')">
+              <span class="am-tab-icon">🏆</span>
+              <span class="am-tab-lbl">LEADERBOARD</span>
+            </button>
+            <button class="am-tab-btn" id="am-tab-players" onclick="amSwitchTab('players')">
+              <span class="am-tab-icon">👥</span>
+              <span class="am-tab-lbl">PLAYERS</span>
+            </button>
           </div>
         </div>
       </div>
