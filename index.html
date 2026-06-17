@@ -1406,7 +1406,19 @@ Puneet - Pun, PK
         </div>
         <div id="americano-result" style="display:none;padding:0 14px 8px"></div>
         <div id="am-bottom-bar" style="display:none">
-          <div id="am-tab-bar">
+          <!-- Home tabs (shown when no session active) -->
+          <div id="am-home-tab-bar" style="display:none">
+            <button class="am-tab-btn active" id="am-home-tab-lb" onclick="amSwitchHomeTab('leaderboard')">
+              <span class="am-tab-icon">🏆</span>
+              <span class="am-tab-lbl">LEADERBOARD</span>
+            </button>
+            <button class="am-tab-btn" id="am-home-tab-admin" onclick="amSwitchHomeTab('admin')">
+              <span class="am-tab-icon">⚙️</span>
+              <span class="am-tab-lbl">ADMIN</span>
+            </button>
+          </div>
+          <!-- Session tabs (shown when session is active) -->
+          <div id="am-tab-bar" style="display:none">
             <button class="am-tab-btn" id="am-tab-players" onclick="amSwitchTab('players')">
               <span class="am-tab-icon">👥</span>
               <span class="am-tab-lbl">PLAYERS</span>

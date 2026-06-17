@@ -19784,6 +19784,36 @@ function _amRosterAdd(name) {
   _amSaveRoster();
 }
 
+// ── AMERICANO SESSION HISTORY ────────────────────────────
+// Separate from the main app — stores past Americano sessions for career stats.
+const _AM_HISTORY_KEY = "padel_am_history";
+function _amLoadHistory() {
+  try { return JSON.parse(localStorage.getItem(_AM_HISTORY_KEY) || "[]"); } catch (e) { return []; }
+}
+function _amSaveToHistory(session) {
+  try {
+    const hist = _amLoadHistory();
+    hist.unshift(session);
+    localStorage.setItem(_AM_HISTORY_KEY, JSON.stringify(hist.slice(0, 100)));
+  } catch (e) {}
+}
+function _amCareerStats() {
+  const stats = {};
+  _amLoadHistory().forEach((session) => {
+    (session.standings || []).forEach((s) => {
+      if (!stats[s.name]) stats[s.name] = { sessions: 0, matches: 0, wins: 0, pts: 0, ga: 0 };
+      stats[s.name].sessions++;
+      stats[s.name].matches += s.played || 0;
+      stats[s.name].wins += s.won || 0;
+      stats[s.name].pts += s.pts || 0;
+      stats[s.name].ga += s.ga || 0;
+    });
+  });
+  return Object.entries(stats)
+    .map(([name, s]) => ({ name, ...s, losses: s.matches - s.wins }))
+    .sort((a, b) => b.pts - a.pts || b.wins - a.wins || a.name.localeCompare(b.name));
+}
+
 function openAmericanoSheet() {
   _amLoadRoster();
   _americanoPlayers = [..._amRoster];
@@ -19791,7 +19821,7 @@ function openAmericanoSheet() {
   document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
   // Try to restore saved session
   if (_amRestoreSession()) return;
-  // Fresh start
+  // Fresh start → show career home screen
   _americanoSelected = new Set();
   _americanoSchedule = null;
   _americanoScores = {};
@@ -19800,23 +19830,19 @@ function openAmericanoSheet() {
   _americanoOpponentCounts = {};
   _americanoLastPlayers = [];
   _amRemovedPlayers = new Set();
-  _renderAmericanoList();
-  _americanoShowSetup();
-  setAmericanoMode(_americanoMode);
+  _showAmHome();
 }
-// Render the player chips, reflecting the current selection (so adding a guest
-// or select-all/none re-renders without losing what's already ticked).
+// Render the player chips sorted alphabetically, preserving current selection.
 function _renderAmericanoList() {
   const list = document.getElementById("americano-list");
   if (!list) return;
-  list.innerHTML = _americanoPlayers
-    .map(
-      (p) => `
+  const sorted = [..._americanoPlayers].sort((a, b) => a.localeCompare(b));
+  list.innerHTML = sorted
+    .map((p) => `
     <label class="tb-player-chip">
       <input type="checkbox"${_americanoSelected.has(p) ? " checked" : ""} onchange="window._amToggle(${jsArg(p)}, this.checked)">
       <span class="tb-chip-name">${escHtml(p)}</span>
-    </label>`,
-    )
+    </label>`)
     .join("");
 }
 window._amToggle = function (name, on) {
@@ -20008,6 +20034,195 @@ function _americanoShowSetup() {
   document.getElementById("americano-result").style.display = "none";
   document.getElementById("am-bottom-bar").style.display = "none";
 }
+
+// ── AMERICANO HOME (career leaderboard + ADMIN) ───────────
+function _showAmHome() {
+  document.getElementById("americano-setup").style.display = "none";
+  document.getElementById("americano-result").style.display = "";
+  document.getElementById("am-bottom-bar").style.display = "";
+  document.getElementById("am-home-tab-bar").style.display = "";
+  document.getElementById("am-tab-bar").style.display = "none";
+  document.getElementById("am-home-tab-lb")?.classList.add("active");
+  document.getElementById("am-home-tab-admin")?.classList.remove("active");
+  _renderAmCareerLeaderboard();
+}
+function _showAmSession() {
+  document.getElementById("am-home-tab-bar").style.display = "none";
+  document.getElementById("am-tab-bar").style.display = "";
+}
+window.amSwitchHomeTab = function(tab) {
+  document.getElementById("am-home-tab-lb")?.classList.toggle("active", tab === "leaderboard");
+  document.getElementById("am-home-tab-admin")?.classList.toggle("active", tab === "admin");
+  if (tab === "leaderboard") _renderAmCareerLeaderboard();
+  else _renderAmAdminTab();
+};
+window.amShowCreateSession = function() {
+  _americanoSelected = new Set();
+  _americanoPlayers = [..._amRoster].sort((a, b) => a.localeCompare(b));
+  _renderAmericanoList();
+  _americanoShowSetup();
+  setAmericanoMode(_americanoMode);
+};
+
+function _renderAmCareerLeaderboard() {
+  const container = document.getElementById("americano-result");
+  if (!container) return;
+  const stats = _amCareerStats();
+  const hist = _amLoadHistory();
+  const MEDALS = ["🥇", "🥈", "🥉"];
+  const CARD_CLS = ["am-lb-card-1", "am-lb-card-2", "am-lb-card-3"];
+  const rows = stats.map((s, i) => {
+    const wp = s.matches ? Math.round(100 * s.wins / s.matches) : 0;
+    const gd = s.pts - s.ga;
+    const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
+    const gdColor = gd > 0 ? "var(--accent,#00cc64)" : gd < 0 ? "#ff5555" : "var(--text-muted)";
+    const cardCls = i < 3 ? CARD_CLS[i] : "am-lb-card-rest";
+    const rankEl = i < 3 ? `<div class="am-lb-card-rank">${MEDALS[i]}</div>` : `<div class="am-lb-card-rank-num">${i + 1}</div>`;
+    return `<div class="am-lb-card ${cardCls}">
+      ${rankEl}
+      <span class="am-lb-card-av" style="background:${playerColor(s.name)}">${playerInitials(s.name)}</span>
+      <div class="am-lb-card-info">
+        <div class="am-lb-card-name">${escHtml(s.name)}</div>
+        <div class="am-lb-card-stats">
+          <span>${s.sessions}S</span>
+          <span>${s.matches}P</span>
+          <span style="color:var(--accent,#00cc64)">${s.wins}W</span>
+          <span style="color:#ff5555">${s.losses}L</span>
+          ${s.matches ? `<span class="am-lb-win-badge">${wp}%</span>` : ""}
+        </div>
+      </div>
+      <div class="am-lb-card-pts">
+        <div class="am-lb-card-pts-val">${s.pts}</div>
+        <div class="am-lb-pts-label">PTS</div>
+        <div class="am-lb-card-gd" style="color:${gdColor}">${gdStr}</div>
+      </div>
+    </div>`;
+  }).join("");
+  const meta = hist.length
+    ? `<div class="am-career-meta">${hist.length} session${hist.length !== 1 ? "s" : ""} · ${_amRoster.length} players</div>`
+    : "";
+  const empty = !stats.length
+    ? `<div class="am-career-empty">
+        <div class="am-career-empty-icon">🎾</div>
+        <div class="am-career-empty-title">No sessions yet</div>
+        <div class="am-career-empty-sub">Create your first session below</div>
+      </div>`
+    : "";
+  container.innerHTML =
+    `<div class="am-stand-hdr" style="margin-bottom:4px">🏆 ALL-TIME LEADERBOARD</div>` +
+    meta + empty + rows +
+    `<div style="height:14px"></div>
+    <button class="am-create-session-btn-large" onclick="amShowCreateSession()">＋ CREATE NEW SESSION</button>
+    <div style="height:8px"></div>`;
+}
+
+function _renderAmAdminTab() {
+  const container = document.getElementById("americano-result");
+  if (!container) return;
+  const sorted = [..._amRoster].sort((a, b) => a.localeCompare(b));
+  const hist = _amLoadHistory();
+  const statsMap = {};
+  hist.forEach((session) => {
+    (session.standings || []).forEach((s) => {
+      if (!statsMap[s.name]) statsMap[s.name] = { sessions: 0, matches: 0, wins: 0, pts: 0 };
+      statsMap[s.name].sessions++;
+      statsMap[s.name].matches += s.played || 0;
+      statsMap[s.name].wins += s.won || 0;
+      statsMap[s.name].pts += s.pts || 0;
+    });
+  });
+  if (!sorted.length) {
+    container.innerHTML = `<div class="am-career-empty">
+      <div class="am-career-empty-icon">👥</div>
+      <div class="am-career-empty-title">No players yet</div>
+      <div class="am-career-empty-sub">Players are added when you create a session</div>
+    </div>`;
+    return;
+  }
+  const rows = sorted.map((name, idx) => {
+    const s = statsMap[name] || { sessions: 0, matches: 0, wins: 0, pts: 0 };
+    const wp = s.matches ? Math.round(100 * s.wins / s.matches) : 0;
+    const playerSessions = hist.filter((h) => h.standings?.some((x) => x.name === name));
+    const histHtml = playerSessions.length
+      ? playerSessions.map((h) => {
+          const ps = h.standings?.find((x) => x.name === name);
+          const rank = h.standings ? h.standings.findIndex((x) => x.name === name) + 1 : "-";
+          return `<div class="am-admin-session-row">
+            <span class="am-admin-session-date">${h.date || "-"}</span>
+            <span>#${rank} rank</span>
+            <span style="color:var(--theme)">${ps?.pts || 0}pts</span>
+            <span>${ps?.played || 0}P ${ps?.won || 0}W</span>
+          </div>`;
+        }).join("")
+      : `<div class="am-admin-no-hist">No sessions recorded yet</div>`;
+    return `<div class="am-admin-player-card">
+      <div class="am-admin-player-row" onclick="window._amTogglePlayerHistory(${idx})">
+        <span class="am-lb-card-av" style="background:${playerColor(name)}">${playerInitials(name)}</span>
+        <div class="am-admin-info">
+          <div class="am-admin-name">${escHtml(name)}</div>
+          <div class="am-admin-stats">${s.sessions} sessions · ${s.matches} matches · ${wp}% win rate · ${s.pts} pts</div>
+        </div>
+        <button class="am-admin-edit-btn" onclick="event.stopPropagation();window._amStartRename(${jsArg(name)})">✏</button>
+      </div>
+      <div class="am-admin-history" id="am-admin-hist-${idx}" style="display:none">${histHtml}</div>
+    </div>`;
+  }).join("");
+  container.innerHTML = `<div class="am-stand-hdr" style="margin-bottom:10px">⚙️ PLAYER MANAGEMENT</div>` + rows + `<div style="height:8px"></div>`;
+}
+window._amTogglePlayerHistory = function(idx) {
+  const el = document.getElementById("am-admin-hist-" + idx);
+  if (el) el.style.display = el.style.display === "none" ? "" : "none";
+};
+window._amStartRename = function(name) {
+  const sheet = document.getElementById("americano-sheet");
+  if (!sheet) return;
+  document.getElementById("am-rename-overlay")?.remove();
+  const ov = document.createElement("div");
+  ov.id = "am-rename-overlay";
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div id="am-rename-sheet">
+      <div class="am-edit-handle"></div>
+      <div class="am-edit-title">RENAME PLAYER</div>
+      <div style="padding:4px 20px 0">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Current name: ${escHtml(name)}</div>
+        <input id="am-rename-input" class="am-rename-input" value="${escHtml(name)}" autocomplete="off"
+          onkeydown="if(event.key==='Enter')window._amConfirmRename(${jsArg(name)},this.value)">
+      </div>
+      <div class="am-edit-actions">
+        <button class="am-edit-btn am-edit-save" onclick="window._amConfirmRename(${jsArg(name)},document.getElementById('am-rename-input').value)">✓ SAVE</button>
+        <button class="am-edit-btn am-edit-cancel" onclick="document.getElementById('am-rename-overlay')?.remove()">✕</button>
+      </div>
+    </div>`;
+  sheet.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add("am-edit-open"));
+  setTimeout(() => { document.getElementById("am-rename-input")?.focus(); document.getElementById("am-rename-input")?.select(); }, 240);
+};
+window._amConfirmRename = function(oldName, newName) {
+  newName = (newName || "").trim();
+  if (!newName || newName === oldName) { document.getElementById("am-rename-overlay")?.remove(); return; }
+  if (_amRoster.some((p) => p !== oldName && p.toLowerCase() === newName.toLowerCase())) {
+    showToast("A player with that name already exists", "⚠️"); return;
+  }
+  const idx = _amRoster.indexOf(oldName);
+  if (idx >= 0) _amRoster[idx] = newName;
+  _amSaveRoster();
+  try {
+    const hist = _amLoadHistory();
+    hist.forEach((s) => {
+      if (s.players) s.players = s.players.map((p) => p === oldName ? newName : p);
+      if (s.standings) s.standings.forEach((x) => { if (x.name === oldName) x.name = newName; });
+    });
+    localStorage.setItem(_AM_HISTORY_KEY, JSON.stringify(hist));
+  } catch (e) {}
+  if (_americanoLastPlayers?.length) {
+    _americanoLastPlayers = _americanoLastPlayers.map((p) => p === oldName ? newName : p);
+    _amSaveSession();
+  }
+  document.getElementById("am-rename-overlay")?.remove();
+  showToast(`Renamed: ${oldName} → ${newName}`, "✅");
+  _renderAmAdminTab();
+};
 function americanoBack() {
   localStorage.removeItem(_AM_SESSION_KEY);
   _americanoSchedule = null;
@@ -20017,7 +20232,7 @@ function americanoBack() {
   _americanoOpponentCounts = {};
   _americanoLastPlayers = [];
   _amRemovedPlayers = new Set();
-  _americanoShowSetup();
+  _showAmHome();
 }
 window.americanoBack = americanoBack;
 function setAmericanoMode(mode) {
@@ -20084,6 +20299,7 @@ function generateAmericanoSchedule() {
   document.getElementById("americano-result").style.display = "";
   document.getElementById("am-bottom-bar").style.display = "";
   document.getElementById("americano-sheet").scrollTop = 0;
+  _showAmSession();
   amSwitchTab("schedule");
   _amSaveSession();
 }
@@ -20155,6 +20371,7 @@ function _amRestoreSession() {
     document.getElementById("americano-setup").style.display = "none";
     document.getElementById("americano-result").style.display = "";
     document.getElementById("am-bottom-bar").style.display = "";
+    _showAmSession();
     amSwitchTab("schedule");
     return true;
   } catch (e) { return false; }
@@ -20509,6 +20726,16 @@ window.amEndSession = function() {
       const sc = _americanoScores[r + "-" + i];
       return sc && sc.a != null && !(sc.a === 10 && sc.b === 10);
     }).length, 0);
+  // Save session to career history before clearing
+  if (played > 0) {
+    _amSaveToHistory({
+      id: Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      mode: _americanoMode,
+      players: [..._americanoLastPlayers],
+      standings: _americanoStandings(),
+    });
+  }
   localStorage.removeItem(_AM_SESSION_KEY);
   _americanoSchedule = null;
   _americanoScores = {};
@@ -20517,7 +20744,7 @@ window.amEndSession = function() {
   _americanoOpponentCounts = {};
   _americanoLastPlayers = [];
   _amRemovedPlayers = new Set();
-  closeAmericano();
+  _showAmHome();
   showToast(`Session ended · ${played} match${played !== 1 ? "es" : ""} played`, "✅");
 };
 
