@@ -19625,10 +19625,26 @@ let _amRemovedPlayers = new Set();
 let _americanoCourts = 1;
 let _amEndConfirmPending = false;
 const _AM_SESSION_KEY = "padel_am_session";
+const _AM_ROSTER_KEY = "padel_am_roster";
 let _americanoLastPlayers = [];
+// Americano-only persistent player roster — completely separate from the main app.
+// Never reads from state.matches or state.players.
+let _amRoster = [];
+function _amLoadRoster() {
+  try { _amRoster = JSON.parse(localStorage.getItem(_AM_ROSTER_KEY) || "[]"); } catch (e) { _amRoster = []; }
+}
+function _amSaveRoster() {
+  try { localStorage.setItem(_AM_ROSTER_KEY, JSON.stringify(_amRoster)); } catch (e) {}
+}
+function _amRosterAdd(name) {
+  if (!name || _amRoster.some((p) => p.toLowerCase() === name.toLowerCase())) return;
+  _amRoster.push(name);
+  _amSaveRoster();
+}
 
 function openAmericanoSheet() {
-  _americanoPlayers = getAllPlayerNamesFromMatches();
+  _amLoadRoster();
+  _americanoPlayers = [..._amRoster];
   if (!document.getElementById("americano-list")) return;
   document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
   // Try to restore saved session
@@ -19665,7 +19681,7 @@ window._amToggle = function (name, on) {
   if (on) _americanoSelected.add(name);
   else _americanoSelected.delete(name);
 };
-// Add a guest / one-off player not in the roster (session-local), pre-selected.
+// Add a player to the Americano roster (saved permanently in localStorage).
 function americanoAddGuest() {
   const inp = document.getElementById("americano-guest-input");
   const name = (inp?.value || "").trim();
@@ -19678,6 +19694,7 @@ function americanoAddGuest() {
   } else {
     _americanoPlayers.push(name);
     _americanoSelected.add(name);
+    _amRosterAdd(name);
   }
   if (inp) inp.value = "";
   _renderAmericanoList();
@@ -20220,6 +20237,7 @@ window.amAddPlayerConfirm = function() {
     _americanoSitCount[name] = 0;
     _americanoPartnerCounts[name] = {};
     _americanoOpponentCounts[name] = {};
+    _amRosterAdd(name);
     showToast(`${name} added — will play soon`, "✅");
   }
   if (inp) inp.value = "";
