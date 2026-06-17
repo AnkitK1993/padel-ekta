@@ -19422,8 +19422,9 @@ function _renderLiveSessionDashboard() {
     return;
   }
   el.style.display = "";
-  const eloMap = _memoElo();
-  const stats = computeStats(_sessionMatchHistory, eloMap)
+  // Session ELO: everyone starts at 1000, computed from today's session matches only
+  const sessionEloMap = computeElo(_sessionMatchHistory);
+  const stats = computeStats(_sessionMatchHistory, sessionEloMap)
     .sort((a, b) => (b.sr || 0) - (a.sr || 0) || (b.mw || 0) - (a.mw || 0));
   const rankColor = (i) =>
     i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
@@ -19432,8 +19433,8 @@ function _renderLiveSessionDashboard() {
     const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
     const total = p.gw + p.gl;
     const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
-    const elo = Math.round(eloMap[p.name] || 1000);
-    const sr = eloToSr(eloMap[p.name] || 1000).toFixed(2);
+    const elo = Math.round(sessionEloMap[p.name] || 1000);
+    const sr = eloToSr(sessionEloMap[p.name] || 1000).toFixed(2);
     return `<tr class="live-sdash-tr">
       <td style="color:${rankColor(i)};font-weight:900">${i + 1}</td>
       <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(p.name.split(" ")[0])}</span></td>
