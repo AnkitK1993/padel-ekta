@@ -17901,52 +17901,125 @@ body.smooth-mode [style*="animation-delay"] {
   text-align: right;
   flex-shrink: 0;
 }
-/* Americano leaderboard table */
-.am-lb-hdr-row,
-.am-lb-row {
-  display: grid;
-  gap: 3px 5px;
+/* Americano leaderboard — premium cards */
+.am-lb-card {
+  display: flex;
   align-items: center;
-  font-size: 11px;
-  padding: 0 6px;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
 }
-.am-lb-hdr-row {
-  color: var(--text-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 4px 6px 2px;
-  text-align: right;
+.am-lb-card-1 {
+  background: linear-gradient(135deg, rgba(245, 200, 66, 0.14) 0%, rgba(245, 200, 66, 0.03) 100%);
+  border: 1px solid rgba(245, 200, 66, 0.28);
 }
-.am-lb-hdr-row span:nth-child(2) { text-align: left; }
-.am-lb-row {
-  padding: 5px 6px;
-  border-radius: 8px;
+.am-lb-card-2 {
+  background: linear-gradient(135deg, rgba(180, 196, 210, 0.11) 0%, rgba(180, 196, 210, 0.03) 100%);
+  border: 1px solid rgba(180, 196, 210, 0.2);
+}
+.am-lb-card-3 {
+  background: linear-gradient(135deg, rgba(186, 130, 97, 0.11) 0%, rgba(186, 130, 97, 0.03) 100%);
+  border: 1px solid rgba(186, 130, 97, 0.2);
+}
+.am-lb-card-rest {
   background: rgba(255, 255, 255, 0.03);
-  margin-bottom: 3px;
-  text-align: right;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.am-lb-row span:nth-child(2) { text-align: left; }
-.am-lb-rank { font-size: 12px; font-weight: 800; text-align: left; }
-.am-lb-name {
-  font-weight: 600;
+.am-lb-card-rank {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 30px;
+  text-align: center;
+}
+.am-lb-card-rank-num {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 18px;
+  color: var(--text-muted);
+  width: 30px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.am-lb-card-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.am-lb-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.am-lb-card-name {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text);
-  text-align: left;
+  letter-spacing: 0.01em;
+}
+.am-lb-card-stats {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.am-lb-card-pts {
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 42px;
+}
+.am-lb-card-pts-val {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--theme);
+}
+.am-lb-pts-label {
+  font-size: 8px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-align: right;
+  margin-top: 1px;
+}
+.am-lb-card-gd {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+  margin-top: 2px;
+}
+.am-lb-win-badge {
+  background: rgba(0, 200, 100, 0.15);
+  color: #00cc64;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 700;
+  font-size: 9px;
 }
 /* Match history in leaderboard tab */
 .am-hist-row {
   display: grid;
   grid-template-columns: 22px 1fr auto 1fr;
-  gap: 4px 6px;
+  gap: 3px 8px;
   align-items: center;
   font-size: 11px;
-  padding: 5px 6px;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.03);
-  margin-bottom: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 5px;
 }
 .am-hist-rnd {
   font-size: 9px;
@@ -17959,14 +18032,23 @@ body.smooth-mode [style*="animation-delay"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 11px;
 }
-.am-hist-win { color: var(--text); font-weight: 600; }
+.am-hist-win { color: var(--text); font-weight: 700; }
+.am-hist-score-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .am-hist-score {
   font-family: "Bebas Neue", sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--theme);
   text-align: center;
   white-space: nowrap;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 2px 8px;
 }
 .am-history-details {
   margin: 10px 0 14px;
