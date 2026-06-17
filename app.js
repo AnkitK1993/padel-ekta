@@ -1070,6 +1070,7 @@ const _liveScoreProxy       = liveScore;
 let _liveScoreA             = 0; // kept for the rare direct += writes; synced via liveScore.scoreA
 let _liveScoreB             = 0;
 let _liveActiveSlot         = null;
+let _liveRaceTo             = 4; // "race to" threshold: 4 or 6
 
 // sessionState field aliases — call sites use these bare names; they read/write
 // through to the canonical sessionState object so resetSessionState() stays atomic.
@@ -17945,6 +17946,8 @@ Object.assign(window, {
   selectLivePlayer,
   closeLivePlayerSheet,
   liveAdjustScore,
+  setLiveRaceTo,
+  dismissRacePrompt,
   endLiveMatch,
   openSessionSetup,
   closeSessionSetup,
@@ -18006,6 +18009,7 @@ function _openLiveModeImpl() {
   }
   _liveScoreA = 0;
   _liveScoreB = 0;
+  _liveRaceTo = 4;
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   const today = todayISO();
   const dateEl = document.getElementById("live-date");
@@ -18016,6 +18020,7 @@ function _openLiveModeImpl() {
   _updateLiveWinProb();
   _updateLiveEloPreview();
   _updateLiveMomentum();
+  _syncRaceToggleUI();
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _syncLiveSessionBar();
   goTo("live");
@@ -18155,6 +18160,32 @@ function liveAdjustScore(team, delta) {
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
+  if (delta > 0 && next === _liveRaceTo) _showRaceReachedPrompt();
+}
+
+function setLiveRaceTo(n) {
+  _liveRaceTo = n;
+  _syncRaceToggleUI();
+}
+
+function _syncRaceToggleUI() {
+  document.getElementById("live-race-4")?.classList.toggle("live-race-pill-active", _liveRaceTo === 4);
+  document.getElementById("live-race-6")?.classList.toggle("live-race-pill-active", _liveRaceTo === 6);
+}
+
+function _showRaceReachedPrompt() {
+  const overlay = document.getElementById("live-race-overlay");
+  if (!overlay) return;
+  const title = document.getElementById("live-race-modal-title");
+  const score = document.getElementById("live-race-modal-score");
+  if (title) title.textContent = `RACE TO ${_liveRaceTo} REACHED`;
+  if (score) score.textContent = `${_liveScoreA} — ${_liveScoreB}`;
+  overlay.style.display = "flex";
+}
+
+function dismissRacePrompt() {
+  const overlay = document.getElementById("live-race-overlay");
+  if (overlay) overlay.style.display = "none";
 }
 
 // 5A: Live Win Probability Meter
@@ -18244,6 +18275,7 @@ function _updateLiveMomentum() {
 }
 
 function endLiveMatch() {
+  dismissRacePrompt();
   const { a1, a2, b1, b2 } = _liveSlots;
   const date = todayISO();
   const notes = document.getElementById("live-notes")?.value.trim() || "";

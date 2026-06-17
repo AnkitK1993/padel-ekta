@@ -13891,6 +13891,109 @@ select:focus,
 .live-undo-pt:active {
   transform: scale(0.94);
 }
+/* ── Race-to toggle ── */
+.live-race-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.live-race-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.live-race-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 0.1em;
+  padding: 3px 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.live-race-pill-active {
+  background: rgba(var(--theme-rgb), 0.18);
+  border-color: rgba(var(--theme-rgb), 0.55);
+  color: var(--theme);
+}
+/* ── Race-reached overlay ── */
+.live-race-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  backdrop-filter: blur(4px);
+}
+.live-race-modal {
+  background: var(--card, #1a1a2e);
+  border: 1px solid rgba(var(--theme-rgb), 0.35);
+  border-radius: 22px;
+  padding: 28px 24px 22px;
+  width: min(320px, 88vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(var(--theme-rgb), 0.12);
+}
+.live-race-modal-title {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  color: var(--theme);
+  text-align: center;
+}
+.live-race-modal-score {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 56px;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  line-height: 1;
+  margin: 8px 0 16px;
+}
+.live-race-modal-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.live-race-modal-save {
+  background: var(--theme);
+  color: #000;
+  border: none;
+  border-radius: 14px;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  padding: 13px 0;
+  width: 100%;
+  cursor: pointer;
+  font-weight: 700;
+}
+.live-race-modal-keep {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.1em;
+  padding: 11px 0;
+  width: 100%;
+  cursor: pointer;
+}
+
 .live-games-label {
   text-align: center;
   font-family: "Bebas Neue", sans-serif;
