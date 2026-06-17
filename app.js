@@ -1483,18 +1483,7 @@ function _resubscribeFirestore() {
         const incoming = d.matches || [];
         const _sessionBuffering = !!_liveSessionData?.sessionActive;
         const _hadOfflineEdits = _hasPendingSync() && !_sessionBuffering;
-        if (_sessionBuffering && _sessionPendingCount > 0) {
-          // Live session: re-attach session-buffered matches
-          const cloudKeys = new Set(incoming.map(_mkMatchKey));
-          const pending = state.matches.filter(
-            (m) => !cloudKeys.has(_mkMatchKey(m)),
-          );
-          state.matches = pending.length
-            ? [...incoming, ...pending].sort((a, b) =>
-                (a.date || "").localeCompare(b.date || ""),
-              )
-            : incoming;
-        } else if (_hadOfflineEdits) {
+        if (_hadOfflineEdits) {
           // Offline mode: find matches added locally while offline, push merged set to cloud
           const cloudKeys = new Set(incoming.map(_mkMatchKey));
           const offlineAdditions = state.matches.filter(
@@ -1531,8 +1520,7 @@ function _resubscribeFirestore() {
         nextPlayerId = npid;
         rebuildNameMaps();
         _invalidateEloMemo();
-        if (!_sessionBuffering || _sessionPendingCount === 0)
-          _setPendingSync(false);
+        _setPendingSync(false);
         renderHome();
         renderCompact();
         refreshManage();
@@ -1904,19 +1892,7 @@ function loadCloudData() {
     // diff in the non-first-load branch needs the pre-update count.
     const _prevMatchCount = state.matches.length;
 
-    // If a live session is buffering local matches, re-attach them after the cloud update
-    // so Firestore snapshots can't silently erase unsync'd session matches.
-    if (_sessionBuffering && _sessionPendingCount > 0) {
-      const cloudKeys = new Set(matches.map(_mkMatchKey));
-      const pending = state.matches.filter((m) => !cloudKeys.has(_mkMatchKey(m)));
-      state.matches = pending.length
-        ? [...matches, ...pending].sort((a, b) =>
-            (a.date || "").localeCompare(b.date || ""),
-          )
-        : matches;
-    } else {
-      state.matches = matches;
-    }
+    state.matches = matches;
     state.players = pls;
     playerAliasMap = pam;
     nextPlayerId = npid || 1;
@@ -17955,7 +17931,6 @@ Object.assign(window, {
   sessionSetupSelectNone,
   confirmSessionStart,
   endLiveSession,
-  syncSession,
   substituteLivePlayer,
   checkResumeSession,
   resumeSession,
@@ -18314,9 +18289,6 @@ function endLiveMatch() {
     });
     _sessionRedoStack = []; // new match invalidates redo history
     _liveSessionData = { ..._liveSessionData, currentMatch: null };
-    // Buffer locally — don't write to Firestore until SYNC or End Session
-    _sessionPendingCount++;
-    _updateSyncBadge();
     _syncLiveSessionBar();
     if (_sessionPanelOpen) _updateSessionPanel();
     document
@@ -18325,16 +18297,10 @@ function endLiveMatch() {
     document
       .getElementById("live-redo-match-btn")
       ?.style.setProperty("display", "none");
-    _saveSessionState(); // Enhancement 13: persist session for resume
+    _saveSessionState();
     _invalidateEloMemo();
-    if (window.appCache)
-      window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
-    try {
-      localStorage.setItem("padel_matches", JSON.stringify(state.matches));
-    } catch (e) {}
-  } else {
-    saveCloudData();
   }
+  saveCloudData(); // always persist — offline handled automatically by cloud-repo
   commit();
   showToast(`Saved! ${eventMsg}`, "🎾");
   _showLiveEventBanner({
@@ -18359,40 +18325,6 @@ function endLiveMatch() {
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
 }
 
-function _updateSyncBadge() {
-  const el = document.getElementById("live-sync-count");
-  if (!el) return;
-  if (_sessionPendingCount > 0) {
-    el.textContent = _sessionPendingCount;
-    el.style.display = "";
-  } else {
-    el.style.display = "none";
-  }
-}
-
-async function syncSession() {
-  if (_sessionPendingCount === 0) {
-    showToast("Nothing to sync", "✅");
-    return;
-  }
-  const count = _sessionPendingCount;
-  const wasForced = _forcedOffline;
-  _forcedOffline = false; // one-shot push — bypass forced offline
-  await saveCloudData({ immediate: true });
-  _forcedOffline = wasForced;
-  _sessionPendingCount = 0;
-  _sessionRedoStack = []; // sync is a checkpoint — redo history is committed and cleared
-  _updateSyncBadge();
-  _saveSessionState();
-  // Hide UNDO/REDO since nothing is pending after the checkpoint
-  document
-    .getElementById("live-undo-match-btn")
-    ?.style.setProperty("display", "none");
-  document
-    .getElementById("live-redo-match-btn")
-    ?.style.setProperty("display", "none");
-  showToast(`Synced ${count} match${count !== 1 ? "es" : ""} to cloud`, "☁️");
-}
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
 let _mioTimers = [];
@@ -19282,10 +19214,6 @@ window._applySuggestion = function (idx) {
 
 // ── UNDO LAST SESSION MATCH ──────────────────────────────────
 function undoSessionMatch() {
-  if (!_sessionPendingCount) {
-    showToast("Nothing to undo — all matches are synced", "🔒");
-    return;
-  }
   if (!_sessionMatchHistory.length) {
     showToast("No match to undo", "❌");
     return;
@@ -19328,8 +19256,6 @@ function confirmUndoSession() {
   if (idx !== -1) state.matches.splice(idx, 1);
   _sessionMatchHistory.pop();
   _sessionRedoStack.push(last);
-  if (_sessionPendingCount > 0) _sessionPendingCount--;
-  _updateSyncBadge();
   _liveSlots.a1 = last.teamA[0];
   _liveSlots.a2 = last.teamA[1];
   _liveSlots.b1 = last.teamB[0];
@@ -19345,13 +19271,14 @@ function confirmUndoSession() {
   _checkRematchWarning();
   document
     .getElementById("live-undo-match-btn")
-    ?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+    ?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
   document
     .getElementById("live-redo-match-btn")
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   _invalidateEloMemo();
   _saveSessionState();
   commit();
+  saveCloudData({ immediate: true }); // persist removal immediately
   _renderLiveSessionDashboard();
   showToast("Last match undone ↶", "✅");
 }
@@ -19365,8 +19292,6 @@ function redoSessionMatch() {
   const match = _sessionRedoStack.pop();
   state.matches.push({ ...match });
   _sessionMatchHistory.push(match);
-  _sessionPendingCount++;
-  _updateSyncBadge();
   _liveSlots.a1 = match.teamA[0];
   _liveSlots.a2 = match.teamA[1];
   _liveSlots.b1 = match.teamB[0];
@@ -19389,6 +19314,7 @@ function redoSessionMatch() {
   _invalidateEloMemo();
   _saveSessionState();
   commit();
+  saveCloudData(); // persist redo to cloud
   _renderLiveSessionDashboard();
   showToast("Match redone ↷", "✅");
 }
@@ -19550,11 +19476,6 @@ function _renderLiveSessionDashboard() {
 async function confirmEndSession() {
   closeSessionSummary();
   _stopSessionTimer();
-  if (_sessionPendingCount > 0) {
-    await saveCloudData({ immediate: true });
-    _sessionPendingCount = 0;
-    _updateSyncBadge();
-  }
   _liveSessionData = null;
   _sessionMatchHistory = [];
   _sessionRedoStack = [];
@@ -20121,7 +20042,6 @@ function _saveSessionState() {
       JSON.stringify({
         session: _liveSessionData,
         history: _sessionMatchHistory,
-        pendingCount: _sessionPendingCount,
         redoStack: _sessionRedoStack,
         savedAt: new Date().toISOString(),
       }),
@@ -20129,28 +20049,6 @@ function _saveSessionState() {
   } catch (e) {}
 }
 
-// Re-attach locally-buffered matches (in padel_matches) that aren't yet in state.matches (cloud data).
-// Called after restoring a session on page load/refresh.
-function _reattachPendingMatches() {
-  try {
-    const localRaw = localStorage.getItem("padel_matches");
-    if (!localRaw) return;
-    const localMatches = JSON.parse(localRaw);
-    const cloudKeys = new Set(state.matches.map(_mkMatchKey));
-    const pending = localMatches.filter((m) => !cloudKeys.has(_mkMatchKey(m)));
-    if (!pending.length) {
-      _sessionPendingCount = 0;
-      return;
-    }
-    state.matches = [...state.matches, ...pending].sort((a, b) =>
-      (a.date || "").localeCompare(b.date || ""),
-    );
-    _sessionPendingCount = pending.length;
-    _invalidateEloMemo();
-    if (window.appCache)
-      window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
-  } catch (e) {}
-}
 function _clearSessionState() {
   try {
     localStorage.removeItem(_SESSION_SAVE_KEY);
@@ -20192,53 +20090,41 @@ function checkResumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
     if (!saved) return;
-    const { session, history, pendingCount, redoStack } = JSON.parse(saved);
+    const { session, history, redoStack } = JSON.parse(saved);
     if (!session?.sessionActive) return;
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
     _sessionRedoStack = redoStack || [];
-    _sessionPendingCount = pendingCount || 0;
-    if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
-    _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
     document
       .getElementById("live-undo-match-btn")
-      ?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+      ?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
     document
       .getElementById("live-redo-match-btn")
-      ?.style.setProperty(
-        "display",
-        _sessionRedoStack.length > 0 ? "" : "none",
-      );
+      ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
   } catch (e) {}
 }
 function resumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
     if (!saved) return;
-    const { session, history, pendingCount, redoStack } = JSON.parse(saved);
+    const { session, history, redoStack } = JSON.parse(saved);
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
     _sessionRedoStack = redoStack || [];
-    _sessionPendingCount = pendingCount || 0;
-    if (_sessionPendingCount > 0) _reattachPendingMatches();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
-    _updateSyncBadge();
     _startSessionTimer();
     _renderSessionActiveCard();
     document
       .getElementById("live-undo-match-btn")
-      ?.style.setProperty("display", _sessionPendingCount > 0 ? "" : "none");
+      ?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
     document
       .getElementById("live-redo-match-btn")
-      ?.style.setProperty(
-        "display",
-        _sessionRedoStack.length > 0 ? "" : "none",
-      );
+      ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
     showToast("Session resumed!", "✅");
   } catch (e) {
     showToast("Could not resume session", "❌");
@@ -20263,11 +20149,9 @@ function confirmSessionStart() {
     sessionStartedAt: now,
     currentMatch: null,
   };
-  _sessionPendingCount = 0;
   _sessionMatchHistory = [];
   _sessionRedoStack = [];
   _sessionPanelOpen = false;
-  _updateSyncBadge();
   _syncLiveSessionBar();
   _startSessionTimer();
   _saveSessionState();
