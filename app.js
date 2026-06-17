@@ -20223,32 +20223,112 @@ function _renderAmScheduleTab() {
     return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><div class="am-score-row" data-r="${r}" data-i="${i}" data-side="${side}"><button class="am-score-btn am-score-minus" onclick="window._amAdjust(${r},${i},'${side}',-1)">−</button><span class="am-sw-val">${val}</span><button class="am-score-btn am-score-plus" onclick="window._amAdjust(${r},${i},'${side}',1)">+</button></div></div>`;
   };
   const multiCourt = schedule.some((r) => r.matches.length > 1);
-  const renderRound = (rnd, r) => {
-    const matches = rnd.matches.map((m, i) => {
-      const played = isPlayed(r, i);
-      return `<div class="am-match${played ? " am-match-played" : " am-match-upcoming"}">
-        ${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}
-        <div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div>
-      </div>`;
-    }).join("");
+  const renderMatch = (m, r, i, played) =>
+    `<div class="am-match${played ? " am-match-played" : " am-match-upcoming"}"
+      onclick="if(!event.target.closest('.am-score-btn'))window._amOpenMatchEdit(${r},${i})">
+      ${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}
+      <div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div>
+      ${played ? `<div class="am-match-edit-chip">✏ edit</div>` : ""}
+    </div>`;
+  const renderRound = (rnd, r, labelSuffix = "") => {
+    const matches = rnd.matches.map((m, i) => renderMatch(m, r, i, isPlayed(r, i))).join("");
     const sit = rnd.sittingOut?.length
-      ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
-      : "";
-    return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
+      ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>` : "";
+    return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}${labelSuffix}</div>${matches}${sit}</div>`;
   };
+
   const playedIdx = schedule.map((_, r) => r).filter((r) => schedule[r].matches.some((_, i) => isPlayed(r, i)));
   const upcomingIdx = schedule.map((_, r) => r).filter((r) => schedule[r].matches.every((_, i) => !isPlayed(r, i)));
-  const historyHtml = playedIdx.length
-    ? `<details class="am-history-details"><summary>HISTORY · ${playedIdx.length} round${playedIdx.length !== 1 ? "s" : ""} played</summary>${playedIdx.map((r) => renderRound(schedule[r], r)).join("")}</details>`
+
+  // Show only the last completed round inline; older history is in the leaderboard tab
+  const lastPlayedHtml = playedIdx.length
+    ? renderRound(schedule[playedIdx[playedIdx.length - 1]], playedIdx[playedIdx.length - 1],
+        playedIdx.length > 1 ? ` <span class="am-rnd-badge am-rnd-badge-done">DONE</span>` : ` <span class="am-rnd-badge am-rnd-badge-done">DONE</span>`)
     : "";
+  const olderCount = playedIdx.length - 1;
+  const olderChip = olderCount > 0
+    ? `<div class="am-older-chip">+ ${olderCount} earlier round${olderCount !== 1 ? "s" : ""} — see Leaderboard</div>`
+    : "";
+
   const upcomingHtml = upcomingIdx.length
     ? `<div class="am-upcoming-hdr">UPCOMING — ${upcomingIdx.length} round${upcomingIdx.length !== 1 ? "s" : ""}</div>${upcomingIdx.map((r) => renderRound(schedule[r], r)).join("")}`
-    : `<div style="text-align:center;padding:18px 0;color:var(--muted);font-size:11px;letter-spacing:0.05em">All rounds completed</div>`;
+    : `<div style="text-align:center;padding:18px 0;color:var(--text-muted);font-size:11px;letter-spacing:0.05em">All rounds completed</div>`;
+
   const f = americanoFairness(_americanoLastPlayers, schedule);
   const summary = `<div class="am-summary">${_americanoLastPlayers.length} players · ${schedule.length} round${schedule.length !== 1 ? "s" : ""} · sit-outs ${f.minSits}–${f.maxSits}</div>`;
-  container.innerHTML = summary + historyHtml + upcomingHtml;
+  container.innerHTML = summary + olderChip + lastPlayedHtml + upcomingHtml;
   _initAmericanoTouchHandlers();
 }
+
+// ── MATCH EDIT SHEET ─────────────────────────────────────
+let _amEditTarget = null;
+window._amOpenMatchEdit = function(r, i) {
+  const m = _americanoSchedule?.[r]?.matches?.[i];
+  if (!m) return;
+  const sc = _americanoScores[r + "-" + i] || {};
+  const played = sc.a != null;
+  const sheet = document.getElementById("americano-sheet");
+  if (!sheet) return;
+  // Remove any stale overlay
+  document.getElementById("am-match-edit-overlay")?.remove();
+  const teamLabel = (t) => t.map(escHtml).join(" &amp; ");
+  const overlay = document.createElement("div");
+  overlay.id = "am-match-edit-overlay";
+  overlay.onclick = (e) => { if (e.target === overlay) window._amCloseMatchEdit(); };
+  overlay.innerHTML = `
+    <div id="am-match-edit-sheet">
+      <div class="am-edit-handle"></div>
+      <div class="am-edit-title">ROUND ${(r + 1)} · EDIT SCORE</div>
+      <div class="am-edit-body">
+        <div class="am-edit-team-row">
+          <div class="am-edit-team-name">${teamLabel(m.teamA)}</div>
+          <input type="number" id="am-edit-score-a" class="am-edit-score-input" min="0" max="99" inputmode="numeric" value="${played ? sc.a : ""}">
+        </div>
+        <div class="am-edit-divider">VS</div>
+        <div class="am-edit-team-row">
+          <div class="am-edit-team-name">${teamLabel(m.teamB)}</div>
+          <input type="number" id="am-edit-score-b" class="am-edit-score-input" min="0" max="99" inputmode="numeric" value="${played ? sc.b : ""}">
+        </div>
+      </div>
+      <div class="am-edit-actions">
+        <button class="am-edit-btn am-edit-save" onclick="window._amSaveMatchEdit()">✓ SAVE</button>
+        ${played ? `<button class="am-edit-btn am-edit-delete" onclick="window._amDeleteMatchEdit()">🗑 DELETE</button>` : ""}
+        <button class="am-edit-btn am-edit-cancel" onclick="window._amCloseMatchEdit()">✕</button>
+      </div>
+    </div>`;
+  _amEditTarget = { r, i };
+  sheet.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("am-edit-open"));
+  document.getElementById("am-edit-score-a")?.focus();
+};
+window._amCloseMatchEdit = function() {
+  const ov = document.getElementById("am-match-edit-overlay");
+  if (!ov) return;
+  ov.classList.remove("am-edit-open");
+  setTimeout(() => ov.remove(), 220);
+  _amEditTarget = null;
+};
+window._amSaveMatchEdit = function() {
+  if (!_amEditTarget) return;
+  const { r, i } = _amEditTarget;
+  const a = parseInt(document.getElementById("am-edit-score-a")?.value, 10);
+  const b = parseInt(document.getElementById("am-edit-score-b")?.value, 10);
+  if (isNaN(a) || isNaN(b) || a < 0 || b < 0) { showToast("Enter valid scores", "❌"); return; }
+  _americanoScores[r + "-" + i] = { a, b };
+  window._amCloseMatchEdit();
+  _amEnsureUpcoming();
+  _amSaveSession();
+  amSwitchTab(_amCurrentTab);
+};
+window._amDeleteMatchEdit = function() {
+  if (!_amEditTarget) return;
+  const { r, i } = _amEditTarget;
+  delete _americanoScores[r + "-" + i];
+  window._amCloseMatchEdit();
+  _amEnsureUpcoming();
+  _amSaveSession();
+  amSwitchTab(_amCurrentTab);
+};
 
 // ── LEADERBOARD TAB ───────────────────────────────────────
 function _renderAmLeaderboardTab() {
