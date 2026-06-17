@@ -19707,14 +19707,87 @@ window._amToggle = function (name, on) {
   if (on) _americanoSelected.add(name);
   else _americanoSelected.delete(name);
 };
-// Add a player to the Americano roster (saved permanently in localStorage).
+// ── AUTOCOMPLETE ─────────────────────────────────────────
+window.amGuestAutocomplete = function() {
+  const inp = document.getElementById("americano-guest-input");
+  const list = document.getElementById("am-autocomplete-list");
+  if (!list || !inp) return;
+  const q = inp.value.trim().toLowerCase();
+  if (!q) { list.style.display = "none"; return; }
+  const matches = _amRoster.filter((p) => p.toLowerCase().includes(q));
+  if (!matches.length) { list.style.display = "none"; return; }
+  list.innerHTML = matches.slice(0, 6).map((p) =>
+    `<div class="am-autocomplete-item" onclick="amGuestSelect(${jsArg(p)})">
+      <span class="am-autocomplete-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>
+      <span>${escHtml(p)}</span>
+    </div>`
+  ).join("");
+  list.style.display = "";
+};
+window.amGuestSelect = function(name) {
+  const inp = document.getElementById("americano-guest-input");
+  if (inp) inp.value = name;
+  document.getElementById("am-autocomplete-list").style.display = "none";
+  americanoAddGuest();
+};
+
+// Add a player — shows a confirmation popup with ADD / EDIT options.
 function americanoAddGuest() {
   const inp = document.getElementById("americano-guest-input");
-  const name = (inp?.value || "").trim();
+  const raw = (inp?.value || "").trim();
+  if (!raw) return;
+  document.getElementById("am-autocomplete-list").style.display = "none";
+  const existing = _amRoster.find((p) => p.toLowerCase() === raw.toLowerCase());
+  const initialName = existing || raw;
+  const isNew = !existing;
+  const sheet = document.getElementById("americano-sheet");
+  if (!sheet) return;
+  document.getElementById("am-add-player-overlay")?.remove();
+  const ov = document.createElement("div");
+  ov.id = "am-add-player-overlay";
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div id="am-add-player-sheet">
+      <div class="am-edit-handle"></div>
+      <div class="am-add-player-card">
+        <span class="am-add-player-av" id="am-add-av" style="background:${playerColor(initialName)}">${playerInitials(initialName)}</span>
+        <div class="am-add-player-info">
+          <input id="am-add-name-inp" class="am-add-name-inp" value="${escHtml(initialName)}" autocomplete="off"
+            oninput="window._amAddPreview(this.value)"
+            onkeydown="if(event.key==='Enter')window._amConfirmAddPlayer()">
+          <div class="am-add-player-tag${isNew ? " am-add-player-tag-new" : ""}">${isNew ? "✦ new player — will be saved to roster" : "✓ existing player"}</div>
+        </div>
+      </div>
+      <div class="am-edit-actions">
+        <button class="am-edit-btn am-edit-save" onclick="window._amConfirmAddPlayer()">＋ ADD</button>
+        <button class="am-edit-btn" style="background:rgba(255,255,255,0.07);color:var(--text)" onclick="window._amEditPlayerName()">✏ EDIT</button>
+        <button class="am-edit-btn am-edit-cancel" onclick="document.getElementById('am-add-player-overlay')?.remove()">✕</button>
+      </div>
+    </div>`;
+  sheet.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add("am-edit-open"));
+}
+window._amAddPreview = function(val) {
+  const name = (val || "").trim() || "?";
+  const av = document.getElementById("am-add-av");
+  if (av) { av.textContent = playerInitials(name); av.style.background = playerColor(name); }
+  const tag = document.querySelector(".am-add-player-tag");
+  if (tag) {
+    const exists = _amRoster.some((p) => p.toLowerCase() === name.toLowerCase());
+    tag.className = "am-add-player-tag" + (exists ? "" : " am-add-player-tag-new");
+    tag.textContent = exists ? "✓ existing player" : "✦ new player — will be saved to roster";
+  }
+};
+window._amEditPlayerName = function() {
+  const inp = document.getElementById("am-add-name-inp");
+  if (!inp) return;
+  inp.focus();
+  inp.select();
+};
+window._amConfirmAddPlayer = function() {
+  const name = (document.getElementById("am-add-name-inp")?.value || "").trim();
   if (!name) return;
-  const existing = _americanoPlayers.find(
-    (p) => p.toLowerCase() === name.toLowerCase(),
-  );
+  const existing = _americanoPlayers.find((p) => p.toLowerCase() === name.toLowerCase());
   if (existing) {
     _americanoSelected.add(existing);
   } else {
@@ -19722,9 +19795,12 @@ function americanoAddGuest() {
     _americanoSelected.add(name);
     _amRosterAdd(name);
   }
+  const inp = document.getElementById("americano-guest-input");
   if (inp) inp.value = "";
+  document.getElementById("am-add-player-overlay")?.remove();
   _renderAmericanoList();
-}
+  showToast(`${name} added`, "✅");
+};
 function closeAmericano() {
   document
     .getElementById("americano-overlay")

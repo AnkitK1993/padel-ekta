@@ -18215,6 +18215,108 @@ body.smooth-mode [style*="animation-delay"] {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-muted);
 }
+/* Autocomplete dropdown */
+.am-autocomplete-list {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  background: var(--surface, #1a1d30);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 20;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.am-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.1s;
+}
+.am-autocomplete-item:last-child { border-bottom: none; }
+.am-autocomplete-item:active,
+.am-autocomplete-item:hover { background: rgba(255, 255, 255, 0.06); }
+.am-autocomplete-av {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+/* Add player confirmation popup */
+#am-add-player-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: inherit;
+}
+#am-add-player-overlay.am-edit-open { opacity: 1; }
+#am-add-player-sheet {
+  width: 100%;
+  background: var(--surface, #16192b);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px 20px 0 0;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.22s cubic-bezier(0.32, 0, 0.67, 0);
+}
+#am-add-player-overlay.am-edit-open #am-add-player-sheet { transform: translateY(0); }
+.am-add-player-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px 10px;
+}
+.am-add-player-av {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.am-add-player-info { flex: 1; min-width: 0; }
+.am-add-name-inp {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.am-add-name-inp:focus { border-color: var(--theme); }
+.am-add-player-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 5px;
+  letter-spacing: 0.03em;
+}
+.am-add-player-tag-new { color: var(--theme); }
 /* Rename player sheet (same animation as match edit) */
 #am-rename-overlay {
   position: absolute;
