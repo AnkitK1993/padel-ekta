@@ -3487,7 +3487,7 @@ function renderNamesTable() {
         ? `<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(255,165,0,0.15);color:orange;font-weight:700;letter-spacing:0.05em">GUEST</span>`
         : "";
       const aliasList = aliases.length
-        ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.04em">${escHtml(aliases.join(" · "))}</div>`
+        ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.04em">${aliases.map((a) => `${escHtml(a)} → ${escHtml(p.name)}`).join(" &nbsp;·&nbsp; ")}</div>`
         : "";
       const dates =
         first || last
