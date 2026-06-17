@@ -19502,24 +19502,33 @@ function _syncLiveSessionBar() {
 }
 
 function openSessionSetup() {
-  const players = getAllPlayerNamesFromMatches().slice().sort((a, b) => a.localeCompare(b));
+  const guestNames = new Set(
+    Object.values(state.players).filter((p) => p.isGuest).map((p) => p.name),
+  );
+  const players = getAllPlayerNamesFromMatches().slice().sort((a, b) => {
+    const ag = guestNames.has(a) ? 1 : 0;
+    const bg = guestNames.has(b) ? 1 : 0;
+    return ag !== bg ? ag - bg : a.localeCompare(b);
+  });
   _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
   const eloMap = _memoElo();
   list.innerHTML = players
     .map((p) => {
+      const isGuest = guestNames.has(p);
       const elo = Math.round(eloMap[p] || 1000);
       const photo = photoMap[p];
       const av = photo
         ? `<img src="${photo}" class="ssp-av" style="object-fit:cover" alt="">`
         : `<span class="ssp-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>`;
+      const guestTag = isGuest ? `<span class="ssp-guest-tag">GUEST</span>` : "";
       return `<label class="ssp-row">
         <input type="checkbox" class="ssp-cb" onchange="window._sspToggle(${jsArg(p)}, this.checked)">
         ${av}
         <span class="ssp-meta">
           <span class="ssp-name">${escHtml(p)}</span>
-          <span class="ssp-elo">ELO ${elo}</span>
+          <span class="ssp-elo">${guestTag}ELO ${elo}</span>
         </span>
         <span class="ssp-check-ring"></span>
       </label>`;
