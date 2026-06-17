@@ -1069,13 +1069,6 @@ const _liveSlots            = { a1: null, a2: null, b1: null, b2: null };
 const _liveScoreProxy       = liveScore;
 let _liveScoreA             = 0; // kept for the rare direct += writes; synced via liveScore.scoreA
 let _liveScoreB             = 0;
-let _livePoints             = [];
-let _liveGamePtsA           = 0;
-let _liveGamePtsB           = 0;
-let _liveAdv                = null;
-let _liveMatchEnded         = false;
-let _livePointUndoStack     = [];
-let _liveGameMode           = 4;
 let _liveActiveSlot         = null;
 
 // sessionState field aliases — call sites use these bare names; they read/write
@@ -1108,6 +1101,8 @@ Object.defineProperty(globalThis, "_sessionSetupSelected", {
   set(v) { sessionState.setupSelected = v; },
   configurable: true,
 });
+// Timer interval handle for the session elapsed-time display — scalar, direct let.
+let _sessionTimerInterval = null;
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -17950,9 +17945,6 @@ Object.assign(window, {
   selectLivePlayer,
   closeLivePlayerSheet,
   liveAdjustScore,
-  liveAddPoint,
-  liveUndoPoint,
-  setLiveGameMode,
   endLiveMatch,
   openSessionSetup,
   closeSessionSetup,
@@ -18014,124 +18006,19 @@ function _openLiveModeImpl() {
   }
   _liveScoreA = 0;
   _liveScoreB = 0;
-  _livePoints = [];
-  _liveGamePtsA = 0;
-  _liveGamePtsB = 0;
-  _liveAdv = null;
-  _liveMatchEnded = false;
-  _livePointUndoStack = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   const today = todayISO();
   const dateEl = document.getElementById("live-date");
   if (dateEl) dateEl.value = today;
   const notesEl = document.getElementById("live-notes");
   if (notesEl) notesEl.value = "";
-  const savedMode = parseInt(
-    localStorage.getItem("padel_live_mode") || "4",
-    10,
-  );
-  _liveGameMode = savedMode === 6 ? 6 : 4;
-  _liveSyncModeButtons();
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
   _updateLiveMomentum();
-  _liveSyncGameDisplay();
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _syncLiveSessionBar();
   goTo("live");
-}
-
-function setLiveGameMode(mode) {
-  if (mode !== 4 && mode !== 6) return;
-  if (_liveGameMode === mode) return;
-  _liveGameMode = mode;
-  try {
-    localStorage.setItem("padel_live_mode", String(mode));
-  } catch (e) {}
-  // Reset everything on mode change
-  _liveScoreA = 0;
-  _liveScoreB = 0;
-  _liveGamePtsA = 0;
-  _liveGamePtsB = 0;
-  _liveAdv = null;
-  _liveMatchEnded = false;
-  _livePoints = [];
-  _livePointUndoStack = [];
-  _liveSyncModeButtons();
-  _updateLiveDisplay();
-  _updateLiveWinProb();
-  _updateLiveEloPreview();
-  _updateLiveMomentum();
-  _liveSyncGameDisplay();
-}
-
-function _liveSyncModeButtons() {
-  document.querySelectorAll(".live-mode-btn").forEach((b) => {
-    b.classList.toggle(
-      "active",
-      parseInt(b.dataset.mode, 10) === _liveGameMode,
-    );
-  });
-}
-
-function _livePointLabel(team) {
-  if (_liveAdv === team) return "AD";
-  if (_liveAdv && _liveAdv !== team) return "40";
-  const pts = team === "a" ? _liveGamePtsA : _liveGamePtsB;
-  return ["0", "15", "30", "40"][pts] || "0";
-}
-
-function _liveGameStateLabel() {
-  if (_liveMatchEnded) {
-    const winner = _liveScoreA > _liveScoreB ? "RED" : "BLUE";
-    return { text: `MATCH — ${winner} WINS`, cls: "match-point" };
-  }
-  // Match point check
-  const a = _liveScoreA,
-    b = _liveScoreB;
-  const target = _liveGameMode;
-  let aMatchPt = false,
-    bMatchPt = false;
-  if (target === 4) {
-    aMatchPt = a === 3;
-    bMatchPt = b === 3;
-  } else {
-    aMatchPt = (a >= 5 && a - b >= 1) || a === 6;
-    bMatchPt = (b >= 5 && b - a >= 1) || b === 6;
-  }
-  const aGamePt =
-    _liveAdv === "a" ||
-    (_liveGamePtsA === 3 && _liveGamePtsB < 3) ||
-    (_liveGamePtsA === 3 && _liveGamePtsB === 3 && _liveAdv === "a");
-  const bGamePt =
-    _liveAdv === "b" ||
-    (_liveGamePtsB === 3 && _liveGamePtsA < 3) ||
-    (_liveGamePtsB === 3 && _liveGamePtsA === 3 && _liveAdv === "b");
-  if (aMatchPt && aGamePt)
-    return { text: "MATCH POINT — RED", cls: "match-point" };
-  if (bMatchPt && bGamePt)
-    return { text: "MATCH POINT — BLUE", cls: "match-point" };
-  if (_liveAdv === "a") return { text: "ADVANTAGE RED", cls: "" };
-  if (_liveAdv === "b") return { text: "ADVANTAGE BLUE", cls: "" };
-  if (_liveGamePtsA === 3 && _liveGamePtsB === 3)
-    return { text: "DEUCE", cls: "" };
-  if (aGamePt) return { text: "GAME POINT — RED", cls: "" };
-  if (bGamePt) return { text: "GAME POINT — BLUE", cls: "" };
-  return { text: "", cls: "" };
-}
-
-function _liveSyncGameDisplay() {
-  const a = document.getElementById("live-pt-val-a");
-  const b = document.getElementById("live-pt-val-b");
-  const st = document.getElementById("live-game-state");
-  if (a) a.textContent = _livePointLabel("a");
-  if (b) b.textContent = _livePointLabel("b");
-  if (st) {
-    const lbl = _liveGameStateLabel();
-    st.textContent = lbl.text;
-    st.className = "live-game-state" + (lbl.cls ? " " + lbl.cls : "");
-  }
 }
 
 function _liveHaptic(ms) {
@@ -18140,99 +18027,6 @@ function _liveHaptic(ms) {
       navigator.vibrate(ms);
     } catch (e) {}
   }
-}
-
-function liveAddPoint(team) {
-  if (_liveMatchEnded) return;
-  // Snapshot for undo
-  _livePointUndoStack.push({
-    gpA: _liveGamePtsA,
-    gpB: _liveGamePtsB,
-    adv: _liveAdv,
-    sA: _liveScoreA,
-    sB: _liveScoreB,
-    ended: _liveMatchEnded,
-    points: [..._livePoints],
-  });
-  if (_livePointUndoStack.length > 100) _livePointUndoStack.shift();
-  _liveHaptic(8);
-  // Advantage handling
-  if (_liveAdv === team) {
-    _liveWinGame(team);
-    return;
-  }
-  if (_liveAdv && _liveAdv !== team) {
-    _liveAdv = null;
-    _liveSyncGameDisplay();
-    return;
-  }
-  // Deuce becomes advantage
-  if (_liveGamePtsA === 3 && _liveGamePtsB === 3) {
-    _liveAdv = team;
-    _liveSyncGameDisplay();
-    return;
-  }
-  // Normal progression
-  if (team === "a") _liveGamePtsA++;
-  else _liveGamePtsB++;
-  const ptsT = team === "a" ? _liveGamePtsA : _liveGamePtsB;
-  const ptsO = team === "a" ? _liveGamePtsB : _liveGamePtsA;
-  if (ptsT >= 4 && ptsT - ptsO >= 2) {
-    _liveWinGame(team);
-    return;
-  }
-  _liveSyncGameDisplay();
-}
-
-function _liveWinGame(team) {
-  if (team === "a") _liveScoreA++;
-  else _liveScoreB++;
-  _liveGamePtsA = 0;
-  _liveGamePtsB = 0;
-  _liveAdv = null;
-  _livePoints.push({ team, a: _liveScoreA, b: _liveScoreB });
-  _liveHaptic([20, 30, 20]);
-  // Match-win check
-  if (_liveCheckMatchWin()) {
-    _liveMatchEnded = true;
-    _liveHaptic([50, 80, 50]);
-    openMatchSaveSheet();
-  }
-  _updateLiveDisplay();
-  _updateLiveWinProb();
-  _updateLiveEloPreview();
-  _updateLiveMomentum();
-  _liveSyncGameDisplay();
-}
-
-function _liveCheckMatchWin() {
-  const a = _liveScoreA,
-    b = _liveScoreB;
-  if (_liveGameMode === 4) {
-    return a >= 4 || b >= 4;
-  }
-  if (a >= 6 && a - b >= 2) return true;
-  if (b >= 6 && b - a >= 2) return true;
-  if (a === 7 || b === 7) return true; // 7-5 or 7-6 (tiebreak)
-  return false;
-}
-
-function liveUndoPoint() {
-  const snap = _livePointUndoStack.pop();
-  if (!snap) return;
-  _liveGamePtsA = snap.gpA;
-  _liveGamePtsB = snap.gpB;
-  _liveAdv = snap.adv;
-  _liveScoreA = snap.sA;
-  _liveScoreB = snap.sB;
-  _liveMatchEnded = snap.ended;
-  _livePoints = snap.points;
-  _liveHaptic(8);
-  _updateLiveDisplay();
-  _updateLiveWinProb();
-  _updateLiveEloPreview();
-  _updateLiveMomentum();
-  _liveSyncGameDisplay();
 }
 
 // Enhancement 12: substitute player mid-match
@@ -18318,14 +18112,7 @@ function selectLivePlayer(name, slot) {
   closeLivePlayerSheet();
   _liveScoreA = 0;
   _liveScoreB = 0;
-  _liveGamePtsA = 0;
-  _liveGamePtsB = 0;
-  _liveAdv = null;
-  _liveMatchEnded = false;
-  _livePoints = [];
-  _livePointUndoStack = [];
   _updateLiveDisplay();
-  _liveSyncGameDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
   _updateLiveMomentum();
@@ -18363,42 +18150,11 @@ function _updateLiveDisplay() {
 function liveAdjustScore(team, delta) {
   const cur = team === "a" ? _liveScoreA : _liveScoreB;
   const next = Math.max(0, cur + delta);
-  const actualDelta = next - cur;
   if (team === "a") _liveScoreA = next;
   else _liveScoreB = next;
-  if (actualDelta > 0) {
-    _livePoints.push({ team, a: _liveScoreA, b: _liveScoreB });
-  } else if (actualDelta < 0) {
-    for (let i = _livePoints.length - 1; i >= 0; i--) {
-      if (_livePoints[i].team === team) {
-        _livePoints.splice(i, 1);
-        break;
-      }
-    }
-    let cA = 0,
-      cB = 0;
-    _livePoints.forEach((p) => {
-      if (p.team === "a") cA++;
-      else cB++;
-      p.a = cA;
-      p.b = cB;
-    });
-  }
-  // Reset current-game points whenever the set score changes
-  _liveGamePtsA = 0;
-  _liveGamePtsB = 0;
-  _liveAdv = null;
-  _liveSyncGameDisplay();
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
-  _updateLiveMomentum();
-  // Always prompt to save when win condition is met
-  if (actualDelta !== 0 && _liveCheckMatchWin()) {
-    _liveMatchEnded = true;
-    _liveHaptic([50, 80, 50]);
-    openMatchSaveSheet();
-  }
 }
 
 // 5A: Live Win Probability Meter
@@ -18482,44 +18238,9 @@ function _updateLiveEloPreview() {
   set("lep-lose-b", `${dBlose}`);
 }
 
-// 5B: Live Momentum Graph
 function _updateLiveMomentum() {
   const wrap = document.getElementById("live-momentum-wrap");
-  if (!wrap) return;
-  if (_livePoints.length < 2) {
-    wrap.style.display = "none";
-    return;
-  }
-  wrap.style.display = "";
-  const W = 280,
-    H = 60,
-    mid = H / 2;
-  const pts = _livePoints;
-  const n = pts.length;
-  const maxAdv = Math.max(...pts.map((p) => Math.abs(p.a - p.b)), 1);
-  const scale = (mid - 6) / maxAdv;
-  const xStep = W / Math.max(n - 1, 1);
-  let path = `M 0 ${mid}`;
-  pts.forEach((p, i) => {
-    const adv = p.a - p.b;
-    const y = mid - adv * scale;
-    path += ` L ${(i * xStep).toFixed(1)} ${y.toFixed(1)}`;
-  });
-  const lastPt = pts[n - 1];
-  const lastAdv = lastPt.a - lastPt.b;
-  const lineCol =
-    lastAdv > 0
-      ? "var(--live-red)"
-      : lastAdv < 0
-        ? "var(--live-blue)"
-        : "var(--theme)";
-  const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-    <path d="${path}" fill="none" stroke="${lineCol}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${((n - 1) * xStep).toFixed(1)}" cy="${(mid - lastAdv * scale).toFixed(1)}" r="4" fill="${lineCol}"/>
-  </svg>`;
-  const chart = document.getElementById("live-momentum-chart");
-  if (chart) chart.innerHTML = svg;
+  if (wrap) wrap.style.display = "none";
 }
 
 function endLiveMatch() {
@@ -18593,19 +18314,11 @@ function endLiveMatch() {
   // Reset everything for next match including player slots
   _liveScoreA = 0;
   _liveScoreB = 0;
-  _liveGamePtsA = 0;
-  _liveGamePtsB = 0;
-  _liveAdv = null;
-  _liveMatchEnded = false;
-  _livePoints = [];
-  _livePointUndoStack = [];
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _updateLiveDisplay();
-  _liveSyncGameDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
-  _updateLiveMomentum();
   _renderSittingOut();
   _checkRematchWarning();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
@@ -19523,18 +19236,10 @@ window._applySuggestion = function (idx) {
   _liveSlots.b2 = s.teamB[1];
   _liveScoreA = 0;
   _liveScoreB = 0;
-  _liveGamePtsA = 0;
-  _liveGamePtsB = 0;
-  _liveAdv = null;
-  _liveMatchEnded = false;
-  _livePoints = [];
-  _livePointUndoStack = [];
   ["a1", "a2", "b1", "b2"].forEach((sl) => _renderLiveSlot(sl));
   _updateLiveDisplay();
-  _liveSyncGameDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
-  _updateLiveMomentum();
   _renderSittingOut();
   _checkRematchWarning();
   _closeSuggestSheet();
@@ -19596,7 +19301,6 @@ function confirmUndoSession() {
   _liveSlots.b2 = last.teamB[1];
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _updateLiveDisplay();
-  _liveSyncGameDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
   _updateLiveMomentum();
@@ -19633,7 +19337,6 @@ function redoSessionMatch() {
   _liveSlots.b2 = match.teamB[1];
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _updateLiveDisplay();
-  _liveSyncGameDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
   _updateLiveMomentum();
@@ -19665,10 +19368,8 @@ function saveAndRematch() {
     _liveSlots.b2 = last.teamB[1];
     ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
     _updateLiveDisplay();
-    _liveSyncGameDisplay();
     _updateLiveWinProb();
     _updateLiveEloPreview();
-    _updateLiveMomentum();
     _renderSittingOut();
     _checkRematchWarning();
   }
@@ -20806,7 +20507,6 @@ function confirmSaveMatch() {
 
 function keepPlayingMatch() {
   closeMatchSaveSheet();
-  _liveMatchEnded = false;
   showToast("Keep playing!", "🎾");
 }
 
