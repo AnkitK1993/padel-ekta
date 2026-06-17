@@ -18021,6 +18021,8 @@ function _openLiveModeImpl() {
   _updateLiveEloPreview();
   _updateLiveMomentum();
   _syncRaceToggleUI();
+  const _dashEl = document.getElementById("live-session-dashboard");
+  if (_dashEl) _dashEl.style.display = "none";
   ["a1", "a2", "b1", "b2"].forEach((s) => _renderLiveSlot(s));
   _syncLiveSessionBar();
   goTo("live");
@@ -18353,6 +18355,7 @@ function endLiveMatch() {
   _updateLiveEloPreview();
   _renderSittingOut();
   _checkRematchWarning();
+  _renderLiveSessionDashboard();
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
 }
 
@@ -19349,6 +19352,7 @@ function confirmUndoSession() {
   _invalidateEloMemo();
   _saveSessionState();
   commit();
+  _renderLiveSessionDashboard();
   showToast("Last match undone ↶", "✅");
 }
 
@@ -19385,6 +19389,7 @@ function redoSessionMatch() {
   _invalidateEloMemo();
   _saveSessionState();
   commit();
+  _renderLiveSessionDashboard();
   showToast("Match redone ↷", "✅");
 }
 
@@ -19481,6 +19486,53 @@ function closeSessionSummary() {
   document
     .getElementById("session-summary-sheet")
     ?.classList.remove("live-sheet-open");
+}
+
+function _renderLiveSessionDashboard() {
+  const el = document.getElementById("live-session-dashboard");
+  if (!el) return;
+  if (!_liveSessionData?.sessionActive || _sessionMatchHistory.length === 0) {
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "";
+  const sessionPlayers = _liveSessionData.sessionPlayers || [];
+  const stats = {};
+  sessionPlayers.forEach((p) => (stats[p] = { w: 0, l: 0 }));
+  _sessionMatchHistory.forEach((mt) => {
+    const aWon = mt.scoreA > mt.scoreB;
+    (aWon ? mt.teamA : mt.teamB).forEach((p) => { if (stats[p]) stats[p].w++; });
+    (aWon ? mt.teamB : mt.teamA).forEach((p) => { if (stats[p]) stats[p].l++; });
+  });
+  const sorted = Object.entries(stats).sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l);
+  const playersHtml = sorted
+    .map(([name, s]) => {
+      const rank = sorted.indexOf(sorted.find(([n]) => n === name)) + 1;
+      const rankColor = rank === 1 ? "var(--gold,#f5c842)" : "var(--muted)";
+      return `<div class="sess-sum-player">
+        <span class="live-sdash-rank" style="color:${rankColor}">${rank}</span>
+        ${sheetAvSm(name)}
+        <span class="sess-sum-pname">${escHtml(name)}</span>
+        <span class="sess-sum-wl">${s.w}W–${s.l}L</span>
+      </div>`;
+    })
+    .join("");
+  const matchesHtml = [..._sessionMatchHistory].reverse()
+    .map((mt, i) => {
+      const num = _sessionMatchHistory.length - i;
+      const aWon = mt.scoreA > mt.scoreB;
+      return `<div class="sess-sum-match">
+        <div class="sess-sum-match-num">${num}</div>
+        <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(n => n.split(" ")[0]).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(n => n.split(" ")[0]).join(" & "))}</div>
+        <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+      </div>`;
+    })
+    .join("");
+  el.innerHTML = `
+    <div class="live-sdash-section">LEADERBOARD</div>
+    <div class="sess-sum-players">${playersHtml}</div>
+    <div class="live-sdash-section" style="margin-top:14px">MATCHES</div>
+    <div class="sess-sum-matches">${matchesHtml}</div>`;
 }
 
 async function confirmEndSession() {
