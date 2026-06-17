@@ -16681,6 +16681,89 @@ body.amethyst-mode #themeBtn {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* ── Premium session setup rows ────────────────────────────────── */
+.ssp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+.ssp-row:has(.ssp-cb:checked) {
+  background: rgba(var(--theme-rgb), 0.08);
+  border-color: rgba(var(--theme-rgb), 0.35);
+  box-shadow: 0 2px 12px rgba(var(--theme-rgb), 0.1);
+}
+.ssp-cb {
+  display: none;
+}
+.ssp-av {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+  transition: box-shadow 0.15s;
+}
+.ssp-row:has(.ssp-cb:checked) .ssp-av {
+  box-shadow: 0 0 0 2px rgba(var(--theme-rgb), 0.5);
+}
+.ssp-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.ssp-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ssp-elo {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.ssp-check-ring {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 900;
+  color: transparent;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.ssp-check-ring::before {
+  content: "✓";
+}
+.ssp-row:has(.ssp-cb:checked) .ssp-check-ring {
+  border-color: var(--accent, #6ddb83);
+  background: var(--accent, #6ddb83);
+  color: #000;
+}
 .tb-btn {
   padding: 9px 14px;
   border: 1px solid rgba(255, 255, 255, 0.15);

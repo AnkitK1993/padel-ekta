@@ -18085,7 +18085,7 @@ function openLivePlayerSheet(slot) {
     _liveSessionData?.sessionPlayers?.length >= 2
       ? _liveSessionData.sessionPlayers
       : null;
-  const players = sessionPlayers || getAllPlayerNamesFromMatches();
+  const players = (sessionPlayers || getAllPlayerNamesFromMatches()).slice().sort((a, b) => a.localeCompare(b));
   const clearBtn = `<button class="live-sheet-item live-sheet-item-clear" onclick="selectLivePlayer(null,${jsArg(slot)})">
       <span class="live-sheet-item-av" style="background:rgba(255,70,70,0.18);color:#ff5555">✕</span>
       <span class="live-sheet-item-name">CLEAR SLOT</span>
@@ -19644,18 +19644,28 @@ function _syncLiveSessionBar() {
 }
 
 function openSessionSetup() {
-  const players = getAllPlayerNamesFromMatches();
+  const players = getAllPlayerNamesFromMatches().slice().sort((a, b) => a.localeCompare(b));
   _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
+  const eloMap = _memoElo();
   list.innerHTML = players
-    .map(
-      (p) => `
-    <label class="tb-player-chip">
-      <input type="checkbox" onchange="window._sspToggle(${jsArg(p)}, this.checked)">
-      <span class="tb-chip-name">${escHtml(p)}</span>
-    </label>`,
-    )
+    .map((p) => {
+      const elo = Math.round(eloMap[p] || 1000);
+      const photo = photoMap[p];
+      const av = photo
+        ? `<img src="${photo}" class="ssp-av" style="object-fit:cover" alt="">`
+        : `<span class="ssp-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>`;
+      return `<label class="ssp-row">
+        <input type="checkbox" class="ssp-cb" onchange="window._sspToggle(${jsArg(p)}, this.checked)">
+        ${av}
+        <span class="ssp-meta">
+          <span class="ssp-name">${escHtml(p)}</span>
+          <span class="ssp-elo">ELO ${elo}</span>
+        </span>
+        <span class="ssp-check-ring"></span>
+      </label>`;
+    })
     .join("");
   document
     .getElementById("session-setup-overlay")
