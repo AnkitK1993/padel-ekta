@@ -17880,6 +17880,73 @@ body.smooth-mode [style*="animation-delay"] {
   text-align: right;
   flex-shrink: 0;
 }
+/* Americano leaderboard table */
+.am-lb-hdr-row,
+.am-lb-row {
+  display: grid;
+  gap: 3px 5px;
+  align-items: center;
+  font-size: 11px;
+  padding: 0 6px;
+}
+.am-lb-hdr-row {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 6px 2px;
+  text-align: right;
+}
+.am-lb-hdr-row span:nth-child(2) { text-align: left; }
+.am-lb-row {
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 3px;
+  text-align: right;
+}
+.am-lb-row span:nth-child(2) { text-align: left; }
+.am-lb-rank { font-size: 12px; font-weight: 800; text-align: left; }
+.am-lb-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  text-align: left;
+}
+/* Match history in leaderboard tab */
+.am-hist-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto 1fr;
+  gap: 4px 6px;
+  align-items: center;
+  font-size: 11px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 3px;
+}
+.am-hist-rnd {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.am-hist-team {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.am-hist-win { color: var(--text); font-weight: 600; }
+.am-hist-score {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  color: var(--theme);
+  text-align: center;
+  white-space: nowrap;
+}
 .am-history-details {
   margin: 10px 0 14px;
 }

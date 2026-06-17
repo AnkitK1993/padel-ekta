@@ -20092,54 +20092,61 @@ function _renderAmScheduleTab() {
 }
 
 // ── LEADERBOARD TAB ───────────────────────────────────────
-function _amFilteredMatches() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  let since = null;
-  if (_amDateFilter === "today") {
-    since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  } else if (_amDateFilter === "week") {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 7);
-    since = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  } else if (_amDateFilter === "month") {
-    since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
-  }
-  return since
-    ? (state.matches || []).filter((m) => (m.date || "") >= since)
-    : (state.matches || []);
-}
 function _renderAmLeaderboardTab() {
   const container = document.getElementById("americano-result");
   if (!container) return;
   const st = _americanoStandings();
   const hasScores = st.some((s) => s.played > 0);
   const medal = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`);
-  const sessionHtml = `<div style="margin-bottom:4px">
-    <div class="am-stand-hdr">🏆 SESSION</div>
-    ${hasScores
-      ? st.map((s, i) => `<div class="am-stand-row"><span class="am-stand-rank">${medal(i)}</span><span class="am-stand-name">${escHtml(s.name)}</span><span class="am-stand-meta">${s.won}W · ${s.played}P</span><span class="am-stand-pts">${s.pts} pts</span></div>`).join("")
-      : `<div style="text-align:center;padding:8px 0 12px;color:var(--muted);font-size:11px;letter-spacing:0.05em">Enter match scores to see standings</div>`
-    }
+  // columns: # | Player | MP | W | L | W% | PTS | +/-
+  const colGrid = "18px 1fr 24px 20px 20px 30px 28px 28px";
+  const hdr = `<div class="am-lb-hdr-row" style="grid-template-columns:${colGrid}">
+    <span></span><span>PLAYER</span>
+    <span>MP</span><span>W</span><span>L</span><span>W%</span><span>PTS</span><span>+/-</span>
   </div>`;
-  const filters = ["today", "week", "month", "all"];
-  const labels = { today: "TODAY", week: "WEEK", month: "MONTH", all: "ALL TIME" };
-  const filterBar = `<div class="am-date-filter">${filters.map((f) => `<button class="am-date-btn${_amDateFilter === f ? " active" : ""}" onclick="amSwitchDateFilter('${f}')">${labels[f]}</button>`).join("")}</div>`;
-  const matches = _amFilteredMatches();
-  let appHtml;
-  if (!matches.length) {
-    const label = _amDateFilter === "today" ? "today" : _amDateFilter === "week" ? "this week" : _amDateFilter === "month" ? "this month" : "";
-    appHtml = `<div style="text-align:center;padding:14px 0;color:var(--muted);font-size:11px;letter-spacing:0.05em">No matches${label ? " " + label : ""}</div>`;
-  } else {
-    const stats = computeStats(matches).filter((p) => p.mp >= 1).sort((a, b) => b.mw / (b.mp || 1) - a.mw / (a.mp || 1) || b.mp - a.mp);
-    appHtml = `<div class="am-stand-hdr" style="margin-top:8px">📊 APP LEADERBOARD</div>
-      <div style="display:grid;grid-template-columns:20px 1fr 28px 46px 34px;gap:4px 6px;font-size:10px;color:var(--muted);padding:4px 8px"># <span>PLAYER</span><span style="text-align:right">MP</span><span style="text-align:right">W-L</span><span style="text-align:right">WIN%</span></div>
-      ${stats.slice(0, 12).map((p, i) => {
-        const wp = p.mp ? Math.round(100 * p.mw / p.mp) : 0;
-        return `<div style="display:grid;grid-template-columns:20px 1fr 28px 46px 34px;gap:4px 6px;align-items:center;padding:5px 8px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:3px;font-size:11px"><span style="font-weight:800">${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span><span style="text-align:right;color:var(--muted)">${p.mp}</span><span style="text-align:right;color:var(--muted)">${p.mw}–${p.mp - p.mw}</span><span style="text-align:right;font-weight:700;color:${wp >= 50 ? "var(--accent,#00cc64)" : "var(--muted)"}">${wp}%</span></div>`;
-      }).join("")}`;
-  }
-  container.innerHTML = sessionHtml + filterBar + appHtml;
+  const rows = hasScores
+    ? st.map((s, i) => {
+        const l = s.played - s.won;
+        const wp = s.played ? Math.round(100 * s.won / s.played) : 0;
+        const gd = s.pts - s.ga;
+        return `<div class="am-lb-row" style="grid-template-columns:${colGrid}">
+          <span class="am-lb-rank">${medal(i)}</span>
+          <span class="am-lb-name">${escHtml(s.name)}</span>
+          <span>${s.played}</span>
+          <span style="color:var(--accent,#00cc64)">${s.won}</span>
+          <span style="color:#ff5555">${l}</span>
+          <span style="font-weight:700;color:${wp >= 50 ? "var(--accent,#00cc64)" : "var(--muted)"}">${wp}%</span>
+          <span style="color:var(--theme);font-weight:700">${s.pts}</span>
+          <span style="color:${gd >= 0 ? "var(--accent,#00cc64)" : "#ff5555"}">${gd > 0 ? "+" : ""}${gd}</span>
+        </div>`;
+      }).join("")
+    : `<div style="text-align:center;padding:12px 0 16px;color:var(--muted);font-size:11px;letter-spacing:0.05em">Enter match scores to see standings</div>`;
+
+  // Match history
+  const played = [];
+  (_americanoSchedule || []).forEach((rnd, r) => {
+    rnd.matches.forEach((m, i) => {
+      const sc = _americanoScores[r + "-" + i];
+      if (!sc || sc.a == null) return;
+      played.push({ round: rnd.round, teamA: m.teamA, teamB: m.teamB, a: sc.a, b: sc.b });
+    });
+  });
+  const historyHtml = played.length
+    ? `<div class="am-stand-hdr" style="margin:14px 0 6px">MATCH HISTORY</div>` +
+      played.slice().reverse().map((m) => {
+        const aWon = m.a > m.b, bWon = m.b > m.a;
+        return `<div class="am-hist-row">
+          <span class="am-hist-rnd">R${m.round}</span>
+          <span class="am-hist-team${aWon ? " am-hist-win" : ""}">${m.teamA.map(escHtml).join(" &amp; ")}</span>
+          <span class="am-hist-score">${m.a} – ${m.b}</span>
+          <span class="am-hist-team${bWon ? " am-hist-win" : ""}" style="text-align:right">${m.teamB.map(escHtml).join(" &amp; ")}</span>
+        </div>`;
+      }).join("")
+    : "";
+
+  container.innerHTML =
+    `<div class="am-stand-hdr">🏆 LEADERBOARD</div>` +
+    hdr + rows + historyHtml;
 }
 
 // ── PLAYERS TAB ───────────────────────────────────────────
@@ -20276,22 +20283,21 @@ window.amEndSession = function() {
 // Live standings from whatever scores have been entered so far. Americano
 // scoring: each player banks the points their team scored, every round.
 function _americanoStandings() {
-  const pts = {},
-    played = {},
-    won = {};
+  const pts = {}, ga = {}, played = {}, won = {};
   (_americanoSchedule || []).forEach((rnd, r) => {
     rnd.matches.forEach((m, i) => {
       const sc = _americanoScores[r + "-" + i];
       if (!sc || (sc.a == null && sc.b == null)) return;
-      const a = +sc.a || 0,
-        b = +sc.b || 0;
+      const a = +sc.a || 0, b = +sc.b || 0;
       m.teamA.forEach((p) => {
-        pts[p] = (pts[p] || 0) + a;
+        pts[p]    = (pts[p]    || 0) + a;
+        ga[p]     = (ga[p]     || 0) + b;
         played[p] = (played[p] || 0) + 1;
         if (a > b) won[p] = (won[p] || 0) + 1;
       });
       m.teamB.forEach((p) => {
-        pts[p] = (pts[p] || 0) + b;
+        pts[p]    = (pts[p]    || 0) + b;
+        ga[p]     = (ga[p]     || 0) + a;
         played[p] = (played[p] || 0) + 1;
         if (b > a) won[p] = (won[p] || 0) + 1;
       });
@@ -20300,13 +20306,12 @@ function _americanoStandings() {
   return _americanoLastPlayers
     .map((p) => ({
       name: p,
-      pts: pts[p] || 0,
+      pts:    pts[p]    || 0,
+      ga:     ga[p]     || 0,
       played: played[p] || 0,
-      won: won[p] || 0,
+      won:    won[p]    || 0,
     }))
-    .sort(
-      (x, y) => y.pts - x.pts || y.won - x.won || x.name.localeCompare(y.name),
-    );
+    .sort((x, y) => y.pts - x.pts || y.won - x.won || (y.pts - y.ga) - (x.pts - x.ga) || x.name.localeCompare(y.name));
 }
 
 // Scroll-wheel score picker: adjust one team's score by delta, mirror the other.
