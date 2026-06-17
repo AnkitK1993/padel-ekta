@@ -19881,17 +19881,21 @@ function generateAmericanoSchedule() {
   _americanoSitCount = {};
   _americanoPartnerCounts = {};
   _americanoOpponentCounts = {};
+  const upfront = _americanoMode === "mexicano" ? 1 : 5;
+  _americanoSchedule = [];
   try {
-    let r1;
-    if (_americanoMode === "mexicano") {
-      r1 = nextMexicanoRound(players, _americanoSitCount);
-    } else {
-      r1 = nextAmericanoRound(players, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount);
+    for (let n = 0; n < upfront; n++) {
+      let rnd;
+      if (_americanoMode === "mexicano") {
+        rnd = nextMexicanoRound(players, _americanoSitCount);
+      } else {
+        rnd = nextAmericanoRound(players, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount);
+      }
+      (rnd.sittingOut || []).forEach(
+        (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
+      );
+      _americanoSchedule.push({ round: n + 1, ...rnd });
     }
-    (r1.sittingOut || []).forEach(
-      (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
-    );
-    _americanoSchedule = [{ round: 1, ...r1 }];
   } catch (e) {
     showToast(e.message || "Could not generate", "❌");
     return;
@@ -19911,34 +19915,38 @@ function _syncAmericanoActions() {
   if (re) re.style.display = mex ? "none" : "";
   if (nx) nx.style.display = ""; // always visible — both modes are infinite
 }
-// Generate the next round and append it. Works for both Americano and Mexicano.
+// Append next batch of rounds. Americano adds 5 at a time; Mexicano adds 1
+// (standings-driven — must be based on current scores, can't pre-generate).
 function americanoNextRound() {
   if (!_americanoSchedule) return;
-  let next;
+  const batch = _americanoMode === "mexicano" ? 1 : 5;
   try {
-    if (_americanoMode === "mexicano") {
-      const ordered = _americanoStandings().map((s) => s.name);
-      next = nextMexicanoRound(ordered, _americanoSitCount);
-    } else {
-      next = nextAmericanoRound(
-        _americanoLastPlayers,
-        _americanoPartnerCounts,
-        _americanoOpponentCounts,
-        _americanoSitCount,
+    for (let n = 0; n < batch; n++) {
+      let next;
+      if (_americanoMode === "mexicano") {
+        const ordered = _americanoStandings().map((s) => s.name);
+        next = nextMexicanoRound(ordered, _americanoSitCount);
+      } else {
+        next = nextAmericanoRound(
+          _americanoLastPlayers,
+          _americanoPartnerCounts,
+          _americanoOpponentCounts,
+          _americanoSitCount,
+        );
+      }
+      (next.sittingOut || []).forEach(
+        (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
       );
+      _americanoSchedule.push({ round: _americanoSchedule.length + 1, ...next });
     }
   } catch (e) {
     showToast(e.message || "Could not build round", "❌");
     return;
   }
-  (next.sittingOut || []).forEach(
-    (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
-  );
-  _americanoSchedule.push({ round: _americanoSchedule.length + 1, ...next });
   _renderAmericanoResult(_americanoLastPlayers, _americanoSchedule);
   _syncAmericanoActions();
   const rounds = document.querySelectorAll("#americano-result .am-round");
-  rounds[rounds.length - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  rounds[rounds.length - batch]?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 let _americanoLastPlayers = [];
 function americanoRegenerate() {
@@ -19977,13 +19985,45 @@ function americanoConfirmAddPlayer() {
   showToast(`${name} added — plays in next round`, "✅");
 }
 window.americanoConfirmAddPlayer = americanoConfirmAddPlayer;
+function _initAmericanoTouchHandlers() {
+  const result = document.getElementById("americano-result");
+  if (!result || result._amHandlers) return;
+  result._amHandlers = true;
+  let _ty = 0, _twh = null;
+  result.addEventListener("touchstart", (e) => {
+    const w = e.target.closest(".am-score-wheel");
+    if (!w) return;
+    _ty = e.touches[0].clientY;
+    _twh = w;
+  }, { passive: true });
+  result.addEventListener("touchmove", (e) => {
+    if (_twh) e.preventDefault();
+  }, { passive: false });
+  result.addEventListener("touchend", (e) => {
+    if (!_twh) return;
+    const dy = _ty - e.changedTouches[0].clientY;
+    if (Math.abs(dy) > 8)
+      window._amAdjust(+_twh.dataset.r, +_twh.dataset.i, _twh.dataset.side, dy > 0 ? 1 : -1);
+    _twh = null;
+  }, { passive: true });
+  result.addEventListener("wheel", (e) => {
+    const w = e.target.closest(".am-score-wheel");
+    if (!w) return;
+    e.preventDefault();
+    window._amAdjust(+w.dataset.r, +w.dataset.i, w.dataset.side, e.deltaY < 0 ? 1 : -1);
+  }, { passive: false });
+}
+
 function _renderAmericanoResult(players, schedule) {
   const av = (n) =>
     `<span class="am-av" style="background:${playerColor(n)}">${playerInitials(n)}</span>`;
+  const total = parseInt(document.getElementById("americano-points")?.value, 10) || 21;
+  const defA = Math.ceil(total / 2);   // 11 for total=21
+  const defB = Math.floor(total / 2);  // 10 for total=21
   const teamRow = (team, r, i, side) => {
     const sc = _americanoScores[r + "-" + i] || {};
-    const val = sc[side] != null ? sc[side] : "";
-    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><input class="am-score" type="number" inputmode="numeric" min="0" value="${val}" onchange="window._amScore(${r},${i},'${side}',this.value,this)" aria-label="points"></div>`;
+    const val = sc[side] != null ? sc[side] : (side === "a" ? defA : defB);
+    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><div class="am-score-wheel" data-r="${r}" data-i="${i}" data-side="${side}"><button class="am-sw-btn" onclick="window._amAdjust(${r},${i},'${side}',1)">▲</button><span class="am-sw-val">${val}</span><button class="am-sw-btn" onclick="window._amAdjust(${r},${i},'${side}',-1)">▼</button></div></div>`;
   };
   const multiCourt = schedule.some((r) => r.matches.length > 1);
   const body = schedule
@@ -20009,6 +20049,7 @@ function _renderAmericanoResult(players, schedule) {
   document.getElementById("americano-result").innerHTML =
     `<div id="americano-standings"></div>` + summary + body + goTop;
   _renderAmericanoStandings();
+  _initAmericanoTouchHandlers();
 }
 
 // Live standings from whatever scores have been entered so far. Americano
@@ -20080,6 +20121,33 @@ window._amScore = function (r, i, side, val, inputEl) {
     if (otherInput && document.activeElement !== otherInput)
       otherInput.value = otherVal;
   }
+  _renderAmericanoStandings();
+};
+
+// Scroll-wheel score picker: adjust one team's score by delta, mirror the other.
+window._amAdjust = function (r, i, side, delta) {
+  const k = r + "-" + i;
+  if (!_americanoScores[k]) _americanoScores[k] = {};
+  const total = parseInt(document.getElementById("americano-points")?.value, 10) || 21;
+  const defA = Math.ceil(total / 2);
+  const defB = Math.floor(total / 2);
+  const sc = _americanoScores[k];
+  const curA = sc.a != null ? sc.a : defA;
+  const curB = sc.b != null ? sc.b : defB;
+  let newA, newB;
+  if (side === "a") {
+    newA = Math.max(0, Math.min(total, curA + delta));
+    newB = total - newA;
+  } else {
+    newB = Math.max(0, Math.min(total, curB + delta));
+    newA = total - newB;
+  }
+  _americanoScores[k] = { a: newA, b: newB };
+  // Patch only the two value spans — avoid full re-render to keep scroll position.
+  const aWheel = document.querySelector(`.am-score-wheel[data-r="${r}"][data-i="${i}"][data-side="a"]`);
+  const bWheel = document.querySelector(`.am-score-wheel[data-r="${r}"][data-i="${i}"][data-side="b"]`);
+  if (aWheel) aWheel.querySelector(".am-sw-val").textContent = newA;
+  if (bWheel) bWheel.querySelector(".am-sw-val").textContent = newB;
   _renderAmericanoStandings();
 };
 
