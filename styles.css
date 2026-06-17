@@ -18433,6 +18433,11 @@ body.smooth-mode [style*="animation-delay"] {
   text-overflow: ellipsis;
 }
 .am-admin-stats { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.am-admin-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
 .am-admin-edit-btn {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -18442,6 +18447,17 @@ body.smooth-mode [style*="animation-delay"] {
   font-size: 13px;
   cursor: pointer;
   flex-shrink: 0;
+}
+.am-admin-del-btn {
+  background: rgba(255, 60, 60, 0.08);
+  border: 1px solid rgba(255, 60, 60, 0.2);
+  border-radius: 8px;
+  color: #ff6b6b;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
 }
 .am-admin-history {
   padding: 8px 12px;
