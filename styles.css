@@ -17627,7 +17627,8 @@ body.smooth-mode [style*="animation-delay"] {
   padding: 2px 2px 0;
 }
 /* Tab bar */
-#am-tab-bar {
+#am-tab-bar,
+#am-home-tab-bar {
   display: flex;
 }
 .am-tab-btn {
@@ -18214,6 +18215,129 @@ body.smooth-mode [style*="animation-delay"] {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-muted);
 }
+/* Rename player sheet (same animation as match edit) */
+#am-rename-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: inherit;
+}
+#am-rename-overlay.am-edit-open { opacity: 1; }
+#am-rename-sheet {
+  width: 100%;
+  background: var(--surface, #16192b);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px 20px 0 0;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.22s cubic-bezier(0.32, 0, 0.67, 0);
+}
+#am-rename-overlay.am-edit-open #am-rename-sheet { transform: translateY(0); }
+.am-rename-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 16px;
+  box-sizing: border-box;
+}
+/* Career / home screen */
+.am-career-empty {
+  text-align: center;
+  padding: 48px 20px 24px;
+}
+.am-career-empty-icon { font-size: 44px; }
+.am-career-empty-title {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  margin: 10px 0 4px;
+  color: var(--text);
+}
+.am-career-empty-sub { font-size: 12px; color: var(--text-muted); }
+.am-career-meta {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: -2px 0 10px;
+  letter-spacing: 0.04em;
+}
+.am-create-session-btn-large {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  border-radius: 14px;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--theme);
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+.am-create-session-btn-large:active { background: rgba(255, 255, 255, 0.07); }
+/* Admin player management */
+.am-admin-player-card {
+  margin-bottom: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.am-admin-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.am-admin-info { flex: 1; min-width: 0; }
+.am-admin-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.am-admin-stats { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.am-admin-edit-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.am-admin-history {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.am-admin-session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  gap: 6px;
+}
+.am-admin-session-row:last-child { border-bottom: none; }
+.am-admin-session-date { flex-shrink: 0; }
+.am-admin-no-hist { font-size: 11px; color: var(--text-muted); padding: 4px 0; }
 .am-mode-seg {
   display: flex;
   margin: 4px 14px;
