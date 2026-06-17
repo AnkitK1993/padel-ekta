@@ -11085,7 +11085,8 @@ select.cmp-sel:hover,
   color: var(--text);
   font-size: 12px;
   font-family: "DM Sans", sans-serif;
-  padding: 10px 12px;
+  padding: 6px 12px;
+  height: 36px;
   resize: none;
   outline: none;
   transition: border-color 0.2s;
