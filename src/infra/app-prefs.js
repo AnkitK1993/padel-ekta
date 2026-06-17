@@ -45,7 +45,7 @@ export function getAnimLevelRaw() {
 export function resolveAnimLevel() {
   return (
     getAnimLevelRaw() ||
-    (localStorage.getItem(K.cascade) === "0" ? "medium" : "full")
+    (localStorage.getItem(K.cascade) === "0" ? "medium" : "off")
   );
 }
 export function setAnimLevelRaw(val) {

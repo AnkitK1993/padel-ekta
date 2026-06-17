@@ -1128,39 +1128,25 @@ const _animLevel0 = resolveAnimLevel();
 if (_animLevel0 === "medium" || _animLevel0 === "off")
   document.body.classList.add("no-cascade");
 if (_animLevel0 === "off") document.body.classList.add("no-anim");
-if (getSmoothMode()) {
-  document.body.classList.add("smooth-mode");
-  const _smCb = document.getElementById("smooth-mode-toggle");
-  if (_smCb) _smCb.checked = true;
+// Smooth mode: default ON if no saved pref
+{
+  if (localStorage.getItem("smooth_mode") === null) setSmoothMode(true);
+  if (getSmoothMode()) {
+    document.body.classList.add("smooth-mode");
+    const _smCb = document.getElementById("smooth-mode-toggle");
+    if (_smCb) _smCb.checked = true;
+  }
 }
 // Restore saved text-size scale (CSS zoom). _applyFontScale is hoisted.
 _applyFontScale(getFontScale());
-// Battery Saver is a sticky, persisted toggle. If it has ever been set ("1"/"0")
-// that wins. On the very first launch only, seed a sensible default FROM the
-// battery once and persist it — so thereafter it behaves like any other saved
-// setting and never silently flips on refresh. (The previous version toggled
-// the class on every battery event without persisting, so a fresh refresh
-// re-evaluated live battery and could reset to off — the reported bug.)
+// Battery Saver: default ON if no saved pref.
 {
   const _bsPref = getBatterySaverPref();
-  if (_bsPref === "1") {
+  if (_bsPref === "1" || _bsPref == null) {
     document.body.classList.add("battery-saver");
     const _bsCb = document.getElementById("battery-saver-toggle");
     if (_bsCb) _bsCb.checked = true;
-  } else if (_bsPref == null && navigator.getBattery) {
-    navigator
-      .getBattery()
-      .then((bat) => {
-        if (hasBatterySaverPref()) return;
-        // Default ON only when genuinely low & unplugged; persist either way.
-        if (bat.level <= 0.2 && !bat.charging) toggleBatterySaver(true);
-        else {
-          try {
-            setBatterySaver(false);
-          } catch (e) {}
-        }
-      })
-      .catch(() => {});
+    if (_bsPref == null) setBatterySaver(true);
   }
 }
 // Restore notification toggle state on load.
