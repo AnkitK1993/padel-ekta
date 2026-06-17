@@ -1235,6 +1235,13 @@ Puneet - Pun, PK
         <!-- Rematch warning -->
         <div id="live-rematch-warning" class="live-rematch-warning" style="display:none"></div>
 
+        <!-- Race-to selector -->
+        <div class="live-race-row">
+          <span class="live-race-label">RACE TO</span>
+          <button class="live-race-pill live-race-pill-active" id="live-race-4" onclick="setLiveRaceTo(4)">4</button>
+          <button class="live-race-pill" id="live-race-6" onclick="setLiveRaceTo(6)">6</button>
+        </div>
+
         <!-- Scoreboard (GAMES) -->
         <div class="live-games-label">GAMES</div>
         <div class="live-scoreboard">
@@ -1317,6 +1324,18 @@ Puneet - Pun, PK
       </div>
 
       </div><!-- end .live-ufc-wrap -->
+
+      <!-- Race-reached prompt overlay -->
+      <div class="live-race-overlay" id="live-race-overlay" style="display:none" onclick="dismissRacePrompt()">
+        <div class="live-race-modal" onclick="event.stopPropagation()">
+          <div class="live-race-modal-title" id="live-race-modal-title">RACE TO 4 REACHED</div>
+          <div class="live-race-modal-score" id="live-race-modal-score">4 — 0</div>
+          <div class="live-race-modal-btns">
+            <button class="live-race-modal-save" onclick="endLiveMatch()">SAVE MATCH</button>
+            <button class="live-race-modal-keep" onclick="dismissRacePrompt()">KEEP PLAYING</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Player select bottom sheet -->
       <div
