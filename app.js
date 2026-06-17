@@ -20096,7 +20096,10 @@ function _renderAmAdminTab() {
           <div class="am-admin-name">${escHtml(name)}</div>
           <div class="am-admin-stats">${s.sessions} sessions · ${s.matches} matches · ${wp}% win rate · ${s.pts} pts</div>
         </div>
-        <button class="am-admin-edit-btn" onclick="event.stopPropagation();window._amStartRename(${jsArg(name)})">✏</button>
+        <div class="am-admin-actions" onclick="event.stopPropagation()">
+          <button class="am-admin-edit-btn" onclick="window._amStartRename(${jsArg(name)})">✏</button>
+          <button id="am-del-${idx}" class="am-admin-del-btn" onclick="window._amDeletePlayer(${jsArg(name)},${idx})">🗑</button>
+        </div>
       </div>
       <div class="am-admin-history" id="am-admin-hist-${idx}" style="display:none">${histHtml}</div>
     </div>`;
@@ -20106,6 +20109,27 @@ function _renderAmAdminTab() {
 window._amTogglePlayerHistory = function(idx) {
   const el = document.getElementById("am-admin-hist-" + idx);
   if (el) el.style.display = el.style.display === "none" ? "" : "none";
+};
+window._amDeletePlayer = function(name, idx) {
+  const btn = document.getElementById("am-del-" + idx);
+  if (!btn) return;
+  if (btn._confirmPending) {
+    clearTimeout(btn._confirmTimer);
+    _amRoster = _amRoster.filter((p) => p !== name);
+    _amSaveRoster();
+    showToast(`${name} removed from roster`, "🗑");
+    _renderAmAdminTab();
+  } else {
+    btn._confirmPending = true;
+    btn.textContent = "CONFIRM?";
+    btn.style.cssText += ";background:rgba(255,60,60,0.25);color:#ff5555;font-size:11px;padding:6px 8px";
+    btn._confirmTimer = setTimeout(() => {
+      btn._confirmPending = false;
+      btn.textContent = "🗑";
+      btn.style.cssText = btn.style.cssText.replace(/background[^;]*;|color[^;]*;|font-size[^;]*;|padding[^;]*;/g, "");
+      btn.textContent = "🗑";
+    }, 3000);
+  }
 };
 window._amStartRename = function(name) {
   const sheet = document.getElementById("americano-sheet");
