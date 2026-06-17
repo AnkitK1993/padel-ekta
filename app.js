@@ -19774,7 +19774,6 @@ function openAmericanoSheet() {
   _renderAmericanoList();
   _americanoShowSetup();
   setAmericanoMode(_americanoMode); // sync the toggle UI to the current mode
-  document.getElementById("americano-overlay")?.classList.add("live-sheet-open");
   document.getElementById("americano-sheet")?.classList.add("live-sheet-open");
 }
 // Render the player chips, reflecting the current selection (so adding a guest
@@ -19979,6 +19978,8 @@ function _americanoShowSetup() {
   document.getElementById("americano-setup").style.display = "";
   document.getElementById("americano-result").style.display = "none";
   document.getElementById("americano-result-actions").style.display = "none";
+  document.getElementById("am-add-player-wrap").style.display = "none";
+  document.getElementById("am-bottom-bar").style.display = "none";
 }
 function americanoBack() {
   _americanoShowSetup();
@@ -20045,8 +20046,10 @@ function generateAmericanoSchedule() {
   _renderAmericanoResult(players, _americanoSchedule);
   document.getElementById("americano-setup").style.display = "none";
   document.getElementById("americano-result").style.display = "";
+  document.getElementById("am-bottom-bar").style.display = "";
   document.getElementById("americano-result-actions").style.display = "flex";
   document.getElementById("am-add-player-wrap").style.display = "none";
+  document.getElementById("americano-sheet").scrollTop = 0;
   _syncAmericanoActions();
 }
 function _syncAmericanoActions() {
@@ -20133,7 +20136,7 @@ function _initAmericanoTouchHandlers() {
   result._amHandlers = true;
   let _ty = 0, _twh = null;
   result.addEventListener("touchstart", (e) => {
-    const w = e.target.closest(".am-score-wheel");
+    const w = e.target.closest(".am-score-row");
     if (!w) return;
     _ty = e.touches[0].clientY;
     _twh = w;
@@ -20149,7 +20152,7 @@ function _initAmericanoTouchHandlers() {
     _twh = null;
   }, { passive: true });
   result.addEventListener("wheel", (e) => {
-    const w = e.target.closest(".am-score-wheel");
+    const w = e.target.closest(".am-score-row");
     if (!w) return;
     e.preventDefault();
     window._amAdjust(+w.dataset.r, +w.dataset.i, w.dataset.side, e.deltaY < 0 ? 1 : -1);
@@ -20165,31 +20168,37 @@ function _renderAmericanoResult(players, schedule) {
   const teamRow = (team, r, i, side) => {
     const sc = _americanoScores[r + "-" + i] || {};
     const val = sc[side] != null ? sc[side] : (side === "a" ? defA : defB);
-    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><div class="am-score-wheel" data-r="${r}" data-i="${i}" data-side="${side}"><button class="am-sw-btn" onclick="window._amAdjust(${r},${i},'${side}',1)">▲</button><span class="am-sw-val">${val}</span><button class="am-sw-btn" onclick="window._amAdjust(${r},${i},'${side}',-1)">▼</button></div></div>`;
+    return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><div class="am-score-row" data-r="${r}" data-i="${i}" data-side="${side}"><button class="am-score-btn am-score-minus" onclick="window._amAdjust(${r},${i},'${side}',-1)">−</button><span class="am-sw-val">${val}</span><button class="am-score-btn am-score-plus" onclick="window._amAdjust(${r},${i},'${side}',1)">+</button></div></div>`;
   };
   const multiCourt = schedule.some((r) => r.matches.length > 1);
-  const body = schedule
-    .map((rnd, r) => {
-      const matches = rnd.matches
-        .map(
-          (m, i) =>
-            `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}<div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div></div>`,
-        )
-        .join("");
-      const sit = rnd.sittingOut && rnd.sittingOut.length
-        ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
-        : "";
-      return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
-    })
-    .join("");
+  const renderRound = (rnd, r) => {
+    const matches = rnd.matches.map(
+      (m, i) =>
+        `<div class="am-match">${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}<div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div></div>`,
+    ).join("");
+    const sit = rnd.sittingOut && rnd.sittingOut.length
+      ? `<div class="am-sit">🪑 ${rnd.sittingOut.map(escHtml).join(", ")}</div>`
+      : "";
+    return `<div class="am-round"><div class="am-round-hdr">ROUND ${rnd.round}</div>${matches}${sit}</div>`;
+  };
+  const isRoundPlayed = (r) =>
+    schedule[r].matches.some((_, i) => !!_americanoScores[r + "-" + i]);
+  const playedIdx = schedule.map((_, r) => r).filter((r) => isRoundPlayed(r));
+  const upcomingIdx = schedule.map((_, r) => r).filter((r) => !isRoundPlayed(r));
+  const historyHtml = playedIdx.length
+    ? `<details class="am-history-details"><summary>HISTORY · ${playedIdx.length} round${playedIdx.length !== 1 ? "s" : ""} played</summary>${playedIdx.map((r) => renderRound(schedule[r], r)).join("")}</details>`
+    : "";
+  const upcomingHtml = upcomingIdx.length
+    ? `<div class="am-upcoming-hdr">UPCOMING — ${upcomingIdx.length} round${upcomingIdx.length !== 1 ? "s" : ""}</div>${upcomingIdx.map((r) => renderRound(schedule[r], r)).join("")}`
+    : `<div style="text-align:center;padding:18px 0;color:var(--muted);font-size:11px;letter-spacing:0.05em">All rounds completed</div>`;
   const f = americanoFairness(players, schedule);
   const summary = `<div class="am-summary">${players.length} players · ${schedule.length} round${schedule.length !== 1 ? "s" : ""} · partners repeat ≤ ${f.maxPartnerRepeat}× · sit-outs ${f.minSits}–${f.maxSits}</div>`;
-  const goTop = `<div style="position:sticky;bottom:8px;display:flex;justify-content:flex-end;pointer-events:none;margin-top:16px;padding-bottom:4px">
-    <button onclick="document.getElementById('americano-result').scrollTop=0" style="pointer-events:all;width:38px;height:38px;border-radius:50%;background:var(--accent);color:#000;font-size:18px;font-weight:900;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center" title="Back to top">↑</button>
+  const goTop = `<div style="position:sticky;bottom:72px;display:flex;justify-content:flex-end;pointer-events:none;margin-top:16px">
+    <button onclick="document.getElementById('americano-sheet').scrollTop=0" style="pointer-events:all;width:38px;height:38px;border-radius:50%;background:var(--accent);color:#000;font-size:18px;font-weight:900;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center" title="Back to top">↑</button>
   </div>`;
-  // Leaderboard first, then schedule, go-to-top anchored at bottom of scroll area
+  // Leaderboard (non-frozen) → summary → history → upcoming → go-to-top
   document.getElementById("americano-result").innerHTML =
-    `<div id="americano-standings"></div>` + summary + body + goTop;
+    `<div id="americano-standings"></div>` + summary + historyHtml + upcomingHtml + goTop;
   _renderAmericanoStandings();
   _initAmericanoTouchHandlers();
 }
@@ -20286,8 +20295,8 @@ window._amAdjust = function (r, i, side, delta) {
   }
   _americanoScores[k] = { a: newA, b: newB };
   // Patch only the two value spans — avoid full re-render to keep scroll position.
-  const aWheel = document.querySelector(`.am-score-wheel[data-r="${r}"][data-i="${i}"][data-side="a"]`);
-  const bWheel = document.querySelector(`.am-score-wheel[data-r="${r}"][data-i="${i}"][data-side="b"]`);
+  const aWheel = document.querySelector(`.am-score-row[data-r="${r}"][data-i="${i}"][data-side="a"]`);
+  const bWheel = document.querySelector(`.am-score-row[data-r="${r}"][data-i="${i}"][data-side="b"]`);
   if (aWheel) aWheel.querySelector(".am-sw-val").textContent = newA;
   if (bWheel) bWheel.querySelector(".am-sw-val").textContent = newB;
   _renderAmericanoStandings();
