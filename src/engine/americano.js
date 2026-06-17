@@ -132,11 +132,11 @@ export function generateAmericano(players, numRounds, opts = {}) {
 // ordered best→worst (for round 1, pass a seeded/shuffled order). Within each
 // court of four ranked [r0,r1,r2,r3], pair r0+r3 vs r1+r2 to balance the game.
 // Sit-outs rotate by fewest-sat-first (tie-break: lower current rank sits).
-export function nextMexicanoRound(orderedPlayers, sitCount = {}) {
+export function nextMexicanoRound(orderedPlayers, sitCount = {}, maxCourts = Infinity) {
   const players = [...new Set((orderedPlayers || []).map(String).filter(Boolean))];
   const N = players.length;
   if (N < 4) throw new Error("Need at least 4 players for Mexicano.");
-  const courts = Math.floor(N / 4);
+  const courts = Math.min(Math.floor(N / 4), Math.max(1, maxCourts));
   const numSitting = N - courts * 4;
 
   const rankIndex = {};
@@ -166,11 +166,11 @@ export function nextMexicanoRound(orderedPlayers, sitCount = {}) {
 // sitCounts but does NOT mutate them — caller increments from sittingOut.
 // Safe to call mid-session after adding new players: missing map entries are
 // initialised to 0, so new players are immediately prioritised to play.
-export function nextAmericanoRound(players, partnerCounts, opponentCounts, sitCounts) {
+export function nextAmericanoRound(players, partnerCounts, opponentCounts, sitCounts, maxCourts = Infinity) {
   const uniq = [...new Set((players || []).map(String).filter(Boolean))];
   const N = uniq.length;
   if (N < 4) throw new Error("Need at least 4 players.");
-  const courts = Math.floor(N / 4);
+  const courts = Math.min(Math.floor(N / 4), Math.max(1, maxCourts));
   const playPerRound = courts * 4;
   const numSitting = N - playPerRound;
 

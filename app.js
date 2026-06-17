@@ -19622,6 +19622,7 @@ let _americanoOpponentCounts = {}; // cumulative opponent counts (Americano mode
 let _amCurrentTab = "schedule";
 let _amDateFilter = "today";
 let _amRemovedPlayers = new Set();
+let _americanoCourts = 1;
 let _amEndConfirmPending = false;
 const _AM_SESSION_KEY = "padel_am_session";
 let _americanoLastPlayers = [];
@@ -19900,15 +19901,16 @@ function generateAmericanoSchedule() {
   _americanoSitCount = {};
   _americanoPartnerCounts = {};
   _americanoOpponentCounts = {};
+  _americanoCourts = Math.max(1, parseInt(document.getElementById("americano-courts")?.value, 10) || 1);
   const upfront = _americanoMode === "mexicano" ? 1 : 5;
   _americanoSchedule = [];
   try {
     for (let n = 0; n < upfront; n++) {
       let rnd;
       if (_americanoMode === "mexicano") {
-        rnd = nextMexicanoRound(players, _americanoSitCount);
+        rnd = nextMexicanoRound(players, _americanoSitCount, _americanoCourts);
       } else {
-        rnd = nextAmericanoRound(players, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount);
+        rnd = nextAmericanoRound(players, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount, _americanoCourts);
       }
       (rnd.sittingOut || []).forEach(
         (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
@@ -19968,6 +19970,7 @@ function _amSaveSession() {
       removed: [..._amRemovedPlayers],
       mode: _americanoMode,
       points: parseInt(document.getElementById("americano-points")?.value, 10) || 21,
+      courts: _americanoCourts,
     }));
   } catch (e) {}
 }
@@ -19985,8 +19988,11 @@ function _amRestoreSession() {
     _americanoLastPlayers = d.players;
     _amRemovedPlayers = new Set(d.removed || []);
     _americanoMode = d.mode || "americano";
+    _americanoCourts = d.courts || 1;
     const pts = document.getElementById("americano-points");
     if (pts) pts.value = d.points || 21;
+    const cts = document.getElementById("americano-courts");
+    if (cts) cts.value = _americanoCourts;
     document.getElementById("americano-setup").style.display = "none";
     document.getElementById("americano-result").style.display = "";
     document.getElementById("am-bottom-bar").style.display = "";
@@ -20028,9 +20034,9 @@ function _amEnsureUpcoming() {
       let next;
       if (_americanoMode === "mexicano") {
         const ordered = _americanoStandings().map((s) => s.name);
-        next = nextMexicanoRound(ordered, _americanoSitCount);
+        next = nextMexicanoRound(ordered, _americanoSitCount, _americanoCourts);
       } else {
-        next = nextAmericanoRound(active, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount);
+        next = nextAmericanoRound(active, _americanoPartnerCounts, _americanoOpponentCounts, _americanoSitCount, _americanoCourts);
       }
       (next.sittingOut || []).forEach(
         (p) => (_americanoSitCount[p] = (_americanoSitCount[p] || 0) + 1),
