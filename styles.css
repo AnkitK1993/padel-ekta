@@ -17560,7 +17560,11 @@ body.zoomed *::after {
   }
 }
 
-.cmp-scroll { overflow-x: hidden !important; }
+.cmp-scroll {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
 
 table.cmp {
   width: 100% !important;
@@ -17573,7 +17577,7 @@ table.cmp {
 table.cmp th,
 table.cmp td {
   white-space: nowrap !important;
-  overflow: hidden !important;
+  overflow: clip !important;
   text-overflow: ellipsis !important;
   vertical-align: middle !important;
 }
