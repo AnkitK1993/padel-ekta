@@ -20290,6 +20290,68 @@ function _initAmericanoTouchHandlers() {
   }, { passive: false });
 }
 
+// ── SWIPE-TO-EDIT HANDLER ────────────────────────────────
+function _initAmSwipeHandlers() {
+  const container = document.getElementById("americano-result");
+  if (!container || container._swipeHandlers) return;
+  container._swipeHandlers = true;
+  let _sx = 0, _sy = 0, _el = null, _isH = false, _openWrap = null;
+  const REVEAL = 72;
+  const snap = (wrap, x) => {
+    const inner = wrap?.querySelector(".am-swipe-inner");
+    if (!inner) return;
+    inner.style.transition = "transform 0.2s ease";
+    inner.style.transform = x ? `translateX(${x}px)` : "";
+  };
+  const closeOpen = () => {
+    if (_openWrap) { snap(_openWrap, 0); _openWrap = null; }
+  };
+  container.addEventListener("touchstart", (e) => {
+    const inner = e.target.closest(".am-swipe-inner");
+    if (!inner) { closeOpen(); return; }
+    if (e.target.closest(".am-score-btn,.am-score-row")) return;
+    const wrap = inner.closest(".am-swipe-wrap");
+    if (!wrap) return;
+    if (_openWrap && _openWrap !== wrap) closeOpen();
+    _sx = e.touches[0].clientX;
+    _sy = e.touches[0].clientY;
+    _el = inner;
+    _isH = false;
+  }, { passive: true });
+  container.addEventListener("touchmove", (e) => {
+    if (!_el) return;
+    const dx = e.touches[0].clientX - _sx;
+    const dy = e.touches[0].clientY - _sy;
+    if (!_isH && Math.abs(dy) > Math.abs(dx) + 5) { _el = null; return; }
+    if (!_isH && Math.abs(dx) > 8) _isH = true;
+    if (!_isH) return;
+    e.preventDefault();
+    const wrap = _el.closest(".am-swipe-wrap");
+    const base = _openWrap === wrap ? -REVEAL : 0;
+    _el.style.transition = "none";
+    _el.style.transform = `translateX(${Math.min(0, Math.max(-REVEAL, base + dx))}px)`;
+  }, { passive: false });
+  container.addEventListener("touchend", (e) => {
+    if (!_el || !_isH) { _el = null; return; }
+    const dx = e.changedTouches[0].clientX - _sx;
+    const wrap = _el.closest(".am-swipe-wrap");
+    if (wrap === _openWrap) {
+      if (dx > 30) { snap(wrap, 0); _openWrap = null; }
+      else { _el.style.transition = "transform 0.2s ease"; _el.style.transform = `translateX(-${REVEAL}px)`; }
+    } else {
+      if (dx < -40) {
+        closeOpen();
+        _el.style.transition = "transform 0.2s ease";
+        _el.style.transform = `translateX(-${REVEAL}px)`;
+        _openWrap = wrap;
+      } else {
+        snap(wrap, 0);
+      }
+    }
+    _el = null; _isH = false;
+  }, { passive: true });
+}
+
 // ── AMERICANO SESSION PERSISTENCE ──────────────────────────
 function _amSaveSession() {
   try {
@@ -20398,13 +20460,18 @@ function _renderAmScheduleTab() {
     return `<div class="am-mrow"><span class="am-team">${av(team[0])}${av(team[1])}<span class="am-pair">${escHtml(team[0])} &amp; ${escHtml(team[1])}</span></span><div class="am-score-row" data-r="${r}" data-i="${i}" data-side="${side}"><button class="am-score-btn am-score-minus" onclick="window._amAdjust(${r},${i},'${side}',-1)">−</button><span class="am-sw-val">${val}</span><button class="am-score-btn am-score-plus" onclick="window._amAdjust(${r},${i},'${side}',1)">+</button></div></div>`;
   };
   const multiCourt = schedule.some((r) => r.matches.length > 1);
-  const renderMatch = (m, r, i, played) =>
-    `<div class="am-match${played ? " am-match-played" : " am-match-upcoming"}"
-      onclick="if(!event.target.closest('.am-score-btn'))window._amOpenMatchEdit(${r},${i})">
-      ${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}
-      <div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div>
-      ${played ? `<div class="am-match-edit-chip">✏ edit</div>` : ""}
+  const renderMatch = (m, r, i, played) => {
+    const tapEdit = played ? "" : `onclick="if(!event.target.closest('.am-score-btn'))window._amOpenMatchEdit(${r},${i})"`;
+    return `<div class="am-swipe-wrap am-match-swipe-wrap">
+      <div class="am-swipe-actions">
+        <button class="am-swipe-action-edit" onclick="window._amOpenMatchEdit(${r},${i})"><span>✏</span><span>EDIT</span></button>
+      </div>
+      <div class="am-match${played ? " am-match-played" : " am-match-upcoming"} am-swipe-inner" ${tapEdit}>
+        ${multiCourt ? `<div class="am-court">C${i + 1}</div>` : ""}
+        <div class="am-match-teams">${teamRow(m.teamA, r, i, "a")}${teamRow(m.teamB, r, i, "b")}</div>
+      </div>
     </div>`;
+  };
   const renderRound = (rnd, r, labelSuffix = "") => {
     const matches = rnd.matches.map((m, i) => renderMatch(m, r, i, isPlayed(r, i))).join("");
     const sit = rnd.sittingOut?.length
@@ -20433,6 +20500,7 @@ function _renderAmScheduleTab() {
   const summary = `<div class="am-summary">${_americanoLastPlayers.length} players · ${schedule.length} round${schedule.length !== 1 ? "s" : ""} · sit-outs ${f.minSits}–${f.maxSits}</div>`;
   container.innerHTML = summary + olderChip + lastPlayedHtml + upcomingHtml;
   _initAmericanoTouchHandlers();
+  _initAmSwipeHandlers();
 }
 
 // ── MATCH EDIT SHEET ─────────────────────────────────────
@@ -20552,18 +20620,23 @@ function _renderAmLeaderboardTab() {
     rnd.matches.forEach((m, i) => {
       const sc = _americanoScores[r + "-" + i];
       if (!sc || sc.a == null) return;
-      played.push({ round: rnd.round, teamA: m.teamA, teamB: m.teamB, a: sc.a, b: sc.b });
+      played.push({ round: rnd.round, r, i, teamA: m.teamA, teamB: m.teamB, a: sc.a, b: sc.b });
     });
   });
   const historyHtml = played.length
     ? `<div class="am-stand-hdr" style="margin:18px 0 8px">MATCH HISTORY</div>` +
       played.slice().reverse().map((m) => {
         const aWon = m.a > m.b, bWon = m.b > m.a;
-        return `<div class="am-hist-row">
-          <span class="am-hist-rnd">R${m.round}</span>
-          <span class="am-hist-team${aWon ? " am-hist-win" : ""}">${m.teamA.map(escHtml).join(" &amp; ")}</span>
-          <div class="am-hist-score-wrap"><span class="am-hist-score">${m.a} – ${m.b}</span></div>
-          <span class="am-hist-team${bWon ? " am-hist-win" : ""}" style="text-align:right">${m.teamB.map(escHtml).join(" &amp; ")}</span>
+        return `<div class="am-swipe-wrap am-hist-swipe-wrap">
+          <div class="am-swipe-actions">
+            <button class="am-swipe-action-edit" onclick="window._amOpenMatchEdit(${m.r},${m.i})"><span>✏</span><span>EDIT</span></button>
+          </div>
+          <div class="am-hist-row am-swipe-inner">
+            <span class="am-hist-rnd">R${m.round}</span>
+            <span class="am-hist-team${aWon ? " am-hist-win" : ""}">${m.teamA.map(escHtml).join(" &amp; ")}</span>
+            <div class="am-hist-score-wrap"><span class="am-hist-score">${m.a} – ${m.b}</span></div>
+            <span class="am-hist-team${bWon ? " am-hist-win" : ""}" style="text-align:right">${m.teamB.map(escHtml).join(" &amp; ")}</span>
+          </div>
         </div>`;
       }).join("")
     : "";
@@ -20571,6 +20644,7 @@ function _renderAmLeaderboardTab() {
   container.innerHTML =
     `<div class="am-stand-hdr">🏆 LEADERBOARD</div>` +
     rows + historyHtml;
+  _initAmSwipeHandlers();
 }
 
 // ── PLAYERS TAB ───────────────────────────────────────────
