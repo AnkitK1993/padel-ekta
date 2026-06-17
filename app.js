@@ -20160,8 +20160,8 @@ function _renderAmericanoResult(players, schedule) {
   const av = (n) =>
     `<span class="am-av" style="background:${playerColor(n)}">${playerInitials(n)}</span>`;
   const total = parseInt(document.getElementById("americano-points")?.value, 10) || 21;
-  const defA = Math.ceil(total / 2);   // 11 for total=21
-  const defB = Math.floor(total / 2);  // 10 for total=21
+  const defA = 10;  // unplayed sentinel — 10+10=20 ≠ total, so standings ignore it
+  const defB = 10;
   const teamRow = (team, r, i, side) => {
     const sc = _americanoScores[r + "-" + i] || {};
     const val = sc[side] != null ? sc[side] : (side === "a" ? defA : defB);
@@ -20271,8 +20271,8 @@ window._amAdjust = function (r, i, side, delta) {
   const k = r + "-" + i;
   if (!_americanoScores[k]) _americanoScores[k] = {};
   const total = parseInt(document.getElementById("americano-points")?.value, 10) || 21;
-  const defA = Math.ceil(total / 2);
-  const defB = Math.floor(total / 2);
+  const defA = 10;
+  const defB = 10;
   const sc = _americanoScores[k];
   const curA = sc.a != null ? sc.a : defA;
   const curB = sc.b != null ? sc.b : defB;
