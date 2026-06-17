@@ -1370,10 +1370,12 @@ Puneet - Pun, PK
       </div>
 
       <!-- Americano / Matchup Generator -->
-      <div class="live-sheet-overlay" id="americano-overlay" onclick="closeAmericano()"></div>
+      <div class="live-sheet-overlay" id="americano-overlay"></div>
       <div class="live-sheet" role="dialog" aria-modal="true" id="americano-sheet">
-        <div class="live-sheet-handle"></div>
-        <div class="live-sheet-title">🎾 AMERICANO</div>
+        <div class="am-page-hdr">
+          <button class="am-page-back" onclick="closeAmericano()" aria-label="Back">←</button>
+          <span class="am-page-title">🎾 AMERICANO</span>
+        </div>
         <div id="americano-setup">
           <div class="am-mode-seg">
             <button id="am-mode-americano" class="am-mode-btn on" onclick="setAmericanoMode('americano')">AMERICANO</button>
@@ -1399,18 +1401,19 @@ Puneet - Pun, PK
             <button id="am-generate-btn" class="tb-btn tb-btn-balance" onclick="generateAmericanoSchedule()" style="flex:1">🎲 GENERATE</button>
           </div>
         </div>
-        <div id="americano-result" style="display:none;padding:0 14px;max-height:62vh;overflow-y:auto"></div>
-        <div id="am-add-player-wrap" style="display:none;padding:4px 14px 0;gap:6px;align-items:center">
-          <input id="am-add-player-input" type="text" placeholder="New player name…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();americanoConfirmAddPlayer();}" style="flex:1;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px" />
-          <button class="tb-btn tb-btn-balance" onclick="americanoConfirmAddPlayer()">✓ ADD</button>
+        <div id="americano-result" style="display:none;padding:0 14px 8px"></div>
+        <div id="am-bottom-bar" style="display:none">
+          <div id="am-add-player-wrap" style="display:none;padding:4px 14px 0;gap:6px;align-items:center">
+            <input id="am-add-player-input" type="text" placeholder="New player name…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();americanoConfirmAddPlayer();}" style="flex:1;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px" />
+            <button class="tb-btn tb-btn-balance" onclick="americanoConfirmAddPlayer()">✓ ADD</button>
+          </div>
+          <div id="americano-result-actions" style="display:none;padding:10px 14px;gap:8px">
+            <button class="tb-btn tb-btn-none" onclick="americanoBack()">↩ EDIT</button>
+            <button class="tb-btn" onclick="toggleAmericanoAddPlayer()" style="flex-shrink:0">+ PLAYER</button>
+            <button id="am-reshuffle-btn" class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄</button>
+            <button id="am-next-btn" class="tb-btn tb-btn-balance" onclick="americanoNextRound()" style="flex:1">NEXT ROUND →</button>
+          </div>
         </div>
-        <div id="americano-result-actions" style="display:none;padding:10px 14px 4px;gap:8px">
-          <button class="tb-btn tb-btn-none" onclick="americanoBack()">↩ EDIT</button>
-          <button class="tb-btn" onclick="toggleAmericanoAddPlayer()" style="flex-shrink:0">+ PLAYER</button>
-          <button id="am-reshuffle-btn" class="tb-btn tb-btn-balance" onclick="americanoRegenerate()" style="flex:1">🔄</button>
-          <button id="am-next-btn" class="tb-btn tb-btn-balance" onclick="americanoNextRound()" style="flex:1">NEXT ROUND →</button>
-        </div>
-        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
 
       <!-- Seasons -->
