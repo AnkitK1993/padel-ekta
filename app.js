@@ -20332,7 +20332,7 @@ function openPlayerEditSheet(id) {
   const aliases = isNew ? [] : playerAliasMap[id] || [];
   const { first, last } = isNew
     ? { first: null, last: null }
-    : getPlayerDateRange(p.name);
+    : _getPlayerDateRange(p.name, state.matches);
 
   document.getElementById("pes-title").textContent = isNew
     ? "ADD PLAYER"
