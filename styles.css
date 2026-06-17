@@ -16664,8 +16664,8 @@ body.amethyst-mode #themeBtn {
 .ssp-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 10px 10px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.03);
@@ -16682,13 +16682,13 @@ body.amethyst-mode #themeBtn {
   display: none;
 }
 .ssp-av {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
   color: #fff;
   flex-shrink: 0;
