@@ -11159,6 +11159,51 @@ select.cmp-sel:hover,
   flex-shrink: 0;
   text-align: center;
 }
+.live-sdash-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -2px;
+}
+.live-sdash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.live-sdash-table thead th {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 0 5px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.live-sdash-table thead th:nth-child(2) {
+  text-align: left;
+}
+.live-sdash-tr td {
+  padding: 5px 5px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.live-sdash-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.live-sdash-td-name {
+  text-align: left !important;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: 10px !important;
+  min-width: 70px;
+}
 
 /* Player bottom sheet */
 .live-sheet-overlay {

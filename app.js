@@ -12,7 +12,7 @@ import {
   _lightFingerprint,
   clearEloCache,
 } from "./src/engine/elo.js";
-import { computeStats, _normScores } from "./src/engine/stats.js";
+import { computeStats, _normScores, eloToSr } from "./src/engine/stats.js";
 import { initParserDeps, parseBlock, parseDateHdr } from "./src/engine/parser.js";
 import {
   escHtml,
@@ -19496,27 +19496,31 @@ function _renderLiveSessionDashboard() {
     return;
   }
   el.style.display = "";
-  const sessionPlayers = _liveSessionData.sessionPlayers || [];
-  const stats = {};
-  sessionPlayers.forEach((p) => (stats[p] = { w: 0, l: 0 }));
-  _sessionMatchHistory.forEach((mt) => {
-    const aWon = mt.scoreA > mt.scoreB;
-    (aWon ? mt.teamA : mt.teamB).forEach((p) => { if (stats[p]) stats[p].w++; });
-    (aWon ? mt.teamB : mt.teamA).forEach((p) => { if (stats[p]) stats[p].l++; });
-  });
-  const sorted = Object.entries(stats).sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l);
-  const playersHtml = sorted
-    .map(([name, s]) => {
-      const rank = sorted.indexOf(sorted.find(([n]) => n === name)) + 1;
-      const rankColor = rank === 1 ? "var(--gold,#f5c842)" : "var(--muted)";
-      return `<div class="sess-sum-player">
-        <span class="live-sdash-rank" style="color:${rankColor}">${rank}</span>
-        ${sheetAvSm(name)}
-        <span class="sess-sum-pname">${escHtml(name)}</span>
-        <span class="sess-sum-wl">${s.w}W–${s.l}L</span>
-      </div>`;
-    })
-    .join("");
+  const eloMap = _memoElo();
+  const stats = computeStats(_sessionMatchHistory, eloMap)
+    .sort((a, b) => (b.sr || 0) - (a.sr || 0) || (b.mw || 0) - (a.mw || 0));
+  const rankColor = (i) =>
+    i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
+  const tableRows = stats.map((p, i) => {
+    const ml = p.mp - p.mw;
+    const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
+    const total = p.gw + p.gl;
+    const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
+    const elo = Math.round(eloMap[p.name] || 1000);
+    const sr = eloToSr(eloMap[p.name] || 1000).toFixed(2);
+    return `<tr class="live-sdash-tr">
+      <td style="color:${rankColor(i)};font-weight:900">${i + 1}</td>
+      <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(p.name.split(" ")[0])}</span></td>
+      <td>${p.mp}</td>
+      <td style="white-space:nowrap">${p.mw}–${ml}</td>
+      <td>${winPct}%</td>
+      <td>${p.gw}</td>
+      <td>${p.gl}</td>
+      <td>${gamePct}%</td>
+      <td>${elo}</td>
+      <td style="color:var(--accent)">${sr}</td>
+    </tr>`;
+  }).join("");
   const matchesHtml = [..._sessionMatchHistory].reverse()
     .map((mt, i) => {
       const num = _sessionMatchHistory.length - i;
@@ -19530,7 +19534,15 @@ function _renderLiveSessionDashboard() {
     .join("");
   el.innerHTML = `
     <div class="live-sdash-section">LEADERBOARD</div>
-    <div class="sess-sum-players">${playersHtml}</div>
+    <div class="live-sdash-table-wrap">
+      <table class="live-sdash-table">
+        <thead><tr>
+          <th>#</th><th>PLAYER</th><th>MP</th><th>W–L</th><th>W%</th>
+          <th>GW</th><th>GL</th><th>G%</th><th>ELO</th><th>SR</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
     <div class="live-sdash-section" style="margin-top:14px">MATCHES</div>
     <div class="sess-sum-matches">${matchesHtml}</div>`;
 }
