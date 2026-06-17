@@ -17569,7 +17569,7 @@ body.zoomed *::after {
 table.cmp {
   width: 100% !important;
   max-width: 680px !important;
-  table-layout: fixed !important;
+  table-layout: auto !important;
   min-width: 0 !important;
   margin-left: auto !important;
   margin-right: auto !important;
