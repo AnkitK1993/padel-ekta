@@ -17074,18 +17074,36 @@ body.amethyst-mode #themeBtn {
 
 /* ── WIN RATE CALCULATOR ─────────────────────────────────── */
 .wrc-card { padding: 4px 0 8px; display: flex; flex-direction: column; gap: 14px; }
-.wrc-row  { display: flex; align-items: center; gap: 10px; }
-.wrc-label { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: var(--muted); flex-shrink: 0; }
-.wrc-select {
-  flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 10px; color: var(--fg); font-size: 13px; font-weight: 700;
-  padding: 8px 10px; appearance: none; -webkit-appearance: none; cursor: pointer;
+/* Trend table */
+.wrc-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; }
+.wrc-tbl {
+  width: 100%; border-collapse: collapse; font-size: 11px;
+  table-layout: auto;
 }
+.wrc-tbl th {
+  font-size: 8px; font-weight: 800; letter-spacing: 0.08em; color: var(--muted);
+  padding: 6px 6px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08);
+  white-space: nowrap;
+}
+.wrc-tbl td { padding: 7px 6px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.wrc-td-rank { font-size: 9px; color: var(--muted); font-weight: 700; }
+.wrc-td-name { text-align: left !important; font-weight: 700; font-size: 12px; white-space: nowrap; }
+.wrc-td-mp   { color: var(--muted); font-size: 10px; }
+.wrc-td-wr   { font-weight: 900; font-size: 13px; color: var(--theme); }
+.wrc-td-d    { font-size: 10px; font-weight: 700; white-space: nowrap; }
+.wrc-d-pos   { color: var(--green); }
+.wrc-d-neg   { color: rgba(255,90,90,0.9); }
+.wrc-d-zero  { color: var(--muted); }
+.wrc-d-na    { color: rgba(255,255,255,0.2); }
+.wrc-tr { cursor: pointer; transition: background 0.15s; }
+.wrc-tr:hover         { background: rgba(255,255,255,0.04); }
+.wrc-tr-selected      { background: rgba(var(--theme-rgb),0.12) !important; }
+.wrc-tr-selected .wrc-td-name { color: var(--theme); }
+/* Calculator section (shown on row tap) */
+.wrc-calc-section { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; }
+.wrc-calc-header { font-size: 15px; font-weight: 900; color: var(--theme); letter-spacing: 0.04em; }
 .wrc-cur-stats { display: flex; gap: 8px; }
-.wrc-stat {
-  flex: 1; background: rgba(255,255,255,0.04); border-radius: 10px;
-  padding: 8px 6px; text-align: center;
-}
+.wrc-stat { flex: 1; background: rgba(255,255,255,0.04); border-radius: 10px; padding: 8px 6px; text-align: center; }
 .wrc-stat-hl { background: rgba(var(--theme-rgb),0.12); }
 .wrc-stat-val { font-size: 20px; font-weight: 900; line-height: 1; }
 .wrc-stat-lbl { font-size: 8px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); margin-top: 3px; }

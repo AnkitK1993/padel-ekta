@@ -14046,27 +14046,99 @@ function _buildStreakLeaderboardHtml() {
   return `<div class="ana-card" style="padding:8px 12px">${rows}</div>`;
 }
 
-/// ── WIN RATE CALCULATOR ─────────────────────────────────────
+// ── WIN RATE CALCULATOR ─────────────────────────────────────
+// Returns {mp, mw} for a player across given matches (already sorted).
+function _wrcStats(name, ms) {
+  let mp = 0, mw = 0;
+  ms.forEach((m) => {
+    const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
+    const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
+    if (!inA && !inB) return;
+    const aWon = m.scoreA > m.scoreB;
+    mp++;
+    if ((inA && aWon) || (inB && !aWon)) mw++;
+  });
+  return { mp, mw };
+}
+
+// Change in W% over last N matches vs overall (null if fewer than N matches).
+function _wrcDelta(name, sorted, n) {
+  const pms = sorted.filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].some((p) => normPlayer(p) === name)
+  );
+  if (pms.length < n) return null;
+  const overall = _wrcStats(name, pms);
+  const recent  = _wrcStats(name, pms.slice(-n));
+  const overallWR = overall.mw / overall.mp;
+  const recentWR  = recent.mw  / n;
+  return Math.round((recentWR - overallWR) * 100); // signed integer pp
+}
+
 function _buildWinRateCalcHtml() {
+  const ms = [...activeMatches()].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const players = getAllPlayerNamesFromMatches();
-  const opts = players
-    .map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`)
-    .join("");
+
+  // Build per-player stats row
+  const rows = players
+    .map((name) => {
+      const { mp, mw } = _wrcStats(name, ms);
+      if (mp === 0) return null;
+      const wr = Math.round((mw / mp) * 100);
+      const d10 = _wrcDelta(name, ms, 10);
+      const d20 = _wrcDelta(name, ms, 20);
+      const d30 = _wrcDelta(name, ms, 30);
+      const d40 = _wrcDelta(name, ms, 40);
+      return { name, mp, mw, ml: mp - mw, wr, d10, d20, d30, d40 };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.wr - a.wr || b.mp - a.mp);
+
+  const fmtDelta = (d) => {
+    if (d === null) return `<span class="wrc-d-na">—</span>`;
+    const sign = d > 0 ? "+" : "";
+    const cls  = d > 0 ? "wrc-d-pos" : d < 0 ? "wrc-d-neg" : "wrc-d-zero";
+    return `<span class="${cls}">${sign}${d}pp</span>`;
+  };
+
+  const tableRows = rows.map((r, i) =>
+    `<tr class="wrc-tr" onclick="wrcSelectPlayer(${jsArg(r.name)})" data-name="${escHtml(r.name)}">
+      <td class="wrc-td-rank">${i + 1}</td>
+      <td class="wrc-td-name">${escHtml(r.name)}</td>
+      <td class="wrc-td-mp">${r.mp}</td>
+      <td class="wrc-td-wr">${r.wr}%</td>
+      <td class="wrc-td-d">${fmtDelta(r.d10)}</td>
+      <td class="wrc-td-d">${fmtDelta(r.d20)}</td>
+      <td class="wrc-td-d">${fmtDelta(r.d30)}</td>
+      <td class="wrc-td-d">${fmtDelta(r.d40)}</td>
+    </tr>`
+  ).join("");
+
   return `<div class="wrc-card">
-    <div class="wrc-row">
-      <span class="wrc-label">PLAYER</span>
-      <select class="wrc-select" id="wrc-player" onchange="wrcOnPlayerChange()">
-        <option value="">— select player —</option>
-        ${opts}
-      </select>
+    <div class="wrc-tbl-wrap">
+      <table class="wrc-tbl">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th style="text-align:left">PLAYER</th>
+            <th>MP</th>
+            <th>W%</th>
+            <th>Δ10</th>
+            <th>Δ20</th>
+            <th>Δ30</th>
+            <th>Δ40</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
     </div>
-    <div class="wrc-cur-stats" id="wrc-cur-stats" style="display:none">
-      <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-mp">—</div><div class="wrc-stat-lbl">PLAYED</div></div>
-      <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-w">—</div><div class="wrc-stat-lbl">WINS</div></div>
-      <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-l">—</div><div class="wrc-stat-lbl">LOSSES</div></div>
-      <div class="wrc-stat wrc-stat-hl"><div class="wrc-stat-val" id="wrc-cur-wr">—</div><div class="wrc-stat-lbl">CURRENT W%</div></div>
-    </div>
-    <div id="wrc-controls" style="display:none">
+    <div class="wrc-calc-section" id="wrc-calc-section" style="display:none">
+      <div class="wrc-calc-header" id="wrc-calc-header"></div>
+      <div class="wrc-cur-stats" id="wrc-cur-stats">
+        <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-mp">—</div><div class="wrc-stat-lbl">PLAYED</div></div>
+        <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-w">—</div><div class="wrc-stat-lbl">WINS</div></div>
+        <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-l">—</div><div class="wrc-stat-lbl">LOSSES</div></div>
+        <div class="wrc-stat wrc-stat-hl"><div class="wrc-stat-val" id="wrc-cur-wr">—</div><div class="wrc-stat-lbl">CURRENT W%</div></div>
+      </div>
       <div class="wrc-ctrl">
         <div class="wrc-ctrl-top">
           <span class="wrc-ctrl-label">TARGET WIN RATE</span>
@@ -14076,139 +14148,94 @@ function _buildWinRateCalcHtml() {
       </div>
       <div class="wrc-ctrl">
         <div class="wrc-ctrl-top">
-          <span class="wrc-ctrl-label">YOUR WIN RATE IN FUTURE GAMES</span>
+          <span class="wrc-ctrl-label">WIN RATE IN FUTURE GAMES</span>
           <span class="wrc-ctrl-val" id="wrc-future-val">—</span>
         </div>
         <input type="range" class="wrc-slider" id="wrc-future" min="1" max="100" step="1" oninput="wrcOnSlider()">
       </div>
+      <div class="wrc-result" id="wrc-result"></div>
     </div>
-    <div class="wrc-result" id="wrc-result" style="display:none"></div>
   </div>`;
 }
 
-function wrcOnPlayerChange() {
-  const sel = document.getElementById("wrc-player");
-  const name = sel?.value;
-  const statsEl = document.getElementById("wrc-cur-stats");
-  const ctrlEl  = document.getElementById("wrc-controls");
-  const resEl   = document.getElementById("wrc-result");
-  if (!name) {
-    if (statsEl) statsEl.style.display = "none";
-    if (ctrlEl)  ctrlEl.style.display  = "none";
-    if (resEl)   resEl.style.display   = "none";
-    return;
-  }
+let _wrcSelectedPlayer = null;
+
+function wrcSelectPlayer(name) {
+  // Highlight selected row
+  document.querySelectorAll(".wrc-tr").forEach((tr) =>
+    tr.classList.toggle("wrc-tr-selected", tr.dataset.name === name)
+  );
+  _wrcSelectedPlayer = name;
+  const calcEl = document.getElementById("wrc-calc-section");
+  if (calcEl) calcEl.style.display = "";
+  const hdrEl = document.getElementById("wrc-calc-header");
+  if (hdrEl) hdrEl.textContent = name;
+
   const ms = activeMatches();
-  let mp = 0, mw = 0;
-  ms.forEach((m) => {
-    const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
-    const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
-    if (!inA && !inB) return;
-    const aWon = m.scoreA > m.scoreB;
-    mp++;
-    if ((inA && aWon) || (inB && !aWon)) mw++;
-  });
+  const { mp, mw } = _wrcStats(name, ms);
   const ml = mp - mw;
   const wr = mp > 0 ? Math.round((mw / mp) * 100) : 0;
   document.getElementById("wrc-cur-mp").textContent = mp;
   document.getElementById("wrc-cur-w").textContent  = mw;
   document.getElementById("wrc-cur-l").textContent  = ml;
   document.getElementById("wrc-cur-wr").textContent = `${wr}%`;
-  if (statsEl) statsEl.style.display = "";
-  // Set target slider: from wr+2 to 99 (default: wr+5, capped at 95)
+
   const tMin = Math.min(wr + 2, 99);
-  const tDef = Math.min(wr + 5, 95);
   const tSlider = document.getElementById("wrc-target");
-  if (tSlider) {
-    tSlider.min   = tMin;
-    tSlider.max   = 99;
-    tSlider.value = Math.max(tMin, tDef);
-  }
-  // Set future slider: from wr+2 to 100 (default: 80 or wr+10)
-  const fMin = wr + 2;
-  const fDef = Math.min(Math.max(80, wr + 10), 100);
+  if (tSlider) { tSlider.min = tMin; tSlider.max = 99; tSlider.value = Math.min(wr + 5, 95); }
   const fSlider = document.getElementById("wrc-future");
-  if (fSlider) {
-    fSlider.min   = fMin;
-    fSlider.max   = 100;
-    fSlider.value = Math.max(fMin, fDef);
-  }
-  if (ctrlEl) ctrlEl.style.display = "";
+  if (fSlider) { fSlider.min = wr + 2; fSlider.max = 100; fSlider.value = Math.min(Math.max(80, wr + 10), 100); }
+
+  // Scroll calc section into view
+  document.getElementById("wrc-calc-section")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   wrcOnSlider();
 }
 
 function wrcOnSlider() {
-  const sel     = document.getElementById("wrc-player");
-  const name    = sel?.value;
-  const resEl   = document.getElementById("wrc-result");
+  const name  = _wrcSelectedPlayer;
+  const resEl = document.getElementById("wrc-result");
   if (!name || !resEl) return;
   const targetSlider = document.getElementById("wrc-target");
   const futureSlider = document.getElementById("wrc-future");
   const targetWR = parseInt(targetSlider?.value || 0) / 100;
-  const futureWR = parseInt(futureSlider?.value || 0) / 100;
+  let   futureWR = parseInt(futureSlider?.value || 0) / 100;
+  // Clamp future above target
+  if (futureWR <= targetWR) {
+    const clamped = Math.min(Math.round(targetWR * 100) + 1, 100);
+    if (futureSlider) futureSlider.value = clamped;
+    futureWR = clamped / 100;
+  }
   document.getElementById("wrc-target-val").textContent = `${Math.round(targetWR * 100)}%`;
   document.getElementById("wrc-future-val").textContent = `${Math.round(futureWR * 100)}%`;
-  // Compute current stats
+
   const ms = activeMatches();
-  let mp = 0, mw = 0;
-  ms.forEach((m) => {
-    const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
-    const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
-    if (!inA && !inB) return;
-    mp++;
-    const aWon = m.scoreA > m.scoreB;
-    if ((inA && aWon) || (inB && !aWon)) mw++;
-  });
-  const curWR = mp > 0 ? mw / mp : 0;
-  // Enforce future > target for convergence
-  if (futureWR <= targetWR) {
-    // Clamp future slider to targetWR + 1%
-    const newFuture = Math.min(Math.round(targetWR * 100) + 1, 100);
-    if (futureSlider) futureSlider.value = newFuture;
-    document.getElementById("wrc-future-val").textContent = `${newFuture}%`;
-  }
-  const fWR = Math.max(futureWR, targetWR + 0.01);
-  // n = (targetWR * mp - mw) / (fWR - targetWR)
+  const { mp, mw } = _wrcStats(name, ms);
   const numerator = targetWR * mp - mw;
   const n = numerator <= 0
-    ? 0  // already at or above target
-    : Math.ceil(numerator / (fWR - targetWR));
-  const newMp = mp + n;
-  const futureWins = Math.round(n * fWR);
-  const newW  = mw + futureWins;
-  const newL  = newMp - newW;
-  const newWR = newMp > 0 ? Math.round((newW / newMp) * 100) : 0;
+    ? 0
+    : Math.ceil(numerator / (futureWR - targetWR));
+
   if (n === 0) {
-    resEl.style.display = "";
-    resEl.innerHTML = `<div class="wrc-achieved">🎉 Already at or above ${Math.round(targetWR*100)}%!</div>`;
+    resEl.innerHTML = `<div class="wrc-achieved">🎉 Already at or above ${Math.round(targetWR * 100)}%!</div>`;
     return;
   }
-  resEl.style.display = "";
+  const newMp = mp + n;
+  const newW  = mw + Math.round(n * futureWR);
+  const newL  = newMp - newW;
+  const newWR = Math.round((newW / newMp) * 100);
   resEl.innerHTML = `
     <div class="wrc-result-hero">
       <span class="wrc-result-n">${n}</span>
       <span class="wrc-result-n-label">matches needed</span>
     </div>
     <div class="wrc-result-grid">
-      <div class="wrc-rg-cell">
-        <div class="wrc-rg-label">NEW TOTAL</div>
-        <div class="wrc-rg-val">${newMp}</div>
-      </div>
-      <div class="wrc-rg-cell wrc-rg-win">
-        <div class="wrc-rg-label">NEW WINS</div>
-        <div class="wrc-rg-val">${newW}</div>
-      </div>
-      <div class="wrc-rg-cell wrc-rg-lose">
-        <div class="wrc-rg-label">NEW LOSSES</div>
-        <div class="wrc-rg-val">${newL}</div>
-      </div>
-      <div class="wrc-rg-cell wrc-rg-hl">
-        <div class="wrc-rg-label">FINAL W%</div>
-        <div class="wrc-rg-val">${newWR}%</div>
-      </div>
+      <div class="wrc-rg-cell"><div class="wrc-rg-label">NEW TOTAL</div><div class="wrc-rg-val">${newMp}</div></div>
+      <div class="wrc-rg-cell wrc-rg-win"><div class="wrc-rg-label">NEW WINS</div><div class="wrc-rg-val">${newW}</div></div>
+      <div class="wrc-rg-cell wrc-rg-lose"><div class="wrc-rg-label">NEW LOSSES</div><div class="wrc-rg-val">${newL}</div></div>
+      <div class="wrc-rg-cell wrc-rg-hl"><div class="wrc-rg-label">FINAL W%</div><div class="wrc-rg-val">${newWR}%</div></div>
     </div>`;
 }
-window.wrcOnPlayerChange = wrcOnPlayerChange;
+window.wrcSelectPlayer   = wrcSelectPlayer;
 window.wrcOnSlider       = wrcOnSlider;
 
 // Biggest ELO upsets: lower-rated team beating a higher-rated one. Recomputes
