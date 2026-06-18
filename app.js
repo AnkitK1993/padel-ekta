@@ -14097,7 +14097,7 @@ function _buildWinRateCalcHtml() {
     if (d === null) return `<span class="wrc-d-na">—</span>`;
     const sign = d > 0 ? "+" : "";
     const cls  = d > 0 ? "wrc-d-pos" : d < 0 ? "wrc-d-neg" : "wrc-d-zero";
-    return `<span class="${cls}">${sign}${d}pp</span>`;
+    return `<span class="${cls}">${sign}${d}%</span>`;
   };
 
   const tableRows = rows.map((r, i) =>
@@ -14131,46 +14131,52 @@ function _buildWinRateCalcHtml() {
         <tbody>${tableRows}</tbody>
       </table>
     </div>
-    <div class="wrc-calc-section" id="wrc-calc-section" style="display:none">
-      <div class="wrc-calc-header" id="wrc-calc-header"></div>
-      <div class="wrc-cur-stats" id="wrc-cur-stats">
-        <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-mp">—</div><div class="wrc-stat-lbl">PLAYED</div></div>
-        <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-w">—</div><div class="wrc-stat-lbl">WINS</div></div>
-        <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-l">—</div><div class="wrc-stat-lbl">LOSSES</div></div>
-        <div class="wrc-stat wrc-stat-hl"><div class="wrc-stat-val" id="wrc-cur-wr">—</div><div class="wrc-stat-lbl">CURRENT W%</div></div>
-      </div>
-      <div class="wrc-ctrl">
-        <div class="wrc-ctrl-top">
-          <span class="wrc-ctrl-label">TARGET WIN RATE</span>
-          <span class="wrc-ctrl-val" id="wrc-target-val">—</span>
-        </div>
-        <input type="range" class="wrc-slider" id="wrc-target" min="1" max="100" step="1" oninput="wrcOnSlider()">
-      </div>
-      <div class="wrc-ctrl">
-        <div class="wrc-ctrl-top">
-          <span class="wrc-ctrl-label">WIN RATE IN FUTURE GAMES</span>
-          <span class="wrc-ctrl-val" id="wrc-future-val">—</span>
-        </div>
-        <input type="range" class="wrc-slider" id="wrc-future" min="1" max="100" step="1" oninput="wrcOnSlider()">
-      </div>
-      <div class="wrc-result" id="wrc-result"></div>
-    </div>
   </div>`;
 }
 
 let _wrcSelectedPlayer = null;
 
 function wrcSelectPlayer(name) {
-  // Highlight selected row
-  document.querySelectorAll(".wrc-tr").forEach((tr) =>
-    tr.classList.toggle("wrc-tr-selected", tr.dataset.name === name)
-  );
   _wrcSelectedPlayer = name;
-  const calcEl = document.getElementById("wrc-calc-section");
-  if (calcEl) calcEl.style.display = "";
-  const hdrEl = document.getElementById("wrc-calc-header");
-  if (hdrEl) hdrEl.textContent = name;
 
+  // Inject popup if not already in DOM
+  if (!document.getElementById("wrc-popup-overlay")) {
+    const overlay = document.createElement("div");
+    overlay.id = "wrc-popup-overlay";
+    overlay.className = "wrc-popup-overlay";
+    overlay.onclick = wrcCloseCalc;
+    overlay.innerHTML = `
+      <div class="wrc-popup" onclick="event.stopPropagation()">
+        <div class="wrc-popup-top">
+          <div class="wrc-popup-title" id="wrc-calc-header"></div>
+          <button class="wrc-popup-close" onclick="wrcCloseCalc()">✕</button>
+        </div>
+        <div class="wrc-cur-stats" id="wrc-cur-stats">
+          <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-mp">—</div><div class="wrc-stat-lbl">PLAYED</div></div>
+          <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-w">—</div><div class="wrc-stat-lbl">WINS</div></div>
+          <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-l">—</div><div class="wrc-stat-lbl">LOSSES</div></div>
+          <div class="wrc-stat wrc-stat-hl"><div class="wrc-stat-val" id="wrc-cur-wr">—</div><div class="wrc-stat-lbl">CURRENT W%</div></div>
+        </div>
+        <div class="wrc-ctrl">
+          <div class="wrc-ctrl-top">
+            <span class="wrc-ctrl-label">TARGET WIN RATE</span>
+            <span class="wrc-ctrl-val" id="wrc-target-val">—</span>
+          </div>
+          <input type="range" class="wrc-slider" id="wrc-target" min="1" max="100" step="1" oninput="wrcOnSlider()">
+        </div>
+        <div class="wrc-ctrl">
+          <div class="wrc-ctrl-top">
+            <span class="wrc-ctrl-label">WIN RATE IN FUTURE GAMES</span>
+            <span class="wrc-ctrl-val" id="wrc-future-val">—</span>
+          </div>
+          <input type="range" class="wrc-slider" id="wrc-future" min="1" max="100" step="1" oninput="wrcOnSlider()">
+        </div>
+        <div class="wrc-result" id="wrc-result"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
+  document.getElementById("wrc-calc-header").textContent = name;
   const ms = activeMatches();
   const { mp, mw } = _wrcStats(name, ms);
   const ml = mp - mw;
@@ -14180,15 +14186,17 @@ function wrcSelectPlayer(name) {
   document.getElementById("wrc-cur-l").textContent  = ml;
   document.getElementById("wrc-cur-wr").textContent = `${wr}%`;
 
-  const tMin = Math.min(wr + 2, 99);
   const tSlider = document.getElementById("wrc-target");
-  if (tSlider) { tSlider.min = tMin; tSlider.max = 99; tSlider.value = Math.min(wr + 5, 95); }
+  if (tSlider) { tSlider.min = Math.min(wr + 2, 99); tSlider.max = 99; tSlider.value = Math.min(wr + 5, 95); }
   const fSlider = document.getElementById("wrc-future");
   if (fSlider) { fSlider.min = wr + 2; fSlider.max = 100; fSlider.value = Math.min(Math.max(80, wr + 10), 100); }
 
-  // Scroll calc section into view
-  document.getElementById("wrc-calc-section")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  document.getElementById("wrc-popup-overlay").classList.add("wrc-popup-open");
   wrcOnSlider();
+}
+
+function wrcCloseCalc() {
+  document.getElementById("wrc-popup-overlay")?.classList.remove("wrc-popup-open");
 }
 
 function wrcOnSlider() {
@@ -14236,6 +14244,7 @@ function wrcOnSlider() {
     </div>`;
 }
 window.wrcSelectPlayer   = wrcSelectPlayer;
+window.wrcCloseCalc      = wrcCloseCalc;
 window.wrcOnSlider       = wrcOnSlider;
 
 // Biggest ELO upsets: lower-rated team beating a higher-rated one. Recomputes
