@@ -1,0 +1,38 @@
+name: Deploy
+
+# Runs after CI passes on main. Stamps a fresh buildinfo.json version so the
+# service worker detects the new build and shows the update banner in-app,
+# eliminating the need to manually clear browser cache after deploys.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Stamp a fresh millisecond timestamp so sw.js detects the new build.
+      - name: Stamp build version
+        run: echo "{\"v\":$(date +%s%3N)}" > buildinfo.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - uses: actions/deploy-pages@v4
+        id: deployment
