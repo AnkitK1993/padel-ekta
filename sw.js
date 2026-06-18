@@ -285,17 +285,11 @@ self.addEventListener("fetch", (e) => {
   const isCode = sameOrigin && /\.(?:js|css|html)$/.test(url.pathname);
 
   if (isNavigate || isCode) {
-    // Serve the freshest code; fall back to cache only when offline.
+    // Serve the freshest code; fall back to cache only when offline. The
+    // build-version banner is driven separately by CHECK_UPDATE messages
+    // (focus / visibility / hourly), so there's no need to tie a heavy
+    // cache rebuild to every navigation here.
     e.respondWith(networkFirst(e.request, STATIC_CACHE, isNavigate));
-    // Still ping the build-version check so an installed PWA that stays open
-    // (and rarely navigates) gets the "new version" banner too.
-    if (isNavigate) {
-      e.waitUntil(
-        checkForUpdates().then((updated) => {
-          if (updated) notifyClientsNewBuild();
-        }),
-      );
-    }
     return;
   }
 
