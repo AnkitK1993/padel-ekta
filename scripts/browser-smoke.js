@@ -71,7 +71,7 @@ const SNAPSHOT_MATCHES = [
 // Update intentionally when analytics OUTPUT legitimately changes. "PENDING"
 // makes the first run print the computed hash without failing.
 // Settled-state hash (captured after the 600ms render-settle delay below).
-// History: 5ae521ac → 4a96a30 → 79551284 → 6e68ae6c → bebf32f0 → 67cb9284.
+// History: 5ae521ac → 4a96a30 → 79551284 → 6e68ae6c → bebf32f0 → 67cb9284 → 819d9db4.
 // The earlier same-length drift (e.g. 79551284→6e68ae6c on unchanged code) was
 // ROOT-CAUSED: the snapshot navigate is same-origin and was INHERITING
 // localStorage left by the 600-line main smoke flow above, which runs at REAL
@@ -81,7 +81,7 @@ const SNAPSHOT_MATCHES = [
 // the fixture alone. (Ruled out along the way: Math.random — forcing it 0.0 vs
 // 0.999 leaves the hash identical; and ELO decay — the freeze pins new Date() to
 // 2026-06-15.)
-const ANALYTICS_SNAPSHOT_HASH = "67cb9284";
+const ANALYTICS_SNAPSHOT_HASH = "819d9db4";
 
 function findBrowser() {
   const candidates = [
