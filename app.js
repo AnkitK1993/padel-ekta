@@ -2116,6 +2116,8 @@ function updateAdminUI(user) {
   // Show Offline Mode toggle only for admin
   const offlineItem = document.getElementById("offline-mode-item");
   if (offlineItem) offlineItem.style.display = window.isAdmin ? "" : "none";
+  // Re-render session panel so admin action buttons appear after auth resolves
+  if (_sessionPanelOpen) _updateSessionPanel();
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
@@ -19471,6 +19473,7 @@ function moveSessionMatch(histIdx, direction) {
   saveCloudData();
   commit();
   if (_sessionPanelOpen) _updateSessionPanel();
+  _renderLiveSessionDashboard();
 }
 
 // ── REDO LAST UNDONE SESSION MATCH ───────────────────────────
@@ -19562,16 +19565,24 @@ function openSessionSummary() {
         `<div class="sess-sum-player">${sheetAvSm(name)}<span class="sess-sum-pname">${escHtml(name)}</span><span class="sess-sum-wl">${s.w}W–${s.l}L</span></div>`,
     )
     .join("");
+  const _smTotal = _sessionMatchHistory.length;
   const matchesHtml =
-    _sessionMatchHistory.length === 0
+    _smTotal === 0
       ? '<div style="font-size:11px;color:var(--muted);padding:8px 0">No matches played</div>'
       : _sessionMatchHistory
           .map((mt, i) => {
             const aWon = mt.scoreA > mt.scoreB;
+            const adminBtns = window.isAdmin
+              ? `<div class="sess-hist-actions">
+                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1);openSessionSummary()" ${i === 0 ? "disabled" : ""}>↑</button>
+                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1);openSessionSummary()" ${i === _smTotal - 1 ? "disabled" : ""}>↓</button>
+                </div>`
+              : "";
             return `<div class="sess-sum-match">
           <div class="sess-sum-match-num">${i + 1}</div>
           <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
           <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+          ${adminBtns}
         </div>`;
           })
           .join("");
@@ -19638,14 +19649,21 @@ function _renderLiveSessionDashboard() {
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
-  const matchesHtml = [..._sessionMatchHistory].reverse()
+  const _dTotal = _sessionMatchHistory.length;
+  const matchesHtml = _sessionMatchHistory
     .map((mt, i) => {
-      const num = _sessionMatchHistory.length - i;
       const aWon = mt.scoreA > mt.scoreB;
+      const adminBtns = window.isAdmin
+        ? `<div class="sess-hist-actions">
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1)" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1)" ${i === _dTotal - 1 ? "disabled" : ""}>↓</button>
+          </div>`
+        : "";
       return `<div class="sess-sum-match">
-        <div class="sess-sum-match-num">${num}</div>
+        <div class="sess-sum-match-num">${i + 1}</div>
         <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
         <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+        ${adminBtns}
       </div>`;
     })
     .join("");
