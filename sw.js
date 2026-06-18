@@ -1,5 +1,9 @@
-const STATIC_CACHE = "ekta-padel-static-v13";
+const STATIC_CACHE = "ekta-padel-static-v14";
 const RUNTIME_CACHE = "ekta-padel-runtime-v2";
+// How long to wait for the network before falling back to cache for code
+// assets (HTML/JS/CSS). Keeps the app responsive on flaky connections while
+// still preferring fresh code so a new deploy is picked up on the next load.
+const NET_TIMEOUT_MS = 4000;
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
 const STATIC = [
@@ -209,6 +213,50 @@ self.addEventListener("notificationclick", (e) => {
   e.waitUntil(clients.openWindow(url));
 });
 
+// fetch() with a timeout so a hung connection falls back to cache instead of
+// spinning forever. cache:"no-store" bypasses the browser's own HTTP cache
+// (GitHub Pages serves assets with max-age=600) so "network" really means the
+// latest deployed bytes, not a 10-minute-stale copy.
+function fetchFresh(request, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    // Reconstruct as a no-store GET so the HTTP cache can't serve a stale file.
+    fetch(new Request(request.url, { cache: "no-store" })).then(
+      (r) => {
+        clearTimeout(timer);
+        resolve(r);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+// Network-first: fetch the freshest copy, update the cache, and only fall back
+// to the cached copy when the network fails or times out (offline). This is
+// what guarantees a new build is picked up on the next reload WITHOUT the user
+// having to clear their browser cache.
+async function networkFirst(request, cacheName, ignoreSearch) {
+  const cache = await caches.open(cacheName);
+  try {
+    const fresh = await fetchFresh(request, NET_TIMEOUT_MS);
+    if (fresh && fresh.ok) {
+      cache.put(request.url, fresh.clone()).catch(() => {});
+      return fresh;
+    }
+    // Non-OK (e.g. 404/5xx) — prefer a good cached copy if we have one.
+    const cached = await cache.match(request, { ignoreSearch });
+    return cached || fresh;
+  } catch {
+    const cached = await cache.match(request, { ignoreSearch });
+    if (cached) return cached;
+    // Last resort: a normal fetch (may still succeed from HTTP cache offline).
+    return fetch(request);
+  }
+}
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   const isHttp = url.protocol === "http:" || url.protocol === "https:";
@@ -225,23 +273,34 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  if (e.request.mode === "navigate") {
-    e.respondWith(
-      caches.match(e.request, { ignoreSearch: true }).then((cached) => {
-        checkForUpdates().then((updated) => {
-          if (updated) notifyClientsNewBuild();
-        });
-        return cached || fetch(e.request);
-      }),
-    );
-    return;
-  }
-
   if (e.request.method !== "GET") {
     e.respondWith(fetch(e.request));
     return;
   }
 
+  const sameOrigin = url.origin === self.location.origin;
+  const isNavigate = e.request.mode === "navigate";
+  // Code that goes stale between deploys: the HTML shell, app.js, styles.css
+  // and every ES module under src/ and features/.
+  const isCode = sameOrigin && /\.(?:js|css|html)$/.test(url.pathname);
+
+  if (isNavigate || isCode) {
+    // Serve the freshest code; fall back to cache only when offline.
+    e.respondWith(networkFirst(e.request, STATIC_CACHE, isNavigate));
+    // Still ping the build-version check so an installed PWA that stays open
+    // (and rarely navigates) gets the "new version" banner too.
+    if (isNavigate) {
+      e.waitUntil(
+        checkForUpdates().then((updated) => {
+          if (updated) notifyClientsNewBuild();
+        }),
+      );
+    }
+    return;
+  }
+
+  // Static assets (icons, fonts, images, manifest) rarely change — cache-first
+  // for instant loads; populate the runtime cache on first fetch.
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;
