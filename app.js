@@ -17945,6 +17945,7 @@ Object.assign(window, {
   setLiveRaceTo,
   dismissRacePrompt,
   endLiveMatch,
+  _commitSaveMatch,
   openSessionSetup,
   closeSessionSetup,
   sessionSetupSelectAll,
