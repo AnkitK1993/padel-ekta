@@ -18178,9 +18178,32 @@ function _showRaceReachedPrompt() {
   const overlay = document.getElementById("live-race-overlay");
   if (!overlay) return;
   const title = document.getElementById("live-race-modal-title");
-  const score = document.getElementById("live-race-modal-score");
   if (title) title.textContent = `RACE TO ${_liveRaceTo} REACHED`;
-  if (score) score.textContent = `${_liveScoreA} — ${_liveScoreB}`;
+  const matchup = document.getElementById("live-race-modal-matchup");
+  if (matchup) {
+    const { a1, a2, b1, b2 } = _liveSlots;
+    const aWon = _liveScoreA > _liveScoreB;
+    const na1 = normPlayer(a1) || "?", na2 = normPlayer(a2) || "?";
+    const nb1 = normPlayer(b1) || "?", nb2 = normPlayer(b2) || "?";
+    const winTeam = aWon ? `${na1} & ${na2}` : `${nb1} & ${nb2}`;
+    const loseTeam = aWon ? `${nb1} & ${nb2}` : `${na1} & ${na2}`;
+    const winScore = aWon ? _liveScoreA : _liveScoreB;
+    const loseScore = aWon ? _liveScoreB : _liveScoreA;
+    matchup.innerHTML = `
+      <div class="msr-matchup">
+        <div class="msr-side msr-win">
+          <div class="msr-side-label">🏆 WINNER</div>
+          <div class="msr-side-name">${escHtml(winTeam)}</div>
+          <div class="msr-side-score msr-score-win">${winScore}</div>
+        </div>
+        <div class="msr-divider">–</div>
+        <div class="msr-side msr-lose">
+          <div class="msr-side-label">LOST</div>
+          <div class="msr-side-name">${escHtml(loseTeam)}</div>
+          <div class="msr-side-score msr-score-lose">${loseScore}</div>
+        </div>
+      </div>`;
+  }
   overlay.style.display = "flex";
 }
 

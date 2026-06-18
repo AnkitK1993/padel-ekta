@@ -14061,6 +14061,7 @@ select:focus,
   color: var(--theme);
   text-align: center;
 }
+.live-race-modal-matchup { width: 100%; }
 .live-race-modal-score {
   font-family: "Bebas Neue", sans-serif;
   font-size: 56px;
