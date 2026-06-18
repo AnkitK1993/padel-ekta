@@ -17076,18 +17076,53 @@ body.amethyst-mode #themeBtn {
   padding: 16px 14px 8px;
   text-align: center;
 }
-.msr-score {
-  font-size: 36px;
-  font-weight: 900;
-  color: var(--fg);
-  letter-spacing: 0.04em;
+.msr-matchup {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 4px 0 8px;
 }
-.msr-winner {
-  font-size: 16px;
+.msr-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 10px;
+  border-radius: 14px;
+}
+.msr-win  { background: rgba(80,220,130,0.10); }
+.msr-lose { background: rgba(255,80,80,0.08); }
+.msr-side-label {
+  font-size: 9px;
   font-weight: 800;
-  color: var(--gold);
-  margin-top: 6px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.msr-win  .msr-side-label { color: var(--green); }
+.msr-lose .msr-side-label { color: rgba(255,90,90,0.8); }
+.msr-side-name {
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.3;
+}
+.msr-side-score {
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.msr-score-win  { color: var(--green); }
+.msr-score-lose { color: rgba(255,90,90,0.85); }
+.msr-divider {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--muted);
+  opacity: 0.5;
 }
 
 /* ── LIVE EVENT BANNER (full-page) ───────────────────────── */
