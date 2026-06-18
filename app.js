@@ -18217,17 +18217,9 @@ function _updateLiveWinProb() {
   if (barA) barA.textContent = `${pA}%`;
   if (barB) barB.textContent = `${pB}%`;
   if (lblA)
-    lblA.textContent = (
-      a1.split(" ")[0] +
-      " & " +
-      a2.split(" ")[0]
-    ).toUpperCase();
+    lblA.textContent = (a1 + " & " + a2).toUpperCase();
   if (lblB)
-    lblB.textContent = (
-      b1.split(" ")[0] +
-      " & " +
-      b2.split(" ")[0]
-    ).toUpperCase();
+    lblB.textContent = (b1 + " & " + b2).toUpperCase();
   if (fill) {
     fill.style.width = pA + "%";
     const col =
@@ -19025,7 +19017,7 @@ function _renderSittingOut() {
     sitting
       .map(
         (p) =>
-          `<span class="sittingout-chip">${escHtml(p.split(" ")[0])}</span>`,
+          `<span class="sittingout-chip">${escHtml(p)}</span>`,
       )
       .join("");
 }
@@ -19088,14 +19080,14 @@ function _buildSessionLeaderboard() {
     maxM - minM >= 2 && sorted.length >= 3
       ? `<div class="sess-fairness-warn">⚠️ ${sorted
           .filter(([, s]) => s.m === maxM)
-          .map(([n]) => n.split(" ")[0])
+          .map(([n]) => n)
           .join(", ")} played ${maxM - minM} more than others</div>`
       : "";
   const rows = sorted
     .map(([name, s]) => {
       const pct = s.m ? Math.round((s.w / s.m) * 100) : 0;
       return `<div class="sess-ldr-row">
-      <div class="sess-ldr-name">${escHtml(name.split(" ")[0])}</div>
+      <div class="sess-ldr-name">${escHtml(name)}</div>
       <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
       <div class="sess-ldr-barwrap"><div class="sess-ldr-bar" style="width:${pct}%"></div></div>
       <div class="sess-ldr-count">×${s.m}</div>
@@ -19107,8 +19099,8 @@ function _buildSessionLeaderboard() {
   const histRows = _sessionMatchHistory
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
-      const tA = mt.teamA.map((p) => p.split(" ")[0]).join(" & ");
-      const tB = mt.teamB.map((p) => p.split(" ")[0]).join(" & ");
+      const tA = mt.teamA.join(" & ");
+      const tB = mt.teamB.join(" & ");
       const isLast = i === total - 1;
       const adminBtns = window.isAdmin
         ? `<div class="sess-hist-actions">
@@ -19584,7 +19576,7 @@ function openSessionSummary() {
     <div class="sess-sum-meta">
       <div class="sess-sum-stat"><div class="sess-sum-val">${_sessionMatchHistory.length}</div><div class="sess-sum-lbl">MATCHES</div></div>
       <div class="sess-sum-stat"><div class="sess-sum-val">${dur}</div><div class="sess-sum-lbl">DURATION</div></div>
-      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(mvp[0].split(" ")[0])}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ""}
+      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(mvp[0])}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ""}
     </div>
     <div class="sess-sum-section-title">PLAYERS</div>
     <div class="sess-sum-players">${playersHtml}</div>
@@ -19630,7 +19622,7 @@ function _renderLiveSessionDashboard() {
     const sr = eloToSr(sessionEloMap[p.name] || 1000).toFixed(2);
     return `<tr class="live-sdash-tr">
       <td style="color:${rankColor(i)};font-weight:900">${i + 1}</td>
-      <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(p.name.split(" ")[0])}</span></td>
+      <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(p.name)}</span></td>
       <td>${p.mp}</td>
       <td style="white-space:nowrap">${p.mw}–${ml}</td>
       <td>${winPct}%</td>
@@ -19647,7 +19639,7 @@ function _renderLiveSessionDashboard() {
       const aWon = mt.scoreA > mt.scoreB;
       return `<div class="sess-sum-match">
         <div class="sess-sum-match-num">${num}</div>
-        <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(n => n.split(" ")[0]).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(n => n.split(" ")[0]).join(" & "))}</div>
+        <div class="sess-sum-match-teams">${escHtml(mt.teamA.join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.join(" & "))}</div>
         <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
       </div>`;
     })
@@ -19705,7 +19697,7 @@ function _syncLiveSessionBar() {
       chipsEl.innerHTML = (d.sessionPlayers || [])
         .map(
           (p) =>
-            `<span class="live-session-chip">${escHtml(p.split(" ")[0])}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ""}</span>`,
+            `<span class="live-session-chip">${escHtml(p)}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ""}</span>`,
         )
         .join("");
     }
@@ -21355,14 +21347,14 @@ function openMatchConfirmSheet() {
     el.innerHTML = `<div class="mcm-wrap">
       <div class="mcm-corner mcm-corner-a">
         <div class="mcm-label">RED CORNER</div>
-        <div class="mcm-name">${escHtml(a1?.split(" ")[0] || "—")}</div>
-        <div class="mcm-name">${escHtml(a2?.split(" ")[0] || "—")}</div>
+        <div class="mcm-name">${escHtml(a1 || "—")}</div>
+        <div class="mcm-name">${escHtml(a2 || "—")}</div>
       </div>
       <div class="mcm-vs">VS</div>
       <div class="mcm-corner mcm-corner-b">
         <div class="mcm-label">BLUE CORNER</div>
-        <div class="mcm-name">${escHtml(b1?.split(" ")[0] || "—")}</div>
-        <div class="mcm-name">${escHtml(b2?.split(" ")[0] || "—")}</div>
+        <div class="mcm-name">${escHtml(b1 || "—")}</div>
+        <div class="mcm-name">${escHtml(b2 || "—")}</div>
       </div>
     </div>`;
   }
@@ -21394,8 +21386,8 @@ function openMatchSaveSheet() {
   if (el) {
     const aWon = _liveScoreA > _liveScoreB;
     const winner = aWon
-      ? `${a1?.split(" ")[0] || "?"} & ${a2?.split(" ")[0] || "?"}`
-      : `${b1?.split(" ")[0] || "?"} & ${b2?.split(" ")[0] || "?"}`;
+      ? `${a1 || "?"} & ${a2 || "?"}`
+      : `${b1 || "?"} & ${b2 || "?"}`;
     el.innerHTML = `<div class="msr-result">
       <div class="msr-score">${_liveScoreA} — ${_liveScoreB}</div>
       <div class="msr-winner">🏆 ${escHtml(winner)}</div>
@@ -21463,7 +21455,7 @@ function _buildBannerContent(type, title, subtitle, data) {
       <div class="live-banner-corner-a${isEnd && !aWon ? " live-banner-corner-dim" : ""}">
         <div class="live-banner-corner-label">RED CORNER</div>
         <div class="lbf-avatars">${aAvatars}</div>
-        ${teamA.map((p) => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${teamA.map((p) => `<div class="live-banner-player">${escHtml(p)}</div>`).join("")}
         ${isEnd ? `<div class="live-banner-corner-score${aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreA}</div>` : ""}
         ${isEnd && aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
@@ -21476,7 +21468,7 @@ function _buildBannerContent(type, title, subtitle, data) {
       <div class="live-banner-corner-b${isEnd && aWon ? " live-banner-corner-dim" : ""}">
         <div class="live-banner-corner-label">BLUE CORNER</div>
         <div class="lbf-avatars">${bAvatars}</div>
-        ${teamB.map((p) => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${teamB.map((p) => `<div class="live-banner-player">${escHtml(p)}</div>`).join("")}
         ${isEnd ? `<div class="live-banner-corner-score${!aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreB}</div>` : ""}
         ${isEnd && !aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
