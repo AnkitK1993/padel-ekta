@@ -17965,6 +17965,9 @@ Object.assign(window, {
   suggestNextMatch,
   undoSessionMatch,
   redoSessionMatch,
+  deleteSessionMatch,
+  editSessionMatch,
+  saveSessionMatchEdit,
   closeUndoConfirmSheet,
   confirmUndoSession,
   saveAndRematch,
@@ -19113,7 +19116,7 @@ function _buildSessionLeaderboard() {
     </div>`;
     })
     .join("");
-  // Enhancement 11: full undo stack — show all session matches with undo buttons
+  // Enhancement 11: full undo stack — show all session matches with undo/edit/delete buttons
   const histRows = [..._sessionMatchHistory]
     .reverse()
     .map((mt, ri) => {
@@ -19122,9 +19125,16 @@ function _buildSessionLeaderboard() {
       const tA = mt.teamA.map((p) => p.split(" ")[0]).join(" & ");
       const tB = mt.teamB.map((p) => p.split(" ")[0]).join(" & ");
       const isLast = i === _sessionMatchHistory.length - 1;
+      const adminBtns = window.isAdmin
+        ? `<div class="sess-hist-actions">
+            <button class="sess-hist-edit-btn" onclick="editSessionMatch(${i})">✏</button>
+            <button class="sess-hist-del-btn" onclick="deleteSessionMatch(${i})">🗑</button>
+           </div>`
+        : "";
       return `<div class="sess-hist-row${isLast ? " sess-hist-last" : ""}">
       <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? "p" : "n"}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
       ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ""}
+      ${adminBtns}
     </div>`;
     })
     .join("");
@@ -19318,6 +19328,138 @@ function confirmUndoSession() {
   _saveSessionState();
   commit();
   showToast("Last match undone ↶", "✅");
+}
+
+// ── DELETE A SESSION MATCH (admin) ──────────────────────────
+function deleteSessionMatch(histIdx) {
+  const mt = _sessionMatchHistory[histIdx];
+  if (!mt) return;
+  const key = _mkMatchKey(mt);
+  const stateIdx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  if (stateIdx !== -1) state.matches.splice(stateIdx, 1);
+  _sessionMatchHistory.splice(histIdx, 1);
+  if (_sessionPendingCount > 0) _sessionPendingCount--;
+  _updateSyncBadge();
+  _invalidateEloMemo();
+  _saveSessionState();
+  saveCloudData();
+  commit();
+  if (_sessionPanelOpen) _updateSessionPanel();
+  _updateLiveDisplay();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
+  showToast("Match removed from session", "🗑");
+}
+
+// ── EDIT A SESSION MATCH (admin) ─────────────────────────────
+function editSessionMatch(histIdx) {
+  const mt = _sessionMatchHistory[histIdx];
+  if (!mt) return;
+  const key = _mkMatchKey(mt);
+  const stateIdx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  if (stateIdx === -1) {
+    showToast("Cannot find match to edit", "❌");
+    return;
+  }
+  // Open the standard edit modal, but wire save to also sync session history
+  closeMatchEdit();
+  const players = getAllPlayerNamesFromMatches();
+  const opts = (val) =>
+    players
+      .map(
+        (p) =>
+          `<option value="${escHtml(p)}"${p === val ? " selected" : ""}>${escHtml(p)}</option>`,
+      )
+      .join("");
+  const m = state.matches[stateIdx];
+  const ov = document.createElement("div");
+  ov.id = "match-edit-modal";
+  ov.className = "match-edit-modal";
+  ov.innerHTML = `
+    <div class="mem-backdrop" onclick="closeMatchEdit()"></div>
+    <div class="mem-panel">
+      <div class="mei-header">
+        <span class="mei-title">✏ EDIT SESSION MATCH</span>
+        <button class="mei-close" onclick="closeMatchEdit()">✕</button>
+      </div>
+      <div class="mei-section-lbl">DATE</div>
+      <input id="edit-match-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${m.date || todayISO()}">
+      <div class="mei-section-lbl" style="color:var(--green)">TEAM A</div>
+      <div class="mei-row">
+        <select id="edit-a1" class="mei-sel"><option value="">P1</option>${opts(m.teamA[0])}</select>
+        <select id="edit-a2" class="mei-sel"><option value="">P2</option>${opts(m.teamA[1])}</select>
+      </div>
+      <div class="mei-section-lbl" style="color:var(--red)">TEAM B</div>
+      <div class="mei-row">
+        <select id="edit-b1" class="mei-sel"><option value="">P1</option>${opts(m.teamB[0])}</select>
+        <select id="edit-b2" class="mei-sel"><option value="">P2</option>${opts(m.teamB[1])}</select>
+      </div>
+      <div class="mei-section-lbl">SCORE</div>
+      <div class="mei-row" style="align-items:center;margin-bottom:10px">
+        <input id="edit-sa" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
+        <span style="color:var(--muted);font-weight:900;font-size:18px;padding:0 4px">–</span>
+        <input id="edit-sb" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
+      </div>
+      <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${escHtml(m.note || "")}">
+      <div id="edit-match-err" style="color:var(--red);font-size:12px;margin-bottom:6px;display:none"></div>
+      <div class="mei-actions">
+        <button class="mei-cancel" onclick="closeMatchEdit()">Cancel</button>
+        <button class="mei-save" onclick="saveSessionMatchEdit(${stateIdx},${histIdx})">Save Changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      ov.querySelector(".mem-panel")?.classList.add("open"),
+    ),
+  );
+}
+
+function saveSessionMatchEdit(stateIdx, histIdx) {
+  const m = state.matches[stateIdx];
+  if (!m) return;
+  const date = document.getElementById("edit-match-date")?.value;
+  const a1 = document.getElementById("edit-a1")?.value;
+  const a2 = document.getElementById("edit-a2")?.value;
+  const b1 = document.getElementById("edit-b1")?.value;
+  const b2 = document.getElementById("edit-b2")?.value;
+  const sa = parseInt(document.getElementById("edit-sa")?.value);
+  const sb = parseInt(document.getElementById("edit-sb")?.value);
+  const note = document.getElementById("edit-note")?.value.trim();
+  const errEl = document.getElementById("edit-match-err");
+  const show = (msg) => { errEl.textContent = msg; errEl.style.display = "block"; };
+  if (!a1 || !b1) return show("Select at least P1 for each team.");
+  if (isNaN(sa) || isNaN(sb)) return show("Enter valid scores.");
+  if (sa === sb) return show("Scores cannot be equal.");
+  if (date && date > todayISO()) return show("Match date cannot be in the future.");
+  const teamA = [a1, a2].filter(Boolean);
+  const teamB = [b1, b2].filter(Boolean);
+  if (teamA.length !== teamB.length) return show("Both teams must have the same size.");
+  if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
+    return show("All players in a match must be different.");
+  m.date = date || m.date;
+  m.teamA = teamA;
+  m.teamB = teamB;
+  m.scoreA = sa;
+  m.scoreB = sb;
+  if (note) m.note = note; else delete m.note;
+  // Sync the session history entry
+  const hist = _sessionMatchHistory[histIdx];
+  if (hist) {
+    hist.date = m.date;
+    hist.teamA = [...teamA];
+    hist.teamB = [...teamB];
+    hist.scoreA = sa;
+    hist.scoreB = sb;
+    if (note) hist.note = note; else delete hist.note;
+  }
+  _invalidateEloMemo();
+  _saveSessionState();
+  saveCloudData();
+  closeMatchEdit();
+  commit();
+  if (_sessionPanelOpen) _updateSessionPanel();
 }
 
 // ── REDO LAST UNDONE SESSION MATCH ───────────────────────────
