@@ -17244,10 +17244,6 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      // Always present — winChartHtml carries a helpful note when the active
-      // data spans fewer than 2 months (e.g. a single-month season) instead of
-      // the whole section silently disappearing.
-    {
       key: "score",
       cat: "activity",
       title: "📊 Scores",
