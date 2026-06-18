@@ -17964,6 +17964,7 @@ Object.assign(window, {
   deleteSessionMatch,
   editSessionMatch,
   saveSessionMatchEdit,
+  moveSessionMatch,
   closeUndoConfirmSheet,
   confirmUndoSession,
   saveAndRematch,
@@ -19101,22 +19102,24 @@ function _buildSessionLeaderboard() {
     </div>`;
     })
     .join("");
-  // Enhancement 11: full undo stack — show all session matches with undo/edit/delete buttons
-  const histRows = [..._sessionMatchHistory]
-    .reverse()
-    .map((mt, ri) => {
-      const i = _sessionMatchHistory.length - 1 - ri;
+  // Match log — show match numbers, with admin edit/delete/reorder controls
+  const total = _sessionMatchHistory.length;
+  const histRows = _sessionMatchHistory
+    .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
       const tA = mt.teamA.map((p) => p.split(" ")[0]).join(" & ");
       const tB = mt.teamB.map((p) => p.split(" ")[0]).join(" & ");
-      const isLast = i === _sessionMatchHistory.length - 1;
+      const isLast = i === total - 1;
       const adminBtns = window.isAdmin
         ? `<div class="sess-hist-actions">
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1)" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1)" ${i === total - 1 ? "disabled" : ""}>↓</button>
             <button class="sess-hist-edit-btn" onclick="editSessionMatch(${i})">✏</button>
             <button class="sess-hist-del-btn" onclick="deleteSessionMatch(${i})">🗑</button>
            </div>`
         : "";
       return `<div class="sess-hist-row${isLast ? " sess-hist-last" : ""}">
+      <span class="sess-hist-num">#${i + 1}</span>
       <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? "p" : "n"}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
       ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ""}
       ${adminBtns}
@@ -19439,6 +19442,36 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
   _saveSessionState();
   saveCloudData();
   closeMatchEdit();
+  commit();
+  if (_sessionPanelOpen) _updateSessionPanel();
+}
+
+// ── REORDER A SESSION MATCH (admin) ─────────────────────────
+// direction: -1 = move earlier (up), +1 = move later (down)
+function moveSessionMatch(histIdx, direction) {
+  const targetIdx = histIdx + direction;
+  if (targetIdx < 0 || targetIdx >= _sessionMatchHistory.length) return;
+
+  // Swap in history
+  const tmp = _sessionMatchHistory[histIdx];
+  _sessionMatchHistory[histIdx] = _sessionMatchHistory[targetIdx];
+  _sessionMatchHistory[targetIdx] = tmp;
+
+  // Mirror the swap in state.matches (session matches only)
+  const keyA = _mkMatchKey(_sessionMatchHistory[histIdx]);
+  const keyB = _mkMatchKey(_sessionMatchHistory[targetIdx]);
+  const idxA = state.matches.findIndex((m) => _mkMatchKey(m) === keyA);
+  const idxB = state.matches.findIndex((m) => _mkMatchKey(m) === keyB);
+  if (idxA !== -1 && idxB !== -1) {
+    const tmpM = state.matches[idxA];
+    state.matches[idxA] = state.matches[idxB];
+    state.matches[idxB] = tmpM;
+  }
+
+  // ELO depends on match order — invalidate and re-commit
+  _invalidateEloMemo();
+  _saveSessionState();
+  saveCloudData();
   commit();
   if (_sessionPanelOpen) _updateSessionPanel();
 }

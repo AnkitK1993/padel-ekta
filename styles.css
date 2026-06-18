@@ -3379,7 +3379,26 @@ body.no-cascade .analytics-card {
   flex-shrink: 0;
   margin-left: 6px;
 }
-.sess-hist-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: 6px; }
+.sess-hist-num {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--muted);
+  min-width: 18px;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.sess-hist-actions { display: flex; gap: 3px; flex-shrink: 0; margin-left: 4px; }
+.sess-hist-move-btn {
+  font-size: 10px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 5px;
+  color: var(--muted);
+  padding: 1px 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sess-hist-move-btn:disabled { opacity: 0.25; cursor: default; }
 .sess-hist-edit-btn {
   font-size: 11px;
   background: none;
