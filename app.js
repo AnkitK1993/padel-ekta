@@ -17247,11 +17247,6 @@ function renderAnalyticsPage() {
       // Always present — winChartHtml carries a helpful note when the active
       // data spans fewer than 2 months (e.g. a single-month season) instead of
       // the whole section silently disappearing.
-      key: "winrate",
-      cat: "activity",
-      title: "📈 Win Rate Over Time",
-      body: `<div class="ana-card">${winChartHtml}</div>`,
-    },
     {
       key: "score",
       cat: "activity",
