@@ -1,9 +1,5 @@
 const STATIC_CACHE = "ekta-padel-static-v14";
 const RUNTIME_CACHE = "ekta-padel-runtime-v2";
-// How long to wait for the network before falling back to cache for code
-// assets (HTML/JS/CSS). Keeps the app responsive on flaky connections while
-// still preferring fresh code so a new deploy is picked up on the next load.
-const NET_TIMEOUT_MS = 4000;
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
 const STATIC = [
@@ -213,48 +209,29 @@ self.addEventListener("notificationclick", (e) => {
   e.waitUntil(clients.openWindow(url));
 });
 
-// fetch() with a timeout so a hung connection falls back to cache instead of
-// spinning forever. cache:"no-store" bypasses the browser's own HTTP cache
-// (GitHub Pages serves assets with max-age=600) so "network" really means the
-// latest deployed bytes, not a 10-minute-stale copy.
-function fetchFresh(request, ms) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms);
-    // Reconstruct as a no-store GET so the HTTP cache can't serve a stale file.
-    fetch(new Request(request.url, { cache: "no-store" })).then(
-      (r) => {
-        clearTimeout(timer);
-        resolve(r);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
-}
-
-// Network-first: fetch the freshest copy, update the cache, and only fall back
-// to the cached copy when the network fails or times out (offline). This is
-// what guarantees a new build is picked up on the next reload WITHOUT the user
-// having to clear their browser cache.
-async function networkFirst(request, cacheName, ignoreSearch) {
+// Stale-while-revalidate for code (HTML shell, app.js, styles.css, ES modules).
+// Respond INSTANTLY from cache — same fast, offline-safe timing as before — but
+// always kick a background fetch with cache:"no-store" (bypassing the browser's
+// own 10-minute HTTP cache) that overwrites the cached copy with the freshly
+// deployed bytes. The result: after a deploy the very next reload serves the new
+// code, so users never have to clear their browser cache. Self-heals on every
+// load and does not depend on buildinfo.json changing.
+async function staleWhileRevalidate(request, cacheName, ignoreSearch) {
   const cache = await caches.open(cacheName);
-  try {
-    const fresh = await fetchFresh(request, NET_TIMEOUT_MS);
-    if (fresh && fresh.ok) {
-      cache.put(request.url, fresh.clone()).catch(() => {});
+  const cached = await cache.match(request, { ignoreSearch });
+
+  const revalidate = fetch(new Request(request.url, { cache: "no-store" }))
+    .then((fresh) => {
+      if (fresh && fresh.ok) cache.put(request.url, fresh.clone()).catch(() => {});
       return fresh;
-    }
-    // Non-OK (e.g. 404/5xx) — prefer a good cached copy if we have one.
-    const cached = await cache.match(request, { ignoreSearch });
-    return cached || fresh;
-  } catch {
-    const cached = await cache.match(request, { ignoreSearch });
-    if (cached) return cached;
-    // Last resort: a normal fetch (may still succeed from HTTP cache offline).
-    return fetch(request);
-  }
+    })
+    .catch(() => null);
+
+  // Cached copy present → serve it now; the background fetch refreshes the cache
+  // for next time. Nothing cached (first visit / offline) → wait for the network.
+  if (cached) return cached;
+  const fresh = await revalidate;
+  return fresh || fetch(request);
 }
 
 self.addEventListener("fetch", (e) => {
@@ -285,11 +262,7 @@ self.addEventListener("fetch", (e) => {
   const isCode = sameOrigin && /\.(?:js|css|html)$/.test(url.pathname);
 
   if (isNavigate || isCode) {
-    // Serve the freshest code; fall back to cache only when offline. The
-    // build-version banner is driven separately by CHECK_UPDATE messages
-    // (focus / visibility / hourly), so there's no need to tie a heavy
-    // cache rebuild to every navigation here.
-    e.respondWith(networkFirst(e.request, STATIC_CACHE, isNavigate));
+    e.respondWith(staleWhileRevalidate(e.request, STATIC_CACHE, isNavigate));
     return;
   }
 
