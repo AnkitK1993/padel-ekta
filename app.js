@@ -18268,8 +18268,6 @@ function _updateLiveMomentum() {
 function endLiveMatch() {
   dismissRacePrompt();
   const { a1, a2, b1, b2 } = _liveSlots;
-  const date = todayISO();
-  const notes = document.getElementById("live-notes")?.value.trim() || "";
   if (!a1 || !a2 || !b1 || !b2) {
     showToast("Select all 4 players first", "❌");
     return;
@@ -18282,6 +18280,14 @@ function endLiveMatch() {
     showToast("Score must be > 0", "❌");
     return;
   }
+  // Show confirmation popup — actual save happens in confirmSaveMatch()
+  openMatchSaveSheet();
+}
+
+function _commitSaveMatch() {
+  const { a1, a2, b1, b2 } = _liveSlots;
+  const date = todayISO();
+  const notes = document.getElementById("live-notes")?.value.trim() || "";
   const match = {
     teamA: [a1, a2],
     teamB: [b1, b2],
@@ -18314,7 +18320,7 @@ function endLiveMatch() {
     _saveSessionState();
     _invalidateEloMemo();
   }
-  saveCloudData(); // always persist — offline handled automatically by cloud-repo
+  saveCloudData();
   commit();
   showToast(`Saved! ${eventMsg}`, "🎾");
   _showLiveEventBanner({
@@ -18325,7 +18331,7 @@ function endLiveMatch() {
     scoreA: _liveScoreA,
     scoreB: _liveScoreB,
   });
-  // Reset everything for next match including player slots
+  // Reset for next match
   _liveScoreA = 0;
   _liveScoreB = 0;
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
@@ -18336,7 +18342,6 @@ function endLiveMatch() {
   _renderSittingOut();
   _checkRematchWarning();
   _renderLiveSessionDashboard();
-  // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
 }
 
 
@@ -21427,7 +21432,7 @@ function closeMatchSaveSheet() {
 
 function confirmSaveMatch() {
   closeMatchSaveSheet();
-  endLiveMatch();
+  _commitSaveMatch();
 }
 
 function keepPlayingMatch() {
