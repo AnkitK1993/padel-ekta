@@ -11841,7 +11841,7 @@ select.cmp-sel:hover,
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 12px 8px;
+  margin: 3px 0 4px;
 }
 .live-prob-team {
   font-size: 7px;
