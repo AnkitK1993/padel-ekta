@@ -1132,6 +1132,7 @@ Puneet - Pun, PK
           </div>
           <div style="display:flex;gap:5px">
             <button class="live-add-player-btn" onclick="openAddPlayerSheet()">+ PLAYER</button>
+            <button class="live-add-player-btn live-remove-player-btn" onclick="openRemovePlayerSheet()">− PLAYER</button>
             <button class="live-end-session-btn" onclick="endLiveSession()">END</button>
           </div>
         </div>
@@ -1366,6 +1367,15 @@ Puneet - Pun, PK
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">ADD PLAYER</div>
         <div id="add-player-list" style="padding:0 14px;max-height:50vh;overflow-y:auto"></div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
+      <!-- Remove Player Mid-Session Sheet -->
+      <div class="live-sheet-overlay" id="remove-player-overlay" onclick="closeRemovePlayerSheet()"></div>
+      <div class="live-sheet" role="dialog" aria-modal="true" id="remove-player-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">REMOVE PLAYER</div>
+        <div id="remove-player-list" style="padding:0 14px;max-height:50vh;overflow-y:auto"></div>
         <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
       </div>
 

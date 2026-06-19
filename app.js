@@ -18158,6 +18158,9 @@ Object.assign(window, {
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
+  openRemovePlayerSheet,
+  closeRemovePlayerSheet,
+  removePlayerFromSession,
   toggleSessionPanel,
   suggestNextMatch,
   undoSessionMatch,
@@ -21375,6 +21378,41 @@ function addPlayerToSession(name) {
   _renderSittingOut();
   _saveSessionState();
   showToast(`${name} added`, "✅");
+}
+
+function openRemovePlayerSheet() {
+  const list = document.getElementById("remove-player-list");
+  if (!list) return;
+  const current = _liveSessionData?.sessionPlayers || [];
+  if (!current.length) { showToast("No players in session", "ℹ️"); return; }
+  const inSlot = new Set(Object.values(_liveSlots).filter(Boolean));
+  list.innerHTML = current
+    .map((p) => {
+      const busy = inSlot.has(p);
+      return `<button class="live-sheet-item${busy ? " live-sheet-item-disabled" : ""}" ${busy ? "disabled" : `onclick="removePlayerFromSession(${jsArg(p)})"`}>
+        ${sheetAv(p)}
+        <span class="live-sheet-item-name">${escHtml(normPlayer(p))}</span>
+        ${busy ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;flex-shrink:0">in match</span>` : ""}
+      </button>`;
+    })
+    .join("");
+  document.getElementById("remove-player-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("remove-player-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeRemovePlayerSheet() {
+  document.getElementById("remove-player-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("remove-player-sheet")?.classList.remove("live-sheet-open");
+}
+
+function removePlayerFromSession(name) {
+  closeRemovePlayerSheet();
+  const players = (_liveSessionData?.sessionPlayers || []).filter((p) => p !== name);
+  _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
+  _syncLiveSessionBar();
+  _renderSittingOut();
+  _saveSessionState();
+  showToast(`${normPlayer(name)} removed from session`, "✅");
 }
 
 function _notifyLiveEvent(type, msg) {

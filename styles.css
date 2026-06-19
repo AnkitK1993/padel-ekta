@@ -16547,6 +16547,11 @@ body.amethyst-mode #themeBtn {
   padding: 5px 12px;
   cursor: pointer;
 }
+.live-remove-player-btn {
+  background: rgba(255, 60, 60, 0.12);
+  border-color: rgba(255, 60, 60, 0.3);
+  color: #ff6060;
+}
 .live-sync-btn {
   background: rgba(40, 200, 120, 0.15);
   border: 1px solid rgba(40, 200, 120, 0.35);
