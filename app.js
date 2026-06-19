@@ -19425,23 +19425,58 @@ function _showSuggestSheet(suggestions) {
   if (!sheet || !body) return;
   body.innerHTML = suggestions
     .map((s, i) => {
-      const diff = Math.abs(s.avgA - s.avgB).toFixed(0);
+      const expA = 1 / (1 + Math.pow(10, (s.avgB - s.avgA) / 400));
+      const probA = Math.round(expA * 100);
+      const probB = 100 - probA;
+      const dAwin  = Math.round(32 * (1 - expA));
+      const dAlose = Math.round(32 * (0 - expA));
+      const dBwin  = Math.round(32 * expA);
+      const dBlose = Math.round(32 * (expA - 1));
+      const favA = probA >= probB;
       return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-bottom:10px">
       <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:8px">GAME ${i + 1}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div style="flex:1;text-align:center">
           <div style="font-size:13px;font-weight:800">${escHtml(s.teamA[0])}</div>
           <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamA[1])}</div>
-          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgA)} avg</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgA)} ELO avg</div>
         </div>
         <div style="font-size:13px;font-weight:900;color:var(--muted)">VS</div>
         <div style="flex:1;text-align:center">
           <div style="font-size:13px;font-weight:800">${escHtml(s.teamB[0])}</div>
           <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamB[1])}</div>
-          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgB)} avg</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgB)} ELO avg</div>
         </div>
       </div>
-      ${diff > 30 ? `<div style="font-size:8px;color:var(--gold);text-align:center;margin-bottom:8px">Δ${diff} ELO gap</div>` : ""}
+      <div style="margin-bottom:8px">
+        <div style="display:flex;font-size:9px;font-weight:900;border-radius:5px;overflow:hidden;letter-spacing:0.04em">
+          <div style="flex:${probA};background:var(--live-red,#c0392b);padding:4px 6px;color:#fff;text-align:center">${probA}%${favA ? " ★" : ""}</div>
+          <div style="flex:${probB};background:var(--live-blue,#2980b9);padding:4px 6px;color:#fff;text-align:center">${favA ? "" : "★ "}${probB}%</div>
+        </div>
+        <div style="display:flex;font-size:7px;color:var(--muted);margin-top:2px;justify-content:space-between;padding:0 2px">
+          <span>WIN CHANCE</span><span>WIN CHANCE</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:6px 8px">
+          <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">ELO IF WIN / LOSE</div>
+          <div style="font-size:11px;font-weight:800">
+            <span style="color:var(--green)">+${dAwin}</span>
+            <span style="color:var(--muted);font-weight:400"> / </span>
+            <span style="color:var(--red)">${dAlose}</span>
+          </div>
+          <div style="font-size:7px;color:var(--muted);margin-top:2px">${escHtml(normPlayer(s.teamA[0]))} & ${escHtml(normPlayer(s.teamA[1]))}</div>
+        </div>
+        <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:6px 8px">
+          <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">ELO IF WIN / LOSE</div>
+          <div style="font-size:11px;font-weight:800">
+            <span style="color:var(--green)">+${dBwin}</span>
+            <span style="color:var(--muted);font-weight:400"> / </span>
+            <span style="color:var(--red)">${dBlose}</span>
+          </div>
+          <div style="font-size:7px;color:var(--muted);margin-top:2px">${escHtml(normPlayer(s.teamB[0]))} & ${escHtml(normPlayer(s.teamB[1]))}</div>
+        </div>
+      </div>
       <button onclick="window._applySuggestion(${i})" style="width:100%;padding:8px;background:var(--accent);color:#000;font-size:11px;font-weight:900;border:none;border-radius:6px;cursor:pointer">▶ PLAY THIS</button>
     </div>`;
     })
@@ -19910,15 +19945,27 @@ function _renderLiveSessionDashboard() {
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
+  // Build all-time ELO delta map keyed by match key (session objs ≠ state.matches refs)
+  const _atDeltaMap = new Map();
+  _computeMatchEloDeltas(activeMatches()).forEach((d, m) => _atDeltaMap.set(_mkMatchKey(m), d));
   const matchesHtml = history
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
       const histIdx = _sessionMatchHistory.indexOf(mt);
+      const delta = _atDeltaMap.get(_mkMatchKey(mt));
+      const eloHtml = delta
+        ? `<div class="sess-sum-match-elo">
+            <span style="color:${delta.dA >= 0 ? "var(--green)" : "var(--red)"}">${delta.dA >= 0 ? "+" : ""}${delta.dA}</span>
+            <span class="sess-sum-vs">/</span>
+            <span style="color:${delta.dB >= 0 ? "var(--green)" : "var(--red)"}">${delta.dB >= 0 ? "+" : ""}${delta.dB}</span>
+          </div>`
+        : "";
       return `<div class="smr-wrap">
         <div class="smr-inner sess-sum-match" onclick="window._openSessionMatchIntro(${histIdx})">
           <div class="sess-sum-match-num">${i + 1}</div>
           <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
           <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+          ${eloHtml}
         </div>
         <div class="smr-edit-reveal" onclick="event.stopPropagation();editSessionMatch(${histIdx})" title="Edit">✏️</div>
         <div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteSessionMatch(${histIdx})" title="Delete">🗑</div>
