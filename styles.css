@@ -16657,6 +16657,11 @@ body.amethyst-mode #themeBtn {
   border-color: rgba(80, 160, 255, 0.3);
   color: #70b8ff;
 }
+.live-sess-act-active {
+  background: rgba(var(--theme-rgb), 0.15);
+  border-color: rgba(var(--theme-rgb), 0.35);
+  color: var(--theme);
+}
 
 /* ── SESSION STATS PANEL ─────────────────── */
 .live-session-panel {

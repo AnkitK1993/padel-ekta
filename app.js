@@ -1105,6 +1105,7 @@ Object.defineProperty(globalThis, "_sessionSetupSelected", {
 });
 // Timer interval handle for the session elapsed-time display — scalar, direct let.
 let _sessionTimerInterval = null;
+let _sdashShowGuests = true; // scoreboard guest-filter toggle
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -18162,6 +18163,7 @@ Object.assign(window, {
   closeRemovePlayerSheet,
   removePlayerFromSession,
   toggleSessionPanel,
+  toggleSdashGuests,
   suggestNextMatch,
   undoSessionMatch,
   redoSessionMatch,
@@ -19372,6 +19374,13 @@ function toggleSessionPanel() {
   if (_sessionPanelOpen) _updateSessionPanel();
 }
 
+window.toggleSdashGuests = function() {
+  _sdashShowGuests = !_sdashShowGuests;
+  const btn = document.getElementById("sdash-guest-toggle");
+  if (btn) btn.classList.toggle("live-sess-act-active", _sdashShowGuests);
+  _renderLiveSessionDashboard();
+};
+
 // ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
 function _mkEloTeams(pick4, eloMap, alt) {
   const s = [...pick4].sort(
@@ -19862,9 +19871,15 @@ function _renderLiveSessionDashboard() {
   if (wasHidden || _sessionMatchHistory.length === 1)
     requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }));
 
+  // Apply guest filter
+  const guestSet = new Set(Object.values(state.players).filter(p => p.isGuest).map(p => p.name));
+  const history = (_sdashShowGuests || !guestSet.size)
+    ? _sessionMatchHistory
+    : _sessionMatchHistory.filter(m => ![...m.teamA, ...m.teamB].some(p => guestSet.has(p)));
+
   // Session ELO: everyone starts at 1000, computed from today's session matches only
-  const sessionEloMap = computeElo(_sessionMatchHistory);
-  const stats = computeStats(_sessionMatchHistory, sessionEloMap)
+  const sessionEloMap = computeElo(history);
+  const stats = computeStats(history, sessionEloMap)
     .sort((a, b) => (b.sr || 0) - (a.sr || 0) || (b.mw || 0) - (a.mw || 0));
   const rankColor = (i) =>
     i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
@@ -19888,8 +19903,8 @@ function _renderLiveSessionDashboard() {
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
-  const _dTotal = _sessionMatchHistory.length;
-  const matchesHtml = _sessionMatchHistory
+  const _dTotal = history.length;
+  const matchesHtml = history
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
       const adminBtns = window.isAdmin
