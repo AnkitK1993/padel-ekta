@@ -10871,16 +10871,16 @@ select.cmp-sel:hover,
   display: flex;
   align-items: stretch;
   gap: 0;
-  padding: 14px 12px;
+  padding: 8px 10px 4px;
   position: relative;
 }
 .live-corner {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 14px;
+  gap: 5px;
+  padding: 7px 8px;
+  border-radius: 12px;
 }
 .live-corner-a {
   background: linear-gradient(
@@ -10905,7 +10905,7 @@ select.cmp-sel:hover,
   text-transform: uppercase;
   text-align: center;
   color: var(--muted);
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 .live-corner-a .live-corner-label {
   color: rgba(239, 68, 68, 0.7);
@@ -10916,9 +10916,9 @@ select.cmp-sel:hover,
 .live-player-slot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px dashed rgba(255, 255, 255, 0.1);
   cursor: pointer;
@@ -10940,13 +10940,13 @@ select.cmp-sel:hover,
   border-color: rgba(59, 130, 246, 0.2);
 }
 .live-slot-avatar {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   flex-shrink: 0;
 }
@@ -10960,14 +10960,14 @@ select.cmp-sel:hover,
   text-overflow: ellipsis;
 }
 .live-fight-vs {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 900;
   color: rgba(255, 255, 255, 0.15);
   letter-spacing: 0.1em;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   align-self: center;
-  margin: 0 6px;
+  margin: 0 5px;
 }
 
 /* Scoreboard */
@@ -10976,7 +10976,7 @@ select.cmp-sel:hover,
   align-items: center;
   justify-content: center;
   gap: 0;
-  padding: 8px 12px 14px;
+  padding: 4px 12px 8px;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.01) 0%,
@@ -10988,8 +10988,8 @@ select.cmp-sel:hover,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 12px 8px;
+  gap: 8px;
+  padding: 8px 8px 6px;
   border-radius: 16px;
 }
 .live-panel-a {
@@ -11007,7 +11007,7 @@ select.cmp-sel:hover,
   );
 }
 .live-score-giant {
-  font-size: 88px;
+  font-size: 72px;
   font-weight: 900;
   line-height: 1;
   color: rgba(255, 255, 255, 0.75);
@@ -11016,7 +11016,7 @@ select.cmp-sel:hover,
     color 0.25s,
     text-shadow 0.25s,
     transform 0.12s;
-  letter-spacing: -4px;
+  letter-spacing: -3px;
 }
 .live-score-giant.live-score-lead {
   color: #fff;
@@ -11032,25 +11032,25 @@ select.cmp-sel:hover,
   text-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
 }
 .live-score-colon {
-  font-size: 60px;
+  font-size: 48px;
   font-weight: 900;
   color: rgba(255, 255, 255, 0.12);
   align-self: center;
-  padding-bottom: 18px;
-  letter-spacing: -4px;
+  padding-bottom: 14px;
+  letter-spacing: -3px;
 }
 .live-score-btns {
   display: flex;
-  gap: 8px;
+  gap: 7px;
 }
 .live-adj-huge {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.7);
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 900;
   cursor: pointer;
   display: flex;
@@ -11124,8 +11124,8 @@ select.cmp-sel:hover,
   gap: 8px;
   width: calc(100% - 24px);
   margin: 0 12px;
-  padding: 16px;
-  border-radius: 16px;
+  padding: 13px;
+  border-radius: 14px;
   border: none;
   background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
   color: #fff;
@@ -11133,7 +11133,7 @@ select.cmp-sel:hover,
   font-weight: 900;
   letter-spacing: 0.1em;
   cursor: pointer;
-  box-shadow: 0 6px 24px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 18px rgba(239, 68, 68, 0.28);
   transition:
     opacity 0.2s,
     transform 0.12s;
@@ -11752,22 +11752,22 @@ select.cmp-sel:hover,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 14px;
-  margin: 4px 0 6px;
+  padding: 5px 12px;
+  margin: 2px 0 4px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
+  border-radius: 8px;
   gap: 6px;
 }
 .lep-side {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 14px;
+  gap: 4px;
+  font-size: 13px;
   font-weight: 800;
 }
 .lep-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -11840,18 +11840,18 @@ select.cmp-sel:hover,
 .live-prob-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 16px 10px;
+  gap: 6px;
+  margin: 0 12px 8px;
 }
 .live-prob-team {
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 70px;
+  max-width: 60px;
   text-align: center;
 }
 .live-prob-team-b {
@@ -11860,8 +11860,8 @@ select.cmp-sel:hover,
 .live-prob-track {
   position: relative;
   flex: 1;
-  height: 18px;
-  border-radius: 9px;
+  height: 14px;
+  border-radius: 7px;
   background: rgba(255, 255, 255, 0.07);
   overflow: hidden;
 }
@@ -13969,7 +13969,7 @@ select:focus,
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 .live-race-label {
   font-size: 10px;
@@ -16455,7 +16455,7 @@ body.amethyst-mode #themeBtn {
 .live-session-bar {
   background: rgba(255, 60, 60, 0.1);
   border-bottom: 1px solid rgba(255, 60, 60, 0.25);
-  padding: 10px 14px 8px;
+  padding: 7px 12px 6px;
 }
 .live-start-session-bar {
   background: rgba(255, 255, 255, 0.03);
@@ -16591,17 +16591,17 @@ body.amethyst-mode #themeBtn {
 /* ── SESSION ACTIONS ROW ─────────────────── */
 .live-session-actions {
   display: flex;
-  gap: 6px;
-  margin-top: 7px;
+  gap: 5px;
+  margin-top: 5px;
 }
 .live-sess-action-btn {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 14px;
+  border-radius: 12px;
   color: var(--fg);
   font-size: 10px;
   font-weight: 800;
-  padding: 5px 11px;
+  padding: 4px 10px;
   cursor: pointer;
   letter-spacing: 0.04em;
 }
@@ -16690,7 +16690,7 @@ body.amethyst-mode #themeBtn {
   align-items: center;
   flex-wrap: wrap;
   gap: 5px;
-  padding: 7px 14px;
+  padding: 5px 12px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
