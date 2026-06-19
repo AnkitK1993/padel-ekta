@@ -19943,9 +19943,10 @@ function _renderLiveSessionDashboard() {
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
-  // Build all-time ELO delta map keyed by match key (session objs ≠ state.matches refs)
+  // Build all-time ELO delta map keyed by match key (session objs ≠ state.matches refs).
+  // Use state.matches (not activeMatches) so guest-involving matches are included.
   const _atDeltaMap = new Map();
-  _computeMatchEloDeltas(activeMatches()).forEach((d, m) => _atDeltaMap.set(_mkMatchKey(m), d));
+  _computeMatchEloDeltas(state.matches).forEach((d, m) => _atDeltaMap.set(_mkMatchKey(m), d));
   const matchesHtml = history
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
