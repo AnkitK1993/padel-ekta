@@ -1,4 +1,4 @@
-const STATIC_CACHE = "ekta-padel-static-v13";
+const STATIC_CACHE = "ekta-padel-static-v14";
 const RUNTIME_CACHE = "ekta-padel-runtime-v2";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
@@ -209,6 +209,31 @@ self.addEventListener("notificationclick", (e) => {
   e.waitUntil(clients.openWindow(url));
 });
 
+// Stale-while-revalidate for code (HTML shell, app.js, styles.css, ES modules).
+// Respond INSTANTLY from cache — same fast, offline-safe timing as before — but
+// always kick a background fetch with cache:"no-store" (bypassing the browser's
+// own 10-minute HTTP cache) that overwrites the cached copy with the freshly
+// deployed bytes. The result: after a deploy the very next reload serves the new
+// code, so users never have to clear their browser cache. Self-heals on every
+// load and does not depend on buildinfo.json changing.
+async function staleWhileRevalidate(request, cacheName, ignoreSearch) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request, { ignoreSearch });
+
+  const revalidate = fetch(new Request(request.url, { cache: "no-store" }))
+    .then((fresh) => {
+      if (fresh && fresh.ok) cache.put(request.url, fresh.clone()).catch(() => {});
+      return fresh;
+    })
+    .catch(() => null);
+
+  // Cached copy present → serve it now; the background fetch refreshes the cache
+  // for next time. Nothing cached (first visit / offline) → wait for the network.
+  if (cached) return cached;
+  const fresh = await revalidate;
+  return fresh || fetch(request);
+}
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   const isHttp = url.protocol === "http:" || url.protocol === "https:";
@@ -225,23 +250,24 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  if (e.request.mode === "navigate") {
-    e.respondWith(
-      caches.match(e.request, { ignoreSearch: true }).then((cached) => {
-        checkForUpdates().then((updated) => {
-          if (updated) notifyClientsNewBuild();
-        });
-        return cached || fetch(e.request);
-      }),
-    );
-    return;
-  }
-
   if (e.request.method !== "GET") {
     e.respondWith(fetch(e.request));
     return;
   }
 
+  const sameOrigin = url.origin === self.location.origin;
+  const isNavigate = e.request.mode === "navigate";
+  // Code that goes stale between deploys: the HTML shell, app.js, styles.css
+  // and every ES module under src/ and features/.
+  const isCode = sameOrigin && /\.(?:js|css|html)$/.test(url.pathname);
+
+  if (isNavigate || isCode) {
+    e.respondWith(staleWhileRevalidate(e.request, STATIC_CACHE, isNavigate));
+    return;
+  }
+
+  // Static assets (icons, fonts, images, manifest) rarely change — cache-first
+  // for instant loads; populate the runtime cache on first fetch.
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;

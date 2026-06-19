@@ -71,7 +71,7 @@ const SNAPSHOT_MATCHES = [
 // Update intentionally when analytics OUTPUT legitimately changes. "PENDING"
 // makes the first run print the computed hash without failing.
 // Settled-state hash (captured after the 600ms render-settle delay below).
-// History: 5ae521ac → 4a96a30 → 79551284 → 6e68ae6c → bebf32f0 → 67cb9284.
+// History: 5ae521ac → 4a96a30 → 79551284 → 6e68ae6c → bebf32f0 → 67cb9284 → 819d9db4 → 772a0aa.
 // The earlier same-length drift (e.g. 79551284→6e68ae6c on unchanged code) was
 // ROOT-CAUSED: the snapshot navigate is same-origin and was INHERITING
 // localStorage left by the 600-line main smoke flow above, which runs at REAL
@@ -81,7 +81,7 @@ const SNAPSHOT_MATCHES = [
 // the fixture alone. (Ruled out along the way: Math.random — forcing it 0.0 vs
 // 0.999 leaves the hash identical; and ELO decay — the freeze pins new Date() to
 // 2026-06-15.)
-const ANALYTICS_SNAPSHOT_HASH = "67cb9284";
+const ANALYTICS_SNAPSHOT_HASH = "772a0aa";
 
 function findBrowser() {
   const candidates = [
@@ -730,7 +730,6 @@ async function main() {
         hasRecap: html.includes("Monthly Recap"),
         hasOldMonthly: html.includes("Monthly Awards"),
         hasFeared: html.includes("MOST FEARED"),
-        hasWinRate: html.includes("Win Rate Over Time"),
         subtabCount: document.querySelectorAll(".ana-subtab").length,
         hasOldAntiPodium: html.includes("Anti-Podium Tracker"),
         hasDayOfWeek: html.includes("Day-of-Week"),
@@ -803,12 +802,6 @@ async function main() {
       "Expected old 'Anti-Podium Tracker' section to be merged away",
     );
     assert(awards.hasDayOfWeek, "Expected merged 'Day-of-Week' section present");
-    // Seeded data is a single month, so this section used to be omitted; it must
-    // now always render (with a helpful note) so users can always find it.
-    assert(
-      awards.hasWinRate,
-      "Expected 'Win Rate Over Time' section to render even with one month of data",
-    );
     assert(
       awards.hasMay,
       "Expected a 'May 2026' season card in Season Awards",

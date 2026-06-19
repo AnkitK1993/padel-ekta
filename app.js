@@ -2116,6 +2116,8 @@ function updateAdminUI(user) {
   // Show Offline Mode toggle only for admin
   const offlineItem = document.getElementById("offline-mode-item");
   if (offlineItem) offlineItem.style.display = window.isAdmin ? "" : "none";
+  // Re-render session panel so admin action buttons appear after auth resolves
+  if (_sessionPanelOpen) _updateSessionPanel();
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
@@ -14044,6 +14046,207 @@ function _buildStreakLeaderboardHtml() {
   return `<div class="ana-card" style="padding:8px 12px">${rows}</div>`;
 }
 
+// ── WIN RATE CALCULATOR ─────────────────────────────────────
+// Returns {mp, mw} for a player across given matches (already sorted).
+function _wrcStats(name, ms) {
+  let mp = 0, mw = 0;
+  ms.forEach((m) => {
+    const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
+    const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
+    if (!inA && !inB) return;
+    const aWon = m.scoreA > m.scoreB;
+    mp++;
+    if ((inA && aWon) || (inB && !aWon)) mw++;
+  });
+  return { mp, mw };
+}
+
+// Change in W% over last N matches vs overall (null if fewer than N matches).
+function _wrcDelta(name, sorted, n) {
+  const pms = sorted.filter((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].some((p) => normPlayer(p) === name)
+  );
+  if (pms.length < n) return null;
+  const overall = _wrcStats(name, pms);
+  const recent  = _wrcStats(name, pms.slice(-n));
+  const overallWR = overall.mw / overall.mp;
+  const recentWR  = recent.mw  / n;
+  return Math.round((recentWR - overallWR) * 100); // signed integer pp
+}
+
+function _buildWinRateCalcHtml() {
+  const ms = [...activeMatches()].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const players = getAllPlayerNamesFromMatches();
+
+  // Build per-player stats row
+  const rows = players
+    .map((name) => {
+      const { mp, mw } = _wrcStats(name, ms);
+      if (mp === 0) return null;
+      const wr = Math.round((mw / mp) * 100);
+      const d10 = _wrcDelta(name, ms, 10);
+      const d20 = _wrcDelta(name, ms, 20);
+      const d30 = _wrcDelta(name, ms, 30);
+      const d40 = _wrcDelta(name, ms, 40);
+      return { name, mp, mw, ml: mp - mw, wr, d10, d20, d30, d40 };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.wr - a.wr || b.mp - a.mp);
+
+  const fmtDelta = (d) => {
+    if (d === null) return `<span class="wrc-d-na">—</span>`;
+    const sign = d > 0 ? "+" : "";
+    const cls  = d > 0 ? "wrc-d-pos" : d < 0 ? "wrc-d-neg" : "wrc-d-zero";
+    return `<span class="${cls}">${sign}${d}%</span>`;
+  };
+
+  const tableRows = rows.map((r, i) =>
+    `<tr class="wrc-tr" onclick="wrcSelectPlayer(${jsArg(r.name)})" data-name="${escHtml(r.name)}">
+      <td class="wrc-td-rank">${i + 1}</td>
+      <td class="wrc-td-name">${escHtml(r.name)}</td>
+      <td class="wrc-td-mp">${r.mp}</td>
+      <td class="wrc-td-wr">${r.wr}%</td>
+      <td class="wrc-td-d">${fmtDelta(r.d10)}</td>
+      <td class="wrc-td-d">${fmtDelta(r.d20)}</td>
+      <td class="wrc-td-d">${fmtDelta(r.d30)}</td>
+      <td class="wrc-td-d">${fmtDelta(r.d40)}</td>
+    </tr>`
+  ).join("");
+
+  return `<div class="wrc-card">
+    <div class="wrc-tbl-wrap">
+      <table class="wrc-tbl">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th style="text-align:left">PLAYER</th>
+            <th>MP</th>
+            <th>W%</th>
+            <th>Δ10</th>
+            <th>Δ20</th>
+            <th>Δ30</th>
+            <th>Δ40</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+let _wrcSelectedPlayer = null;
+
+function wrcSelectPlayer(name) {
+  _wrcSelectedPlayer = name;
+
+  // Inject popup if not already in DOM
+  if (!document.getElementById("wrc-popup-overlay")) {
+    const overlay = document.createElement("div");
+    overlay.id = "wrc-popup-overlay";
+    overlay.className = "wrc-popup-overlay";
+    overlay.onclick = wrcCloseCalc;
+    overlay.innerHTML = `
+      <div class="wrc-popup" onclick="event.stopPropagation()">
+        <div class="wrc-popup-top">
+          <div class="wrc-popup-title" id="wrc-calc-header"></div>
+          <button class="wrc-popup-close" onclick="wrcCloseCalc()">✕</button>
+        </div>
+        <div class="wrc-cur-stats" id="wrc-cur-stats">
+          <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-mp">—</div><div class="wrc-stat-lbl">PLAYED</div></div>
+          <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-w">—</div><div class="wrc-stat-lbl">WINS</div></div>
+          <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-l">—</div><div class="wrc-stat-lbl">LOSSES</div></div>
+          <div class="wrc-stat wrc-stat-hl"><div class="wrc-stat-val" id="wrc-cur-wr">—</div><div class="wrc-stat-lbl">CURRENT W%</div></div>
+        </div>
+        <div class="wrc-ctrl">
+          <div class="wrc-ctrl-top">
+            <span class="wrc-ctrl-label">TARGET WIN RATE</span>
+            <span class="wrc-ctrl-val" id="wrc-target-val">—</span>
+          </div>
+          <input type="range" class="wrc-slider" id="wrc-target" min="1" max="100" step="1" oninput="wrcOnSlider()">
+        </div>
+        <div class="wrc-ctrl">
+          <div class="wrc-ctrl-top">
+            <span class="wrc-ctrl-label">WIN RATE IN FUTURE GAMES</span>
+            <span class="wrc-ctrl-val" id="wrc-future-val">—</span>
+          </div>
+          <input type="range" class="wrc-slider" id="wrc-future" min="1" max="100" step="1" oninput="wrcOnSlider()">
+        </div>
+        <div class="wrc-result" id="wrc-result"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
+  document.getElementById("wrc-calc-header").textContent = name;
+  const ms = activeMatches();
+  const { mp, mw } = _wrcStats(name, ms);
+  const ml = mp - mw;
+  const wr = mp > 0 ? Math.round((mw / mp) * 100) : 0;
+  document.getElementById("wrc-cur-mp").textContent = mp;
+  document.getElementById("wrc-cur-w").textContent  = mw;
+  document.getElementById("wrc-cur-l").textContent  = ml;
+  document.getElementById("wrc-cur-wr").textContent = `${wr}%`;
+
+  const tSlider = document.getElementById("wrc-target");
+  if (tSlider) { tSlider.min = Math.min(wr + 2, 99); tSlider.max = 99; tSlider.value = Math.min(wr + 5, 95); }
+  const fSlider = document.getElementById("wrc-future");
+  if (fSlider) { fSlider.min = wr + 2; fSlider.max = 100; fSlider.value = Math.min(Math.max(80, wr + 10), 100); }
+
+  document.getElementById("wrc-popup-overlay").classList.add("wrc-popup-open");
+  wrcOnSlider();
+}
+
+function wrcCloseCalc() {
+  document.getElementById("wrc-popup-overlay")?.classList.remove("wrc-popup-open");
+}
+
+function wrcOnSlider() {
+  const name  = _wrcSelectedPlayer;
+  const resEl = document.getElementById("wrc-result");
+  if (!name || !resEl) return;
+  const targetSlider = document.getElementById("wrc-target");
+  const futureSlider = document.getElementById("wrc-future");
+  const targetWR = parseInt(targetSlider?.value || 0) / 100;
+  let   futureWR = parseInt(futureSlider?.value || 0) / 100;
+  // Clamp future above target
+  if (futureWR <= targetWR) {
+    const clamped = Math.min(Math.round(targetWR * 100) + 1, 100);
+    if (futureSlider) futureSlider.value = clamped;
+    futureWR = clamped / 100;
+  }
+  document.getElementById("wrc-target-val").textContent = `${Math.round(targetWR * 100)}%`;
+  document.getElementById("wrc-future-val").textContent = `${Math.round(futureWR * 100)}%`;
+
+  const ms = activeMatches();
+  const { mp, mw } = _wrcStats(name, ms);
+  const numerator = targetWR * mp - mw;
+  const n = numerator <= 0
+    ? 0
+    : Math.ceil(numerator / (futureWR - targetWR));
+
+  if (n === 0) {
+    resEl.innerHTML = `<div class="wrc-achieved">🎉 Already at or above ${Math.round(targetWR * 100)}%!</div>`;
+    return;
+  }
+  const newMp = mp + n;
+  const newW  = mw + Math.round(n * futureWR);
+  const newL  = newMp - newW;
+  const newWR = Math.round((newW / newMp) * 100);
+  resEl.innerHTML = `
+    <div class="wrc-result-hero">
+      <span class="wrc-result-n">${n}</span>
+      <span class="wrc-result-n-label">matches needed</span>
+    </div>
+    <div class="wrc-result-grid">
+      <div class="wrc-rg-cell"><div class="wrc-rg-label">NEW TOTAL</div><div class="wrc-rg-val">${newMp}</div></div>
+      <div class="wrc-rg-cell wrc-rg-win"><div class="wrc-rg-label">NEW WINS</div><div class="wrc-rg-val">${newW}</div></div>
+      <div class="wrc-rg-cell wrc-rg-lose"><div class="wrc-rg-label">NEW LOSSES</div><div class="wrc-rg-val">${newL}</div></div>
+      <div class="wrc-rg-cell wrc-rg-hl"><div class="wrc-rg-label">FINAL W%</div><div class="wrc-rg-val">${newWR}%</div></div>
+    </div>`;
+}
+window.wrcSelectPlayer   = wrcSelectPlayer;
+window.wrcCloseCalc      = wrcCloseCalc;
+window.wrcOnSlider       = wrcOnSlider;
+
 // Biggest ELO upsets: lower-rated team beating a higher-rated one. Recomputes
 // ELO match-by-match (same engine as elo.js) to capture pre-match ratings.
 function _buildBiggestUpsetsHtml() {
@@ -17050,15 +17253,6 @@ function renderAnalyticsPage() {
       ]),
     },
     {
-      // Always present — winChartHtml carries a helpful note when the active
-      // data spans fewer than 2 months (e.g. a single-month season) instead of
-      // the whole section silently disappearing.
-      key: "winrate",
-      cat: "activity",
-      title: "📈 Win Rate Over Time",
-      body: `<div class="ana-card">${winChartHtml}</div>`,
-    },
-    {
       key: "score",
       cat: "activity",
       title: "📊 Scores",
@@ -17258,6 +17452,12 @@ function renderAnalyticsPage() {
       ]),
     },
     // ── NEW SECTIONS ───────────────────────────────────────────
+    {
+      key: "winratecalc",
+      cat: "players",
+      title: "🎯 Win Rate Calculator",
+      body: _buildWinRateCalcHtml(),
+    },
     {
       key: "biggestupsets",
       cat: "records",
@@ -17943,6 +18143,7 @@ Object.assign(window, {
   setLiveRaceTo,
   dismissRacePrompt,
   endLiveMatch,
+  _commitSaveMatch,
   openSessionSetup,
   closeSessionSetup,
   sessionSetupSelectAll,
@@ -17961,6 +18162,10 @@ Object.assign(window, {
   suggestNextMatch,
   undoSessionMatch,
   redoSessionMatch,
+  deleteSessionMatch,
+  editSessionMatch,
+  saveSessionMatchEdit,
+  moveSessionMatch,
   closeUndoConfirmSheet,
   confirmUndoSession,
   saveAndRematch,
@@ -18172,9 +18377,32 @@ function _showRaceReachedPrompt() {
   const overlay = document.getElementById("live-race-overlay");
   if (!overlay) return;
   const title = document.getElementById("live-race-modal-title");
-  const score = document.getElementById("live-race-modal-score");
   if (title) title.textContent = `RACE TO ${_liveRaceTo} REACHED`;
-  if (score) score.textContent = `${_liveScoreA} — ${_liveScoreB}`;
+  const matchup = document.getElementById("live-race-modal-matchup");
+  if (matchup) {
+    const { a1, a2, b1, b2 } = _liveSlots;
+    const aWon = _liveScoreA > _liveScoreB;
+    const na1 = normPlayer(a1) || "?", na2 = normPlayer(a2) || "?";
+    const nb1 = normPlayer(b1) || "?", nb2 = normPlayer(b2) || "?";
+    const winTeam = aWon ? `${na1} & ${na2}` : `${nb1} & ${nb2}`;
+    const loseTeam = aWon ? `${nb1} & ${nb2}` : `${na1} & ${na2}`;
+    const winScore = aWon ? _liveScoreA : _liveScoreB;
+    const loseScore = aWon ? _liveScoreB : _liveScoreA;
+    matchup.innerHTML = `
+      <div class="msr-matchup">
+        <div class="msr-side msr-win">
+          <div class="msr-side-label">🏆 WINNER</div>
+          <div class="msr-side-name">${escHtml(winTeam)}</div>
+          <div class="msr-side-score msr-score-win">${winScore}</div>
+        </div>
+        <div class="msr-divider">–</div>
+        <div class="msr-side msr-lose">
+          <div class="msr-side-label">LOST</div>
+          <div class="msr-side-name">${escHtml(loseTeam)}</div>
+          <div class="msr-side-score msr-score-lose">${loseScore}</div>
+        </div>
+      </div>`;
+  }
   overlay.style.display = "flex";
 }
 
@@ -18213,17 +18441,9 @@ function _updateLiveWinProb() {
   if (barA) barA.textContent = `${pA}%`;
   if (barB) barB.textContent = `${pB}%`;
   if (lblA)
-    lblA.textContent = (
-      a1.split(" ")[0] +
-      " & " +
-      a2.split(" ")[0]
-    ).toUpperCase();
+    lblA.textContent = (normPlayer(a1) + " & " + normPlayer(a2)).toUpperCase();
   if (lblB)
-    lblB.textContent = (
-      b1.split(" ")[0] +
-      " & " +
-      b2.split(" ")[0]
-    ).toUpperCase();
+    lblB.textContent = (normPlayer(b1) + " & " + normPlayer(b2)).toUpperCase();
   if (fill) {
     fill.style.width = pA + "%";
     const col =
@@ -18272,8 +18492,6 @@ function _updateLiveMomentum() {
 function endLiveMatch() {
   dismissRacePrompt();
   const { a1, a2, b1, b2 } = _liveSlots;
-  const date = todayISO();
-  const notes = document.getElementById("live-notes")?.value.trim() || "";
   if (!a1 || !a2 || !b1 || !b2) {
     showToast("Select all 4 players first", "❌");
     return;
@@ -18286,6 +18504,14 @@ function endLiveMatch() {
     showToast("Score must be > 0", "❌");
     return;
   }
+  // Show confirmation popup — actual save happens in confirmSaveMatch()
+  openMatchSaveSheet();
+}
+
+function _commitSaveMatch() {
+  const { a1, a2, b1, b2 } = _liveSlots;
+  const date = todayISO();
+  const notes = document.getElementById("live-notes")?.value.trim() || "";
   const match = {
     teamA: [a1, a2],
     teamB: [b1, b2],
@@ -18329,7 +18555,7 @@ function endLiveMatch() {
     scoreA: _liveScoreA,
     scoreB: _liveScoreB,
   });
-  // Reset everything for next match including player slots
+  // Reset for next match
   _liveScoreA = 0;
   _liveScoreB = 0;
   _liveSlots.a1 = _liveSlots.a2 = _liveSlots.b1 = _liveSlots.b2 = null;
@@ -19021,7 +19247,7 @@ function _renderSittingOut() {
     sitting
       .map(
         (p) =>
-          `<span class="sittingout-chip">${escHtml(p.split(" ")[0])}</span>`,
+          `<span class="sittingout-chip">${escHtml(normPlayer(p))}</span>`,
       )
       .join("");
 }
@@ -19084,32 +19310,41 @@ function _buildSessionLeaderboard() {
     maxM - minM >= 2 && sorted.length >= 3
       ? `<div class="sess-fairness-warn">⚠️ ${sorted
           .filter(([, s]) => s.m === maxM)
-          .map(([n]) => n.split(" ")[0])
+          .map(([n]) => normPlayer(n))
           .join(", ")} played ${maxM - minM} more than others</div>`
       : "";
   const rows = sorted
     .map(([name, s]) => {
       const pct = s.m ? Math.round((s.w / s.m) * 100) : 0;
       return `<div class="sess-ldr-row">
-      <div class="sess-ldr-name">${escHtml(name.split(" ")[0])}</div>
+      <div class="sess-ldr-name">${escHtml(normPlayer(name))}</div>
       <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
       <div class="sess-ldr-barwrap"><div class="sess-ldr-bar" style="width:${pct}%"></div></div>
       <div class="sess-ldr-count">×${s.m}</div>
     </div>`;
     })
     .join("");
-  // Enhancement 11: full undo stack — show all session matches with undo buttons
-  const histRows = [..._sessionMatchHistory]
-    .reverse()
-    .map((mt, ri) => {
-      const i = _sessionMatchHistory.length - 1 - ri;
+  // Match log — show match numbers, with admin edit/delete/reorder controls
+  const total = _sessionMatchHistory.length;
+  const histRows = _sessionMatchHistory
+    .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
-      const tA = mt.teamA.map((p) => p.split(" ")[0]).join(" & ");
-      const tB = mt.teamB.map((p) => p.split(" ")[0]).join(" & ");
-      const isLast = i === _sessionMatchHistory.length - 1;
+      const tA = mt.teamA.map(normPlayer).join(" & ");
+      const tB = mt.teamB.map(normPlayer).join(" & ");
+      const isLast = i === total - 1;
+      const adminBtns = window.isAdmin
+        ? `<div class="sess-hist-actions">
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1)" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1)" ${i === total - 1 ? "disabled" : ""}>↓</button>
+            <button class="sess-hist-edit-btn" onclick="editSessionMatch(${i})">✏</button>
+            <button class="sess-hist-del-btn" onclick="deleteSessionMatch(${i})">🗑</button>
+           </div>`
+        : "";
       return `<div class="sess-hist-row${isLast ? " sess-hist-last" : ""}">
+      <span class="sess-hist-num">#${i + 1}</span>
       <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? "p" : "n"}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
       ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ""}
+      ${adminBtns}
     </div>`;
     })
     .join("");
@@ -19301,6 +19536,169 @@ function confirmUndoSession() {
   showToast("Last match undone ↶", "✅");
 }
 
+// ── DELETE A SESSION MATCH (admin) ──────────────────────────
+function deleteSessionMatch(histIdx) {
+  const mt = _sessionMatchHistory[histIdx];
+  if (!mt) return;
+  const key = _mkMatchKey(mt);
+  const stateIdx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  if (stateIdx !== -1) state.matches.splice(stateIdx, 1);
+  _sessionMatchHistory.splice(histIdx, 1);
+  if (_sessionPendingCount > 0) _sessionPendingCount--;
+  _updateSyncBadge();
+  _invalidateEloMemo();
+  _saveSessionState();
+  saveCloudData();
+  commit();
+  if (_sessionPanelOpen) _updateSessionPanel();
+  _updateLiveDisplay();
+  _updateLiveWinProb();
+  _updateLiveEloPreview();
+  showToast("Match removed from session", "🗑");
+}
+
+// ── EDIT A SESSION MATCH (admin) ─────────────────────────────
+function editSessionMatch(histIdx) {
+  const mt = _sessionMatchHistory[histIdx];
+  if (!mt) return;
+  const key = _mkMatchKey(mt);
+  const stateIdx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  if (stateIdx === -1) {
+    showToast("Cannot find match to edit", "❌");
+    return;
+  }
+  // Open the standard edit modal, but wire save to also sync session history
+  closeMatchEdit();
+  const players = getAllPlayerNamesFromMatches();
+  const opts = (val) =>
+    players
+      .map(
+        (p) =>
+          `<option value="${escHtml(p)}"${p === val ? " selected" : ""}>${escHtml(p)}</option>`,
+      )
+      .join("");
+  const m = state.matches[stateIdx];
+  const ov = document.createElement("div");
+  ov.id = "match-edit-modal";
+  ov.className = "match-edit-modal";
+  ov.innerHTML = `
+    <div class="mem-backdrop" onclick="closeMatchEdit()"></div>
+    <div class="mem-panel">
+      <div class="mei-header">
+        <span class="mei-title">✏ EDIT SESSION MATCH</span>
+        <button class="mei-close" onclick="closeMatchEdit()">✕</button>
+      </div>
+      <div class="mei-section-lbl">DATE</div>
+      <input id="edit-match-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${m.date || todayISO()}">
+      <div class="mei-section-lbl" style="color:var(--green)">TEAM A</div>
+      <div class="mei-row">
+        <select id="edit-a1" class="mei-sel"><option value="">P1</option>${opts(m.teamA[0])}</select>
+        <select id="edit-a2" class="mei-sel"><option value="">P2</option>${opts(m.teamA[1])}</select>
+      </div>
+      <div class="mei-section-lbl" style="color:var(--red)">TEAM B</div>
+      <div class="mei-row">
+        <select id="edit-b1" class="mei-sel"><option value="">P1</option>${opts(m.teamB[0])}</select>
+        <select id="edit-b2" class="mei-sel"><option value="">P2</option>${opts(m.teamB[1])}</select>
+      </div>
+      <div class="mei-section-lbl">SCORE</div>
+      <div class="mei-row" style="align-items:center;margin-bottom:10px">
+        <input id="edit-sa" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreA}">
+        <span style="color:var(--muted);font-weight:900;font-size:18px;padding:0 4px">–</span>
+        <input id="edit-sb" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" class="mei-input mei-score" value="${m.scoreB}">
+      </div>
+      <div class="mei-section-lbl">NOTE <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <input id="edit-note" type="text" class="mei-input" style="width:100%;margin-bottom:10px" placeholder="e.g. rainy day, semifinals…" value="${escHtml(m.note || "")}">
+      <div id="edit-match-err" style="color:var(--red);font-size:12px;margin-bottom:6px;display:none"></div>
+      <div class="mei-actions">
+        <button class="mei-cancel" onclick="closeMatchEdit()">Cancel</button>
+        <button class="mei-save" onclick="saveSessionMatchEdit(${stateIdx},${histIdx})">Save Changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      ov.querySelector(".mem-panel")?.classList.add("open"),
+    ),
+  );
+}
+
+function saveSessionMatchEdit(stateIdx, histIdx) {
+  const m = state.matches[stateIdx];
+  if (!m) return;
+  const date = document.getElementById("edit-match-date")?.value;
+  const a1 = document.getElementById("edit-a1")?.value;
+  const a2 = document.getElementById("edit-a2")?.value;
+  const b1 = document.getElementById("edit-b1")?.value;
+  const b2 = document.getElementById("edit-b2")?.value;
+  const sa = parseInt(document.getElementById("edit-sa")?.value);
+  const sb = parseInt(document.getElementById("edit-sb")?.value);
+  const note = document.getElementById("edit-note")?.value.trim();
+  const errEl = document.getElementById("edit-match-err");
+  const show = (msg) => { errEl.textContent = msg; errEl.style.display = "block"; };
+  if (!a1 || !b1) return show("Select at least P1 for each team.");
+  if (isNaN(sa) || isNaN(sb)) return show("Enter valid scores.");
+  if (sa === sb) return show("Scores cannot be equal.");
+  if (date && date > todayISO()) return show("Match date cannot be in the future.");
+  const teamA = [a1, a2].filter(Boolean);
+  const teamB = [b1, b2].filter(Boolean);
+  if (teamA.length !== teamB.length) return show("Both teams must have the same size.");
+  if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
+    return show("All players in a match must be different.");
+  m.date = date || m.date;
+  m.teamA = teamA;
+  m.teamB = teamB;
+  m.scoreA = sa;
+  m.scoreB = sb;
+  if (note) m.note = note; else delete m.note;
+  // Sync the session history entry
+  const hist = _sessionMatchHistory[histIdx];
+  if (hist) {
+    hist.date = m.date;
+    hist.teamA = [...teamA];
+    hist.teamB = [...teamB];
+    hist.scoreA = sa;
+    hist.scoreB = sb;
+    if (note) hist.note = note; else delete hist.note;
+  }
+  _invalidateEloMemo();
+  _saveSessionState();
+  saveCloudData();
+  closeMatchEdit();
+  commit();
+  if (_sessionPanelOpen) _updateSessionPanel();
+}
+
+// ── REORDER A SESSION MATCH (admin) ─────────────────────────
+// direction: -1 = move earlier (up), +1 = move later (down)
+function moveSessionMatch(histIdx, direction) {
+  const targetIdx = histIdx + direction;
+  if (targetIdx < 0 || targetIdx >= _sessionMatchHistory.length) return;
+
+  // Swap in history
+  const tmp = _sessionMatchHistory[histIdx];
+  _sessionMatchHistory[histIdx] = _sessionMatchHistory[targetIdx];
+  _sessionMatchHistory[targetIdx] = tmp;
+
+  // Mirror the swap in state.matches (session matches only)
+  const keyA = _mkMatchKey(_sessionMatchHistory[histIdx]);
+  const keyB = _mkMatchKey(_sessionMatchHistory[targetIdx]);
+  const idxA = state.matches.findIndex((m) => _mkMatchKey(m) === keyA);
+  const idxB = state.matches.findIndex((m) => _mkMatchKey(m) === keyB);
+  if (idxA !== -1 && idxB !== -1) {
+    const tmpM = state.matches[idxA];
+    state.matches[idxA] = state.matches[idxB];
+    state.matches[idxB] = tmpM;
+  }
+
+  // ELO depends on match order — invalidate and re-commit
+  _invalidateEloMemo();
+  _saveSessionState();
+  saveCloudData();
+  commit();
+  if (_sessionPanelOpen) _updateSessionPanel();
+  _renderLiveSessionDashboard();
+}
+
 // ── REDO LAST UNDONE SESSION MATCH ───────────────────────────
 function redoSessionMatch() {
   if (!_sessionRedoStack.length) {
@@ -19390,16 +19788,24 @@ function openSessionSummary() {
         `<div class="sess-sum-player">${sheetAvSm(name)}<span class="sess-sum-pname">${escHtml(name)}</span><span class="sess-sum-wl">${s.w}W–${s.l}L</span></div>`,
     )
     .join("");
+  const _smTotal = _sessionMatchHistory.length;
   const matchesHtml =
-    _sessionMatchHistory.length === 0
+    _smTotal === 0
       ? '<div style="font-size:11px;color:var(--muted);padding:8px 0">No matches played</div>'
       : _sessionMatchHistory
           .map((mt, i) => {
             const aWon = mt.scoreA > mt.scoreB;
+            const adminBtns = window.isAdmin
+              ? `<div class="sess-hist-actions">
+                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1);openSessionSummary()" ${i === 0 ? "disabled" : ""}>↑</button>
+                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1);openSessionSummary()" ${i === _smTotal - 1 ? "disabled" : ""}>↓</button>
+                </div>`
+              : "";
             return `<div class="sess-sum-match">
           <div class="sess-sum-match-num">${i + 1}</div>
-          <div class="sess-sum-match-teams">${escHtml(mt.teamA.join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.join(" & "))}</div>
+          <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
           <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+          ${adminBtns}
         </div>`;
           })
           .join("");
@@ -19409,7 +19815,7 @@ function openSessionSummary() {
     <div class="sess-sum-meta">
       <div class="sess-sum-stat"><div class="sess-sum-val">${_sessionMatchHistory.length}</div><div class="sess-sum-lbl">MATCHES</div></div>
       <div class="sess-sum-stat"><div class="sess-sum-val">${dur}</div><div class="sess-sum-lbl">DURATION</div></div>
-      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(mvp[0].split(" ")[0])}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ""}
+      ${mvp ? `<div class="sess-sum-stat"><div class="sess-sum-val">${escHtml(normPlayer(mvp[0]))}</div><div class="sess-sum-lbl">MVP · ${mvp[1].w}W</div></div>` : ""}
     </div>
     <div class="sess-sum-section-title">PLAYERS</div>
     <div class="sess-sum-players">${playersHtml}</div>
@@ -19455,7 +19861,7 @@ function _renderLiveSessionDashboard() {
     const sr = eloToSr(sessionEloMap[p.name] || 1000).toFixed(2);
     return `<tr class="live-sdash-tr">
       <td style="color:${rankColor(i)};font-weight:900">${i + 1}</td>
-      <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(p.name.split(" ")[0])}</span></td>
+      <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(normPlayer(p.name))}</span></td>
       <td>${p.mp}</td>
       <td style="white-space:nowrap">${p.mw}–${ml}</td>
       <td>${winPct}%</td>
@@ -19466,14 +19872,21 @@ function _renderLiveSessionDashboard() {
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
-  const matchesHtml = [..._sessionMatchHistory].reverse()
+  const _dTotal = _sessionMatchHistory.length;
+  const matchesHtml = _sessionMatchHistory
     .map((mt, i) => {
-      const num = _sessionMatchHistory.length - i;
       const aWon = mt.scoreA > mt.scoreB;
+      const adminBtns = window.isAdmin
+        ? `<div class="sess-hist-actions">
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1)" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1)" ${i === _dTotal - 1 ? "disabled" : ""}>↓</button>
+          </div>`
+        : "";
       return `<div class="sess-sum-match">
-        <div class="sess-sum-match-num">${num}</div>
-        <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(n => n.split(" ")[0]).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(n => n.split(" ")[0]).join(" & "))}</div>
+        <div class="sess-sum-match-num">${i + 1}</div>
+        <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
         <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+        ${adminBtns}
       </div>`;
     })
     .join("");
@@ -19530,7 +19943,7 @@ function _syncLiveSessionBar() {
       chipsEl.innerHTML = (d.sessionPlayers || [])
         .map(
           (p) =>
-            `<span class="live-session-chip">${escHtml(p.split(" ")[0])}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ""}</span>`,
+            `<span class="live-session-chip">${escHtml(normPlayer(p))}${counts[p] > 0 ? `<span class="sess-chip-count"> ×${counts[p]}</span>` : ""}</span>`,
         )
         .join("");
     }
@@ -21180,14 +21593,14 @@ function openMatchConfirmSheet() {
     el.innerHTML = `<div class="mcm-wrap">
       <div class="mcm-corner mcm-corner-a">
         <div class="mcm-label">RED CORNER</div>
-        <div class="mcm-name">${escHtml(a1?.split(" ")[0] || "—")}</div>
-        <div class="mcm-name">${escHtml(a2?.split(" ")[0] || "—")}</div>
+        <div class="mcm-name">${escHtml(normPlayer(a1) || "—")}</div>
+        <div class="mcm-name">${escHtml(normPlayer(a2) || "—")}</div>
       </div>
       <div class="mcm-vs">VS</div>
       <div class="mcm-corner mcm-corner-b">
         <div class="mcm-label">BLUE CORNER</div>
-        <div class="mcm-name">${escHtml(b1?.split(" ")[0] || "—")}</div>
-        <div class="mcm-name">${escHtml(b2?.split(" ")[0] || "—")}</div>
+        <div class="mcm-name">${escHtml(normPlayer(b1) || "—")}</div>
+        <div class="mcm-name">${escHtml(normPlayer(b2) || "—")}</div>
       </div>
     </div>`;
   }
@@ -21218,12 +21631,26 @@ function openMatchSaveSheet() {
   const { a1, a2, b1, b2 } = _liveSlots;
   if (el) {
     const aWon = _liveScoreA > _liveScoreB;
-    const winner = aWon
-      ? `${a1?.split(" ")[0] || "?"} & ${a2?.split(" ")[0] || "?"}`
-      : `${b1?.split(" ")[0] || "?"} & ${b2?.split(" ")[0] || "?"}`;
+    const na1 = normPlayer(a1) || "?", na2 = normPlayer(a2) || "?";
+    const nb1 = normPlayer(b1) || "?", nb2 = normPlayer(b2) || "?";
+    const winTeam = aWon ? `${na1} & ${na2}` : `${nb1} & ${nb2}`;
+    const loseTeam = aWon ? `${nb1} & ${nb2}` : `${na1} & ${na2}`;
+    const winScore = aWon ? _liveScoreA : _liveScoreB;
+    const loseScore = aWon ? _liveScoreB : _liveScoreA;
     el.innerHTML = `<div class="msr-result">
-      <div class="msr-score">${_liveScoreA} — ${_liveScoreB}</div>
-      <div class="msr-winner">🏆 ${escHtml(winner)}</div>
+      <div class="msr-matchup">
+        <div class="msr-side msr-win">
+          <div class="msr-side-label">🏆 WINNER</div>
+          <div class="msr-side-name">${escHtml(winTeam)}</div>
+          <div class="msr-side-score msr-score-win">${winScore}</div>
+        </div>
+        <div class="msr-divider">–</div>
+        <div class="msr-side msr-lose">
+          <div class="msr-side-label">LOST</div>
+          <div class="msr-side-name">${escHtml(loseTeam)}</div>
+          <div class="msr-side-score msr-score-lose">${loseScore}</div>
+        </div>
+      </div>
     </div>`;
   }
   const rematchBtn = document.getElementById("live-save-rematch-btn");
@@ -21246,7 +21673,7 @@ function closeMatchSaveSheet() {
 
 function confirmSaveMatch() {
   closeMatchSaveSheet();
-  endLiveMatch();
+  _commitSaveMatch();
 }
 
 function keepPlayingMatch() {
@@ -21288,7 +21715,7 @@ function _buildBannerContent(type, title, subtitle, data) {
       <div class="live-banner-corner-a${isEnd && !aWon ? " live-banner-corner-dim" : ""}">
         <div class="live-banner-corner-label">RED CORNER</div>
         <div class="lbf-avatars">${aAvatars}</div>
-        ${teamA.map((p) => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${teamA.map((p) => `<div class="live-banner-player">${escHtml(normPlayer(p))}</div>`).join("")}
         ${isEnd ? `<div class="live-banner-corner-score${aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreA}</div>` : ""}
         ${isEnd && aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
@@ -21301,7 +21728,7 @@ function _buildBannerContent(type, title, subtitle, data) {
       <div class="live-banner-corner-b${isEnd && aWon ? " live-banner-corner-dim" : ""}">
         <div class="live-banner-corner-label">BLUE CORNER</div>
         <div class="lbf-avatars">${bAvatars}</div>
-        ${teamB.map((p) => `<div class="live-banner-player">${escHtml(p.split(" ")[0])}</div>`).join("")}
+        ${teamB.map((p) => `<div class="live-banner-player">${escHtml(normPlayer(p))}</div>`).join("")}
         ${isEnd ? `<div class="live-banner-corner-score${!aWon ? " lbf-score-win" : " lbf-score-lose"}">${scoreB}</div>` : ""}
         ${isEnd && !aWon ? `<div class="lbf-trophy">🏆</div>` : ""}
       </div>
