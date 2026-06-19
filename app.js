@@ -19849,6 +19849,14 @@ function closeSessionSummary() {
     ?.classList.remove("live-sheet-open");
 }
 
+window._openSessionMatchIntro = function(histIdx) {
+  const mt = _sessionMatchHistory[histIdx];
+  if (!mt) return;
+  const key = _mkMatchKey(mt);
+  const idx = state.matches.findIndex(m => _mkMatchKey(m) === key);
+  if (idx >= 0) openMatchIntro(idx);
+};
+
 function _renderLiveSessionDashboard() {
   const el = document.getElementById("live-session-dashboard");
   if (!el) return;
@@ -19902,21 +19910,18 @@ function _renderLiveSessionDashboard() {
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
-  const _dTotal = history.length;
   const matchesHtml = history
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
-      const adminBtns = window.isAdmin
-        ? `<div class="sess-hist-actions">
-            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1)" ${i === 0 ? "disabled" : ""}>↑</button>
-            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1)" ${i === _dTotal - 1 ? "disabled" : ""}>↓</button>
-          </div>`
-        : "";
-      return `<div class="sess-sum-match">
-        <div class="sess-sum-match-num">${i + 1}</div>
-        <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
-        <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
-        ${adminBtns}
+      const histIdx = _sessionMatchHistory.indexOf(mt);
+      return `<div class="smr-wrap">
+        <div class="smr-inner sess-sum-match" onclick="window._openSessionMatchIntro(${histIdx})">
+          <div class="sess-sum-match-num">${i + 1}</div>
+          <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
+          <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+        </div>
+        <div class="smr-edit-reveal" onclick="event.stopPropagation();editSessionMatch(${histIdx})" title="Edit">✏️</div>
+        <div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteSessionMatch(${histIdx})" title="Delete">🗑</div>
       </div>`;
     })
     .join("");
