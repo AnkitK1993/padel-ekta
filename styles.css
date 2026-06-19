@@ -10827,14 +10827,6 @@ select.cmp-sel:hover,
   padding: 0 0 20px;
 }
 
-/* Header */
-.live-ufc-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
 .live-back-btn {
   background: none;
   border: none;
@@ -10849,6 +10841,10 @@ select.cmp-sel:hover,
 }
 .live-back-btn:hover {
   color: var(--text);
+}
+.live-back-topleft {
+  align-self: flex-start;
+  padding: 12px 16px 2px;
 }
 .live-live-badge {
   display: flex;
