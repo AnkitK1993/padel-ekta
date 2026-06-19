@@ -18216,8 +18216,6 @@ function _openLiveModeImpl() {
   const today = todayISO();
   const dateEl = document.getElementById("live-date");
   if (dateEl) dateEl.value = today;
-  const notesEl = document.getElementById("live-notes");
-  if (notesEl) notesEl.value = "";
   _updateLiveDisplay();
   _updateLiveWinProb();
   _updateLiveEloPreview();
@@ -18515,7 +18513,6 @@ function endLiveMatch() {
 function _commitSaveMatch() {
   const { a1, a2, b1, b2 } = _liveSlots;
   const date = todayISO();
-  const notes = document.getElementById("live-notes")?.value.trim() || "";
   const match = {
     teamA: [a1, a2],
     teamB: [b1, b2],
@@ -18523,7 +18520,6 @@ function _commitSaveMatch() {
     scoreB: _liveScoreB,
     date,
   };
-  if (notes) match.note = notes;
   state.matches.push(match);
   mirrorMatchToEditor(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;

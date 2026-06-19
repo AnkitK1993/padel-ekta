@@ -11092,29 +11092,6 @@ select.cmp-sel:hover,
 }
 
 /* Notes */
-.live-notes-wrap {
-  padding: 0 12px 10px;
-}
-.live-notes-ta {
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  color: var(--text);
-  font-size: 12px;
-  font-family: "DM Sans", sans-serif;
-  padding: 6px 12px;
-  height: 36px;
-  min-height: 0;
-  resize: none;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.live-notes-ta::placeholder {
-  color: var(--muted);
-}
-
 /* ── Summary date FAB (capsule) ──────────────── */
 .summary-filter-bar {
   padding: 7px 12px !important;
@@ -11147,10 +11124,6 @@ select.cmp-sel:hover,
   letter-spacing: 0.12em;
   color: var(--theme);
 }
-.live-notes-ta:focus {
-  border-color: rgba(var(--theme-rgb), 0.3);
-}
-
 /* Save button */
 .live-end-btn {
   display: flex;
