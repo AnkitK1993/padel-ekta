@@ -19956,15 +19956,11 @@ function _renderLiveSessionDashboard() {
       const teamBStr = escHtml(mt.teamB.map(normPlayer).join(" & "));
       return `<div class="smr-wrap">
         <div class="smr-inner ssm-row" onclick="window._openSessionMatchIntro(${histIdx})">
-          <div class="ssm-side ssm-side-a">
-            <span class="ssm-names">${teamAStr}</span>
-            ${delta ? fmtD(delta.dA) : ""}
-          </div>
+          <div class="ssm-side ssm-side-a"><span class="ssm-names">${teamAStr}</span></div>
+          ${delta ? fmtD(delta.dA) : ""}
           <div class="ssm-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
-          <div class="ssm-side ssm-side-b">
-            <span class="ssm-names">${teamBStr}</span>
-            ${delta ? fmtD(delta.dB) : ""}
-          </div>
+          ${delta ? fmtD(delta.dB) : ""}
+          <div class="ssm-side ssm-side-b"><span class="ssm-names">${teamBStr}</span></div>
         </div>
         <div class="smr-edit-reveal" onclick="event.stopPropagation();editSessionMatch(${histIdx})" title="Edit">✏️</div>
         <div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteSessionMatch(${histIdx})" title="Delete">🗑</div>
