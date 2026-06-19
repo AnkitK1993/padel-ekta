@@ -16916,13 +16916,49 @@ body.amethyst-mode #themeBtn {
   font-weight: 900;
   flex-shrink: 0;
 }
-.sess-sum-match-elo {
-  font-size: 9px;
-  font-weight: 700;
-  flex-shrink: 0;
+/* ── MATCHES PLAYED row (ssm) ─────────────── */
+.ssm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  width: 100%;
+}
+.ssm-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ssm-side-a {
+  align-items: flex-start;
+}
+.ssm-side-b {
+  align-items: flex-end;
   text-align: right;
-  letter-spacing: 0.03em;
-  padding-left: 4px;
+}
+.ssm-names {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.ssm-elo {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.ssm-score {
+  font-size: 13px;
+  font-weight: 900;
+  flex-shrink: 0;
+  text-align: center;
+  letter-spacing: -0.5px;
 }
 
 /* ── SESSION SETUP / PLAYER CHIP ─────────── */

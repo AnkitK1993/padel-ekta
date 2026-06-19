@@ -19951,19 +19951,20 @@ function _renderLiveSessionDashboard() {
       const aWon = mt.scoreA > mt.scoreB;
       const histIdx = _sessionMatchHistory.indexOf(mt);
       const delta = _atDeltaMap.get(_mkMatchKey(mt));
-      const eloHtml = delta
-        ? `<div class="sess-sum-match-elo">
-            <span style="color:${delta.dA >= 0 ? "var(--green)" : "var(--red)"}">${delta.dA >= 0 ? "+" : ""}${delta.dA}</span>
-            <span class="sess-sum-vs">/</span>
-            <span style="color:${delta.dB >= 0 ? "var(--green)" : "var(--red)"}">${delta.dB >= 0 ? "+" : ""}${delta.dB}</span>
-          </div>`
-        : "";
+      const fmtD = (d) => d == null ? "" : `<span class="ssm-elo" style="color:${d >= 0 ? "var(--green)" : "var(--red)"}">${d >= 0 ? "+" : ""}${d}</span>`;
+      const teamAStr = escHtml(mt.teamA.map(normPlayer).join(" & "));
+      const teamBStr = escHtml(mt.teamB.map(normPlayer).join(" & "));
       return `<div class="smr-wrap">
-        <div class="smr-inner sess-sum-match" onclick="window._openSessionMatchIntro(${histIdx})">
-          <div class="sess-sum-match-num">${i + 1}</div>
-          <div class="sess-sum-match-teams">${escHtml(mt.teamA.map(normPlayer).join(" & "))} <span class="sess-sum-vs">vs</span> ${escHtml(mt.teamB.map(normPlayer).join(" & "))}</div>
-          <div class="sess-sum-match-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
-          ${eloHtml}
+        <div class="smr-inner ssm-row" onclick="window._openSessionMatchIntro(${histIdx})">
+          <div class="ssm-side ssm-side-a">
+            <span class="ssm-names">${teamAStr}</span>
+            ${delta ? fmtD(delta.dA) : ""}
+          </div>
+          <div class="ssm-score" style="color:${aWon ? "var(--green)" : "var(--red)"}">${mt.scoreA}–${mt.scoreB}</div>
+          <div class="ssm-side ssm-side-b">
+            <span class="ssm-names">${teamBStr}</span>
+            ${delta ? fmtD(delta.dB) : ""}
+          </div>
         </div>
         <div class="smr-edit-reveal" onclick="event.stopPropagation();editSessionMatch(${histIdx})" title="Edit">✏️</div>
         <div class="swipe-delete-reveal" onclick="event.stopPropagation();deleteSessionMatch(${histIdx})" title="Delete">🗑</div>
