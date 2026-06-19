@@ -18163,7 +18163,6 @@ Object.assign(window, {
   closeRemovePlayerSheet,
   removePlayerFromSession,
   toggleSessionPanel,
-  toggleSdashGuests,
   suggestNextMatch,
   undoSessionMatch,
   redoSessionMatch,
