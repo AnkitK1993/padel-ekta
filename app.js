@@ -18156,6 +18156,8 @@ Object.assign(window, {
   resumeSession,
   discardResumeSession,
   _renderSessionActiveCard,
+  openPlayerPickerSheet,
+  closePlayerPickerSheet,
   openAddPlayerSheet,
   closeAddPlayerSheet,
   addPlayerToSession,
@@ -21407,6 +21409,16 @@ function confirmSessionStart() {
 
 async function endLiveSession() {
   openSessionSummary();
+}
+
+function openPlayerPickerSheet() {
+  document.getElementById("player-picker-overlay").style.display = "block";
+  document.getElementById("player-picker-sheet").classList.add("live-sheet-open");
+}
+function closePlayerPickerSheet() {
+  document.getElementById("player-picker-sheet")?.classList.remove("live-sheet-open");
+  const ov = document.getElementById("player-picker-overlay");
+  if (ov) ov.style.display = "none";
 }
 
 function openAddPlayerSheet() {

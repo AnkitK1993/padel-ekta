@@ -1132,8 +1132,7 @@ Puneet - Pun, PK
             <span class="live-session-timer" id="live-session-timer">00:00</span>
           </div>
           <div style="display:flex;gap:5px">
-            <button class="live-add-player-btn" onclick="openAddPlayerSheet()">+ PLAYER</button>
-            <button class="live-add-player-btn live-remove-player-btn" onclick="openRemovePlayerSheet()">− PLAYER</button>
+            <button class="live-add-player-btn" onclick="openPlayerPickerSheet()">PLAYER</button>
             <button class="live-end-session-btn" onclick="endLiveSession()">END</button>
           </div>
         </div>
@@ -1349,6 +1348,18 @@ Puneet - Pun, PK
       </div>
 
       <!-- Add Player Mid-Session Sheet -->
+      <!-- Player Picker Sheet -->
+      <div class="live-sheet-overlay" id="player-picker-overlay" onclick="closePlayerPickerSheet()"></div>
+      <div class="live-sheet" role="dialog" aria-modal="true" id="player-picker-sheet">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-title">PLAYER</div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding:4px 14px 14px">
+          <button class="live-start-session-btn" onclick="closePlayerPickerSheet();openAddPlayerSheet()">+ ADD PLAYER</button>
+          <button class="live-start-session-btn" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171" onclick="closePlayerPickerSheet();openRemovePlayerSheet()">− REMOVE PLAYER</button>
+        </div>
+        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      </div>
+
       <div class="live-sheet-overlay" id="add-player-overlay" onclick="closeAddPlayerSheet()"></div>
       <div class="live-sheet" role="dialog" aria-modal="true" id="add-player-sheet">
         <div class="live-sheet-handle"></div>
