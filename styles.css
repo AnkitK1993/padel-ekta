@@ -10842,10 +10842,6 @@ select.cmp-sel:hover,
 .live-back-btn:hover {
   color: var(--text);
 }
-.live-back-topleft {
-  align-self: flex-start;
-  padding: 12px 16px 2px;
-}
 .live-live-badge {
   display: flex;
   align-items: center;
