@@ -19844,11 +19844,24 @@ function closeSessionSummary() {
 function _renderLiveSessionDashboard() {
   const el = document.getElementById("live-session-dashboard");
   if (!el) return;
-  if (!_liveSessionData?.sessionActive || _sessionMatchHistory.length === 0) {
+  if (!_liveSessionData?.sessionActive) {
     el.style.display = "none";
     return;
   }
+  const wasHidden = el.style.display === "none";
   el.style.display = "";
+
+  if (_sessionMatchHistory.length === 0) {
+    el.innerHTML = `
+      <div class="live-sdash-section">SCOREBOARD</div>
+      <div style="text-align:center;padding:14px 0 8px;color:var(--muted);font-size:11px;letter-spacing:0.05em">Save a match to see standings</div>`;
+    return;
+  }
+
+  // Scroll into view when the first match is saved
+  if (wasHidden || _sessionMatchHistory.length === 1)
+    requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+
   // Session ELO: everyone starts at 1000, computed from today's session matches only
   const sessionEloMap = computeElo(_sessionMatchHistory);
   const stats = computeStats(_sessionMatchHistory, sessionEloMap)
@@ -19894,7 +19907,7 @@ function _renderLiveSessionDashboard() {
     })
     .join("");
   el.innerHTML = `
-    <div class="live-sdash-section">LEADERBOARD</div>
+    <div class="live-sdash-section">SCOREBOARD</div>
     <div class="live-sdash-table-wrap">
       <table class="live-sdash-table">
         <thead><tr>
@@ -19904,7 +19917,7 @@ function _renderLiveSessionDashboard() {
         <tbody>${tableRows}</tbody>
       </table>
     </div>
-    <div class="live-sdash-section" style="margin-top:14px">MATCHES</div>
+    <div class="live-sdash-section" style="margin-top:14px">MATCHES PLAYED</div>
     <div class="sess-sum-matches">${matchesHtml}</div>`;
 }
 
@@ -21317,6 +21330,7 @@ function confirmSessionStart() {
   _startSessionTimer();
   _saveSessionState();
   _renderSessionActiveCard();
+  _renderLiveSessionDashboard();
   _liveHaptic([20, 50, 20]);
   _notifyLiveEvent(
     "session_start",
