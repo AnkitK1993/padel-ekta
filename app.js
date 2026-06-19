@@ -21412,13 +21412,12 @@ async function endLiveSession() {
 }
 
 function openPlayerPickerSheet() {
-  document.getElementById("player-picker-overlay").style.display = "block";
-  document.getElementById("player-picker-sheet").classList.add("live-sheet-open");
+  document.getElementById("spa-overlay")?.classList.add("open");
+  document.getElementById("spa-modal")?.classList.add("open");
 }
 function closePlayerPickerSheet() {
-  document.getElementById("player-picker-sheet")?.classList.remove("live-sheet-open");
-  const ov = document.getElementById("player-picker-overlay");
-  if (ov) ov.style.display = "none";
+  document.getElementById("spa-overlay")?.classList.remove("open");
+  document.getElementById("spa-modal")?.classList.remove("open");
 }
 
 function openAddPlayerSheet() {

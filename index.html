@@ -1348,16 +1348,16 @@ Puneet - Pun, PK
       </div>
 
       <!-- Add Player Mid-Session Sheet -->
-      <!-- Player Picker Sheet -->
-      <div class="live-sheet-overlay" id="player-picker-overlay" onclick="closePlayerPickerSheet()"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="player-picker-sheet">
-        <div class="live-sheet-handle"></div>
-        <div class="live-sheet-title">PLAYER</div>
-        <div style="display:flex;flex-direction:column;gap:10px;padding:4px 14px 14px">
-          <button class="live-start-session-btn" onclick="closePlayerPickerSheet();openAddPlayerSheet()">+ ADD PLAYER</button>
-          <button class="live-start-session-btn" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171" onclick="closePlayerPickerSheet();openRemovePlayerSheet()">− REMOVE PLAYER</button>
-        </div>
-        <div style="height:max(14px,env(safe-area-inset-bottom))"></div>
+      <!-- Session Player Action Modal (centred popup) -->
+      <div class="spa-overlay" id="spa-overlay" onclick="closePlayerPickerSheet()"></div>
+      <div class="spa-modal" id="spa-modal" role="dialog" aria-modal="true">
+        <div class="spa-title">PLAYER</div>
+        <button class="spa-btn spa-btn-add" onclick="closePlayerPickerSheet();openAddPlayerSheet()">
+          <span class="spa-btn-icon">+</span><span>ADD PLAYER</span>
+        </button>
+        <button class="spa-btn spa-btn-remove" onclick="closePlayerPickerSheet();openRemovePlayerSheet()">
+          <span class="spa-btn-icon">−</span><span>REMOVE PLAYER</span>
+        </button>
       </div>
 
       <div class="live-sheet-overlay" id="add-player-overlay" onclick="closeAddPlayerSheet()"></div>
