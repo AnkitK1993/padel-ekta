@@ -1,4 +1,4 @@
-const STATIC_CACHE = "ekta-padel-static-v14";
+const STATIC_CACHE = "ekta-padel-static-v15";
 const RUNTIME_CACHE = "ekta-padel-runtime-v2";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;

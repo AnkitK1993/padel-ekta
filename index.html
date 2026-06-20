@@ -1740,61 +1740,86 @@ Puneet - Pun, PK
         });
 
         // ── Non-disruptive update flow ──────────────────────────────
-        // The SW posts NEW_BUILD when a fresh deploy is cached. Instead of
-        // reloading immediately (which can interrupt live scoring, typing a
-        // match, or a share), apply it only when it won't yank the user.
+        // The SW posts NEW_BUILD when a fresh deploy is fully cached.
+        // We show a persistent banner the user must tap — never auto-reload
+        // mid-action. On click the banner dismisses itself and reloads into
+        // the freshly-populated cache, eliminating the need to clear history.
         let _updateReady = false;
         function _showUpdateBanner() {
-          if (document.getElementById("update-banner")) return;
+          var existing = document.getElementById("update-banner");
+          if (existing) return; // already visible
           var b = document.createElement("div");
           b.id = "update-banner";
-          b.textContent = "🔄 New version available — tap to refresh";
+          b.innerHTML = "🔄 <strong>New update available</strong> — tap to refresh";
           b.style.cssText =
-            "position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99999;" +
-            "background:#18d7ff;color:#04121a;font:600 13px/1.2 system-ui,sans-serif;" +
-            "padding:11px 18px;border-radius:999px;box-shadow:0 6px 22px rgba(0,0,0,.45);" +
-            "cursor:pointer;max-width:90vw;text-align:center";
+            "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);" +
+            "z-index:99999;background:#18d7ff;color:#04121a;" +
+            "font:600 13px/1.4 system-ui,sans-serif;" +
+            "padding:13px 22px;border-radius:999px;" +
+            "box-shadow:0 6px 28px rgba(0,0,0,.55);" +
+            "cursor:pointer;max-width:90vw;text-align:center;" +
+            "animation:_ub-in .3s cubic-bezier(.22,1,.36,1) both";
+          // inject keyframe once
+          if (!document.getElementById("_ub-style")) {
+            var s = document.createElement("style");
+            s.id = "_ub-style";
+            s.textContent = "@keyframes _ub-in{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}";
+            document.head.appendChild(s);
+          }
           b.onclick = function () {
-            b.textContent = "Updating…";
+            b.innerHTML = "⏳ Updating…";
             b.style.opacity = "0.7";
             b.style.pointerEvents = "none";
-            // Brief delay lets the SW finish any in-flight cache writes
-            // before we reload into the freshly-populated cache.
-            setTimeout(function () { window.location.reload(); }, 400);
+            _updateReady = false;
+            setTimeout(function () { window.location.reload(); }, 350);
           };
           document.body.appendChild(b);
         }
+        function _hideUpdateBanner() {
+          var b = document.getElementById("update-banner");
+          if (b) b.remove();
+        }
         function _applyUpdateWhenSafe() {
-          var busy =
-            typeof window.isAppBusy === "function" && window.isAppBusy();
+          _updateReady = true;
+          var busy = typeof window.isAppBusy === "function" && window.isAppBusy();
+          // Hidden and not busy → silently reload in the background
           if (document.visibilityState === "hidden" && !busy) {
             window.location.reload();
           } else {
-            _updateReady = true;
             _showUpdateBanner();
           }
         }
         navigator.serviceWorker.addEventListener("message", function (e) {
           if (e.data && e.data.type === "NEW_BUILD") _applyUpdateWhenSafe();
         });
-        // A queued update applies the moment the user looks away.
+        // A queued update applies the moment the user switches away
         document.addEventListener("visibilitychange", function () {
-          if (_updateReady && document.visibilityState === "hidden")
-            window.location.reload();
-        });
-
-        // ── Proactively check for updates (installed PWA stays open) ──
-        function _askCheck() {
-          if (navigator.serviceWorker.controller)
-            navigator.serviceWorker.controller.postMessage({
-              type: "CHECK_UPDATE",
-            });
-        }
-        window.addEventListener("focus", _askCheck);
-        document.addEventListener("visibilitychange", function () {
+          if (_updateReady && document.visibilityState === "hidden") {
+            var busy = typeof window.isAppBusy === "function" && window.isAppBusy();
+            if (!busy) window.location.reload();
+          }
           if (document.visibilityState === "visible") _askCheck();
         });
-        setInterval(_askCheck, 60 * 60 * 1000); // hourly while open
+
+        // ── Proactively check for updates ────────────────────────────
+        // Guard: controller may be null on first load (SW just installed).
+        // We retry once the SW takes control via controllerchange.
+        function _askCheck() {
+          if (navigator.serviceWorker.controller)
+            navigator.serviceWorker.controller.postMessage({ type: "CHECK_UPDATE" });
+        }
+        // Fire once SW becomes controller (covers the very first install
+        // and also the moment a waiting SW activates after skipWaiting).
+        navigator.serviceWorker.addEventListener("controllerchange", function () {
+          setTimeout(_askCheck, 200);
+        });
+        // Also check ~3 s after page load (controller is usually ready by then)
+        window.addEventListener("load", function () {
+          setTimeout(_askCheck, 3000);
+        });
+        window.addEventListener("focus", _askCheck);
+        // Poll every 5 minutes — fast enough to surface a deploy within one session
+        setInterval(_askCheck, 5 * 60 * 1000);
       }
 
       // In-app install prompt
