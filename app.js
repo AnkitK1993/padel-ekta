@@ -14235,12 +14235,24 @@ function wrcOnSlider() {
   const newL  = newMp - newW;
   const newWR = Math.round((newW / newMp) * 100);
 
-  // ELO gain estimate: K=32, vs average opponent ELO
+  // ELO gain estimate: K=32, vs match-frequency-weighted average opponent ELO.
+  // Players who appear in more matches are more likely to be faced, so their
+  // ELO carries proportionally more weight in the average.
   const eloMap  = _memoElo();
   const myElo   = eloMap[name] || 1000;
-  const others  = Object.entries(eloMap).filter(([p]) => p !== name);
-  const avgOpp  = others.length
-    ? others.reduce((s, [, v]) => s + v, 0) / others.length
+  const allMs   = activeMatches();
+  // Count how many matches each opponent played (excluding the player themselves)
+  const oppCount = {};
+  allMs.forEach((m) => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      const cn = normPlayer(p);
+      if (cn !== name) oppCount[cn] = (oppCount[cn] || 0) + 1;
+    });
+  });
+  const oppEntries = Object.entries(oppCount);
+  const totalOppMatches = oppEntries.reduce((s, [, c]) => s + c, 0);
+  const avgOpp = oppEntries.length && totalOppMatches > 0
+    ? oppEntries.reduce((s, [p, c]) => s + (eloMap[p] || 1000) * c, 0) / totalOppMatches
     : 1000;
   const expected = 1 / (1 + Math.pow(10, (avgOpp - myElo) / 400));
   const eloGain  = Math.round(futureWins * 32 * (1 - expected) + futureLosses * 32 * (0 - expected));
