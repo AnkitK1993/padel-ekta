@@ -14188,9 +14188,9 @@ function wrcSelectPlayer(name) {
   document.getElementById("wrc-cur-wr").textContent = `${wr}%`;
 
   const tSlider = document.getElementById("wrc-target");
-  if (tSlider) { tSlider.min = Math.min(wr + 2, 99); tSlider.max = 99; tSlider.value = Math.min(wr + 5, 95); }
+  if (tSlider) { tSlider.min = Math.min(wr + 1, 99); tSlider.max = 99; tSlider.value = Math.min(wr + 5, 95); }
   const fSlider = document.getElementById("wrc-future");
-  if (fSlider) { fSlider.min = wr + 2; fSlider.max = 100; fSlider.value = Math.min(Math.max(80, wr + 10), 100); }
+  if (fSlider) { fSlider.min = wr + 1; fSlider.max = 100; fSlider.value = Math.min(Math.max(80, wr + 10), 100); }
 
   document.getElementById("wrc-popup-overlay").classList.add("wrc-popup-open");
   wrcOnSlider();
