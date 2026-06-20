@@ -14229,9 +14229,25 @@ function wrcOnSlider() {
     return;
   }
   const newMp = mp + n;
-  const newW  = mw + Math.round(n * futureWR);
+  const futureWins  = Math.round(n * futureWR);
+  const futureLosses = n - futureWins;
+  const newW  = mw + futureWins;
   const newL  = newMp - newW;
   const newWR = Math.round((newW / newMp) * 100);
+
+  // ELO gain estimate: K=32, vs average opponent ELO
+  const eloMap  = _memoElo();
+  const myElo   = eloMap[name] || 1000;
+  const others  = Object.entries(eloMap).filter(([p]) => p !== name);
+  const avgOpp  = others.length
+    ? others.reduce((s, [, v]) => s + v, 0) / others.length
+    : 1000;
+  const expected = 1 / (1 + Math.pow(10, (avgOpp - myElo) / 400));
+  const eloGain  = Math.round(futureWins * 32 * (1 - expected) + futureLosses * 32 * (0 - expected));
+  const finalElo = myElo + eloGain;
+  const eloSign  = eloGain >= 0 ? "+" : "";
+  const eloCol   = eloGain > 0 ? "var(--green)" : eloGain < 0 ? "var(--red)" : "var(--muted)";
+
   resEl.innerHTML = `
     <div class="wrc-result-hero">
       <span class="wrc-result-n">${n}</span>
@@ -14242,6 +14258,10 @@ function wrcOnSlider() {
       <div class="wrc-rg-cell wrc-rg-win"><div class="wrc-rg-label">NEW WINS</div><div class="wrc-rg-val">${newW}</div></div>
       <div class="wrc-rg-cell wrc-rg-lose"><div class="wrc-rg-label">NEW LOSSES</div><div class="wrc-rg-val">${newL}</div></div>
       <div class="wrc-rg-cell wrc-rg-hl"><div class="wrc-rg-label">FINAL W%</div><div class="wrc-rg-val">${newWR}%</div></div>
+      <div class="wrc-rg-cell" style="grid-column:span 2">
+        <div class="wrc-rg-label">ELO GAIN</div>
+        <div class="wrc-rg-val" style="color:${eloCol}">${eloSign}${eloGain} → ${finalElo}</div>
+      </div>
     </div>`;
 }
 window.wrcSelectPlayer   = wrcSelectPlayer;
