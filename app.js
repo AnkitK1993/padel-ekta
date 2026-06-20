@@ -12303,10 +12303,12 @@ function calcEloWinProb() {
 // ── ELO WIN PROBABILITY STATE ──────────────────────────────
 
 // ── WHAT-IF SIMULATOR STATE ────────────────────────────────
+let _whatIfShowAll = false;
 
 function renderWhatIfSection(playerName) {
   viewState.whatIfPlayer = playerName;
   viewState.whatIfToggles = {};
+  _whatIfShowAll = false;
   viewState.whatIfFlips = {};
   const matchesEl = document.getElementById("whatif-matches");
   const resultEl = document.getElementById("whatif-result");
@@ -12335,10 +12337,18 @@ function renderWhatIfSection(playerName) {
 function _renderWhatIfRows(playerName, playerMatches) {
   const matchesEl = document.getElementById("whatif-matches");
   if (!matchesEl) return;
+  const RECENT = 20;
+  const visible = _whatIfShowAll ? playerMatches : playerMatches.slice(-RECENT);
+  const hasMore = playerMatches.length > RECENT;
+  const toggleBtn = hasMore
+    ? `<button class="whatif-action-btn" style="margin-top:6px;width:100%" onclick="toggleWhatIfShowAll()">
+        ${_whatIfShowAll ? `▲ Show recent ${RECENT}` : `▼ Show all ${playerMatches.length} matches`}
+      </button>`
+    : "";
   matchesEl.innerHTML =
     `<div class="whatif-list">` +
-    playerMatches
-      .slice(-20)
+    visible
+      .slice()
       .reverse()
       .map(({ m, i }) => {
         const inA = (m.teamA || []).includes(playerName);
@@ -12367,7 +12377,18 @@ function _renderWhatIfRows(playerName, playerMatches) {
       })
       .join("") +
     `</div>
+    ${toggleBtn}
     <button class="btn-go" style="width:100%;font-size:11px;margin-top:8px" onclick="recomputeWhatIfElo()">SIMULATE ▶</button>`;
+}
+
+function toggleWhatIfShowAll() {
+  _whatIfShowAll = !_whatIfShowAll;
+  const playerMatches = state.matches
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) =>
+      [...(m.teamA || []), ...(m.teamB || [])].includes(viewState.whatIfPlayer),
+    );
+  _renderWhatIfRows(viewState.whatIfPlayer, playerMatches);
 }
 
 function toggleWhatIfMatch(idx) {
