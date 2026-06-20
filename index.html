@@ -1818,8 +1818,7 @@ Puneet - Pun, PK
           setTimeout(_askCheck, 3000);
         });
         window.addEventListener("focus", _askCheck);
-        // Poll every 5 minutes — fast enough to surface a deploy within one session
-        setInterval(_askCheck, 5 * 60 * 1000);
+        setInterval(_askCheck, 60 * 60 * 1000); // hourly while open
       }
 
       // In-app install prompt
