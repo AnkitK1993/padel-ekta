@@ -14261,13 +14261,17 @@ function wrcOnSlider() {
   // ELO carries proportionally more weight in the average.
   const eloMap  = _memoElo();
   const myElo   = eloMap[name] || 1000;
-  const allMs   = activeMatches();
-  // Count how many matches each opponent played (excluding the player themselves)
+  // Use only non-guest matches for the opponent ELO average
+  const guestSet = new Set(Object.values(state.players).filter((p) => p.isGuest).map((p) => p.name));
+  const nonGuestMs = activeMatches().filter(
+    (m) => ![...(m.teamA || []), ...(m.teamB || [])].some((p) => guestSet.has(p)),
+  );
+  // Count how many matches each non-guest opponent played (weighted average)
   const oppCount = {};
-  allMs.forEach((m) => {
+  nonGuestMs.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
       const cn = normPlayer(p);
-      if (cn !== name) oppCount[cn] = (oppCount[cn] || 0) + 1;
+      if (cn !== name && !guestSet.has(p)) oppCount[cn] = (oppCount[cn] || 0) + 1;
     });
   });
   const oppEntries = Object.entries(oppCount);
