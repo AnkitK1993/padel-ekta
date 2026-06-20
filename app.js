@@ -18185,6 +18185,7 @@ Object.assign(window, {
   renderWhatIfSection,
   toggleWhatIfMatch,
   toggleWhatIfFlip,
+  toggleWhatIfShowAll,
   whatIfFlipAllLosses,
   whatIfReset,
   recomputeWhatIfElo,
