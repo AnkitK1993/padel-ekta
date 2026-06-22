@@ -17181,34 +17181,75 @@ function renderAnalyticsPage() {
   })();
 
   // ── SHUTOUT LEADERBOARD ─────────────────────────────────────
-  const _shutoutLeaderboardHtml = (() => {
-    // Use compList (memoStats) — always populated, min 1 match. shutoutWins/Losses
-    // keys match raw player names same as compList[i].name.
-    const rows = compList
-      .filter((p) => p.mp >= 3)
-      .map((p) => {
-        const sw = shutoutWins[p.name] || 0;
-        const sl = shutoutLosses[p.name] || 0;
-        const swPct = p.mp > 0 ? Math.round((sw / p.mp) * 100) : 0;
-        const slPct = p.mp > 0 ? Math.round((sl / p.mp) * 100) : 0;
-        return { name: p.name, sw, sl, swPct, slPct };
-      })
-      .sort((a, b) => (b.sw + b.sl) - (a.sw + a.sl) || b.sw - a.sw);
-    if (!rows.length)
-      return '<div class="sub" style="padding:8px">Not enough data.</div>';
+  const _shutoutRows = compList
+    .filter((p) => p.mp >= 3)
+    .map((p) => {
+      const sw = shutoutWins[p.name] || 0;
+      const sl = shutoutLosses[p.name] || 0;
+      const swPct = p.mp > 0 ? Math.round((sw / p.mp) * 100) : 0;
+      const slPct = p.mp > 0 ? Math.round((sl / p.mp) * 100) : 0;
+      return { name: p.name, sw, sl, swPct, slPct };
+    });
+  window._shutoutSortCol = window._shutoutSortCol || "sw";
+  window._shutoutSortAsc = window._shutoutSortAsc ?? false;
+
+  window._shutoutSort = function(col) {
+    if (window._shutoutSortCol === col) {
+      window._shutoutSortAsc = !window._shutoutSortAsc;
+    } else {
+      window._shutoutSortCol = col;
+      window._shutoutSortAsc = col === "name";
+    }
+    const asc = window._shutoutSortAsc;
+    const sorted = [..._shutoutRows].sort((a, b) => {
+      const va = a[col], vb = b[col];
+      if (col === "name") return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      return asc ? va - vb : vb - va;
+    });
     const pg = "grid-template-columns:minmax(80px,1fr) 44px 44px 58px 58px";
+    const body = document.getElementById("shutout-body");
+    if (body) body.innerHTML = sorted.map((r) => `
+      <div class="lrace-row" style="${pg}">
+        <div class="lrace-name">${escHtml(r.name)}</div>
+        <div style="text-align:center;font-weight:700;color:var(--green)">${r.sw}</div>
+        <div style="text-align:center;font-weight:700;color:var(--red)">${r.sl}</div>
+        <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
+        <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
+      </div>`).join("");
+    // Update header arrows
+    ["name","sw","sl","swPct","slPct"].forEach((c) => {
+      const el = document.getElementById(`shutout-hdr-${c}`);
+      if (el) el.textContent = c === window._shutoutSortCol ? (asc ? " ▲" : " ▼") : "";
+    });
+  };
+
+  const _shutoutLeaderboardHtml = (() => {
+    if (!_shutoutRows.length)
+      return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    const sc = window._shutoutSortCol;
+    const asc = window._shutoutSortAsc;
+    const sorted = [..._shutoutRows].sort((a, b) => {
+      const va = a[sc], vb = b[sc];
+      if (sc === "name") return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      return asc ? va - vb : vb - va;
+    });
+    const pg = "grid-template-columns:minmax(80px,1fr) 44px 44px 58px 58px";
+    const arrow = (c) => sc === c ? (asc ? " ▲" : " ▼") : "";
+    const hdr = (c, label, col) =>
+      `<span style="text-align:center;color:${col};cursor:pointer" onclick="_shutoutSort('${c}')">${label}<span id="shutout-hdr-${c}" style="font-size:8px">${arrow(c)}</span></span>`;
     return `<div class="ana-card" style="padding:8px 12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Shutout = opponent/you scored 0. % = of total matches played.</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Shutout = opponent/you scored 0. % = of total matches played. Tap column to sort.</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <div style="min-width:284px">
           <div class="lrace-header" style="${pg}">
-            <span>Player</span>
-            <span style="text-align:center;color:var(--green)">W×0</span>
-            <span style="text-align:center;color:var(--red)">L×0</span>
-            <span style="text-align:center;color:var(--green)">W×0 %</span>
-            <span style="text-align:center;color:var(--red)">L×0 %</span>
-          </div>` +
-          rows.map((r) => `
+            <span style="cursor:pointer" onclick="_shutoutSort('name')">Player<span id="shutout-hdr-name" style="font-size:8px">${arrow("name")}</span></span>
+            ${hdr("sw","W×0","var(--green)")}
+            ${hdr("sl","L×0","var(--red)")}
+            ${hdr("swPct","W×0 %","var(--green)")}
+            ${hdr("slPct","L×0 %","var(--red)")}
+          </div>
+          <div id="shutout-body">` +
+          sorted.map((r) => `
           <div class="lrace-row" style="${pg}">
             <div class="lrace-name">${escHtml(r.name)}</div>
             <div style="text-align:center;font-weight:700;color:var(--green)">${r.sw}</div>
@@ -17217,6 +17258,7 @@ function renderAnalyticsPage() {
             <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
           </div>`).join("") +
         `</div>
+        </div>
       </div>
     </div>`;
   })();
