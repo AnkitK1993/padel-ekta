@@ -78,7 +78,8 @@ body {
   display: flex;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  height: 54px;
+  height: calc(54px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   z-index: 20;
 }
 .tbb {
@@ -606,7 +607,7 @@ body {
 .page-body-scroll #board,
 .page-body-scroll #modern-match-list,
 .page-body-scroll .cmp-matches {
-  padding-bottom: 110px;
+  padding-bottom: calc(110px + env(safe-area-inset-bottom));
 }
 
 .session-active-card {
@@ -6082,7 +6083,8 @@ table.cmp {
   }
 
   .nav {
-    height: 52px;
+    height: calc(52px + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
   }
 
   .nav-title {
@@ -6090,7 +6092,8 @@ table.cmp {
   }
 
   .tabbar {
-    height: 62px;
+    height: calc(62px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .tbb {
@@ -6246,7 +6249,7 @@ table.cmp {
   }
 
   .cmp-matches {
-    padding-bottom: 120px;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
   }
 }
 
