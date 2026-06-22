@@ -10614,6 +10614,14 @@ function _cmpCountApply() {
   if (_cmpPickerSlot === "lb") {
     _lbWindow = { mode: _cmpPickerMode, count: _cmpPickerCount };
     _cmpCountPickerClose();
+    // FIRST/LAST window works over all-time data — reset date filter to ALL TIME
+    cmpFilter = "all";
+    cmpFrom = null;
+    cmpTo = null;
+    const sel = document.getElementById("cmpSel");
+    if (sel) sel.value = "all";
+    const dr = document.getElementById("cmpDr");
+    if (dr) dr.style.display = "none";
     _renderLbWindowBar();
     // Clear tbody so morphList inserts all rows fresh rather than diffing
     // against stale outerHTML — guarantees the table reflects the new window.
