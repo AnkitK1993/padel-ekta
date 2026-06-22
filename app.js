@@ -17196,25 +17196,29 @@ function renderAnalyticsPage() {
       .sort((a, b) => (b.sw + b.sl) - (a.sw + a.sl) || b.sw - a.sw);
     if (!rows.length)
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
-    const pg = "grid-template-columns:1fr 40px 40px 52px 52px";
+    const pg = "grid-template-columns:minmax(80px,1fr) 44px 44px 58px 58px";
     return `<div class="ana-card" style="padding:8px 12px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Shutout = opponent/you scored 0. % = of total matches played.</div>
-      <div class="lrace-header" style="${pg}">
-        <span>Player</span>
-        <span style="text-align:center;color:var(--green)">W×0</span>
-        <span style="text-align:center;color:var(--red)">L×0</span>
-        <span style="text-align:center;color:var(--green)">W×0 %</span>
-        <span style="text-align:center;color:var(--red)">L×0 %</span>
-      </div>` +
-      rows.map((r) => `
-      <div class="lrace-row" style="${pg}">
-        <div class="lrace-name">${escHtml(r.name)}</div>
-        <div style="text-align:center;font-weight:700;color:var(--green)">${r.sw}</div>
-        <div style="text-align:center;font-weight:700;color:var(--red)">${r.sl}</div>
-        <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
-        <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
-      </div>`).join("") +
-    `</div>`;
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <div style="min-width:284px">
+          <div class="lrace-header" style="${pg}">
+            <span>Player</span>
+            <span style="text-align:center;color:var(--green)">W×0</span>
+            <span style="text-align:center;color:var(--red)">L×0</span>
+            <span style="text-align:center;color:var(--green)">W×0 %</span>
+            <span style="text-align:center;color:var(--red)">L×0 %</span>
+          </div>` +
+          rows.map((r) => `
+          <div class="lrace-row" style="${pg}">
+            <div class="lrace-name">${escHtml(r.name)}</div>
+            <div style="text-align:center;font-weight:700;color:var(--green)">${r.sw}</div>
+            <div style="text-align:center;font-weight:700;color:var(--red)">${r.sl}</div>
+            <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
+            <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
+          </div>`).join("") +
+        `</div>
+      </div>
+    </div>`;
   })();
 
   const allSecs = [
