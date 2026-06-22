@@ -17189,8 +17189,8 @@ function renderAnalyticsPage() {
       .map((p) => {
         const sw = shutoutWins[p.name] || 0;
         const sl = shutoutLosses[p.name] || 0;
-        const swPct = p.mw > 0 ? Math.round((sw / p.mw) * 100) : 0;
-        const slPct = (p.mp - p.mw) > 0 ? Math.round((sl / (p.mp - p.mw)) * 100) : 0;
+        const swPct = p.mp > 0 ? Math.round((sw / p.mp) * 100) : 0;
+        const slPct = p.mp > 0 ? Math.round((sl / p.mp) * 100) : 0;
         return { name: p.name, sw, sl, swPct, slPct };
       })
       .sort((a, b) => (b.sw + b.sl) - (a.sw + a.sl) || b.sw - a.sw);
@@ -17198,7 +17198,7 @@ function renderAnalyticsPage() {
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
     const pg = "grid-template-columns:1fr 40px 40px 52px 52px";
     return `<div class="ana-card" style="padding:8px 12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Shutout = winning/losing with opponent/you scoring 0. % = of wins/losses.</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Shutout = opponent/you scored 0. % = of total matches played.</div>
       <div class="lrace-header" style="${pg}">
         <span>Player</span>
         <span style="text-align:center;color:var(--green)">W×0</span>
