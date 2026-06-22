@@ -17180,6 +17180,41 @@ function renderAnalyticsPage() {
     return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ELO gained per win by day — higher = more upsets / ELO at stake</div></div>`;
   })();
 
+  // ── SHUTOUT LEADERBOARD ─────────────────────────────────────
+  const _shutoutLeaderboardHtml = (() => {
+    const rows = players
+      .filter((p) => p.mp >= 3)
+      .map((p) => {
+        const sw = shutoutWins[p.name] || 0;
+        const sl = shutoutLosses[p.name] || 0;
+        const swPct = p.wins > 0 ? Math.round((sw / p.wins) * 100) : 0;
+        const slPct = p.losses > 0 ? Math.round((sl / p.losses) * 100) : 0;
+        return { name: p.name, sw, sl, swPct, slPct, mp: p.mp };
+      })
+      .sort((a, b) => (b.sw + b.sl) - (a.sw + a.sl) || b.sw - a.sw);
+    if (!rows.length)
+      return '<div class="sub" style="padding:8px">Not enough data.</div>';
+    const pg = "grid-template-columns:1fr 40px 40px 52px 52px";
+    return `<div class="ana-card" style="padding:8px 12px">
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Shutout = winning/losing with opponent/you scoring 0. % = of wins/losses.</div>
+      <div class="lrace-header" style="${pg}">
+        <span>Player</span>
+        <span style="text-align:center;color:var(--green)">W×0</span>
+        <span style="text-align:center;color:var(--red)">L×0</span>
+        <span style="text-align:center;color:var(--green)">W×0 %</span>
+        <span style="text-align:center;color:var(--red)">L×0 %</span>
+      </div>` +
+      rows.map((r) => `
+      <div class="lrace-row" style="${pg}">
+        <div class="lrace-name">${escHtml(r.name)}</div>
+        <div style="text-align:center;font-weight:700;color:var(--green)">${r.sw}</div>
+        <div style="text-align:center;font-weight:700;color:var(--red)">${r.sl}</div>
+        <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
+        <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
+      </div>`).join("") +
+    `</div>`;
+  })();
+
   const allSecs = [
     {
       key: "predacc",
@@ -17318,6 +17353,7 @@ function renderAnalyticsPage() {
         { label: "Distribution", html: `<div class="ana-card">${_sdCallout}${sdHtml}</div>` },
         { label: "Heatmap", html: _scoreHeatmapHtml },
         { label: "Margin Trend", html: _scoreMargTrendHtml },
+        { label: "💀 Shutouts", html: _shutoutLeaderboardHtml },
       ]),
     },
     {

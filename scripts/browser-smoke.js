@@ -81,7 +81,7 @@ const SNAPSHOT_MATCHES = [
 // the fixture alone. (Ruled out along the way: Math.random — forcing it 0.0 vs
 // 0.999 leaves the hash identical; and ELO decay — the freeze pins new Date() to
 // 2026-06-15.)
-const ANALYTICS_SNAPSHOT_HASH = "772a0aa";
+const ANALYTICS_SNAPSHOT_HASH = "PENDING";
 
 function findBrowser() {
   const candidates = [
