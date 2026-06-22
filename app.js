@@ -17182,14 +17182,16 @@ function renderAnalyticsPage() {
 
   // ── SHUTOUT LEADERBOARD ─────────────────────────────────────
   const _shutoutLeaderboardHtml = (() => {
-    const rows = players
-      .filter((p) => p.matches >= 3)
+    // Use compList (memoStats) — always populated, min 1 match. shutoutWins/Losses
+    // keys match raw player names same as compList[i].name.
+    const rows = compList
+      .filter((p) => p.mp >= 3)
       .map((p) => {
         const sw = shutoutWins[p.name] || 0;
         const sl = shutoutLosses[p.name] || 0;
-        const swPct = p.wins > 0 ? Math.round((sw / p.wins) * 100) : 0;
-        const slPct = p.losses > 0 ? Math.round((sl / p.losses) * 100) : 0;
-        return { name: p.name, sw, sl, swPct, slPct, mp: p.matches };
+        const swPct = p.mw > 0 ? Math.round((sw / p.mw) * 100) : 0;
+        const slPct = (p.mp - p.mw) > 0 ? Math.round((sl / (p.mp - p.mw)) * 100) : 0;
+        return { name: p.name, sw, sl, swPct, slPct };
       })
       .sort((a, b) => (b.sw + b.sl) - (a.sw + a.sl) || b.sw - a.sw);
     if (!rows.length)
