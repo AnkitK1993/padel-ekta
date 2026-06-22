@@ -17183,13 +17183,13 @@ function renderAnalyticsPage() {
   // ── SHUTOUT LEADERBOARD ─────────────────────────────────────
   const _shutoutLeaderboardHtml = (() => {
     const rows = players
-      .filter((p) => p.mp >= 3)
+      .filter((p) => p.matches >= 3)
       .map((p) => {
         const sw = shutoutWins[p.name] || 0;
         const sl = shutoutLosses[p.name] || 0;
         const swPct = p.wins > 0 ? Math.round((sw / p.wins) * 100) : 0;
         const slPct = p.losses > 0 ? Math.round((sl / p.losses) * 100) : 0;
-        return { name: p.name, sw, sl, swPct, slPct, mp: p.mp };
+        return { name: p.name, sw, sl, swPct, slPct, mp: p.matches };
       })
       .sort((a, b) => (b.sw + b.sl) - (a.sw + a.sl) || b.sw - a.sw);
     if (!rows.length)
