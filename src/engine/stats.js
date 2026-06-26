@@ -14,7 +14,7 @@ export function _normScores(sA, sB) {
 
 // ── ELO → SKILL RATING (0–10 scale) ────────────────────────
 export function eloToSr(elo) {
-  return parseFloat(Math.min(10, Math.max(0, (elo - 700) / 60)).toFixed(2));
+  return parseFloat(Math.min(10, Math.max(0, (elo - 500) / 100)).toFixed(2));
 }
 
 // ── COMPUTE STATS ──────────────────────────────────────────
