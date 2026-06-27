@@ -123,6 +123,7 @@ export function historyMatches() {
 
 // ── DATE-RANGE FILTER ──────────────────────────────────────
 function _applyDateFilter(base, f, from, to) {
+  if (f === "all") return base; // no copy needed — callers must not mutate
   const t = deps.todayISO(),
     sw = deps.weekISO(),
     swe = t,

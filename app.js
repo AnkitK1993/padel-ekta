@@ -211,6 +211,7 @@ import {
   memoStats,
   memoStatPlayerNames,
   memoPairStats,
+  memoASS,
   memoASSHistory,
   memoASSPeaks,
   memoASSLows,
@@ -264,6 +265,7 @@ function _memoEloLows()                     { return memoEloLows(); }
 function _memoStats()                       { return memoStats(); }
 function _statPlayerNames()                 { return memoStatPlayerNames(); }
 function _memoPairStats()                   { return memoPairStats(); }
+function _memoASS()                         { return memoASS(); }
 function _memoASSHistory()                  { return memoASSHistory(); }
 function _memoASSPeaks()                    { return memoASSPeaks(); }
 function _memoASSLows()                     { return memoASSLows(); }
@@ -277,7 +279,7 @@ let _scoringMode = localStorage.getItem("scoringMode") || "ass";
 // Active-mode wrappers — renderers call these instead of the raw memo fns.
 function _activeScoreMap(decay = false) {
   if (_scoringMode !== "ass") return _memoElo(decay);
-  return computeASS(activeMatches());
+  return _memoASS();
 }
 function _activeHistory() {
   return _scoringMode === "ass" ? _memoASSHistory() : _memoEloHistory();
@@ -290,7 +292,7 @@ function _activeLows() {
 }
 function _activeStats() {
   if (_scoringMode !== "ass") return _memoStats();
-  const assMap = computeASS(activeMatches());
+  const assMap = _memoASS();
   return _memoStats().slice().sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
 }
 function _scoringLabel() { return _scoringMode === "ass" ? "ASS" : "ELO"; }
@@ -4431,14 +4433,15 @@ function renderHome() {
   _homeRenderedVersion = _dataVersion;
   _homeRenderedFilter = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
-  const homeEloMapFull = computeElo(filtered);
-  const _homeStatsRaw = computeStats(filtered, homeEloMapFull);
+  // When filter is "all" (no date range), filtered === activeMatches() content —
+  // use the memoised results to avoid redundant full-dataset walks.
+  const _isAllFilter = homeFilter === "all" && !homeFrom && !homeTo;
+  const homeEloMapFull = _isAllFilter ? _memoElo() : computeElo(filtered);
+  const _homeStatsRaw  = _isAllFilter ? _memoStats() : computeStats(filtered, homeEloMapFull);
+  const homeASSMap     = _isAllFilter ? _memoASS()   : computeASS(filtered);
   // In ASS mode, re-sort by cumulative ASS score instead of ELO-derived SR.
   const stats = _scoringMode === "ass"
-    ? (() => {
-        const assMap = computeASS(filtered);
-        return _homeStatsRaw.slice().sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
-      })()
+    ? _homeStatsRaw.slice().sort((a, b) => (homeASSMap[b.name] || 0) - (homeASSMap[a.name] || 0))
     : _homeStatsRaw;
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
   const uniqD = new Set(filtered.map((m) => m.date)).size;
@@ -4462,16 +4465,15 @@ function renderHome() {
   if (streakEl) streakEl.style.display = "none";
   const maxSR = stats[0].sr || 1;
   const homeEloMap = homeEloMapFull;
-  const homeASSMap = computeASS(filtered);
 
-  // Precompute rank divergence for home card badges (Feature: correlation badge)
+  // Precompute rank divergence for home card badges — O(n) index lookup, not O(n²) indexOf
   const _homeEloRanked = Object.entries(homeEloMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
   const _homeAssRanked = Object.entries(homeASSMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const _eloRankIdx = Object.fromEntries(_homeEloRanked.map((n, i) => [n, i + 1]));
+  const _assRankIdx = Object.fromEntries(_homeAssRanked.map((n, i) => [n, i + 1]));
   const _homeRankDivMap = {};
   _homeEloRanked.forEach((name) => {
-    const er = _homeEloRanked.indexOf(name) + 1;
-    const ar = _homeAssRanked.indexOf(name) + 1;
-    const diff = ar - er;
+    const diff = (_assRankIdx[name] || 0) - _eloRankIdx[name];
     if (Math.abs(diff) >= 2) _homeRankDivMap[name] = diff;
   });
 
@@ -4749,11 +4751,12 @@ function toggleSummaryMode(mode) { setScoringMode(mode); }
 function _buildRankDivergenceHtml(eloMap, assMap) {
   const eloRanked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
   const assRanked = Object.entries(assMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
-  const players = eloRanked.filter((n) => assMap[n]);
-  const diverged = players
+  const eloIdx = Object.fromEntries(eloRanked.map((n, i) => [n, i + 1]));
+  const assIdx = Object.fromEntries(assRanked.map((n, i) => [n, i + 1]));
+  const diverged = eloRanked
+    .filter((n) => assMap[n])
     .map((n) => {
-      const er = eloRanked.indexOf(n) + 1;
-      const ar = assRanked.indexOf(n) + 1;
+      const er = eloIdx[n], ar = assIdx[n] || 0;
       return { name: n, eloRank: er, assRank: ar, diff: ar - er };
     })
     .filter((p) => Math.abs(p.diff) >= 2)
@@ -4823,15 +4826,18 @@ function renderCompact() {
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const isASS = _summaryMode === "ass";
+  const _isCmpAllFilter = cmpFilter === "all" && !cmpFrom && !cmpTo;
   let _cmpEloMap, stats;
-  const _cmpASSMap = computeASS(filtered); // always needed for ASS column and SR-from-ASS
+  const _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
   if (_lbWindow) {
     const r = _computeLbWindowStats(filtered);
     _cmpEloMap = r.eloMap;
     stats = r.stats;
   } else {
-    _cmpEloMap = computeElo(filtered);
-    stats = computeStats(filtered, isASS ? _cmpASSMap : _cmpEloMap);
+    _cmpEloMap = _isCmpAllFilter ? _memoElo() : computeElo(filtered);
+    stats = _isCmpAllFilter
+      ? (isASS ? _memoStats().slice().sort((a, b) => (_cmpASSMap[b.name] || 0) - (_cmpASSMap[a.name] || 0)) : _memoStats())
+      : computeStats(filtered, isASS ? _cmpASSMap : _cmpEloMap);
   }
   const sortFns = {
     name: (a, b) =>
@@ -7922,7 +7928,7 @@ function openPlayerDetail(name) {
       .sort((a, b) => b[1] - a[1])
       .findIndex(([n]) => n === name) + 1;
   // ASS
-  const assMapPd = computeASS(activeMatches());
+  const assMapPd = _memoASS();
   const playerASS = assMapPd[name] || 1000;
   const assChange = playerASS - 1000;
   const assChangeCol = assChange > 0 ? "var(--green)" : assChange < 0 ? "var(--red)" : "var(--muted)";
@@ -17661,7 +17667,7 @@ function renderAnalyticsPage() {
 
   const _scatterPlotHtml = (() => {
     const eloMap = _memoElo();
-    const assMap = computeASS(activeMatches());
+    const assMap = _memoASS();
     const players = compList.map((p) => p.name).filter((n) => eloMap[n] && assMap[n]);
     if (players.length < 2) return '<div class="sub" style="padding:8px">Need more data.</div>';
     const elos = players.map((n) => eloMap[n] || 1000);

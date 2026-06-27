@@ -15,7 +15,7 @@ import { computeElo, computeEloHistory, computeEloPeaks, computeEloLows, clearEl
 import { computeStats } from "../engine/stats.js";
 import { getPairStats } from "../engine/pairs.js";
 import { activeMatches, invalidateAmMemo } from "../engine/selectors.js";
-import { computeASSTimeline } from "../engine/ass.js";
+import { computeASS, computeASSTimeline } from "../engine/ass.js";
 
 // Per-section caches that grow one entry per distinct dataset and would
 // otherwise leak unbounded across a session. Cleared on every invalidation.
@@ -120,6 +120,21 @@ export function memoPairStats() {
   return _pairStatsMemo.slice();
 }
 
+// ── ASS score map ─────────────────────────────────────────────
+// Memoises computeASS(activeMatches()) — the most frequently called
+// un-cached computation in the codebase (hit by home, compact, analytics,
+// power rankings, scatter plot, rank divergence per render).
+let _assMemo = null, _assMemoKey = "";
+
+export function memoASS() {
+  const am = activeMatches();
+  const key = _lightFingerprint(am);
+  if (_assMemoKey === key && _assMemo) return _assMemo;
+  _assMemoKey = key;
+  _assMemo = computeASS(am);
+  return _assMemo;
+}
+
 // ── ASS timeline (history / peaks / lows) ─────────────────────
 // Computes all three in a single chronological walk and shares the result.
 let _assTimelineMemo = null, _assTimelineKey = "";
@@ -151,6 +166,7 @@ export function invalidateAll() {
   _statNamesKey = "";    _statNamesMemo = null;
   _statsMemoKey = "";    _statsMemo = null;
   _pairStatsKey = "";    _pairStatsMemo = null;
+  _assMemoKey = "";      _assMemo = null;
   _assTimelineKey = ""; _assTimelineMemo = null;
   for (const k in reignCache) delete reignCache[k];
   for (const k in rankPeriodCache) delete rankPeriodCache[k];
