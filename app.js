@@ -4828,16 +4828,15 @@ function renderCompact() {
   // match's delta reflects its true historical ELO/PPS context. TODAY starts
   // from each player's pre-today ELO and walks only today's matches.
   const _allActive = activeMatches();
-  let _deltaMatches = _allActive;
-  let _startElo = {};
-  if (_matchDeltaWindow === "today") {
-    const _today = todayISO();
-    _startElo = computeElo(_allActive.filter((m) => m.date < _today));
-    _deltaMatches = _allActive.filter((m) => m.date === _today);
-  }
+  // TODAY: walk only today's matches starting from ELO=1000 (fresh session slate),
+  // so intra-session strength shifts are visible and numbers differ from ALL TIME.
+  // ALL TIME: walk all matches from ELO=1000 (full historical context).
+  const _deltaMatches = _matchDeltaWindow === "today"
+    ? _allActive.filter((m) => m.date === todayISO())
+    : _allActive;
   const matchEloDeltas = isPPS
-    ? computeMatchPPSDeltas(_deltaMatches, _startElo)
-    : _computeMatchEloDeltas(_deltaMatches, _startElo);
+    ? computeMatchPPSDeltas(_deltaMatches)
+    : _computeMatchEloDeltas(_deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");

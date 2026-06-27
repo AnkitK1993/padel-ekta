@@ -437,11 +437,11 @@
             style="cursor: pointer; user-select: none"
           >
             <div class="t1">MATCHES <span>PLAYED</span></div>
-            <div class="cmp-delta-ctrl" onclick="event.stopPropagation()">
+            <div class="cmp-delta-ctrl">
               <span class="cmp-delta-lbl"><span id="cmp-delta-mode-lbl">ELO</span> change</span>
               <div class="mdw-wrap">
-                <button class="mdw-btn active" data-window="alltime" onclick="toggleMatchDeltaWindow('alltime')">ALL TIME</button>
-                <button class="mdw-btn" data-window="today" onclick="toggleMatchDeltaWindow('today')">TODAY</button>
+                <button class="mdw-btn active" data-window="alltime" onclick="event.stopPropagation();toggleMatchDeltaWindow('alltime')">ALL TIME</button>
+                <button class="mdw-btn" data-window="today" onclick="event.stopPropagation();toggleMatchDeltaWindow('today')">TODAY</button>
               </div>
             </div>
             <span class="cmp-matches-chevron" id="cmpMatchesChevron">▼</span>
