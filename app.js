@@ -3500,7 +3500,7 @@ function renderNamesTable() {
     const mappingChips = aliases.length
       ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${
           aliases.map((a) =>
-            `<span style="font-size:9px;font-weight:700;letter-spacing:0.05em;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);color:var(--accent);border-radius:5px;padding:2px 7px">${escHtml(a)} → ${escHtml(name)}</span>`
+            `<span style="font-size:9px;font-weight:700;letter-spacing:0.05em;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);color:var(--accent);border-radius:5px;padding:2px 7px">${escHtml(a)}</span>`
           ).join("")
         }</div>`
       : "";
