@@ -1589,10 +1589,10 @@ select.cmp-sel:focus {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-left: auto;
-  margin-right: 12px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   flex-shrink: 0;
-  align-self: center;
 }
 .cmp-delta-lbl {
   font-size: 8px;
