@@ -4778,7 +4778,10 @@ function renderCompact() {
 
   const splashDone = document.body.classList.contains("splash-done");
 
-  const prevRankMap = getPrevWeekRankMap();
+  // All-time SR rank map — used to show how current filtered/sorted rank
+  // differs from the player's all-time standing.
+  const _allTimeRankMap = {};
+  _memoStats().forEach((p, i) => { _allTimeRankMap[p.name] = i + 1; });
   const srSorted = [...sorted].sort((a, b) => b.sr - a.sr);
   const srRankMap = {};
   srSorted.forEach((p, j) => {
@@ -4802,16 +4805,14 @@ function renderCompact() {
     const ratingClass = getSRRatingClass(normalizedSR);
     const momentumBadge = getMomentumBadge(p.name);
     const animClass = "";
-    const prevRank = prevRankMap[p.name];
-    const curRank = rank;
+    const allTimeRank = _allTimeRankMap[p.name];
     let rankDelta = "";
-    if (prevRank) {
-      const diff = prevRank - curRank;
+    if (allTimeRank) {
+      const diff = allTimeRank - rank;
       if (diff > 0)
         rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
       else if (diff < 0)
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
-      else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
     const ppsVal = isPPS ? (_cmpPPSMap[p.name] || 0) : 0;
