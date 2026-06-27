@@ -1027,8 +1027,9 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-// _summaryMode is now an alias for _scoringMode — kept for render-state tracking.
-// The canonical state lives in _scoringMode (set above, persisted to localStorage).
+// _summaryMode is Summary-tab-local (badge click), persisted under "summaryMode".
+// _scoringMode (hamburger) drives Stats/Home/Analytics only.
+let _summaryMode = localStorage.getItem("summaryMode") || "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
@@ -1067,7 +1068,7 @@ let cmpFilter = "today",
   cmpTo = null;
 let _lbWindow = null; // { mode:"first"|"last", count:N } or null — per-player game window
 let _pvpLow = 20, _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
-let cmpSortKey = (localStorage.getItem("scoringMode") || "ass") === "ass" ? "elo" : "sr";
+let cmpSortKey = _summaryMode === "ass" ? "ass" : "sr";
 let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
@@ -1080,6 +1081,7 @@ const _CMP_TOGGLE_COLS = [
   { key: "gl", label: "GL" },
   { key: "gamePct", label: "G%" },
   { key: "elo", label: "ELO" },
+  { key: "ass", label: "ASS" },
 ];
 function _loadCmpHiddenCols() {
   try {
@@ -1089,6 +1091,12 @@ function _loadCmpHiddenCols() {
   return new Set([]);
 }
 let _cmpHiddenCols = _loadCmpHiddenCols();
+// One-time migration: hide the non-active scoring column by default
+if (!localStorage.getItem("padel_cmp_col_migrate_v4")) {
+  _cmpHiddenCols.add(_summaryMode === "ass" ? "elo" : "ass");
+  localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([..._cmpHiddenCols]));
+  localStorage.setItem("padel_cmp_col_migrate_v4", "1");
+}
 let prevPage = "home";
 let lastMatchSnapshot = null;
 let _forcedOffline = getForcedOffline();
@@ -1194,11 +1202,13 @@ _applyFontScale(getFontScale());
 }
 // Initialise scoring mode UI from persisted state.
 {
+  // Hamburger segmented control reflects _scoringMode (global)
   document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.val === _scoringMode),
   );
+  // Summary tab badge reflects _summaryMode (tab-local)
   const _smBadgeInit = document.getElementById("summary-mode-badge");
-  if (_smBadgeInit) _smBadgeInit.textContent = _scoringMode.toUpperCase();
+  if (_smBadgeInit) _smBadgeInit.textContent = _summaryMode.toUpperCase();
 }
 // Deleted matches + ELO config now live in src/infra/match-store.js.
 // The module-level variable remains here so the 20+ mutation sites in app.js
@@ -1328,7 +1338,7 @@ initSelectorsDeps({
   lastWeekRange,
 });
 // History summary card needs three still-in-app helpers (hoisted decls).
-initHistorySummaryDeps({ normPlayer, getPairStats, memoElo: _memoElo });
+initHistorySummaryDeps({ normPlayer, getPairStats, memoElo: _memoElo, getSummaryMode: () => _summaryMode });
 // Award badges: pure compute, fed the stats/elo/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
 initPairsDeps({ normPlayer });
@@ -4667,36 +4677,51 @@ function toggleMatchDeltaWindow(win) {
   document.body.classList.remove("no-cascade");
 }
 
-// setScoringMode is the canonical entry point for both the hamburger master
-// toggle and the legacy per-tab buttons. It persists the choice and re-renders
-// every active view.
+// setScoringMode drives the hamburger master toggle — affects Stats/Home/Analytics only.
+// The Summary tab has its own independent _summaryMode (see toggleSummaryModeOnly).
 function setScoringMode(mode) {
   if (mode !== "ass" && mode !== "elo") return;
   _scoringMode = mode;
   localStorage.setItem("scoringMode", mode);
-  // Keep sort key in sync
-  cmpSortKey = mode === "ass" ? "elo" : "sr";
-  cmpSortAsc = false;
-  // Sync all toggle buttons (hamburger seg)
+  // Sync hamburger segmented control buttons
   document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.val === mode),
   );
-  // Update Summary tab mode badge
-  const _smBadge = document.getElementById("summary-mode-badge");
-  if (_smBadge) _smBadge.textContent = mode.toUpperCase();
+  // Invalidate home and analytics so next visit re-renders with new mode
+  _homeRenderedVersion = -1;
+  _anaRenderedVersion = -1;
+  const _activePg = document.querySelector(".page.active")?.id;
+  if (_activePg === "pg-analytics") renderAnalyticsPage();
+  if (_activePg === "pg-home") renderHome();
+}
+
+// Toggles Summary-tab scoring mode independently of the global hamburger toggle.
+function toggleSummaryModeOnly() {
+  const newMode = _summaryMode === "ass" ? "elo" : "ass";
+  _summaryMode = newMode;
+  localStorage.setItem("summaryMode", newMode);
+  // Auto-switch default column visibility: show active, hide inactive
+  if (newMode === "ass") {
+    _cmpHiddenCols.add("elo");
+    _cmpHiddenCols.delete("ass");
+  } else {
+    _cmpHiddenCols.add("ass");
+    _cmpHiddenCols.delete("elo");
+  }
+  localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([..._cmpHiddenCols]));
+  cmpSortKey = newMode === "ass" ? "ass" : "sr";
+  cmpSortAsc = false;
+  _renderColChips();
+  const badge = document.getElementById("summary-mode-badge");
+  if (badge) badge.textContent = newMode.toUpperCase();
   document.body.classList.add("no-cascade");
   const tbody = document.getElementById("cmpBody");
   if (tbody) tbody.innerHTML = "";
   renderCompact();
-  // Force analytics re-render on next visit (or immediately if active)
-  _anaRenderedVersion = -1;
-  if (document.querySelector(".page.active")?.id === "pg-analytics") {
-    renderAnalyticsPage();
-  }
   document.body.classList.remove("no-cascade");
 }
 
-// toggleSummaryMode kept for backward compat with any inline onclick still using it.
+// toggleSummaryMode kept for back-compat with any existing onclick using it.
 function toggleSummaryMode(mode) { setScoringMode(mode); }
 
 // ── RENDER COMPACT ─────────────────────────────────────────
@@ -4706,7 +4731,7 @@ function toggleSummaryMode(mode) { setScoringMode(mode); }
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_scoringMode}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}`;
   _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
@@ -4749,19 +4774,17 @@ function renderCompact() {
   }
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const isASS = _scoringMode === "ass";
+  const isASS = _summaryMode === "ass";
   let _cmpEloMap, stats;
+  const _cmpASSMap = computeASS(filtered); // always needed for ASS column and SR-from-ASS
   if (_lbWindow) {
     const r = _computeLbWindowStats(filtered);
     _cmpEloMap = r.eloMap;
     stats = r.stats;
   } else {
     _cmpEloMap = computeElo(filtered);
-    stats = computeStats(filtered, _cmpEloMap);
+    stats = computeStats(filtered, isASS ? _cmpASSMap : _cmpEloMap);
   }
-  const _cmpASSMap = isASS ? computeASS(filtered) : null;
-  const eloThLbl = document.getElementById("cmp-elo-th-lbl");
-  if (eloThLbl) eloThLbl.textContent = isASS ? "ASS" : "ELO";
   const sortFns = {
     name: (a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -4780,9 +4803,8 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    elo: (a, b) => isASS
-      ? ((_cmpASSMap[a.name] || 0) - (_cmpASSMap[b.name] || 0))
-      : ((_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000)),
+    elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
+    ass: (a, b) => (_cmpASSMap[a.name] || 1000) - (_cmpASSMap[b.name] || 1000),
     sr: (a, b) => {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
       // look identical on screen resolve to a real tie instead of being
@@ -4831,7 +4853,7 @@ function renderCompact() {
   if (!sorted.length) {
     _cmpLeaderHtmls = [];
     _cmpFiltered = filtered;
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
     document.getElementById("cmpMatches").innerHTML =
       buildSummaryMatchRows(filtered);
     updateSortArrows(sorted);
@@ -4879,11 +4901,10 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
-    const assVal = isASS ? (_cmpASSMap[p.name] || 0) : 0;
-    const eloColHtml = isASS
-      ? `<span style="font-weight:700;color:${assVal > 0 ? "var(--green)" : assVal < 0 ? "var(--red)" : "var(--muted)"}">${assVal > 0 ? "+" : ""}${assVal}</span>`
-      : String(eloVal);
-    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
+    const assVal = Math.round(_cmpASSMap[p.name] || 1000);
+    const eloColHtml = String(eloVal);
+    const assColHtml = `<span style="font-weight:700;color:${assVal >= 1050 ? "var(--green)" : assVal <= 950 ? "var(--red)" : "var(--muted)"}">${assVal}</span>`;
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -5029,6 +5050,7 @@ function updateSortArrows() {
     gl: ["sort-gl"],
     gamePct: ["sort-gamePct"],
     elo: ["sort-elo"],
+    ass: ["sort-ass"],
     sr: ["sort-sr", "sort-rank"],
   };
   Object.entries(keyMap).forEach(([key, ids]) => {
@@ -15990,7 +16012,7 @@ function renderAnalyticsPage() {
   const { from: wkFromElo } = lastWeekRange();
   // Build active score map + pre-week score map for change calc
   const _scMapNow  = _activeScoreMap();
-  const _scFallback = _scoringMode === "ass" ? 0 : 1000;
+  const _scFallback = 1000; // both ELO and ASS baseline at 1000
   const _preWkArrElo = activeMatches().filter((m) => (m.date || "") < wkFromElo);
   const _scMapPre = _scoringMode === "ass"
     ? computeASS(_preWkArrElo)
@@ -16025,10 +16047,7 @@ function renderAnalyticsPage() {
                   : `<span class="elo-rank-arrow elo-rank-same">—</span>`;
           const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(0);
           const _midVal = _scFallback;
-          const col =
-            _scoringMode === "ass"
-              ? ev > 50 ? "var(--green)" : ev < -50 ? "var(--red)" : "var(--theme)"
-              : ev >= 1100 ? "var(--green)" : ev <= 900 ? "var(--red)" : "var(--theme)";
+          const col = ev >= 1100 ? "var(--green)" : ev <= 900 ? "var(--red)" : "var(--theme)";
           const peak = eloPeaks[pname] ?? ev;
           const fromPeak = ev - peak;
           const fromPeakStr =
@@ -16058,7 +16077,7 @@ function renderAnalyticsPage() {
               <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col};animation-delay:${(i * 0.07).toFixed(2)}s"></div></div>
             </div>
             <div style="flex-shrink:0;width:38px;text-align:right">
-              <div class="elo-val">${ev > 0 && _scoringMode === "ass" ? "+" : ""}${ev}</div>
+              <div class="elo-val">${ev}</div>
               <div class="elo-change" style="margin-top:2px">${changeStr}</div>
             </div>
             <div style="flex-shrink:0;width:50px;text-align:right;border-left:1px solid rgba(255,255,255,0.06);padding-left:5px">
@@ -18283,6 +18302,7 @@ Object.assign(window, {
   renderCompact,
   setScoringMode,
   toggleSummaryMode,
+  toggleSummaryModeOnly,
   toggleMatchDeltaWindow,
   setCmpSort,
   renderModernMatches,

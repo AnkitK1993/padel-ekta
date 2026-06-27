@@ -6,6 +6,7 @@
 // stays a verbatim copy of the original.
 import { computeStats } from "../engine/stats.js";
 import { computeElo } from "../engine/elo.js";
+import { computeASS } from "../engine/ass.js";
 import { _rankColor } from "./format.js";
 import { activeMatches } from "../engine/selectors.js";
 
@@ -13,6 +14,7 @@ let _deps = {
   normPlayer: (n) => n,
   getPairStats: () => [],
   memoElo: () => ({}),
+  getSummaryMode: () => "elo",
 };
 export function initHistorySummaryDeps(d) {
   _deps = { ..._deps, ...d };
@@ -21,6 +23,7 @@ export function initHistorySummaryDeps(d) {
 const normPlayer = (n) => _deps.normPlayer(n);
 const getPairStats = (m) => _deps.getPairStats(m);
 const _memoElo = () => _deps.memoElo();
+const _getSummaryMode = () => _deps.getSummaryMode();
 
 export function buildHistorySummary(matches, filter = "all") {
   if (matches.length < 3) return "";
@@ -127,12 +130,13 @@ export function buildHistorySummary(matches, filter = "all") {
   const potwLabel = potwLabels[filter] || potwLabels.all;
   let potwHtml = "";
   if (matches.length >= 2) {
+    const _mode = _getSummaryMode();
+    const _scoringLbl = _mode === "ass" ? "ASS" : "ELO";
     const periodDates = matches.map((m) => m.date || "").filter(Boolean);
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
-    const preElo = computeElo(
-      activeMatches().filter((m) => (m.date || "") < firstDate),
-    );
-    const fullElo = _memoElo();
+    const beforeMatches = activeMatches().filter((m) => (m.date || "") < firstDate);
+    const preScore = _mode === "ass" ? computeASS(beforeMatches) : computeElo(beforeMatches);
+    const fullScore = _mode === "ass" ? computeASS(activeMatches()) : _memoElo();
     const periodPlayers = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -142,7 +146,7 @@ export function buildHistorySummary(matches, filter = "all") {
     const potwDeltas = [...periodPlayers]
       .map((p) => ({
         name: normPlayer(p),
-        delta: Math.round((fullElo[p] || 1000) - (preElo[p] || 1000)),
+        delta: Math.round((fullScore[p] || 1000) - (preScore[p] || 1000)),
         mp: matches.filter((m) =>
           [...(m.teamA || []), ...(m.teamB || [])].includes(p),
         ).length,
@@ -156,21 +160,22 @@ export function buildHistorySummary(matches, filter = "all") {
         <div class="potw-body">
           <div class="potw-label">${potwLabel.title}</div>
           <div class="potw-name">${potw.name}</div>
-          <div class="potw-meta"><span style="color:var(--green);font-weight:800">+${potw.delta} ELO</span> · ${potw.mp} ${potwLabel.sub}</div>
+          <div class="potw-meta"><span style="color:var(--green);font-weight:800">+${potw.delta} ${_scoringLbl}</span> · ${potw.mp} ${potwLabel.sub}</div>
         </div>
       </div>`;
     }
   }
 
-  // ELO changes across the entire filtered period
+  // Score changes (ELO or ASS) across the entire filtered period
   let sessionRecapHtml = "";
   if (matches.length) {
+    const _mode2 = _getSummaryMode();
+    const _sLabel = _mode2 === "ass" ? "ASS" : "ELO";
     const periodDates = matches.map((m) => m.date || "1970-01-01");
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
-    const eloAfter = _memoElo();
-    const eloBefore = computeElo(
-      activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate),
-    );
+    const beforeMs2 = activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate);
+    const scoreAfter = _mode2 === "ass" ? computeASS(activeMatches()) : _memoElo();
+    const scoreBefore = _mode2 === "ass" ? computeASS(beforeMs2) : computeElo(beforeMs2);
     const periodPlayers = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -180,9 +185,9 @@ export function buildHistorySummary(matches, filter = "all") {
     const deltas = [...periodPlayers]
       .map((p) => ({
         name: normPlayer(p),
-        delta: Math.round((eloAfter[p] || 1000) - (eloBefore[p] || 1000)),
-        bElo: Math.round(eloBefore[p] || 1000),
-        aElo: Math.round(eloAfter[p] || 1000),
+        delta: Math.round((scoreAfter[p] || 1000) - (scoreBefore[p] || 1000)),
+        bElo: Math.round(scoreBefore[p] || 1000),
+        aElo: Math.round(scoreAfter[p] || 1000),
       }))
       .sort((a, b) => b.delta - a.delta);
     const deltaRows = deltas
@@ -203,7 +208,7 @@ export function buildHistorySummary(matches, filter = "all") {
       })
       .join("");
     sessionRecapHtml = `
-      <div class="hsum-section-lbl">ELO CHANGES</div>
+      <div class="hsum-section-lbl">${_sLabel} CHANGES</div>
       <div class="elo-delta-list">${deltaRows}</div>`;
   }
 

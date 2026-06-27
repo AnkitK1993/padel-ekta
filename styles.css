@@ -8033,6 +8033,7 @@ table.cmp td:nth-child(9) {
 .cmp.hide-col-gl [data-col="gl"],
 .cmp.hide-col-gamePct [data-col="gamePct"],
 .cmp.hide-col-elo [data-col="elo"] { display: none; }
+.cmp.hide-col-ass [data-col="ass"] { display: none; }
 
 /* ── Column chip strip ── */
 .col-chip-wrap {

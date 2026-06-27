@@ -75,6 +75,8 @@ export function computeASS(matches) {
       ass[p] = (ass[p] || 0) + d;
     });
   });
+  // Baseline 1000 (same scale as ELO so eloToSr works transparently)
+  Object.keys(ass).forEach((p) => { ass[p] += 1000; });
   return ass;
 }
 
@@ -95,7 +97,7 @@ export function computeASSTimeline(matches) {
     .forEach((m) => {
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
         if (!(p in elo))     elo[p]     = 1000;
-        if (!(p in running)) { running[p] = 0; history[p] = []; peaks[p] = 0; lows[p] = 0; }
+        if (!(p in running)) { running[p] = 1000; history[p] = []; peaks[p] = 1000; lows[p] = 1000; }
       });
 
       const margin  = Math.abs(m.scoreA - m.scoreB);
