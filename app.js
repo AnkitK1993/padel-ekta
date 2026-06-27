@@ -17472,26 +17472,24 @@ function renderAnalyticsPage() {
         ? `rgba(72,199,116,${(0.12 + 0.55 * intensity).toFixed(2)})`
         : `rgba(245,87,87,${(0.12 + 0.55 * intensity).toFixed(2)})`;
     };
+    // Rows = players (ranked), Columns = days of week
     const thStyle = "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
-    const tdStyle = (v) => `padding:4px 3px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
-    const headerRow = `<tr><th style="${thStyle}">Day</th>${players.map((_, i) => `<th style="${thStyle}">#${i + 1}</th>`).join("")}</tr>`;
-    const nameRow = `<tr style="border-bottom:1px solid rgba(255,255,255,0.1)"><td style="padding:3px 5px;font-size:7px;color:var(--muted)"></td>${players.map((pn) => `<td style="padding:3px 3px;font-size:7px;color:var(--accent);font-weight:700;text-align:center;white-space:nowrap">${pn.split(" ")[0]}</td>`).join("")}</tr>`;
-    const dataRows = DAY.map((dayName, d) => {
-      const hasData = players.some((pn) => matrix[d][pn] !== undefined);
-      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-        <td style="padding:5px 6px;font-size:9px;font-weight:800;color:var(--muted);white-space:nowrap">${dayName}</td>
-        ${players.map((pn) => {
-          const v = matrix[d][pn];
-          const disp = v === undefined ? "—" : (v > 0 ? `+${v}` : `${v}`);
-          return `<td style="${tdStyle(v)}">${disp}</td>`;
-        }).join("")}
-      </tr>`;
+    const tdStyle = (v) => `padding:5px 4px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
+    const headerRow = `<tr><th style="${thStyle};text-align:left">Player</th>${DAY.map((d) => `<th style="${thStyle}">${d}</th>`).join("")}</tr>`;
+    const dataRows = players.map((pname, i) => {
+      const nameCell = `<td style="padding:5px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--text)">#${i + 1} ${escHtml(pname)}</td>`;
+      const dayCells = DAY.map((_, d) => {
+        const v = matrix[d][pname];
+        const disp = v === undefined ? "—" : (v > 0 ? `+${v}` : `${v}`);
+        return `<td style="${tdStyle(v)}">${disp}</td>`;
+      }).join("");
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">${nameCell}${dayCells}</tr>`;
     }).join("");
     return `<div class="ana-card" style="padding:8px 6px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Net ${scLbl} per player per day — ranked by current ${scLbl} score</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table style="width:100%;border-collapse:collapse;table-layout:auto">
-          <thead>${headerRow}${nameRow}</thead>
+          <thead>${headerRow}</thead>
           <tbody>${dataRows}</tbody>
         </table>
       </div>
