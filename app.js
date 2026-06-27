@@ -15061,6 +15061,34 @@ window._renderEloProjTable = function () {
   tableEl.innerHTML = hdr + rows;
 };
 
+function _showShutoutMatches(name, type) {
+  document.getElementById("shutout-drill-modal")?.remove();
+  const data = window._shutoutMatchData || {};
+  const matches = (type === "win" ? data.wins?.[name] : data.losses?.[name]) || [];
+  const title = type === "win" ? `${name} — Shutout Wins (W×0)` : `${name} — Shutout Losses (L×0)`;
+  const col = type === "win" ? "var(--green)" : "var(--red)";
+  const rows = [...matches].reverse().map((m) => {
+    const idx = state.matches.indexOf(m);
+    return buildSummaryMatchRow(m, "", idx >= 0 ? idx : null);
+  }).join("");
+  const body = matches.length
+    ? `<div class="smr-list">${rows}</div>`
+    : `<div style="padding:20px;text-align:center;color:var(--muted)">No matches found.</div>`;
+  const modal = document.createElement("div");
+  modal.id = "shutout-drill-modal";
+  modal.className = "h2h-modal-overlay";
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `<div class="h2h-modal-card" style="max-height:80vh;display:flex;flex-direction:column">
+    <div class="h2h-modal-header">
+      <span class="h2h-modal-title" style="color:${col}">💀 ${escHtml(title)}</span>
+      <button class="h2h-modal-close" onclick="document.getElementById('shutout-drill-modal').remove()">✕</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);padding:6px 14px 4px">${matches.length} match${matches.length !== 1 ? "es" : ""} — tap a row to view details</div>
+    <div style="overflow-y:auto;flex:1;padding:4px 8px 12px">${body}</div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
@@ -15102,12 +15130,29 @@ function renderAnalyticsPage() {
   // matchesByPlayer preserves sortedM's chronological order (callers slice tails).
   const matchesByPlayer = {};
   const matchCountByDate = {};
+  // Shutout match lists for drill-down (clicking W×0 / L×0 counts)
+  const _shutoutWinMatchesByPlayer = {};
+  const _shutoutLossMatchesByPlayer = {};
   sortedM.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
       (matchesByPlayer[p] || (matchesByPlayer[p] = [])).push(m);
     });
     if (m.date) matchCountByDate[m.date] = (matchCountByDate[m.date] || 0) + 1;
+    const aWon = m.scoreA > m.scoreB;
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      const inA = (m.teamA || []).includes(p);
+      const won = inA ? aWon : !aWon;
+      const myScore = inA ? m.scoreA : m.scoreB;
+      const oppScore = inA ? m.scoreB : m.scoreA;
+      if (won && oppScore === 0) {
+        (_shutoutWinMatchesByPlayer[p] || (_shutoutWinMatchesByPlayer[p] = [])).push(m);
+      }
+      if (!won && myScore === 0) {
+        (_shutoutLossMatchesByPlayer[p] || (_shutoutLossMatchesByPlayer[p] = [])).push(m);
+      }
+    });
   });
+  window._shutoutMatchData = { wins: _shutoutWinMatchesByPlayer, losses: _shutoutLossMatchesByPlayer };
 
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _memoElo(true);
@@ -17691,8 +17736,8 @@ function renderAnalyticsPage() {
     if (body) body.innerHTML = sorted.map((r) => `
       <div class="lrace-row" style="${pg}">
         <div class="lrace-name">${escHtml(r.name)}</div>
-        <div style="text-align:center;font-weight:700;color:var(--green)">${r.sw}</div>
-        <div style="text-align:center;font-weight:700;color:var(--red)">${r.sl}</div>
+        <div style="text-align:center;font-weight:700;color:var(--green);${r.sw > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sw > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'win')"` : ""}>${r.sw}</div>
+        <div style="text-align:center;font-weight:700;color:var(--red);${r.sl > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sl > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'loss')"` : ""}>${r.sl}</div>
         <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
         <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
       </div>`).join("");
@@ -17732,8 +17777,8 @@ function renderAnalyticsPage() {
           sorted.map((r) => `
           <div class="lrace-row" style="${pg}">
             <div class="lrace-name">${escHtml(r.name)}</div>
-            <div style="text-align:center;font-weight:700;color:var(--green)">${r.sw}</div>
-            <div style="text-align:center;font-weight:700;color:var(--red)">${r.sl}</div>
+            <div style="text-align:center;font-weight:700;color:var(--green);${r.sw > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sw > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'win')"` : ""}>${r.sw}</div>
+            <div style="text-align:center;font-weight:700;color:var(--red);${r.sl > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sl > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'loss')"` : ""}>${r.sl}</div>
             <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
             <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
           </div>`).join("") +
@@ -18753,6 +18798,7 @@ Object.assign(window, {
   streakCalDayClick,
   _h2hSetSort,
   _eloTLSetOverlay,
+  _showShutoutMatches,
   openEloTLOverlaySheet,
   openMatchIntro,
   closeMatchIntro,
