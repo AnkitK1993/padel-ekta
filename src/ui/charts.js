@@ -1,7 +1,8 @@
 // ── CHART / SVG BUILDERS ───────────────────────────────────
-// Pure SVG string builders — no DOM, no app state. Data-bound chart helpers
-// that need allMatches/computeStats (e.g. form sparklines, radar) stay in
-// app.js for now; this module holds the genuinely pure ones.
+// Pure SVG string builders — no DOM, no app state.
+import { state } from "../engine/state.js";
+import { computeStats } from "../engine/stats.js";
+import { computeElo } from "../engine/elo.js";
 
 let _hudGaugeId = 0;
 
@@ -79,4 +80,63 @@ export function buildHudGaugeSvg(sr, ratingClass) {
     <line x1="${cx + 7}"  y1="${cy + 4}" x2="${cx + 20}" y2="${cy + 4}" stroke="${col}" stroke-width="0.7" opacity="0.35"/>
     ${scaleSvg}
   </svg>`;
+}
+
+export function getFormSparkline(playerName, width = 80, height = 28) {
+  const pMatches = state.matches
+    .filter((m) => m.teamA.includes(playerName) || m.teamB.includes(playerName))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  if (pMatches.length < 2) return "";
+
+  const last10 = pMatches.slice(-10);
+
+  const srPoints = last10.map((_, i) => {
+    const window = pMatches.slice(0, pMatches.indexOf(last10[i]) + 1);
+    const s = computeStats(window, computeElo(window)).find(
+      (p) => p.name === playerName,
+    );
+    return s ? s.sr : 0;
+  });
+
+  const min = Math.min(...srPoints);
+  const max = Math.max(...srPoints);
+  const range = max - min || 0.1;
+  const pad = 3;
+  const w = width - pad * 2;
+  const h = height - pad * 2;
+
+  const pts = srPoints.map((v, i) => {
+    const x = pad + (i / (srPoints.length - 1)) * w;
+    const y = pad + h - ((v - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+
+  const mid = Math.floor(srPoints.length / 2);
+  const firstAvg = srPoints.slice(0, mid).reduce((a, b) => a + b, 0) / mid;
+  const lastAvg =
+    srPoints.slice(mid).reduce((a, b) => a + b, 0) / (srPoints.length - mid);
+  const trending =
+    lastAvg > firstAvg + 0.05
+      ? "up"
+      : lastAvg < firstAvg - 0.05
+        ? "down"
+        : "flat";
+  const lineColor =
+    trending === "up" ? "#36d47e" : trending === "down" ? "#f04f4f" : "#f5c842";
+
+  const firstPt = pts[0].split(",");
+  const lastPt = pts[pts.length - 1].split(",");
+  const areaPath = `M${firstPt[0]},${pad + h} L${pts.join(" L")} L${lastPt[0]},${pad + h} Z`;
+
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+              <defs>
+                <linearGradient id="sg_${playerName.replace(/\s/g, "_")}" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
+                  <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
+                </linearGradient>
+              </defs>
+              <path d="${areaPath}" fill="url(#sg_${playerName.replace(/\s/g, "_")})" />
+              <polyline points="${pts.join(" ")}" fill="none" stroke="${lineColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="2.5" fill="${lineColor}"/>
+            </svg>`;
 }
