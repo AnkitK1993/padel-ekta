@@ -94,6 +94,16 @@ function parseMatchLine(line) {
     }
   }
 
+  // Alias format: A1 A2 6-2 A3 A4 (no vs, score in the middle)
+  const af = line.match(/^(\S+)\s+(\S+)\s+(\d+)\s*[-–]\s*(\d+)\s+(\S+)\s+(\S+)$/i);
+  if (af) {
+    const r1 = resolveInitial(af[1]), r2 = resolveInitial(af[2]);
+    const r3 = resolveInitial(af[5]), r4 = resolveInitial(af[6]);
+    const sA = +af[3], sB = +af[4];
+    if (r1 && r2 && r3 && r4 && !isNaN(sA) && !isNaN(sB) && sA !== sB)
+      return { teamA: [r1, r2], teamB: [r3, r4], scoreA: sA, scoreB: sB };
+  }
+
   // Standard format: Player1 Player2 vs Player3 Player4 6-1
   const m = line.match(/^(.+?)\s+(?:vs|v)\s+(.+?)\s+(\d+)\s*[-–]\s*(\d+)$/i);
   if (!m) return null;
