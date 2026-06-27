@@ -7,8 +7,8 @@
 // Loss: ΔPP = −round(quality / mult)
 // ELO is used for the strength multiplier only; PPS is tracked separately.
 
-export function computeMatchPPSDeltas(matches) {
-  const elo = {};
+export function computeMatchPPSDeltas(matches, startElo = {}) {
+  const elo = { ...startElo };
   const map = new Map();
 
   [...matches]

@@ -994,7 +994,8 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-let _summaryMode = "elo"; // "elo" | "pps"
+let _summaryMode = "elo";      // "elo" | "pps"
+let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
 let _histRenderedVersion = -1,
@@ -4609,6 +4610,16 @@ function _lbSetWindow(mode) {
   }
 }
 
+function toggleMatchDeltaWindow(win) {
+  _matchDeltaWindow = win;
+  document.querySelectorAll(".mdw-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.window === win),
+  );
+  document.body.classList.add("no-cascade");
+  renderCompact();
+  document.body.classList.remove("no-cascade");
+}
+
 function toggleSummaryMode(mode) {
   _summaryMode = mode;
   // Default sort: PPS mode → rank by pps (reuses "elo" sort fn); ELO mode → back to SR
@@ -4813,12 +4824,27 @@ function renderCompact() {
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
-  // Deltas are always computed over the ALL-TIME (active-season) trajectory,
-  // not the current date filter — so a match's "+12/−8" reflects its real
-  // impact regardless of whether Today/This Week/etc. is selected.
+  // Delta walk base: ALL TIME uses the full active-season trajectory so each
+  // match's delta reflects its true historical ELO/PPS context. TODAY starts
+  // from each player's pre-today ELO and walks only today's matches.
+  const _allActive = activeMatches();
+  let _deltaMatches = _allActive;
+  let _startElo = {};
+  if (_matchDeltaWindow === "today") {
+    const _today = todayISO();
+    _startElo = computeElo(_allActive.filter((m) => m.date < _today));
+    _deltaMatches = _allActive.filter((m) => m.date === _today);
+  }
   const matchEloDeltas = isPPS
-    ? computeMatchPPSDeltas(activeMatches())
-    : _computeMatchEloDeltas(activeMatches());
+    ? computeMatchPPSDeltas(_deltaMatches, _startElo)
+    : _computeMatchEloDeltas(_deltaMatches, _startElo);
+
+  // Sync MATCHES PLAYED header controls
+  const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
+  if (_deltaLbl) _deltaLbl.textContent = isPPS ? "PPS" : "ELO";
+  document.querySelectorAll(".mdw-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.window === _matchDeltaWindow),
+  );
   const reversedMatches = [...filtered].reverse();
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
@@ -5001,8 +5027,8 @@ function setCmpSort(key) {
 
 // buildCompactMatchRows → ./render-match-rows.js
 
-function _computeMatchEloDeltas(matches) {
-  const elo = {};
+function _computeMatchEloDeltas(matches, startElo = {}) {
+  const elo = { ...startElo };
   const map = new Map();
   [...matches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
@@ -18180,6 +18206,7 @@ Object.assign(window, {
   renderHome,
   renderCompact,
   toggleSummaryMode,
+  toggleMatchDeltaWindow,
   setCmpSort,
   renderModernMatches,
   _histShowMore,

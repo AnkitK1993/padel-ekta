@@ -1582,6 +1582,47 @@ select.cmp-sel:focus {
   color: var(--muted);
   transition: transform 0.25s ease;
 }
+.cmp-delta-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+.cmp-delta-lbl {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.mdw-wrap {
+  display: flex;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  padding: 1px;
+  gap: 1px;
+}
+.mdw-btn {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  padding: 3px 6px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.mdw-btn.active {
+  background: var(--accent);
+  color: #000;
+}
 .cmp-matches-chevron.collapsed {
   transform: rotate(-90deg);
 }
