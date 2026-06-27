@@ -166,6 +166,7 @@ import {
   _replaySetSpotlight,
   _replayPlay,
   _replayReset,
+  _replayToggleMode,
 } from "./features/replay.js";
 
 // ── New architecture modules ───────────────────────────────────
@@ -4463,6 +4464,17 @@ function renderHome() {
   const homeEloMap = homeEloMapFull;
   const homeASSMap = computeASS(filtered);
 
+  // Precompute rank divergence for home card badges (Feature: correlation badge)
+  const _homeEloRanked = Object.entries(homeEloMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const _homeAssRanked = Object.entries(homeASSMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const _homeRankDivMap = {};
+  _homeEloRanked.forEach((name) => {
+    const er = _homeEloRanked.indexOf(name) + 1;
+    const ar = _homeAssRanked.indexOf(name) + 1;
+    const diff = ar - er;
+    if (Math.abs(diff) >= 2) _homeRankDivMap[name] = diff;
+  });
+
   // Score deltas (recent-5 and 30-day trend) for the card badges.
   // Uses active scoring mode — ELO or ASS — from the master hamburger toggle.
   const _histAll = _scoringMode === "ass"
@@ -4547,8 +4559,12 @@ function renderHome() {
         ? `<div class="spark-row">${streakChip}</div>`
         : "";
     const playerBadges = computeBadges(p.name, p, homeEloMap, filtered, stats);
-    const badgePillsHtml = playerBadges.length
-      ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
+    const _divDiff = _homeRankDivMap[p.name];
+    const _divBadge = _divDiff !== undefined
+      ? `<span class="card-badge-pill" title="ASS rank ${_divDiff < 0 ? "higher" : "lower"} than ELO rank by ${Math.abs(_divDiff)} positions" style="color:${_divDiff < 0 ? "var(--green)" : "var(--red)"}">⚡ ASS ${_divDiff < 0 ? "↑" : "↓"}${Math.abs(_divDiff)}</span>`
+      : "";
+    const badgePillsHtml = (playerBadges.length || _divBadge)
+      ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}${_divBadge}</div>`
       : "";
 
     // Component-system primitives shared by both card variants
@@ -4729,6 +4745,37 @@ function toggleSummaryMode(mode) { setScoringMode(mode); }
 // _sweepNeedle -> ./render-anim.js
 
 // runSpeedometerSweep -> ./render-anim.js
+
+function _buildRankDivergenceHtml(eloMap, assMap) {
+  const eloRanked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const assRanked = Object.entries(assMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const players = eloRanked.filter((n) => assMap[n]);
+  const diverged = players
+    .map((n) => {
+      const er = eloRanked.indexOf(n) + 1;
+      const ar = assRanked.indexOf(n) + 1;
+      return { name: n, eloRank: er, assRank: ar, diff: ar - er };
+    })
+    .filter((p) => Math.abs(p.diff) >= 2)
+    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+  if (!diverged.length) return "";
+  const rows = diverged.map((p) => {
+    const col = p.diff < 0 ? "var(--green)" : "var(--red)";
+    const arrow = p.diff < 0 ? "↑" : "↓";
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <div style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>
+      <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
+      <div style="font-size:9px;color:var(--muted)">ELO #${p.eloRank}</div>
+      <div style="font-size:9px;color:var(--muted)">ASS #${p.assRank}</div>
+      <div style="font-size:12px;font-weight:900;color:${col};min-width:28px;text-align:right">${arrow}${Math.abs(p.diff)}</div>
+    </div>`;
+  }).join("");
+  return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
+    <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--muted);margin-bottom:8px">⚡ RANK DIVERGENCE — ELO vs ASS</div>
+    <div style="font-size:8px;color:var(--muted);margin-bottom:6px">Players ranked differently by ELO and ASS (≥2 positions)</div>
+    ${rows}
+  </div>`;
+}
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
@@ -4999,10 +5046,12 @@ function renderCompact() {
         );
       }
       const summaryHtml = buildHistorySummary(filtered, cmpFilter);
-      if (summaryHtml) {
+      const divergenceHtml = _buildRankDivergenceHtml(_cmpEloMap, _cmpASSMap);
+      if (summaryHtml || divergenceHtml) {
         setTimeout(
           () => {
-            cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
+            if (divergenceHtml) cmpMatchesEl.insertAdjacentHTML("beforeend", divergenceHtml);
+            if (summaryHtml) cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
             setTimeout(_animEloCounts, 80);
           },
           matchStartDelay + animCount * 100 + 100,
@@ -5034,6 +5083,7 @@ function renderCompact() {
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
         `<div class="smr-list">${initRows.join("")}</div>` +
+        _buildRankDivergenceHtml(_cmpEloMap, _cmpASSMap) +
         buildHistorySummary(filtered, cmpFilter);
       setTimeout(_animEloCounts, 80);
     } else {
@@ -8020,6 +8070,15 @@ function openPlayerDetail(name) {
         eloAfterEach[pdSortedAll14.indexOf(m)] = { delta: inA4 ? dA3 : dB3 };
       }
     });
+    // ASS deltas per match for this player
+    const assDeltas = computeMatchASSDeltas(pdSortedAll14);
+    const assAfterEach = {};
+    pdSortedAll14.forEach((m, mi) => {
+      const info = assDeltas.get(m);
+      if (info && info.playerDeltas && (name in info.playerDeltas)) {
+        assAfterEach[mi] = info.playerDeltas[name];
+      }
+    });
     return last8
       .map((m) => {
         const inA4 = (m.teamA || []).includes(name);
@@ -8033,20 +8092,28 @@ function openPlayerDetail(name) {
         const score = inA4
           ? `${m.scoreA}–${m.scoreB}`
           : `${m.scoreB}–${m.scoreA}`;
-        const eld = eloAfterEach[pdSortedAll14.indexOf(m)];
+        const mi = pdSortedAll14.indexOf(m);
+        const eld = eloAfterEach[mi];
         const eloDeltaStr = eld
           ? `${eld.delta >= 0 ? "+" : ""}${eld.delta}`
           : "";
         const eloDeltaCol = eld?.delta >= 0 ? "var(--green)" : "var(--red)";
+        const assDelta = assAfterEach[mi];
+        const assSign = assDelta !== undefined ? (assDelta >= 0 ? "+" : "") : "";
+        const assCol = assDelta !== undefined ? (assDelta >= 0 ? "var(--green)" : "var(--red)") : "var(--muted)";
         const scoreColor = won4 ? "var(--green)" : "var(--red)";
         const _miIdx = state.matches.indexOf(m);
+        const deltaHtml = (eld || assDelta !== undefined) ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
+          ${eld ? `<div style="font-size:10px;font-weight:700;color:${eloDeltaCol}">ELO ${eloDeltaStr}</div>` : ""}
+          ${assDelta !== undefined ? `<div style="font-size:10px;font-weight:700;color:${assCol}">ASS ${assSign}${assDelta}</div>` : ""}
+        </div>` : "";
         return `<div class="ana-card det-match-card"${_miIdx >= 0 ? ` onclick="document.getElementById('player-detail-modal')?.remove();openMatchIntro(${_miIdx})" style="cursor:pointer"` : ""}>
         <div class="det-match-result" style="color:${scoreColor}">${won4 ? "W" : "L"}</div>
         <div class="det-match-body">
           <div class="det-match-score">${score}</div>
           <div class="sub">${fmtDate(m.date).replace(/\s\d{4}$/, "")} · w/ ${escHtml(partner)} · vs ${escHtml(opp)}</div>
         </div>
-        ${eld ? `<div style="font-size:11px;font-weight:700;color:${eloDeltaCol};flex-shrink:0">${eloDeltaStr}</div>` : ""}
+        ${deltaHtml}
       </div>`;
       })
       .join("");
@@ -13834,7 +13901,7 @@ function _rankCalMonthlyHtml(rankMap, allPeriods, maxRank) {
 }
 
 function _buildPowerRankingsHtml() {
-  const rankings = computePowerRankings(activeMatches());
+  const rankings = computePowerRankings(activeMatches(), _activeScoreMap());
   if (!rankings.length)
     return '<div class="sub" style="padding:8px">Need more data.</div>';
   const prevRanks = getPrevWeekRankMap();
@@ -13871,13 +13938,13 @@ function _buildPowerRankingsHtml() {
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:14px;font-weight:900;color:${col}">${p.score}</div>
-        <div style="font-size:8px;color:var(--muted);font-weight:700">${p.formEmoji} ${p.winPct}%W · ELO ${p.elo}</div>
+        <div style="font-size:8px;color:var(--muted);font-weight:700">${p.formEmoji} ${p.winPct}%W · ${_scoringLabel()} ${p.elo}</div>
       </div>
     </div>`;
     })
     .join("");
   return `<div class="ana-card" style="padding:10px 12px">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Composite: ELO 40% · Form 30% · Win Quality 20% · Activity 10% · Arrows vs last week</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Composite: ${_scoringLabel()} 40% · Form 30% · Win Quality 20% · Activity 10% · Arrows vs last week</div>
     ${rows}
   </div>`;
 }
@@ -17496,6 +17563,103 @@ function renderAnalyticsPage() {
     </div>`;
   })();
 
+  const _dowAltMatrixHtml = (() => {
+    // Always shows the other system: ELO when active mode is ASS, and vice versa
+    const altLabel = _scoringMode === "ass" ? "ELO" : "ASS";
+    const altHist = _scoringMode === "ass" ? _memoEloHistory() : _memoASSHistory();
+    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const players = compList.map((p) => p.name);
+    const matrix = Array.from({ length: 7 }, () => ({}));
+    players.forEach((pname) => {
+      (altHist[pname] || []).forEach((e) => {
+        if (!e.date) return;
+        const d = new Date(e.date + "T00:00:00").getDay();
+        matrix[d][pname] = (matrix[d][pname] || 0) + e.delta;
+      });
+    });
+    let maxAbs = 1;
+    players.forEach((pname) => {
+      DAY.forEach((_, d) => {
+        const v = matrix[d][pname];
+        if (v !== undefined && Math.abs(v) > maxAbs) maxAbs = Math.abs(v);
+      });
+    });
+    const cellCol = (v) => {
+      if (!v) return "rgba(255,255,255,0.04)";
+      const intensity = Math.min(1, Math.abs(v) / maxAbs);
+      return v > 0
+        ? `rgba(72,199,116,${(0.12 + 0.55 * intensity).toFixed(2)})`
+        : `rgba(245,87,87,${(0.12 + 0.55 * intensity).toFixed(2)})`;
+    };
+    const thStyle = "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
+    const tdStyle = (v) => `padding:5px 4px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
+    const headerRow = `<tr><th style="${thStyle};text-align:left">Player</th>${DAY.map((d) => `<th style="${thStyle}">${d}</th>`).join("")}</tr>`;
+    const dataRows = players.map((pname, i) => {
+      const nameCell = `<td style="padding:5px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--text)">#${i + 1} ${escHtml(pname)}</td>`;
+      const dayCells = DAY.map((_, d) => {
+        const v = matrix[d][pname];
+        const disp = v === undefined ? "—" : (v > 0 ? `+${v}` : `${v}`);
+        return `<td style="${tdStyle(v)}">${disp}</td>`;
+      }).join("");
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">${nameCell}${dayCells}</tr>`;
+    }).join("");
+    return `<div class="ana-card" style="padding:8px 6px">
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Net ${altLabel} per player per day — always shows the other scoring system for comparison</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="width:100%;border-collapse:collapse;table-layout:auto">
+          <thead>${headerRow}</thead>
+          <tbody>${dataRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  })();
+
+  const _scatterPlotHtml = (() => {
+    const eloMap = _memoElo();
+    const assMap = computeASS(activeMatches());
+    const players = compList.map((p) => p.name).filter((n) => eloMap[n] && assMap[n]);
+    if (players.length < 2) return '<div class="sub" style="padding:8px">Need more data.</div>';
+    const elos = players.map((n) => eloMap[n] || 1000);
+    const asses = players.map((n) => assMap[n] || 1000);
+    const minElo = Math.min(...elos), maxElo = Math.max(...elos);
+    const minAss = Math.min(...asses), maxAss = Math.max(...asses);
+    const eloRange = Math.max(maxElo - minElo, 1);
+    const assRange = Math.max(maxAss - minAss, 1);
+    const W = 280, H = 200, PAD = 28;
+    const cx = (elo) => PAD + Math.round(((elo - minElo) / eloRange) * (W - PAD * 2));
+    const cy = (ass) => H - PAD - Math.round(((ass - minAss) / assRange) * (H - PAD * 2));
+    const dots = players.map((n, i) => {
+      const x = cx(elos[i]), y = cy(asses[i]);
+      const col = playerColor(n);
+      const initials = playerInitials(n);
+      const eloRank = [...players].sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000)).indexOf(n) + 1;
+      const assRank = [...players].sort((a, b) => (assMap[b] || 1000) - (assMap[a] || 1000)).indexOf(n) + 1;
+      const diverge = Math.abs(eloRank - assRank) >= 2;
+      return `<circle cx="${x}" cy="${y}" r="8" fill="${col}" opacity="0.85"/>
+        <text x="${x}" y="${y + 3}" text-anchor="middle" font-size="7" font-weight="800" fill="#fff">${initials}</text>
+        ${diverge ? `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="2,2"/>` : ""}`;
+    }).join("");
+    const diagonalPct = (pct) => {
+      const elo = minElo + eloRange * (pct / 100);
+      const ass = minAss + assRange * (pct / 100);
+      return { x: cx(elo), y: cy(ass) };
+    };
+    const d0 = diagonalPct(0), d100 = diagonalPct(100);
+    return `<div class="ana-card" style="padding:10px 12px">
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">ELO (x-axis) vs ASS (y-axis) — dashed ring = rank divergence ≥2 positions</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center">
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible">
+          <line x1="${d0.x}" y1="${d0.y}" x2="${d100.x}" y2="${d100.y}" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+          <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H - PAD}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+          <text x="${W / 2}" y="${H - 6}" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.4)">ELO</text>
+          <text x="10" y="${H / 2}" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.4)" transform="rotate(-90,10,${H / 2})">ASS</text>
+          ${dots}
+        </svg>
+      </div>
+    </div>`;
+  })();
+
   // ── SHUTOUT LEADERBOARD ─────────────────────────────────────
   const _shutoutRows = compList
     .filter((p) => p.mp >= 3)
@@ -17801,6 +17965,8 @@ function renderAnalyticsPage() {
         { label: "Win %", html: _dowPlayerHtml },
         { label: "ELO Gain", html: _eloDowHtml },
         { label: `${_scoringLabel()} Matrix`, html: _dowPlayerMatrixHtml },
+        { label: `${_scoringMode === "ass" ? "ELO" : "ASS"} Matrix`, html: _dowAltMatrixHtml },
+        { label: "Scatter", html: _scatterPlotHtml },
       ]),
     },
     {
@@ -18568,6 +18734,7 @@ Object.assign(window, {
   _replayToggleLoop,
   _replayToggleReverse,
   _replaySetSpotlight,
+  _replayToggleMode,
   toggleMatchCalendar,
   toggleMatchesSection,
   calNav,

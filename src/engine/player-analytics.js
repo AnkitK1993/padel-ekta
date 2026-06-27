@@ -6,6 +6,7 @@
 // free of app/DOM coupling (same pattern as badges.js).
 import { computeElo, computeEloHistory } from "./elo.js";
 import { computeStats } from "./stats.js";
+import { computeASSTimeline, computeMatchASSDeltas } from "./ass.js";
 
 let _getPairStats, _toLocalISODate;
 export function initPlayerAnalyticsDeps(deps) {
@@ -251,14 +252,15 @@ export function computeArchetype(name, matches) {
   };
 }
 
-export function computePowerRankings(matches) {
+export function computePowerRankings(matches, externalScoreMap = null) {
   const eloMap = computeElo(matches);
   const stats = computeStats(matches, eloMap);
   if (!stats.length) return [];
 
-  const maxElo = Math.max(...Object.values(eloMap));
-  const minElo = Math.min(...Object.values(eloMap));
-  const eloRange = Math.max(maxElo - minElo, 1);
+  const scoreMap = externalScoreMap || eloMap;
+  const maxScore = Math.max(...Object.values(scoreMap));
+  const minScore = Math.min(...Object.values(scoreMap));
+  const scoreRange = Math.max(maxScore - minScore, 1);
 
   const sorted = [...matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
@@ -268,7 +270,7 @@ export function computePowerRankings(matches) {
   return stats
     .map((p) => {
       const form = computePlayerForm(p.name, matches);
-      const eloNorm = ((eloMap[p.name] || 1000) - minElo) / eloRange;
+      const eloNorm = ((scoreMap[p.name] || 1000) - minScore) / scoreRange;
       const formNorm = form ? form.score / 10 : p.mw / Math.max(p.mp, 1);
       const activityNorm = p.mp / maxMp;
 
@@ -299,7 +301,7 @@ export function computePowerRankings(matches) {
       return {
         name: p.name,
         score: Math.round(score * 1000) / 10,
-        elo: eloMap[p.name] || 1000,
+        elo: scoreMap[p.name] || 1000,
         winPct: Math.round((p.mw / Math.max(p.mp, 1)) * 100),
         mp: p.mp,
         form: form ? form.score : null,
@@ -388,12 +390,16 @@ export function computeMatchStories(matches) {
   );
   const stories = [];
   const eloHistory = {};
+  const assHistory = {};
+  const internalElo = {}; // for ASS strength multiplier
   const streaks = {};
 
   sorted.forEach((m, idx) => {
     const allP = [...(m.teamA || []), ...(m.teamB || [])];
     allP.forEach((p) => {
       if (!(p in eloHistory)) eloHistory[p] = 1000;
+      if (!(p in assHistory)) assHistory[p] = 1000;
+      if (!(p in internalElo)) internalElo[p] = 1000;
       if (!(p in streaks)) streaks[p] = { type: null, count: 0 };
     });
 
@@ -409,6 +415,7 @@ export function computeMatchStories(matches) {
     const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
 
     const prevElos = { ...eloHistory };
+    const prevAss  = { ...assHistory };
 
     m.teamA.forEach((p) => {
       eloHistory[p] = (eloHistory[p] || 1000) + dA;
@@ -416,6 +423,34 @@ export function computeMatchStories(matches) {
     m.teamB.forEach((p) => {
       eloHistory[p] = (eloHistory[p] || 1000) + dB;
     });
+
+    // Compute ASS deltas for this match
+    const margin  = Math.abs(m.scoreA - m.scoreB);
+    const total   = m.scoreA + m.scoreB;
+    const quality = 4 * margin + total;
+    const avgIEloA = m.teamA.reduce((s, p) => s + internalElo[p], 0) / Math.max(m.teamA.length, 1);
+    const avgIEloB = m.teamB.reduce((s, p) => s + internalElo[p], 0) / Math.max(m.teamB.length, 1);
+    const iExpA  = 1 / (1 + Math.pow(10, (avgIEloB - avgIEloA) / 400));
+    const iDeltaA = Math.round(32 * ((aWon ? 1 : 0) - iExpA));
+    const iDeltaB = Math.round(32 * ((aWon ? 0 : 1) - (1 - iExpA)));
+    m.teamA.forEach((p) => {
+      const partner = m.teamA.find((pp) => pp !== p);
+      const partnerElo = partner ? internalElo[partner] : internalElo[p];
+      const mult = Math.max(0.5, Math.min(2.0,
+        1 + (avgIEloB - internalElo[p]) / 400 - 0.5 * (partnerElo - internalElo[p]) / 400));
+      const d = aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+      assHistory[p] = (assHistory[p] || 1000) + d;
+    });
+    m.teamB.forEach((p) => {
+      const partner = m.teamB.find((pp) => pp !== p);
+      const partnerElo = partner ? internalElo[partner] : internalElo[p];
+      const mult = Math.max(0.5, Math.min(2.0,
+        1 + (avgIEloA - internalElo[p]) / 400 - 0.5 * (partnerElo - internalElo[p]) / 400));
+      const d = !aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+      assHistory[p] = (assHistory[p] || 1000) + d;
+    });
+    m.teamA.forEach((p) => { internalElo[p] += iDeltaA; });
+    m.teamB.forEach((p) => { internalElo[p] += iDeltaB; });
 
     // Update streaks
     [...m.teamA, ...m.teamB].forEach((p) => {
@@ -459,6 +494,16 @@ export function computeMatchStories(matches) {
             text: `${p} crossed ELO ${milestone} for the first time!`,
             date,
             score: `ELO ${Math.round(eloHistory[p])}`,
+            matchIdx: idx,
+          });
+        }
+        if (prevAss[p] < milestone && assHistory[p] >= milestone) {
+          stories.push({
+            icon: "⭐",
+            type: "ass-milestone",
+            text: `${p} crossed ASS ${milestone} for the first time!`,
+            date,
+            score: `ASS ${Math.round(assHistory[p])}`,
             matchIdx: idx,
           });
         }
@@ -697,6 +742,28 @@ export function computeAchievements(name, matches) {
     return st.length && st[0].name === name;
   });
   add("🥇", "Season MVP", "Finish #1 in any month", isMVP);
+
+  // ASS Elite — peak ASS ≥ 1200
+  const assTimeline = computeASSTimeline(sorted);
+  const assPts = assTimeline.history[name] || [];
+  const peakASS = assPts.length > 0 ? Math.max(...assPts.map((p) => p.elo)) : 1000;
+  add(
+    "🌟",
+    "ASS Elite",
+    "Reach ASS 1200",
+    peakASS >= 1200,
+    `Peak ASS: ${Math.round(peakASS)}`,
+  );
+
+  // Dominant Force — single match ASS delta ≥ 50
+  const maxAssDelta = assPts.length > 0 ? Math.max(...assPts.map((p) => p.delta)) : 0;
+  add(
+    "💥",
+    "Dominant Force",
+    "Gain 50+ ASS in a single match",
+    maxAssDelta >= 50,
+    `Best delta: +${Math.round(maxAssDelta)}`,
+  );
 
   return ach;
 }

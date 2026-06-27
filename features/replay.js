@@ -7,6 +7,7 @@
 import { state } from "../src/engine/state.js";
 import { withoutGuestMatches } from "../src/engine/selectors.js";
 import { computeElo } from "../src/engine/elo.js";
+import { computeASS } from "../src/engine/ass.js";
 import { computeStats } from "../src/engine/stats.js";
 import { escHtml, fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
@@ -18,6 +19,7 @@ let _replayIdx = 0,
   _replayLoop = false,
   _replayReverse = false,
   _replaySpotlight = "",
+  _replayMode = "elo",
   _replayPrevElos = {},
   _replayPrevRanks = {};
 
@@ -94,6 +96,10 @@ export function _buildLeaderboardReplayHtml() {
           )
           .join("")}
       </div>
+      <div class="lr-mode-group">
+        <button class="lr-speed-pill${_replayMode === "elo" ? " active" : ""}" onclick="_replayToggleMode('elo')">ELO</button>
+        <button class="lr-speed-pill${_replayMode === "ass" ? " active" : ""}" onclick="_replayToggleMode('ass')">ASS</button>
+      </div>
       <button class="lr-toggle lr-toggle-loop${_replayLoop ? " active" : ""}" onclick="_replayToggleLoop()" title="Loop">↻</button>
       <button class="lr-toggle lr-toggle-rev${_replayReverse ? " active" : ""}" onclick="_replayToggleReverse()" title="Reverse">⇄</button>
     </div>
@@ -119,8 +125,10 @@ export function _replayUpdate(idx) {
   );
   const slice = sorted.slice(0, _replayIdx);
   const eloMap = computeElo(slice);
+  const scoreMap = _replayMode === "ass" ? computeASS(slice) : eloMap;
+  const scoreLabel = _replayMode === "ass" ? "ASS" : "ELO";
   const stats = computeStats(slice, eloMap).slice(0, 8);
-  const maxElo = Math.max(...stats.map((s) => eloMap[s.name] || 1000), 1000);
+  const maxScore = Math.max(...stats.map((s) => scoreMap[s.name] || 1000), 1000);
   const board = document.getElementById("replay-board");
   const slider = document.getElementById("replay-slider");
   const caption = document.getElementById("replay-caption");
@@ -132,21 +140,22 @@ export function _replayUpdate(idx) {
     const losers = aWon ? m.teamB : m.teamA;
     const ws = Math.max(m.scoreA, m.scoreB);
     const ls = Math.min(m.scoreA, m.scoreB);
-    const prevElos = computeElo(sorted.slice(0, _replayIdx - 1));
+    const prevSlice = sorted.slice(0, _replayIdx - 1);
+    const prevScoreMap = _replayMode === "ass" ? computeASS(prevSlice) : computeElo(prevSlice);
     const winnerName = winners[0];
-    const eloDelta =
-      (eloMap[winnerName] || 1000) - (prevElos[winnerName] || 1000);
-    const sign = eloDelta >= 0 ? "+" : "";
+    const scoreDelta =
+      (scoreMap[winnerName] || 1000) - (prevScoreMap[winnerName] || 1000);
+    const sign = scoreDelta >= 0 ? "+" : "";
     caption.innerHTML = `<span class="lr-cap-num">Match ${_replayIdx}/${sorted.length}</span>
       <span class="lr-cap-date">${m.date || ""}</span>
       <span class="lr-cap-result">${winners.join(" & ")} <span class="lr-cap-def">def.</span> ${losers.join(" & ")} <b>${ws}-${ls}</b></span>
-      <span class="lr-cap-elo" style="color:${eloDelta >= 0 ? "var(--green)" : "var(--red)"}">${winnerName} ${sign}${eloDelta} ELO</span>`;
+      <span class="lr-cap-elo" style="color:${scoreDelta >= 0 ? "var(--green)" : "var(--red)"}">${winnerName} ${sign}${scoreDelta} ${scoreLabel}</span>`;
   }
   if (!board) return;
   board.innerHTML = stats
     .map((p, i) => {
-      const elo = eloMap[p.name] || 1000;
-      const barW = Math.round((elo / maxElo) * 100);
+      const score = scoreMap[p.name] || 1000;
+      const barW = Math.round((score / maxScore) * 100);
       const isSpot = _replaySpotlight && p.name === _replaySpotlight;
       const dim = _replaySpotlight && !isSpot ? " lr-dim" : "";
       const fat = isSpot ? " lr-fat" : "";
@@ -167,10 +176,10 @@ export function _replayUpdate(idx) {
             ? `<span class="lr-rank-up">↑${diff}</span>`
             : `<span class="lr-rank-dn">↓${Math.abs(diff)}</span>`;
       }
-      const prevElo = _replayPrevElos[p.name];
+      const prevScore = _replayPrevElos[p.name];
       let eloChip = '<span class="lr-elo-d-blank"></span>';
-      if (typeof prevElo === "number") {
-        const d = elo - prevElo;
+      if (typeof prevScore === "number") {
+        const d = score - prevScore;
         if (d !== 0) {
           const s = d > 0 ? "+" : "";
           eloChip = `<span class="lr-elo-d" style="color:${d > 0 ? "var(--green)" : "var(--red)"}">${s}${d}</span>`;
@@ -184,7 +193,7 @@ export function _replayUpdate(idx) {
           <div class="lr-name">${p.name}</div>
           <div class="lr-bar"><div class="lr-bar-fill" style="width:${barW}%;background:${col}"></div></div>
         </div>
-        <div class="lr-elo" style="color:${col}">${elo}</div>
+        <div class="lr-elo" style="color:${col}">${score}</div>
         ${eloChip}
       </div>`;
     })
@@ -192,9 +201,17 @@ export function _replayUpdate(idx) {
   _replayPrevElos = {};
   _replayPrevRanks = {};
   stats.forEach((p, i) => {
-    _replayPrevElos[p.name] = eloMap[p.name] || 1000;
+    _replayPrevElos[p.name] = scoreMap[p.name] || 1000;
     _replayPrevRanks[p.name] = i;
   });
+}
+
+export function _replayToggleMode(mode) {
+  _replayMode = mode || (_replayMode === "elo" ? "ass" : "elo");
+  document.querySelectorAll(".lr-mode-group .lr-speed-pill").forEach((b) => {
+    b.classList.toggle("active", b.textContent === _replayMode.toUpperCase());
+  });
+  _replayUpdate(_replayIdx);
 }
 
 export function _replayStep(delta) {
