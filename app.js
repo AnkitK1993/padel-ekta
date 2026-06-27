@@ -4461,6 +4461,7 @@ function renderHome() {
   if (streakEl) streakEl.style.display = "none";
   const maxSR = stats[0].sr || 1;
   const homeEloMap = homeEloMapFull;
+  const homeASSMap = computeASS(filtered);
 
   // Score deltas (recent-5 and 30-day trend) for the card badges.
   // Uses active scoring mode — ELO or ASS — from the master hamburger toggle.
@@ -4562,9 +4563,9 @@ function renderHome() {
 
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? (homeASSMap[p.name] || 1000) : (homeEloMap[p.name] || 1000)}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? (homeASSMap[p.name] || 1000) : (homeEloMap[p.name] || 1000)}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
   });
 
   _renderSessionActiveCard();
@@ -7420,6 +7421,59 @@ function _pdBuildEloTimelineHtml(name) {
   </div>`;
 }
 
+function _pdBuildASSTimelineHtml(name) {
+  const pts = (_memoASSHistory()[name] || []).map((h) => ({ elo: h.elo, date: h.date, won: h.won }));
+  if (pts.length < 3) return "";
+  const W = 300, H = 90, pl = 36, pr = 8, pt = 8, pb = 18, cW = W - pl - pr, cH = H - pt - pb;
+  const minE = Math.min(...pts.map((p) => p.elo)) - 20;
+  const maxE = Math.max(...pts.map((p) => p.elo)) + 20;
+  const eRange = Math.max(1, maxE - minE);
+  const toX = (i) => pl + (i / (pts.length - 1 || 1)) * cW;
+  const toY = (e) => pt + (1 - (e - minE) / eRange) * cH;
+  const yLines = [minE + eRange * 0.25, minE + eRange * 0.5, minE + eRange * 0.75].map((ev) => {
+    const y = toY(ev);
+    return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${Math.round(ev)}</text>`;
+  }).join("");
+  const polyline = pts.map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ");
+  const area = `M${toX(0).toFixed(1)},${(H - pb).toFixed(1)} ` + pts.map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ") + ` L${toX(pts.length - 1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
+  const col = playerColor(name);
+  const circles = pts.map((p, i) => `<circle cx="${toX(i).toFixed(1)}" cy="${toY(p.elo).toFixed(1)}" r="2.5" fill="${p.won ? "var(--green)" : "var(--red)"}" stroke="rgba(0,0,0,0.4)" stroke-width="0.5"><title>${p.date}: ASS ${p.elo} (${p.won ? "W" : "L"})</title></circle>`).join("");
+  const lastVal = pts[pts.length - 1].elo, firstVal = pts[0].elo;
+  const netChange = lastVal - firstVal;
+  const netStr = netChange > 0 ? `+${netChange}` : `${netChange}`;
+  const netCol = netChange > 0 ? "var(--green)" : netChange < 0 ? "var(--red)" : "var(--muted)";
+  const peakVal = Math.max(...pts.map((p) => p.elo));
+  const peakPt  = pts.find((p) => p.elo === peakVal);
+  const valleyVal = Math.min(...pts.map((p) => p.elo));
+  const valleyPt  = pts.find((p) => p.elo === valleyVal);
+  const fromPeak  = lastVal - peakVal;
+  const fromPeakLabel = fromPeak === 0
+    ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
+    : `<span style="color:var(--red);font-weight:700">${fromPeak} from peak</span>`;
+  return `<div class="ana-card"><span class="badge">ASS Timeline</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px">
+      <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
+      <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ASS total</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-size:9px;color:var(--muted)">▲ Peak: <span style="color:var(--green);font-weight:800;font-size:11px">${peakVal}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
+      <div style="font-size:9px">${fromPeakLabel}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:9px;color:var(--muted)">▼ Low: <span style="color:var(--red);font-weight:800;font-size:11px">${valleyVal}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(valleyPt?.date)})</span></div>
+      <div style="font-size:9px;color:var(--muted)">Range: <span style="font-weight:700;color:var(--fg)">${peakVal - valleyVal}</span></div>
+    </div>
+    <div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
+      ${yLines}
+      <defs><linearGradient id="atg_${name.replace(/\s/g, "")}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.25"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#atg_${name.replace(/\s/g, "")})" />
+      <polyline points="${polyline}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${circles}
+      <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastVal) - 5).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="800" fill="${col}">${lastVal}</text>
+    </svg></div>
+  </div>`;
+}
+
 function _pdBuildBestDayHtml(name, playerMs) {
   const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const played = Array(7).fill(0), won = Array(7).fill(0);
@@ -7817,6 +7871,12 @@ function openPlayerDetail(name) {
     Object.entries(eloMap)
       .sort((a, b) => b[1] - a[1])
       .findIndex(([n]) => n === name) + 1;
+  // ASS
+  const assMapPd = computeASS(activeMatches());
+  const playerASS = assMapPd[name] || 1000;
+  const assChange = playerASS - 1000;
+  const assChangeCol = assChange > 0 ? "var(--green)" : assChange < 0 ? "var(--red)" : "var(--muted)";
+  const assRank = Object.entries(assMapPd).sort((a, b) => b[1] - a[1]).findIndex(([n]) => n === name) + 1;
 
   // Badges
   const badges = computeBadges(name, s, eloMap, activeMatches());
@@ -7924,8 +7984,9 @@ function openPlayerDetail(name) {
       </div>
     </div>`;
 
-  // ── ELO TIMELINE CHART ─────────────────────────────────
+  // ── SCORE TIMELINE CHARTS (ASS + ELO) ───────────────────
   const eloTimelineHtml = _pdBuildEloTimelineHtml(name);
+  const assTimelineHtml = _pdBuildASSTimelineHtml(name);
 
   // ── RECENT MATCH CARDS (from match log with ELO delta) ───
   const recentMatchCards = (() => {
@@ -7966,10 +8027,8 @@ function openPlayerDetail(name) {
         const partner =
           (inA4 ? m.teamA || [] : m.teamB || [])
             .filter((p) => p !== name)
-            .map((p) => p.split(" ")[0])
             .join(" & ") || "—";
         const opp = (inA4 ? m.teamB || [] : m.teamA || [])
-          .map((p) => p.split(" ")[0])
           .join(" & ");
         const score = inA4
           ? `${m.scoreA}–${m.scoreB}`
@@ -8320,12 +8379,14 @@ function openPlayerDetail(name) {
     )[0];
     const peakEloVal = _memoEloPeaks()[name] || playerElo;
     const lowEloVal = _memoEloLows()[name] || playerElo;
+    const peakASSVal = _memoASSPeaks()[name] || playerASS;
+    const lowASSVal  = _memoASSLows()[name]  || playerASS;
     // Tap Best Win / Worst Loss to open that match in the UFC overlay.
     const bwIdx = biggestWinMatch ? state.matches.indexOf(biggestWinMatch) : -1;
     const wlIdx = worstLossMatch ? state.matches.indexOf(worstLossMatch) : -1;
     const bwTap = bwIdx >= 0 ? ` onclick="openMatchIntro(${bwIdx})" style="cursor:pointer"` : "";
     const wlTap = wlIdx >= 0 ? ` onclick="openMatchIntro(${wlIdx})" style="cursor:pointer"` : "";
-    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"${bwTap}><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win${bwIdx >= 0 ? " ›" : ""}</div></div><div class="det-streak-div"></div><div class="det-streak-cell"${wlTap}><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss${wlIdx >= 0 ? " ›" : ""}</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${lowEloVal}</div><div class="sub">Low ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
+    return `<div class="ana-card"><span class="badge">Career Highs</span><div class="det-streak-row" style="flex-wrap:wrap;gap:10px;margin-top:8px"><div class="det-streak-cell"${bwTap}><div class="det-streak-val" style="color:var(--green)">${biggestWin2 || "—"}</div><div class="sub">Best Win${bwIdx >= 0 ? " ›" : ""}</div></div><div class="det-streak-div"></div><div class="det-streak-cell"${wlTap}><div class="det-streak-val" style="color:var(--red)">${worstLoss2 || "—"}</div><div class="sub">Worst Loss${wlIdx >= 0 ? " ›" : ""}</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--green)">${longestWS}W</div><div class="sub">Best Streak</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakASSVal}</div><div class="sub">Peak ASS</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${lowASSVal}</div><div class="sub">Low ASS</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--gold)">${peakEloVal}</div><div class="sub">Peak ELO</div></div><div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val" style="color:var(--red)">${lowEloVal}</div><div class="sub">Low ELO</div></div>${bestDay2 ? `<div class="det-streak-div"></div><div class="det-streak-cell"><div class="det-streak-val">${bestDay2[1].w}W/${bestDay2[1].p}</div><div class="sub">Best Day</div></div>` : ""}</div></div>`;
   })();
 
   // ── MONTHLY WIN-RATE SPARKLINE ────────────────────────────
@@ -8443,7 +8504,18 @@ function openPlayerDetail(name) {
                     <div class="ov-sr-block">
                       <div class="ov-sr-val" id="pd-sr-val" data-final="${s.sr.toFixed(2)}">${s.sr.toFixed(2)}</div>
                       <div class="ov-sr-lbl">Skill Rating</div>
-                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:2px">ELO <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:700">${playerElo}</span>${eloRank > 0 ? `<span style="margin-left:6px;font-size:9px;font-weight:800;letter-spacing:0.06em;color:var(--muted)">· #${eloRank} ELO RANK</span>` : ""}</div>
+                      <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;flex-direction:column;gap:2px">
+                        <div style="display:flex;align-items:center;gap:6px">
+                          <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ASS</span>
+                          <span id="pd-ass-val" style="color:${assChangeCol};font-weight:800;font-size:13px">${playerASS}</span>
+                          ${assRank > 0 ? `<span style="font-size:9px;color:var(--muted)">#${assRank} rank</span>` : ""}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px">
+                          <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ELO</span>
+                          <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:800;font-size:13px">${playerElo}</span>
+                          ${eloRank > 0 ? `<span style="font-size:9px;color:var(--muted)">#${eloRank} rank</span>` : ""}
+                        </div>
+                      </div>
                     </div>
                     <div class="ov-record-block">
                       <div class="ov-record">${s.mw}<span class="ov-record-sep">W</span>${s.ml}<span class="ov-record-sep">L</span></div>
@@ -8538,6 +8610,8 @@ function openPlayerDetail(name) {
                 ${radarHtml}
 
                 ${raceHtml}
+
+                ${assTimelineHtml}
 
                 ${eloTimelineHtml}
 
@@ -17367,6 +17441,63 @@ function renderAnalyticsPage() {
     return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ELO gained per win by day — higher = more upsets / ELO at stake</div></div>`;
   })();
 
+  // ── DOW × PLAYER GAIN MATRIX (active scoring mode) ─────────
+  const _dowPlayerMatrixHtml = (() => {
+    const hist = _activeHistory(); // ASS or ELO based on hamburger toggle
+    const scLbl = _scoringLabel();
+    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // Players ranked by active score (compList is already sorted this way)
+    const players = compList.map((p) => p.name);
+    // Build [day][player] = net delta sum
+    const matrix = Array.from({ length: 7 }, () => ({}));
+    players.forEach((pname) => {
+      (hist[pname] || []).forEach((e) => {
+        if (!e.date) return;
+        const d = new Date(e.date + "T00:00:00").getDay();
+        matrix[d][pname] = (matrix[d][pname] || 0) + e.delta;
+      });
+    });
+    // Find max abs value for color intensity
+    let maxAbs = 1;
+    players.forEach((pname) => {
+      DAY.forEach((_, d) => {
+        const v = matrix[d][pname];
+        if (v !== undefined && Math.abs(v) > maxAbs) maxAbs = Math.abs(v);
+      });
+    });
+    const cellCol = (v) => {
+      if (!v) return "rgba(255,255,255,0.04)";
+      const intensity = Math.min(1, Math.abs(v) / maxAbs);
+      return v > 0
+        ? `rgba(72,199,116,${(0.12 + 0.55 * intensity).toFixed(2)})`
+        : `rgba(245,87,87,${(0.12 + 0.55 * intensity).toFixed(2)})`;
+    };
+    const thStyle = "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
+    const tdStyle = (v) => `padding:4px 3px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
+    const headerRow = `<tr><th style="${thStyle}">Day</th>${players.map((_, i) => `<th style="${thStyle}">#${i + 1}</th>`).join("")}</tr>`;
+    const nameRow = `<tr style="border-bottom:1px solid rgba(255,255,255,0.1)"><td style="padding:3px 5px;font-size:7px;color:var(--muted)"></td>${players.map((pn) => `<td style="padding:3px 3px;font-size:7px;color:var(--accent);font-weight:700;text-align:center;white-space:nowrap">${pn.split(" ")[0]}</td>`).join("")}</tr>`;
+    const dataRows = DAY.map((dayName, d) => {
+      const hasData = players.some((pn) => matrix[d][pn] !== undefined);
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+        <td style="padding:5px 6px;font-size:9px;font-weight:800;color:var(--muted);white-space:nowrap">${dayName}</td>
+        ${players.map((pn) => {
+          const v = matrix[d][pn];
+          const disp = v === undefined ? "—" : (v > 0 ? `+${v}` : `${v}`);
+          return `<td style="${tdStyle(v)}">${disp}</td>`;
+        }).join("")}
+      </tr>`;
+    }).join("");
+    return `<div class="ana-card" style="padding:8px 6px">
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Net ${scLbl} per player per day — ranked by current ${scLbl} score</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="width:100%;border-collapse:collapse;table-layout:auto">
+          <thead>${headerRow}${nameRow}</thead>
+          <tbody>${dataRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  })();
+
   // ── SHUTOUT LEADERBOARD ─────────────────────────────────────
   const _shutoutRows = compList
     .filter((p) => p.mp >= 3)
@@ -17671,6 +17802,7 @@ function renderAnalyticsPage() {
         { label: "Volume", html: dowHtml },
         { label: "Win %", html: _dowPlayerHtml },
         { label: "ELO Gain", html: _eloDowHtml },
+        { label: `${_scoringLabel()} Matrix`, html: _dowPlayerMatrixHtml },
       ]),
     },
     {
