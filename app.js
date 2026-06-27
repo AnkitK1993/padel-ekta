@@ -192,7 +192,7 @@ import { openWeeklyDigest } from "./features/weekly-digest.js";
 import { openThemePicker, closeThemePicker, pickTheme } from "./features/theme-picker.js";
 import { openGlobalSearch, closeGlobalSearch, _globalSearchInput } from "./features/global-search.js";
 import { fireConfetti } from "./features/confetti.js";
-import { getMilestoneLog, saveMilestoneEntry, checkMilestones } from "./features/milestones.js";
+import { getMilestoneLog, saveMilestoneEntry, checkMilestones, _checkAnniversaries } from "./features/milestones.js";
 
 // ── New architecture modules ───────────────────────────────────
 import {
@@ -675,54 +675,6 @@ document.addEventListener(
 document.addEventListener("visibilitychange", () => {
   document.body.classList.toggle("app-bg", document.hidden);
 });
-
-// ── ANNIVERSARY TOAST ─────────────────────────────────────
-function _checkAnniversaries() {
-  if (!state.matches || !state.matches.length) return;
-  const today = new Date();
-  const tMM = String(today.getMonth() + 1).padStart(2, "0");
-  const tDD = String(today.getDate()).padStart(2, "0");
-  const tY = today.getFullYear();
-  let seen = "";
-  try {
-    seen = sessionStorage.getItem("padel_anniv_shown") || "";
-  } catch (e) {}
-  const firstSeen = {};
-  for (const m of state.matches) {
-    if (!m.date) continue;
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      if (!firstSeen[p] || m.date < firstSeen[p]) firstSeen[p] = m.date;
-    });
-  }
-  const anniversaries = [];
-  for (const [name, firstDate] of Object.entries(firstSeen)) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(firstDate || "");
-    if (!m) continue;
-    const [, fY, fMM, fDD] = m;
-    if (fMM === tMM && fDD === tDD && tY > parseInt(fY, 10)) {
-      const yrs = tY - parseInt(fY, 10);
-      const key = `${name}-${tY}`;
-      if (seen.includes(key)) continue;
-      anniversaries.push({ name, yrs, key });
-    }
-  }
-  if (!anniversaries.length) return;
-  let allKeys = seen;
-  anniversaries.forEach((a, i) => {
-    setTimeout(() => {
-      showToast(
-        `${a.name}: ${a.yrs} year${a.yrs > 1 ? "s" : ""} since their first match!`,
-        "🎂",
-        6000,
-      );
-      fireConfetti({ count: 70, duration: 2400 });
-    }, i * 2500);
-    allKeys += "|" + a.key;
-  });
-  try {
-    sessionStorage.setItem("padel_anniv_shown", allKeys);
-  } catch (e) {}
-}
 
 // ── STATE ──────────────────────────────────────────────────
 // allMatches now lives in shared state.matches (./state.js)
