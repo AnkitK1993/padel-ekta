@@ -14,7 +14,7 @@ import {
   clearEloCache,
 } from "./src/engine/elo.js";
 import { computeStats, _normScores, eloToSr } from "./src/engine/stats.js";
-import { computeMatchPPSDeltas, computePPS } from "./src/engine/pps.js";
+import { computeMatchASSDeltas, computeASS } from "./src/engine/ass.js";
 import { initParserDeps, parseBlock, parseDateHdr } from "./src/engine/parser.js";
 import {
   escHtml,
@@ -994,7 +994,7 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-let _summaryMode = "elo";      // "elo" | "pps"
+let _summaryMode = "elo";      // "elo" | "ass"
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
@@ -4622,8 +4622,8 @@ function toggleMatchDeltaWindow(win) {
 
 function toggleSummaryMode(mode) {
   _summaryMode = mode;
-  // Default sort: PPS mode → rank by pps (reuses "elo" sort fn); ELO mode → back to SR
-  cmpSortKey = mode === "pps" ? "elo" : "sr";
+  // Default sort: ASS mode → rank by ass (reuses "elo" sort fn); ELO mode → back to SR
+  cmpSortKey = mode === "ass" ? "elo" : "sr";
   cmpSortAsc = false;
   document.querySelectorAll(".smt-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.mode === mode),
@@ -4685,7 +4685,7 @@ function renderCompact() {
   }
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const isPPS = _summaryMode === "pps";
+  const isASS = _summaryMode === "ass";
   let _cmpEloMap, stats;
   if (_lbWindow) {
     const r = _computeLbWindowStats(filtered);
@@ -4695,9 +4695,9 @@ function renderCompact() {
     _cmpEloMap = computeElo(filtered);
     stats = computeStats(filtered, _cmpEloMap);
   }
-  const _cmpPPSMap = isPPS ? computePPS(filtered) : null;
+  const _cmpASSMap = isASS ? computeASS(filtered) : null;
   const eloThLbl = document.getElementById("cmp-elo-th-lbl");
-  if (eloThLbl) eloThLbl.textContent = isPPS ? "PPS" : "ELO";
+  if (eloThLbl) eloThLbl.textContent = isASS ? "ASS" : "ELO";
   const sortFns = {
     name: (a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -4716,8 +4716,8 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    elo: (a, b) => isPPS
-      ? ((_cmpPPSMap[a.name] || 0) - (_cmpPPSMap[b.name] || 0))
+    elo: (a, b) => isASS
+      ? ((_cmpASSMap[a.name] || 0) - (_cmpASSMap[b.name] || 0))
       : ((_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000)),
     sr: (a, b) => {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
@@ -4815,9 +4815,9 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
-    const ppsVal = isPPS ? (_cmpPPSMap[p.name] || 0) : 0;
-    const eloColHtml = isPPS
-      ? `<span style="font-weight:700;color:${ppsVal > 0 ? "var(--green)" : ppsVal < 0 ? "var(--red)" : "var(--muted)"}">${ppsVal > 0 ? "+" : ""}${ppsVal}</span>`
+    const assVal = isASS ? (_cmpASSMap[p.name] || 0) : 0;
+    const eloColHtml = isASS
+      ? `<span style="font-weight:700;color:${assVal > 0 ? "var(--green)" : assVal < 0 ? "var(--red)" : "var(--muted)"}">${assVal > 0 ? "+" : ""}${assVal}</span>`
       : String(eloVal);
     return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
   });
@@ -4826,22 +4826,19 @@ function renderCompact() {
   _cmpFiltered = filtered;
 
   // Delta walk base: ALL TIME uses the full active-season trajectory so each
-  // match's delta reflects its true historical ELO/PPS context. TODAY starts
-  // from each player's pre-today ELO and walks only today's matches.
+  // match's delta reflects its true historical ELO/ASS context. TODAY starts
+  // fresh from ELO=1000 and walks only today's matches (session-relative).
   const _allActive = activeMatches();
-  // TODAY: walk only today's matches starting from ELO=1000 (fresh session slate),
-  // so intra-session strength shifts are visible and numbers differ from ALL TIME.
-  // ALL TIME: walk all matches from ELO=1000 (full historical context).
   const _deltaMatches = _matchDeltaWindow === "today"
     ? _allActive.filter((m) => m.date === todayISO())
     : _allActive;
-  const matchEloDeltas = isPPS
-    ? computeMatchPPSDeltas(_deltaMatches)
+  const matchEloDeltas = isASS
+    ? computeMatchASSDeltas(_deltaMatches)
     : _computeMatchEloDeltas(_deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
-  if (_deltaLbl) _deltaLbl.textContent = isPPS ? "PPS" : "ELO";
+  if (_deltaLbl) _deltaLbl.textContent = isASS ? "ASS" : "ELO";
   document.querySelectorAll(".mdw-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.window === _matchDeltaWindow),
   );
