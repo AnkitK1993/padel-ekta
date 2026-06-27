@@ -4611,6 +4611,9 @@ function _lbSetWindow(mode) {
 
 function toggleSummaryMode(mode) {
   _summaryMode = mode;
+  // Default sort: PPS mode → rank by pps (reuses "elo" sort fn); ELO mode → back to SR
+  cmpSortKey = mode === "pps" ? "elo" : "sr";
+  cmpSortAsc = false;
   document.querySelectorAll(".smt-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.mode === mode),
   );
