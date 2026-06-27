@@ -346,6 +346,10 @@
             <span class="cmp-date-fab-label" id="cmpDateLabel">TODAY</span>
           </button>
           <div class="summary-nav-actions">
+            <div class="smt-wrap">
+              <button class="smt-btn active" data-mode="elo" onclick="toggleSummaryMode('elo')">ELO</button>
+              <button class="smt-btn" data-mode="pps" onclick="toggleSummaryMode('pps')">PPS</button>
+            </div>
             <button class="ss-eq-btn" id="cmpExcludeBtn" onclick="openExcludeSheet()">🚫</button>
             <button class="ss-eq-btn" id="cmpColBtn" onclick="openColSheet()" title="Show/hide columns">⊞</button>
             <button class="ss-snap-btn" aria-label="Share leaderboard screenshot" onclick="openSummaryShare()">📸</button>
@@ -408,7 +412,7 @@
                     G% <span class="sort-arrow" id="sort-gamePct"></span>
                   </th>
                   <th class="sortable" data-col="elo" onclick="setCmpSort('elo')" id="cmp-elo-th">
-                    ELO <span class="sort-arrow" id="sort-elo"></span>
+                    <span id="cmp-elo-th-lbl">ELO</span> <span class="sort-arrow" id="sort-elo"></span>
                   </th>
                   <th class="sortable" onclick="setCmpSort('sr')" id="cmp-sr-th">
                     SR <span class="sort-arrow" id="sort-sr"></span>

@@ -9341,6 +9341,31 @@ select.cmp-sel option {
 .summary-nav-actions {
   display: contents; /* children participate directly in filter-bar flex */
 }
+.smt-wrap {
+  display: flex;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+.smt-btn {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.smt-btn.active {
+  background: var(--accent);
+  color: #000;
+}
 .ss-eq-btn,
 .ss-snap-btn {
   flex: 1;

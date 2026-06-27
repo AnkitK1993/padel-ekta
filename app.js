@@ -14,6 +14,7 @@ import {
   clearEloCache,
 } from "./src/engine/elo.js";
 import { computeStats, _normScores, eloToSr } from "./src/engine/stats.js";
+import { computeMatchPPSDeltas, computePPS } from "./src/engine/pps.js";
 import { initParserDeps, parseBlock, parseDateHdr } from "./src/engine/parser.js";
 import {
   escHtml,
@@ -993,6 +994,7 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
+let _summaryMode = "elo"; // "elo" | "pps"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
 let _histRenderedVersion = -1,
@@ -4607,6 +4609,18 @@ function _lbSetWindow(mode) {
   }
 }
 
+function toggleSummaryMode(mode) {
+  _summaryMode = mode;
+  document.querySelectorAll(".smt-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.mode === mode),
+  );
+  document.body.classList.add("no-cascade");
+  const tbody = document.getElementById("cmpBody");
+  if (tbody) tbody.innerHTML = "";
+  renderCompact();
+  document.body.classList.remove("no-cascade");
+}
+
 // ── RENDER COMPACT ─────────────────────────────────────────
 // _sweepNeedle -> ./render-anim.js
 
@@ -4614,7 +4628,7 @@ function _lbSetWindow(mode) {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}`;
   _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
@@ -4657,6 +4671,7 @@ function renderCompact() {
   }
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
+  const isPPS = _summaryMode === "pps";
   let _cmpEloMap, stats;
   if (_lbWindow) {
     const r = _computeLbWindowStats(filtered);
@@ -4666,6 +4681,9 @@ function renderCompact() {
     _cmpEloMap = computeElo(filtered);
     stats = computeStats(filtered, _cmpEloMap);
   }
+  const _cmpPPSMap = isPPS ? computePPS(filtered) : null;
+  const eloThLbl = document.getElementById("cmp-elo-th-lbl");
+  if (eloThLbl) eloThLbl.textContent = isPPS ? "PPS" : "ELO";
   const sortFns = {
     name: (a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -4684,7 +4702,9 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
+    elo: (a, b) => isPPS
+      ? ((_cmpPPSMap[a.name] || 0) - (_cmpPPSMap[b.name] || 0))
+      : ((_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000)),
     sr: (a, b) => {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
       // look identical on screen resolve to a real tie instead of being
@@ -4780,18 +4800,22 @@ function renderCompact() {
       else rankDelta = `<span class="wk-rank-delta wk-same">–</span>`;
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
-    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloVal}</td><td><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
+    const ppsVal = isPPS ? (_cmpPPSMap[p.name] || 0) : 0;
+    const eloColHtml = isPPS
+      ? `<span style="font-weight:700;color:${ppsVal > 0 ? "var(--green)" : ppsVal < 0 ? "var(--red)" : "var(--muted)"}">${ppsVal > 0 ? "+" : ""}${ppsVal}</span>`
+      : String(eloVal);
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
-  // ELO deltas are always computed over the ALL-TIME (active-season) trajectory,
-  // not the current date filter — so a match's "+12/−8" reflects its real ELO
-  // impact regardless of whether Today/This Week/etc. is selected. The map is
-  // keyed by match identity, so the filtered rows below still resolve their own
-  // delta from the full walk.
-  const matchEloDeltas = _computeMatchEloDeltas(activeMatches());
+  // Deltas are always computed over the ALL-TIME (active-season) trajectory,
+  // not the current date filter — so a match's "+12/−8" reflects its real
+  // impact regardless of whether Today/This Week/etc. is selected.
+  const matchEloDeltas = isPPS
+    ? computeMatchPPSDeltas(activeMatches())
+    : _computeMatchEloDeltas(activeMatches());
   const reversedMatches = [...filtered].reverse();
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
@@ -18152,6 +18176,7 @@ Object.assign(window, {
   toggleOfflineMode,
   renderHome,
   renderCompact,
+  toggleSummaryMode,
   setCmpSort,
   renderModernMatches,
   _histShowMore,
