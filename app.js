@@ -4902,9 +4902,10 @@ function renderCompact() {
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
     const assVal = Math.round(_cmpASSMap[p.name] || 1000);
-    const eloColHtml = String(eloVal);
-    const assColHtml = `<span style="font-weight:700;color:${assVal >= 1050 ? "var(--green)" : assVal <= 950 ? "var(--red)" : "var(--muted)"}">${assVal}</span>`;
-    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
+    const _scoreColor = (v) => v > 1000 ? "var(--green)" : v < 1000 ? "var(--red)" : "var(--muted)";
+    const eloColHtml = `<span style="font-weight:700;color:${_scoreColor(eloVal)}">${eloVal}</span>`;
+    const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assVal)}">${assVal}</span>`;
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -16047,7 +16048,7 @@ function renderAnalyticsPage() {
                   : `<span class="elo-rank-arrow elo-rank-same">—</span>`;
           const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(0);
           const _midVal = _scFallback;
-          const col = ev >= 1100 ? "var(--green)" : ev <= 900 ? "var(--red)" : "var(--theme)";
+          const col = ev > 1000 ? "var(--green)" : ev < 1000 ? "var(--red)" : "var(--theme)";
           const peak = eloPeaks[pname] ?? ev;
           const fromPeak = ev - peak;
           const fromPeakStr =

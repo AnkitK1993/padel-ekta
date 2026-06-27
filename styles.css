@@ -1777,13 +1777,16 @@ table.cmp tbody td:nth-child(2) {
   padding-left: 4px;
 }
 
-table.cmp thead th:nth-child(10),
-table.cmp tbody td:nth-child(10) {
+table.cmp thead th[data-col="sr"],
+table.cmp tbody td[data-col="sr"] {
   text-align: center;
   padding: 5px 6px;
   vertical-align: middle;
   width: 72px;
 }
+
+/* Sort arrows hidden in leaderboard — clicking still works, no visual clutter */
+table.cmp thead .sort-arrow { display: none; }
 
 table.cmp tbody tr {
   height: auto;
@@ -7916,8 +7919,8 @@ table.cmp tbody td:nth-child(2) {
   padding-right: 2px !important;
 }
 
-table.cmp thead th:nth-child(10),
-table.cmp tbody td:nth-child(10) {
+table.cmp thead th[data-col="sr"],
+table.cmp tbody td[data-col="sr"] {
   width: 58px !important;
   padding-left: 3px !important;
   padding-right: 1px !important;
@@ -8016,14 +8019,13 @@ table.cmp td:nth-child(9) {
   padding-right: 8px !important;
 }
 
-/* ── ELO column ── */
-.cmp-elo-cell {
+/* ── ELO / ASS columns ── */
+.cmp-elo-cell, .cmp-ass-cell {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--muted);
 }
-#cmp-elo-th { width: 46px; }
+#cmp-elo-th, #cmp-ass-th { width: 46px; }
 
 /* ── Column visibility toggle ── */
 .cmp.hide-col-mp [data-col="mp"],
@@ -8083,8 +8085,8 @@ table.cmp tbody td {
 
 /* ══════════════════════════════════════ */
 
-table.cmp th:nth-child(10),
-table.cmp td:nth-child(10) {
+table.cmp th[data-col="sr"],
+table.cmp td[data-col="sr"] {
   width: 44px !important;
   padding-left: 2px !important;
   padding-right: 2px !important;
@@ -19114,8 +19116,8 @@ table.cmp td:nth-child(9) {
   padding-right: 3px !important;
 }
 /* ── SR: trimmed from 44→42px ── */
-table.cmp th:nth-child(10),
-table.cmp td:nth-child(10) {
+table.cmp th[data-col="sr"],
+table.cmp td[data-col="sr"] {
   width: 42px !important;
   text-align: center !important;
   padding-left: 3px !important;
