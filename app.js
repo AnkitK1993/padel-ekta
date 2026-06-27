@@ -6406,11 +6406,41 @@ function renderAddMatches() {
     });
 }
 
+function _removeMatchFromTA(m) {
+  const ta = document.getElementById("matchTA");
+  if (!ta) return;
+  const target = matchToEditableLine(m).trim();
+  const lines = ta.value.split("\n");
+  const filtered = lines.filter((l) => l.trim() !== target);
+  if (filtered.length === lines.length) return; // line not found
+  // Remove orphaned date headers (a header with no match lines before the next header/end)
+  const cleaned = [];
+  for (let i = 0; i < filtered.length; i++) {
+    if (parseDateHdr(filtered[i].trim())) {
+      let hasMatch = false;
+      for (let j = i + 1; j < filtered.length; j++) {
+        const nt = filtered[j].trim();
+        if (!nt) continue;
+        if (parseDateHdr(nt)) break;
+        hasMatch = true;
+        break;
+      }
+      if (hasMatch) cleaned.push(filtered[i]);
+    } else {
+      cleaned.push(filtered[i]);
+    }
+  }
+  ta.value = cleaned.join("\n");
+  if (ta.value.trim() && !ta.value.endsWith("\n")) ta.value += "\n";
+  previewMatchImport();
+}
+
 function deleteMatchByIndex(i) {
   const removed = state.matches.splice(i, 1)[0];
   if (!removed) return;
   removed.deletedAt = todayISO();
   deletedMatches.unshift(removed);
+  _removeMatchFromTA(removed);
   saveDeletedMatches();
   saveCloudData();
   commit();
