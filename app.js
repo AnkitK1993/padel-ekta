@@ -191,6 +191,8 @@ import { openShareMatchPoster } from "./features/share-poster.js";
 import { openWeeklyDigest } from "./features/weekly-digest.js";
 import { openThemePicker, closeThemePicker, pickTheme } from "./features/theme-picker.js";
 import { openGlobalSearch, closeGlobalSearch, _globalSearchInput } from "./features/global-search.js";
+import { fireConfetti } from "./features/confetti.js";
+import { getMilestoneLog, saveMilestoneEntry, checkMilestones } from "./features/milestones.js";
 
 // ── New architecture modules ───────────────────────────────────
 import {
@@ -674,92 +676,6 @@ document.addEventListener("visibilitychange", () => {
   document.body.classList.toggle("app-bg", document.hidden);
 });
 
-// ── CONFETTI (canvas-based, milestone celebration) ────────
-function fireConfetti(opts = {}) {
-  const count = opts.count || 90;
-  const duration = opts.duration || 2200;
-  const colors = opts.colors || [
-    "var(--theme)",
-    "#f5c842",
-    "#ff5fe5",
-    "#5cd0ff",
-    "#36d47e",
-    "#ff7a3d",
-    "#ffffff",
-  ];
-  // Resolve CSS vars to actual hex
-  const resolvedColors = colors.map((c) => {
-    if (!c.startsWith("var(")) return c;
-    const name = c.slice(4, -1);
-    return (
-      getComputedStyle(document.documentElement)
-        .getPropertyValue(name)
-        .trim() || "#fff"
-    );
-  });
-  const canvas = document.createElement("canvas");
-  canvas.style.cssText =
-    "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:99999";
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = window.innerWidth * dpr;
-  canvas.height = window.innerHeight * dpr;
-  document.body.appendChild(canvas);
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const particles = [];
-  for (let i = 0; i < count; i++) {
-    particles.push({
-      x: W / 2 + (Math.random() - 0.5) * 60,
-      y: H / 3,
-      vx: (Math.random() - 0.5) * 14,
-      vy: -8 - Math.random() * 8,
-      g: 0.32 + Math.random() * 0.15,
-      size: 4 + Math.random() * 5,
-      rot: Math.random() * Math.PI * 2,
-      vr: (Math.random() - 0.5) * 0.35,
-      color: resolvedColors[Math.floor(Math.random() * resolvedColors.length)],
-      shape: Math.random() < 0.5 ? "rect" : "circle",
-      life: 1,
-    });
-  }
-  const start = performance.now();
-  function tick(t) {
-    const elapsed = t - start;
-    const fade = Math.max(0, 1 - elapsed / duration);
-    ctx.clearRect(0, 0, W, H);
-    particles.forEach((p) => {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += p.g;
-      p.rot += p.vr;
-      p.life = fade;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = p.color;
-      if (p.shape === "rect") {
-        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.55);
-      } else {
-        ctx.beginPath();
-        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    });
-    if (elapsed < duration) requestAnimationFrame(tick);
-    else canvas.remove();
-  }
-  requestAnimationFrame(tick);
-  if (navigator.vibrate) {
-    try {
-      navigator.vibrate([12, 25, 12, 25, 30]);
-    } catch (e) {}
-  }
-}
-
 // ── ANNIVERSARY TOAST ─────────────────────────────────────
 function _checkAnniversaries() {
   if (!state.matches || !state.matches.length) return;
@@ -806,97 +722,6 @@ function _checkAnniversaries() {
   try {
     sessionStorage.setItem("padel_anniv_shown", allKeys);
   } catch (e) {}
-}
-
-const MILESTONE_LOG_KEY = "padel_milestone_log";
-function getMilestoneLog() {
-  try {
-    return JSON.parse(localStorage.getItem(MILESTONE_LOG_KEY)) || [];
-  } catch (e) {
-    return [];
-  }
-}
-function saveMilestoneEntry(msg, emoji) {
-  const log = getMilestoneLog();
-  log.unshift({ msg, emoji, date: todayISO() });
-  if (log.length > 100) log.length = 100;
-  try {
-    localStorage.setItem(MILESTONE_LOG_KEY, JSON.stringify(log));
-  } catch (e) {}
-}
-
-function checkMilestones(prevMatches, newMatches) {
-  const milestones = [10, 25, 50, 100, 200];
-  const allPlayers = new Set();
-  newMatches.forEach((m) =>
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => allPlayers.add(p)),
-  );
-  allPlayers.forEach((player) => {
-    const prevCount = prevMatches.filter(
-      (m) =>
-        (m.teamA || []).includes(player) || (m.teamB || []).includes(player),
-    ).length;
-    const newCount = newMatches.filter(
-      (m) =>
-        (m.teamA || []).includes(player) || (m.teamB || []).includes(player),
-    ).length;
-    milestones.forEach((n) => {
-      if (prevCount < n && newCount >= n) {
-        showToast(`${player} hit ${n} matches!`, "🏅");
-        saveMilestoneEntry(`${player} hit ${n} matches!`, "🏅");
-        if (n >= 50) fireConfetti({ count: 100, duration: 2400 });
-      }
-    });
-  });
-  // Check for win streaks hitting milestones
-  const streakMilestones = [3, 5, 10];
-  allPlayers.forEach((player) => {
-    const prevStats = computeStats(prevMatches);
-    const newStats = computeStats(newMatches);
-    const prev = prevStats.find((s) => s.name === player);
-    const cur = newStats.find((s) => s.name === player);
-    if (!prev || !cur) return;
-    streakMilestones.forEach((n) => {
-      if (
-        (prev.curStreak || 0) < n &&
-        (cur.curStreak || 0) >= n &&
-        cur.curType === "W"
-      ) {
-        showToast(`${player} is on a ${n}-match win streak!`, "🔥");
-        saveMilestoneEntry(`${player} is on a ${n}-match win streak!`, "🔥");
-      }
-    });
-    // Rank change (top 3)
-    const prevRank = prevStats.findIndex((s) => s.name === player) + 1;
-    const newRank = newStats.findIndex((s) => s.name === player) + 1;
-    if (prevRank > 1 && newRank === 1) {
-      showToast(`${player} is now #1!`, "👑");
-      saveMilestoneEntry(`${player} is now #1!`, "👑");
-      fireConfetti({ count: 150, duration: 3000 });
-    } else if (prevRank > 3 && newRank <= 3) {
-      showToast(`${player} entered the Top 3!`, "🥉");
-      saveMilestoneEntry(`${player} entered the Top 3!`, "🥉");
-      fireConfetti({ count: 80, duration: 2200 });
-    }
-  });
-  // ELO threshold milestones
-  const eloThresholds = [1050, 1100, 1150, 1200, 1250, 1300];
-  if (prevMatches.length > 0) {
-    const prevEloMap = computeElo(prevMatches);
-    const newEloMap = computeElo(newMatches);
-    allPlayers.forEach((player) => {
-      const prev = prevEloMap[player] || 1000;
-      const curr = newEloMap[player] || 1000;
-      eloThresholds.forEach((t) => {
-        if (prev < t && curr >= t) {
-          const display = normPlayer(player);
-          showToast(`${display} hit ELO ${t}!`, "⚡");
-          saveMilestoneEntry(`${display} hit ELO ${t}!`, "⚡");
-          fireConfetti({ count: 90, duration: 2400 });
-        }
-      });
-    });
-  }
 }
 
 // ── STATE ──────────────────────────────────────────────────
