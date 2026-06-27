@@ -15,6 +15,7 @@ import { computeElo, computeEloHistory, computeEloPeaks, computeEloLows, clearEl
 import { computeStats } from "../engine/stats.js";
 import { getPairStats } from "../engine/pairs.js";
 import { activeMatches, invalidateAmMemo } from "../engine/selectors.js";
+import { computeASSTimeline } from "../engine/ass.js";
 
 // Per-section caches that grow one entry per distinct dataset and would
 // otherwise leak unbounded across a session. Cleared on every invalidation.
@@ -119,6 +120,23 @@ export function memoPairStats() {
   return _pairStatsMemo.slice();
 }
 
+// ── ASS timeline (history / peaks / lows) ─────────────────────
+// Computes all three in a single chronological walk and shares the result.
+let _assTimelineMemo = null, _assTimelineKey = "";
+
+function _getASSTimeline() {
+  const am  = activeMatches();
+  const key = _lightFingerprint(am);
+  if (_assTimelineKey === key && _assTimelineMemo) return _assTimelineMemo;
+  _assTimelineKey  = key;
+  _assTimelineMemo = computeASSTimeline(am);
+  return _assTimelineMemo;
+}
+
+export function memoASSHistory() { return _getASSTimeline().history; }
+export function memoASSPeaks()   { return _getASSTimeline().peaks; }
+export function memoASSLows()    { return _getASSTimeline().lows; }
+
 // ── Invalidation ───────────────────────────────────────────────
 // Single entry point called by commit() — resets every cache key so that the
 // next read for any memo unconditionally recomputes. Also clears the engine
@@ -133,6 +151,7 @@ export function invalidateAll() {
   _statNamesKey = "";    _statNamesMemo = null;
   _statsMemoKey = "";    _statsMemo = null;
   _pairStatsKey = "";    _pairStatsMemo = null;
+  _assTimelineKey = ""; _assTimelineMemo = null;
   for (const k in reignCache) delete reignCache[k];
   for (const k in rankPeriodCache) delete rankPeriodCache[k];
 }

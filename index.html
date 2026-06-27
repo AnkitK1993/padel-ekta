@@ -126,6 +126,14 @@
           </div>
           <div class="hmenu-divider"></div>
           <div class="hmenu-item">
+            <span class="hmenu-label">Scoring</span>
+            <div class="scoring-seg" id="scoringSeg">
+              <button class="scoring-seg-btn" data-val="ass" onclick="setScoringMode('ass')">ASS</button>
+              <button class="scoring-seg-btn" data-val="elo" onclick="setScoringMode('elo')">ELO</button>
+            </div>
+          </div>
+          <div class="hmenu-divider"></div>
+          <div class="hmenu-item">
             <span class="hmenu-label">🔋 Battery Saver</span>
             <label class="hmenu-toggle">
               <input type="checkbox" id="battery-saver-toggle" onchange="toggleBatterySaver(this.checked)">
@@ -335,10 +343,7 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
-          <div class="smt-wrap">
-            <button class="smt-btn" data-mode="ass" onclick="toggleSummaryMode('ass')">ASS</button>
-            <button class="smt-btn active" data-mode="elo" onclick="toggleSummaryMode('elo')">ELO</button>
-          </div>
+          <div id="summary-mode-badge" class="smt-mode-badge"></div>
         </div>
         <!-- Filter bar — date FAB + action icons -->
         <div class="summary-filter-bar">

@@ -210,6 +210,9 @@ import {
   memoStats,
   memoStatPlayerNames,
   memoPairStats,
+  memoASSHistory,
+  memoASSPeaks,
+  memoASSLows,
   invalidateAll as _invalidateAllMemos,
   reignCache as _reignCache,
   rankPeriodCache as _rankPeriodCache,
@@ -260,6 +263,36 @@ function _memoEloLows()                     { return memoEloLows(); }
 function _memoStats()                       { return memoStats(); }
 function _statPlayerNames()                 { return memoStatPlayerNames(); }
 function _memoPairStats()                   { return memoPairStats(); }
+function _memoASSHistory()                  { return memoASSHistory(); }
+function _memoASSPeaks()                    { return memoASSPeaks(); }
+function _memoASSLows()                     { return memoASSLows(); }
+
+// ── MASTER SCORING MODE ─────────────────────────────────────
+// "ass" = Ankit Scoring System  |  "elo" = classic ELO
+// Drives ALL scoring displays app-wide: home cards, summary leaderboard,
+// analytics ELO section, history deltas.
+let _scoringMode = localStorage.getItem("scoringMode") || "ass";
+
+// Active-mode wrappers — renderers call these instead of the raw memo fns.
+function _activeScoreMap(decay = false) {
+  if (_scoringMode !== "ass") return _memoElo(decay);
+  return computeASS(activeMatches());
+}
+function _activeHistory() {
+  return _scoringMode === "ass" ? _memoASSHistory() : _memoEloHistory();
+}
+function _activePeaks() {
+  return _scoringMode === "ass" ? _memoASSPeaks() : _memoEloPeaks();
+}
+function _activeLows() {
+  return _scoringMode === "ass" ? _memoASSLows() : _memoEloLows();
+}
+function _activeStats() {
+  if (_scoringMode !== "ass") return _memoStats();
+  const assMap = computeASS(activeMatches());
+  return _memoStats().slice().sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
+}
+function _scoringLabel() { return _scoringMode === "ass" ? "ASS" : "ELO"; }
 function saveCloudData(opts) { return _cloudRepoSave(opts); }
 // NOTE: saveCloudData is reassigned ~1150 lines below once _lastLocalSaveTime
 // and _invalidateEloMemo are available. That version is the one callers use.
@@ -994,7 +1027,8 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-let _summaryMode = "elo";      // "elo" | "ass"
+// _summaryMode is now an alias for _scoringMode — kept for render-state tracking.
+// The canonical state lives in _scoringMode (set above, persisted to localStorage).
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
@@ -1033,7 +1067,7 @@ let cmpFilter = "today",
   cmpTo = null;
 let _lbWindow = null; // { mode:"first"|"last", count:N } or null — per-player game window
 let _pvpLow = 20, _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
-let cmpSortKey = "sr";
+let cmpSortKey = (localStorage.getItem("scoringMode") || "ass") === "ass" ? "elo" : "sr";
 let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
@@ -1157,6 +1191,14 @@ _applyFontScale(getFontScale());
     const _ncb = document.getElementById("notif-toggle");
     if (_ncb) _ncb.checked = true;
   }
+}
+// Initialise scoring mode UI from persisted state.
+{
+  document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.val === _scoringMode),
+  );
+  const _smBadgeInit = document.getElementById("summary-mode-badge");
+  if (_smBadgeInit) _smBadgeInit.textContent = _scoringMode.toUpperCase();
 }
 // Deleted matches + ELO config now live in src/infra/match-store.js.
 // The module-level variable remains here so the 20+ mutation sites in app.js
@@ -4379,7 +4421,14 @@ function renderHome() {
   _homeRenderedFilter = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   const homeEloMapFull = computeElo(filtered);
-  const stats = computeStats(filtered, homeEloMapFull);
+  const _homeStatsRaw = computeStats(filtered, homeEloMapFull);
+  // In ASS mode, re-sort by cumulative ASS score instead of ELO-derived SR.
+  const stats = _scoringMode === "ass"
+    ? (() => {
+        const assMap = computeASS(filtered);
+        return _homeStatsRaw.slice().sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
+      })()
+    : _homeStatsRaw;
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
   const uniqD = new Set(filtered.map((m) => m.date)).size;
   const board = document.getElementById("board");
@@ -4403,13 +4452,11 @@ function renderHome() {
   const maxSR = stats[0].sr || 1;
   const homeEloMap = homeEloMapFull;
 
-  // ELO deltas (recent-5 and 30-day trend) for the card badges.
-  // Derived from a SINGLE ELO-history pass instead of recomputing the whole
-  // ladder once per player per metric (was ~22 full computeElo() calls + 22
-  // fingerprint-string allocations per home render — heavy GC churn on mobile).
-  // The history holds each player's running ELO after every match, so a recent
-  // delta is just (current ELO − ELO at the start of the window).
-  const _histAll = computeEloHistory(filtered);
+  // Score deltas (recent-5 and 30-day trend) for the card badges.
+  // Uses active scoring mode — ELO or ASS — from the master hamburger toggle.
+  const _histAll = _scoringMode === "ass"
+    ? _memoASSHistory()
+    : computeEloHistory(filtered);
   const _thirtyAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -4620,20 +4667,37 @@ function toggleMatchDeltaWindow(win) {
   document.body.classList.remove("no-cascade");
 }
 
-function toggleSummaryMode(mode) {
-  _summaryMode = mode;
-  // Default sort: ASS mode → rank by ass (reuses "elo" sort fn); ELO mode → back to SR
+// setScoringMode is the canonical entry point for both the hamburger master
+// toggle and the legacy per-tab buttons. It persists the choice and re-renders
+// every active view.
+function setScoringMode(mode) {
+  if (mode !== "ass" && mode !== "elo") return;
+  _scoringMode = mode;
+  localStorage.setItem("scoringMode", mode);
+  // Keep sort key in sync
   cmpSortKey = mode === "ass" ? "elo" : "sr";
   cmpSortAsc = false;
-  document.querySelectorAll(".smt-btn").forEach((b) =>
-    b.classList.toggle("active", b.dataset.mode === mode),
+  // Sync all toggle buttons (hamburger seg)
+  document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.val === mode),
   );
+  // Update Summary tab mode badge
+  const _smBadge = document.getElementById("summary-mode-badge");
+  if (_smBadge) _smBadge.textContent = mode.toUpperCase();
   document.body.classList.add("no-cascade");
   const tbody = document.getElementById("cmpBody");
   if (tbody) tbody.innerHTML = "";
   renderCompact();
+  // Force analytics re-render on next visit (or immediately if active)
+  _anaRenderedVersion = -1;
+  if (document.querySelector(".page.active")?.id === "pg-analytics") {
+    renderAnalyticsPage();
+  }
   document.body.classList.remove("no-cascade");
 }
+
+// toggleSummaryMode kept for backward compat with any inline onclick still using it.
+function toggleSummaryMode(mode) { setScoringMode(mode); }
 
 // ── RENDER COMPACT ─────────────────────────────────────────
 // _sweepNeedle -> ./render-anim.js
@@ -4642,7 +4706,7 @@ function toggleSummaryMode(mode) {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_scoringMode}`;
   _updateExcludeBtn();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
@@ -4685,7 +4749,7 @@ function renderCompact() {
   }
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const isASS = _summaryMode === "ass";
+  const isASS = _scoringMode === "ass";
   let _cmpEloMap, stats;
   if (_lbWindow) {
     const r = _computeLbWindowStats(filtered);
@@ -14903,7 +14967,7 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = _memoStats();
+  const compList = _activeStats();
   const clutchP = Object.keys(closePlayed)
     .filter((p) => closePlayed[p] >= 3)
     .sort(
@@ -14995,17 +15059,18 @@ function renderAnalyticsPage() {
     : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
 
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
-  const eloMapFull = _memoElo();
+  const _qwScoreMap = _activeScoreMap();
+  const _qwFallback = _scoringMode === "ass" ? 0 : 1000;
   const qualityWins = {};
   am.forEach((m) => {
     const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
     const losers = m.scoreA > m.scoreB ? m.teamB : m.teamA;
-    const loserAvgElo =
-      losers.reduce((s, p) => s + (eloMapFull[p] || 1000), 0) /
+    const loserAvgScore =
+      losers.reduce((s, p) => s + (_qwScoreMap[p] ?? _qwFallback), 0) /
       (losers.length || 1);
     winners.forEach((p) => {
       if (!qualityWins[p]) qualityWins[p] = { total: 0, count: 0 };
-      qualityWins[p].total += loserAvgElo;
+      qualityWins[p].total += loserAvgScore;
       qualityWins[p].count++;
     });
   });
@@ -15018,18 +15083,19 @@ function renderAnalyticsPage() {
     }))
     .sort((a, b) => b.score - a.score);
 
-  // Hardest single win = match with highest combined opponent ELO
+  // Hardest single win = match with highest combined opponent score
   let _hardestWinMatch = null,
-    _hardestCombinedElo = 0;
+    _hardestCombinedScore = -Infinity;
   am.forEach((m) => {
     const _aw = m.scoreA > m.scoreB;
     const _losers2 = _aw ? m.teamB : m.teamA;
-    const _combElo = _losers2.reduce((s, p) => s + (eloMapFull[p] || 1000), 0);
-    if (_combElo > _hardestCombinedElo) {
-      _hardestCombinedElo = _combElo;
+    const _combScore = _losers2.reduce((s, p) => s + (_qwScoreMap[p] ?? _qwFallback), 0);
+    if (_combScore > _hardestCombinedScore) {
+      _hardestCombinedScore = _combScore;
       _hardestWinMatch = m;
     }
   });
+  const _qwLabel = _scoringLabel();
   const _hardestWinCallout = _hardestWinMatch
     ? (() => {
         const _aw2 = _hardestWinMatch.scoreA > _hardestWinMatch.scoreB;
@@ -15039,27 +15105,33 @@ function renderAnalyticsPage() {
         const _l = (
           _aw2 ? _hardestWinMatch.teamB : _hardestWinMatch.teamA
         ).join(" & ");
-        return `<div style="background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.18);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:5px">💎 HARDEST WIN · OPP ELO ${_hardestCombinedElo}</div><div style="font-size:12px;font-weight:800">${_w} <span style="color:var(--green)">beat</span> ${_l}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtDate(_hardestWinMatch.date)} · ${_hardestWinMatch.scoreA}–${_hardestWinMatch.scoreB}</div></div>`;
+        return `<div style="background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.18);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:5px">💎 HARDEST WIN · OPP ${_qwLabel} ${Math.round(_hardestCombinedScore)}</div><div style="font-size:12px;font-weight:800">${_w} <span style="color:var(--green)">beat</span> ${_l}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtDate(_hardestWinMatch.date)} · ${_hardestWinMatch.scoreA}–${_hardestWinMatch.scoreB}</div></div>`;
       })()
     : "";
 
-  // grid: Rank | Player | Wins | Avg Opp ELO
+  // Determine dynamic thresholds for quality label (percentile-based in ASS mode)
+  const _qwScores = qualityRanked.map(p => p.score);
+  const _qwMed = _qwScores.length ? _qwScores[Math.floor(_qwScores.length / 2)] : _qwFallback;
+  const _qwHigh = _scoringMode === "ass" ? _qwMed + 30 : 1050;
+  const _qwLow  = _scoringMode === "ass" ? _qwMed - 30 : 980;
+
+  // grid: Rank | Player | Wins | Avg Opp score
   const qualGrid = "grid-template-columns:40px 1fr 44px 72px";
   const qualityRankHtml = qualityRanked.length
-    ? `<div style="font-size:9px;color:var(--muted);margin-bottom:8px">Average ELO of defeated opponents — higher = tougher competition</div>` +
-      `<div class="lrace-header" style="${qualGrid}"><span>Rank</span><span>Player</span><span>Wins</span><span>Avg ELO</span></div>` +
+    ? `<div style="font-size:9px;color:var(--muted);margin-bottom:8px">Average ${_qwLabel} of defeated opponents — higher = tougher competition</div>` +
+      `<div class="lrace-header" style="${qualGrid}"><span>Rank</span><span>Player</span><span>Wins</span><span>Avg ${_qwLabel}</span></div>` +
       qualityRanked
         .map((p, i) => {
           const col =
-            p.score >= 1050
+            p.score >= _qwHigh
               ? "var(--green)"
-              : p.score <= 980
+              : p.score <= _qwLow
                 ? "var(--red)"
                 : "var(--muted)";
           const lbl =
-            p.score >= 1050
+            p.score >= _qwHigh
               ? "💎 ELITE"
-              : p.score <= 980
+              : p.score <= _qwLow
                 ? "📉 EASY"
                 : "⚖️ MID";
           return `<div class="lrace-row" style="${qualGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}</div><div class="lrace-delta" style="color:${col}">${p.score} <span style="font-size:8px">${lbl}</span></div></div>`;
@@ -15116,10 +15188,19 @@ function renderAnalyticsPage() {
   const { from: wkFrom, to: wkTo } = lastWeekRange();
   const rankAll = compList.reduce((o, p, i) => ({ ...o, [p.name]: i + 1 }), {});
   const _preWkArr = activeMatches().filter((m) => (m.date || "") < wkFrom);
-  const rank1wk = computeStats(_preWkArr, computeElo(_preWkArr)).reduce(
-    (o, p, i) => ({ ...o, [p.name]: i + 1 }),
-    {},
-  );
+  // Rank 1wk-ago using the same scoring mode as current
+  const rank1wk = (() => {
+    if (_scoringMode === "ass") {
+      const assMap1wk = computeASS(_preWkArr);
+      return Object.entries(assMap1wk)
+        .sort((a, b) => b[1] - a[1])
+        .reduce((o, [name], i) => ({ ...o, [name]: i + 1 }), {});
+    }
+    return computeStats(_preWkArr, computeElo(_preWkArr)).reduce(
+      (o, p, i) => ({ ...o, [p.name]: i + 1 }),
+      {},
+    );
+  })();
   const rankRace = compList.map((p) => ({
     name: p.name,
     rAll: rankAll[p.name] || "—",
@@ -15904,22 +15985,27 @@ function renderAnalyticsPage() {
   const placeholder = `<option value="" disabled selected>Select player</option>`;
   const h2hHtml = `<div class="h2h-form"><div class="h2h-selects h2h-cascade-item"><select id="h2hP1" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select><span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span><select id="h2hP2" class="hist-select compact-select" style="flex:1">${placeholder}${opts}</select></div><button class="btn-go h2h-cascade-item" style="width:100%;margin-top:8px" onclick="renderH2HDeepDive()">Compare</button></div><div id="h2h-result" style="margin-top:8px"></div>`;
 
-  // ── ELO RANKINGS ───────────────────────────────────────
+  // ── SCORING RANKINGS (ELO or ASS depending on master toggle) ──────────
+  const _scLabel = _scoringLabel();
   const { from: wkFromElo } = lastWeekRange();
-  const preWkEloMap = computeElo(
-    activeMatches().filter((m) => (m.date || "") < wkFromElo),
-  );
-  const eloRanked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
-  const preWkRanked = Object.entries(preWkEloMap).sort((a, b) => b[1] - a[1]);
-  const maxEloVal = eloRanked[0]?.[1] || 1000;
-  const minEloVal = eloRanked[eloRanked.length - 1]?.[1] || 1000;
+  // Build active score map + pre-week score map for change calc
+  const _scMapNow  = _activeScoreMap();
+  const _scFallback = _scoringMode === "ass" ? 0 : 1000;
+  const _preWkArrElo = activeMatches().filter((m) => (m.date || "") < wkFromElo);
+  const _scMapPre = _scoringMode === "ass"
+    ? computeASS(_preWkArrElo)
+    : computeElo(_preWkArrElo);
+  const eloRanked = Object.entries(_scMapNow).sort((a, b) => b[1] - a[1]);
+  const preWkRanked = Object.entries(_scMapPre).sort((a, b) => b[1] - a[1]);
+  const maxEloVal = eloRanked[0]?.[1] ?? _scFallback;
+  const minEloVal = eloRanked[eloRanked.length - 1]?.[1] ?? _scFallback;
   const eloRange = Math.max(1, maxEloVal - minEloVal);
-  const eloPeaks = _memoEloPeaks();
-  const eloHistoryAll = _memoEloHistory();
+  const eloPeaks = _activePeaks();
+  const eloHistoryAll = _activeHistory();
   const eloHtml = eloRanked.length
     ? `<div class="ana-card elo-leaderboard-card" style="padding:10px 12px">${eloRanked
         .map(([pname, ev], i) => {
-          const change = ev - (preWkEloMap[pname] || 1000);
+          const change = ev - (_scMapPre[pname] ?? _scFallback);
           const changeStr =
             change > 0
               ? `<span style="color:var(--green)">+${change}</span>`
@@ -15937,34 +16023,27 @@ function renderAnalyticsPage() {
                 : rankChange < 0
                   ? `<span class="elo-rank-arrow elo-rank-down">▼${Math.abs(rankChange)}</span>`
                   : `<span class="elo-rank-arrow elo-rank-same">—</span>`;
-          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(
-            0,
-          );
+          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(0);
+          const _midVal = _scFallback;
           const col =
-            ev >= 1100
-              ? "var(--green)"
-              : ev <= 900
-                ? "var(--red)"
-                : "var(--theme)";
-          const peak = eloPeaks[pname] || ev;
+            _scoringMode === "ass"
+              ? ev > 50 ? "var(--green)" : ev < -50 ? "var(--red)" : "var(--theme)"
+              : ev >= 1100 ? "var(--green)" : ev <= 900 ? "var(--red)" : "var(--theme)";
+          const peak = eloPeaks[pname] ?? ev;
           const fromPeak = ev - peak;
           const fromPeakStr =
             fromPeak === 0
               ? `<span style="color:var(--green);font-size:8px">▲ PEAK</span>`
               : `<span style="color:var(--red);font-size:8px">${fromPeak}</span>`;
-          // Last 5 momentum dots
           const pts5 = (eloHistoryAll[pname] || []).slice(-5);
           const dots5 = pts5
-            .map(
-              (pt) =>
-                `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"};margin-right:1px"></span>`,
+            .map((pt) =>
+              `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"};margin-right:1px"></span>`,
             )
             .join("");
           const momDeltas = pts5.map((pt) => pt.delta);
           const momAvg = momDeltas.length
-            ? Math.round(
-                momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length,
-              )
+            ? Math.round(momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length)
             : 0;
           const momStr =
             momAvg > 0
@@ -15979,7 +16058,7 @@ function renderAnalyticsPage() {
               <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col};animation-delay:${(i * 0.07).toFixed(2)}s"></div></div>
             </div>
             <div style="flex-shrink:0;width:38px;text-align:right">
-              <div class="elo-val">${ev}</div>
+              <div class="elo-val">${ev > 0 && _scoringMode === "ass" ? "+" : ""}${ev}</div>
               <div class="elo-change" style="margin-top:2px">${changeStr}</div>
             </div>
             <div style="flex-shrink:0;width:50px;text-align:right;border-left:1px solid rgba(255,255,255,0.06);padding-left:5px">
@@ -16819,8 +16898,8 @@ function renderAnalyticsPage() {
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">${potmHtml2}<table style="width:100%;border-collapse:collapse;font-size:10px;border-spacing:2px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs}</tr></thead><tbody>${bodyRows2}</tbody></table></div>`;
   })();
 
-  // HIGH LOW ELO table
-  const _eloLows = _memoEloLows();
+  // HIGH LOW table (mode-aware: ELO or ASS)
+  const _eloLows = _activeLows();
   window._hiLoData = eloRanked.map(([pname, ev]) => {
     const pts5 = (eloHistoryAll[pname] || []).slice(-5);
     const momAvg = pts5.length
@@ -16849,11 +16928,11 @@ function renderAnalyticsPage() {
       <div class="lrace-header" style="${pg3};font-size:8px">
         <span style="color:var(--muted)">#</span>
         ${mkH("name", "PLAYER", "Sort by player name")}
-        ${mkH("current", "NOW", "Sort by current ELO")}
-        ${mkH("peak", "PEAK", "Sort by peak ELO")}
-        ${mkH("fromPeak", "↓PEAK", "Sort by distance from peak")}
-        ${mkH("low", "LOW", "Sort by lowest ELO")}
-        ${mkH("fromLow", "↑LOW", "Sort by recovery from low")}
+        ${mkH("current", "NOW", `Sort by current ${_scLabel}`)}
+        ${mkH("peak", "PEAK", `Sort by peak ${_scLabel}`)}
+        ${mkH("fromPeak", "↓PEAK", `Sort by distance from peak ${_scLabel}`)}
+        ${mkH("low", "LOW", `Sort by lowest ${_scLabel}`)}
+        ${mkH("fromLow", "↑LOW", `Sort by recovery from low ${_scLabel}`)}
         <span style="text-align:center;color:var(--muted);cursor:default" title="Last 5 form">FORM</span>
       </div>
       <div id="hi-lo-elo-body"></div>
@@ -17594,7 +17673,7 @@ function renderAnalyticsPage() {
     {
       key: "elo",
       cat: "elo",
-      title: "⚡ ELO",
+      title: `⚡ ${_scLabel}`,
       body: _tabbedSection([
         { label: "Rankings", html: eloHtml },
         {
@@ -17709,7 +17788,7 @@ function renderAnalyticsPage() {
   const _catBase = [
     { id: "all", label: "ALL" },
     { id: "favs", label: "★ FAVS" },
-    { id: "elo", label: "ELO" },
+    { id: "elo", label: _scLabel },
     { id: "players", label: "PLAYERS" },
     { id: "pairs", label: "PAIRS" },
     { id: "records", label: "RECORDS" },
@@ -18202,6 +18281,7 @@ Object.assign(window, {
   toggleOfflineMode,
   renderHome,
   renderCompact,
+  setScoringMode,
   toggleSummaryMode,
   toggleMatchDeltaWindow,
   setCmpSort,

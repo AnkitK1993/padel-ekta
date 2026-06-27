@@ -2453,6 +2453,45 @@ textarea:focus {
   color: var(--accent);
 }
 
+/* Scoring mode segmented control (hamburger) — ASS / ELO */
+.scoring-seg {
+  display: flex;
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scoring-seg-btn {
+  flex: 1;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(var(--theme-rgb), 0.2);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.scoring-seg-btn:first-child { border-left: none; }
+.scoring-seg-btn.active {
+  background: rgba(var(--theme-rgb), 0.22);
+  color: var(--accent);
+}
+
+/* Summary tab mode badge (replaces per-tab toggle) */
+.smt-mode-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  background: rgba(var(--theme-rgb), 0.14);
+  border: 1px solid rgba(var(--theme-rgb), 0.28);
+  border-radius: 5px;
+  padding: 3px 8px;
+  align-self: center;
+}
+
 /* Text Size control (mirrors .anim-seg) — A− / readout / A+ */
 .font-seg {
   display: flex;
