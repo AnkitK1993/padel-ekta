@@ -1536,7 +1536,9 @@ select.cmp-sel:focus {
 .cmp-body-scroll {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  /* Allow horizontal scroll so the full 11-column leaderboard (incl. ELO, ASS
+     and SR) is never clipped on narrow phone viewports. */
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 .cmp-scroll {
@@ -1724,6 +1726,10 @@ select.cmp-sel:focus {
 }
 table.cmp {
   width: 100%;
+  /* With both ELO and ASS columns always visible the 11 columns can't fit a
+     narrow viewport — give the table a min-width so it scrolls horizontally
+     instead of squeezing/clipping the trailing SR column. */
+  min-width: 520px;
   border-collapse: collapse;
   margin-bottom: 0;
   table-layout: fixed;

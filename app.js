@@ -776,11 +776,14 @@ function _loadCmpHiddenCols() {
   return new Set([]);
 }
 let _cmpHiddenCols = _loadCmpHiddenCols();
-// One-time migration: hide the non-active scoring column by default
-if (!localStorage.getItem("padel_cmp_col_migrate_v4")) {
-  _cmpHiddenCols.add(_summaryMode === "ass" ? "elo" : "ass");
+// One-time migration (v5): always show both ELO and ASS columns by default,
+// regardless of the active scoring toggle. Clears any previously-hidden
+// scoring column from saved state.
+if (!localStorage.getItem("padel_cmp_col_migrate_v5")) {
+  _cmpHiddenCols.delete("elo");
+  _cmpHiddenCols.delete("ass");
   localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([..._cmpHiddenCols]));
-  localStorage.setItem("padel_cmp_col_migrate_v4", "1");
+  localStorage.setItem("padel_cmp_col_migrate_v5", "1");
 }
 let prevPage = "home";
 let lastMatchSnapshot = null;
@@ -4156,15 +4159,8 @@ function toggleSummaryModeOnly() {
   const newMode = _summaryMode === "ass" ? "elo" : "ass";
   _summaryMode = newMode;
   localStorage.setItem("summaryMode", newMode);
-  // Auto-switch default column visibility: show active, hide inactive
-  if (newMode === "ass") {
-    _cmpHiddenCols.add("elo");
-    _cmpHiddenCols.delete("ass");
-  } else {
-    _cmpHiddenCols.add("ass");
-    _cmpHiddenCols.delete("elo");
-  }
-  localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([..._cmpHiddenCols]));
+  // Both ELO and ASS columns stay visible regardless of mode; the toggle only
+  // changes which score drives SR and the default sort.
   cmpSortKey = newMode === "ass" ? "ass" : "sr";
   cmpSortAsc = false;
   _renderColChips();
@@ -4272,9 +4268,11 @@ function renderCompact() {
     stats = r.stats;
   } else {
     _cmpEloMap = _isCmpAllFilter ? _memoElo() : computeElo(filtered);
-    stats = _isCmpAllFilter
-      ? (isASS ? _memoStats().slice().sort((a, b) => (_cmpASSMap[b.name] || 0) - (_cmpASSMap[a.name] || 0)) : _memoStats())
-      : computeStats(filtered, isASS ? _cmpASSMap : _cmpEloMap);
+    // SR is derived from whichever score is active: ASS map in ASS mode, ELO
+    // map otherwise. ELO all-time still uses the memoised stats for speed.
+    stats = isASS
+      ? computeStats(filtered, _cmpASSMap)
+      : (_isCmpAllFilter ? _memoStats() : computeStats(filtered, _cmpEloMap));
   }
   const sortFns = {
     name: (a, b) =>
