@@ -1581,6 +1581,9 @@ select.cmp-sel:focus {
   font-size: 11px;
   color: var(--muted);
   transition: transform 0.25s ease;
+  flex-shrink: 0;
+  align-self: center;
+  will-change: transform;
 }
 .cmp-delta-ctrl {
   display: flex;
@@ -1588,6 +1591,8 @@ select.cmp-sel:focus {
   gap: 5px;
   margin-left: auto;
   margin-right: 12px;
+  flex-shrink: 0;
+  align-self: center;
 }
 .cmp-delta-lbl {
   font-size: 8px;
