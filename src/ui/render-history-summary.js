@@ -166,50 +166,65 @@ export function buildHistorySummary(matches, filter = "all") {
     }
   }
 
-  // Score changes (ELO or ASS) across the entire filtered period
+  // Combined ASS + ELO changes table — always shows both regardless of mode
   let sessionRecapHtml = "";
   if (matches.length) {
-    const _mode2 = _getSummaryMode();
-    const _sLabel = _mode2 === "ass" ? "ASS" : "ELO";
-    const periodDates = matches.map((m) => m.date || "1970-01-01");
-    const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
-    const beforeMs2 = activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate);
-    const scoreAfter = _mode2 === "ass" ? computeASS(activeMatches()) : _memoElo();
-    const scoreBefore = _mode2 === "ass" ? computeASS(beforeMs2) : computeElo(beforeMs2);
-    const periodPlayers = new Set();
+    const periodDates2 = matches.map((m) => m.date || "1970-01-01");
+    const firstDate2 = periodDates2.reduce((a, b) => (a < b ? a : b));
+    const beforeMs2 = activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate2);
+    const assAfter  = computeASS(activeMatches());
+    const assBefore = computeASS(beforeMs2);
+    const eloAfter  = _memoElo();
+    const eloBefore = computeElo(beforeMs2);
+    const periodPlayers2 = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
-        periodPlayers.add(p),
+        periodPlayers2.add(p),
       ),
     );
-    const deltas = [...periodPlayers]
-      .map((p) => ({
-        name: normPlayer(p),
-        delta: Math.round((scoreAfter[p] || 1000) - (scoreBefore[p] || 1000)),
-        bElo: Math.round(scoreBefore[p] || 1000),
-        aElo: Math.round(scoreAfter[p] || 1000),
-      }))
-      .sort((a, b) => b.delta - a.delta);
-    const deltaRows = deltas
+    const _scoreColor = (d) => d > 0 ? "var(--green)" : d < 0 ? "var(--red)" : "var(--muted)";
+    const _sign = (d) => d > 0 ? "+" : "";
+    const rows = [...periodPlayers2]
       .map((p) => {
-        const sign = p.delta > 0 ? "+" : "";
-        const chipCls =
-          p.delta > 0 ? "sr-chip-g" : p.delta < 0 ? "sr-chip-l" : "sr-chip-z";
-        const arrow = p.delta > 0 ? "▲" : p.delta < 0 ? "▼" : "·";
-        return `<div class="elo-delta-row hsum-cascade" style="animation-delay:${d()}ms">
-        <span class="elo-delta-name">${p.name}</span>
-        <span style="display:flex;align-items:center;width:200px;flex-shrink:0;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums">
-          <span style="display:inline-block;width:36px;text-align:right;color:var(--muted)">${p.bElo}</span>
-          <span class="elo-ba-sep" style="margin:0 4px;color:var(--muted)">→</span>
-          <span class="elo-ba-a" style="display:inline-block;width:36px;text-align:left;color:var(--text)" data-from="${p.bElo}" data-to="${p.aElo}">${p.bElo}</span>
-        </span>
-        <span class="sr-chip ${chipCls}">${arrow} ${sign}${p.delta}</span>
-      </div>`;
+        const name = normPlayer(p);
+        const assStart = Math.round(assBefore[p] || 1000);
+        const assEnd   = Math.round(assAfter[p]  || 1000);
+        const assDelta = assEnd - assStart;
+        const eloStart = Math.round(eloBefore[p] || 1000);
+        const eloEnd   = Math.round(eloAfter[p]  || 1000);
+        const eloDelta = eloEnd - eloStart;
+        return { name, assStart, assEnd, assDelta, eloStart, eloEnd, eloDelta };
       })
-      .join("");
+      .sort((a, b) => b.assDelta - a.assDelta);
+    const th = (label) => `<th style="padding:3px 5px;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:0.06em;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08)">${label}</th>`;
+    const deltaCell = (d) => {
+      const sign = _sign(d);
+      const col  = _scoreColor(d);
+      return `<td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:800;color:${col}">${sign}${d}</td>`;
+    };
+    const numCell = (v) => `<td style="padding:3px 4px;text-align:center;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums">${v}</td>`;
+    const tableRows = rows.map((r, i) => `
+      <tr class="hsum-cascade" style="animation-delay:${d()}ms;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <td style="padding:4px 5px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap">${r.name}</td>
+        ${numCell(r.assStart)}
+        ${numCell(r.assEnd)}
+        ${deltaCell(r.assDelta)}
+        ${numCell(r.eloStart)}
+        ${numCell(r.eloEnd)}
+        ${deltaCell(r.eloDelta)}
+      </tr>`).join("");
     sessionRecapHtml = `
-      <div class="hsum-section-lbl">${_sLabel} CHANGES</div>
-      <div class="elo-delta-list">${deltaRows}</div>`;
+      <div class="hsum-section-lbl">ASS &amp; ELO CHANGES</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="width:100%;border-collapse:collapse;table-layout:auto">
+          <thead><tr>
+            ${th("PLAYER")}
+            ${th("ASS START")}${th("ASS NOW")}${th("ASS Δ")}
+            ${th("ELO START")}${th("ELO NOW")}${th("ELO Δ")}
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>`;
   }
 
   return `<div class="hist-summary-card hsum-card-anim">
