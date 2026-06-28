@@ -105,7 +105,9 @@ export function computeStats(matches, eloMap = {}) {
       let curStreak = 0,
         curType = "",
         bestWinStreak = 0,
-        runW = 0;
+        bestLossStreak = 0,
+        runW = 0,
+        runL = 0;
       if (p.results.length > 0) {
         curType = p.results[p.results.length - 1].won ? "W" : "L";
         for (let i = p.results.length - 1; i >= 0; i--) {
@@ -118,8 +120,13 @@ export function computeStats(matches, eloMap = {}) {
       p.results.forEach((r) => {
         if (r.won) {
           runW++;
+          runL = 0;
           bestWinStreak = Math.max(bestWinStreak, runW);
-        } else runW = 0;
+        } else {
+          runL++;
+          runW = 0;
+          bestLossStreak = Math.max(bestLossStreak, runL);
+        }
       });
 
       // Feature 2: partnership stats (min 2 games together)
@@ -202,6 +209,7 @@ export function computeStats(matches, eloMap = {}) {
         curStreak,
         curType,
         bestWinStreak,
+        bestLossStreak,
         bestPartner,
         worstPartner,
         favOpp,

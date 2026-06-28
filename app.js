@@ -11065,7 +11065,7 @@ function _buildStreakLeaderboardHtml() {
         <span style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</span>
         <span style="flex:1;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span>
         <span style="font-size:12px;font-weight:800;color:${col}">${ico} ${onW ? "W" : "L"}${p.curStreak}</span>
-        <span style="font-size:9px;color:var(--muted);width:54px;text-align:right">best W${p.bestWinStreak}</span>
+        <span style="font-size:9px;color:var(--muted);text-align:right">best <span style="color:var(--green)">W${p.bestWinStreak}</span> / worst <span style="color:var(--red)">L${p.bestLossStreak || 0}</span></span>
       </div>`;
     })
     .join("");
