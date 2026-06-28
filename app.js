@@ -11430,6 +11430,53 @@ window._setUpsetMode = function(mode) {
   _renderBiggestUpsetsCards();
 };
 
+window._bstatSort = function(col) {
+  if (!window._bstatState) window._bstatState = { col: "sr", dir: "desc" };
+  if (window._bstatState.col === col) {
+    window._bstatState.dir = window._bstatState.dir === "desc" ? "asc" : "desc";
+  } else {
+    window._bstatState.col = col;
+    window._bstatState.dir = "desc";
+  }
+  window._renderBstatTable();
+};
+
+window._renderBstatTable = function() {
+  const el = document.getElementById("bstat-body");
+  if (!el || !window._bstatData || !window._bstatState) return;
+  const { col, dir } = window._bstatState;
+  const asc = dir === "asc";
+  const TP = "rgba(96,165,250,0.07)", TS = "rgba(52,211,153,0.07)";
+  const TO = "rgba(251,191,36,0.07)",  TC = "rgba(248,113,113,0.07)";
+  const TM = "rgba(167,139,250,0.07)", FRZ = "var(--surface)";
+  const CEL  = "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
+  const FRZX = "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
+  const d = (val, bg, c2 = "var(--text)", frz = false) =>
+    `<div style="${CEL}background:${frz ? FRZ : bg};color:${c2};${frz ? FRZX : ""}">${val}</div>`;
+  const sorted = [...window._bstatData].sort((a, b) => {
+    const av = a[col], bv = b[col];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return asc ? av - bv : bv - av;
+  });
+  el.innerHTML = sorted.map((r) => [
+    d(r.name,                                                          null, "var(--text)", true),
+    d(r.winPct.toFixed(0) + "%",                                       TP, r.wCol),
+    d(r.sr.toFixed(2),                                                 TP),
+    d(r.avgG.toFixed(1),                                               TS),
+    d((r.avgMgn >= 0 ? "+" : "") + r.avgMgn.toFixed(1),               TS, r.mCol),
+    d(r.gLost.toFixed(1),                                              TS),
+    d(r.oppSR.toFixed(2),                                              TO),
+    d(r.vsTop != null ? r.vsTop + "%" : "—",                          TO),
+    d(r.firePct + "%",                                                  TC),
+    d(r.clutchPct != null ? r.clutchPct + "%" : "—",                  TC),
+    d(r.domPct != null ? r.domPct + "%" : "—",                        TC),
+    d(r.prtns,                                                          TM),
+  ].join("")).join("");
+};
+
 function _buildBiggestUpsetsHtml() {
   _cachedUpsets = _computeUpsets();
   const mode = _upsetSortMode ?? _scoringMode;
@@ -13577,34 +13624,8 @@ function renderAnalyticsPage() {
       _sortedBySR.slice(0, Math.ceil(_sortedBySR.length / 2)).map((q) => q.name)
     );
 
-    // Column group background tints
-    const TP = "rgba(96,165,250,0.07)";   // blue   — Performance
-    const TS = "rgba(52,211,153,0.07)";   // green  — Scoring
-    const TO = "rgba(251,191,36,0.07)";   // amber  — Opposition
-    const TC = "rgba(248,113,113,0.07)";  // red    — Match Character
-    const TM = "rgba(167,139,250,0.07)";  // purple — Meta
-    const FRZ = "var(--surface)";          // solid bg for sticky column
-
-    const COLS = "max-content 44px 44px 44px 54px 44px 54px 50px 44px 54px 44px 44px";
-    const HDR  = "padding:5px 6px;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;";
-    const CEL  = "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
-    const FRZX = "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
-
-    const h = (label, bg, frz = false) =>
-      `<div style="${HDR}background:${frz ? FRZ : bg};${frz ? FRZX + "z-index:3;" : ""}">${label}</div>`;
-    const d = (val, bg, col = "var(--text)", frz = false) =>
-      `<div style="${CEL}background:${frz ? FRZ : bg};color:${col};${frz ? FRZX : ""}">${val}</div>`;
-
-    const headers = [
-      h("Player", null, true),
-      h("Win%", TP),   h("SR",      TP),
-      h("Avg G", TS),  h("Avg Mgn", TS),  h("G Lost", TS),
-      h("Opp SR", TO), h("vs Top",  TO),
-      h("Fire%", TC),  h("Clutch%", TC),  h("Dom%",   TC),
-      h("Prtns", TM),
-    ].join("");
-
-    const dataRows = compList
+    // Precompute per-player stats; stored on window so _renderBstatTable can re-sort
+    window._bstatData = compList
       .filter((p) => p.mp >= 1)
       .map((p) => {
         const pms = matchesByPlayer[p.name] || [];
@@ -13636,31 +13657,80 @@ function renderAnalyticsPage() {
 
         const mgnV = normMgn / mp;
         const wPct = p.winPct;
-        const wCol = wPct >= 60 ? "var(--green)" : wPct <= 40 ? "var(--red)" : "var(--text)";
-        const mCol = mgnV > 0 ? "var(--green)" : mgnV < 0 ? "var(--red)" : "var(--muted)";
-        const prtns = Object.keys(stats[p.name]?.teammates || {}).length;
+        return {
+          name: p.name,
+          winPct: wPct,
+          sr: p.sr,
+          avgG: normGW / mp,
+          avgMgn: mgnV,
+          gLost: normGL / mp,
+          oppSR: oppSRSum / mp,
+          vsTop: thPlayed > 0 ? Math.round(thWins / thPlayed * 100) : null,
+          firePct: Math.round(fireCnt / mp * 100),
+          clutchPct: clutchP > 0 ? Math.round(clutchW / clutchP * 100) : null,
+          domPct: totWins > 0 ? Math.round(domWins / totWins * 100) : null,
+          prtns: Object.keys(stats[p.name]?.teammates || {}).length,
+          wCol: wPct >= 60 ? "var(--green)" : wPct <= 40 ? "var(--red)" : "var(--text)",
+          mCol: mgnV > 0 ? "var(--green)" : mgnV < 0 ? "var(--red)" : "var(--muted)",
+        };
+      });
 
-        return [
-          d(p.name,                                                            null, "var(--text)", true),
-          d(wPct.toFixed(0) + "%",                                             TP, wCol),
-          d(p.sr.toFixed(2),                                                   TP),
-          d((normGW / mp).toFixed(1),                                          TS),
-          d((mgnV >= 0 ? "+" : "") + mgnV.toFixed(1),                         TS, mCol),
-          d((normGL / mp).toFixed(1),                                          TS),
-          d((oppSRSum / mp).toFixed(2),                                        TO),
-          d(thPlayed > 0 ? Math.round(thWins / thPlayed * 100) + "%" : "—",   TO),
-          d(Math.round(fireCnt / mp * 100) + "%",                              TC),
-          d(clutchP > 0 ? Math.round(clutchW / clutchP * 100) + "%" : "—",    TC),
-          d(totWins > 0 ? Math.round(domWins / totWins * 100) + "%" : "—",    TC),
-          d(prtns,                                                              TM),
-        ].join("");
-      })
-      .join("");
+    if (!window._bstatState) window._bstatState = { col: "sr", dir: "desc" };
+
+    // Column group background tints
+    const TP = "rgba(96,165,250,0.07)", TS = "rgba(52,211,153,0.07)";
+    const TO = "rgba(251,191,36,0.07)",  TC = "rgba(248,113,113,0.07)";
+    const TM = "rgba(167,139,250,0.07)", FRZ = "var(--surface)";
+
+    const COLS = "max-content 44px 44px 44px 54px 44px 54px 50px 44px 54px 44px 44px";
+    const HDR  = "padding:5px 6px;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;cursor:pointer;";
+    const CEL  = "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
+    const FRZX = "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
+
+    const h = (label, col, bg, frz = false) =>
+      `<div onclick="window._bstatSort('${col}')" style="${HDR}background:${frz ? FRZ : bg};${frz ? FRZX + "z-index:3;" : ""}">${label}</div>`;
+    const d = (val, bg, col = "var(--text)", frz = false) =>
+      `<div style="${CEL}background:${frz ? FRZ : bg};color:${col};${frz ? FRZX : ""}">${val}</div>`;
+
+    const headers = [
+      h("Player",  "name",     null, true),
+      h("Win%",    "winPct",   TP),  h("SR",      "sr",       TP),
+      h("Avg G",   "avgG",     TS),  h("Avg Mgn", "avgMgn",   TS),  h("G Lost", "gLost",    TS),
+      h("Opp SR",  "oppSR",    TO),  h("vs Top",  "vsTop",    TO),
+      h("Fire%",   "firePct",  TC),  h("Clutch%", "clutchPct",TC),  h("Dom%",   "domPct",   TC),
+      h("Prtns",   "prtns",    TM),
+    ].join("");
+
+    // Render initial sorted rows (same logic as _renderBstatTable)
+    const { col, dir } = window._bstatState;
+    const asc = dir === "asc";
+    const initSorted = [...window._bstatData].sort((a, b) => {
+      const av = a[col], bv = b[col];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+      return asc ? av - bv : bv - av;
+    });
+    const initRows = initSorted.map((r) => [
+      d(r.name,                                                          null, "var(--text)", true),
+      d(r.winPct.toFixed(0) + "%",                                       TP, r.wCol),
+      d(r.sr.toFixed(2),                                                 TP),
+      d(r.avgG.toFixed(1),                                               TS),
+      d((r.avgMgn >= 0 ? "+" : "") + r.avgMgn.toFixed(1),               TS, r.mCol),
+      d(r.gLost.toFixed(1),                                              TS),
+      d(r.oppSR.toFixed(2),                                              TO),
+      d(r.vsTop != null ? r.vsTop + "%" : "—",                          TO),
+      d(r.firePct + "%",                                                  TC),
+      d(r.clutchPct != null ? r.clutchPct + "%" : "—",                  TC),
+      d(r.domPct != null ? r.domPct + "%" : "—",                        TC),
+      d(r.prtns,                                                          TM),
+    ].join("")).join("");
 
     return `<div class="ana-card" style="padding:8px 12px">
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <div style="display:grid;grid-template-columns:${COLS};min-width:max-content">
-          ${headers}${dataRows}
+          ${headers}<div id="bstat-body" style="display:contents">${initRows}</div>
         </div>
       </div>
     </div>`;
