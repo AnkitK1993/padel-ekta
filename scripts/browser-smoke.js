@@ -736,11 +736,9 @@ async function main() {
         hasUpsets: html.includes("Biggest Upsets"),
         // Merged sections: these features now live as sub-tabs, not top-level cards.
         hasSeasonCompare: subLabels("seasonmode").includes("Comparison"),
-        hasMilestones: subLabels("milestones").includes("Upcoming"),
         eloHasPeakLow: subLabels("elo").includes("Peak / Low"),
         rivalryHasMatrix: subLabels("rivalry").includes("Matrix"),
         formHasStreaks: subLabels("form").includes("Streak Leaderboard"),
-        hasRadar: subLabels("playerstats").includes("Radar"),
         standingsHasPower: subLabels("lrace").includes("Power"),
         standingsHasReplay: subLabels("lrace").includes("Replay"),
         perfHasCarry: subLabels("clutchrank").includes("Carry"),
@@ -772,9 +770,7 @@ async function main() {
     );
     for (const k of [
       "hasUpsets",
-      "hasRadar",
       "hasSeasonCompare",
-      "hasMilestones",
       "eloHasPeakLow",
       "rivalryHasMatrix",
       "formHasStreaks",
