@@ -11059,8 +11059,11 @@ function _buildStreakLeaderboardHtml() {
       ? Math.round((recentW / recentN - p.mw / p.mp) * 100)
       : null;
 
+    // Bounce-back: % of loss streaks snapped in 1 match; avg W/L streak lengths
     let lossStreaks = 0, bounced = 0, inLoss = false, lossLen = 0;
+    let wRuns = 0, wTotal = 0, lRuns = 0, lTotal = 0, runType = null, runLen = 0;
     p.results.forEach((r) => {
+      // bounce-back
       if (!r.won) {
         if (!inLoss) { inLoss = true; lossLen = 1; lossStreaks++; }
         else lossLen++;
@@ -11068,15 +11071,20 @@ function _buildStreakLeaderboardHtml() {
         if (lossLen === 1) bounced++;
         inLoss = false; lossLen = 0;
       }
-    });
-    const bbPct = lossStreaks > 0 ? Math.round((bounced / lossStreaks) * 100) : null;
-
-    let streakCount = 0, prevType = null;
-    p.results.forEach((r) => {
+      // avg streak lengths
       const t = r.won ? "W" : "L";
-      if (t !== prevType) { streakCount++; prevType = t; }
+      if (t === runType) { runLen++; }
+      else {
+        if (runType === "W") { wRuns++; wTotal += runLen; }
+        else if (runType === "L") { lRuns++; lTotal += runLen; }
+        runType = t; runLen = 1;
+      }
     });
-    const avgStreakNum = streakCount > 0 ? parseFloat((p.mp / streakCount).toFixed(1)) : null;
+    if (runType === "W") { wRuns++; wTotal += runLen; }
+    else if (runType === "L") { lRuns++; lTotal += runLen; }
+    const bbPct = lossStreaks > 0 ? Math.round((bounced / lossStreaks) * 100) : null;
+    const avgWStreak = wRuns > 0 ? parseFloat((wTotal / wRuns).toFixed(1)) : null;
+    const avgLStreak = lRuns > 0 ? parseFloat((lTotal / lRuns).toFixed(1)) : null;
 
     return {
       name: p.name,
@@ -11087,13 +11095,14 @@ function _buildStreakLeaderboardHtml() {
       bestLossStreak: p.bestLossStreak || 0,
       mtmDelta,
       bbPct,
-      avgStreak: avgStreakNum,
+      avgWStreak,
+      avgLStreak,
     };
   });
 
   if (!window._streakState) window._streakState = { col: "curSigned", dir: "desc" };
 
-  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px";
+  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px 36px";
   const HDR = `display:grid;${PG};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
   const NH = "text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden";
   const header = `<div style="${HDR}">
@@ -11103,7 +11112,8 @@ function _buildStreakLeaderboardHtml() {
     <div onclick="window._streakSort('bestLossStreak')" style="${NH};color:var(--red)">Worst L</div>
     <div onclick="window._streakSort('mtmDelta')" style="${NH}">Mtm</div>
     <div onclick="window._streakSort('bbPct')" style="${NH}">BB%</div>
-    <div onclick="window._streakSort('avgStreak')" style="${NH}">Avg</div>
+    <div onclick="window._streakSort('avgWStreak')" style="${NH};color:var(--green)">Avg W</div>
+    <div onclick="window._streakSort('avgLStreak')" style="${NH};color:var(--red)">Avg L</div>
   </div>`;
 
   // Render initial body inline (same logic as _renderStreakTable)
@@ -11133,7 +11143,8 @@ function _buildStreakLeaderboardHtml() {
       <div style="color:var(--red);text-align:center">${r.bestLossStreak}</div>
       <div style="color:${mtmCol};text-align:center">${mtmStr}</div>
       <div style="color:${bbCol};text-align:center">${bbStr}</div>
-      <div style="color:var(--muted);text-align:center">${r.avgStreak ?? "—"}</div>
+      <div style="color:var(--green);text-align:center">${r.avgWStreak ?? "—"}</div>
+      <div style="color:var(--red);text-align:center">${r.avgLStreak ?? "—"}</div>
     </div>`;
   }).join("");
 
@@ -11504,7 +11515,7 @@ window._renderStreakTable = function() {
   if (!el || !window._streakData || !window._streakState) return;
   const { col, dir } = window._streakState;
   const asc = dir === "asc";
-  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px";
+  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px 36px";
   const CEL = `display:grid;${PG};align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
   const sorted = [...window._streakData].sort((a, b) => {
     const av = a[col], bv = b[col];
@@ -11529,7 +11540,8 @@ window._renderStreakTable = function() {
       <div style="color:var(--red);text-align:center">${r.bestLossStreak}</div>
       <div style="color:${mtmCol};text-align:center">${mtmStr}</div>
       <div style="color:${bbCol};text-align:center">${bbStr}</div>
-      <div style="color:var(--muted);text-align:center">${r.avgStreak}</div>
+      <div style="color:var(--green);text-align:center">${r.avgWStreak ?? "—"}</div>
+      <div style="color:var(--red);text-align:center">${r.avgLStreak ?? "—"}</div>
     </div>`;
   }).join("");
 };
