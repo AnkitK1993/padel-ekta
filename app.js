@@ -13572,7 +13572,7 @@ function renderAnalyticsPage() {
       return '<div class="sub" style="padding:8px">No data.</div>';
     const pg = "grid-template-columns:1fr 44px 54px 60px";
     return (
-      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span>Player</span><span>Avg G</span><span>Partners</span><span>Avg Margin</span></div>` +
+      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span style="text-align:center">Player</span><span style="text-align:center">Avg G</span><span style="text-align:center">Partners</span><span style="text-align:center">Avg Margin</span></div>` +
       compList
         .filter((p) => p.mp >= 1)
         .map((p) => {
@@ -13598,7 +13598,7 @@ function renderAnalyticsPage() {
                 ? "var(--red)"
                 : "var(--muted)";
           const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
-          return `<div class="lrace-row" style="${pg}"><div class="lrace-name">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
+          return `<div class="lrace-row" style="${pg}"><div class="lrace-name" style="text-align:center">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
         })
         .join("") +
       `</div>`
