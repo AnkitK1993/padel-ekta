@@ -11496,7 +11496,7 @@ function _renderBiggestUpsetsCards() {
   const isASS = mode === "ass";
   const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
   eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
-  const top = eligible.slice(0, 8);
+  const top = eligible.slice(0, 10);
   el.innerHTML = top.length
     ? top.map((u) => _upsetCard(u, mode)).join("")
     : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
@@ -11520,7 +11520,7 @@ function _buildBiggestUpsetsHtml() {
   const isASS = mode === "ass";
   const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
   eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
-  const top = eligible.slice(0, 8);
+  const top = eligible.slice(0, 10);
   const cards = top.length
     ? top.map((u) => _upsetCard(u, mode)).join("")
     : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
