@@ -11050,70 +11050,93 @@ function _buildStreakLeaderboardHtml() {
   const stats = _memoStats().filter((p) => p.mp >= 1);
   if (!stats.length)
     return '<div class="sub" style="padding:8px">No matches yet.</div>';
-  const sorted = [...stats].sort((a, b) => {
-    const av = a.curType === "W" ? a.curStreak : -a.curStreak;
-    const bv = b.curType === "W" ? b.curStreak : -b.curStreak;
-    return bv - av || b.bestWinStreak - a.bestWinStreak;
+
+  // Precompute row data
+  window._streakData = stats.map((p) => {
+    const recentN = Math.min(p.results.length, 10);
+    const recentW = p.results.slice(-recentN).filter((r) => r.won).length;
+    const mtmDelta = p.mp >= 5
+      ? Math.round((recentW / recentN - p.mw / p.mp) * 100)
+      : null;
+
+    let lossStreaks = 0, bounced = 0, inLoss = false, lossLen = 0;
+    p.results.forEach((r) => {
+      if (!r.won) {
+        if (!inLoss) { inLoss = true; lossLen = 1; lossStreaks++; }
+        else lossLen++;
+      } else if (inLoss) {
+        if (lossLen === 1) bounced++;
+        inLoss = false; lossLen = 0;
+      }
+    });
+    const bbPct = lossStreaks > 0 ? Math.round((bounced / lossStreaks) * 100) : null;
+
+    let streakCount = 0, prevType = null;
+    p.results.forEach((r) => {
+      const t = r.won ? "W" : "L";
+      if (t !== prevType) { streakCount++; prevType = t; }
+    });
+    const avgStreakNum = streakCount > 0 ? parseFloat((p.mp / streakCount).toFixed(1)) : null;
+
+    return {
+      name: p.name,
+      curStreak: p.curStreak,
+      curType: p.curType,
+      curSigned: p.curType === "W" ? p.curStreak : -p.curStreak,
+      bestWinStreak: p.bestWinStreak,
+      bestLossStreak: p.bestLossStreak || 0,
+      mtmDelta,
+      bbPct,
+      avgStreak: avgStreakNum,
+    };
   });
-  const rows = sorted
-    .map((p, i) => {
-      const onW = p.curType === "W";
-      const col = onW ? "var(--green)" : "var(--red)";
-      const ico = onW ? "🔥" : "❄️";
 
-      // Momentum: recent win% (last 10) vs overall win%
-      const recentN = Math.min(p.results.length, 10);
-      const recentW = p.results.slice(-recentN).filter((r) => r.won).length;
-      const mtmDelta = p.mp >= 5
-        ? Math.round((recentW / recentN - p.mw / p.mp) * 100)
-        : null;
-      const mtmCol = mtmDelta > 0 ? "var(--green)" : mtmDelta < 0 ? "var(--red)" : "var(--muted)";
-      const mtmStr = mtmDelta === null ? "—"
-        : (mtmDelta > 0 ? "+" : "") + mtmDelta + "%";
+  if (!window._streakState) window._streakState = { col: "curSigned", dir: "desc" };
 
-      // Bounce-back rate: % of loss streaks snapped in exactly 1 match
-      let lossStreaks = 0, bounced = 0, inLoss = false, lossLen = 0;
-      p.results.forEach((r) => {
-        if (!r.won) {
-          if (!inLoss) { inLoss = true; lossLen = 1; lossStreaks++; }
-          else lossLen++;
-        } else if (inLoss) {
-          if (lossLen === 1) bounced++;
-          inLoss = false; lossLen = 0;
-        }
-      });
-      const bbPct = lossStreaks > 0 ? Math.round((bounced / lossStreaks) * 100) : null;
-      const bbCol = bbPct === null ? "var(--muted)" : bbPct >= 70 ? "var(--green)" : bbPct >= 40 ? "var(--gold)" : "var(--red)";
-      const bbStr = bbPct === null ? "—" : bbPct + "%";
+  const PG = "grid-template-columns:minmax(70px,1fr) 50px 38px 38px 40px 34px 34px";
+  const HDR = `display:grid;${PG};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
+  const header = `<div style="${HDR}">
+    <div onclick="window._streakSort('name')" style="cursor:pointer">Player</div>
+    <div onclick="window._streakSort('curSigned')" style="text-align:center;cursor:pointer">Streak</div>
+    <div onclick="window._streakSort('bestWinStreak')" style="text-align:center;cursor:pointer;color:var(--green)">Best W</div>
+    <div onclick="window._streakSort('bestLossStreak')" style="text-align:center;cursor:pointer;color:var(--red)">Worst L</div>
+    <div onclick="window._streakSort('mtmDelta')" style="text-align:center;cursor:pointer">Mtm</div>
+    <div onclick="window._streakSort('bbPct')" style="text-align:center;cursor:pointer">BB%</div>
+    <div onclick="window._streakSort('avgStreak')" style="text-align:center;cursor:pointer">Avg</div>
+  </div>`;
 
-      // Avg streak length: mp / number of distinct streaks
-      let streakCount = 0, prevType = null;
-      p.results.forEach((r) => {
-        const t = r.won ? "W" : "L";
-        if (t !== prevType) { streakCount++; prevType = t; }
-      });
-      const avgStreak = streakCount > 0 ? (p.mp / streakCount).toFixed(1) : "—";
+  // Render initial body inline (same logic as _renderStreakTable)
+  const { col, dir } = window._streakState;
+  const asc = dir === "asc";
+  const CEL = `display:grid;${PG};align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
+  const initSorted = [...window._streakData].sort((a, b) => {
+    const av = a[col], bv = b[col];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return asc ? av - bv : bv - av;
+  });
+  const bodyRows = initSorted.map((r) => {
+    const onW = r.curType === "W";
+    const sCol = onW ? "var(--green)" : "var(--red)";
+    const ico  = onW ? "🔥" : "❄️";
+    const mtmCol = r.mtmDelta > 0 ? "var(--green)" : r.mtmDelta < 0 ? "var(--red)" : "var(--muted)";
+    const mtmStr = r.mtmDelta == null ? "—" : (r.mtmDelta > 0 ? "+" : "") + r.mtmDelta + "%";
+    const bbCol  = r.bbPct == null ? "var(--muted)" : r.bbPct >= 70 ? "var(--green)" : r.bbPct >= 40 ? "var(--gold)" : "var(--red)";
+    const bbStr  = r.bbPct == null ? "—" : r.bbPct + "%";
+    return `<div style="${CEL}">
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name)}</div>
+      <div style="color:${sCol};text-align:center">${ico} ${onW ? "W" : "L"}${r.curStreak}</div>
+      <div style="color:var(--green);text-align:center">${r.bestWinStreak}</div>
+      <div style="color:var(--red);text-align:center">${r.bestLossStreak}</div>
+      <div style="color:${mtmCol};text-align:center">${mtmStr}</div>
+      <div style="color:${bbCol};text-align:center">${bbStr}</div>
+      <div style="color:var(--muted);text-align:center">${r.avgStreak ?? "—"}</div>
+    </div>`;
+  }).join("");
 
-      return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;font-weight:800;color:var(--muted);width:20px">#${i + 1}</span>
-          <span style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</span>
-          <span style="flex:1;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span>
-          <span style="font-size:12px;font-weight:800;color:${col}">${ico} ${onW ? "W" : "L"}${p.curStreak}</span>
-        </div>
-        <div style="display:flex;gap:8px;padding:3px 0 0 50px;font-size:9px;font-weight:700;flex-wrap:wrap">
-          <span style="color:var(--muted)">best <span style="color:var(--green)">W${p.bestWinStreak}</span> / worst <span style="color:var(--red)">L${p.bestLossStreak || 0}</span></span>
-          <span style="color:var(--muted)">·</span>
-          <span>mtm <span style="color:${mtmCol}">${mtmStr}</span></span>
-          <span style="color:var(--muted)">·</span>
-          <span>bb <span style="color:${bbCol}">${bbStr}</span></span>
-          <span style="color:var(--muted)">·</span>
-          <span style="color:var(--muted)">avg streak <span style="color:var(--text)">${avgStreak}</span></span>
-        </div>
-      </div>`;
-    })
-    .join("");
-  return `<div class="ana-card" style="padding:8px 12px">${rows}</div>`;
+  return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto">${header}<div id="streak-body">${bodyRows}</div></div>`;
 }
 
 // ── WIN RATE CALCULATOR ─────────────────────────────────────
@@ -11462,6 +11485,52 @@ window._setUpsetMode = function(mode) {
     b.classList.toggle("lsst-active", b.dataset.mode === mode);
   });
   _renderBiggestUpsetsCards();
+};
+
+window._streakSort = function(col) {
+  if (!window._streakState) window._streakState = { col: "curSigned", dir: "desc" };
+  if (window._streakState.col === col) {
+    window._streakState.dir = window._streakState.dir === "desc" ? "asc" : "desc";
+  } else {
+    window._streakState.col = col;
+    window._streakState.dir = col === "name" ? "asc" : "desc";
+  }
+  window._renderStreakTable();
+};
+
+window._renderStreakTable = function() {
+  const el = document.getElementById("streak-body");
+  if (!el || !window._streakData || !window._streakState) return;
+  const { col, dir } = window._streakState;
+  const asc = dir === "asc";
+  const PG = "grid-template-columns:minmax(70px,1fr) 50px 38px 38px 40px 34px 34px";
+  const CEL = `display:grid;${PG};align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
+  const sorted = [...window._streakData].sort((a, b) => {
+    const av = a[col], bv = b[col];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return asc ? av - bv : bv - av;
+  });
+  el.innerHTML = sorted.map((r) => {
+    const onW = r.curType === "W";
+    const sCol = onW ? "var(--green)" : "var(--red)";
+    const ico  = onW ? "🔥" : "❄️";
+    const mtmCol = r.mtmDelta > 0 ? "var(--green)" : r.mtmDelta < 0 ? "var(--red)" : "var(--muted)";
+    const mtmStr = r.mtmDelta == null ? "—" : (r.mtmDelta > 0 ? "+" : "") + r.mtmDelta + "%";
+    const bbCol  = r.bbPct == null ? "var(--muted)" : r.bbPct >= 70 ? "var(--green)" : r.bbPct >= 40 ? "var(--gold)" : "var(--red)";
+    const bbStr  = r.bbPct == null ? "—" : r.bbPct + "%";
+    return `<div style="${CEL}">
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name)}</div>
+      <div style="color:${sCol};text-align:center">${ico} ${onW ? "W" : "L"}${r.curStreak}</div>
+      <div style="color:var(--green);text-align:center">${r.bestWinStreak}</div>
+      <div style="color:var(--red);text-align:center">${r.bestLossStreak}</div>
+      <div style="color:${mtmCol};text-align:center">${mtmStr}</div>
+      <div style="color:${bbCol};text-align:center">${bbStr}</div>
+      <div style="color:var(--muted);text-align:center">${r.avgStreak}</div>
+    </div>`;
+  }).join("");
 };
 
 window._synSort = function(col) {
