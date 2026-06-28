@@ -11434,6 +11434,9 @@ window._synSort = function(col) {
 window._synSetPlayer = function(name) {
   if (!window._synState) window._synState = { col: "delta", dir: "desc", player: "" };
   window._synState.player = name;
+  document.querySelectorAll(".syn-filter-pill").forEach((b) => {
+    b.classList.toggle("lsst-active", b.dataset.player === name);
+  });
   window._renderSynTable();
 };
 
@@ -12645,10 +12648,14 @@ function renderAnalyticsPage() {
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
 
     const synPlayers = [...new Set(synergyRows.map((r) => r.player))].sort();
-    const fabStyle = "width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-weight:700;cursor:pointer;margin-bottom:8px;appearance:none;-webkit-appearance:none;";
-    const playerOpts = `<option value="">ALL PLAYERS</option>` +
-      synPlayers.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
-    const fab = `<select onchange="window._synSetPlayer(this.value)" style="${fabStyle}">${playerOpts}</select>`;
+    const pillWrap = "display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;";
+    const pillStyle = "flex:none;padding:5px 10px;font-size:9px;"; // extends .lsst-btn
+    const fab = `<div style="${pillWrap}">` +
+      `<button class="lsst-btn lsst-active syn-filter-pill" data-player="" onclick="window._synSetPlayer('')" style="${pillStyle}">All</button>` +
+      synPlayers.map((p) =>
+        `<button class="lsst-btn syn-filter-pill" data-player="${escHtml(p)}" onclick="window._synSetPlayer('${escHtml(p)}')" style="${pillStyle}">${escHtml(p.split(" ")[0])}</button>`
+      ).join("") +
+    `</div>`;
 
     const pg = "grid-template-columns:1fr 1fr 34px 46px 50px";
     const HDR = `display:grid;${pg};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
