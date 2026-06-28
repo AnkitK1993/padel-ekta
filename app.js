@@ -13566,43 +13566,104 @@ function renderAnalyticsPage() {
 
   // ── NEW SECTIONS DATA ──────────────────────────────────
 
-  // 1a: Player Stats Table
+  // 1a: Battle Stats — frozen Player column + scrollable data columns
   const _playerStatsTableHtml = (() => {
     if (!compList.length)
       return '<div class="sub" style="padding:8px">No data.</div>';
-    const pg = "grid-template-columns:1fr 44px 54px 60px";
-    return (
-      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span style="text-align:center">Player</span><span style="text-align:center">Avg G</span><span style="text-align:center">Partners</span><span style="text-align:center">Avg Margin</span></div>` +
-      compList
-        .filter((p) => p.mp >= 1)
-        .map((p) => {
-          // Normalize scores: if max(pScore, oScore) > 4, scale both so winner = 4
-          let normGW = 0, normMarginSum = 0;
-          (matchesByPlayer[p.name] || []).forEach((m) => {
-            const inA = (m.teamA || []).includes(p.name);
-            const rawPS = inA ? m.scoreA : m.scoreB;
-            const rawOS = inA ? m.scoreB : m.scoreA;
-            const mx = Math.max(rawPS, rawOS);
-            const f = mx > 4 ? 4 / mx : 1;
-            normGW += rawPS * f;
-            normMarginSum += (rawPS - rawOS) * f;
-          });
-          const mp = (matchesByPlayer[p.name] || []).length || 1;
-          const avgG = (normGW / mp).toFixed(1);
-          const avgMarginNorm = normMarginSum / mp;
-          const avgM = (avgMarginNorm >= 0 ? "+" : "") + avgMarginNorm.toFixed(1);
-          const mc =
-            avgMarginNorm > 0
-              ? "var(--green)"
-              : avgMarginNorm < 0
-                ? "var(--red)"
-                : "var(--muted)";
-          const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
-          return `<div class="lrace-row" style="${pg}"><div class="lrace-name" style="justify-content:center">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
-        })
-        .join("") +
-      `</div>`
+
+    // Top-half SR set for "vs Top" metric
+    const _sortedBySR = [...compList].sort((a, b) => b.sr - a.sr);
+    const _topHalfSet = new Set(
+      _sortedBySR.slice(0, Math.ceil(_sortedBySR.length / 2)).map((q) => q.name)
     );
+
+    // Column group background tints
+    const TP = "rgba(96,165,250,0.07)";   // blue   — Performance
+    const TS = "rgba(52,211,153,0.07)";   // green  — Scoring
+    const TO = "rgba(251,191,36,0.07)";   // amber  — Opposition
+    const TC = "rgba(248,113,113,0.07)";  // red    — Match Character
+    const TM = "rgba(167,139,250,0.07)";  // purple — Meta
+    const FRZ = "var(--surface)";          // solid bg for sticky column
+
+    const COLS = "max-content 44px 44px 44px 54px 44px 54px 50px 44px 54px 44px 44px";
+    const HDR  = "padding:5px 6px;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;";
+    const CEL  = "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
+    const FRZX = "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
+
+    const h = (label, bg, frz = false) =>
+      `<div style="${HDR}background:${frz ? FRZ : bg};${frz ? FRZX + "z-index:3;" : ""}">${label}</div>`;
+    const d = (val, bg, col = "var(--text)", frz = false) =>
+      `<div style="${CEL}background:${frz ? FRZ : bg};color:${col};${frz ? FRZX : ""}">${val}</div>`;
+
+    const headers = [
+      h("Player", null, true),
+      h("Win%", TP),   h("SR",      TP),
+      h("Avg G", TS),  h("Avg Mgn", TS),  h("G Lost", TS),
+      h("Opp SR", TO), h("vs Top",  TO),
+      h("Fire%", TC),  h("Clutch%", TC),  h("Dom%",   TC),
+      h("Prtns", TM),
+    ].join("");
+
+    const dataRows = compList
+      .filter((p) => p.mp >= 1)
+      .map((p) => {
+        const pms = matchesByPlayer[p.name] || [];
+        const mp  = pms.length || 1;
+        let normGW = 0, normGL = 0, normMgn = 0, oppSRSum = 0;
+        let thPlayed = 0, thWins = 0, fireCnt = 0;
+        let clutchP = 0, clutchW = 0, totWins = 0, domWins = 0;
+
+        pms.forEach((m) => {
+          const inA  = (m.teamA || []).includes(p.name);
+          const rawPS = inA ? m.scoreA : m.scoreB;
+          const rawOS = inA ? m.scoreB : m.scoreA;
+          const f    = Math.max(rawPS, rawOS) > 4 ? 4 / Math.max(rawPS, rawOS) : 1;
+          normGW  += rawPS * f;
+          normGL  += rawOS * f;
+          normMgn += (rawPS - rawOS) * f;
+
+          const opps = inA ? (m.teamB || []) : (m.teamA || []);
+          const won  = rawPS > rawOS;
+
+          if (opps.length)
+            oppSRSum += opps.reduce((s, op) => s + eloToSr(eloMap[op] || 1000), 0) / opps.length;
+
+          if (opps.some((op) => _topHalfSet.has(op))) { thPlayed++; if (won) thWins++; }
+          if (isFireMatch(m)) fireCnt++;
+          if (Math.abs(m.scoreA - m.scoreB) === 1) { clutchP++; if (won) clutchW++; }
+          if (won) { totWins++; if (isDominatingMatch(m)) domWins++; }
+        });
+
+        const mgnV = normMgn / mp;
+        const wPct = p.winPct;
+        const wCol = wPct >= 60 ? "var(--green)" : wPct <= 40 ? "var(--red)" : "var(--text)";
+        const mCol = mgnV > 0 ? "var(--green)" : mgnV < 0 ? "var(--red)" : "var(--muted)";
+        const prtns = Object.keys(stats[p.name]?.teammates || {}).length;
+
+        return [
+          d(p.name,                                                            null, "var(--text)", true),
+          d(wPct.toFixed(0) + "%",                                             TP, wCol),
+          d(p.sr.toFixed(2),                                                   TP),
+          d((normGW / mp).toFixed(1),                                          TS),
+          d((mgnV >= 0 ? "+" : "") + mgnV.toFixed(1),                         TS, mCol),
+          d((normGL / mp).toFixed(1),                                          TS),
+          d((oppSRSum / mp).toFixed(2),                                        TO),
+          d(thPlayed > 0 ? Math.round(thWins / thPlayed * 100) + "%" : "—",   TO),
+          d(Math.round(fireCnt / mp * 100) + "%",                              TC),
+          d(clutchP > 0 ? Math.round(clutchW / clutchP * 100) + "%" : "—",    TC),
+          d(totWins > 0 ? Math.round(domWins / totWins * 100) + "%" : "—",    TC),
+          d(prtns,                                                              TM),
+        ].join("");
+      })
+      .join("");
+
+    return `<div class="ana-card" style="padding:8px 12px">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <div style="display:grid;grid-template-columns:${COLS};min-width:max-content">
+          ${headers}${dataRows}
+        </div>
+      </div>
+    </div>`;
   })();
 
   // 1b: Pair Leaderboard Top 10 with streak + against quality
