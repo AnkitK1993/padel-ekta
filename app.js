@@ -14076,7 +14076,7 @@ function renderAnalyticsPage() {
         Object.entries(potmMap)
           .map(
             ([mo, d]) =>
-              `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}% · ${d.matches}P</div></div>`,
+              `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px;cursor:pointer" onclick="window._showMonthReport('${mo}')"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}% · ${d.matches}P</div><div style="font-size:8px;color:var(--theme);margin-top:3px;font-weight:700">📊 Report</div></div>`,
           )
           .join("") +
         `</div>`
@@ -14084,7 +14084,7 @@ function renderAnalyticsPage() {
     const hdrs = lastMos
       .map(
         (mo) =>
-          `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px">${moN2[parseInt(mo.slice(5))]}</th>`,
+          `<th style="text-align:center;color:var(--muted);font-weight:600;font-size:9px;padding:0 4px 6px;cursor:pointer" onclick="window._showMonthReport('${mo}')" title="View ${moN2[parseInt(mo.slice(5))]} report">${moN2[parseInt(mo.slice(5))]}<br><span style="font-size:7px;opacity:0.6">📊</span></th>`,
       )
       .join("");
     const bodyRows2 = activePs
@@ -15601,6 +15601,199 @@ window._goToSummaryDay = function(date) {
   if (dr) dr.classList.remove("show");
   renderCompact();
   goTo("compact");
+};
+
+window._mReportText = "";
+
+window._copyMonthReport = function() {
+  if (!window._mReportText) return;
+  navigator.clipboard?.writeText(window._mReportText).then(() => {
+    const btn = document.getElementById("mr-copy-btn");
+    if (btn) { btn.textContent = "✓ Copied!"; setTimeout(() => { btn.textContent = "📋 Copy Text"; }, 2000); }
+  });
+};
+
+window._shareMonthWhatsApp = function() {
+  if (!window._mReportText) return;
+  window.open("https://wa.me/?text=" + encodeURIComponent(window._mReportText), "_blank");
+};
+
+window._showMonthReport = function(mo) {
+  document.getElementById("month-report-modal")?.remove();
+  const moN2 = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [year, monthNum] = mo.split("-");
+  const moLabel = `${moN2[parseInt(monthNum)]} ${year}`;
+
+  const allMs = activeMatches()
+    .filter((m) => (m.date || "").startsWith(mo))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  if (!allMs.length) return;
+
+  // ── Per-player accumulation ──────────────────────────────
+  const P = {};
+  const mkp = (n) => (P[n] = P[n] || { mp: 0, mw: 0, gw: 0, gl: 0, bestWin: null, bestLoss: null, results: [] });
+
+  const byDate = {};
+  let closestM = null, bigWinM = null;
+  let fireCount = 0, shutouts = 0;
+
+  allMs.forEach((m) => {
+    const aWon = m.scoreA > m.scoreB;
+    const margin = Math.abs(m.scoreA - m.scoreB);
+    if (m.date) byDate[m.date] = (byDate[m.date] || 0) + 1;
+    if (!closestM || margin < Math.abs(closestM.scoreA - closestM.scoreB)) closestM = m;
+    if (!bigWinM || margin > Math.abs(bigWinM.scoreA - bigWinM.scoreB)) bigWinM = m;
+    if (m.scoreA === 0 || m.scoreB === 0) shutouts++;
+    if (isFireMatch(m)) fireCount++;
+
+    [[m.teamA, m.teamB, aWon], [m.teamB, m.teamA, !aWon]].forEach(([mine, theirs, won]) => {
+      mine.forEach((p) => {
+        const ps = mkp(p);
+        ps.mp++;
+        ps.gw += won ? Math.max(m.scoreA, m.scoreB) : Math.min(m.scoreA, m.scoreB);
+        ps.gl += won ? Math.min(m.scoreA, m.scoreB) : Math.max(m.scoreA, m.scoreB);
+        if (won) {
+          ps.mw++;
+          if (!ps.bestWin || margin > ps.bestWin.margin) {
+            ps.bestWin = { margin, label: `${Math.max(m.scoreA, m.scoreB)}-${Math.min(m.scoreA, m.scoreB)}`, partner: mine.filter((x) => x !== p).join(" & "), opp: theirs.join(" & "), date: m.date };
+          }
+        } else {
+          if (!ps.bestLoss || margin > ps.bestLoss.margin) {
+            ps.bestLoss = { margin, label: `${Math.min(m.scoreA, m.scoreB)}-${Math.max(m.scoreA, m.scoreB)}`, partner: mine.filter((x) => x !== p).join(" & "), opp: theirs.join(" & "), date: m.date };
+          }
+        }
+        ps.results.push(won ? "W" : "L");
+      });
+    });
+  });
+
+  // Max win streak per player this month
+  Object.values(P).forEach((ps) => {
+    let run = 0, max = 0;
+    ps.results.forEach((r) => { if (r === "W") { run++; max = Math.max(max, run); } else run = 0; });
+    ps.maxWStreak = max;
+  });
+
+  const standings = Object.entries(P)
+    .map(([name, ps]) => ({ name, ...ps, winPct: Math.round((ps.mw / ps.mp) * 100) }))
+    .sort((a, b) => b.winPct - a.winPct || b.mp - a.mp);
+
+  const potm = standings.find((p) => p.mp >= 2) || standings[0];
+  const medals = ["🥇", "🥈", "🥉"];
+  const [topDay, topDayCount] = Object.entries(byDate).sort((a, b) => b[1] - a[1])[0] || [];
+  const streaker = [...standings].sort((a, b) => b.maxWStreak - a.maxWStreak)[0];
+  const bottom = [...standings].sort((a, b) => a.winPct - b.winPct || a.mp - b.mp);
+  const nailCount = allMs.filter((m) => Math.abs(m.scoreA - m.scoreB) === 1).length;
+
+  // ── WhatsApp text ────────────────────────────────────────
+  const lines = [];
+  lines.push(`🎾 *PADEL MONTHLY REPORT — ${moLabel.toUpperCase()}* 🎾`);
+  lines.push("");
+  if (potm) {
+    lines.push(`🏆 *PLAYER OF THE MONTH*`);
+    lines.push(`${potm.name} — ${potm.winPct}% (${potm.mw}W-${potm.mp - potm.mw}L)`);
+    lines.push("");
+  }
+  lines.push(`📊 *STANDINGS*`);
+  standings.forEach((p, i) => {
+    lines.push(`${medals[i] || `${i + 1}.`} ${p.name} — ${p.mw}W-${p.mp - p.mw}L (${p.winPct}%)`);
+  });
+  lines.push("");
+  lines.push(`🔥 *HIGHLIGHTS*`);
+  if (bigWinM) {
+    const bw = bigWinM.scoreA > bigWinM.scoreB;
+    const wT = (bw ? bigWinM.teamA : bigWinM.teamB).join(" & ");
+    const lT = (bw ? bigWinM.teamB : bigWinM.teamA).join(" & ");
+    lines.push(`• Biggest result: ${wT} ${Math.max(bigWinM.scoreA, bigWinM.scoreB)}-${Math.min(bigWinM.scoreA, bigWinM.scoreB)} vs ${lT} (${fmtDate(bigWinM.date)})`);
+  }
+  if (streaker && streaker.maxWStreak >= 3) {
+    lines.push(`• ${streaker.name} went on a ${streaker.maxWStreak}-match winning streak`);
+  }
+  if (shutouts > 0) lines.push(`• ${shutouts} shutout result(s) (4-0)`);
+  if (fireCount > 0) lines.push(`• ${fireCount} 🔥 fire match(es) played`);
+  lines.push("");
+  lines.push(`📉 *TOUGH MONTH*`);
+  if (bottom[0] && bottom[0].winPct < 40) {
+    lines.push(`• ${bottom[0].name} — ${bottom[0].mw}W-${bottom[0].mp - bottom[0].mw}L (${bottom[0].winPct}%)`);
+    if (bottom[1] && bottom[1].winPct < 40 && bottom[1].name !== bottom[0].name) {
+      lines.push(`• ${bottom[1].name} — ${bottom[1].mw}W-${bottom[1].mp - bottom[1].mw}L (${bottom[1].winPct}%)`);
+    }
+  } else {
+    lines.push(`• Everyone held their own this month! 💪`);
+  }
+  lines.push("");
+  lines.push(`🎯 *BY THE NUMBERS*`);
+  lines.push(`• Matches played: ${allMs.length}`);
+  lines.push(`• Active days: ${Object.keys(byDate).length}`);
+  lines.push(`• Players: ${standings.length}`);
+  if (topDay) lines.push(`• Busiest day: ${fmtDate(topDay)} (${topDayCount} matches)`);
+  if (nailCount > 0) lines.push(`• Nail-biters (±1 margin): ${nailCount} 💓`);
+  lines.push(`_via EktaPadel 🏓_`);
+  window._mReportText = lines.join("\n");
+
+  // ── HTML helpers ─────────────────────────────────────────
+  const card = (title, content) =>
+    `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px"><div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${title}</div>${content}</div>`;
+
+  // Standings
+  const standHtml = standings.map((p, i) => {
+    const col = p.winPct >= 61 ? "var(--green)" : p.winPct >= 45 ? "var(--gold)" : "var(--red)";
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="font-size:13px;width:24px">${medals[i] || `${i + 1}.`}</span>
+      <span style="flex:1;font-size:12px;font-weight:700">${escHtml(p.name)}</span>
+      <span style="font-size:11px;font-weight:800;color:${col}">${p.winPct}%</span>
+      <span style="font-size:9px;color:var(--muted);width:52px;text-align:right">${p.mw}W-${p.mp - p.mw}L · ${p.mp}P</span>
+    </div>`;
+  }).join("");
+
+  // Highlights
+  const highRows = [];
+  if (potm) highRows.push(`<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.winPct}% · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`);
+  if (bigWinM) {
+    const bw = bigWinM.scoreA > bigWinM.scoreB;
+    const wT = (bw ? bigWinM.teamA : bigWinM.teamB).join(" & ");
+    highRows.push(`<div class="chem-row"><span style="font-size:16px">💥</span><div><div style="font-size:11px;font-weight:700">Biggest Result: ${Math.max(bigWinM.scoreA, bigWinM.scoreB)}-${Math.min(bigWinM.scoreA, bigWinM.scoreB)}</div><div style="font-size:9px;color:var(--muted)">${escHtml(wT)} · ${fmtDate(bigWinM.date)}</div></div></div>`);
+  }
+  if (streaker && streaker.maxWStreak >= 3) highRows.push(`<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">${escHtml(streaker.name)}: ${streaker.maxWStreak}-match streak</div><div style="font-size:9px;color:var(--muted)">Best winning run of the month</div></div></div>`);
+  if (shutouts > 0) highRows.push(`<div class="chem-row"><span style="font-size:16px">💀</span><div><div style="font-size:11px;font-weight:700">${shutouts} Shutout result(s)</div><div style="font-size:9px;color:var(--muted)">Games ending 4-0</div></div></div>`);
+  if (fireCount > 0) highRows.push(`<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">${fireCount} Fire Match(es)</div><div style="font-size:9px;color:var(--muted)">High-intensity, closely fought games</div></div></div>`);
+
+  // Lows
+  const lowRows = [];
+  bottom.slice(0, 2).forEach((p) => {
+    if (p.winPct < 45) lowRows.push(`<div class="chem-row"><span style="font-size:16px">📉</span><div><div style="font-size:11px;font-weight:700">${escHtml(p.name)}: ${p.winPct}%</div><div style="font-size:9px;color:var(--muted)">${p.mw}W-${p.mp - p.mw}L · ${p.mp} matches</div></div></div>`);
+  });
+  const worstLossP = standings.filter((p) => p.bestLoss).sort((a, b) => b.bestLoss.margin - a.bestLoss.margin)[0];
+  if (worstLossP?.bestLoss) lowRows.push(`<div class="chem-row"><span style="font-size:16px">😬</span><div><div style="font-size:11px;font-weight:700">${escHtml(worstLossP.name)}: Lost ${worstLossP.bestLoss.label}</div><div style="font-size:9px;color:var(--muted)">vs ${escHtml(worstLossP.bestLoss.opp)} · ${fmtDate(worstLossP.bestLoss.date)}</div></div></div>`);
+  if (!lowRows.length) lowRows.push(`<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0">Everyone held their own! 💪</div>`);
+
+  // Numbers
+  const numRows = [
+    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Total matches</span><span style="font-size:11px;font-weight:700">${allMs.length}</span></div>`,
+    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Playing days</span><span style="font-size:11px;font-weight:700">${Object.keys(byDate).length}</span></div>`,
+    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Players active</span><span style="font-size:11px;font-weight:700">${standings.length}</span></div>`,
+  ];
+  if (topDay) numRows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Busiest day</span><span style="font-size:11px;font-weight:700">${fmtDate(topDay)} (${topDayCount})</span></div>`);
+  if (nailCount > 0) numRows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Nail-biters (±1)</span><span style="font-size:11px;font-weight:700">${nailCount} 💓</span></div>`);
+  if (fireCount > 0) numRows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="font-size:11px;color:var(--muted)">🔥 Fire matches</span><span style="font-size:11px;font-weight:700">${fireCount}</span></div>`);
+
+  const html = `<div id="month-report-modal" style="position:fixed;inset:0;z-index:999;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div style="max-width:480px;margin:0 auto;padding:16px 12px 88px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:900;letter-spacing:0.04em">📊 ${moLabel.toUpperCase()}</div>
+        <button onclick="document.getElementById('month-report-modal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      ${card("📊 Standings", standHtml)}
+      ${highRows.length ? card("🔥 Highlights", highRows.join("")) : ""}
+      ${card("📉 Lows", lowRows.join(""))}
+      ${card("🎯 By the Numbers", numRows.join(""))}
+    </div>
+    <div style="position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:8px">
+      <button id="mr-copy-btn" onclick="window._copyMonthReport()" style="flex:1;padding:10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--text);font-size:12px;font-weight:700;cursor:pointer">📋 Copy Text</button>
+      <button onclick="window._shareMonthWhatsApp()" style="flex:1;padding:10px;background:#25D366;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer">📲 WhatsApp</button>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
 };
 
 Object.assign(window, {
