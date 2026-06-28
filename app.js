@@ -13343,8 +13343,7 @@ function renderAnalyticsPage() {
       // Longest win streak ever = bestWinStreak from computeStats
       const longestWS = p.bestWinStreak;
       // Biggest win margin
-      let biggestMargin = 0,
-        biggestScore = "";
+      let biggestMargin = 0, biggestScore = "", biggestWinDate = null;
       playerMs.forEach((m) => {
         const inA = (m.teamA || []).includes(p.name);
         const own = inA ? m.scoreA : m.scoreB;
@@ -13352,6 +13351,7 @@ function renderAnalyticsPage() {
         if (own > opp && own - opp > biggestMargin) {
           biggestMargin = own - opp;
           biggestScore = `${own}-${opp}`;
+          biggestWinDate = m.date || null;
         }
       });
       // Best session performance (most wins in one day)
@@ -13364,19 +13364,32 @@ function renderAnalyticsPage() {
         if ((inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA))
           byDate[m.date].wins++;
       });
-      const bestDay = Object.values(byDate).sort(
-        (a, b) => b.wins - a.wins || b.played - a.played,
+      const bestDayEntry = Object.entries(byDate).sort(
+        (a, b) => b[1].wins - a[1].wins || b[1].played - a[1].played,
       )[0];
+      const bestDay = bestDayEntry ? bestDayEntry[1] : null;
+      const bestDayDate = bestDayEntry ? bestDayEntry[0] : null;
       const mostMatchesDay = Object.entries(byDate).sort(
         (a, b) => b[1].played - a[1].played,
       )[0];
-      let mostDayStr = "—";
+      let mostDayStr = "—", mostDayDate = null;
       if (mostMatchesDay) {
         const [mdDate, mdData] = mostMatchesDay;
         const totalOnDay = matchCountByDate[mdDate] || 0;
         mostDayStr = `${mdData.played}/${totalOnDay}`;
+        mostDayDate = mdDate;
       }
-      return `<div class="pb-row"><div class="pb-name">${p.name}</div><div class="pb-stat" title="Longest win streak">🔥${longestWS}W</div><div class="pb-stat" title="Biggest win">${biggestScore ? `💥${biggestScore}` : "—"}</div><div class="pb-stat" title="Best day wins">⭐${bestDay ? `${bestDay.wins}W/${bestDay.played}` : "—"}</div><div class="pb-stat" title="Most matches in a day">📅${mostDayStr}</div></div>`;
+      const BT = "background:none;border:none;color:inherit;font:inherit;cursor:pointer;padding:0;text-align:center;";
+      const dayBtn = (label, date) => date
+        ? `<button style="${BT}" onclick="window._goToSummaryDay('${date}')" title="View ${date} in Summary">${label}</button>`
+        : `<span>${label}</span>`;
+      return `<div class="pb-row">
+        <div class="pb-name">${escHtml(p.name)}</div>
+        <div class="pb-stat" title="Longest win streak">🔥${longestWS}W</div>
+        <div class="pb-stat" title="Biggest win">${biggestScore ? dayBtn(`💥${biggestScore}`, biggestWinDate) : "—"}</div>
+        <div class="pb-stat" title="Best day wins">${bestDay ? dayBtn(`⭐${bestDay.wins}W/${bestDay.played}`, bestDayDate) : "—"}</div>
+        <div class="pb-stat" title="Most matches in a day">${mostDayStr !== "—" ? dayBtn(`📅${mostDayStr}`, mostDayDate) : "—"}</div>
+      </div>`;
     });
     return `<div class="ana-card" style="padding:10px 12px"><div class="pb-header"><div class="pb-name">Player</div><div class="pb-stat">Best Streak</div><div class="pb-stat">Best Win</div><div class="pb-stat">Best Day</div><div class="pb-stat">Most/Day</div></div>${rows.join("")}</div>`;
   })();
@@ -15574,6 +15587,22 @@ setTimeout(() => {
 }, 0);
 
 // Expose globals
+window._goToSummaryDay = function(date) {
+  cmpFilter = "day";
+  cmpFrom = date;
+  cmpTo = null;
+  const sel = document.getElementById("cmpSel");
+  if (sel) sel.value = "day";
+  const dp = document.getElementById("cmpDayPicker");
+  if (dp) dp.classList.add("show");
+  const di = document.getElementById("cmpDayInput");
+  if (di) di.value = date;
+  const dr = document.getElementById("cmpDr");
+  if (dr) dr.classList.remove("show");
+  renderCompact();
+  goTo("compact");
+};
+
 Object.assign(window, {
   goTo,
   goBack,
