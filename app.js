@@ -11528,91 +11528,6 @@ function _buildSeasonComparisonHtml() {
   return `<div class="ana-card" style="padding:8px"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div><div style="font-size:9px;color:var(--muted);margin-top:6px">Season ELO per player (W–L below). — = didn't play that season.</div></div>`;
 }
 
-// Radar overlay comparing 2 players across 5 normalized axes.
-function _radarSvg(stats, aName, bName) {
-  const A = stats.find((p) => p.name === aName),
-    B = stats.find((p) => p.name === bName);
-  if (!A || !B) return "";
-  const maxConsist = Math.max(...stats.map((p) => p.consistency || 0), 1);
-  const axes = [
-    { label: "Win%", v: (p) => p.winPct },
-    { label: "Game%", v: (p) => p.gamePct },
-    { label: "ELO", v: (p) => (p.sr / 10) * 100 },
-    { label: "Activity", v: (p) => p.act * 100 },
-    {
-      label: "Consist.",
-      v: (p) =>
-        p.consistency == null
-          ? 50
-          : Math.max(0, 100 - (p.consistency / maxConsist) * 100),
-    },
-  ];
-  const cx = 130,
-    cy = 120,
-    R = 84,
-    N = axes.length;
-  const pt = (i, frac) => {
-    const ang = -Math.PI / 2 + (i / N) * 2 * Math.PI;
-    return [cx + Math.cos(ang) * R * frac, cy + Math.sin(ang) * R * frac];
-  };
-  let grid = "";
-  [0.25, 0.5, 0.75, 1].forEach((f) => {
-    grid += `<polygon points="${axes.map((_, i) => pt(i, f).join(",")).join(" ")}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
-  });
-  let spokes = "",
-    labels = "";
-  axes.forEach((ax, i) => {
-    const [x, y] = pt(i, 1);
-    spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.08)"/>`;
-    const [lx, ly] = pt(i, 1.2);
-    labels += `<text x="${lx}" y="${ly}" font-size="8" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle">${ax.label}</text>`;
-  });
-  const poly = (p, color) =>
-    `<polygon points="${axes.map((ax, i) => pt(i, Math.max(0, Math.min(1, ax.v(p) / 100))).join(",")).join(" ")}" fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="2"/>`;
-  const colA = playerColor(aName),
-    colB = playerColor(bName);
-  return `<svg viewBox="0 0 260 248" width="100%" style="max-width:300px;display:block;margin:0 auto">${grid}${spokes}${labels}${poly(B, colB)}${poly(A, colA)}</svg>
-    <div style="display:flex;justify-content:center;gap:16px;margin-top:4px">
-      <span style="font-size:11px;font-weight:700;color:${colA}">● ${escHtml(aName)}</span>
-      <span style="font-size:11px;font-weight:700;color:${colB}">● ${escHtml(bName)}</span>
-    </div>`;
-}
-function _buildRadarCompareHtml() {
-  const stats = _memoStats().filter((p) => p.mp >= 3);
-  if (stats.length < 2)
-    return '<div class="sub" style="padding:8px">Need 2+ players with 3+ matches.</div>';
-  const byElo = [...stats].sort((a, b) => b.sr - a.sr);
-  if (
-    !window._radarSel ||
-    !stats.find((p) => p.name === window._radarSel.a) ||
-    !stats.find((p) => p.name === window._radarSel.b)
-  )
-    window._radarSel = { a: byElo[0].name, b: byElo[1].name };
-  const opts = (sel) =>
-    stats
-      .map(
-        (p) =>
-          `<option value="${escHtml(p.name)}"${p.name === sel ? " selected" : ""}>${escHtml(p.name)}</option>`,
-      )
-      .join("");
-  const selStyle =
-    "flex:1;min-width:0;padding:7px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-weight:700";
-  return `<div class="ana-card" style="padding:12px">
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <select onchange="_radarPick('a',this.value)" style="${selStyle}">${opts(window._radarSel.a)}</select>
-      <select onchange="_radarPick('b',this.value)" style="${selStyle}">${opts(window._radarSel.b)}</select>
-    </div>
-    <div id="radar-box">${_radarSvg(stats, window._radarSel.a, window._radarSel.b)}</div>
-  </div>`;
-}
-function _radarPick(slot, name) {
-  window._radarSel = window._radarSel || {};
-  window._radarSel[slot] = name;
-  const box = document.getElementById("radar-box");
-  if (!box) return;
-  const stats = _memoStats().filter((p) => p.mp >= 3);
-  box.innerHTML = _radarSvg(stats, window._radarSel.a, window._radarSel.b);
-}
 
 
 
@@ -13655,31 +13570,35 @@ function renderAnalyticsPage() {
   const _playerStatsTableHtml = (() => {
     if (!compList.length)
       return '<div class="sub" style="padding:8px">No data.</div>';
-    const pg = "grid-template-columns:1fr 44px 60px 54px 60px";
+    const pg = "grid-template-columns:1fr 44px 54px 60px";
     return (
-      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span>Player</span><span>Avg G</span><span>Shutout%</span><span>Partners</span><span>Avg Margin</span></div>` +
+      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg}"><span>Player</span><span>Avg G</span><span>Partners</span><span>Avg Margin</span></div>` +
       compList
         .filter((p) => p.mp >= 1)
         .map((p) => {
-          const avgG = (p.ngw / p.mp).toFixed(1);
-          const shutRate =
-            stats[p.name]?.wins > 0
-              ? Math.round(
-                  ((shutoutWins[p.name] || 0) / stats[p.name].wins) * 100,
-                ) + "%"
-              : "—";
-          const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
-          const avgM =
-            p.avgMargin != null
-              ? (p.avgMargin >= 0 ? "+" : "") + p.avgMargin.toFixed(1)
-              : "—";
+          // Normalize scores: if max(pScore, oScore) > 4, scale both so winner = 4
+          let normGW = 0, normMarginSum = 0;
+          (matchesByPlayer[p.name] || []).forEach((m) => {
+            const inA = (m.teamA || []).includes(p.name);
+            const rawPS = inA ? m.scoreA : m.scoreB;
+            const rawOS = inA ? m.scoreB : m.scoreA;
+            const mx = Math.max(rawPS, rawOS);
+            const f = mx > 4 ? 4 / mx : 1;
+            normGW += rawPS * f;
+            normMarginSum += (rawPS - rawOS) * f;
+          });
+          const mp = (matchesByPlayer[p.name] || []).length || 1;
+          const avgG = (normGW / mp).toFixed(1);
+          const avgMarginNorm = normMarginSum / mp;
+          const avgM = (avgMarginNorm >= 0 ? "+" : "") + avgMarginNorm.toFixed(1);
           const mc =
-            p.avgMargin > 0
+            avgMarginNorm > 0
               ? "var(--green)"
-              : p.avgMargin < 0
+              : avgMarginNorm < 0
                 ? "var(--red)"
                 : "var(--muted)";
-          return `<div class="lrace-row" style="${pg}"><div class="lrace-name">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${shutRate}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
+          const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
+          return `<div class="lrace-row" style="${pg}"><div class="lrace-name">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
         })
         .join("") +
       `</div>`
@@ -14857,10 +14776,7 @@ function renderAnalyticsPage() {
       key: "playerstats",
       cat: "players",
       title: "📊 Compare Players",
-      body: _tabbedSection([
-        { label: "Deep Dive", html: _playerStatsTableHtml },
-        { label: "Radar", html: _buildRadarCompareHtml() },
-      ]),
+      body: _playerStatsTableHtml,
     },
     {
       key: "absencetracker",
@@ -15390,7 +15306,6 @@ Object.assign(window, {
   generateAmericanoSchedule,
   americanoBack,
   _anaSubTab,
-  _radarPick,
   toggleAnaHideEmpty,
   openSeasonSheet,
   closeSeasonSheet,
