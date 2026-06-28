@@ -840,6 +840,8 @@ Object.defineProperty(globalThis, "_sessionSetupSelected", {
 let _sessionTimerInterval = null;
 let _sdashShowGuests = true; // scoreboard guest-filter toggle
 let _sessScoreView = null; // null = follow hamburger _scoringMode; "elo"|"ass"|"both" = explicit
+let _sessSortCol = "sr";   // active sort column key
+let _sessSortDir = "desc"; // "asc" | "desc"
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -16364,6 +16366,16 @@ window._sessSetScoreView = function(view) {
   _renderLiveSessionDashboard();
 };
 
+window._sessSortBy = function(col) {
+  if (_sessSortCol === col) {
+    _sessSortDir = _sessSortDir === "desc" ? "asc" : "desc";
+  } else {
+    _sessSortCol = col;
+    _sessSortDir = "desc";
+  }
+  _renderLiveSessionDashboard();
+};
+
 // ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
 function _mkEloTeams(pick4, eloMap, alt) {
   const s = [...pick4].sort(
@@ -16911,8 +16923,37 @@ function _renderLiveSessionDashboard() {
   const showElo = effectiveView !== "ass";
   const showASS = effectiveView !== "elo";
   const primaryMap = showElo ? sessionEloMap : sessionASSMap;
-  const stats = computeStats(history, primaryMap)
-    .sort((a, b) => (b.sr || 0) - (a.sr || 0) || (b.mw || 0) - (a.mw || 0));
+  const rawStats = computeStats(history, primaryMap);
+  const effectiveSortCol =
+    (_sessSortCol === "elo" && !showElo) || (_sessSortCol === "ass" && !showASS)
+      ? "sr" : _sessSortCol;
+  const getSortVal = (p) => {
+    switch (effectiveSortCol) {
+      case "name":  return p.name.toLowerCase();
+      case "mp":    return p.mp;
+      case "wl":    return p.mw;
+      case "wpct":  return p.mp > 0 ? p.mw / p.mp : 0;
+      case "gw":    return p.gw;
+      case "gl":    return p.gl;
+      case "gpct":  return (p.gw + p.gl) > 0 ? p.gw / (p.gw + p.gl) : 0;
+      case "elo":   return sessionEloMap[p.name] || 1000;
+      case "ass":   return sessionASSMap[p.name] || 1000;
+      case "sr":
+      default: {
+        const _esr = eloToSr(sessionEloMap[p.name] || 1000);
+        const _asr = eloToSr(sessionASSMap[p.name] || 1000);
+        return effectiveView === "both" ? (_esr + _asr) / 2 : eloToSr(primaryMap[p.name] || 1000);
+      }
+    }
+  };
+  const stats = [...rawStats].sort((a, b) => {
+    const va = getSortVal(a), vb = getSortVal(b);
+    if (typeof va === "string") {
+      const c = va.localeCompare(vb);
+      return _sessSortDir === "desc" ? -c : c;
+    }
+    return _sessSortDir === "desc" ? vb - va : va - vb;
+  });
   const rankColor = (i) =>
     i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
   const scoreViewToggle = `<div class="live-sdash-score-toggle">
@@ -16920,8 +16961,8 @@ function _renderLiveSessionDashboard() {
     <button class="lsst-btn${effectiveView === 'ass' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('ass')">ASS</button>
     <button class="lsst-btn${effectiveView === 'both' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('both')">BOTH</button>
   </div>`;
-  const thElo = showElo ? "<th>ELO</th>" : "";
-  const thASS = showASS ? "<th>ASS</th>" : "";
+  const thElo = showElo ? `<th onclick="window._sessSortBy('elo')" style="cursor:pointer">ELO</th>` : "";
+  const thASS = showASS ? `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">ASS</th>` : "";
   const tableRows = stats.map((p, i) => {
     const ml = p.mp - p.mw;
     const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
@@ -16981,8 +17022,8 @@ function _renderLiveSessionDashboard() {
     <div class="live-sdash-table-wrap">
       <table class="live-sdash-table">
         <thead><tr>
-          <th>#</th><th>PLAYER</th><th>MP</th><th>W–L</th><th>W%</th>
-          <th>GW</th><th>GL</th><th>G%</th>${thElo}${thASS}<th>SR</th>
+          <th>#</th><th onclick="window._sessSortBy('name')" style="cursor:pointer">PLAYER</th><th onclick="window._sessSortBy('mp')" style="cursor:pointer">MP</th><th onclick="window._sessSortBy('wl')" style="cursor:pointer">W–L</th><th onclick="window._sessSortBy('wpct')" style="cursor:pointer">W%</th>
+          <th onclick="window._sessSortBy('gw')" style="cursor:pointer">GW</th><th onclick="window._sessSortBy('gl')" style="cursor:pointer">GL</th><th onclick="window._sessSortBy('gpct')" style="cursor:pointer">G%</th>${thElo}${thASS}<th onclick="window._sessSortBy('sr')" style="cursor:pointer">SR</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
