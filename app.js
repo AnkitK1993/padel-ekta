@@ -11010,7 +11010,10 @@ function _buildSeasonModeHtml() {
           <div style="font-size:13px;font-weight:800">${escHtml(s.monthName)}</div>
           <div style="font-size:9px;color:var(--muted)">${s.rangeLabel ? escHtml(s.rangeLabel) + " · " : ""}${s.matches} matches · ${s.players.length} players</div>
         </div>
-        <div style="font-size:11px;color:var(--muted)">▼</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="event.stopPropagation();window._showMonthReport('${s.month}')" style="font-size:10px;font-weight:700;color:var(--theme);background:rgba(var(--theme-rgb),0.12);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:6px;padding:3px 8px;cursor:pointer">📊 Report</button>
+          <div style="font-size:11px;color:var(--muted)">▼</div>
+        </div>
       </div>
       <div class="season-card-body">
         ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${s.mvp.name}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw / s.mvp.mp) * 100)}%</div></div></div>` : ""}
