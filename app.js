@@ -4081,19 +4081,24 @@ function _computeLbWindowStats(baseMatches) {
     (m.teamA || []).forEach((p) => playerNames.add(p));
     (m.teamB || []).forEach((p) => playerNames.add(p));
   });
+  const isASS = _summaryMode === "ass";
   const statsList = [];
   const eloMap = {};
+  const assMap = {};
   for (const playerName of playerNames) {
     const pm = _getPlayerWindowMatches(playerName, baseMatches, _lbWindow);
     const pEloMap = computeElo(pm);
-    const pStats = computeStats(pm, pEloMap);
+    const pAssMap = computeASS(pm);
+    // SR derives from the active scoring system over the windowed matches.
+    const pStats = computeStats(pm, isASS ? pAssMap : pEloMap);
     const ps = pStats.find((s) => s.name === playerName);
     if (ps) {
       statsList.push(ps);
       eloMap[playerName] = pEloMap[playerName];
+      assMap[playerName] = pAssMap[playerName];
     }
   }
-  return { stats: statsList, eloMap };
+  return { stats: statsList, eloMap, assMap };
 }
 
 function _renderLbWindowBar() {
@@ -4261,13 +4266,16 @@ function renderCompact() {
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const isASS = _summaryMode === "ass";
   const _isCmpAllFilter = cmpFilter === "all" && !cmpFrom && !cmpTo;
-  let _cmpEloMap, stats;
-  const _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
+  let _cmpEloMap, _cmpASSMap, stats;
   if (_lbWindow) {
+    // FIRST/LAST window: recompute ELO, ASS and SR over each player's windowed
+    // matches so all three reflect the chosen window (not the all-time set).
     const r = _computeLbWindowStats(filtered);
     _cmpEloMap = r.eloMap;
+    _cmpASSMap = r.assMap;
     stats = r.stats;
   } else {
+    _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
     _cmpEloMap = _isCmpAllFilter ? _memoElo() : computeElo(filtered);
     // SR is derived from whichever score is active: ASS map in ASS mode, ELO
     // map otherwise. ELO all-time still uses the memoised stats for speed.
