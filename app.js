@@ -8084,7 +8084,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
   card.innerHTML = `
     <div class="cmp-inline-card">
       <div class="cmp-inline-header">
-        <span class="cmp-inline-title">⚡ Compare Players</span>
+        <span class="cmp-inline-title">⚡ Battle Stats</span>
         <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
       </div>
       ${_cmpSelectorHtml()}
@@ -8160,7 +8160,7 @@ function renderCompareSelector() {
   card.innerHTML = `
     <div class="cmp-inline-card">
       <div class="cmp-inline-header">
-        <span class="cmp-inline-title">⚡ Compare Players</span>
+        <span class="cmp-inline-title">⚡ Battle Stats</span>
         <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
       </div>
       ${_cmpSelectorHtml()}
@@ -14775,7 +14775,7 @@ function renderAnalyticsPage() {
     {
       key: "playerstats",
       cat: "players",
-      title: "📊 Compare Players",
+      title: "⚔️ Battle Stats",
       body: _playerStatsTableHtml,
     },
     {
