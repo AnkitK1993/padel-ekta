@@ -11851,24 +11851,6 @@ select.cmp-sel:hover,
   border-bottom: none;
 }
 
-/* ── MATCH STORY FEED ──────────────────────────────── */
-.story-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-.story-card:last-child {
-  border-bottom: none;
-}
-.story-icon {
-  font-size: 22px;
-  line-height: 1;
-  flex-shrink: 0;
-  width: 28px;
-  text-align: center;
-}
 
 /* ── SEASON MODE ───────────────────────────────────── */
 .season-card {
@@ -14456,58 +14438,6 @@ select:focus,
   height: 9px;
 }
 
-/* ── Story Feed filter chips ── */
-.story-chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
-}
-.story-chip {
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(var(--theme-rgb), 0.25);
-  background: rgba(var(--theme-rgb), 0.05);
-  color: rgba(255, 255, 255, 0.7);
-  font-family: "Bebas Neue", sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: all 0.18s;
-}
-.story-chip.active {
-  background: var(--theme);
-  color: #000;
-  border-color: var(--theme);
-  box-shadow: 0 0 12px rgba(var(--theme-rgb), 0.4);
-}
-.story-cards-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.story-more-wrap {
-  margin-top: 8px;
-  text-align: center;
-}
-.story-show-more {
-  padding: 6px 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(var(--theme-rgb), 0.3);
-  background: rgba(var(--theme-rgb), 0.07);
-  color: var(--theme);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: all 0.18s;
-}
-.story-show-more:hover {
-  background: rgba(var(--theme-rgb), 0.15);
-}
 
 /* ── ELO Projection ── */
 .ep-controls {

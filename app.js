@@ -128,7 +128,7 @@ import {
   computePlayerForm,
   computePowerRankings,
   computeChemistryScores,
-  computeMatchStories,
+
   computeAnalyticsPageData,
   computePartnerOpponentMatrix,
 } from "./src/engine/player-analytics.js";
@@ -8729,8 +8729,6 @@ function mkLvlRow(displayName) {
 // ── PARTNERSHIP CHEMISTRY SCORE ───────────────────────────────
 // computeChemistryScores → src/engine/player-analytics.js
 
-// ── MATCH STORY CARDS ─────────────────────────────────────────
-// computeMatchStories → src/engine/player-analytics.js
 
 // ── ACHIEVEMENTS (new additions beyond computeBadges) ─────────
 // computeAchievements → src/engine/player-analytics.js
@@ -11008,84 +11006,6 @@ function runMatchPrediction() {
     </div>`;
 }
 
-function _buildStoryFeedHtml() {
-  const stories = computeMatchStories(activeMatches());
-  if (!stories.length)
-    return '<div class="sub" style="padding:8px">No stories yet — play more matches!</div>';
-  const cards = stories
-    .map(
-      (s, i) => `
-    <div class="story-card" data-type="${s.type || ""}" data-idx="${i}" style="${i < 5 ? "" : "display:none"}">
-      <div class="story-icon">${s.icon}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:11px;font-weight:700;color:var(--fg);line-height:1.4">${s.text}</div>
-        ${s.date ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${fmtDate(s.date)} · ${s.score}</div>` : `<div style="font-size:9px;color:var(--muted);margin-top:2px">${s.score}</div>`}
-      </div>
-    </div>`,
-    )
-    .join("");
-  const chips = [
-    ["all", "ALL"],
-    ["upset", "😱 UPSETS"],
-    ["milestone", "🏆 MILESTONES"],
-    ["shutout", "💀 SHUTOUTS"],
-    ["streak", "🔥 STREAKS"],
-  ]
-    .map(
-      ([f, l]) =>
-        `<button class="story-chip${f === "all" ? " active" : ""}" onclick="_storyFilter('${f}', this)">${l}</button>`,
-    )
-    .join("");
-  const remaining = stories.length - 5;
-  const showMoreBtn =
-    remaining > 0
-      ? `<button class="story-show-more" onclick="_storyShowMore(this,'all')">Show More (${remaining} more)</button>`
-      : "";
-  return `<div class="ana-card" style="padding:10px 12px">
-    <div class="story-chips">${chips}</div>
-    <div class="story-cards-wrap">${cards}</div>
-    <div class="story-more-wrap">${showMoreBtn}</div>
-  </div>`;
-}
-
-function _storyFilter(filter, btn) {
-  const wrap = btn.parentElement;
-  if (wrap)
-    wrap
-      .querySelectorAll(".story-chip")
-      .forEach((b) => b.classList.toggle("active", b === btn));
-  const card = btn.closest(".ana-card");
-  if (!card) return;
-  const allCards = [...card.querySelectorAll(".story-card")];
-  let shown = 0;
-  allCards.forEach((c) => {
-    const matches = filter === "all" || c.dataset.type === filter;
-    if (matches && shown < 5) {
-      c.style.display = "";
-      shown++;
-    } else c.style.display = "none";
-  });
-  const matching = allCards.filter(
-    (c) => filter === "all" || c.dataset.type === filter,
-  ).length;
-  const moreWrap = card.querySelector(".story-more-wrap");
-  if (moreWrap) {
-    const rem = matching - 5;
-    moreWrap.innerHTML =
-      rem > 0
-        ? `<button class="story-show-more" onclick="_storyShowMore(this,'${filter}')">Show More (${rem} more)</button>`
-        : "";
-  }
-}
-
-function _storyShowMore(btn, filter) {
-  const card = btn.closest(".ana-card");
-  if (!card) return;
-  card.querySelectorAll(".story-card").forEach((c) => {
-    if (filter === "all" || c.dataset.type === filter) c.style.display = "";
-  });
-  btn.parentElement.innerHTML = "";
-}
 
 function _buildSeasonModeHtml() {
   const buckets = computeSeasons(activeMatches());
@@ -14948,13 +14868,6 @@ function renderAnalyticsPage() {
       title: "👻 Absence Tracker",
       body: _absenceTrackerHtml,
     },
-    // ── NEW PHASE 1-5 SECTIONS ─────────────────────────────────
-    {
-      key: "storyfeed",
-      cat: "records",
-      title: "📰 Match Stories",
-      body: _buildStoryFeedHtml(),
-    },
     {
       key: "seasonmode",
       cat: "records",
@@ -15519,7 +15432,7 @@ Object.assign(window, {
   restoreMatch,
   purgeTrash,
   renderTrash,
-  _storyShowMore,
+
   _downloadDriveBackup,
   _dowDayRecord,
   editMatchByIndex,
@@ -15638,7 +15551,7 @@ Object.assign(window, {
   openGlobalSearch,
   closeGlobalSearch,
   _globalSearchInput,
-  _storyFilter,
+
   openThemePicker,
   closeThemePicker,
   pickTheme,
