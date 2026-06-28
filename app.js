@@ -11445,7 +11445,7 @@ window._renderSynTable = function() {
   if (!el || !window._synData || !window._synState) return;
   const { col, dir, player } = window._synState;
   const asc = dir === "asc";
-  const pg = "grid-template-columns:1fr 1fr 34px 46px 50px";
+  const pg = "grid-template-columns:1fr 1fr 34px 46px 50px 52px";
   const CEL = `display:grid;${pg};align-items:center;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
   const base = player ? window._synData.filter((r) => r.player === player) : window._synData;
   const sorted = [...base].sort((a, b) => {
@@ -11458,12 +11458,16 @@ window._renderSynTable = function() {
     ? sorted.map((r) => {
         const col2 = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
         const sign = r.delta >= 0 ? "+" : "";
+        const sc = r.scoreDelta || 0;
+        const scCol = sc > 0 ? "var(--green)" : sc < 0 ? "var(--red)" : "var(--muted)";
+        const scSign = sc >= 0 ? "+" : "";
         return `<div style="${CEL}">
           <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
           <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner.split(" ")[0])}</div>
           <div style="text-align:center">${r.played}</div>
           <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
           <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
+          <div style="text-align:center;color:${scCol}">${scSign}${sc}</div>
         </div>`;
       }).join("")
     : `<div style="padding:10px 4px;font-size:11px;color:var(--muted)">No data for this player.</div>`;
@@ -12616,6 +12620,48 @@ function renderAnalyticsPage() {
   compList.forEach((p) => {
     overallWinRate[p.name] = p.winPct;
   });
+  // Net ASS/ELO delta per (player, partner) — accumulated across all 2v2 matches
+  const pairNetDelta = {};
+  if (_scoringMode === "ass") {
+    const _assMatchDeltas = computeMatchASSDeltas(sortedM);
+    sortedM.forEach((m) => {
+      const info = _assMatchDeltas.get(m);
+      if (!info) return;
+      [m.teamA, m.teamB].forEach((team) => {
+        if (team.length !== 2) return;
+        team.forEach((p) => {
+          const partner = team.find((pp) => pp !== p);
+          pairNetDelta[`${p}|||${partner}`] = (pairNetDelta[`${p}|||${partner}`] || 0) + (info.playerDeltas[p] || 0);
+        });
+      });
+    });
+  } else {
+    const _runElo = {};
+    sortedM.forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _runElo)) _runElo[p] = 1000; });
+      const aWon = m.scoreA > m.scoreB;
+      const avgA = m.teamA.reduce((s, p) => s + _runElo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgB = m.teamB.reduce((s, p) => s + _runElo[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      if (m.teamA.length === 2) {
+        m.teamA.forEach((p) => {
+          const partner = m.teamA.find((pp) => pp !== p);
+          pairNetDelta[`${p}|||${partner}`] = (pairNetDelta[`${p}|||${partner}`] || 0) + dA;
+        });
+      }
+      if (m.teamB.length === 2) {
+        m.teamB.forEach((p) => {
+          const partner = m.teamB.find((pp) => pp !== p);
+          pairNetDelta[`${p}|||${partner}`] = (pairNetDelta[`${p}|||${partner}`] || 0) + dB;
+        });
+      }
+      m.teamA.forEach((p) => { _runElo[p] += dA; });
+      m.teamB.forEach((p) => { _runElo[p] += dB; });
+    });
+  }
+
   const synergyRows = [];
   Object.entries(partnerships).forEach(([key, pd]) => {
     if (pd.played < 2) return;
@@ -12628,6 +12674,7 @@ function renderAnalyticsPage() {
         pairPct,
         delta: pairPct - overallWinRate[pA],
         played: pd.played,
+        scoreDelta: Math.round(pairNetDelta[`${pA}|||${pB}`] || 0),
       });
     }
     if (overallWinRate[pB] !== undefined) {
@@ -12637,6 +12684,7 @@ function renderAnalyticsPage() {
         pairPct,
         delta: pairPct - overallWinRate[pB],
         played: pd.played,
+        scoreDelta: Math.round(pairNetDelta[`${pB}|||${pA}`] || 0),
       });
     }
   });
@@ -12657,14 +12705,16 @@ function renderAnalyticsPage() {
       ).join("") +
     `</div>`;
 
-    const pg = "grid-template-columns:1fr 1fr 34px 46px 50px";
+    const pg = "grid-template-columns:1fr 1fr 34px 46px 50px 52px";
     const HDR = `display:grid;${pg};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
+    const scoreColLabel = `Δ ${_scoringLabel()}`;
     const header = `<div style="${HDR}">
       <div onclick="window._synSort('player')" style="cursor:pointer">Player</div>
       <div onclick="window._synSort('partner')" style="cursor:pointer">Partner</div>
       <div onclick="window._synSort('played')" style="text-align:center;cursor:pointer">MP</div>
       <div onclick="window._synSort('pairPct')" style="text-align:center;cursor:pointer">Win%</div>
       <div onclick="window._synSort('delta')" style="text-align:center;cursor:pointer">Δ Win%</div>
+      <div onclick="window._synSort('scoreDelta')" style="text-align:center;cursor:pointer">${scoreColLabel}</div>
     </div>`;
 
     const { col, dir } = window._synState;
@@ -12679,12 +12729,16 @@ function renderAnalyticsPage() {
     const bodyRows = sorted.map((r) => {
       const col2 = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
       const sign = r.delta >= 0 ? "+" : "";
+      const sc = r.scoreDelta || 0;
+      const scCol = sc > 0 ? "var(--green)" : sc < 0 ? "var(--red)" : "var(--muted)";
+      const scSign = sc >= 0 ? "+" : "";
       return `<div style="${CEL}">
         <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
         <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner.split(" ")[0])}</div>
         <div style="text-align:center">${r.played}</div>
         <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
         <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
+        <div style="text-align:center;color:${scCol}">${scSign}${sc}</div>
       </div>`;
     }).join("");
     return `${fab}${header}<div id="syn-body">${bodyRows}</div>`;
