@@ -192,7 +192,7 @@ import { openWeeklyDigest } from "./features/weekly-digest.js";
 import { openThemePicker, closeThemePicker, pickTheme } from "./features/theme-picker.js";
 import { openGlobalSearch, closeGlobalSearch, _globalSearchInput } from "./features/global-search.js";
 import { fireConfetti } from "./features/confetti.js";
-import { getMilestoneLog, saveMilestoneEntry, checkMilestones, _checkAnniversaries } from "./features/milestones.js";
+import { checkMilestones, _checkAnniversaries } from "./features/milestones.js";
 import {
   computeSessionStreak,
   getWeeklySnaps,
@@ -11494,38 +11494,6 @@ function _buildBiggestUpsetsHtml() {
   return `${toggle}<div id="biggest-upsets-body">${cards}</div>`;
 }
 
-// Players closest to their next round-number milestone (matches / wins of 25).
-function _buildUpcomingMilestonesHtml() {
-  const stats = computeStats(activeMatches());
-  if (!stats.length)
-    return '<div class="sub" style="padding:8px">No matches yet.</div>';
-  const nextMul = (v, step) => Math.ceil((v + 1) / step) * step;
-  const items = [];
-  stats.forEach((p) => {
-    const nm = nextMul(p.mp, 25);
-    items.push({ name: p.name, to: nm - p.mp, target: nm, kind: "matches", icon: "🎯" });
-    const nw = nextMul(p.mw, 25);
-    items.push({ name: p.name, to: nw - p.mw, target: nw, kind: "wins", icon: "🏆" });
-  });
-  const near = items
-    .filter((i) => i.to <= 8)
-    .sort((a, b) => a.to - b.to)
-    .slice(0, 12);
-  if (!near.length)
-    return '<div class="sub" style="padding:8px">No milestones within reach (8) yet.</div>';
-  const rows = near
-    .map(
-      (i) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-      <span style="font-size:15px">${i.icon}</span>
-      <span style="flex:1;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(i.name)}</span>
-      <span style="font-size:13px;font-weight:800;color:var(--theme)">${i.to}</span>
-      <span style="font-size:10px;color:var(--muted)">from ${i.target} ${i.kind}</span>
-    </div>`,
-    )
-    .join("");
-  return `<div class="ana-card" style="padding:8px 12px">${rows}</div>`;
-}
-
 // Compare every player's ELO across the user-defined Seasons (cross-season).
 function _buildSeasonComparisonHtml() {
   if (!state.seasons.length)
@@ -13575,7 +13543,6 @@ function renderAnalyticsPage() {
     </div>`;
   })();
 
-  // ── MILESTONE HISTORY ──────────────────────────────────
   // ── DIGEST CARD ────────────────────────────────────────
   viewState.digestFilter = "week";
   viewState.digestPlayer = "";
@@ -13593,23 +13560,6 @@ function renderAnalyticsPage() {
     <button class="filter-fab-btn" id="digest-player-btn" onclick="openDigestPlayerSheet()" style="margin-bottom:10px"><span id="digest-player-label">ALL PLAYERS</span></button>
     <div id="digest-content">${_buildDigestContent("week", "")}</div>
   </div>`;
-
-  const milestoneLog = getMilestoneLog();
-  const milestoneHtml = (() => {
-    if (!milestoneLog.length)
-      return '<div class="sub" style="padding:10px 8px">No milestones recorded yet.</div>';
-    const rows = milestoneLog
-      .map(
-        (entry) =>
-          `<div class="mlog-row">
-        <span class="mlog-icon">${entry.emoji}</span>
-        <span class="mlog-msg">${entry.msg}</span>
-        <span class="mlog-date">${fmtDate(entry.date)}</span>
-      </div>`,
-      )
-      .join("");
-    return `<div class="ana-card mlog-card">${rows}</div>`;
-  })();
 
   // ── NEW SECTIONS DATA ──────────────────────────────────
 
@@ -14874,15 +14824,6 @@ function renderAnalyticsPage() {
           label: "H2H Records",
           html: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
         },
-      ]),
-    },
-    {
-      key: "milestones",
-      cat: "records",
-      title: "🎖️ Milestones",
-      body: _tabbedSection([
-        { label: "Achieved", html: milestoneHtml },
-        { label: "Upcoming", html: _buildUpcomingMilestonesHtml() },
       ]),
     },
     {
