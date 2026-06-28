@@ -839,6 +839,7 @@ Object.defineProperty(globalThis, "_sessionSetupSelected", {
 // Timer interval handle for the session elapsed-time display — scalar, direct let.
 let _sessionTimerInterval = null;
 let _sdashShowGuests = true; // scoreboard guest-filter toggle
+let _sessScoreView = "both"; // "elo" | "ass" | "both"
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -16358,6 +16359,11 @@ window.toggleSdashGuests = function() {
   _renderLiveSessionDashboard();
 };
 
+window._sessSetScoreView = function(view) {
+  _sessScoreView = view;
+  _renderLiveSessionDashboard();
+};
+
 // ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
 function _mkEloTeams(pick4, eloMap, alt) {
   const s = [...pick4].sort(
@@ -16897,19 +16903,33 @@ function _renderLiveSessionDashboard() {
     ? _sessionMatchHistory
     : _sessionMatchHistory.filter(m => ![...m.teamA, ...m.teamB].some(p => guestSet.has(p)));
 
-  // Session ELO: everyone starts at 1000, computed from today's session matches only
+  // Session ELO + ASS: everyone starts at 1000, computed from today's session matches only
   const sessionEloMap = computeElo(history);
-  const stats = computeStats(history, sessionEloMap)
+  const sessionASSMap = computeASS(history);
+  const showElo = _sessScoreView !== "ass";
+  const showASS = _sessScoreView !== "elo";
+  const primaryMap = showElo ? sessionEloMap : sessionASSMap;
+  const stats = computeStats(history, primaryMap)
     .sort((a, b) => (b.sr || 0) - (a.sr || 0) || (b.mw || 0) - (a.mw || 0));
   const rankColor = (i) =>
     i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
+  const scoreViewToggle = `<div class="live-sdash-score-toggle">
+    <button class="lsst-btn${_sessScoreView === 'elo' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('elo')">ELO</button>
+    <button class="lsst-btn${_sessScoreView === 'ass' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('ass')">ASS</button>
+    <button class="lsst-btn${_sessScoreView === 'both' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('both')">BOTH</button>
+  </div>`;
+  const thElo = showElo ? "<th>ELO</th>" : "";
+  const thASS = showASS ? "<th>ASS</th>" : "";
   const tableRows = stats.map((p, i) => {
     const ml = p.mp - p.mw;
     const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
     const total = p.gw + p.gl;
     const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
     const elo = Math.round(sessionEloMap[p.name] || 1000);
-    const sr = eloToSr(sessionEloMap[p.name] || 1000).toFixed(2);
+    const ass = Math.round(sessionASSMap[p.name] || 1000);
+    const sr = eloToSr(primaryMap[p.name] || 1000).toFixed(2);
+    const eloCol = elo > 1000 ? "var(--green)" : elo < 1000 ? "var(--red)" : "var(--text)";
+    const assCol = ass > 1000 ? "var(--green)" : ass < 1000 ? "var(--red)" : "var(--text)";
     return `<tr class="live-sdash-tr">
       <td style="color:${rankColor(i)};font-weight:900">${i + 1}</td>
       <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(normPlayer(p.name))}</span></td>
@@ -16919,7 +16939,8 @@ function _renderLiveSessionDashboard() {
       <td>${p.gw}</td>
       <td>${p.gl}</td>
       <td>${gamePct}%</td>
-      <td>${elo}</td>
+      ${showElo ? `<td style="color:${eloCol}">${elo}</td>` : ""}
+      ${showASS ? `<td style="color:${assCol}">${ass}</td>` : ""}
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
@@ -16949,12 +16970,13 @@ function _renderLiveSessionDashboard() {
     })
     .join("");
   el.innerHTML = `
+    ${scoreViewToggle}
     <div class="live-sdash-section">SCOREBOARD</div>
     <div class="live-sdash-table-wrap">
       <table class="live-sdash-table">
         <thead><tr>
           <th>#</th><th>PLAYER</th><th>MP</th><th>W–L</th><th>W%</th>
-          <th>GW</th><th>GL</th><th>G%</th><th>ELO</th><th>SR</th>
+          <th>GW</th><th>GL</th><th>G%</th>${thElo}${thASS}<th>SR</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
