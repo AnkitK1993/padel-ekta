@@ -839,7 +839,7 @@ Object.defineProperty(globalThis, "_sessionSetupSelected", {
 // Timer interval handle for the session elapsed-time display — scalar, direct let.
 let _sessionTimerInterval = null;
 let _sdashShowGuests = true; // scoreboard guest-filter toggle
-let _sessScoreView = "both"; // "elo" | "ass" | "both"
+let _sessScoreView = null; // null = follow hamburger _scoringMode; "elo"|"ass"|"both" = explicit
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -15705,11 +15705,11 @@ function _renderLiveSlot(slot) {
     avatarEl.style.background = playerColor(p);
     avatarEl.style.color = "#fff";
     slotEl?.classList.add("live-slot-filled");
-    // Enhancement 10: show ELO under name
     const eloEl = document.getElementById(`live-elo-${slot}`);
     if (eloEl) {
-      const elo = _memoElo()[p] || 1000;
-      eloEl.textContent = `ELO ${elo}`;
+      const isASS = _scoringMode === "ass";
+      const score = Math.round((isASS ? _memoASS() : _memoElo())[p] || 1000);
+      eloEl.textContent = `${isASS ? "ASS" : "ELO"} ${score}`;
       eloEl.style.display = "block";
     }
   } else {
@@ -16382,7 +16382,7 @@ function suggestNextMatch() {
     showToast("Need 4+ players in session", "❌");
     return;
   }
-  const eloMap = _memoElo();
+  const scoreMap = _scoringMode === "ass" ? _memoASS() : _memoElo();
   const counts = {};
   sessionPlayers.forEach((p) => (counts[p] = 0));
   _sessionMatchHistory.forEach((m) => {
@@ -16395,10 +16395,10 @@ function suggestNextMatch() {
   );
   const pick4 = sorted.slice(0, 4);
   const suggestions = [
-    _mkEloTeams(pick4, eloMap, false), // snake: best+worst vs 2nd+3rd
+    _mkEloTeams(pick4, scoreMap, false), // snake: best+worst vs 2nd+3rd
     sorted.length >= 8
-      ? _mkEloTeams(sorted.slice(4, 8), eloMap, false) // next 4 players
-      : _mkEloTeams(pick4, eloMap, true), // alt pairing of same 4
+      ? _mkEloTeams(sorted.slice(4, 8), scoreMap, false) // next 4 players
+      : _mkEloTeams(pick4, scoreMap, true), // alt pairing of same 4
   ];
   _showSuggestSheet(suggestions);
 }
@@ -16407,6 +16407,7 @@ function _showSuggestSheet(suggestions) {
   const sheet = document.getElementById("suggest-sheet");
   const body = document.getElementById("suggest-sheet-body");
   if (!sheet || !body) return;
+  const scoreLbl = _scoringLabel(); // "ELO" or "ASS"
   body.innerHTML = suggestions
     .map((s, i) => {
       const expA = 1 / (1 + Math.pow(10, (s.avgB - s.avgA) / 400));
@@ -16423,13 +16424,13 @@ function _showSuggestSheet(suggestions) {
         <div style="flex:1;text-align:center">
           <div style="font-size:13px;font-weight:800">${escHtml(s.teamA[0])}</div>
           <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamA[1])}</div>
-          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgA)} ELO avg</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgA)} ${scoreLbl} avg</div>
         </div>
         <div style="font-size:13px;font-weight:900;color:var(--muted)">VS</div>
         <div style="flex:1;text-align:center">
           <div style="font-size:13px;font-weight:800">${escHtml(s.teamB[0])}</div>
           <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamB[1])}</div>
-          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgB)} ELO avg</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgB)} ${scoreLbl} avg</div>
         </div>
       </div>
       <div style="margin-bottom:8px">
@@ -16443,7 +16444,7 @@ function _showSuggestSheet(suggestions) {
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px">
         <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:6px 8px">
-          <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">ELO IF WIN / LOSE</div>
+          <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">${scoreLbl} IF WIN / LOSE</div>
           <div style="font-size:11px;font-weight:800">
             <span style="color:var(--green)">+${dAwin}</span>
             <span style="color:var(--muted);font-weight:400"> / </span>
@@ -16452,7 +16453,7 @@ function _showSuggestSheet(suggestions) {
           <div style="font-size:7px;color:var(--muted);margin-top:2px">${escHtml(normPlayer(s.teamA[0]))} & ${escHtml(normPlayer(s.teamA[1]))}</div>
         </div>
         <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:6px 8px">
-          <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">ELO IF WIN / LOSE</div>
+          <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">${scoreLbl} IF WIN / LOSE</div>
           <div style="font-size:11px;font-weight:800">
             <span style="color:var(--green)">+${dBwin}</span>
             <span style="color:var(--muted);font-weight:400"> / </span>
@@ -16906,17 +16907,18 @@ function _renderLiveSessionDashboard() {
   // Session ELO + ASS: everyone starts at 1000, computed from today's session matches only
   const sessionEloMap = computeElo(history);
   const sessionASSMap = computeASS(history);
-  const showElo = _sessScoreView !== "ass";
-  const showASS = _sessScoreView !== "elo";
+  const effectiveView = _sessScoreView ?? _scoringMode; // null → follow hamburger
+  const showElo = effectiveView !== "ass";
+  const showASS = effectiveView !== "elo";
   const primaryMap = showElo ? sessionEloMap : sessionASSMap;
   const stats = computeStats(history, primaryMap)
     .sort((a, b) => (b.sr || 0) - (a.sr || 0) || (b.mw || 0) - (a.mw || 0));
   const rankColor = (i) =>
     i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
   const scoreViewToggle = `<div class="live-sdash-score-toggle">
-    <button class="lsst-btn${_sessScoreView === 'elo' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('elo')">ELO</button>
-    <button class="lsst-btn${_sessScoreView === 'ass' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('ass')">ASS</button>
-    <button class="lsst-btn${_sessScoreView === 'both' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('both')">BOTH</button>
+    <button class="lsst-btn${effectiveView === 'elo' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('elo')">ELO</button>
+    <button class="lsst-btn${effectiveView === 'ass' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('ass')">ASS</button>
+    <button class="lsst-btn${effectiveView === 'both' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('both')">BOTH</button>
   </div>`;
   const thElo = showElo ? "<th>ELO</th>" : "";
   const thASS = showASS ? "<th>ASS</th>" : "";
@@ -16927,7 +16929,11 @@ function _renderLiveSessionDashboard() {
     const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
     const elo = Math.round(sessionEloMap[p.name] || 1000);
     const ass = Math.round(sessionASSMap[p.name] || 1000);
-    const sr = eloToSr(primaryMap[p.name] || 1000).toFixed(2);
+    const eloSr = eloToSr(sessionEloMap[p.name] || 1000);
+    const assSr = eloToSr(sessionASSMap[p.name] || 1000);
+    const sr = effectiveView === "both"
+      ? ((eloSr + assSr) / 2).toFixed(2)
+      : eloToSr(primaryMap[p.name] || 1000).toFixed(2);
     const eloCol = elo > 1000 ? "var(--green)" : elo < 1000 ? "var(--red)" : "var(--text)";
     const assCol = ass > 1000 ? "var(--green)" : ass < 1000 ? "var(--red)" : "var(--text)";
     return `<tr class="live-sdash-tr">
