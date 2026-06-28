@@ -8261,16 +8261,6 @@ function _togglePairForm(btn) {
   btn.textContent = expanded ? `Show ${extra} more ▼` : `Show less ▲`;
 }
 
-function _toggleSynergyMore(btn) {
-  const expanded = btn.dataset.expanded === "1";
-  const card = btn.closest(".ana-card, .ana-sec-body");
-  const rows = card?.querySelectorAll(".synergy-extra");
-  if (!rows) return;
-  rows.forEach((r) => (r.style.display = expanded ? "none" : ""));
-  btn.dataset.expanded = expanded ? "0" : "1";
-  btn.textContent = expanded ? `Show ${rows.length} more ▼` : `Show less ▲`;
-}
-
 // ── ANALYTICS SECTION SEARCH ───────────────────────────────
 
 function openAnaSearch() {
@@ -11430,6 +11420,52 @@ window._setUpsetMode = function(mode) {
   _renderBiggestUpsetsCards();
 };
 
+window._synSort = function(col) {
+  if (!window._synState) window._synState = { col: "delta", dir: "desc" };
+  if (window._synState.col === col) {
+    window._synState.dir = window._synState.dir === "desc" ? "asc" : "desc";
+  } else {
+    window._synState.col = col;
+    window._synState.dir = col === "player" || col === "partner" ? "asc" : "desc";
+  }
+  window._renderSynTable();
+};
+
+window._synSetPlayer = function(name) {
+  if (!window._synState) window._synState = { col: "delta", dir: "desc", player: "" };
+  window._synState.player = name;
+  window._renderSynTable();
+};
+
+window._renderSynTable = function() {
+  const el = document.getElementById("syn-body");
+  if (!el || !window._synData || !window._synState) return;
+  const { col, dir, player } = window._synState;
+  const asc = dir === "asc";
+  const pg = "grid-template-columns:1fr 1fr 34px 46px 50px";
+  const CEL = `display:grid;${pg};align-items:center;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
+  const base = player ? window._synData.filter((r) => r.player === player) : window._synData;
+  const sorted = [...base].sort((a, b) => {
+    const av = a[col], bv = b[col];
+    if (col === "player" || col === "partner")
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return asc ? av - bv : bv - av;
+  });
+  el.innerHTML = sorted.length
+    ? sorted.map((r) => {
+        const col2 = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
+        const sign = r.delta >= 0 ? "+" : "";
+        return `<div style="${CEL}">
+          <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
+          <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner.split(" ")[0])}</div>
+          <div style="text-align:center">${r.played}</div>
+          <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
+          <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
+        </div>`;
+      }).join("")
+    : `<div style="padding:10px 4px;font-size:11px;color:var(--muted)">No data for this player.</div>`;
+};
+
 window._bstatSort = function(col) {
   if (!window._bstatState) window._bstatState = { col: "sr", dir: "desc" };
   if (window._bstatState.col === col) {
@@ -12601,32 +12637,50 @@ function renderAnalyticsPage() {
       });
     }
   });
-  synergyRows.sort((a, b) => b.delta - a.delta);
+  window._synData = synergyRows;
+  if (!window._synState) window._synState = { col: "delta", dir: "desc", player: "" };
+  else window._synState.player = ""; // reset filter on analytics re-render
   const synergyHtml = (() => {
     if (!synergyRows.length)
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
-    const SYN_LIMIT = 10;
-    const rowHtml = (r) => {
-      const col =
-        r.delta > 5
-          ? "var(--green)"
-          : r.delta < -5
-            ? "var(--red)"
-            : "var(--muted)";
+
+    const synPlayers = [...new Set(synergyRows.map((r) => r.player))].sort();
+    const fabStyle = "width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-weight:700;cursor:pointer;margin-bottom:8px;appearance:none;-webkit-appearance:none;";
+    const playerOpts = `<option value="">ALL PLAYERS</option>` +
+      synPlayers.map((p) => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
+    const fab = `<select onchange="window._synSetPlayer(this.value)" style="${fabStyle}">${playerOpts}</select>`;
+
+    const pg = "grid-template-columns:1fr 1fr 34px 46px 50px";
+    const HDR = `display:grid;${pg};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
+    const header = `<div style="${HDR}">
+      <div onclick="window._synSort('player')" style="cursor:pointer">Player</div>
+      <div onclick="window._synSort('partner')" style="cursor:pointer">Partner</div>
+      <div onclick="window._synSort('played')" style="text-align:center;cursor:pointer">MP</div>
+      <div onclick="window._synSort('pairPct')" style="text-align:center;cursor:pointer">Win%</div>
+      <div onclick="window._synSort('delta')" style="text-align:center;cursor:pointer">Δ Win%</div>
+    </div>`;
+
+    const { col, dir } = window._synState;
+    const asc = dir === "asc";
+    const CEL = `display:grid;${pg};align-items:center;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
+    const sorted = [...synergyRows].sort((a, b) => {
+      const av = a[col], bv = b[col];
+      if (col === "player" || col === "partner")
+        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+      return asc ? av - bv : bv - av;
+    });
+    const bodyRows = sorted.map((r) => {
+      const col2 = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
       const sign = r.delta >= 0 ? "+" : "";
-      return `<div class="bpair-row"><div class="bpair-player">${r.player}</div><div class="bpair-partner">+ ${r.partner.split(" ")[0]}</div><div class="bpair-pct" style="color:${col}">${sign}${r.delta.toFixed(0)}%</div></div>`;
-    };
-    const visible = synergyRows.slice(0, SYN_LIMIT).map(rowHtml).join("");
-    const hidden = synergyRows.slice(SYN_LIMIT);
-    if (!hidden.length) return visible;
-    const extraHtml = hidden
-      .map(
-        (r) =>
-          `<div class="synergy-extra" style="display:none">${rowHtml(r)}</div>`,
-      )
-      .join("");
-    const btn = `<div style="text-align:center;padding:6px 0"><button onclick="_toggleSynergyMore(this)" data-expanded="0" style="font-size:10px;font-weight:700;color:var(--theme);background:transparent;border:none;cursor:pointer;padding:4px 8px">Show ${hidden.length} more ▼</button></div>`;
-    return visible + extraHtml + btn;
+      return `<div style="${CEL}">
+        <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
+        <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner.split(" ")[0])}</div>
+        <div style="text-align:center">${r.played}</div>
+        <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
+        <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
+      </div>`;
+    }).join("");
+    return `${fab}${header}<div id="syn-body">${bodyRows}</div>`;
   })();
 
   // ── PAIRED H2H ────────────────────────────────────────────
@@ -15463,7 +15517,6 @@ Object.assign(window, {
   showEloMatchDetail,
   calcEloWinProb,
   _togglePairForm,
-  _toggleSynergyMore,
   openAnaSearch,
   closeAnaSearch,
   anaSearchInput,
