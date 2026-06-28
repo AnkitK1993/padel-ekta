@@ -10193,12 +10193,33 @@ select.cmp-sel option {
   opacity: 1;
 }
 .mio-delta-pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   font-size: 9px;
   font-weight: 800;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 8px;
   letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.05);
 }
+.mio-delta-name {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--fg);
+}
+.mio-delta-sub {
+  font-size: 8px;
+  font-weight: 800;
+}
+.mio-delta-sub.gain {
+  color: var(--green);
+}
+.mio-delta-sub.loss {
+  color: #ff5555;
+}
+/* legacy single-value pill colouring (kept for back-compat) */
 .mio-delta-pill.gain {
   background: rgba(0, 200, 100, 0.12);
   color: var(--green);
@@ -16892,6 +16913,21 @@ body.amethyst-mode #themeBtn {
   background: var(--accent);
   border-radius: 3px;
   transition: width 0.3s;
+}
+.sess-ldr-score {
+  font-size: 11px;
+  font-weight: 800;
+  width: 52px;
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.sess-ldr-score-lbl {
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-left: 2px;
+  letter-spacing: 0.04em;
 }
 .sess-ldr-count {
   font-size: 9px;

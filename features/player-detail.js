@@ -5,7 +5,7 @@
 import { activeMatches } from "../src/engine/selectors.js";
 import { normPlayer, getPlayerDateRange } from "../src/domain/players.js";
 import { state } from "../src/engine/state.js";
-import { computeStats } from "../src/engine/stats.js";
+import { computeStats, eloToSr } from "../src/engine/stats.js";
 import { computeElo, computeEloHistory } from "../src/engine/elo.js";
 import { computeMatchASSDeltas } from "../src/engine/ass.js";
 import {
@@ -636,7 +636,7 @@ function openPlayerDetail(name) {
   const s = detail.stats;
   const daysPlayed = new Set(detail.matches.map((m) => m.date).filter(Boolean))
     .size;
-  const { first: _firstGameDate } = _getPlayerDateRange(name, activeMatches());
+  const { first: _firstGameDate } = getPlayerDateRange(name, activeMatches());
   const firstGameLabel = _firstGameDate
     ? (() => {
         const [y, m, d] = _firstGameDate.split("-");
@@ -937,6 +937,9 @@ function openPlayerDetail(name) {
   const assChange = playerASS - 1000;
   const assChangeCol = assChange > 0 ? "var(--green)" : assChange < 0 ? "var(--red)" : "var(--muted)";
   const assRank = Object.entries(assMapPd).sort((a, b) => b[1] - a[1]).findIndex(([n]) => n === name) + 1;
+  // SR derived from each scoring system (ELO and ASS) so the modal can show both.
+  const srElo = eloToSr(playerElo);
+  const srAss = eloToSr(playerASS);
 
   // Badges
   const badges = computeBadges(name, s, eloMap, activeMatches());
@@ -1585,11 +1588,13 @@ function openPlayerDetail(name) {
                         <div style="display:flex;align-items:center;gap:6px">
                           <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ASS</span>
                           <span id="pd-ass-val" style="color:${assChangeCol};font-weight:800;font-size:13px">${playerASS}</span>
+                          <span style="font-size:9px;color:var(--muted)">SR ${srAss.toFixed(2)}</span>
                           ${assRank > 0 ? `<span style="font-size:9px;color:var(--muted)">#${assRank} rank</span>` : ""}
                         </div>
                         <div style="display:flex;align-items:center;gap:6px">
                           <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ELO</span>
                           <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:800;font-size:13px">${playerElo}</span>
+                          <span style="font-size:9px;color:var(--muted)">SR ${srElo.toFixed(2)}</span>
                           ${eloRank > 0 ? `<span style="font-size:9px;color:var(--muted)">#${eloRank} rank</span>` : ""}
                         </div>
                       </div>

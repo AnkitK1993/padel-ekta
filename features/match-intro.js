@@ -6,6 +6,7 @@ import { activeMatches } from "../src/engine/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
 import { state } from "../src/engine/state.js";
 import { computeElo } from "../src/engine/elo.js";
+import { computeASS } from "../src/engine/ass.js";
 import { _normScores } from "../src/engine/stats.js";
 import {
   computePlayerXP,
@@ -64,15 +65,21 @@ function openMatchIntro(idx) {
   // memo-hit path and a ReferenceError elsewhere (which silently aborts the
   // whole overlay).
   const _upToBeforeE = new Set(state.matches.slice(0, idx));
-  let priorElo, afterElo;
+  let priorElo, afterElo, priorAss, afterAss;
   if (_mioEloMemo && _mioEloMemo.idx === idx && _mioEloMemo.amRef === _amE) {
     priorElo = _mioEloMemo.priorElo;
     afterElo = _mioEloMemo.afterElo;
+    priorAss = _mioEloMemo.priorAss;
+    afterAss = _mioEloMemo.afterAss;
   } else {
     const _upToInclE = new Set(state.matches.slice(0, idx + 1));
-    priorElo = computeElo(_amE.filter((mm) => _upToBeforeE.has(mm)));
-    afterElo = computeElo(_amE.filter((mm) => _upToInclE.has(mm)));
-    _mioEloMemo = { idx, amRef: _amE, priorElo, afterElo };
+    const _before = _amE.filter((mm) => _upToBeforeE.has(mm));
+    const _incl = _amE.filter((mm) => _upToInclE.has(mm));
+    priorElo = computeElo(_before);
+    afterElo = computeElo(_incl);
+    priorAss = computeASS(_before);
+    afterAss = computeASS(_incl);
+    _mioEloMemo = { idx, amRef: _amE, priorElo, afterElo, priorAss, afterAss };
   }
   const aWon = m.scoreA > m.scoreB;
 
@@ -101,6 +108,11 @@ function openMatchIntro(idx) {
   const avgElo = (players) =>
     Math.round(
       players.reduce((s, p) => s + (priorElo[p] || 1000), 0) /
+        Math.max(players.length, 1),
+    );
+  const avgAss = (players) =>
+    Math.round(
+      players.reduce((s, p) => s + (priorAss[p] || 1000), 0) /
         Math.max(players.length, 1),
     );
 
@@ -150,9 +162,9 @@ function openMatchIntro(idx) {
     return Math.round(levels.reduce((s, l) => s + l, 0) / levels.length);
   };
   document.getElementById("mio-elo-a").textContent =
-    `ELO ${avgElo(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
+    `ELO ${avgElo(m.teamA)} · ASS ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
   document.getElementById("mio-elo-b").textContent =
-    `ELO ${avgElo(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
+    `ELO ${avgElo(m.teamB)} · ASS ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
 
   const scoreAEl = document.getElementById("mio-score-a");
   const scoreBEl = document.getElementById("mio-score-b");
@@ -165,13 +177,16 @@ function openMatchIntro(idx) {
   document.getElementById("mio-result-line").textContent =
     `${winner.toUpperCase()} WIN`;
 
-  // ELO delta pills
+  // ELO + ASS delta pills — each player shows both point systems for the match.
   const deltaPills = [...m.teamA, ...m.teamB]
     .map((p) => {
-      const delta = (afterElo[p] || 1000) - (priorElo[p] || 1000);
-      const sign = delta >= 0 ? "+" : "";
-      const cls = delta >= 0 ? "gain" : "loss";
-      return `<span class="mio-delta-pill ${cls}">${normPlayer(p)} ${sign}${delta}</span>`;
+      const eDelta = Math.round((afterElo[p] || 1000) - (priorElo[p] || 1000));
+      const aDelta = Math.round((afterAss[p] || 1000) - (priorAss[p] || 1000));
+      const eSign = eDelta >= 0 ? "+" : "";
+      const aSign = aDelta >= 0 ? "+" : "";
+      const eCls = eDelta >= 0 ? "gain" : "loss";
+      const aCls = aDelta >= 0 ? "gain" : "loss";
+      return `<span class="mio-delta-pill"><span class="mio-delta-name">${normPlayer(p)}</span><span class="mio-delta-sub ${eCls}">ELO ${eSign}${eDelta}</span><span class="mio-delta-sub ${aCls}">ASS ${aSign}${aDelta}</span></span>`;
     })
     .join("");
   document.getElementById("mio-elo-deltas").innerHTML = deltaPills;

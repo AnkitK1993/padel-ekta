@@ -3877,12 +3877,13 @@ function renderHome() {
   // use the memoised results to avoid redundant full-dataset walks.
   const _isAllFilter = homeFilter === "all" && !homeFrom && !homeTo;
   const homeEloMapFull = _isAllFilter ? _memoElo() : computeElo(filtered);
-  const _homeStatsRaw  = _isAllFilter ? _memoStats() : computeStats(filtered, homeEloMapFull);
   const homeASSMap     = _isAllFilter ? _memoASS()   : computeASS(filtered);
-  // In ASS mode, re-sort by cumulative ASS score instead of ELO-derived SR.
+  // SR (the gauge/rating on every card) and the card ordering both follow the
+  // active scoring mode: derive SR from the ASS score in ASS mode, ELO otherwise.
+  // computeStats already sorts by SR desc, so ASS mode is ordered by ASS too.
   const stats = _scoringMode === "ass"
-    ? _homeStatsRaw.slice().sort((a, b) => (homeASSMap[b.name] || 0) - (homeASSMap[a.name] || 0))
-    : _homeStatsRaw;
+    ? computeStats(filtered, homeASSMap)
+    : (_isAllFilter ? _memoStats() : computeStats(filtered, homeEloMapFull));
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
   const uniqD = new Set(filtered.map((m) => m.date)).size;
   const board = document.getElementById("board");
@@ -16258,7 +16259,17 @@ function _buildSessionLeaderboard() {
       }
     });
   });
+  // Session standings follow the active scoring system (ELO or ASS), computed
+  // over just this session's matches so the points start fresh at 1000.
+  const _sessIsASS = _scoringMode === "ass";
+  const _sessScoreMap = _sessIsASS
+    ? computeASS(_sessionMatchHistory)
+    : computeElo(_sessionMatchHistory);
+  const _sessScoreLbl = _sessIsASS ? "ASS" : "ELO";
+  const _sessScore = (n) => Math.round(_sessScoreMap[n] ?? 1000);
   const sorted = Object.entries(stats).sort((a, b) => {
+    const sd = _sessScore(b[0]) - _sessScore(a[0]);
+    if (sd !== 0) return sd;
     const diff =
       (b[1].m ? b[1].w / b[1].m : 0) - (a[1].m ? a[1].w / a[1].m : 0);
     return diff !== 0 ? diff : b[1].m - a[1].m;
@@ -16276,10 +16287,13 @@ function _buildSessionLeaderboard() {
   const rows = sorted
     .map(([name, s]) => {
       const pct = s.m ? Math.round((s.w / s.m) * 100) : 0;
+      const sc = _sessScore(name);
+      const scCol = sc > 1000 ? "var(--green)" : sc < 1000 ? "var(--red)" : "var(--muted)";
       return `<div class="sess-ldr-row">
       <div class="sess-ldr-name">${escHtml(normPlayer(name))}</div>
       <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
       <div class="sess-ldr-barwrap"><div class="sess-ldr-bar" style="width:${pct}%"></div></div>
+      <div class="sess-ldr-score" style="color:${scCol}">${sc}<span class="sess-ldr-score-lbl">${_sessScoreLbl}</span></div>
       <div class="sess-ldr-count">×${s.m}</div>
     </div>`;
     })
