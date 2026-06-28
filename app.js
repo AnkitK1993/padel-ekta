@@ -11060,12 +11060,56 @@ function _buildStreakLeaderboardHtml() {
       const onW = p.curType === "W";
       const col = onW ? "var(--green)" : "var(--red)";
       const ico = onW ? "🔥" : "❄️";
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <span style="font-size:11px;font-weight:800;color:var(--muted);width:20px">#${i + 1}</span>
-        <span style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</span>
-        <span style="flex:1;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span>
-        <span style="font-size:12px;font-weight:800;color:${col}">${ico} ${onW ? "W" : "L"}${p.curStreak}</span>
-        <span style="font-size:9px;color:var(--muted);text-align:right">best <span style="color:var(--green)">W${p.bestWinStreak}</span> / worst <span style="color:var(--red)">L${p.bestLossStreak || 0}</span></span>
+
+      // Momentum: recent win% (last 10) vs overall win%
+      const recentN = Math.min(p.results.length, 10);
+      const recentW = p.results.slice(-recentN).filter((r) => r.won).length;
+      const mtmDelta = p.mp >= 5
+        ? Math.round((recentW / recentN - p.mw / p.mp) * 100)
+        : null;
+      const mtmCol = mtmDelta > 0 ? "var(--green)" : mtmDelta < 0 ? "var(--red)" : "var(--muted)";
+      const mtmStr = mtmDelta === null ? "—"
+        : (mtmDelta > 0 ? "+" : "") + mtmDelta + "%";
+
+      // Bounce-back rate: % of loss streaks snapped in exactly 1 match
+      let lossStreaks = 0, bounced = 0, inLoss = false, lossLen = 0;
+      p.results.forEach((r) => {
+        if (!r.won) {
+          if (!inLoss) { inLoss = true; lossLen = 1; lossStreaks++; }
+          else lossLen++;
+        } else if (inLoss) {
+          if (lossLen === 1) bounced++;
+          inLoss = false; lossLen = 0;
+        }
+      });
+      const bbPct = lossStreaks > 0 ? Math.round((bounced / lossStreaks) * 100) : null;
+      const bbCol = bbPct === null ? "var(--muted)" : bbPct >= 70 ? "var(--green)" : bbPct >= 40 ? "var(--gold)" : "var(--red)";
+      const bbStr = bbPct === null ? "—" : bbPct + "%";
+
+      // Avg streak length: mp / number of distinct streaks
+      let streakCount = 0, prevType = null;
+      p.results.forEach((r) => {
+        const t = r.won ? "W" : "L";
+        if (t !== prevType) { streakCount++; prevType = t; }
+      });
+      const avgStreak = streakCount > 0 ? (p.mp / streakCount).toFixed(1) : "—";
+
+      return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;font-weight:800;color:var(--muted);width:20px">#${i + 1}</span>
+          <span style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</span>
+          <span style="flex:1;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span>
+          <span style="font-size:12px;font-weight:800;color:${col}">${ico} ${onW ? "W" : "L"}${p.curStreak}</span>
+        </div>
+        <div style="display:flex;gap:8px;padding:3px 0 0 50px;font-size:9px;font-weight:700;flex-wrap:wrap">
+          <span style="color:var(--muted)">best <span style="color:var(--green)">W${p.bestWinStreak}</span> / worst <span style="color:var(--red)">L${p.bestLossStreak || 0}</span></span>
+          <span style="color:var(--muted)">·</span>
+          <span>mtm <span style="color:${mtmCol}">${mtmStr}</span></span>
+          <span style="color:var(--muted)">·</span>
+          <span>bb <span style="color:${bbCol}">${bbStr}</span></span>
+          <span style="color:var(--muted)">·</span>
+          <span style="color:var(--muted)">avg streak <span style="color:var(--text)">${avgStreak}</span></span>
+        </div>
       </div>`;
     })
     .join("");
