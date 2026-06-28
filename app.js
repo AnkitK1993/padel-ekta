@@ -11034,6 +11034,7 @@ function _buildSeasonModeHtml() {
           <div style="width:20px;height:20px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${playerInitials(p.name)}</div>
           <div style="flex:1;font-size:11px;font-weight:700">${p.name}</div>
           <div style="font-size:11px;font-weight:800;color:var(--muted)">${p.mw}W ${Math.round((p.mw / p.mp) * 100)}%</div>
+          <button onclick="event.stopPropagation();window._showPlayerMonthReport(${jsArg(s.month)},${jsArg(p.name)})" style="font-size:9px;background:rgba(255,255,255,0.06);border:none;color:var(--muted);border-radius:5px;padding:2px 6px;cursor:pointer">📋</button>
         </div>`,
           )
           .join("")}
@@ -15608,6 +15609,135 @@ window._goToSummaryDay = function(date) {
 
 window._mReportText = "";
 
+window._showPlayerMonthReport = function(mo, playerName) {
+  document.getElementById("player-month-report-modal")?.remove();
+  const moN2 = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [year, monthNum] = mo.split("-");
+  const moLabel = `${moN2[parseInt(monthNum)]} ${year}`;
+
+  const allMs = activeMatches()
+    .filter((m) => (m.date || "").startsWith(mo) && [...(m.teamA || []), ...(m.teamB || [])].includes(playerName))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  if (!allMs.length) return;
+
+  let mp = 0, mw = 0, gw = 0, gl = 0;
+  let bestWin = null, bestLoss = null;
+  let run = 0, maxWStreak = 0;
+  const results = [];
+  const oppRecord = {}; // key: sorted opp team string → {w, l}
+
+  allMs.forEach((m) => {
+    const inA = (m.teamA || []).includes(playerName);
+    const myScore = inA ? m.scoreA : m.scoreB;
+    const oppScore = inA ? m.scoreB : m.scoreA;
+    const won = myScore > oppScore;
+    const margin = Math.abs(myScore - oppScore);
+    const partner = (inA ? m.teamA : m.teamB).filter((x) => x !== playerName).join(" & ");
+    const oppTeam = (inA ? m.teamB : m.teamA).join(" & ");
+
+    mp++;
+    gw += myScore;
+    gl += oppScore;
+    if (won) {
+      mw++;
+      run++;
+      maxWStreak = Math.max(maxWStreak, run);
+      if (!bestWin || margin > bestWin.margin) bestWin = { margin, score: `${myScore}-${oppScore}`, partner, opp: oppTeam, date: m.date };
+    } else {
+      run = 0;
+      if (!bestLoss || margin > bestLoss.margin) bestLoss = { margin, score: `${myScore}-${oppScore}`, partner, opp: oppTeam, date: m.date };
+    }
+    results.push(won ? "W" : "L");
+    if (!oppRecord[oppTeam]) oppRecord[oppTeam] = { w: 0, l: 0 };
+    if (won) oppRecord[oppTeam].w++; else oppRecord[oppTeam].l++;
+  });
+
+  const winPct = Math.round((mw / mp) * 100);
+  const winCol = winPct >= 61 ? "var(--green)" : winPct >= 45 ? "var(--gold)" : "var(--red)";
+  const oppEntries = Object.entries(oppRecord).sort((a, b) => (b[1].w + b[1].l) - (a[1].w + a[1].l));
+
+  // ── WhatsApp text ─────────────────────────────────────────
+  const lines = [];
+  lines.push(`🎾 *${playerName.toUpperCase()} — ${moLabel.toUpperCase()}* 🎾`);
+  lines.push("");
+  lines.push(`📊 *RECORD*`);
+  lines.push(`${mw}W-${mp - mw}L · ${winPct}% · ${mp} matches`);
+  lines.push(`Games: ${gw}–${gl} (${Math.round(gw / (gw + gl) * 100)}% game win rate)`);
+  lines.push("");
+  if (bestWin) {
+    lines.push(`🔥 *BEST WIN*`);
+    lines.push(`${bestWin.score}${bestWin.partner ? ` with ${bestWin.partner}` : ""} vs ${bestWin.opp} (${fmtDate(bestWin.date)})`);
+    lines.push("");
+  }
+  if (bestLoss) {
+    lines.push(`😬 *WORST LOSS*`);
+    lines.push(`${bestLoss.score}${bestLoss.partner ? ` with ${bestLoss.partner}` : ""} vs ${bestLoss.opp} (${fmtDate(bestLoss.date)})`);
+    lines.push("");
+  }
+  if (maxWStreak >= 2) {
+    lines.push(`📈 *BEST STREAK*`);
+    lines.push(`${maxWStreak} wins in a row`);
+    lines.push("");
+  }
+  lines.push(`🆚 *VS OPPONENTS*`);
+  oppEntries.forEach(([opp, rec]) => {
+    const tot = rec.w + rec.l;
+    lines.push(`• ${opp}: ${rec.w}W-${rec.l}L (${Math.round(rec.w / tot * 100)}%)`);
+  });
+  lines.push("");
+  lines.push(`_via EktaPadel 🏓_`);
+  window._mReportText = lines.join("\n");
+
+  // ── HTML ──────────────────────────────────────────────────
+  const formHtml = results.slice(-15).map((r) => `<span class="fd fd-lg ${r === "W" ? "fd-w" : "fd-l"}">${r}</span>`).join("");
+
+  const oppHtml = oppEntries.map(([opp, rec]) => {
+    const tot = rec.w + rec.l;
+    const pct = Math.round(rec.w / tot * 100);
+    const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+    return `<div class="chem-row"><div class="chem-names" style="font-size:10px">${escHtml(opp)}</div><div class="chem-wl">${rec.w}–${rec.l}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pct}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pct}%</div></div>`;
+  }).join("");
+
+  const card = (title, content) =>
+    `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px"><div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${title}</div>${content}</div>`;
+
+  const overviewGrid = `
+    <div class="ov-grid" style="grid-template-columns:repeat(3,1fr);margin-top:4px">
+      <div class="ov-cell"><div class="ov-val" style="color:${winCol}">${winPct}%</div><div class="ov-lbl">Win Rate</div></div>
+      <div class="ov-cell"><div class="ov-val">${mw}W-${mp - mw}L</div><div class="ov-lbl">Record</div></div>
+      <div class="ov-cell"><div class="ov-val">${mp}</div><div class="ov-lbl">Played</div></div>
+      <div class="ov-cell"><div class="ov-val p">${gw}</div><div class="ov-lbl">Games Won</div></div>
+      <div class="ov-cell"><div class="ov-val n">${gl}</div><div class="ov-lbl">Games Lost</div></div>
+      <div class="ov-cell"><div class="ov-val ${maxWStreak >= 3 ? "p" : ""}">${maxWStreak}W</div><div class="ov-lbl">Best Streak</div></div>
+    </div>`;
+
+  const highLowHtml = [
+    bestWin ? `<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">Best Win: ${bestWin.score}</div><div style="font-size:9px;color:var(--muted)">${bestWin.partner ? `with ${escHtml(bestWin.partner)} · ` : ""}vs ${escHtml(bestWin.opp)} · ${fmtDate(bestWin.date)}</div></div></div>` : "",
+    bestLoss ? `<div class="chem-row"><span style="font-size:16px">😬</span><div><div style="font-size:11px;font-weight:700">Worst Loss: ${bestLoss.score}</div><div style="font-size:9px;color:var(--muted)">${bestLoss.partner ? `with ${escHtml(bestLoss.partner)} · ` : ""}vs ${escHtml(bestLoss.opp)} · ${fmtDate(bestLoss.date)}</div></div></div>` : "",
+  ].filter(Boolean).join("");
+
+  const html = `<div id="player-month-report-modal" style="position:fixed;inset:0;z-index:1000;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div style="max-width:480px;margin:0 auto;padding:16px 12px 88px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button onclick="document.getElementById('player-month-report-modal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;flex-shrink:0">←</button>
+        <div>
+          <div style="font-size:16px;font-weight:900;letter-spacing:0.04em">${escHtml(playerName)}</div>
+          <div style="font-size:10px;color:var(--muted)">${moLabel}</div>
+        </div>
+      </div>
+      ${card("📊 Overview", overviewGrid)}
+      ${highLowHtml ? card("🎯 Highs & Lows", highLowHtml) : ""}
+      ${card("📋 Form", `<div style="display:flex;gap:4px;flex-wrap:wrap">${formHtml}</div>`)}
+      ${oppHtml ? card("🆚 vs Opponents", oppHtml) : ""}
+    </div>
+    <div style="position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:8px">
+      <button id="mr-copy-btn" onclick="window._copyMonthReport()" style="flex:1;padding:10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--text);font-size:12px;font-weight:700;cursor:pointer">📋 Copy Text</button>
+      <button onclick="window._shareMonthWhatsApp()" style="flex:1;padding:10px;background:#25D366;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer">📲 WhatsApp</button>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+};
+
 window._copyMonthReport = function() {
   if (!window._mReportText) return;
   navigator.clipboard?.writeText(window._mReportText).then(() => {
@@ -15741,11 +15871,12 @@ window._showMonthReport = function(mo) {
   // Standings
   const standHtml = standings.map((p, i) => {
     const col = p.winPct >= 61 ? "var(--green)" : p.winPct >= 45 ? "var(--gold)" : "var(--red)";
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onclick="window._showPlayerMonthReport(${jsArg(mo)},${jsArg(p.name)})">
       <span style="font-size:13px;width:24px">${medals[i] || `${i + 1}.`}</span>
       <span style="flex:1;font-size:12px;font-weight:700">${escHtml(p.name)}</span>
       <span style="font-size:11px;font-weight:800;color:${col}">${p.winPct}%</span>
       <span style="font-size:9px;color:var(--muted);width:52px;text-align:right">${p.mw}W-${p.mp - p.mw}L · ${p.mp}P</span>
+      <span style="font-size:10px;color:var(--muted)">›</span>
     </div>`;
   }).join("");
 
