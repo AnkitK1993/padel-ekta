@@ -11397,36 +11397,61 @@ window.wrcSelectPlayer   = wrcSelectPlayer;
 window.wrcCloseCalc      = wrcCloseCalc;
 window.wrcOnSlider       = wrcOnSlider;
 
-// Biggest ELO upsets: lower-rated team beating a higher-rated one. Recomputes
-// ELO match-by-match (same engine as elo.js) to capture pre-match ratings.
+// Biggest upsets: lower-rated team (by ELO) beating a higher-rated one.
+// Replays both ELO and ASS match-by-match to capture pre-match ratings for each.
 function _buildBiggestUpsetsHtml() {
   const ms = [...activeMatches()].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
   const elo = {};
+  const ass = {};
   const seed = (n) => {
     if (!(n in elo)) elo[n] = 1000;
+    if (!(n in ass)) ass[n] = 1000;
   };
   const upsets = [];
   ms.forEach((m) => {
-    const tA = m.teamA || [],
-      tB = m.teamB || [];
+    const tA = m.teamA || [], tB = m.teamB || [];
     [...tA, ...tB].forEach(seed);
-    const avgA = tA.reduce((s, p) => s + elo[p], 0) / Math.max(tA.length, 1);
-    const avgB = tB.reduce((s, p) => s + elo[p], 0) / Math.max(tB.length, 1);
+
+    const avgEloA = tA.reduce((s, p) => s + elo[p], 0) / Math.max(tA.length, 1);
+    const avgEloB = tB.reduce((s, p) => s + elo[p], 0) / Math.max(tB.length, 1);
+    const avgAssA = tA.reduce((s, p) => s + ass[p], 0) / Math.max(tA.length, 1);
+    const avgAssB = tB.reduce((s, p) => s + ass[p], 0) / Math.max(tB.length, 1);
     const aWon = m.scoreA > m.scoreB;
-    const winAvg = aWon ? avgA : avgB;
-    const loseAvg = aWon ? avgB : avgA;
-    const gap = loseAvg - winAvg; // >0 → the underdog won
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+    const eloGap = Math.round(aWon ? avgEloB - avgEloA : avgEloA - avgEloB); // >0 → underdog won
+    const assGap = Math.round(aWon ? avgAssB - avgAssA : avgAssA - avgAssB);
+
+    // Advance running ASS first (needs pre-match ELO for strength multiplier, same as ass.js)
+    const margin = Math.abs(m.scoreA - m.scoreB);
+    const quality = 4 * margin + (m.scoreA + m.scoreB);
+    tA.forEach((p) => {
+      const partner = tA.find((pp) => pp !== p);
+      const partnerElo = partner ? elo[partner] : elo[p];
+      const mult = Math.max(0.5, Math.min(2.0,
+        1 + (avgEloB - elo[p]) / 400 - 0.5 * (partnerElo - elo[p]) / 400));
+      ass[p] += aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+    });
+    tB.forEach((p) => {
+      const partner = tB.find((pp) => pp !== p);
+      const partnerElo = partner ? elo[partner] : elo[p];
+      const mult = Math.max(0.5, Math.min(2.0,
+        1 + (avgEloA - elo[p]) / 400 - 0.5 * (partnerElo - elo[p]) / 400));
+      ass[p] += !aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+    });
+
+    // Then advance running ELO
+    const expA = 1 / (1 + Math.pow(10, (avgEloB - avgEloA) / 400));
     const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
     const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
     tA.forEach((p) => (elo[p] += dA));
     tB.forEach((p) => (elo[p] += dB));
-    if (gap > 0)
+
+    if (eloGap > 0)
       upsets.push({
         date: m.date,
-        gap: Math.round(gap),
+        gap: eloGap,
+        assGap,
         winners: aWon ? tA : tB,
         losers: aWon ? tB : tA,
         sw: Math.max(m.scoreA, m.scoreB),
@@ -11438,19 +11463,21 @@ function _buildBiggestUpsetsHtml() {
   if (!top.length)
     return '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
   const cards = top
-    .map(
-      (u) => `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
+    .map((u) => {
+      const assStr = (u.assGap >= 0 ? "+" : "") + u.assGap;
+      const assCol = u.assGap > 0 ? "var(--green)" : u.assGap < 0 ? "var(--red)" : "var(--muted)";
+      return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-size:12px;font-weight:800;color:var(--green)">${escHtml(u.winners.join(" & "))}</span>
         <span style="font-size:13px;font-weight:800">${u.sw}–${u.sl}</span>
         <span style="font-size:12px;font-weight:800;color:var(--muted)">${escHtml(u.losers.join(" & "))}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
-        <span>+${u.gap} ELO underdog gap</span>
+        <span>ELO <span style="color:var(--green)">+${u.gap}</span> · ASS <span style="color:${assCol}">${assStr}</span> underdog gap</span>
         <span>${fmtDate(u.date)}</span>
       </div>
-    </div>`,
-    )
+    </div>`;
+    })
     .join("");
   return cards;
 }
