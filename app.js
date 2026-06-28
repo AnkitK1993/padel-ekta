@@ -11463,7 +11463,7 @@ window._renderSynTable = function() {
         const scSign = sc >= 0 ? "+" : "";
         return `<div style="${CEL}">
           <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
-          <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner.split(" ")[0])}</div>
+          <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner)}</div>
           <div style="text-align:center">${r.played}</div>
           <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
           <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
@@ -12701,7 +12701,7 @@ function renderAnalyticsPage() {
     const fab = `<div style="${pillWrap}">` +
       `<button class="lsst-btn lsst-active syn-filter-pill" data-player="" onclick="window._synSetPlayer('')" style="${pillStyle}">All</button>` +
       synPlayers.map((p) =>
-        `<button class="lsst-btn syn-filter-pill" data-player="${escHtml(p)}" onclick="window._synSetPlayer('${escHtml(p)}')" style="${pillStyle}">${escHtml(p.split(" ")[0])}</button>`
+        `<button class="lsst-btn syn-filter-pill" data-player="${escHtml(p)}" onclick="window._synSetPlayer('${escHtml(p)}')" style="${pillStyle}">${escHtml(p)}</button>`
       ).join("") +
     `</div>`;
 
@@ -12734,7 +12734,7 @@ function renderAnalyticsPage() {
       const scSign = sc >= 0 ? "+" : "";
       return `<div style="${CEL}">
         <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
-        <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner.split(" ")[0])}</div>
+        <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner)}</div>
         <div style="text-align:center">${r.played}</div>
         <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
         <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
