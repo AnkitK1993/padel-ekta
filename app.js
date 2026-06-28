@@ -13892,15 +13892,15 @@ function renderAnalyticsPage() {
               return `<td style="text-align:center;color:var(--muted);font-size:10px">—</td>`;
             const pct = Math.round((d.w / d.m) * 100);
             const col =
-              pct >= 70
+              pct >= 61
                 ? "var(--green)"
-                : pct >= 40
+                : pct >= 45
                   ? "var(--gold)"
                   : "var(--red)";
             const bg =
-              pct >= 70
+              pct >= 61
                 ? "rgba(54,212,126,0.12)"
-                : pct >= 40
+                : pct >= 45
                   ? "rgba(241,196,15,0.1)"
                   : "rgba(240,79,79,0.12)";
             return `<td style="text-align:center;font-size:10px;font-weight:700;color:${col};background:${bg};border-radius:4px;padding:2px 3px">${pct}%<br><span style="font-size:8px;color:var(--muted);font-weight:600">${d.w}W–${d.m - d.w}L</span></td>`;
