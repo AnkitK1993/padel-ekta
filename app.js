@@ -11093,16 +11093,17 @@ function _buildStreakLeaderboardHtml() {
 
   if (!window._streakState) window._streakState = { col: "curSigned", dir: "desc" };
 
-  const PG = "grid-template-columns:minmax(70px,1fr) 50px 38px 38px 40px 34px 34px";
+  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px";
   const HDR = `display:grid;${PG};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
+  const NH = "text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden";
   const header = `<div style="${HDR}">
-    <div onclick="window._streakSort('name')" style="cursor:pointer">Player</div>
-    <div onclick="window._streakSort('curSigned')" style="text-align:center;cursor:pointer">Streak</div>
-    <div onclick="window._streakSort('bestWinStreak')" style="text-align:center;cursor:pointer;color:var(--green)">Best W</div>
-    <div onclick="window._streakSort('bestLossStreak')" style="text-align:center;cursor:pointer;color:var(--red)">Worst L</div>
-    <div onclick="window._streakSort('mtmDelta')" style="text-align:center;cursor:pointer">Mtm</div>
-    <div onclick="window._streakSort('bbPct')" style="text-align:center;cursor:pointer">BB%</div>
-    <div onclick="window._streakSort('avgStreak')" style="text-align:center;cursor:pointer">Avg</div>
+    <div onclick="window._streakSort('name')" style="cursor:pointer;white-space:nowrap">Player</div>
+    <div onclick="window._streakSort('curSigned')" style="${NH}">Streak</div>
+    <div onclick="window._streakSort('bestWinStreak')" style="${NH};color:var(--green)">Best W</div>
+    <div onclick="window._streakSort('bestLossStreak')" style="${NH};color:var(--red)">Worst L</div>
+    <div onclick="window._streakSort('mtmDelta')" style="${NH}">Mtm</div>
+    <div onclick="window._streakSort('bbPct')" style="${NH}">BB%</div>
+    <div onclick="window._streakSort('avgStreak')" style="${NH}">Avg</div>
   </div>`;
 
   // Render initial body inline (same logic as _renderStreakTable)
@@ -11503,7 +11504,7 @@ window._renderStreakTable = function() {
   if (!el || !window._streakData || !window._streakState) return;
   const { col, dir } = window._streakState;
   const asc = dir === "asc";
-  const PG = "grid-template-columns:minmax(70px,1fr) 50px 38px 38px 40px 34px 34px";
+  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px";
   const CEL = `display:grid;${PG};align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
   const sorted = [...window._streakData].sort((a, b) => {
     const av = a[col], bv = b[col];
