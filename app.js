@@ -842,6 +842,8 @@ let _sdashShowGuests = true; // scoreboard guest-filter toggle
 let _sessScoreView = null; // null = follow hamburger _scoringMode; "elo"|"ass"|"both" = explicit
 let _sessSortCol = "sr";   // active sort column key
 let _sessSortDir = "desc"; // "asc" | "desc"
+let _upsetSortMode = null; // null = follow _scoringMode; "elo"|"ass" = explicit
+let _cachedUpsets = null;  // filled by _buildBiggestUpsetsHtml, reused by toggle
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -11397,14 +11399,13 @@ window.wrcSelectPlayer   = wrcSelectPlayer;
 window.wrcCloseCalc      = wrcCloseCalc;
 window.wrcOnSlider       = wrcOnSlider;
 
-// Biggest upsets: lower-rated team (by ELO) beating a higher-rated one.
-// Replays both ELO and ASS match-by-match to capture pre-match ratings for each.
-function _buildBiggestUpsetsHtml() {
+// Biggest upsets: replays both ELO and ASS match-by-match, capturing pre-match
+// scores per player. Records any match where either gap > 0.
+function _computeUpsets() {
   const ms = [...activeMatches()].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
-  const elo = {};
-  const ass = {};
+  const elo = {}, ass = {};
   const seed = (n) => {
     if (!(n in elo)) elo[n] = 1000;
     if (!(n in ass)) ass[n] = 1000;
@@ -11414,72 +11415,116 @@ function _buildBiggestUpsetsHtml() {
     const tA = m.teamA || [], tB = m.teamB || [];
     [...tA, ...tB].forEach(seed);
 
+    // Snapshot pre-match ratings for every player in this match
+    const preElo = {}, preAss = {};
+    [...tA, ...tB].forEach((p) => { preElo[p] = elo[p]; preAss[p] = ass[p]; });
+
     const avgEloA = tA.reduce((s, p) => s + elo[p], 0) / Math.max(tA.length, 1);
     const avgEloB = tB.reduce((s, p) => s + elo[p], 0) / Math.max(tB.length, 1);
     const avgAssA = tA.reduce((s, p) => s + ass[p], 0) / Math.max(tA.length, 1);
     const avgAssB = tB.reduce((s, p) => s + ass[p], 0) / Math.max(tB.length, 1);
     const aWon = m.scoreA > m.scoreB;
-    const eloGap = Math.round(aWon ? avgEloB - avgEloA : avgEloA - avgEloB); // >0 → underdog won
+    const winners = aWon ? tA : tB;
+    const losers  = aWon ? tB : tA;
+    const eloGap = Math.round(aWon ? avgEloB - avgEloA : avgEloA - avgEloB);
     const assGap = Math.round(aWon ? avgAssB - avgAssA : avgAssA - avgAssB);
 
-    // Advance running ASS first (needs pre-match ELO for strength multiplier, same as ass.js)
+    // Advance ASS first (uses pre-match ELO for strength multiplier, same as ass.js)
     const margin = Math.abs(m.scoreA - m.scoreB);
     const quality = 4 * margin + (m.scoreA + m.scoreB);
     tA.forEach((p) => {
       const partner = tA.find((pp) => pp !== p);
-      const partnerElo = partner ? elo[partner] : elo[p];
+      const pElo = partner ? elo[partner] : elo[p];
       const mult = Math.max(0.5, Math.min(2.0,
-        1 + (avgEloB - elo[p]) / 400 - 0.5 * (partnerElo - elo[p]) / 400));
+        1 + (avgEloB - elo[p]) / 400 - 0.5 * (pElo - elo[p]) / 400));
       ass[p] += aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
     });
     tB.forEach((p) => {
       const partner = tB.find((pp) => pp !== p);
-      const partnerElo = partner ? elo[partner] : elo[p];
+      const pElo = partner ? elo[partner] : elo[p];
       const mult = Math.max(0.5, Math.min(2.0,
-        1 + (avgEloA - elo[p]) / 400 - 0.5 * (partnerElo - elo[p]) / 400));
+        1 + (avgEloA - elo[p]) / 400 - 0.5 * (pElo - elo[p]) / 400));
       ass[p] += !aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
     });
 
-    // Then advance running ELO
+    // Then advance ELO
     const expA = 1 / (1 + Math.pow(10, (avgEloB - avgEloA) / 400));
     const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
     const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
     tA.forEach((p) => (elo[p] += dA));
     tB.forEach((p) => (elo[p] += dB));
 
-    if (eloGap > 0)
+    if (eloGap > 0 || assGap > 0)
       upsets.push({
-        date: m.date,
-        gap: eloGap,
-        assGap,
-        winners: aWon ? tA : tB,
-        losers: aWon ? tB : tA,
-        sw: Math.max(m.scoreA, m.scoreB),
-        sl: Math.min(m.scoreA, m.scoreB),
+        date: m.date, gap: eloGap, assGap,
+        winners, losers,
+        sw: Math.max(m.scoreA, m.scoreB), sl: Math.min(m.scoreA, m.scoreB),
+        preElo, preAss,
       });
   });
-  upsets.sort((a, b) => b.gap - a.gap);
-  const top = upsets.slice(0, 8);
-  if (!top.length)
-    return '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
-  const cards = top
-    .map((u) => {
-      const assStr = (u.assGap >= 0 ? "+" : "") + u.assGap;
-      const assCol = u.assGap > 0 ? "var(--green)" : u.assGap < 0 ? "var(--red)" : "var(--muted)";
-      return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-size:12px;font-weight:800;color:var(--green)">${escHtml(u.winners.join(" & "))}</span>
-        <span style="font-size:13px;font-weight:800">${u.sw}–${u.sl}</span>
-        <span style="font-size:12px;font-weight:800;color:var(--muted)">${escHtml(u.losers.join(" & "))}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
-        <span>ELO <span style="color:var(--green)">+${u.gap}</span> · ASS <span style="color:${assCol}">${assStr}</span> underdog gap</span>
-        <span>${fmtDate(u.date)}</span>
-      </div>
-    </div>`;
-    })
-    .join("");
-  return cards;
+  return upsets;
+}
+
+function _upsetCard(u, mode) {
+  const isASS = mode === "ass";
+  const primaryGap = isASS ? u.assGap : u.gap;
+  const secGap     = isASS ? u.gap    : u.assGap;
+  const primaryLbl = isASS ? "ASS" : "ELO";
+  const secLbl     = isASS ? "ELO" : "ASS";
+  const scoreMap   = isASS ? u.preAss : u.preElo;
+  const fmt = (g) => (g >= 0 ? "+" : "") + g;
+  const secCol = secGap > 0 ? "var(--green)" : secGap < 0 ? "var(--red)" : "var(--muted)";
+  const teamLine = (team) =>
+    team.map((p) => `${escHtml(normPlayer(p))} <span style="color:var(--muted);font-weight:600">${Math.round(scoreMap[p] ?? 1000)}</span>`).join(" <span style='color:var(--muted)'>&</span> ");
+  return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <div style="flex:1;min-width:0;font-size:11px;font-weight:800;color:var(--green)">${teamLine(u.winners)}</div>
+      <div style="font-size:13px;font-weight:800;flex-shrink:0">${u.sw}–${u.sl}</div>
+      <div style="flex:1;min-width:0;font-size:11px;font-weight:800;color:var(--muted);text-align:right">${teamLine(u.losers)}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
+      <span>${primaryLbl} <span style="color:var(--green)">${fmt(primaryGap)}</span> · ${secLbl} <span style="color:${secCol}">${fmt(secGap)}</span> underdog gap</span>
+      <span>${fmtDate(u.date)}</span>
+    </div>
+  </div>`;
+}
+
+function _renderBiggestUpsetsCards() {
+  const el = document.getElementById("biggest-upsets-body");
+  if (!el || !_cachedUpsets) return;
+  const mode = _upsetSortMode ?? _scoringMode;
+  const isASS = mode === "ass";
+  const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
+  eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
+  const top = eligible.slice(0, 8);
+  el.innerHTML = top.length
+    ? top.map((u) => _upsetCard(u, mode)).join("")
+    : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
+}
+
+window._setUpsetMode = function(mode) {
+  _upsetSortMode = mode;
+  document.querySelectorAll(".upset-mode-btn").forEach((b) => {
+    b.classList.toggle("lsst-active", b.dataset.mode === mode);
+  });
+  _renderBiggestUpsetsCards();
+};
+
+function _buildBiggestUpsetsHtml() {
+  _cachedUpsets = _computeUpsets();
+  const mode = _upsetSortMode ?? _scoringMode;
+  const toggle = `<div class="live-sdash-score-toggle" style="margin-bottom:10px">
+    <button class="lsst-btn upset-mode-btn${mode === 'elo' ? ' lsst-active' : ''}" data-mode="elo" onclick="window._setUpsetMode('elo')">ELO</button>
+    <button class="lsst-btn upset-mode-btn${mode === 'ass' ? ' lsst-active' : ''}" data-mode="ass" onclick="window._setUpsetMode('ass')">ASS</button>
+  </div>`;
+  const isASS = mode === "ass";
+  const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
+  eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
+  const top = eligible.slice(0, 8);
+  const cards = top.length
+    ? top.map((u) => _upsetCard(u, mode)).join("")
+    : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
+  return `${toggle}<div id="biggest-upsets-body">${cards}</div>`;
 }
 
 // Players closest to their next round-number milestone (matches / wins of 25).
