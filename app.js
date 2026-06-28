@@ -13598,7 +13598,7 @@ function renderAnalyticsPage() {
                 ? "var(--red)"
                 : "var(--muted)";
           const partDiv = Object.keys(stats[p.name]?.teammates || {}).length;
-          return `<div class="lrace-row" style="${pg}"><div class="lrace-name" style="text-align:center">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
+          return `<div class="lrace-row" style="${pg}"><div class="lrace-name" style="justify-content:center">${p.name}</div><div style="text-align:center;font-weight:700">${avgG}</div><div style="text-align:center;font-weight:700">${partDiv}</div><div style="text-align:center;font-weight:700;color:${mc}">${avgM}</div></div>`;
         })
         .join("") +
       `</div>`
