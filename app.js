@@ -1043,7 +1043,7 @@ initBadgesDeps({ computeStats, computeElo, getPairStats, lastWeekRange, fmtDate 
 // Player analytics (form/archetype/power/chemistry/stories/achievements).
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 // Player detail modal — needs playerAvatar which accesses the photoMap in app.js.
-initPlayerDetailDeps({ playerAvatar });
+initPlayerDetailDeps({ playerAvatar, getScoringMode: () => _scoringMode });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
 

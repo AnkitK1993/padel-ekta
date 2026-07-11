@@ -7,7 +7,7 @@ import { normPlayer, getPlayerDateRange } from "../src/domain/players.js";
 import { state } from "../src/engine/state.js";
 import { computeStats, eloToSr } from "../src/engine/stats.js";
 import { computeElo, computeEloHistory } from "../src/engine/elo.js";
-import { computeMatchASSDeltas } from "../src/engine/ass.js";
+import { computeMatchASSDeltas, computeASS } from "../src/engine/ass.js";
 import {
   computeAchievements,
   computeArchetype,
@@ -60,9 +60,15 @@ let _playerAvatar = (name, size = 26) => {
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
 };
 
-export function initPlayerDetailDeps({ playerAvatar }) {
+export function initPlayerDetailDeps({ playerAvatar, getScoringMode }) {
   if (playerAvatar) _playerAvatar = playerAvatar;
+  if (getScoringMode) _getScoringMode = getScoringMode;
 }
+
+// Active scoring system (ELO or ASS) from the hamburger menu. Ranks, the radar
+// score axis and other rating-driven stats follow this.
+let _getScoringMode = () => "elo";
+function _isAssMode() { return _getScoringMode() === "ass"; }
 
 function getPlayerDetail(name) {
   const matches = activeMatches().filter((m) =>
@@ -296,7 +302,10 @@ function streakCalDayClick(date, playerName) {
 // so no additional imports are needed.
 
 function _pdBuildRadarHtml(name, form) {
-  const eloMap = memoElo();
+  // Rating axis follows the active scoring system (ELO or ASS).
+  const _radarIsAss = _isAssMode();
+  const _ratingLbl = _radarIsAss ? "ASS" : "ELO";
+  const eloMap = _radarIsAss ? computeASS(activeMatches()) : memoElo();
   const allStats = computeStats(activeMatches(), eloMap);
   const ps = allStats.find((p) => p.name === name);
   if (!ps || ps.mp < 3) return "";
@@ -335,7 +344,7 @@ function _pdBuildRadarHtml(name, form) {
   });
   const axes = [
     { label: "WIN RATE", val: winRateNorm, avg: avgWinRate },
-    { label: "ELO",      val: eloNorm,     avg: avgElo      },
+    { label: _ratingLbl, val: eloNorm,     avg: avgElo      },
     { label: "CLUTCH",   val: clutchNorm,  avg: avgClutch   },
     { label: "FORM",     val: formNorm,    avg: avgForm     },
     { label: "ACTIVITY", val: actNorm,     avg: avgAct      },
@@ -979,10 +988,12 @@ function openPlayerDetail(name) {
 
   // Leaderboard Race stats for this player
   const { from: wkFrom, to: wkTo } = lastWeekRange();
-  const allEloMap = memoElo();
-  const allRanked = computeStats(activeMatches(), allEloMap);
+  // Ranks follow the active scoring system (ELO or ASS) from the hamburger menu.
+  const _rankIsAss = _isAssMode();
+  const _scoreOf = (ms) => (_rankIsAss ? computeASS(ms) : computeElo(ms));
+  const allRanked = computeStats(activeMatches(), _scoreOf(activeMatches()));
   const preWkMatches = activeMatches().filter((m) => (m.date || "") < wkFrom);
-  const preWkRanked = computeStats(preWkMatches, computeElo(preWkMatches));
+  const preWkRanked = computeStats(preWkMatches, _scoreOf(preWkMatches));
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
   // Best rank: find minimum rank position across all match-date snapshots
@@ -1000,7 +1011,7 @@ function openPlayerDetail(name) {
   _playerDates.forEach((date) => {
     const snap = _sortedAll.filter((m) => (m.date || "") <= date);
     const rank =
-      computeStats(snap, computeElo(snap)).findIndex((p) => p.name === name) +
+      computeStats(snap, _scoreOf(snap)).findIndex((p) => p.name === name) +
       1;
     if (rank > 0 && rank < bestRank) bestRank = rank;
   });
@@ -1582,8 +1593,8 @@ function openPlayerDetail(name) {
                 <div class="ana-card ov-card">
                   <div class="ov-header">
                     <div class="ov-sr-block">
-                      <div class="ov-sr-val" id="pd-sr-val" data-final="${s.sr.toFixed(2)}">${s.sr.toFixed(2)}</div>
-                      <div class="ov-sr-lbl">Skill Rating</div>
+                      <div class="ov-sr-val" id="pd-sr-val" data-final="${(_isAssMode() ? srAss : srElo).toFixed(2)}">${(_isAssMode() ? srAss : srElo).toFixed(2)}</div>
+                      <div class="ov-sr-lbl">Skill Rating · ${_isAssMode() ? "ASS" : "ELO"}</div>
                       <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;flex-direction:column;gap:2px">
                         <div style="display:flex;align-items:center;gap:6px">
                           <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ASS</span>
