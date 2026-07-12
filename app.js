@@ -14814,6 +14814,90 @@ function renderAnalyticsPage() {
     </div>`;
   })();
 
+  // ── PLAYER FORM LEADERBOARD ─────────────────────────────────
+  // Same per-player Form metrics shown on the player-detail card, laid out as a
+  // sortable table across every player (min 3 matches).
+  const _formRows = compList
+    .map((p) => {
+      const f = computePlayerForm(p.name, activeMatches());
+      if (!f) return null;
+      return {
+        name: p.name,
+        score: f.score,
+        formEmoji: f.formEmoji,
+        winPct10: f.winPct10,
+        avgMargin10: f.avgMargin10,
+        momentumDelta: f.momentumDelta,
+        pressureScore: f.pressureScore,
+        winQuality: f.winQuality,
+      };
+    })
+    .filter(Boolean);
+  window._playerFormSortCol = window._playerFormSortCol || "score";
+  window._playerFormSortAsc = window._playerFormSortAsc ?? false;
+  const _formPg =
+    "grid-template-columns:minmax(72px,1fr) 56px 48px 52px 52px 52px 52px";
+  const _formRowHtml = (r) => `
+      <div class="lrace-row" style="${_formPg}">
+        <div class="lrace-name">${escHtml(r.name)}</div>
+        <div style="text-align:center;font-weight:800">${r.formEmoji} ${r.score.toFixed(1)}</div>
+        <div style="text-align:center;font-weight:600">${r.winPct10}%</div>
+        <div style="text-align:center;font-weight:600;color:${r.avgMargin10 >= 0 ? "var(--green)" : "var(--red)"}">${r.avgMargin10 > 0 ? "+" : ""}${r.avgMargin10}</div>
+        <div style="text-align:center;font-weight:600;color:${r.momentumDelta > 0 ? "var(--green)" : r.momentumDelta < 0 ? "var(--red)" : "var(--muted)"}">${r.momentumDelta > 0 ? "+" : ""}${r.momentumDelta}</div>
+        <div style="text-align:center;font-weight:600;color:${r.pressureScore >= 70 ? "var(--green)" : r.pressureScore >= 50 ? "var(--gold)" : "var(--red)"}">${r.pressureScore}%</div>
+        <div style="text-align:center;font-weight:600">${r.winQuality}</div>
+      </div>`;
+  const _formSortRows = (col, asc) =>
+    [..._formRows].sort((a, b) => {
+      const va = a[col],
+        vb = b[col];
+      if (col === "name") return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      return asc ? va - vb : vb - va;
+    });
+  window._playerFormSort = function (col) {
+    if (window._playerFormSortCol === col) {
+      window._playerFormSortAsc = !window._playerFormSortAsc;
+    } else {
+      window._playerFormSortCol = col;
+      window._playerFormSortAsc = col === "name";
+    }
+    const asc = window._playerFormSortAsc;
+    const body = document.getElementById("player-form-body");
+    if (body) body.innerHTML = _formSortRows(col, asc).map(_formRowHtml).join("");
+    ["name", "score", "winPct10", "avgMargin10", "momentumDelta", "pressureScore", "winQuality"].forEach((c) => {
+      const el = document.getElementById(`pform-hdr-${c}`);
+      if (el) el.textContent = c === window._playerFormSortCol ? (asc ? " ▲" : " ▼") : "";
+    });
+  };
+  const _playerFormLeaderboardHtml = (() => {
+    if (!_formRows.length)
+      return '<div class="sub" style="padding:8px">Not enough data (need 3+ matches).</div>';
+    const sc = window._playerFormSortCol;
+    const asc = window._playerFormSortAsc;
+    const arrow = (c) => (sc === c ? (asc ? " ▲" : " ▼") : "");
+    const hdr = (c, label) =>
+      `<span style="text-align:center;cursor:pointer" onclick="_playerFormSort('${c}')">${label}<span id="pform-hdr-${c}" style="font-size:8px">${arrow(c)}</span></span>`;
+    return `<div class="ana-card" style="padding:8px 12px">
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Form over recent matches. W%10 = last-10 win rate · Marg = avg margin last 10 · Mom = momentum (last 5 vs prev 5) · Pres = close-match win % · WinQ = avg ELO of opponents beaten. Tap column to sort.</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <div style="min-width:384px">
+          <div class="lrace-header" style="${_formPg}">
+            <span style="cursor:pointer" onclick="_playerFormSort('name')">Player<span id="pform-hdr-name" style="font-size:8px">${arrow("name")}</span></span>
+            ${hdr("score", "Form")}
+            ${hdr("winPct10", "W%10")}
+            ${hdr("avgMargin10", "Marg")}
+            ${hdr("momentumDelta", "Mom")}
+            ${hdr("pressureScore", "Pres")}
+            ${hdr("winQuality", "WinQ")}
+          </div>
+          <div id="player-form-body">` +
+      _formSortRows(sc, asc).map(_formRowHtml).join("") +
+      `</div>
+        </div>
+      </div>
+    </div>`;
+  })();
+
   const allSecs = [
     {
       key: "predacc",
@@ -14943,6 +15027,12 @@ function renderAnalyticsPage() {
         { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>` },
         { label: "ELO Volatility", html: eloVolatilityHtml },
       ]),
+    },
+    {
+      key: "playerform",
+      cat: "players",
+      title: "🔥 Player Form",
+      body: _playerFormLeaderboardHtml,
     },
     {
       key: "score",
