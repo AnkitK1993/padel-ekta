@@ -16324,7 +16324,11 @@ function renderAnalyticsPage() {
       cat: "records",
       title: "🐺 Underdog Leaderboard",
       body: (() => {
-        const upsets = _computeUpsets();
+        // Reuse the walk _buildBiggestUpsetsHtml() already did this render pass
+        // (it runs earlier in this same allSecs literal, so _cachedUpsets is
+        // populated by now) instead of re-running the full ELO+ASS walk.
+        // Falls back to a fresh computation if that assumption ever breaks.
+        const upsets = _cachedUpsets || _computeUpsets();
         const agg = {};
         upsets.forEach((u) => {
           const gap = _scoringMode === "ass" ? u.assGap : u.gap;
