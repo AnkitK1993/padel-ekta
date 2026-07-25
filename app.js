@@ -11802,6 +11802,183 @@ window._renderBstatTable = function() {
   ].join("")).join("");
 };
 
+// Multi-player compare: overlaid 6-axis radar (win%, rating, clutch, form,
+// activity, margin — same axes as the single-player radar in the player
+// modal, normalized 0-100 across the whole active player pool) plus a
+// side-by-side stat strip. Used by the Multi-Player Compare Analytics section.
+function _buildMultiCompareHtml(names) {
+  const am2 = activeMatches();
+  const scoreMap = _activeScoreMap();
+  const allVals = Object.values(scoreMap);
+  const maxSc = Math.max(...allVals, 1000), minSc = Math.min(...allVals, 1000);
+  const scRange = Math.max(maxSc - minSc, 1);
+  const compListAll = _activeStats();
+  const maxMp = Math.max(...compListAll.map((p) => p.mp), 1);
+  const formMapAll = {};
+  playersByMatches.forEach((n) => {
+    const pm = am2.filter((m) => (m.teamA || []).includes(n) || (m.teamB || []).includes(n)).slice(-10);
+    if (pm.length < 3) return;
+    const w = pm.filter((m) => { const inA = (m.teamA || []).includes(n); return inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA; }).length;
+    formMapAll[n] = Math.round((w / pm.length) * 100);
+  });
+  const clutchOf = (name) => {
+    const cMs = am2.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name) && Math.abs(m.scoreA - m.scoreB) <= 2);
+    if (cMs.length < 2) return 50;
+    const w = cMs.filter((m) => { const inA = (m.teamA || []).includes(name); return inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA; }).length;
+    return Math.round((w / cMs.length) * 100);
+  };
+  const marginOf = (name) => {
+    const ms = am2.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
+    const margins = ms.map((m) => { const inA = (m.teamA || []).includes(name); return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA); });
+    const avg = margins.reduce((s, v) => s + v, 0) / Math.max(margins.length, 1);
+    return Math.min(100, Math.max(0, ((avg + 5) / 10) * 100));
+  };
+  const playerData = names.map((n) => {
+    const p = compListAll.find((x) => x.name === n);
+    return {
+      name: n,
+      winRate: p ? p.winPct : 0,
+      rating: Math.round(((((scoreMap[n] || 1000) - minSc) / scRange)) * 100),
+      clutch: clutchOf(n),
+      form: formMapAll[n] != null ? formMapAll[n] : (p ? p.winPct : 0),
+      activity: p ? Math.round((p.mp / maxMp) * 100) : 0,
+      margin: marginOf(n),
+      mp: p ? p.mp : 0, mw: p ? p.mw : 0, ml: p ? p.ml : 0, sr: p ? p.sr : 0,
+    };
+  });
+  const axes = ["winRate", "rating", "clutch", "form", "activity", "margin"];
+  const axisLabels = { winRate: "WIN%", rating: _scoringLabel(), clutch: "CLUTCH", form: "FORM", activity: "ACTIVITY", margin: "MARGIN" };
+  const N = axes.length, cx = 110, cy = 110, R = 78;
+  const xy = (i, scale) => { const angle = (Math.PI * 2 * i) / N - Math.PI / 2; return { x: cx + scale * R * Math.cos(angle), y: cy + scale * R * Math.sin(angle) }; };
+  const gridLines = [0.25, 0.5, 0.75, 1]
+    .map((sc) => `<polygon points="${axes.map((_, i) => { const p = xy(i, sc); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(" ")}" fill="none" stroke="rgba(255,255,255,0.06)"/>`)
+    .join("");
+  const spokes = axes.map((_, i) => { const p = xy(i, 1); return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)"/>`; }).join("");
+  const labels = axes
+    .map((a, i) => {
+      const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
+      const lx = cx + (R + 22) * Math.cos(angle), ly = cy + (R + 22) * Math.sin(angle);
+      const anchor = Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
+      return `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.55)">${axisLabels[a]}</text>`;
+    })
+    .join("");
+  const polys = playerData
+    .map((pd) => {
+      const col = playerColor(pd.name);
+      const pts = axes.map((a, i) => { const p = xy(i, (pd[a] || 0) / 100); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(" ");
+      return `<polygon points="${pts}" fill="${col}" fill-opacity="0.12" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>`;
+    })
+    .join("");
+  const legend = playerData
+    .map((pd) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;margin-right:10px"><span style="width:10px;height:10px;border-radius:50%;background:${playerColor(pd.name)}"></span>${escHtml(pd.name)}</span>`)
+    .join("");
+  const statCols = playerData
+    .map(
+      (pd) => `<div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.03);border-radius:8px;min-width:0">
+        <div style="font-size:10px;font-weight:800;margin-bottom:4px;color:${playerColor(pd.name)};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(pd.name.split(" ")[0])}</div>
+        <div style="font-size:9px;color:var(--muted)">MP <b style="color:var(--text)">${pd.mp}</b></div>
+        <div style="font-size:9px;color:var(--muted)">W-L <b style="color:var(--text)">${pd.mw}-${pd.ml}</b></div>
+        <div style="font-size:9px;color:var(--muted)">Win% <b style="color:var(--text)">${pd.winRate}%</b></div>
+        <div style="font-size:9px;color:var(--muted)">SR <b style="color:var(--text)">${pd.sr.toFixed(2)}</b></div>
+      </div>`,
+    )
+    .join("");
+  return `<svg viewBox="0 0 220 220" width="100%" style="max-width:260px;display:block;margin:8px auto" overflow="visible">
+      ${gridLines}${spokes}${polys}${labels}
+    </svg>
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;margin:8px 0">${legend}</div>
+    <div style="display:flex;gap:6px;margin-top:8px">${statCols}</div>`;
+}
+window._mcSelected = new Set();
+window._mcToggle = function (btn) {
+  const name = btn.dataset.mcPlayer;
+  if (window._mcSelected.has(name)) {
+    window._mcSelected.delete(name);
+    btn.classList.remove("active");
+  } else {
+    if (window._mcSelected.size >= 4) { showToast("Pick up to 4 players", "⚠️"); return; }
+    window._mcSelected.add(name);
+    btn.classList.add("active");
+  }
+};
+window._mcCompare = function () {
+  const el = document.getElementById("mc-result");
+  if (!el) return;
+  const names = [...window._mcSelected];
+  if (names.length < 2) {
+    el.innerHTML = '<div class="sub" style="padding:8px">Pick at least 2 players.</div>';
+    return;
+  }
+  el.innerHTML = _buildMultiCompareHtml(names);
+};
+
+// Fair Match Generator: given a group of 4 present players, ranks the 3
+// possible 2v2 splits by predicted closeness (smallest rating gap first),
+// using the app's active scoring system (ELO/ASS) — usable any time, not
+// just inside a live session.
+function _fmgCombos4(players) {
+  const [a, b, c, d] = players;
+  return [
+    { teamA: [a, b], teamB: [c, d] },
+    { teamA: [a, c], teamB: [b, d] },
+    { teamA: [a, d], teamB: [b, c] },
+  ];
+}
+function _fmgRankSplits(group) {
+  const scoreMap = _activeScoreMap();
+  return _fmgCombos4(group)
+    .map((s) => {
+      const avgA = s.teamA.reduce((sum, p) => sum + (scoreMap[p] || 1000), 0) / 2;
+      const avgB = s.teamB.reduce((sum, p) => sum + (scoreMap[p] || 1000), 0) / 2;
+      const gap = Math.abs(avgA - avgB);
+      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+      return { ...s, avgA: Math.round(avgA), avgB: Math.round(avgB), gap: Math.round(gap), probA: Math.round(expA * 100) };
+    })
+    .sort((a, b) => a.gap - b.gap);
+}
+window._fmgSelected = new Set();
+window._fmgToggle = function (btn) {
+  const name = btn.dataset.fmgPlayer;
+  if (window._fmgSelected.has(name)) {
+    window._fmgSelected.delete(name);
+    btn.classList.remove("active");
+  } else {
+    window._fmgSelected.add(name);
+    btn.classList.add("active");
+  }
+};
+window._fmgGenerate = function () {
+  const el = document.getElementById("fmg-result");
+  if (!el) return;
+  const names = [...window._fmgSelected];
+  if (names.length < 4) {
+    el.innerHTML = '<div class="sub" style="padding:8px">Pick at least 4 players.</div>';
+    return;
+  }
+  const groups = [];
+  for (let i = 0; i + 4 <= names.length; i += 4) groups.push(names.slice(i, i + 4));
+  const leftover = names.length % 4;
+  const cardsHtml = groups
+    .map((g, gi) => {
+      const ranked = _fmgRankSplits(g);
+      const best = ranked[0];
+      const rows = ranked
+        .map(
+          (s, i) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;${i === 0 ? "" : "border-top:1px solid rgba(255,255,255,0.04)"}">
+            <div style="font-size:10px;font-weight:${i === 0 ? 800 : 600}">${escHtml(s.teamA.join(" & "))} <span style="color:var(--muted)">vs</span> ${escHtml(s.teamB.join(" & "))}</div>
+            <div style="font-size:10px;font-weight:800;color:${s.gap <= 20 ? "var(--green)" : s.gap <= 50 ? "var(--gold)" : "var(--red)"};flex-shrink:0">${s.probA}% / ${100 - s.probA}%</div>
+          </div>`,
+        )
+        .join("");
+      return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
+        <div style="font-size:9px;color:var(--muted);margin-bottom:6px">MATCH ${gi + 1} — best split gap: ${best.gap}</div>
+        ${rows}
+      </div>`;
+    })
+    .join("");
+  el.innerHTML = cardsHtml + (leftover ? `<div class="sub" style="padding:8px">${leftover} player(s) left over — not enough for another match.</div>` : "");
+};
+
 // Rating waterfall: a player's N biggest single-match rating swings, rendered
 // as a running waterfall from their first swing to their latest.
 function _buildWaterfallHtml(name) {
@@ -16151,6 +16328,44 @@ function renderAnalyticsPage() {
         return `<div class="ana-card" style="padding:10px 12px">
           <select id="waterfall-player-sel" onchange="window._renderWaterfall(this.value)" class="hist-select compact-select" style="width:100%;margin-bottom:10px">${opts}</select>
           <div id="waterfall-body">${_buildWaterfallHtml(names[0])}</div>
+        </div>`;
+      })(),
+    },
+    {
+      key: "multicompare",
+      cat: "players",
+      title: "🆚 Multi-Player Compare",
+      body: (() => {
+        window._mcSelected = new Set();
+        const names = playersByMatches.slice(0, 30);
+        if (names.length < 2) return '<div class="sub" style="padding:8px">Need more players.</div>';
+        const chips = names
+          .map((n) => `<button class="ana-filter-pill" data-mc-player="${escHtml(n)}" onclick="window._mcToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Pick 2–4 players to compare side by side</div>
+          <div id="mc-picker" style="display:flex;flex-wrap:wrap;margin-bottom:8px">${chips}</div>
+          <button onclick="window._mcCompare()" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.12);color:var(--theme);font-weight:700;font-size:11px;cursor:pointer">Compare</button>
+          <div id="mc-result" style="margin-top:12px"></div>
+        </div>`;
+      })(),
+    },
+    {
+      key: "fairmatch",
+      cat: "records",
+      title: "⚖️ Fair Match Generator",
+      body: (() => {
+        window._fmgSelected = new Set();
+        const names = playersByMatches.slice(0, 30);
+        if (names.length < 4) return '<div class="sub" style="padding:8px">Need at least 4 players.</div>';
+        const chips = names
+          .map((n) => `<button class="ana-filter-pill" data-fmg-player="${escHtml(n)}" onclick="window._fmgToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Pick the players present today (4, 8, 12…) — generates the most balanced 2v2 split(s) by ${_scLabel}</div>
+          <div id="fmg-picker" style="display:flex;flex-wrap:wrap;margin-bottom:8px">${chips}</div>
+          <button onclick="window._fmgGenerate()" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.12);color:var(--theme);font-weight:700;font-size:11px;cursor:pointer">Generate Balanced Matches</button>
+          <div id="fmg-result" style="margin-top:12px"></div>
         </div>`;
       })(),
     },
