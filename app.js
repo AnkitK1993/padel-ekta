@@ -3885,6 +3885,10 @@ function _applyCmpColClasses() {
   _CMP_TOGGLE_COLS.forEach((c) =>
     table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)),
   );
+  // Always hide the scoring column that doesn't match the active mode
+  const isASS = _summaryMode === "ass";
+  if (isASS) table.classList.add("hide-col-elo");
+  else table.classList.add("hide-col-ass");
 }
 
 function onCmpFilter() {
