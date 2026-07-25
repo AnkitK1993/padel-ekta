@@ -4465,19 +4465,33 @@ function renderCompact() {
     });
   }
 
-  // Last-N-days rank map — used only in ALL TIME view; window is configurable
-  // via Admin → Manage → Settings (default 30 days).
+  // This-month rank map — used only in ALL TIME view to compute the ▲▼ delta.
+  // Built with the same sort key, mode and competition ranking as the current
+  // leaderboard, so the delta exactly matches the rank gap if the user switches
+  // to the THIS MONTH filter.
   const _recentRankMap = {};
   if (cmpFilter === "all") {
-    const _days = getRankDeltaDays();
-    const _t = new Date();
-    const _tFrom = new Date(_t);
-    _tFrom.setDate(_tFrom.getDate() - _days);
-    const _iso = (d) => d.toISOString().slice(0, 10);
-    const _mRecent = filterMatches("range", _iso(_tFrom), _iso(_t));
-    if (_mRecent.length > 0) {
-      const _eRecent = computeElo(_mRecent);
-      computeStats(_mRecent, _eRecent).forEach((p, i) => { _recentRankMap[p.name] = i + 1; });
+    const _mMonth = filterMatches("month");
+    if (_mMonth.length > 0) {
+      const _mElo = computeElo(_mMonth);
+      const _mAss = computeASS(_mMonth);
+      const _mStats = computeStats(_mMonth, isASS ? _mAss : _mElo);
+      const _mSortFn =
+        cmpSortKey === "elo" ? (a, b) => (_mElo[a.name] || 1000) - (_mElo[b.name] || 1000) :
+        cmpSortKey === "ass" ? (a, b) => (_mAss[a.name] || 1000) - (_mAss[b.name] || 1000) :
+        cmpSortKey === "sr"  ? (a, b) => a.sr - b.sr :
+        sortFns[cmpSortKey]  || ((a, b) => a.sr - b.sr);
+      const _mSorted = [..._mStats].sort((a, b) => {
+        const cmp = _mSortFn(a, b);
+        if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      });
+      _mSorted.forEach((p, i) => {
+        _recentRankMap[p.name] =
+          i > 0 && _mSortFn(_mSorted[i - 1], p) === 0
+            ? _recentRankMap[_mSorted[i - 1].name]
+            : i + 1;
+      });
     }
   }
   const srSorted = [...sorted].sort((a, b) => b.sr - a.sr);
