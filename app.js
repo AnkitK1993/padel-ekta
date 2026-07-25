@@ -8863,7 +8863,10 @@ function mkLvlRow(displayName) {
 // so the two are unified into one section.
 function _periodAwards(ms, priorMs) {
   const eloMap = computeElo(ms);
-  const stats = computeStats(ms, eloMap).filter((p) => p.mp >= 2);
+  // MVP ranks by ASS rating — same metric as the Monthly Recap Player of the
+  // Month, so the two awards never disagree on who tops the period.
+  const assMap = computeASS(ms);
+  const stats = computeStats(ms, assMap).filter((p) => p.mp >= 2);
   const pairs = getPairStats(ms).filter((p) => p.played >= 2);
   const mvp = stats[0] || null;
   const topPair = pairs[0] || null;
