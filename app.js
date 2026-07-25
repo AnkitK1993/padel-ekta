@@ -14178,18 +14178,25 @@ function renderAnalyticsPage() {
     const lastMos = uniqueMonths.slice(-6);
     const potmMap = {};
     lastMos.forEach((mo) => {
-      const allEntries = Object.entries(monthlyStats[mo] || {});
-      const maxM = Math.max(...allEntries.map(([, d]) => d.m), 0);
-      const threshold = Math.max(1, Math.round(maxM * 0.3));
-      const ps2 = allEntries.filter(([, d]) => d.m >= threshold);
-      if (!ps2.length) return;
-      const top = ps2.sort((a, b) => b[1].w / b[1].m - a[1].w / a[1].m)[0];
-      if (top)
+      // Player of the Month = top of the leaderboard for that month
+      const moMatches = sortedM.filter((m) => (m.date || "").startsWith(mo));
+      if (!moMatches.length) return;
+      const _moElo = computeElo(moMatches);
+      const _moAss = computeASS(moMatches);
+      const moScores = _scoringMode === "ass" ? _moAss : _moElo;
+      const moPlayers = Object.entries(moScores)
+        .filter(([p]) => monthlyStats[mo]?.[p]?.m > 0)
+        .sort((a, b) => (moScores[b[0]] || 1000) - (moScores[a[0]] || 1000));
+      if (moPlayers.length) {
+        const topPlayer = moPlayers[0][0];
+        const topScore = Math.round(moScores[topPlayer] || 1000);
+        const moStats = monthlyStats[mo][topPlayer];
         potmMap[mo] = {
-          name: top[0],
-          pct: Math.round((top[1].w / top[1].m) * 100),
-          matches: top[1].m,
+          name: topPlayer,
+          score: topScore,
+          matches: moStats?.m || 0,
         };
+      }
     });
     const trendArrows = {};
     if (lastMos.length >= 2) {
@@ -14213,7 +14220,7 @@ function renderAnalyticsPage() {
         Object.entries(potmMap)
           .map(
             ([mo, d]) =>
-              `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px;cursor:pointer" onclick="window._showMonthReport('${mo}')"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.pct}% · ${d.matches}P</div><div style="font-size:8px;color:var(--theme);margin-top:3px;font-weight:700">📊 Report</div></div>`,
+              `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px;cursor:pointer" onclick="window._showMonthReport('${mo}')"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.score} · ${d.matches}P</div><div style="font-size:8px;color:var(--theme);margin-top:3px;font-weight:700">📊 Report</div></div>`,
           )
           .join("") +
         `</div>`
