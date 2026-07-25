@@ -16772,7 +16772,7 @@ function renderAnalyticsPage() {
         const names = playersByMatches.slice(0, 30);
         if (names.length < 2) return '<div class="sub" style="padding:8px">Need more players.</div>';
         const chips = names
-          .map((n) => `<button class="ana-filter-pill" data-mc-player="${escHtml(n)}" onclick="window._mcToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
+          .map((n) => `<button class="player-pick-chip" data-mc-player="${escHtml(n)}" onclick="window._mcToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
           .join("");
         return `<div class="ana-card" style="padding:10px 12px">
           <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Pick 2–4 players to compare side by side</div>
@@ -16791,7 +16791,7 @@ function renderAnalyticsPage() {
         const names = playersByMatches.slice(0, 30);
         if (names.length < 4) return '<div class="sub" style="padding:8px">Need at least 4 players.</div>';
         const chips = names
-          .map((n) => `<button class="ana-filter-pill" data-fmg-player="${escHtml(n)}" onclick="window._fmgToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
+          .map((n) => `<button class="player-pick-chip" data-fmg-player="${escHtml(n)}" onclick="window._fmgToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
           .join("");
         return `<div class="ana-card" style="padding:10px 12px">
           <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Pick the players present today (4, 8, 12…) — generates the most balanced 2v2 split(s) by ${_scLabel}</div>
