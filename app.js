@@ -16120,20 +16120,35 @@ window._showMonthReport = function(mo) {
   const card = (title, content) =>
     `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px"><div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${title}</div>${content}</div>`;
 
-  // Standings — ranked by ASS rating for the month; ELO and win% shown as context
+  // Standings — styled like the Summary tab leaderboard (medal-tinted rows,
+  // bold uppercase names, accent rating badge). Same data as before: rank,
+  // name, ELO, W-L, win%, ASS — just restyled to match the app's leaderboard look.
+  const _medalBg = [
+    "linear-gradient(90deg, rgba(255,190,0,0.16), rgba(255,190,0,0.02))",
+    "linear-gradient(90deg, rgba(0,220,255,0.10), rgba(0,220,255,0.02))",
+    "linear-gradient(90deg, rgba(180,90,255,0.10), rgba(180,90,255,0.02))",
+  ];
+  const _medalBorder = ["rgba(255,190,0,0.4)", "rgba(0,220,255,0.35)", "rgba(180,90,255,0.35)"];
   const standHtml = standings.map((p, i) => {
-    return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onclick="window._showPlayerMonthReport(${jsArg(mo)},${jsArg(p.name)})">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:13px;width:24px">${medals[i] || `${i + 1}.`}</span>
-        <span style="flex:1;font-size:12px;font-weight:700">${escHtml(p.name)}</span>
-        <span style="font-size:12px;font-weight:800;color:var(--theme)">${p.ass}</span>
-        <span style="font-size:8px;font-weight:700;color:var(--muted)">ASS</span>
-        <span style="font-size:10px;color:var(--muted)">›</span>
+    const isTop3 = i < 3;
+    const rowBg = isTop3 ? _medalBg[i] : i % 2 === 1 ? "rgba(255,255,255,0.025)" : "transparent";
+    const rankHtml = medals[i]
+      ? `<span style="font-size:17px">${medals[i]}</span>`
+      : `<span style="font-size:15px;font-weight:800;color:rgba(255,255,255,0.4)">${i + 1}</span>`;
+    const wl = p.mw - (p.mp - p.mw);
+    const wlColor = wl > 0 ? "var(--green)" : wl < 0 ? "var(--red)" : "var(--muted)";
+    const isLast = i === standings.length - 1;
+    return `<div style="display:flex;align-items:center;gap:10px;margin:0 -12px;padding:9px 12px;background:${rowBg};border-left:3px solid ${isTop3 ? _medalBorder[i] : "transparent"};border-bottom:${isLast ? "none" : "1px solid rgba(255,255,255,0.05)"};${isLast ? "border-radius:0 0 14px 14px" : ""};cursor:pointer" onclick="window._showPlayerMonthReport(${jsArg(mo)},${jsArg(p.name)})">
+      <div style="width:24px;text-align:center;flex-shrink:0">${rankHtml}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:800;letter-spacing:0.01em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name.toUpperCase())}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">⚡ ${p.elo} ELO&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:${wlColor}">${p.mw}W–${p.mp - p.mw}L</span>&nbsp;&nbsp;·&nbsp;&nbsp;${p.winPct}%</div>
       </div>
-      <div style="display:flex;gap:10px;padding-left:32px;margin-top:2px">
-        <span style="font-size:9px;color:var(--muted)">⚡ ${p.elo} ELO</span>
-        <span style="font-size:9px;color:var(--muted)">${p.mw}W-${p.mp - p.mw}L · ${p.winPct}%</span>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:16px;font-weight:900;color:var(--theme)">${p.ass}</div>
+        <div style="font-size:7px;font-weight:700;letter-spacing:0.1em;color:var(--muted)">ASS</div>
       </div>
+      <div style="font-size:11px;color:var(--muted);flex-shrink:0">›</div>
     </div>`;
   }).join("");
 
