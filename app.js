@@ -3268,18 +3268,23 @@ function _backupFilename() {
 }
 
 // Try to get a fresh Drive access token if we don't have one (e.g. after a
-// page refresh). Triggers a silent re-auth popup — the user has already
-// consented to the drive.file scope, so this is usually instant.
+// page refresh). Throws a user-readable Error on failure so callers can show
+// a specific message rather than silently failing.
 async function _ensureDriveToken() {
   if (_driveAccessToken) return true;
-  if (!auth.currentUser) return false;
+  if (!auth.currentUser) throw new Error("not-signed-in");
   try {
     const result = await signInWithPopup(auth, provider);
     _driveAccessToken =
       GoogleAuthProvider.credentialFromResult(result)?.accessToken || null;
-    return !!_driveAccessToken;
+    if (!_driveAccessToken) throw new Error("no-token");
+    return true;
   } catch (e) {
-    return false;
+    if (e?.code === "auth/popup-blocked" || e?.code === "auth/popup-closed-by-user") {
+      throw new Error("popup-blocked");
+    }
+    if (e?.message === "not-signed-in" || e?.message === "no-token" || e?.message === "popup-blocked") throw e;
+    throw new Error("reauth-failed");
   }
 }
 
@@ -3289,9 +3294,10 @@ async function backupToDrive() {
     type: "application/json",
   });
   const filename = _backupFilename();
-  const hasToken = await _ensureDriveToken();
-  if (!hasToken) {
-    showToast("Sign in to use Drive backup", "⚠️");
+  try {
+    await _ensureDriveToken();
+  } catch (e) {
+    showToast(e?.message === "not-signed-in" ? "Sign in to use Drive backup" : "Sign out and sign back in to enable Drive access", "⚠️");
     return;
   }
   showToast("Uploading to Drive…", "☁️");
@@ -3542,9 +3548,16 @@ function importBackupFile() {
 // List backup files the app previously uploaded (drive.file scope only sees
 // files this app created) and let the admin pick one to restore from.
 async function importFromDrive() {
-  const hasToken = await _ensureDriveToken();
-  if (!hasToken) {
-    showToast("Sign in first to access Drive backups", "⚠️");
+  try {
+    await _ensureDriveToken();
+  } catch (e) {
+    if (e?.message === "not-signed-in") {
+      showToast("Sign in first to access Drive backups", "⚠️");
+    } else if (e?.message === "popup-blocked") {
+      showToast("Popup blocked — sign out and sign in again to refresh Drive access", "⚠️");
+    } else {
+      showToast("Sign out and sign back in to enable Drive access", "⚠️");
+    }
     return;
   }
   showToast("Fetching Drive backups…", "☁️");
@@ -3554,12 +3567,16 @@ async function importFromDrive() {
       "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
     );
     const resp = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,createdTime)&pageSize=10`,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,createdTime,size)&pageSize=10`,
       { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
     );
     if (!resp.ok) {
       const body = await resp.text().catch(() => "");
-      if (resp.status === 401 || resp.status === 403) _driveAccessToken = null;
+      if (resp.status === 401 || resp.status === 403) {
+        _driveAccessToken = null;
+        showToast("Drive session expired — sign out and sign in again", "⚠️");
+        return;
+      }
       let msg = `HTTP ${resp.status}`;
       try { msg = JSON.parse(body)?.error?.message || msg; } catch {}
       throw new Error(msg);
@@ -3587,14 +3604,19 @@ async function importFromDrive() {
       <div style="font-size:13px;font-weight:800;padding:4px 0 12px;letter-spacing:0.04em">
         ☁️ RESTORE FROM DRIVE
       </div>
-      ${files.map(f => {
-        const d = new Date(f.createdTime).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" });
+      ${files.map((f, i) => {
+        const d = new Date(f.createdTime).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+        const kb = f.size ? `${Math.round(f.size / 1024)} KB` : "";
         return `<button class="live-sheet-item" onclick="
           document.getElementById('drive-pick-sheet')?.remove();
           _downloadDriveBackup(${JSON.stringify(f.id)},${JSON.stringify(f.name)})
         " style="flex-direction:column;align-items:flex-start;gap:2px">
-          <span style="font-weight:700;font-size:12px">${escHtml(f.name)}</span>
-          <span style="font-size:10px;color:var(--muted)">${d}</span>
+          <span style="display:flex;align-items:center;gap:6px;width:100%">
+            <span style="font-size:10px;font-weight:800;color:var(--muted);width:18px">#${i + 1}</span>
+            <span style="font-weight:700;font-size:12px;flex:1">${escHtml(f.name.replace("ekta-padel-backup-", "").replace(".json", ""))}</span>
+            ${kb ? `<span style="font-size:9px;color:var(--muted)">${kb}</span>` : ""}
+          </span>
+          <span style="font-size:10px;color:var(--muted);margin-left:24px">${d}</span>
         </button>`;
       }).join("")}
       <button class="live-sheet-item" style="color:var(--muted);margin-top:4px"
@@ -3604,8 +3626,7 @@ async function importFromDrive() {
 }
 
 async function _downloadDriveBackup(fileId, filename) {
-  const hasToken = await _ensureDriveToken();
-  if (!hasToken) { showToast("Token expired — sign in again", "⚠️"); return; }
+  try { await _ensureDriveToken(); } catch { showToast("Sign out and sign back in to re-enable Drive access", "⚠️"); return; }
   showToast(`Downloading ${filename}…`, "☁️");
   try {
     const resp = await fetch(
