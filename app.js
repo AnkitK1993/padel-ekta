@@ -16000,6 +16000,11 @@ window._showMonthReport = function(mo) {
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (!allMs.length) return;
 
+  // ELO/ASS computed over just this month's matches — POTM and the
+  // standings leaderboard rank by ASS rating, not win%.
+  const _moElo = computeElo(allMs);
+  const _moAss = computeASS(allMs);
+
   // ── Per-player accumulation ──────────────────────────────
   const P = {};
   const mkp = (n) => (P[n] = P[n] || { mp: 0, mw: 0, gw: 0, gl: 0, bestWin: null, bestLoss: null, results: [] });
@@ -16046,8 +16051,14 @@ window._showMonthReport = function(mo) {
   });
 
   const standings = Object.entries(P)
-    .map(([name, ps]) => ({ name, ...ps, winPct: Math.round((ps.mw / ps.mp) * 100) }))
-    .sort((a, b) => b.winPct - a.winPct || b.mp - a.mp);
+    .map(([name, ps]) => ({
+      name,
+      ...ps,
+      winPct: Math.round((ps.mw / ps.mp) * 100),
+      ass: Math.round(_moAss[name] || 1000),
+      elo: Math.round(_moElo[name] || 1000),
+    }))
+    .sort((a, b) => b.ass - a.ass || b.mp - a.mp);
 
   const potm = standings.find((p) => p.mp >= 2) || standings[0];
   const medals = ["🥇", "🥈", "🥉"];
@@ -16062,12 +16073,12 @@ window._showMonthReport = function(mo) {
   lines.push("");
   if (potm) {
     lines.push(`🏆 *PLAYER OF THE MONTH*`);
-    lines.push(`${potm.name} — ${potm.winPct}% (${potm.mw}W-${potm.mp - potm.mw}L)`);
+    lines.push(`${potm.name} — ${potm.ass} ASS (${potm.mw}W-${potm.mp - potm.mw}L)`);
     lines.push("");
   }
   lines.push(`📊 *STANDINGS*`);
   standings.forEach((p, i) => {
-    lines.push(`${medals[i] || `${i + 1}.`} ${p.name} — ${p.mw}W-${p.mp - p.mw}L (${p.winPct}%)`);
+    lines.push(`${medals[i] || `${i + 1}.`} ${p.name} — ${p.ass} ASS · ${p.elo} ELO (${p.mw}W-${p.mp - p.mw}L)`);
   });
   lines.push("");
   lines.push(`🔥 *HIGHLIGHTS*`);
@@ -16106,21 +16117,26 @@ window._showMonthReport = function(mo) {
   const card = (title, content) =>
     `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px"><div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${title}</div>${content}</div>`;
 
-  // Standings
+  // Standings — ranked by ASS rating for the month; ELO and win% shown as context
   const standHtml = standings.map((p, i) => {
-    const col = p.winPct >= 61 ? "var(--green)" : p.winPct >= 45 ? "var(--gold)" : "var(--red)";
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onclick="window._showPlayerMonthReport(${jsArg(mo)},${jsArg(p.name)})">
-      <span style="font-size:13px;width:24px">${medals[i] || `${i + 1}.`}</span>
-      <span style="flex:1;font-size:12px;font-weight:700">${escHtml(p.name)}</span>
-      <span style="font-size:11px;font-weight:800;color:${col}">${p.winPct}%</span>
-      <span style="font-size:9px;color:var(--muted);width:52px;text-align:right">${p.mw}W-${p.mp - p.mw}L · ${p.mp}P</span>
-      <span style="font-size:10px;color:var(--muted)">›</span>
+    return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onclick="window._showPlayerMonthReport(${jsArg(mo)},${jsArg(p.name)})">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;width:24px">${medals[i] || `${i + 1}.`}</span>
+        <span style="flex:1;font-size:12px;font-weight:700">${escHtml(p.name)}</span>
+        <span style="font-size:12px;font-weight:800;color:var(--theme)">${p.ass}</span>
+        <span style="font-size:8px;font-weight:700;color:var(--muted)">ASS</span>
+        <span style="font-size:10px;color:var(--muted)">›</span>
+      </div>
+      <div style="display:flex;gap:10px;padding-left:32px;margin-top:2px">
+        <span style="font-size:9px;color:var(--muted)">⚡ ${p.elo} ELO</span>
+        <span style="font-size:9px;color:var(--muted)">${p.mw}W-${p.mp - p.mw}L · ${p.winPct}%</span>
+      </div>
     </div>`;
   }).join("");
 
   // Highlights
   const highRows = [];
-  if (potm) highRows.push(`<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.winPct}% · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`);
+  if (potm) highRows.push(`<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.ass} ASS · ${potm.elo} ELO · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`);
   if (bigWinM) {
     const bw = bigWinM.scoreA > bigWinM.scoreB;
     const wT = (bw ? bigWinM.teamA : bigWinM.teamB).join(" & ");
