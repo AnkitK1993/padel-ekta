@@ -4393,17 +4393,16 @@ function renderCompact() {
   const _allTimeRankMap = {};
   _memoStats().forEach((p, i) => { _allTimeRankMap[p.name] = i + 1; });
 
-  // Last-30-days rank map — used only in ALL TIME view to show recent trend.
-  const _last30RankMap = {};
+  // Pre-last-session rank map — used only in ALL TIME view to show the rank
+  // change that occurred as a result of the most recent session.
+  const _prevSessionRankMap = {};
   if (cmpFilter === "all") {
-    const _t = new Date();
-    const _t30 = new Date(_t);
-    _t30.setDate(_t30.getDate() - 30);
-    const _iso = (d) => d.toISOString().slice(0, 10);
-    const _m30 = filterMatches("range", _iso(_t30), _iso(_t));
-    if (_m30.length > 0) {
-      const _e30 = computeElo(_m30);
-      computeStats(_m30, _e30).forEach((p, i) => { _last30RankMap[p.name] = i + 1; });
+    const _allM = activeMatches();
+    const _lastDate = _allM.reduce((mx, m) => (m.date > mx ? m.date : mx), "");
+    const _beforeLast = _allM.filter((m) => m.date < _lastDate);
+    if (_beforeLast.length > 0) {
+      const _ePrev = computeElo(_beforeLast);
+      computeStats(_beforeLast, _ePrev).forEach((p, i) => { _prevSessionRankMap[p.name] = i + 1; });
     }
   }
   const srSorted = [...sorted].sort((a, b) => b.sr - a.sr);
@@ -4432,9 +4431,9 @@ function renderCompact() {
     const allTimeRank = _allTimeRankMap[p.name];
     let rankDelta = "";
     if (cmpFilter === "all") {
-      const last30Rank = _last30RankMap[p.name];
-      if (allTimeRank && last30Rank) {
-        const diff = allTimeRank - last30Rank;
+      const prevRank = _prevSessionRankMap[p.name];
+      if (allTimeRank && prevRank) {
+        const diff = prevRank - allTimeRank;
         if (diff > 0)
           rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
         else if (diff < 0)
