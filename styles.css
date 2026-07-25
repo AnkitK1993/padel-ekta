@@ -19987,3 +19987,24 @@ body.battery-saver .ui-toggle-thumb {
   .ui-progress-fill,
   .ui-toggle-thumb { transition: none; }
 }
+
+/* ── ELO DISABLED MODE ─────────────────────────────────────────────────────── */
+/* When ELO ranking is disabled in Admin → Settings, these elements are hidden. */
+body.elo-disabled #hmenu-scoring-item,
+body.elo-disabled #summary-mode-badge,
+body.elo-disabled #cmp-elo-th,
+body.elo-disabled [data-col="elo"],
+body.elo-disabled .h2h-elo-row,
+body.elo-disabled .h2h-elo-card,
+body.elo-disabled .h2h-elo-pill,
+body.elo-disabled .live-slot-elo,
+body.elo-disabled #live-elo-preview,
+body.elo-disabled #mio-elo-a,
+body.elo-disabled #mio-elo-b,
+body.elo-disabled #mio-elo-deltas,
+body.elo-disabled .ssp-elo,
+body.elo-disabled .ssm-elo,
+body.elo-disabled .pd-elo-row,
+body.elo-disabled .mng-card[data-card-id="elo-decay"] {
+  display: none !important;
+}

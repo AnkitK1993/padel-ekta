@@ -77,6 +77,8 @@ import {
   setAnaHideEmpty,
   getRankDeltaDays,
   setRankDeltaDays,
+  getEloEnabled,
+  setEloEnabled,
   getFontScale,
   setFontScale,
   FONT_SCALE_MIN,
@@ -905,6 +907,8 @@ _applyFontScale(getFontScale());
   const _smBadgeInit = document.getElementById("summary-mode-badge");
   if (_smBadgeInit) _smBadgeInit.textContent = _summaryMode.toUpperCase();
 }
+// Apply ELO-enabled pref — must run after scoring mode UI init above.
+_applyEloMode();
 // Deleted matches + ELO config now live in src/infra/match-store.js.
 // The module-level variable remains here so the 20+ mutation sites in app.js
 // (splice/unshift/push) keep working without change.
@@ -1045,7 +1049,7 @@ initBadgesDeps({ computeStats, computeElo, getPairStats, lastWeekRange, fmtDate 
 // Player analytics (form/archetype/power/chemistry/stories/achievements).
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 // Player detail modal — needs playerAvatar which accesses the photoMap in app.js.
-initPlayerDetailDeps({ playerAvatar, getScoringMode: () => _scoringMode });
+initPlayerDetailDeps({ playerAvatar, getScoringMode: () => _scoringMode, getEloEnabled });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
 
@@ -1737,6 +1741,9 @@ function updateAdminUI(user) {
   const rdSel = document.getElementById("rankDeltaDaysSel");
   if (rdSel)
     rdSel.value = String(getRankDeltaDays());
+  const eloTgl = document.getElementById("eloEnabledToggle");
+  if (eloTgl)
+    eloTgl.checked = getEloEnabled();
   const _al = resolveAnimLevel();
   document
     .querySelectorAll(".anim-seg-btn")
@@ -4182,9 +4189,38 @@ function toggleMatchDeltaWindow(win) {
   document.body.classList.remove("no-cascade");
 }
 
+// ── ELO GLOBAL TOGGLE ────────────────────────────────────────
+// Applies the persisted ELO-enabled pref to document.body and forces modes.
+// Called once on startup and every time the Admin pref changes.
+function _applyEloMode() {
+  const enabled = getEloEnabled();
+  document.body.classList.toggle("elo-disabled", !enabled);
+  if (!enabled) {
+    _scoringMode = "ass";
+    _summaryMode = "ass";
+    cmpSortKey = "ass";
+    _upsetSortMode = null;
+    _sessScoreView = null;
+    document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
+      b.classList.toggle("active", b.dataset.val === "ass"),
+    );
+  }
+}
+window.setEloEnabledAndRefresh = function (on) {
+  setEloEnabled(on);
+  _applyEloMode();
+  _homeRenderedVersion = -1;
+  _anaRenderedVersion = -1;
+  renderCompact();
+  const _pg = document.querySelector(".page.active")?.id;
+  if (_pg === "pg-analytics") renderAnalyticsPage();
+  if (_pg === "pg-home") renderHome();
+};
+
 // setScoringMode drives the hamburger master toggle — affects Stats/Home/Analytics only.
 // The Summary tab has its own independent _summaryMode (see toggleSummaryModeOnly).
 function setScoringMode(mode) {
+  if (!getEloEnabled() && mode === "elo") return;
   if (mode !== "ass" && mode !== "elo") return;
   _scoringMode = mode;
   localStorage.setItem("scoringMode", mode);
@@ -4202,6 +4238,7 @@ function setScoringMode(mode) {
 
 // Toggles Summary-tab scoring mode independently of the global hamburger toggle.
 function toggleSummaryModeOnly() {
+  if (!getEloEnabled()) return;
   const newMode = _summaryMode === "ass" ? "elo" : "ass";
   _summaryMode = newMode;
   localStorage.setItem("summaryMode", newMode);
@@ -4228,6 +4265,7 @@ function toggleSummaryMode(mode) { setScoringMode(mode); }
 // runSpeedometerSweep -> ./render-anim.js
 
 function _buildRankDivergenceHtml(eloMap, assMap) {
+  if (!getEloEnabled()) return "";
   const eloRanked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
   const assRanked = Object.entries(assMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
   const eloIdx = Object.fromEntries(eloRanked.map((n, i) => [n, i + 1]));
@@ -11732,11 +11770,12 @@ window._renderBstatTable = function() {
 
 function _buildBiggestUpsetsHtml() {
   _cachedUpsets = _computeUpsets();
-  const mode = _upsetSortMode ?? _scoringMode;
-  const toggle = `<div class="live-sdash-score-toggle" style="margin-bottom:10px">
+  const _eloOn = getEloEnabled();
+  const mode = _eloOn ? (_upsetSortMode ?? _scoringMode) : "ass";
+  const toggle = _eloOn ? `<div class="live-sdash-score-toggle" style="margin-bottom:10px">
     <button class="lsst-btn upset-mode-btn${mode === 'elo' ? ' lsst-active' : ''}" data-mode="elo" onclick="window._setUpsetMode('elo')">ELO</button>
     <button class="lsst-btn upset-mode-btn${mode === 'ass' ? ' lsst-active' : ''}" data-mode="ass" onclick="window._setUpsetMode('ass')">ASS</button>
-  </div>`;
+  </div>` : "";
   const isASS = mode === "ass";
   const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
   eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
@@ -15105,7 +15144,7 @@ function renderAnalyticsPage() {
       title: "📐 Consistency",
       body: _tabbedSection([
         { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>` },
-        { label: "ELO Volatility", html: eloVolatilityHtml },
+        ...(getEloEnabled() ? [{ label: "ELO Volatility", html: eloVolatilityHtml }] : []),
       ]),
     },
     {
@@ -15204,10 +15243,14 @@ function renderAnalyticsPage() {
       body: _tabbedSection([
         { label: "Volume", html: dowHtml },
         { label: "Win %", html: _dowPlayerHtml },
-        { label: "ELO Gain", html: _eloDowHtml },
-        { label: `${_scoringLabel()} Matrix`, html: _dowPlayerMatrixHtml },
-        { label: `${_scoringMode === "ass" ? "ELO" : "ASS"} Matrix`, html: _dowAltMatrixHtml },
-        { label: "Scatter", html: _scatterPlotHtml },
+        ...(getEloEnabled() ? [
+          { label: "ELO Gain", html: _eloDowHtml },
+          { label: `${_scoringLabel()} Matrix`, html: _dowPlayerMatrixHtml },
+          { label: `${_scoringMode === "ass" ? "ELO" : "ASS"} Matrix`, html: _dowAltMatrixHtml },
+          { label: "Scatter", html: _scatterPlotHtml },
+        ] : [
+          { label: "ASS Matrix", html: _dowPlayerMatrixHtml },
+        ]),
       ]),
     },
     {
@@ -15233,12 +15276,16 @@ function renderAnalyticsPage() {
       title: `⚡ ${_scLabel}`,
       body: _tabbedSection([
         { label: "Rankings", html: eloHtml },
-        {
-          label: "History Chart",
-          html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
-        },
-        { label: "Peak / Low", html: _peakEloHtml },
-        { label: "Win Probability", html: eloWinProbHtml },
+        ...(getEloEnabled() ? [
+          {
+            label: "History Chart",
+            html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
+          },
+          { label: "Peak / Low", html: _peakEloHtml },
+          { label: "Win Probability", html: eloWinProbHtml },
+        ] : [
+          { label: "Peak / Low", html: _peakEloHtml },
+        ]),
       ]),
     },
     {
@@ -17695,11 +17742,13 @@ function _renderLiveSessionDashboard() {
   });
   const rankColor = (i) =>
     i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
-  const scoreViewToggle = `<div class="live-sdash-score-toggle">
+  const scoreViewToggle = getEloEnabled()
+    ? `<div class="live-sdash-score-toggle">
     <button class="lsst-btn${effectiveView === 'elo' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('elo')">ELO</button>
     <button class="lsst-btn${effectiveView === 'ass' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('ass')">ASS</button>
     <button class="lsst-btn${effectiveView === 'both' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('both')">BOTH</button>
-  </div>`;
+  </div>`
+    : "";
   const thElo = showElo ? `<th onclick="window._sessSortBy('elo')" style="cursor:pointer">ELO</th>` : "";
   const thASS = showASS ? `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">ASS</th>` : "";
   const tableRows = stats.map((p, i) => {

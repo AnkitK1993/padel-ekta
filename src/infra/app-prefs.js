@@ -112,3 +112,12 @@ export function getRankDeltaDays() {
 export function setRankDeltaDays(v) {
   localStorage.setItem("padel_rank_delta_days", String(Math.max(1, parseInt(v, 10))));
 }
+
+// ── ELO system toggle: true = ELO visible everywhere; false = ASS-only mode ──
+export function getEloEnabled() {
+  const v = localStorage.getItem("padel_elo_enabled");
+  return v === null ? true : v === "1";
+}
+export function setEloEnabled(on) {
+  localStorage.setItem("padel_elo_enabled", on ? "1" : "0");
+}

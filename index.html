@@ -125,7 +125,7 @@
             </label>
           </div>
           <div class="hmenu-divider"></div>
-          <div class="hmenu-item">
+          <div class="hmenu-item" id="hmenu-scoring-item">
             <span class="hmenu-label">Scoring</span>
             <div class="scoring-seg" id="scoringSeg">
               <button class="scoring-seg-btn" data-val="ass" onclick="setScoringMode('ass')">ASS</button>
@@ -961,6 +961,17 @@ Puneet - Pun, PK
                   <option value="60">60 days</option>
                   <option value="90">90 days</option>
                 </select>
+              </div>
+              <div class="mng-setting-row" style="margin-top: 10px">
+                <span class="mng-setting-label">⚡ ELO ranking system</span>
+                <label class="mng-toggle">
+                  <input
+                    type="checkbox"
+                    id="eloEnabledToggle"
+                    onchange="setEloEnabledAndRefresh(this.checked)"
+                  />
+                  <span class="mng-toggle-slider"></span>
+                </label>
               </div>
             </div>
 

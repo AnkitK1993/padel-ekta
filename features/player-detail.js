@@ -3,6 +3,7 @@
 // _buildStreakCalendarHtml, streakCalDayClick, _dowDayRecord.
 // Dependency injection via initPlayerDetailDeps for playerAvatar (uses photoMap).
 import { activeMatches } from "../src/engine/selectors.js";
+import { getEloEnabled } from "../src/infra/app-prefs.js";
 import { normPlayer, getPlayerDateRange } from "../src/domain/players.js";
 import { state } from "../src/engine/state.js";
 import { computeStats, eloToSr } from "../src/engine/stats.js";
@@ -420,6 +421,7 @@ function _pdBuildFormGraphHtml(name, graphMatches) {
 }
 
 function _pdBuildEloTimelineHtml(name) {
+  if (!getEloEnabled()) return "";
   const sorted = [...state.matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const playerMs = sorted.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
   if (playerMs.length < 3) return "";
@@ -1306,6 +1308,7 @@ function openPlayerDetail(name) {
 
   // ── ELO PROJECTION CHART ─────────────────────────────────
   const eloProjectionHtml = (() => {
+    if (!getEloEnabled()) return "";
     if (pdPlayerMs.length < 5) return "";
     const eloHist = computeEloHistory(pdSortedAll14);
     const pts = eloHist[name] || [];
@@ -1602,7 +1605,7 @@ function openPlayerDetail(name) {
                           <span style="font-size:9px;color:var(--muted)">SR ${srAss.toFixed(2)}</span>
                           ${assRank > 0 ? `<span style="font-size:9px;color:var(--muted)">#${assRank} rank</span>` : ""}
                         </div>
-                        <div style="display:flex;align-items:center;gap:6px">
+                        <div class="pd-elo-row" style="display:flex;align-items:center;gap:6px">
                           <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ELO</span>
                           <span id="pd-elo-val" data-final="${playerElo}" style="color:${eloChangeCol};font-weight:800;font-size:13px">${playerElo}</span>
                           <span style="font-size:9px;color:var(--muted)">SR ${srElo.toFixed(2)}</span>
