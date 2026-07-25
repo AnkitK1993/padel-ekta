@@ -4392,6 +4392,20 @@ function renderCompact() {
   // differs from the player's all-time standing.
   const _allTimeRankMap = {};
   _memoStats().forEach((p, i) => { _allTimeRankMap[p.name] = i + 1; });
+
+  // Last-30-days rank map — used only in ALL TIME view to show recent trend.
+  const _last30RankMap = {};
+  if (cmpFilter === "all") {
+    const _t = new Date();
+    const _t30 = new Date(_t);
+    _t30.setDate(_t30.getDate() - 30);
+    const _iso = (d) => d.toISOString().slice(0, 10);
+    const _m30 = filterMatches("range", _iso(_t30), _iso(_t));
+    if (_m30.length > 0) {
+      const _e30 = computeElo(_m30);
+      computeStats(_m30, _e30).forEach((p, i) => { _last30RankMap[p.name] = i + 1; });
+    }
+  }
   const srSorted = [...sorted].sort((a, b) => b.sr - a.sr);
   const srRankMap = {};
   srSorted.forEach((p, j) => {
@@ -4417,7 +4431,16 @@ function renderCompact() {
     const animClass = "";
     const allTimeRank = _allTimeRankMap[p.name];
     let rankDelta = "";
-    if (allTimeRank && cmpFilter !== "all") {
+    if (cmpFilter === "all") {
+      const last30Rank = _last30RankMap[p.name];
+      if (allTimeRank && last30Rank) {
+        const diff = allTimeRank - last30Rank;
+        if (diff > 0)
+          rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
+        else if (diff < 0)
+          rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
+      }
+    } else if (allTimeRank) {
       const diff = allTimeRank - rank;
       if (diff > 0)
         rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
