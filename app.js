@@ -4402,10 +4402,30 @@ function renderCompact() {
 
   const splashDone = document.body.classList.contains("splash-done");
 
-  // All-time SR rank map — used to show how current filtered/sorted rank
-  // differs from the player's all-time standing.
+  // All-time rank map — built with the same mode (ELO/ASS) and sort key as the
+  // current view, using competition ranking, so the delta is always like-for-like.
   const _allTimeRankMap = {};
-  _memoStats().forEach((p, i) => { _allTimeRankMap[p.name] = i + 1; });
+  {
+    const _atElo = _memoElo();
+    const _atAss = _memoASS();
+    // For score columns substitute all-time maps; all other columns reuse sortFns.
+    const _atSort = cmpSortKey === "elo"
+      ? (a, b) => (_atElo[a.name] || 1000) - (_atElo[b.name] || 1000)
+      : cmpSortKey === "ass"
+      ? (a, b) => (_atAss[a.name] || 1000) - (_atAss[b.name] || 1000)
+      : sortFns[cmpSortKey] || sortFns.sr;
+    const _atAll = [..._activeStats()].sort((a, b) => {
+      const cmp = _atSort(a, b);
+      if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
+    _atAll.forEach((p, i) => {
+      _allTimeRankMap[p.name] =
+        i > 0 && _atSort(_atAll[i - 1], p) === 0
+          ? _allTimeRankMap[_atAll[i - 1].name]
+          : i + 1;
+    });
+  }
 
   // Last-N-days rank map — used only in ALL TIME view; window is configurable
   // via Admin → Manage → Settings (default 30 days).
