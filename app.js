@@ -4417,7 +4417,7 @@ function renderCompact() {
     const animClass = "";
     const allTimeRank = _allTimeRankMap[p.name];
     let rankDelta = "";
-    if (allTimeRank) {
+    if (allTimeRank && cmpFilter !== "all") {
       const diff = allTimeRank - rank;
       if (diff > 0)
         rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
