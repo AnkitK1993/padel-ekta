@@ -15,6 +15,23 @@ import {
 } from "./src/engine/elo.js";
 import { computeStats, _normScores, eloToSr } from "./src/engine/stats.js";
 import { computeMatchASSDeltas, computeASS } from "./src/engine/ass.js";
+import {
+  ratingDistribution,
+  competitivenessOverTime,
+  ratingsByMonth,
+  favouriteWinCurve,
+  marginBuckets,
+  fatigueByMatchOfDay,
+  nemesisBunny,
+  partnerLoyalty,
+  attendanceStreaks,
+  hallOfFameRecords,
+  buildMilestoneTimeline,
+  weightedMvpScore,
+  streakSegments,
+  rollingWinPct,
+  waterfallTopMoves,
+} from "./src/engine/records.js";
 import { initParserDeps, parseBlock, parseDateHdr } from "./src/engine/parser.js";
 import {
   escHtml,
@@ -11785,6 +11802,82 @@ window._renderBstatTable = function() {
   ].join("")).join("");
 };
 
+// Rating waterfall: a player's N biggest single-match rating swings, rendered
+// as a running waterfall from their first swing to their latest.
+function _buildWaterfallHtml(name) {
+  const hist = _activeHistory()[name] || [];
+  const moves = waterfallTopMoves(hist, 8);
+  if (!moves.length) return '<div class="sub" style="padding:8px">Not enough data.</div>';
+  let running = moves[0].elo - moves[0].delta;
+  const seq = [{ label: "Start", val: running }];
+  moves.forEach((m) => {
+    running += m.delta;
+    seq.push({ label: fmtDate(m.date), val: running, delta: m.delta });
+  });
+  const vals = seq.map((s) => s.val);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = Math.max(maxV - minV, 1);
+  const W = 300, H = 160, PAD = 24;
+  const colW = (W - PAD * 2) / seq.length;
+  const y = (v) => H - PAD - ((v - minV) / range) * (H - PAD * 2);
+  const bars = seq
+    .map((s, i) => {
+      const x = PAD + i * colW;
+      const isFirst = i === 0;
+      const prevVal = isFirst ? s.val : seq[i - 1].val;
+      const yTop = y(Math.max(s.val, prevVal));
+      const yBot = y(Math.min(s.val, prevVal));
+      const col = isFirst ? "var(--muted)" : s.delta >= 0 ? "#36d47e" : "#f04f4f";
+      const h = Math.max(2, yBot - yTop);
+      return `<rect x="${(x + 2).toFixed(1)}" y="${yTop.toFixed(1)}" width="${(colW - 4).toFixed(1)}" height="${h.toFixed(1)}" fill="${col}"><title>${s.label}: ${isFirst ? Math.round(s.val) : (s.delta >= 0 ? "+" : "") + s.delta}</title></rect>`;
+    })
+    .join("");
+  const labels = seq
+    .map((s, i) => {
+      const x = PAD + i * colW + colW / 2;
+      return `<text x="${x.toFixed(1)}" y="${H - 4}" font-size="6" fill="var(--muted)" text-anchor="middle">${i === 0 ? "START" : s.delta >= 0 ? "+" + s.delta : s.delta}</text>`;
+    })
+    .join("");
+  return `<div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:6px">${escHtml(name)}'s biggest single-match rating swings</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${bars}${labels}</svg>
+  </div>`;
+}
+window._renderWaterfall = function (name) {
+  const el = document.getElementById("waterfall-body");
+  if (el) el.innerHTML = _buildWaterfallHtml(name);
+};
+
+// Steps the Ratings Race bars through each month's snapshot, animating bar
+// width via CSS transition. Frame data travels on the button's data-race attr
+// so this stays a pure DOM walker with no closure over render-time state.
+window._playRatingsRace = function (btn) {
+  let data;
+  try { data = JSON.parse(btn.dataset.race); } catch (e) { return; }
+  const { names, frames, maxScore } = data;
+  if (!frames || !frames.length) return;
+  btn.disabled = true;
+  btn.textContent = "▶ Playing…";
+  const monthLbl = document.getElementById("race-month-lbl");
+  let i = 0;
+  const step = () => {
+    const f = frames[i];
+    if (monthLbl) monthLbl.textContent = f.month;
+    names.forEach((n, idx) => {
+      const val = f.scores[idx];
+      const pct = Math.min(100, (val / maxScore) * 100);
+      const barEl = document.getElementById(`race-bar-${idx}`);
+      const valEl = document.getElementById(`race-val-${idx}`);
+      if (barEl) barEl.style.width = pct.toFixed(1) + "%";
+      if (valEl) valEl.textContent = val;
+    });
+    i++;
+    if (i < frames.length) setTimeout(step, 650);
+    else { btn.disabled = false; btn.textContent = "▶ Play Race"; }
+  };
+  step();
+};
+
 function _buildBiggestUpsetsHtml() {
   _cachedUpsets = _computeUpsets();
   const _eloOn = getEloEnabled();
@@ -15381,6 +15474,685 @@ function renderAnalyticsPage() {
       cat: "records",
       title: "💥 Biggest Upsets",
       body: _buildBiggestUpsetsHtml(),
+    },
+    {
+      key: "ratingdist",
+      cat: "elo",
+      title: "📊 Rating Distribution",
+      body: (() => {
+        const scoreMap = _activeScoreMap();
+        const { entries, buckets } = ratingDistribution(scoreMap, 50);
+        if (!entries.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        const rows = buckets
+          .map((b) => {
+            const chips = b.players
+              .map(
+                (p) =>
+                  `<span title="${escHtml(p.name)}: ${p.score}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${playerColor(p.name)};color:#fff;font-size:8px;font-weight:800;margin:1px">${playerInitials(p.name)}</span>`,
+              )
+              .join("");
+            return `<div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:3px"><span>${b.from}–${b.to}</span><span>${b.players.length}</span></div>
+              <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:4px 6px;min-height:26px;display:flex;flex-wrap:wrap;align-items:center">${chips || '<span style="font-size:9px;color:var(--muted)">—</span>'}</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">${_scLabel} spread across the group — how tight or spread out the league is</div>${rows}</div>`;
+      })(),
+    },
+    {
+      key: "competitiveness",
+      cat: "elo",
+      title: "📉 League Competitiveness",
+      body: (() => {
+        const scoreFn = _scoringMode === "ass" ? computeASS : computeElo;
+        const series = competitivenessOverTime(sortedM, scoreFn).filter((s) => s.n >= 2);
+        if (series.length < 2) return '<div class="sub" style="padding:8px">Need more months of data.</div>';
+        const W = 300, H = 130, PAD = 26;
+        const maxSD = Math.max(...series.map((s) => s.stddev), 10);
+        const pts = series.map((s, i) => {
+          const x = PAD + (i / Math.max(series.length - 1, 1)) * (W - PAD * 2);
+          const y = H - PAD - (s.stddev / maxSD) * (H - PAD * 2 - 10);
+          return { x, y, s };
+        });
+        const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+        const dots = pts
+          .map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--theme)"><title>${p.s.month}: σ${p.s.stddev}</title></circle>`)
+          .join("");
+        const step = Math.ceil(pts.length / 6) || 1;
+        const labels = pts
+          .filter((_, i) => i % step === 0)
+          .map((p) => `<text x="${p.x.toFixed(1)}" y="${H - 6}" font-size="7" fill="var(--muted)" text-anchor="middle">${p.s.month.slice(2)}</text>`)
+          .join("");
+        const trend =
+          series[series.length - 1].stddev < series[0].stddev
+            ? "The field is tightening — ratings are converging."
+            : "The field is spreading out — a gap is forming.";
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Std-dev of ${_scLabel} ratings by month — lower = tighter competition</div>
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
+            <path d="${path}" fill="none" stroke="var(--theme)" stroke-width="2"/>
+            ${dots}${labels}
+          </svg>
+          <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:4px">${trend}</div>
+        </div>`;
+      })(),
+    },
+    {
+      key: "activitystacked",
+      cat: "activity",
+      title: "📶 Activity Over Time",
+      body: (() => {
+        const months = uniqueMonths.slice(-12);
+        if (months.length < 2) return '<div class="sub" style="padding:8px">Need more months of data.</div>';
+        const topPlayers = playersByMatches.slice(0, 8);
+        const W = 300, H = 150, PAD = 8;
+        const maxTotal = Math.max(
+          ...months.map((mo) => topPlayers.reduce((s, p) => s + (monthlyStats[mo]?.[p]?.m || 0), 0)),
+          1,
+        );
+        const colW = (W - PAD * 2) / months.length;
+        const areas = topPlayers
+          .map((p, pi) => {
+            const col = playerColor(p);
+            const topPts = [], botPts = [];
+            months.forEach((mo, mi) => {
+              const x = PAD + mi * colW + colW / 2;
+              let below = 0;
+              for (let k = 0; k < pi; k++) below += monthlyStats[mo]?.[topPlayers[k]]?.m || 0;
+              const val = monthlyStats[mo]?.[p]?.m || 0;
+              const yTop = H - PAD - ((below + val) / maxTotal) * (H - PAD * 2);
+              const yBot = H - PAD - (below / maxTotal) * (H - PAD * 2);
+              topPts.push(`${x.toFixed(1)},${yTop.toFixed(1)}`);
+              botPts.unshift(`${x.toFixed(1)},${yBot.toFixed(1)}`);
+            });
+            return `<polygon points="${topPts.join(" ")} ${botPts.join(" ")}" fill="${col}" opacity="0.55" stroke="${col}" stroke-width="0.5"/>`;
+          })
+          .join("");
+        const legend = topPlayers
+          .map(
+            (p) =>
+              `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);margin-right:8px"><span style="width:8px;height:8px;border-radius:2px;background:${playerColor(p)};display:inline-block"></span>${escHtml(p.split(" ")[0])}</span>`,
+          )
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Matches played per month, stacked by player (top 8 by volume)</div>
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${areas}</svg>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap">${legend}</div>
+        </div>`;
+      })(),
+    },
+    {
+      key: "favwincurve",
+      cat: "elo",
+      title: "🎯 Favourite-Wins Curve",
+      body: (() => {
+        const curve = favouriteWinCurve(sortedM);
+        if (!curve.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        const rows = curve
+          .map((b) => {
+            const col = b.pct >= 70 ? "var(--green)" : b.pct >= 55 ? "var(--gold)" : "var(--red)";
+            return `<div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px"><span style="color:var(--muted)">Gap ${b.label}</span><span style="font-weight:800;color:${col}">${b.pct}%</span></div>
+              <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden"><div style="width:${b.pct}%;height:100%;background:${col}"></div></div>
+              <div style="font-size:8px;color:var(--muted);margin-top:2px">${b.total} matches</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% of the pre-match favourite, by rating gap — higher = the rating system predicts outcomes well</div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "marginhist",
+      cat: "records",
+      title: "💢 Margin of Victory",
+      body: (() => {
+        const buckets = marginBuckets(am);
+        const maxC = Math.max(...buckets.map((b) => b.count), 1);
+        const rows = buckets
+          .map(
+            (b) =>
+              `<div class="sdist-row"><div class="sdist-lbl">${b.margin} games</div><div class="sdist-bar-wrap"><div class="sdist-bar" style="width:${((b.count / maxC) * 100).toFixed(0)}%"></div></div><div class="sdist-count">${b.count}</div></div>`,
+          )
+          .join("");
+        const blowouts = buckets.filter((b) => ["4", "5+"].includes(b.margin)).reduce((s, b) => s + b.count, 0);
+        const nailbiters = buckets.filter((b) => ["0", "1"].includes(b.margin)).reduce((s, b) => s + b.count, 0);
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <div style="flex:1;background:rgba(54,212,126,0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted)">NAIL-BITERS (±1)</div><div style="font-size:18px;font-weight:900;color:var(--green)">${nailbiters}</div></div>
+            <div style="flex:1;background:rgba(240,80,80,0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted)">BLOWOUTS (4+)</div><div style="font-size:18px;font-weight:900;color:var(--red)">${blowouts}</div></div>
+          </div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "fatigue",
+      cat: "activity",
+      title: "🥵 Fatigue Curve",
+      body: (() => {
+        const slots = fatigueByMatchOfDay(am, 5);
+        if (slots.length < 2) return '<div class="sub" style="padding:8px">Need more multi-match session days.</div>';
+        const rows = slots
+          .map((s) => {
+            const col = s.winPct >= 55 ? "var(--green)" : s.winPct <= 45 ? "var(--red)" : "var(--muted)";
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+              <div style="width:50px;font-size:10px;font-weight:700;color:var(--muted)">Match ${s.n}</div>
+              <div style="flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden"><div style="width:${s.winPct}%;height:100%;background:${col}"></div></div>
+              <div style="width:38px;text-align:right;font-size:11px;font-weight:800;color:${col}">${s.winPct}%</div>
+              <div style="width:50px;text-align:right;font-size:9px;color:var(--muted)">${s.avgGames}g avg</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% by match number within a session — does the group fade as the day goes on?</div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "formclass",
+      cat: "players",
+      title: "🌟 Form vs Class",
+      body: (() => {
+        const formMap = {};
+        formTable.forEach((f) => { formMap[f.name] = f.pct; });
+        const pts = compList
+          .filter((p) => formMap[p.name] != null)
+          .map((p) => ({ name: p.name, cls: p.sr, form: formMap[p.name] }));
+        if (pts.length < 3) return '<div class="sub" style="padding:8px">Need more data.</div>';
+        const minCls = Math.min(...pts.map((p) => p.cls)), maxCls = Math.max(...pts.map((p) => p.cls));
+        const clsRange = Math.max(maxCls - minCls, 0.1);
+        const W = 280, H = 220, PAD = 30;
+        const cx = (v) => PAD + ((v - minCls) / clsRange) * (W - PAD * 2);
+        const cy = (v) => H - PAD - (v / 100) * (H - PAD * 2);
+        const midX = cx((minCls + maxCls) / 2), midY = cy(50);
+        const dots = pts
+          .map((p) => {
+            const x = cx(p.cls), y = cy(p.form);
+            return `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="${playerColor(p.name)}" opacity="0.85"/><text x="${x.toFixed(1)}" y="${(y + 2.5).toFixed(1)}" font-size="7" fill="#fff" text-anchor="middle" font-weight="700">${playerInitials(p.name)}</text><title>${escHtml(p.name)}: SR ${p.cls.toFixed(1)} · Form ${p.form}%</title></g>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Class (all-time SR) vs Form (last-10 win%) — four quadrants: stars, sleepers, overperformers, strugglers</div>
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
+            <line x1="${PAD}" y1="${midY.toFixed(1)}" x2="${W - PAD}" y2="${midY.toFixed(1)}" stroke="rgba(255,255,255,0.1)" stroke-dasharray="3 3"/>
+            <line x1="${midX.toFixed(1)}" y1="${PAD}" x2="${midX.toFixed(1)}" y2="${H - PAD}" stroke="rgba(255,255,255,0.1)" stroke-dasharray="3 3"/>
+            <text x="${W - PAD}" y="${PAD - 4}" font-size="7" fill="var(--muted)" text-anchor="end">IN-FORM STARS</text>
+            <text x="${PAD}" y="${PAD - 4}" font-size="7" fill="var(--muted)" text-anchor="start">OVERPERFORMERS</text>
+            <text x="${W - PAD}" y="${H - PAD + 10}" font-size="7" fill="var(--muted)" text-anchor="end">SLEEPING GIANTS</text>
+            <text x="${PAD}" y="${H - PAD + 10}" font-size="7" fill="var(--muted)" text-anchor="start">STRUGGLING</text>
+            ${dots}
+          </svg>
+        </div>`;
+      })(),
+    },
+    {
+      key: "nemesisbunny",
+      cat: "players",
+      title: "😈 Nemesis & Bunny",
+      body: (() => {
+        const nb = nemesisBunny(am, 3);
+        const rows = playersByMatches
+          .filter((p) => nb[p] && (nb[p].nemesis || nb[p].bunny))
+          .map((p) => {
+            const { nemesis, bunny } = nb[p];
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+              <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p)}</div>
+              ${nemesis ? `<div style="font-size:9px;color:var(--red);text-align:right;width:96px">😈 ${escHtml(nemesis.opp.split(" ")[0])} <span style="color:var(--muted)">(${Math.round(nemesis.pct * 100)}%)</span></div>` : '<div style="font-size:9px;color:var(--muted);width:96px;text-align:right">—</div>'}
+              ${bunny ? `<div style="font-size:9px;color:var(--green);text-align:right;width:96px">🐰 ${escHtml(bunny.opp.split(" ")[0])} <span style="color:var(--muted)">(${Math.round(bunny.pct * 100)}%)</span></div>` : '<div style="font-size:9px;color:var(--muted);width:96px;text-align:right">—</div>'}
+            </div>`;
+          })
+          .join("");
+        if (!rows) return '<div class="sub" style="padding:8px">Need 3+ meetings between players.</div>';
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="display:flex;font-size:8px;color:var(--muted);font-weight:700;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06)"><div style="flex:1">PLAYER</div><div style="width:96px;text-align:right">NEMESIS</div><div style="width:96px;text-align:right">BUNNY</div></div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "underdogboard",
+      cat: "records",
+      title: "🐺 Underdog Leaderboard",
+      body: (() => {
+        const upsets = _computeUpsets();
+        const agg = {};
+        upsets.forEach((u) => {
+          const gap = _scoringMode === "ass" ? u.assGap : u.gap;
+          if (gap <= 0) return;
+          u.winners.forEach((p) => {
+            if (!agg[p]) agg[p] = { count: 0, maxGap: 0 };
+            agg[p].count++;
+            agg[p].maxGap = Math.max(agg[p].maxGap, gap);
+          });
+        });
+        const ranked = Object.entries(agg).sort((a, b) => b[1].count - a[1].count || b[1].maxGap - a[1].maxGap);
+        if (!ranked.length) return '<div class="sub" style="padding:8px">No upset wins yet.</div>';
+        const rows = ranked
+          .slice(0, 12)
+          .map(
+            ([name, d], i) =>
+              `<div class="lrace-row" style="grid-template-columns:34px 1fr 60px 70px"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(name)}</div><div class="lrace-1mo">${d.count}</div><div class="lrace-delta" style="color:var(--green)">+${d.maxGap}</div></div>`,
+          )
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div class="lrace-header" style="grid-template-columns:34px 1fr 60px 70px"><span>Rank</span><span>Player</span><span>Upsets</span><span>Best Gap</span></div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "partnerloyalty",
+      cat: "pairs",
+      title: "💞 Partner Loyalty",
+      body: (() => {
+        const loyalty = partnerLoyalty(am, 3);
+        if (!loyalty.length) return '<div class="sub" style="padding:8px">Need more doubles data.</div>';
+        const rows = loyalty
+          .slice(0, 12)
+          .map((p) => {
+            const col = p.pct >= 70 ? "var(--green)" : p.pct <= 30 ? "var(--gold)" : "var(--muted)";
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+              <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
+              <div style="font-size:9px;color:var(--muted)">with ${escHtml((p.topPartner || "").split(" ")[0])}</div>
+              <div style="font-size:11px;font-weight:800;color:${col};width:36px;text-align:right">${p.pct}%</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">% of doubles matches played with their single most-frequent partner</div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "hallfame",
+      cat: "records",
+      title: "🏛️ Hall of Fame",
+      body: (() => {
+        const hof = hallOfFameRecords(am, players, _memoEloHistory(), _memoASSHistory());
+        if (!hof) return '<div class="sub" style="padding:8px">No data yet.</div>';
+        const item = (icon, label, value, sub) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+          <div style="font-size:20px;width:30px;text-align:center">${icon}</div>
+          <div style="flex:1">
+            <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">${label}</div>
+            <div style="font-size:13px;font-weight:800">${value}</div>
+            ${sub ? `<div style="font-size:9px;color:var(--muted)">${sub}</div>` : ""}
+          </div>
+        </div>`;
+        const rows = [
+          hof.biggestWin ? item("💥", "Biggest Win Ever", hof.biggestWin.score, `${escHtml(hof.biggestWin.winners.join(" & "))} vs ${escHtml(hof.biggestWin.losers.join(" & "))} · ${fmtDate(hof.biggestWin.date)}`) : "",
+          hof.longestStreak ? item("🔥", "Longest Win Streak", `${hof.longestStreak.bestStreak} matches`, escHtml(hof.longestStreak.name)) : "",
+          hof.mostInDay ? item("📅", "Most Matches in a Day", `${hof.mostInDay.n} matches`, `${escHtml(hof.mostInDay.name)} · ${fmtDate(hof.mostInDay.date)}`) : "",
+          hof.peakElo ? item("⚡", "Highest ELO Ever", `${Math.round(hof.peakElo.val)}`, `${escHtml(hof.peakElo.name)} · ${fmtDate(hof.peakElo.date)}`) : "",
+          hof.peakAss ? item("🏆", "Highest ASS Ever", `${Math.round(hof.peakAss.val)}`, `${escHtml(hof.peakAss.name)} · ${fmtDate(hof.peakAss.date)}`) : "",
+          item("🎾", "Total Matches Played", `${hof.totalMatches}`, `across ${hof.totalDays} playing days`),
+        ].join("");
+        return `<div class="ana-card" style="padding:10px 12px">${rows}</div>`;
+      })(),
+    },
+    {
+      key: "milestonetimeline",
+      cat: "records",
+      title: "🕰️ Milestone Timeline",
+      body: (() => {
+        const events = buildMilestoneTimeline(sortedM).slice(-25).reverse();
+        if (!events.length) return '<div class="sub" style="padding:8px">No milestones yet.</div>';
+        const rows = events
+          .map(
+            (e) => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="font-size:16px;width:24px;text-align:center;flex-shrink:0">${e.icon}</div>
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:700">${escHtml(e.text)}</div>
+            <div style="font-size:9px;color:var(--muted)">${fmtDate(e.date)}</div>
+          </div>
+        </div>`,
+          )
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px;max-height:340px;overflow-y:auto">${rows}</div>`;
+      })(),
+    },
+    {
+      key: "attendancestreaks",
+      cat: "activity",
+      title: "📌 Attendance Streaks",
+      body: (() => {
+        const streaks = attendanceStreaks(am).filter((s) => s.sessionsPlayed >= 3);
+        if (!streaks.length) return '<div class="sub" style="padding:8px">Need more session history.</div>';
+        const rows = streaks
+          .slice(0, 12)
+          .map((s, i) => {
+            const col = s.current >= 3 ? "var(--green)" : s.current > 0 ? "var(--gold)" : "var(--muted)";
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+              <div style="width:20px;font-size:10px;color:var(--muted)">#${i + 1}</div>
+              <div style="flex:1;font-size:11px;font-weight:700">${escHtml(s.name)}</div>
+              <div style="font-size:11px;font-weight:800;color:${col}">${s.current} 🔥</div>
+              <div style="font-size:9px;color:var(--muted);width:60px;text-align:right">best ${s.best}</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Consecutive group sessions attended — current streak vs personal best</div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "weightedmvp",
+      cat: "players",
+      title: "🏅 Weighted MVP Formula",
+      body: (() => {
+        const scoreMap = _activeScoreMap();
+        const upsets = _computeUpsets();
+        const upsetCounts = {};
+        upsets.forEach((u) => {
+          const gap = _scoringMode === "ass" ? u.assGap : u.gap;
+          if (gap > 0) u.winners.forEach((p) => { upsetCounts[p] = (upsetCounts[p] || 0) + 1; });
+        });
+        const attendance = {};
+        am.forEach((m) => {
+          [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+            (attendance[p] || (attendance[p] = new Set())).add(m.date);
+          });
+        });
+        const input = compList.map((p) => ({
+          name: p.name,
+          ratingGain: (scoreMap[p.name] || 1000) - 1000,
+          winPct: p.winPct,
+          attendance: attendance[p.name] ? attendance[p.name].size : 0,
+          upsets: upsetCounts[p.name] || 0,
+        }));
+        const ranked = weightedMvpScore(input);
+        if (!ranked.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        const rows = ranked
+          .slice(0, 10)
+          .map(
+            (p, i) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="width:20px;font-size:10px;color:var(--muted)">#${i + 1}</div>
+          <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
+          <div style="font-size:13px;font-weight:900;color:var(--theme)">${p.composite}</div>
+        </div>`,
+          )
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Composite score: rating gain 40% · win% 30% · attendance 20% · upsets 10% (normalized 0-100)</div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "badgegallery",
+      cat: "players",
+      title: "🎖️ Badge Gallery",
+      body: (() => {
+        const eloMapAll = _memoElo();
+        const holders = {};
+        playersByMatches.forEach((name) => {
+          const badges = computeBadges(name, null, eloMapAll, am, compList);
+          badges.forEach((b) => {
+            if (!holders[b.label]) holders[b.label] = { icon: b.icon, desc: b.desc, players: [] };
+            holders[b.label].players.push(name);
+          });
+        });
+        const labels = Object.keys(holders);
+        if (!labels.length) return '<div class="sub" style="padding:8px">No badges earned yet.</div>';
+        const rows = labels
+          .map((label) => {
+            const h = holders[label];
+            const chips = h.players
+              .map((p) => `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.05);border-radius:14px;padding:3px 9px;font-size:10px;font-weight:700;margin:2px">${escHtml(p)}</span>`)
+              .join("");
+            return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:16px">${h.icon}</span><span style="font-size:11px;font-weight:800">${escHtml(label)}</span><span style="font-size:8px;color:var(--muted)">${escHtml(h.desc || "")}</span></div>
+              <div>${chips}</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">${rows}</div>`;
+      })(),
+    },
+    {
+      key: "ratingsrace",
+      cat: "elo",
+      title: "🏁 Ratings Race",
+      body: (() => {
+        const months = uniqueMonths.slice(-12);
+        if (months.length < 3) return '<div class="sub" style="padding:8px">Need more months of history.</div>';
+        const scoreFn = _scoringMode === "ass" ? computeASS : computeElo;
+        const frames = ratingsByMonth(sortedM, scoreFn, months);
+        const finalScores = frames[frames.length - 1].scores;
+        const topNames = Object.entries(finalScores).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([n]) => n);
+        if (!topNames.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        const maxScore = Math.max(...frames.flatMap((f) => topNames.map((n) => f.scores[n] || 1000)), 1200);
+        const bars = topNames
+          .map((n, i) => {
+            const val = Math.round(frames[0].scores[n] || 1000);
+            const pct = Math.min(100, (val / maxScore) * 100);
+            return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <div style="width:52px;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(n.split(" ")[0])}</div>
+              <div style="flex:1;height:16px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden"><div id="race-bar-${i}" style="height:100%;width:${pct.toFixed(1)}%;background:${playerColor(n)};transition:width 0.6s ease;border-radius:4px"></div></div>
+              <div id="race-val-${i}" style="width:36px;text-align:right;font-size:10px;font-weight:800;color:var(--muted)">${val}</div>
+            </div>`;
+          })
+          .join("");
+        const raceData = escHtml(
+          JSON.stringify({
+            names: topNames,
+            frames: frames.map((f) => ({ month: f.month, scores: topNames.map((n) => Math.round(f.scores[n] || 1000)) })),
+            maxScore,
+          }),
+        );
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:6px">${_scLabel} ratings, month by month — top 8 players by current rating</div>
+          <div id="race-month-lbl" style="font-size:10px;font-weight:800;color:var(--theme);margin-bottom:8px;text-align:center">${frames[0].month}</div>
+          <div id="race-bars">${bars}</div>
+          <button data-race="${raceData}" onclick="window._playRatingsRace(this)" style="width:100%;margin-top:10px;padding:8px;border-radius:10px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.12);color:var(--theme);font-weight:700;font-size:11px;cursor:pointer">▶ Play Race</button>
+        </div>`;
+      })(),
+    },
+    {
+      key: "partnernetwork",
+      cat: "pairs",
+      title: "🕸️ Partner Network",
+      body: (() => {
+        const names = playersByMatches.slice(0, 16);
+        if (names.length < 3) return '<div class="sub" style="padding:8px">Need more players.</div>';
+        const W = 300, H = 300, R = 118, CX = W / 2, CY = H / 2;
+        const posOf = {};
+        names.forEach((n, i) => {
+          const a = (i / names.length) * Math.PI * 2 - Math.PI / 2;
+          posOf[n] = { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a) };
+        });
+        const edgeMap = {};
+        Object.values(partnerships).forEach((p) => {
+          if (p.players.length !== 2) return;
+          const [a, b] = p.players;
+          if (!names.includes(a) || !names.includes(b)) return;
+          const key = [a, b].sort().join("|");
+          edgeMap[key] = { a, b, played: p.played, winPct: p.played ? Math.round((p.wins / p.played) * 100) : 0 };
+        });
+        const maxPlayed = Math.max(...Object.values(edgeMap).map((e) => e.played), 1);
+        const edges = Object.values(edgeMap)
+          .map((e) => {
+            const pa = posOf[e.a], pb = posOf[e.b];
+            const w = 0.8 + (e.played / maxPlayed) * 3.2;
+            const col = e.winPct >= 60 ? "rgba(54,212,126,0.55)" : e.winPct <= 40 ? "rgba(240,80,80,0.5)" : "rgba(255,255,255,0.18)";
+            return `<line x1="${pa.x.toFixed(1)}" y1="${pa.y.toFixed(1)}" x2="${pb.x.toFixed(1)}" y2="${pb.y.toFixed(1)}" stroke="${col}" stroke-width="${w.toFixed(1)}"><title>${escHtml(e.a)} & ${escHtml(e.b)}: ${e.played} matches, ${e.winPct}% win</title></line>`;
+          })
+          .join("");
+        const nodes = names
+          .map((n) => {
+            const p = posOf[n];
+            return `<g><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="11" fill="${playerColor(n)}"/><text x="${p.x.toFixed(1)}" y="${(p.y + 3).toFixed(1)}" font-size="8" fill="#fff" text-anchor="middle" font-weight="700">${playerInitials(n)}</text></g>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Who plays with whom — line thickness = matches together, colour = win% together (green ≥60%, red ≤40%)</div>
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${edges}${nodes}</svg>
+        </div>`;
+      })(),
+    },
+    {
+      key: "streakgantt",
+      cat: "records",
+      title: "📊 Streak Timeline",
+      body: (() => {
+        const names = playersByMatches.slice(0, 12);
+        if (!names.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        const rows = names
+          .map((n) => {
+            const segs = streakSegments(sortedM, n);
+            if (!segs.length) return "";
+            const total = segs.reduce((s, g) => s + g.length, 0) || 1;
+            const bars = segs
+              .map((g) => {
+                const w = (g.length / total) * 100;
+                const col = g.type === "W" ? "rgba(54,212,126,0.75)" : "rgba(240,80,80,0.6)";
+                return `<div style="width:${w.toFixed(2)}%;background:${col};height:100%" title="${g.type === "W" ? "Won" : "Lost"} ${g.length} in a row (${fmtDate(g.startDate)}–${fmtDate(g.endDate)})"></div>`;
+              })
+              .join("");
+            return `<div style="margin-bottom:8px">
+              <div style="font-size:10px;font-weight:700;margin-bottom:3px">${escHtml(n)}</div>
+              <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">${bars}</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win (green) / loss (red) streak segments across each player's career, left = earliest</div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
+      key: "ratingsmultiples",
+      cat: "elo",
+      title: "🔬 Ratings Small Multiples",
+      body: (() => {
+        const hist = _activeHistory();
+        const names = playersByMatches.filter((n) => (hist[n] || []).length >= 3).slice(0, 16);
+        if (!names.length) return '<div class="sub" style="padding:8px">Need more match history.</div>';
+        const W = 100, H = 40, PAD = 3;
+        const cards = names
+          .map((n) => {
+            const h = hist[n];
+            const vals = h.map((pt) => pt.elo);
+            const min = Math.min(...vals), max = Math.max(...vals);
+            const range = Math.max(max - min, 1);
+            const pts = vals
+              .map((v, i) => {
+                const x = PAD + (i / Math.max(vals.length - 1, 1)) * (W - PAD * 2);
+                const y = H - PAD - ((v - min) / range) * (H - PAD * 2);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+              })
+              .join(" ");
+            const last = vals[vals.length - 1], first = vals[0];
+            const col = last >= first ? "#36d47e" : "#f04f4f";
+            return `<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:6px">
+              <div style="font-size:9px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(n.split(" ")[0])}</div>
+              <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2"/></svg>
+              <div style="font-size:9px;color:var(--muted);text-align:right">${Math.round(last)}</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cards}</div></div>`;
+      })(),
+    },
+    {
+      key: "rollingwinpct",
+      cat: "players",
+      title: "📈 Rolling Form (10-match)",
+      body: (() => {
+        const names = playersByMatches
+          .filter((n) => sortedM.filter((m) => (m.teamA || []).includes(n) || (m.teamB || []).includes(n)).length >= 10)
+          .slice(0, 6);
+        if (!names.length) return '<div class="sub" style="padding:8px">Need players with 10+ matches.</div>';
+        const W = 300, H = 160, PAD = 20;
+        const series = names.map((n) => ({ name: n, pts: rollingWinPct(sortedM, n, 10) }));
+        const maxLen = Math.max(...series.map((s) => s.pts.length));
+        const midY = H - PAD - (50 / 100) * (H - PAD * 2);
+        const lines = series
+          .map((s) => {
+            const pts = s.pts
+              .map((p, i) => {
+                const x = PAD + (i / Math.max(maxLen - 1, 1)) * (W - PAD * 2);
+                const y = H - PAD - (p.pct / 100) * (H - PAD * 2);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+              })
+              .join(" ");
+            return `<polyline points="${pts}" fill="none" stroke="${playerColor(s.name)}" stroke-width="1.8" opacity="0.85"/>`;
+          })
+          .join("");
+        const legend = names
+          .map(
+            (n) =>
+              `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);margin-right:8px"><span style="width:8px;height:8px;border-radius:50%;background:${playerColor(n)};display:inline-block"></span>${escHtml(n.split(" ")[0])}</span>`,
+          )
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% over a trailing 10-match window, top 6 most-active players</div>
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
+            <line x1="${PAD}" y1="${midY.toFixed(1)}" x2="${W - PAD}" y2="${midY.toFixed(1)}" stroke="rgba(255,255,255,0.1)" stroke-dasharray="3 3"/>
+            ${lines}
+          </svg>
+          <div style="margin-top:6px">${legend}</div>
+        </div>`;
+      })(),
+    },
+    {
+      key: "marginscatter",
+      cat: "records",
+      title: "🔵 Margin Scatter",
+      body: (() => {
+        if (sortedM.length < 5) return '<div class="sub" style="padding:8px">Need more matches.</div>';
+        const W = 300, H = 150, PAD = 22;
+        const margins = sortedM.map((m) => Math.abs(m.scoreA - m.scoreB));
+        const maxM = Math.max(...margins, 1);
+        const dots = sortedM
+          .map((m, i) => {
+            const x = PAD + (i / Math.max(sortedM.length - 1, 1)) * (W - PAD * 2);
+            const margin = Math.abs(m.scoreA - m.scoreB);
+            const y = H - PAD - (margin / maxM) * (H - PAD * 2);
+            const col = margin <= 1 ? "#36d47e" : margin >= 4 ? "#f04f4f" : "#f5c842";
+            return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="${col}" opacity="0.75"><title>${fmtDate(m.date)}: ${Math.max(m.scoreA, m.scoreB)}-${Math.min(m.scoreA, m.scoreB)}</title></circle>`;
+          })
+          .join("");
+        const winSize = 15;
+        const trendPts = sortedM
+          .map((_, i) => {
+            const slice = margins.slice(Math.max(0, i - winSize + 1), i + 1);
+            const avg = slice.reduce((s, v) => s + v, 0) / slice.length;
+            const x = PAD + (i / Math.max(sortedM.length - 1, 1)) * (W - PAD * 2);
+            const y = H - PAD - (avg / maxM) * (H - PAD * 2);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          })
+          .join(" ");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Every match's margin over time (green ≤1, gold 2-3, red ≥4) with a 15-match trend line</div>
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
+            ${dots}
+            <polyline points="${trendPts}" fill="none" stroke="rgba(var(--theme-rgb),0.9)" stroke-width="1.6"/>
+          </svg>
+        </div>`;
+      })(),
+    },
+    {
+      key: "waterfall",
+      cat: "players",
+      title: "🌊 Rating Waterfall",
+      body: (() => {
+        const histAll = _activeHistory();
+        const names = playersByMatches.filter((n) => (histAll[n] || []).length >= 5);
+        if (!names.length) return '<div class="sub" style="padding:8px">Need more match history.</div>';
+        const opts = names.map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <select id="waterfall-player-sel" onchange="window._renderWaterfall(this.value)" class="hist-select compact-select" style="width:100%;margin-bottom:10px">${opts}</select>
+          <div id="waterfall-body">${_buildWaterfallHtml(names[0])}</div>
+        </div>`;
+      })(),
     },
   ];
 

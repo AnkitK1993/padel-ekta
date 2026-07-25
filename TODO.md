@@ -1,159 +1,172 @@
-# Padel Tracker — Feature & Enhancement Backlog
+# Padel Ekta — Feature Roadmap
 
 ---
 
-## 1. STATISTICS PAGE — Enhancements to Existing Sections
+## 📊 New Graphs / Visualizations (1–22)
 
-### 1a. Player Stats Table (main leaderboard section)
+1. **Rating distribution histogram** — bell-curve of all players' ASS/ELO scores, with each player's avatar marked on the curve. Shows how tight or spread the league is.
 
-- [x] Add **Avg Games Scored** column — total games scored ÷ matches played
-- [x] Add **Shutout Rate** column — % of wins that were clean-sheet (opponent scored 0)
-- [x] Add **Partner Diversity** column — count of unique partners played with
-- [x] Add **Avg Margin** column — average winning/losing margin per match (signed)
+2. **League competitiveness over time** — line chart of the rating spread (std-dev between players) per month. Answers "is the group getting closer or is one player running away?"
 
-### 1b. Partnerships Table
+3. **Animated bar-chart race** — ratings (or total wins) animating month by month from the first match to today. Very shareable.
 
-- [x] Show **top 10 pairs** (currently shows only the best pair as a callout)
-- [x] Add **current win streak** per pair
-- [x] Add **"Against Quality"** column — average ELO of opponents they've faced together
-- [x] Add **total games played together** alongside win/loss count
+4. **Activity stacked-area chart** — matches per player per month, stacked. Shows who's playing more/less over time and total group volume.
 
-### 1c. Monthly Stats
+5. **Global partner network graph** — force-directed web of who plays with whom; edge thickness = matches together, edge color = win% together. The whole group's chemistry on one screen.
 
-- [x] Add **"Player of the Month"** callout per month (highest win rate, min 5 matches)
-- [x] Add **trend arrow** next to each player (↑ improving / ↓ declining vs previous month)
-- [x] Colour-code cells by win rate (dark green ≥ 70%, amber 40–69%, red < 40%)
+6. **Favourite-wins curve** — win% of the higher-rated team bucketed by rating gap (0–25, 25–50, 50–100, 100+). Tells you how predictive the rating system actually is.
 
-### 1d. Score Distribution
+7. **Head-to-head matrix heatmap** — grid of every player vs every player as opponents, cell color = win%. One-glance nemesis map.
 
-- [x] Add **most common winning score** callout ("4-2 is the most common result")
-- [x] Add **average margin** stat
-- [x] Replace plain list with a **horizontal bar chart** showing relative frequencies
+8. **Margin-of-victory histogram** — global distribution of scorelines (6-0, 6-1, … 7-6). How often are matches blowouts vs nail-biters?
 
-### 1e. Clutch Performance Table
+9. **Fatigue curve** — win% and avg games won by Nth match of the day (1st match vs 4th match of a session). Who starts hot, who fades?
 
-- [x] Add **"Anti-Clutch"** bottom section — worst performers in close matches
-- [x] Show explicit **close-match W–L record** alongside the %, not just %
-- [x] Add a minimum-match filter control (currently hard-coded at ≥ 3)
+10. **Form vs Class quadrant scatter** — X-axis all-time rating, Y-axis last-10-match form. Four quadrants: In-form stars / Sleeping giants / Overperformers / Struggling.
 
-### 1f. H2H Matrix
+11. **Year-at-a-glance heatmap** — GitHub-style 365-day grid colored by matches played per day, with streak counts.
 
-- [x] **Colour-code cells** by win rate — green > 60%, red < 40%, neutral 40–60%
-- [x] **Tap a row** to highlight all cells in that row (dim others)
-- [x] Show **total matches** in each cell as a subscript alongside the W–L
+12. **Multi-player compare** — pick 3–4 players, see overlaid radar + side-by-side stat columns (current H2H deep-dive only does 2).
 
-### 1g. Form Table (last 10 matches per player)
+13. **Nemesis & Bunny board** — for every player: the opponent they lose to most (nemesis) and beat most (bunny), as a fun leaderboard card.
 
-- [x] Add a **trend sparkline** mini-chart alongside the W/L dots (already computed in `getFormSparkline`)
-- [x] Add **current streak count** badge at end of each row
+14. **Fair Match Generator** — standalone tool: select any 4+ present players, it proposes the most balanced 2v2 pairings ranked by predicted closeness (live session has auto-balance, but nothing usable outside a session).
 
-### 1h. Consistency Rankings
+15. **Underdog leaderboard** — who wins most often when their team is rated lower. "Giant-killer" ranking.
 
-- [x] Add **"Most Volatile"** bottom section (highest std-dev = most unpredictable player)
-- [x] Show the actual std-dev value alongside the rank
+16. **Partner loyalty stats** — % of matches each player plays with their most frequent partner; most loyal duo vs biggest "floaters."
 
-### 1i. Quality Wins
+17. **Hall of Fame / All-time records page** — global one-stop card: biggest win ever, longest win streak ever, most matches in a day, highest rating ever reached, longest rivalry, fastest climb in 30 days, etc.
 
-- [x] Add **"Hardest Win"** callout — single match with highest combined opponent ELO
-- [x] Show average opponent ELO rather than just a ranking
+18. **Milestone timeline** — vertical scrolling history of the group: first match ever, 100th match, first 6-0, each player's debut, record days. The group's story.
+
+19. **Attendance streaks** — consecutive-sessions-attended leaderboard, with current streak and record streak per player.
+
+20. **Season MVP auto-award** — configurable weighted formula (rating gain 40% + win% 30% + attendance 20% + upsets 10%) that crowns an MVP per season/month automatically.
+
+21. **Global badge gallery** — one page showing every badge/achievement in the system and which players hold each (currently badges only visible inside each player's modal).
+
+22. **Clutch leaderboard** — ranking by performance in tight matches only (decided by ≤2 games), separating pressure players from flat-track bullies.
 
 ---
 
-## 2. STATISTICS PAGE — New Sections
+## 🔧 Admin / Data Management (23–30)
 
-- [x] **Peak ELO Tracker** — Table: Player | Peak ELO | Date Achieved | Current ELO | Delta from Peak
-- [x] **Day-of-Week Analysis** — Win rate per player broken down by Mon/Tue/Wed etc. (grid table)
-- [x] **Score Margin Trend** — Line chart of average match margin per month — shows if competition is getting tighter or more one-sided over time
-- [x] **Partner Chemistry Rankings** — For each player: their best, worst, and most-played partners with win rates (expandable per player)
-- [x] **Dominance Index** — Number of distinct opponents beaten at least once; who has the widest range of wins
-- [x] **Most One-Sided Rivalries** — Team matchups with ≥ 3 meetings where one team has won all or nearly all (e.g. "Ankit+Sachin vs Ojo+Mahi — 6W 0L")
-- [x] **Score Heatmap Grid** — Visual grid where rows = games scored, cols = games conceded; each cell shows how often that exact score occurred (e.g. 4-0, 4-1, 4-2, 3-4 etc.)
-- [x] **Longest Absence / Active Streak** — "Ankit has played in every session for the last N weeks" or "Ojo last played X days ago"
+23. **Data Health Check card** — scans for duplicate matches (same teams+score+date), impossible scores, orphaned aliases, unused guests; shows issues with one-tap fixes. Fits perfectly in the new Manage tab.
 
----
+24. **Player Merge tool** — merge two roster entries (e.g. "Ram" and "RaM" typo duplicates), rewriting all match history to the surviving name.
 
-## 3. MATCH CARD POPUP — Enhancements
+25. **Backup health dashboard** — one card: last email backup, last Drive backup, data size trend sparkline, green/amber/red status. Replaces scattered status text.
 
-Currently shows: date, teams, scores, pre-match rank + ELO + level, team H2H, individual 4-player cross-records, ELO deltas, event badges, match note.
+26. **Restore diff preview** — before restoring a Drive backup, show exactly what would change (+12 matches, −2 players) instead of blind overwrite.
 
-- [x] **Match number context** — "Match #47 all-time" / "47th match in this group" shown in the date bar
-- [x] **Streak context line** — "This extended Ankit's win streak to 5" or "This ended Sachin's 3-game run"
-- [x] **Margin context** — "5th biggest winning margin by this team all-time" if noteworthy
-- [x] **ELO tier cross** — If a player crossed a tier boundary (e.g. into GOLD) with this match, show a badge: "Ankit → GOLD ★"
-- [x] **Last meeting reminder** — "Last time these teams met: 12 Mar · 4-2" (one line, under the H2H bar)
-- [x] **Relative performance indicator** — Was each team's score above or below their average? A small "above avg ↑" / "below avg ↓" tag per side
+27. **Admin audit log** — local timeline of admin actions: "added 4 matches", "deleted match", "restored from backup", with undo where possible.
+
+28. **Storage breakdown donut chart** — visual split of Firestore usage (matches / photos / roster) instead of the current text readout.
+
+29. **ASS formula editor** — expose the ASS weights (K-factor, margin bonus) as admin sliders with a live preview of how the leaderboard would reorder.
+
+30. **Season archiver** — freeze a finished season into an immutable snapshot page (final table + awards) that never recomputes.
 
 ---
 
-## 4. PLAYER DETAIL MODAL — Enhancements
+## 🎾 Gameplay Tracking (31–34)
 
-Currently shows: Form engine, Archetype, Radar (6 axes: Win Rate, ELO, Clutch, Form, Activity, Margin), Achievements, basic stats, Activity Calendar.
+31. **Court/venue tracking** — optional venue per session; win% by court, "fortress" and "away-day" stats.
 
-- [x] **Recent match log** — Last 5 matches as a mini-table: Date | Partner | Opponents | Score | ELO delta — concise and scannable
-- [x] **vs. All Opponents breakdown** — Collapsible table: one row per opponent, showing W–L record and avg margin vs them specifically
-- [x] **All Partners ranked** — Collapsible table: every partner played with, sorted by win rate, showing games played together
-- [x] **Personal Records section** — "Career Highs": biggest win margin, worst loss, longest streak, best month win%, highest ELO ever, most matches in a single day
-- [x] **ELO mini-timeline** — A small version of the existing ELO Timeline chart embedded in the modal (last 20 matches), so the player's rating arc is visible without leaving the modal
-- [x] **Monthly win-rate sparkline** — Small 6-month bar or line chart showing month-by-month win rate trend
-- [x] **Strengths / Weaknesses tags** — 2–3 auto-generated tags from archetype + stats (e.g. "Clutch performer", "Best with Sachin", "Struggles vs Ojo")
+32. **Match tags & notes** — tag matches (friendly / tournament / decider), filter every page by tag.
+
+33. **Session photo gallery** — attach photos to a session date, browsable gallery in History.
+
+34. **Time-of-day tracking** — optional match time; morning vs evening performance splits.
 
 ---
 
-## 5. Quick Wins
+## 🎉 Engagement (35–40)
 
-- [x] **Match notes field in Add Match modal** — free-text box saved with each match (the `m.note` field exists in the data model; just add the UI input)
-- [x] **"Jump to date" button on History page** — tap a date chip to scroll to that date in the match list
-- [x] **Long-press match card** → quick-action sheet (Share, Edit, Delete) on History page
+35. **TV / Kiosk mode** — fullscreen auto-rotating dashboard (leaderboard → today's results → form) for a phone propped up courtside.
 
----
+36. **Prediction league** — players predict winners before a session; prediction-accuracy leaderboard.
 
-_All items complete._
+37. **Weekly push digest** — one push notification per week: mover of the week, streaks, next session.
 
----
+38. **QR share card** — generate a QR code opening a read-only snapshot of today's standings for the group chat.
 
-## Known structural limits & deferred engineering
+39. **Voice score entry** — dictate "Ankit Puneet beat Ram Raghav six four" → parsed and previewed.
 
-These are not features — they're scaling/quality items to tackle when warranted.
-
-- **Firestore single-doc ceiling.** All matches live in one document, `padel/main`.
-  Firestore's hard limit is **1 MiB per document**. `_checkDocSize()` already warns
-  as it approaches, but at a few thousand matches this will need **sharding**
-  (e.g. one doc per season/year, or a `matches` subcollection). Until then the
-  single doc keeps reads/writes simple and atomic. Watch the `#doc-size-readout`
-  in Manage → Data.
-
-- **CSS audit (`styles.css` ≈ 17k lines / 382 KB, 868 `!important`).** The
-  `css:coverage` script's "review" bucket (~1,200) is mostly false positives
-  (dynamic/pseudo/attribute selectors built in JS template strings), so there is
-  **no safe automated trim** — it needs a manual pass with real-browser coverage
-  capture across every page/modal state to avoid visual regressions. The high
-  `!important` count is the bigger maintainability cost and should be unwound
-  gradually as sections are touched.
-
-- **app.js code-splitting.** External libs (html2canvas, emailjs) now load on
-  demand. Moving the big in-file subsystems (`renderAnalyticsPage` ~3k lines,
-  `openPlayerDetail`) into dynamically-imported modules is still blocked on the
-  home/compact **view-state migration** (the renderers and ~15 window handlers
-  share mutable view-state that must move to a `viewState` object first).
-
-> ⚠️ **Testing note:** the golden tests don't exercise the DOM renderers
-> (`renderAnalyticsPage`, `openPlayerDetail`). Always run `npm run test:browser`
-> after touching them — the browser smoke is the only check that catches a
-> broken render (it caught a real `players is not defined` regression).
+40. **Record-break celebrations** — when an entered match sets a record (new peak, longest streak), auto-detect and fire confetti + toast at entry time.
 
 ---
 
-## Where to find all features
+## 📈 Additional Graphs (41–45)
 
-**Live app:** https://ankitk1993.github.io/padel-ekta/
+41. **Streak Gantt timeline** — horizontal win/loss streak bars for every player on one time axis.
 
-| Feature area | Where to find it |
-|---|---|
-| Player Stats Deep Dive, Dominance Index, Partner Chemistry | **Stats page** → "Players" tab |
-| Pair Leaderboard Top 10, One-Sided Rivalries | **Stats page** → "Pairs" tab |
-| Peak ELO Tracker | **Stats page** → "ELO" tab |
-| Monthly Stats, Day-of-Week Win Rates, Score Margin Trend, Score Heatmap, Player Activity & Absence | **Stats page** → "Activity" tab |
-| H2H Matrix (row highlight, subscript totals), Form streaks, Consistency/Volatile, Quality Wins, Clutch/Anti-Clutch, Score Distribution | **Stats page** → scroll through all sections |
-| Match number, streak context, ELO tier cross, last meeting, relative performance | **Any match card** → tap to open popup |
-| Recent log, vs Opponents, All Partners, Personal Records, Sparkline, Strength tags | **Any player name** → tap to open player detail modal |
-| Jump-to-date, long-press quick-action sheet | **History page** → date input top-right / long-press any match card |
+42. **Ratings small-multiples grid** — every player's rating curve as mini sparklines on one screen.
+
+43. **Rolling 10-match win% chart** — smoothed form lines with multi-player overlay.
+
+44. **Margin scatter calendar** — every match a dot (date × margin), colored by winner; blowout eras vs tight eras at a glance.
+
+45. **Per-player waterfall chart** — the single matches that moved a player's rating most, as a waterfall from 1000 to today.
+
+---
+
+## Implementation Status
+
+- [ ] 1 — Rating distribution histogram
+- [ ] 2 — League competitiveness over time
+- [ ] 3 — Animated bar-chart race
+- [ ] 4 — Activity stacked-area chart
+- [ ] 5 — Global partner network graph
+- [ ] 6 — Favourite-wins curve
+- [ ] 7 — Head-to-head matrix heatmap
+- [ ] 8 — Margin-of-victory histogram
+- [ ] 9 — Fatigue curve
+- [ ] 10 — Form vs Class quadrant scatter
+- [ ] 11 — Year-at-a-glance heatmap
+- [ ] 12 — Multi-player compare
+- [ ] 13 — Nemesis & Bunny board
+- [ ] 14 — Fair Match Generator
+- [ ] 15 — Underdog leaderboard
+- [ ] 16 — Partner loyalty stats
+- [ ] 17 — Hall of Fame / All-time records page
+- [ ] 18 — Milestone timeline
+- [ ] 19 — Attendance streaks
+- [ ] 20 — Season MVP auto-award
+- [ ] 21 — Global badge gallery
+- [ ] 22 — Clutch leaderboard
+- [ ] 23 — Data Health Check card
+- [ ] 24 — Player Merge tool
+- [ ] 25 — Backup health dashboard
+- [ ] 26 — Restore diff preview
+- [ ] 27 — Admin audit log
+- [ ] 28 — Storage breakdown donut chart
+- [ ] 29 — ASS formula editor
+- [ ] 30 — Season archiver
+- [ ] 31 — Court/venue tracking
+- [ ] 32 — Match tags & notes
+- [ ] 33 — Session photo gallery
+- [ ] 34 — Time-of-day tracking
+- [ ] 35 — TV / Kiosk mode
+- [ ] 36 — Prediction league
+- [ ] 37 — Weekly push digest
+- [ ] 38 — QR share card
+- [ ] 39 — Voice score entry
+- [ ] 40 — Record-break celebrations
+- [ ] 41 — Streak Gantt timeline
+- [ ] 42 — Ratings small-multiples grid
+- [ ] 43 — Rolling 10-match win% chart
+- [ ] 44 — Margin scatter calendar
+- [ ] 45 — Per-player waterfall chart
+
+---
+
+## Backlog Selection
+
+Select features to implement by replying with numbers, e.g.: `1, 7, 14, 23, 35`
+
+---
+
+**Total Features:** 45  
+**Categories:** Visualizations (22) · Admin (8) · Gameplay (4) · Engagement (6) · Graphs (5)
