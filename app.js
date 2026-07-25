@@ -3554,7 +3554,7 @@ async function importFromDrive() {
       "name contains 'ekta-padel-backup' and mimeType='application/json' and trashed=false",
     );
     const resp = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,createdTime)&pageSize=20`,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,createdTime)&pageSize=10`,
       { headers: { Authorization: `Bearer ${_driveAccessToken}` } },
     );
     if (!resp.ok) {
