@@ -3045,6 +3045,82 @@ function getMomentumBadge(playerName) {
 // getHeadToHeadStats → src/engine/pairs.js
 
 // ── ADD MATCHES ────────────────────────────────────────────
+// ── VOICE SCORE ENTRY ────────────────────────────────────────
+// Converts loose spoken match phrases ("Ankit Puneet beat Ram Raghav six
+// four") into the app's own match-line grammar (P1 P2 vs P3 P4 Score-Score)
+// and drops it into the textarea. Name resolution is NOT done here — the
+// existing parseBlock/alias system already handles that when the line is
+// previewed/added, so this only has to get the grammar right.
+function _parseVoiceMatch(transcript) {
+  const NUM_WORDS = {
+    zero: 0, oh: 0, love: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+    thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+    eighteen: 18, nineteen: 19, twenty: 20,
+  };
+  const SEPARATORS = ["beat", "beats", "defeated", "def", "vs", "versus", "against", "v"];
+  const text = transcript.toLowerCase().trim().replace(/[.,!?]/g, "");
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const sepIdx = tokens.findIndex((t) => SEPARATORS.includes(t));
+  if (sepIdx < 1) return null;
+  const teamATokens = tokens.slice(0, sepIdx);
+  const rightTokens = tokens.slice(sepIdx + 1);
+
+  // Homophones ("to"→2, "for"→4) are only trusted in the trailing score
+  // window, so a name accidentally shaped like a number elsewhere is untouched.
+  const toNum = (t, allowHomophone) => {
+    if (/^\d+$/.test(t)) return parseInt(t, 10);
+    if (t in NUM_WORDS) return NUM_WORDS[t];
+    if (allowHomophone && (t === "to" || t === "too")) return 2;
+    if (allowHomophone && t === "for") return 4;
+    return null;
+  };
+  const nameTokens = rightTokens.slice();
+  const scoreTokens = [];
+  while (scoreTokens.length < 2 && nameTokens.length) {
+    const n = toNum(nameTokens[nameTokens.length - 1], true);
+    if (n == null) break;
+    scoreTokens.unshift(n);
+    nameTokens.pop();
+  }
+  if (scoreTokens.length < 2 || !teamATokens.length || !nameTokens.length) return null;
+  const titleCase = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const teamA = teamATokens.map(titleCase).join(" ");
+  const teamB = nameTokens.map(titleCase).join(" ");
+  return `${teamA} vs ${teamB} ${scoreTokens[0]}-${scoreTokens[1]}`;
+}
+window.startVoiceMatchEntry = function () {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById("voice-entry-btn");
+  if (!SR) { showToast("Voice entry isn't supported in this browser", "⚠️"); return; }
+  if (window._voiceRecognition) { window._voiceRecognition.stop(); return; }
+  const rec = new SR();
+  rec.lang = "en-US";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  window._voiceRecognition = rec;
+  if (btn) { btn.style.background = "rgba(240,80,80,0.15)"; btn.style.borderColor = "rgba(240,80,80,0.5)"; btn.style.color = "var(--red)"; btn.textContent = "🎙️ Listening… (tap to stop)"; }
+  rec.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    const line = _parseVoiceMatch(transcript);
+    const ta = document.getElementById("matchTA");
+    if (ta && line) {
+      const sep = ta.value && !ta.value.endsWith("\n") ? "\n" : "";
+      ta.value = ta.value + sep + line;
+      previewMatchImport();
+      showToast(`Heard: "${transcript}"`, "🎤");
+    } else {
+      showToast(`Couldn't parse "${transcript}" — try "P1 P2 beat P3 P4 six four"`, "⚠️");
+    }
+  };
+  rec.onerror = () => showToast("Voice entry error — try again", "⚠️");
+  rec.onend = () => {
+    window._voiceRecognition = null;
+    if (btn) { btn.style.background = "rgba(var(--theme-rgb),0.08)"; btn.style.borderColor = "rgba(var(--theme-rgb),0.35)"; btn.style.color = "var(--theme)"; btn.textContent = "🎤 Voice Entry"; }
+  };
+  try { rec.start(); } catch (e) { showToast("Could not start voice entry", "⚠️"); }
+};
+
 function previewMatchImport() {
   const raw = document.getElementById("matchTA").value;
   const box = document.getElementById("matchPreview");

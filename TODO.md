@@ -114,36 +114,36 @@
 
 ## Implementation Status
 
-- [ ] 1 — Rating distribution histogram
-- [ ] 2 — League competitiveness over time
-- [ ] 3 — Animated bar-chart race
-- [ ] 4 — Activity stacked-area chart
-- [ ] 5 — Global partner network graph
-- [ ] 6 — Favourite-wins curve
-- [ ] 7 — Head-to-head matrix heatmap
-- [ ] 8 — Margin-of-victory histogram
-- [ ] 9 — Fatigue curve
-- [ ] 10 — Form vs Class quadrant scatter
-- [ ] 11 — Year-at-a-glance heatmap
-- [ ] 12 — Multi-player compare
-- [ ] 13 — Nemesis & Bunny board
-- [ ] 14 — Fair Match Generator
-- [ ] 15 — Underdog leaderboard
-- [ ] 16 — Partner loyalty stats
-- [ ] 17 — Hall of Fame / All-time records page
-- [ ] 18 — Milestone timeline
-- [ ] 19 — Attendance streaks
-- [ ] 20 — Season MVP auto-award
-- [ ] 21 — Global badge gallery
-- [ ] 22 — Clutch leaderboard
-- [ ] 23 — Data Health Check card
-- [ ] 24 — Player Merge tool
-- [ ] 25 — Backup health dashboard
-- [ ] 26 — Restore diff preview
-- [ ] 27 — Admin audit log
-- [ ] 28 — Storage breakdown donut chart
-- [ ] 29 — ASS formula editor
-- [ ] 30 — Season archiver
+- [x] 1 — Rating distribution histogram
+- [x] 2 — League competitiveness over time
+- [x] 3 — Animated bar-chart race
+- [x] 4 — Activity stacked-area chart
+- [x] 5 — Global partner network graph (circular layout, not a physics force-directed sim)
+- [x] 6 — Favourite-wins curve
+- [x] 7 — Head-to-head matrix heatmap (already existed — Stats → Players tab)
+- [x] 8 — Margin-of-victory histogram
+- [x] 9 — Fatigue curve
+- [x] 10 — Form vs Class quadrant scatter
+- [x] 11 — Year-at-a-glance heatmap (already existed — Activity Calendar)
+- [x] 12 — Multi-player compare
+- [x] 13 — Nemesis & Bunny board
+- [x] 14 — Fair Match Generator
+- [x] 15 — Underdog leaderboard
+- [x] 16 — Partner loyalty stats
+- [x] 17 — Hall of Fame / All-time records page
+- [x] 18 — Milestone timeline
+- [x] 19 — Attendance streaks
+- [x] 20 — Season MVP auto-award (weighted formula, sits alongside the ASS-ranked MVP)
+- [x] 21 — Global badge gallery
+- [x] 22 — Clutch leaderboard (already existed — Quality Wins / Anti-Clutch)
+- [x] 23 — Data Health Check card
+- [x] 24 — Player Merge tool
+- [x] 25 — Backup health dashboard
+- [x] 26 — Restore diff preview
+- [x] 27 — Admin audit log
+- [x] 28 — Storage breakdown donut chart
+- [x] 29 — ASS formula editor (sandbox preview only, doesn't alter live scoring)
+- [x] 30 — Season archiver
 - [ ] 31 — Court/venue tracking
 - [ ] 32 — Match tags & notes
 - [ ] 33 — Session photo gallery
@@ -152,13 +152,13 @@
 - [ ] 36 — Prediction league
 - [ ] 37 — Weekly push digest
 - [ ] 38 — QR share card
-- [ ] 39 — Voice score entry
-- [ ] 40 — Record-break celebrations
-- [ ] 41 — Streak Gantt timeline
-- [ ] 42 — Ratings small-multiples grid
-- [ ] 43 — Rolling 10-match win% chart
-- [ ] 44 — Margin scatter calendar
-- [ ] 45 — Per-player waterfall chart
+- [x] 39 — Voice score entry
+- [x] 40 — Record-break celebrations
+- [x] 41 — Streak Gantt timeline
+- [x] 42 — Ratings small-multiples grid
+- [x] 43 — Rolling 10-match win% chart
+- [x] 44 — Margin scatter calendar
+- [x] 45 — Per-player waterfall chart
 
 ---
 
