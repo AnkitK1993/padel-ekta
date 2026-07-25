@@ -2534,7 +2534,290 @@ function refreshManage() {
   renderTrash();
   renderEloConfigCard();
   _checkDocSize(_buildCloudPayload());
+  renderBackupHealthCard();
+  renderStorageBreakdownCard();
+  renderPlayerMergeCard();
+  renderASSFormulaCard();
+  renderAuditLogCard();
 }
+
+// ── ADMIN AUDIT LOG ──────────────────────────────────────────
+// Lightweight local log of admin mutations — not a full undo history, just
+// a "what happened and when" trail for the Manage tab.
+const ADMIN_LOG_KEY = "padel_admin_audit_log";
+function logAdminAction(action, detail) {
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || []; } catch (e) {}
+  log.unshift({ action, detail, at: new Date().toISOString() });
+  if (log.length > 100) log.length = 100;
+  try { localStorage.setItem(ADMIN_LOG_KEY, JSON.stringify(log)); } catch (e) {}
+}
+function renderAuditLogCard() {
+  const el = document.getElementById("audit-log-body");
+  if (!el) return;
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || []; } catch (e) {}
+  if (!log.length) {
+    el.innerHTML = '<div class="sub" style="padding:8px">No admin actions logged yet.</div>';
+    return;
+  }
+  const rows = log
+    .slice(0, 20)
+    .map((e) => {
+      const d = new Date(e.at);
+      const when = isNaN(d) ? "" : d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      return `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="font-size:10px;flex:1"><b>${escHtml(e.action)}</b> ${escHtml(e.detail || "")}</div>
+        <div style="font-size:9px;color:var(--muted);flex-shrink:0">${when}</div>
+      </div>`;
+    })
+    .join("");
+  el.innerHTML = rows;
+}
+
+// ── BACKUP HEALTH DASHBOARD ──────────────────────────────────
+function renderBackupHealthCard() {
+  const el = document.getElementById("backup-health-body");
+  if (!el) return;
+  const emailDate = localStorage.getItem("padel_last_backup");
+  const driveDate = localStorage.getItem(_DRIVE_BACKUP_KEY);
+  const today = todayISO();
+  const daysSince = (d) => (d ? Math.round((new Date(today) - new Date(d)) / 86400000) : null);
+  const statusOf = (days) =>
+    days == null
+      ? { col: "var(--red)", label: "Never" }
+      : days === 0
+        ? { col: "var(--green)", label: "Today" }
+        : days <= 3
+          ? { col: "var(--gold)", label: `${days}d ago` }
+          : { col: "var(--red)", label: `${days}d ago` };
+  const eStat = statusOf(daysSince(emailDate));
+  const dStat = statusOf(daysSince(driveDate));
+  const kb = window._docSizeKB || 0;
+  const row = (icon, label, stat) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+    <span style="font-size:16px">${icon}</span>
+    <span style="flex:1;font-size:11px;font-weight:700">${label}</span>
+    <span style="width:8px;height:8px;border-radius:50%;background:${stat.col};flex-shrink:0"></span>
+    <span style="font-size:10px;font-weight:800;color:${stat.col};width:52px;text-align:right">${stat.label}</span>
+  </div>`;
+  el.innerHTML =
+    row("📧", "Email Backup", eStat) +
+    row("☁️", "Drive Backup", dStat) +
+    `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:10px;color:var(--muted)"><span>Cloud doc size</span><span>${kb} KB</span></div>`;
+}
+
+// ── STORAGE BREAKDOWN DONUT ──────────────────────────────────
+function renderStorageBreakdownCard() {
+  const el = document.getElementById("storage-breakdown-body");
+  if (!el) return;
+  const payload = _buildCloudPayload();
+  const sizeOf = (v) => { try { return new Blob([JSON.stringify(v)]).size; } catch (e) { return 0; } };
+  const parts = [
+    { label: "Matches", bytes: sizeOf(payload.matches), col: "#5cd0ff" },
+    { label: "Players", bytes: sizeOf(payload.players) + sizeOf(payload.playerAliasMap), col: "#a78bfa" },
+    { label: "Seasons", bytes: sizeOf(payload.seasons), col: "#f5c842" },
+    { label: "Photos", bytes: sizeOf(photoMap), col: "#ff7a3d" },
+  ].filter((p) => p.bytes > 0);
+  if (!parts.length) { el.innerHTML = '<div class="sub" style="padding:8px">No data yet.</div>'; return; }
+  const total = parts.reduce((s, p) => s + p.bytes, 0) || 1;
+  let offset = 0;
+  const R = 34, C = 2 * Math.PI * R;
+  const segs = parts
+    .map((p) => {
+      const len = (p.bytes / total) * C;
+      const seg = `<circle cx="42" cy="42" r="${R}" fill="none" stroke="${p.col}" stroke-width="14" stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}" transform="rotate(-90 42 42)"/>`;
+      offset += len;
+      return seg;
+    })
+    .join("");
+  const legend = parts
+    .map((p) => `<div style="display:flex;align-items:center;gap:6px;font-size:10px;padding:3px 0"><span style="width:9px;height:9px;border-radius:2px;background:${p.col};flex-shrink:0"></span><span style="flex:1">${p.label}</span><span style="color:var(--muted)">${Math.round(p.bytes / 1024)} KB</span></div>`)
+    .join("");
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:14px">
+    <svg width="84" height="84" viewBox="0 0 84 84" style="flex-shrink:0">${segs}</svg>
+    <div style="flex:1">${legend}</div>
+  </div>
+  <div style="text-align:center;font-size:9px;color:var(--muted);margin-top:6px">${Math.round(total / 1024)} KB total</div>`;
+}
+
+// ── DATA HEALTH CHECK ────────────────────────────────────────
+window.runDataHealthCheck = function () {
+  const el = document.getElementById("data-health-body");
+  if (!el) return;
+  const issues = [];
+  const seen = new Map();
+  state.matches.forEach((m, i) => {
+    const key = _mkMatchKey(m);
+    if (seen.has(key)) {
+      issues.push({ type: "dup", msg: `Duplicate: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`, idx: i });
+    } else seen.set(key, i);
+  });
+  state.matches.forEach((m, i) => {
+    const a = Number(m.scoreA), b = Number(m.scoreB);
+    if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) {
+      issues.push({ type: "score", msg: `Bad score ${m.scoreA}-${m.scoreB}: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`, idx: i });
+    }
+  });
+  const playedNames = new Set();
+  state.matches.forEach((m) => [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => playedNames.add(p)));
+  Object.values(state.players).forEach((p) => {
+    if (!p.isGuest && !playedNames.has(p.name)) {
+      issues.push({ type: "orphan", msg: `${p.name} is in the roster but has 0 matches`, idx: null });
+    }
+  });
+  if (!issues.length) {
+    el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--green);font-size:12px;font-weight:700">✅ No issues found</div>`;
+    return;
+  }
+  const rows = issues
+    .slice(0, 20)
+    .map(
+      (iss) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:14px;flex-shrink:0">${iss.type === "dup" ? "🧬" : iss.type === "score" ? "⚠️" : "👻"}</span>
+        <span style="flex:1;font-size:10px">${escHtml(iss.msg)}</span>
+        ${iss.idx != null ? `<button onclick="deleteMatchByIndex(${iss.idx});runDataHealthCheck()" style="font-size:9px;padding:3px 7px;border-radius:6px;border:1px solid rgba(240,80,80,0.4);background:rgba(240,80,80,0.1);color:var(--red);cursor:pointer;flex-shrink:0">Delete</button>` : ""}
+      </div>`,
+    )
+    .join("");
+  el.innerHTML = `<div style="font-size:10px;color:var(--muted);margin-bottom:6px">${issues.length} issue(s) found</div>${rows}`;
+};
+
+// ── PLAYER MERGE TOOL ─────────────────────────────────────────
+function renderPlayerMergeCard() {
+  const el = document.getElementById("player-merge-body");
+  if (!el) return;
+  const names = Object.values(state.players).map((p) => p.name).sort();
+  if (names.length < 2) { el.innerHTML = '<div class="sub" style="padding:8px">Need at least 2 players.</div>'; return; }
+  const opts = names.map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
+  el.innerHTML = `
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Merge a duplicate player into another — rewrites all match history, then removes the duplicate from the roster.</div>
+    <select id="merge-from-sel" class="hist-select compact-select" style="width:100%;margin-bottom:6px"><option value="">Merge this player…</option>${opts}</select>
+    <select id="merge-into-sel" class="hist-select compact-select" style="width:100%;margin-bottom:8px"><option value="">…into this player</option>${opts}</select>
+    <button class="btn-danger" onclick="mergePlayers()" style="width:100%">🔗 Merge</button>
+    <div id="merge-msg" class="msg" style="margin-top:6px"></div>`;
+}
+window.mergePlayers = function () {
+  const fromName = document.getElementById("merge-from-sel")?.value;
+  const intoName = document.getElementById("merge-into-sel")?.value;
+  const msgEl = document.getElementById("merge-msg");
+  if (!fromName || !intoName || fromName === intoName) {
+    if (msgEl) { msgEl.textContent = "Pick two different players."; msgEl.className = "msg err show"; }
+    return;
+  }
+  if (!window.confirm(`Merge "${fromName}" into "${intoName}"? This rewrites all match history and cannot be undone.`)) return;
+  let rewritten = 0;
+  state.matches.forEach((m) => {
+    let changed = false;
+    m.teamA = (m.teamA || []).map((p) => { if (p === fromName) { changed = true; return intoName; } return p; });
+    m.teamB = (m.teamB || []).map((p) => { if (p === fromName) { changed = true; return intoName; } return p; });
+    if (changed) rewritten++;
+  });
+  deletedMatches.forEach((m) => {
+    m.teamA = (m.teamA || []).map((p) => (p === fromName ? intoName : p));
+    m.teamB = (m.teamB || []).map((p) => (p === fromName ? intoName : p));
+  });
+  const fromEntry = Object.entries(state.players).find(([, p]) => p.name === fromName);
+  if (fromEntry) {
+    const [fromId] = fromEntry;
+    delete state.players[fromId];
+    delete playerAliasMap[fromId];
+  }
+  rebuildNameMaps();
+  logAdminAction("Merge Players", `${fromName} → ${intoName} (${rewritten} matches)`);
+  saveCloudData();
+  commit();
+  refreshManage();
+  renderNamesTable();
+  if (msgEl) { msgEl.textContent = `Merged — ${rewritten} match(es) rewritten.`; msgEl.className = "msg ok show"; }
+};
+
+// ── ASS FORMULA EDITOR (sandbox preview only — does not alter live scoring) ──
+function _previewASS(matches, params) {
+  const { marginWeight, baseWeight, multClampMin, multClampMax, partnerTaxWeight } = params;
+  const elo = {}, ass = {};
+  [...matches]
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((m) => {
+      const allP = [...(m.teamA || []), ...(m.teamB || [])];
+      allP.forEach((p) => { if (!(p in elo)) elo[p] = 1000; if (!(p in ass)) ass[p] = 1000; });
+      const margin = Math.abs(m.scoreA - m.scoreB);
+      const total = m.scoreA + m.scoreB;
+      const quality = marginWeight * margin + baseWeight * total;
+      const aWon = m.scoreA > m.scoreB;
+      const avgEloA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgEloB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+      const expA = 1 / (1 + Math.pow(10, (avgEloB - avgEloA) / 400));
+      const eloDA = Math.round(32 * ((aWon ? 1 : 0) - expA));
+      const eloDB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+      m.teamA.forEach((p) => {
+        const partner = m.teamA.find((pp) => pp !== p);
+        const partnerElo = partner ? elo[partner] : elo[p];
+        const mult = Math.max(multClampMin, Math.min(multClampMax, 1 + (avgEloB - elo[p]) / 400 - partnerTaxWeight * (partnerElo - elo[p]) / 400));
+        ass[p] += aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+      });
+      m.teamB.forEach((p) => {
+        const partner = m.teamB.find((pp) => pp !== p);
+        const partnerElo = partner ? elo[partner] : elo[p];
+        const mult = Math.max(multClampMin, Math.min(multClampMax, 1 + (avgEloA - elo[p]) / 400 - partnerTaxWeight * (partnerElo - elo[p]) / 400));
+        ass[p] += !aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+      });
+      m.teamA.forEach((p) => { elo[p] += eloDA; });
+      m.teamB.forEach((p) => { elo[p] += eloDB; });
+    });
+  return ass;
+}
+function _assCfgRow(id, label, val, min, max, step) {
+  return `<div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:3px">${label}</div>
+    <input id="${id}" type="number" value="${val}" min="${min}" max="${max}" step="${step}" class="mei-input" style="width:100%">
+  </div>`;
+}
+function renderASSFormulaCard() {
+  const el = document.getElementById("ass-formula-config");
+  if (!el) return;
+  el.innerHTML = `
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Sandbox only — adjust weights to preview how the leaderboard would reorder. Doesn't change the live ASS system.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      ${_assCfgRow("assf-margin", "MARGIN WEIGHT", 4, 0, 10, 0.5)}
+      ${_assCfgRow("assf-base", "GAME-COUNT WEIGHT", 1, 0, 3, 0.1)}
+      ${_assCfgRow("assf-clampmin", "MULT CLAMP MIN", 0.5, 0.1, 1, 0.1)}
+      ${_assCfgRow("assf-clampmax", "MULT CLAMP MAX", 2.0, 1, 4, 0.1)}
+    </div>
+    <button onclick="previewASSFormula()" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.12);color:var(--theme);font-weight:700;font-size:11px;cursor:pointer">Preview Leaderboard</button>
+    <div id="ass-formula-preview" style="margin-top:10px"></div>`;
+}
+window.previewASSFormula = function () {
+  const el = document.getElementById("ass-formula-preview");
+  if (!el) return;
+  const params = {
+    marginWeight: parseFloat(document.getElementById("assf-margin")?.value) || 4,
+    baseWeight: parseFloat(document.getElementById("assf-base")?.value) || 0,
+    multClampMin: parseFloat(document.getElementById("assf-clampmin")?.value) || 0.5,
+    multClampMax: parseFloat(document.getElementById("assf-clampmax")?.value) || 2.0,
+    partnerTaxWeight: 0.5,
+  };
+  const am2 = activeMatches();
+  const currentAss = computeASS(am2);
+  const previewAss = _previewASS(am2, params);
+  const currentRank = Object.entries(currentAss).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const previewRanked = Object.entries(previewAss).sort((a, b) => b[1] - a[1]);
+  const rows = previewRanked
+    .slice(0, 12)
+    .map(([name, score], i) => {
+      const oldRank = currentRank.indexOf(name) + 1;
+      const newRank = i + 1;
+      const diff = oldRank - newRank;
+      const arrow = diff > 0 ? `<span style="color:var(--green)">▲${diff}</span>` : diff < 0 ? `<span style="color:var(--red)">▼${Math.abs(diff)}</span>` : `<span style="color:var(--muted)">–</span>`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="width:22px;font-size:10px;color:var(--muted)">#${newRank}</div>
+        <div style="flex:1;font-size:11px;font-weight:700">${escHtml(name)}</div>
+        <div style="font-size:11px;font-weight:800;color:var(--theme)">${Math.round(score)}</div>
+        <div style="font-size:10px;width:32px;text-align:right">${arrow}</div>
+      </div>`;
+    })
+    .join("");
+  el.innerHTML = `<div style="font-size:9px;color:var(--muted);margin-bottom:6px">Preview vs current ASS ranking</div>${rows}`;
+};
 
 // ── DATE HELPERS ───────────────────────────────────────────
 // todayISO/weekISO/weekendRange/monthISO/lastWeekRange → ./src/engine/dates.js
@@ -3208,6 +3491,7 @@ function toggleBatterySaver(on) {
 
 function clearMatches() {
   if (!confirm("Clear all match data?")) return;
+  logAdminAction("Clear Matches", `${state.matches.length} matches removed`);
   state.matches = [];
   lastMatchSnapshot = null;
   document.getElementById("undoAddBtn").style.display = "none";
@@ -3217,6 +3501,7 @@ function clearMatches() {
 }
 function clearNames() {
   if (!confirm("Clear all players?")) return;
+  logAdminAction("Clear Aliases", `${Object.keys(state.players).length} players removed`);
   state.players = {};
   playerAliasMap = {};
   nextPlayerId = 1;
@@ -3339,6 +3624,7 @@ async function backupToDrive() {
     const link = await _uploadToDrive(blob, filename);
     // Retain the newest backup per day for the last 7 days (prunes same-day dups).
     _pruneDriveBackups(7).catch(() => {});
+    logAdminAction("Drive Backup", filename);
     showToast("Saved to Drive!", "✅");
     const el = document.getElementById("expOk");
     if (el) {
@@ -3502,13 +3788,76 @@ function _applyImportedData(data) {
     return false;
   }
   const skipped = incomingMatches.length - newMatches.length;
-  const seasonCount = Array.isArray(data.seasons) ? data.seasons.length : 0;
-  const msg =
-    `Merge: ${newMatches.length} new match${newMatches.length !== 1 ? "es" : ""} will be added` +
-    (skipped ? ` (${skipped} duplicate${skipped !== 1 ? "s" : ""} skipped)` : "") +
-    (seasonCount ? `, ${seasonCount} season${seasonCount !== 1 ? "s" : ""} merged` : "") +
-    ". Continue?";
-  if (!window.confirm(msg)) return false;
+  const existingSeasonIds = new Set(state.seasons.map((s) => s.id));
+  const newSeasonCount = Array.isArray(data.seasons)
+    ? data.seasons.filter((s) => s.id && !existingSeasonIds.has(s.id)).length
+    : 0;
+  const knownNames = new Set(Object.values(state.players).map((p) => p.name));
+  const newPlayerNames = new Set();
+  newMatches.forEach((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      if (!knownNames.has(p)) newPlayerNames.add(p);
+    }),
+  );
+  const dates = newMatches.map((m) => m.date).filter(Boolean).sort();
+  const dateRange = dates.length
+    ? dates[0] === dates[dates.length - 1]
+      ? fmtDate(dates[0])
+      : `${fmtDate(dates[0])} – ${fmtDate(dates[dates.length - 1])}`
+    : "—";
+  _showRestoreDiffSheet({
+    newMatchCount: newMatches.length,
+    skipped,
+    newSeasonCount,
+    newPlayerNames: [...newPlayerNames],
+    dateRange,
+    data,
+  });
+  return true;
+}
+
+// Restore diff preview: shows exactly what an import would change (new
+// matches, date range, new players, seasons) before touching any data —
+// the actual merge only runs if the user taps Apply.
+function _showRestoreDiffSheet({ newMatchCount, skipped, newSeasonCount, newPlayerNames, dateRange, data }) {
+  document.getElementById("restore-diff-sheet")?.remove();
+  const sheet = document.createElement("div");
+  sheet.id = "restore-diff-sheet";
+  sheet.className = "live-sheet-wrap live-sheet-open";
+  const row = (label, val, col) =>
+    `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="font-size:11px;color:var(--muted)">${label}</span><span style="font-size:12px;font-weight:800;color:${col || "var(--text)"}">${val}</span></div>`;
+  sheet.innerHTML = `
+    <div class="live-sheet-overlay" onclick="document.getElementById('restore-diff-sheet')?.remove()"></div>
+    <div class="live-sheet">
+      <div class="live-sheet-handle"></div>
+      <div style="font-size:13px;font-weight:800;padding:4px 0 12px;letter-spacing:0.04em">📥 IMPORT PREVIEW</div>
+      ${row("New matches", `+${newMatchCount}`, "var(--green)")}
+      ${skipped ? row("Duplicates skipped", skipped) : ""}
+      ${row("Date range", escHtml(dateRange))}
+      ${newPlayerNames.length ? row("New players", `+${newPlayerNames.length} (${escHtml(newPlayerNames.slice(0, 5).join(", "))}${newPlayerNames.length > 5 ? "…" : ""})`, "var(--green)") : ""}
+      ${newSeasonCount ? row("Seasons merged", `+${newSeasonCount}`) : ""}
+      <div style="font-size:9px;color:var(--muted);margin:10px 0 4px">This merges into your existing data — nothing is deleted or overwritten.</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-s" style="flex:1" onclick="document.getElementById('restore-diff-sheet')?.remove()">Cancel</button>
+        <button class="btn-p" style="flex:1" onclick="window._commitImportDiff()">Apply Import</button>
+      </div>
+    </div>`;
+  document.body.appendChild(sheet);
+  window._pendingImportData = data;
+}
+window._commitImportDiff = function () {
+  const data = window._pendingImportData;
+  document.getElementById("restore-diff-sheet")?.remove();
+  window._pendingImportData = null;
+  if (data) _commitImportedData(data);
+};
+
+function _commitImportedData(data) {
+  const incomingMatches = data.matches || data.allMatches;
+  const existingKeys = new Set(state.matches.map(_mkMatchKey));
+  const newMatches = incomingMatches.filter(
+    (m) => !existingKeys.has(_mkMatchKey(m)),
+  );
 
   // Merge matches
   const merged = [...state.matches, ...newMatches].sort((a, b) =>
@@ -3546,6 +3895,7 @@ function _applyImportedData(data) {
   refreshManage();
   renderNamesTable();
   const added = newMatches.length;
+  logAdminAction("Import Data", `${added} matches added`);
   showToast(
     `Import complete: ${added} match${added !== 1 ? "es" : ""} added.`,
     "✅",
@@ -6230,6 +6580,7 @@ function _removeMatchFromTA(m) {
 function deleteMatchByIndex(i) {
   const removed = state.matches.splice(i, 1)[0];
   if (!removed) return;
+  logAdminAction("Delete Match", `${(removed.teamA || []).join("/")} vs ${(removed.teamB || []).join("/")} on ${fmtDate(removed.date)}`);
   removed.deletedAt = todayISO();
   deletedMatches.unshift(removed);
   _removeMatchFromTA(removed);
@@ -6251,6 +6602,7 @@ function deleteMatchByIndex(i) {
 function restoreMatch(i) {
   const m = deletedMatches.splice(i, 1)[0];
   if (!m) return;
+  logAdminAction("Restore Match", `${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`);
   delete m.deletedAt;
   state.matches.push(m);
   saveDeletedMatches();
@@ -17244,6 +17596,8 @@ Object.assign(window, {
   closeSeasonEditor,
   saveSeasonFromEditor,
   deleteSeasonFromEditor,
+  archiveSeason,
+  viewSeasonArchive,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -19241,6 +19595,8 @@ function _renderSeasonList() {
         <span class="season-row-meta">${_seasonRangeLabel(s)} · ${cnt} match${cnt !== 1 ? "es" : ""}</span>
       </span>
       ${admin ? `<button class="season-row-edit" title="Edit" onclick="event.stopPropagation();openSeasonEditor(${jsArg(s.id)})">✏️</button>` : ""}
+      ${admin && s.end && !s.archived ? `<button class="season-row-edit" title="Archive this season" onclick="event.stopPropagation();archiveSeason(${jsArg(s.id)})">📦</button>` : ""}
+      ${s.archived ? `<button class="season-row-edit" title="View frozen snapshot" onclick="event.stopPropagation();viewSeasonArchive(${jsArg(s.id)})">🔒</button>` : ""}
     </div>`;
     })
     .join("");
@@ -19253,6 +19609,76 @@ function _renderSeasonList() {
   const adminActions = document.getElementById("season-admin-actions");
   if (adminActions) adminActions.style.display = admin ? "" : "none";
 }
+// ── SEASON ARCHIVER ───────────────────────────────────────────
+// Freezes a finished season's final table + awards into an immutable
+// snapshot stored on the season object, so re-opening it never recomputes
+// (and stays stable even if match history or scoring config changes later).
+function archiveSeason(id) {
+  if (!window.isAdmin) { showToast("Admin only", "🔒"); return; }
+  const s = state.seasons.find((x) => x.id === id);
+  if (!s) return;
+  const ms = activeMatches().filter((m) => _inSeason(s, m.date));
+  if (!ms.length) { showToast("No matches in this season", "⚠️"); return; }
+  const priorMs = s.start ? activeMatches().filter((m) => (m.date || "") < s.start) : [];
+  const awards = _periodAwards(ms, priorMs);
+  const scoreMap = _scoringMode === "ass" ? computeASS(ms) : computeElo(ms);
+  const standings = computeStats(ms, scoreMap);
+  s.archived = true;
+  s.archivedAt = todayISO();
+  s.archivedSnapshot = {
+    matches: ms.length,
+    mvp: awards.mvp ? { name: awards.mvp.name, mp: awards.mvp.mp, mw: awards.mvp.mw } : null,
+    topPair: awards.topPair ? { players: awards.topPair.players, winPct: awards.topPair.winPct } : null,
+    mostImproved: awards.mostImproved ? { name: awards.mostImproved.name } : null,
+    ironMan: awards.ironMan ? { name: awards.ironMan.name, mp: awards.ironMan.mp } : null,
+    standings: standings.slice(0, 20).map((p) => ({ name: p.name, mp: p.mp, mw: p.mw, ml: p.ml, sr: p.sr })),
+    scoringMode: _scoringMode,
+  };
+  _persistSeasons();
+  saveCloudData();
+  logAdminAction("Archive Season", s.name);
+  showToast(`${s.name} archived`, "📦");
+  _renderSeasonList();
+}
+function viewSeasonArchive(id) {
+  const s = state.seasons.find((x) => x.id === id);
+  if (!s || !s.archivedSnapshot) return;
+  const snap = s.archivedSnapshot;
+  document.getElementById("season-archive-modal")?.remove();
+  const rows = snap.standings
+    .map(
+      (p, i) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="width:20px;font-size:10px;color:var(--muted)">#${i + 1}</div>
+        <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
+        <div style="font-size:9px;color:var(--muted)">${p.mw}W-${p.ml}L</div>
+        <div style="font-size:11px;font-weight:800;color:var(--theme)">${p.sr.toFixed(2)}</div>
+      </div>`,
+    )
+    .join("");
+  const html = `<div id="season-archive-modal" style="position:fixed;inset:0;z-index:1000;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div style="max-width:480px;margin:0 auto;padding:16px 12px 40px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button onclick="document.getElementById('season-archive-modal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer">←</button>
+        <div>
+          <div style="font-size:16px;font-weight:900">📦 ${escHtml(s.name)}</div>
+          <div style="font-size:10px;color:var(--muted)">Archived ${fmtDate(s.archivedAt)} · frozen snapshot, ${snap.matches} matches</div>
+        </div>
+      </div>
+      <div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
+        ${snap.mvp ? `<div class="chem-row"><span style="font-size:16px">🥇</span><div><div style="font-size:11px;font-weight:700">MVP: ${escHtml(snap.mvp.name)}</div><div style="font-size:9px;color:var(--muted)">${snap.mvp.mw}W / ${snap.mvp.mp}P</div></div></div>` : ""}
+        ${snap.topPair ? `<div class="chem-row"><span style="font-size:16px">🤝</span><div><div style="font-size:11px;font-weight:700">Top Pair: ${escHtml(snap.topPair.players.join(" & "))}</div><div style="font-size:9px;color:var(--muted)">${snap.topPair.winPct}% win rate</div></div></div>` : ""}
+        ${snap.ironMan ? `<div class="chem-row"><span style="font-size:16px">💪</span><div><div style="font-size:11px;font-weight:700">Iron Man: ${escHtml(snap.ironMan.name)}</div><div style="font-size:9px;color:var(--muted)">${snap.ironMan.mp} matches</div></div></div>` : ""}
+        ${snap.mostImproved ? `<div class="chem-row"><span style="font-size:16px">📈</span><div><div style="font-size:11px;font-weight:700">Most Improved: ${escHtml(snap.mostImproved.name)}</div></div></div>` : ""}
+      </div>
+      <div class="ana-card" style="padding:10px 12px">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Final Standings</div>
+        ${rows}
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+}
+
 // Open the add/edit form. No id = new season.
 function openSeasonEditor(id) {
   const s = id ? state.seasons.find((x) => x.id === id) : null;
