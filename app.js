@@ -12243,7 +12243,7 @@ function _buildMultiCompareHtml(names) {
   const compListAll = _activeStats();
   const maxMp = Math.max(...compListAll.map((p) => p.mp), 1);
   const formMapAll = {};
-  playersByMatches.forEach((n) => {
+  names.forEach((n) => {
     const pm = am2.filter((m) => (m.teamA || []).includes(n) || (m.teamB || []).includes(n)).slice(-10);
     if (pm.length < 3) return;
     const w = pm.filter((m) => { const inA = (m.teamA || []).includes(n); return inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA; }).length;
