@@ -103,3 +103,12 @@ export function getAnaHideEmpty() {
 export function setAnaHideEmpty(on) {
   _set01(K.hideEmpty, on);
 }
+
+// ── Rank delta window: days to look back for ALL TIME position indicator ──
+export function getRankDeltaDays() {
+  const v = parseInt(localStorage.getItem("padel_rank_delta_days"), 10);
+  return v > 0 ? v : 30;
+}
+export function setRankDeltaDays(v) {
+  localStorage.setItem("padel_rank_delta_days", String(Math.max(1, parseInt(v, 10))));
+}

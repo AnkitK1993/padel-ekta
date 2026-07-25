@@ -75,6 +75,8 @@ import {
   setScreenshotAsk,
   getAnaHideEmpty,
   setAnaHideEmpty,
+  getRankDeltaDays,
+  setRankDeltaDays,
   getFontScale,
   setFontScale,
   FONT_SCALE_MIN,
@@ -1732,6 +1734,9 @@ function updateAdminUI(user) {
   const scToggle = document.getElementById("screenshotChoiceToggle");
   if (scToggle)
     scToggle.checked = getScreenshotAsk();
+  const rdSel = document.getElementById("rankDeltaDaysSel");
+  if (rdSel)
+    rdSel.value = String(getRankDeltaDays());
   const _al = resolveAnimLevel();
   document
     .querySelectorAll(".anim-seg-btn")
@@ -3104,6 +3109,11 @@ function setScreenshotChoiceSetting(val) {
   setScreenshotAsk(val);
 }
 
+function setRankDeltaWindow(days) {
+  setRankDeltaDays(days);
+  renderCompact();
+}
+
 // Smooth Mode (architecture #4): opt-in scroll/paint smoothness via the
 // body.smooth-mode CSS class. Persisted; reflected in the hamburger toggle.
 function toggleSmoothMode(on) {
@@ -4393,16 +4403,19 @@ function renderCompact() {
   const _allTimeRankMap = {};
   _memoStats().forEach((p, i) => { _allTimeRankMap[p.name] = i + 1; });
 
-  // Pre-last-session rank map — used only in ALL TIME view to show the rank
-  // change that occurred as a result of the most recent session.
-  const _prevSessionRankMap = {};
+  // Last-N-days rank map — used only in ALL TIME view; window is configurable
+  // via Admin → Manage → Settings (default 30 days).
+  const _recentRankMap = {};
   if (cmpFilter === "all") {
-    const _allM = activeMatches();
-    const _lastDate = _allM.reduce((mx, m) => (m.date > mx ? m.date : mx), "");
-    const _beforeLast = _allM.filter((m) => m.date < _lastDate);
-    if (_beforeLast.length > 0) {
-      const _ePrev = computeElo(_beforeLast);
-      computeStats(_beforeLast, _ePrev).forEach((p, i) => { _prevSessionRankMap[p.name] = i + 1; });
+    const _days = getRankDeltaDays();
+    const _t = new Date();
+    const _tFrom = new Date(_t);
+    _tFrom.setDate(_tFrom.getDate() - _days);
+    const _iso = (d) => d.toISOString().slice(0, 10);
+    const _mRecent = filterMatches("range", _iso(_tFrom), _iso(_t));
+    if (_mRecent.length > 0) {
+      const _eRecent = computeElo(_mRecent);
+      computeStats(_mRecent, _eRecent).forEach((p, i) => { _recentRankMap[p.name] = i + 1; });
     }
   }
   const srSorted = [...sorted].sort((a, b) => b.sr - a.sr);
@@ -4431,9 +4444,9 @@ function renderCompact() {
     const allTimeRank = _allTimeRankMap[p.name];
     let rankDelta = "";
     if (cmpFilter === "all") {
-      const prevRank = _prevSessionRankMap[p.name];
-      if (allTimeRank && prevRank) {
-        const diff = prevRank - allTimeRank;
+      const recentRank = _recentRankMap[p.name];
+      if (allTimeRank && recentRank) {
+        const diff = allTimeRank - recentRank;
         if (diff > 0)
           rankDelta = `<span class="wk-rank-delta wk-up">▲${diff}</span>`;
         else if (diff < 0)
@@ -16093,6 +16106,7 @@ Object.assign(window, {
   backupToDrive,
   exportJsonFile,
   setScreenshotChoiceSetting,
+  setRankDeltaWindow,
   setAnimLevel,
   adjustFontScale,
   resetFontScale,
