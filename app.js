@@ -9510,6 +9510,16 @@ function runMatchSimulator() {
   const col = (n) =>
     n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
 
+  // Expected scoreline: the favourite is projected to reach the target (6);
+  // the underdog's games scale with how close the two teams are.
+  const TARGET = 6;
+  const pWin = Math.max(expA, expB);
+  const pLose = Math.min(expA, expB);
+  const loserGames = Math.max(0, Math.min(5, Math.round(TARGET * (pLose / pWin))));
+  const aFav = expA >= expB;
+  const expScoreA = aFav ? TARGET : loserGames;
+  const expScoreB = aFav ? loserGames : TARGET;
+
   result.innerHTML = `
     <div class="sim-result-inner">
       <div class="sim-prob-row">
@@ -9519,6 +9529,10 @@ function runMatchSimulator() {
           <div class="sim-prob-fill-b" style="width:${winPctB}%"></div>
         </div>
         <span class="sim-prob-val" style="color:var(--red)">${winPctB}%</span>
+      </div>
+      <div class="sim-exp-score">
+        <span class="sim-exp-lbl">EXPECTED SCORE</span>
+        <span class="sim-exp-val"><span style="color:var(--green)">${expScoreA}</span> – <span style="color:var(--red)">${expScoreB}</span></span>
       </div>
       <div class="sim-outcomes">
         <div class="sim-outcome">
@@ -10093,14 +10107,20 @@ function recomputeWhatIfElo() {
       return m;
     });
   const actualElo = _memoElo()[viewState.whatIfPlayer] || 1000;
-  const whatIfElo = computeElo(whatIfMatches)[viewState.whatIfPlayer] || 1000;
+  const whatIfEloMap = computeElo(whatIfMatches);
+  const whatIfElo = whatIfEloMap[viewState.whatIfPlayer] || 1000;
   const diff = whatIfElo - actualElo;
-  const col =
-    diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--muted)";
   const sign = diff > 0 ? "+" : "";
+  // ASS counterfactual (mirrors the ELO calc over the same modified match list)
+  const actualAss = Math.round(_memoASS()[viewState.whatIfPlayer] || 1000);
+  const whatIfAssMap = computeASS(whatIfMatches);
+  const whatIfAss = Math.round(whatIfAssMap[viewState.whatIfPlayer] || 1000);
+  const assDiff = whatIfAss - actualAss;
+  const assSign = assDiff > 0 ? "+" : "";
+  const assPillCls = assDiff > 0 ? "positive" : assDiff < 0 ? "negative" : "neutral";
   // Rank change
   const actualRanked = Object.entries(_memoElo()).sort((a, b) => b[1] - a[1]);
-  const whatIfRanked = Object.entries(computeElo(whatIfMatches)).sort(
+  const whatIfRanked = Object.entries(whatIfEloMap).sort(
     (a, b) => b[1] - a[1],
   );
   const actualRank = actualRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
@@ -10137,8 +10157,20 @@ function recomputeWhatIfElo() {
         <div class="wi-res-sub">Rank #${whatIfRank}</div>
       </div>
     </div>
+    <div class="wi-res-row" style="margin-top:8px">
+      <div class="wi-res-cell">
+        <div class="wi-res-label">ACTUAL ASS</div>
+        <div class="wi-res-val">${actualAss}</div>
+      </div>
+      <div class="wi-res-arrow">→</div>
+      <div class="wi-res-cell">
+        <div class="wi-res-label">WHAT-IF ASS</div>
+        <div class="wi-res-val">${whatIfAss}</div>
+      </div>
+    </div>
     <div class="wi-res-deltas">
       <span class="wi-delta-pill ${eloPillCls}">${sign}${diff} ELO</span>
+      <span class="wi-delta-pill ${assPillCls}">${assSign}${assDiff} ASS</span>
       <span class="wi-delta-pill ${rankPillCls}">${rankStr} rank</span>
       ${flipped ? `<span class="wi-delta-pill neutral">${flipped} flipped</span>` : ""}
       ${excluded ? `<span class="wi-delta-pill neutral">${excluded} excluded</span>` : ""}
@@ -10454,7 +10486,9 @@ function _buildAntiPodiumTrackerHtml(periodType) {
 
 function _buildRankReignHtml() {
   const allM = activeMatches();
-  const fp = _lightFingerprint(allM);
+  // Reign follows the active scoring system (ELO or ASS). Cache per mode.
+  const isAss = _scoringMode === "ass";
+  const fp = _lightFingerprint(allM) + "|" + (isAss ? "ass" : "elo");
   if (_reignCache[fp]) return _reignCache[fp];
 
   // All distinct match days sorted chronologically
@@ -10462,8 +10496,8 @@ function _buildRankReignHtml() {
   if (allDates.length < 2)
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
 
-  // Current ALL TIME ELO rank (latest snapshot = full history)
-  const eloMap = computeElo(allM);
+  // Current ALL TIME rank (latest snapshot = full history) in the active system.
+  const eloMap = isAss ? _memoASS() : _memoElo();
   const eloRanking = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   const eloRankOf = {};
   eloRanking.forEach(([name], i) => {
@@ -10471,47 +10505,34 @@ function _buildRankReignHtml() {
   });
 
   // For each match day compute cumulative rank up to that day, then tally
-  // how many days each player held each rank position.
-  // INCREMENTAL: walk matches chronologically once, applying ELO as we go
-  // rather than recomputing computeElo(snap) from scratch for every date.
-  // Reduces O(days × matches) → O(matches) — critical for large datasets.
+  // how many days each player held each rank position. We read each player's
+  // running rating from the active-system history (ELO or ASS), advancing a
+  // per-player pointer across dates so the walk stays O(matches).
   const sorted = [...allM].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
-  const runElo = {}; // incremental ELO map
-  const runMp = {}, runMw = {}, runGw = {}, runGl = {}; // for SR proxy rank
-  let mIdx = 0; // pointer into sorted[]
+  const histAll = isAss ? _memoASSHistory() : _memoEloHistory();
+  const histNames = Object.keys(histAll);
+  const runElo = {}; // running rating per player, as of the current date
+  const ptr = {};
+  histNames.forEach((n) => { ptr[n] = 0; });
   let maxRank = 1;
   const tally = {};
   allDates.forEach((date) => {
-    // Advance the incremental ELO up to (and including) this date
-    while (mIdx < sorted.length && (sorted[mIdx].date || "") <= date) {
-      const m = sorted[mIdx++];
-      const players = [...(m.teamA || []), ...(m.teamB || [])];
-      players.forEach((p) => { if (!(p in runElo)) runElo[p] = 1000; });
-      const aWon = m.scoreA > m.scoreB;
-      const avgA = (m.teamA || []).reduce((s, p) => s + runElo[p], 0) / Math.max((m.teamA || []).length, 1);
-      const avgB = (m.teamB || []).reduce((s, p) => s + runElo[p], 0) / Math.max((m.teamB || []).length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      (m.teamA || []).forEach((p) => {
-        runElo[p] = (runElo[p] || 1000) + dA;
-        runMp[p] = (runMp[p] || 0) + 1; runMw[p] = (runMw[p] || 0) + (aWon ? 1 : 0);
-        runGw[p] = (runGw[p] || 0) + m.scoreA; runGl[p] = (runGl[p] || 0) + m.scoreB;
-      });
-      (m.teamB || []).forEach((p) => {
-        runElo[p] = (runElo[p] || 1000) + dB;
-        runMp[p] = (runMp[p] || 0) + 1; runMw[p] = (runMw[p] || 0) + (!aWon ? 1 : 0);
-        runGw[p] = (runGw[p] || 0) + m.scoreB; runGl[p] = (runGl[p] || 0) + m.scoreA;
-      });
-    }
+    // Advance each player's running rating to their last entry on/before this date
+    histNames.forEach((n) => {
+      const h = histAll[n] || [];
+      while (ptr[n] < h.length && (h[ptr[n]].date || "") <= date) {
+        runElo[n] = h[ptr[n]].elo;
+        ptr[n]++;
+      }
+    });
     const dayMatches = sorted.filter((m) => m.date === date);
     if (dayMatches.length < 2) return; // skip days with fewer than 2 matches
     const dayPlayers = new Set(
       dayMatches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]),
     );
-    // Rank by current incremental ELO (same criterion as computeStats uses)
+    // Rank by current running rating in the active scoring system
     const ranked = Object.entries(runElo).sort((a, b) => b[1] - a[1]);
     let qualRank = 0;
     ranked.forEach(([name]) => {
@@ -10576,7 +10597,7 @@ function _buildRankReignHtml() {
     .join("");
 
   const html = `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${allDates.length} MATCH DAYS</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${allDates.length} MATCH DAYS · ${isAss ? "ASS" : "ELO"}</div>
     <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
       <thead>${thead}</thead>
       <tbody>${tbody}</tbody>
@@ -12609,6 +12630,16 @@ window._eloProj = {
   futureM: 20,
   sortCol: "currentRank",
   sortAsc: true,
+  mode: "ass", // "ass" | "elo" — default to ASS
+};
+
+window._eloprojSetMode = function (mode) {
+  if (mode !== "ass" && mode !== "elo") return;
+  window._eloProj.mode = mode;
+  document.querySelectorAll(".rp-mode-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.mode === mode),
+  );
+  window._renderEloProjTable();
 };
 
 window._eloprojAdj = function (type, delta) {
@@ -12641,15 +12672,17 @@ window._eloprojSort = function (col) {
 window._renderEloProjTable = function () {
   const tableEl = document.getElementById("eloproj-table");
   if (!tableEl) return;
-  const { formN, futureM, sortCol, sortAsc } = window._eloProj;
-  const eloMap = _memoElo();
-  const histAll = _memoEloHistory();
+  const { formN, futureM, sortCol, sortAsc, mode } = window._eloProj;
+  const isAss = mode === "ass";
+  const ratingLbl = isAss ? "ASS" : "ELO";
+  const eloMap = isAss ? _memoASS() : _memoElo();
+  const histAll = isAss ? _memoASSHistory() : _memoEloHistory();
   if (!histAll || !eloMap) return;
 
   const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   if (!ranked.length) {
     tableEl.innerHTML =
-      '<div class="sub" style="padding:8px">No ELO data.</div>';
+      `<div class="sub" style="padding:8px">No ${ratingLbl} data.</div>`;
     return;
   }
 
@@ -12741,7 +12774,7 @@ window._renderEloProjTable = function () {
   const hdr = `<div class="lrace-header ep-hdr" style="${pg}">
     <span class="hilo-hdr" onclick="window._eloprojSort('currentRank')">#NOW${arrow("currentRank")}</span>
     <span class="hilo-hdr" onclick="window._eloprojSort('name')">Player${arrow("name")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('currentElo')">ELO${arrow("currentElo")}</span>
+    <span class="hilo-hdr" onclick="window._eloprojSort('currentElo')">${ratingLbl}${arrow("currentElo")}</span>
     <span class="hilo-hdr" onclick="window._eloprojSort('avgDelta')">Avg Δ${arrow("avgDelta")}</span>
     <span class="hilo-hdr" onclick="window._eloprojSort('projElo')">After ${futureM}${arrow("projElo")}</span>
     <span class="hilo-hdr" onclick="window._eloprojSort('projRank')">#New${arrow("projRank")}</span>
@@ -12958,7 +12991,9 @@ function renderAnalyticsPage() {
 
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
   const _qwScoreMap = _activeScoreMap();
-  const _qwFallback = _scoringMode === "ass" ? 0 : 1000;
+  // Both ELO and ASS are anchored at 1000, so an unmapped player falls back to
+  // the 1000 baseline (previously ASS wrongly used 0, deflating the average).
+  const _qwFallback = 1000;
   const qualityWins = {};
   am.forEach((m) => {
     const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
@@ -15729,16 +15764,20 @@ function renderAnalyticsPage() {
       cat: "records",
       title: "🔮 Predict & Simulate",
       body: _tabbedSection([
-        { label: "Predict", html: _buildMatchPredictHtml() },
         { label: "Accuracy", html: predAccHtml },
         { label: "Match Sim", html: simulatorHtml },
         { label: "What-If", html: whatIfHtml },
         {
-          label: "ELO Projection",
+          label: "Rating Projection",
           html: (() => {
             const formN = window._eloProj?.formN || 10;
             const futureM = window._eloProj?.futureM || 20;
+            const mode = window._eloProj?.mode || "ass";
             return `<div class="ana-card" style="padding:10px 12px">
+          <div class="rp-mode-toggle" style="display:flex;gap:6px;margin-bottom:10px">
+            <button class="rp-mode-btn${mode === "ass" ? " active" : ""}" data-mode="ass" onclick="window._eloprojSetMode('ass')">ASS</button>
+            <button class="rp-mode-btn${mode === "elo" ? " active" : ""}" data-mode="elo" onclick="window._eloprojSetMode('elo')">ELO</button>
+          </div>
           <div class="ep-controls">
             <div class="ep-ctrl-group">
               <div class="ep-ctrl-label">FORM WINDOW</div>
@@ -15788,6 +15827,35 @@ function renderAnalyticsPage() {
           html: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
         },
         { label: "Streak Leaderboard", html: _buildStreakLeaderboardHtml() },
+        {
+          label: "Streak Timeline",
+          html: (() => {
+            const names = playersByMatches.slice(0, 12);
+            if (!names.length) return '<div class="sub" style="padding:8px">No data.</div>';
+            const rows = names
+              .map((n) => {
+                const segs = streakSegments(sortedM, n);
+                if (!segs.length) return "";
+                const total = segs.reduce((s, g) => s + g.length, 0) || 1;
+                const bars = segs
+                  .map((g) => {
+                    const w = (g.length / total) * 100;
+                    const col = g.type === "W" ? "rgba(54,212,126,0.75)" : "rgba(240,80,80,0.6)";
+                    return `<div style="width:${w.toFixed(2)}%;background:${col};height:100%" title="${g.type === "W" ? "Won" : "Lost"} ${g.length} in a row (${fmtDate(g.startDate)}–${fmtDate(g.endDate)})"></div>`;
+                  })
+                  .join("");
+                return `<div style="margin-bottom:8px">
+                  <div style="font-size:10px;font-weight:700;margin-bottom:3px">${escHtml(n)}</div>
+                  <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">${bars}</div>
+                </div>`;
+              })
+              .join("");
+            return `<div class="ana-card" style="padding:10px 12px">
+              <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win (green) / loss (red) streak segments across each player's career, left = earliest</div>
+              ${rows}
+            </div>`;
+          })(),
+        },
       ]),
     },
     {
@@ -16219,30 +16287,6 @@ function renderAnalyticsPage() {
       })(),
     },
     {
-      key: "fatigue",
-      cat: "activity",
-      title: "🥵 Fatigue Curve",
-      body: (() => {
-        const slots = fatigueByMatchOfDay(am, 5);
-        if (slots.length < 2) return '<div class="sub" style="padding:8px">Need more multi-match session days.</div>';
-        const rows = slots
-          .map((s) => {
-            const col = s.winPct >= 55 ? "var(--green)" : s.winPct <= 45 ? "var(--red)" : "var(--muted)";
-            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-              <div style="width:50px;font-size:10px;font-weight:700;color:var(--muted)">Match ${s.n}</div>
-              <div style="flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden"><div style="width:${s.winPct}%;height:100%;background:${col}"></div></div>
-              <div style="width:38px;text-align:right;font-size:11px;font-weight:800;color:${col}">${s.winPct}%</div>
-              <div style="width:50px;text-align:right;font-size:9px;color:var(--muted)">${s.avgGames}g avg</div>
-            </div>`;
-          })
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% by match number within a session — does the group fade as the day goes on?</div>
-          ${rows}
-        </div>`;
-      })(),
-    },
-    {
       key: "formclass",
       cat: "players",
       title: "🌟 Form vs Class",
@@ -16461,19 +16505,40 @@ function renderAnalyticsPage() {
         }));
         const ranked = weightedMvpScore(input);
         if (!ranked.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        const _mvpLbl = _scoringLabel();
+        const _mvpPg = "grid-template-columns:24px minmax(70px,1fr) 56px 46px 44px 44px 44px";
         const rows = ranked
           .slice(0, 10)
-          .map(
-            (p, i) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-          <div style="width:20px;font-size:10px;color:var(--muted)">#${i + 1}</div>
-          <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
-          <div style="font-size:13px;font-weight:900;color:var(--theme)">${p.composite}</div>
-        </div>`,
-          )
+          .map((p, i) => {
+            const rg = Math.round(p.ratingGain);
+            const rgCol = rg > 0 ? "var(--green)" : rg < 0 ? "var(--red)" : "var(--muted)";
+            return `<div class="lrace-row" style="${_mvpPg}">
+          <div style="text-align:center;font-size:10px;color:var(--muted)">#${i + 1}</div>
+          <div class="lrace-name">${escHtml(p.name)}</div>
+          <div style="text-align:center;font-weight:700;color:${rgCol}">${rg > 0 ? "+" : ""}${rg}</div>
+          <div style="text-align:center;font-weight:600">${Math.round(p.winPct)}%</div>
+          <div style="text-align:center;font-weight:600">${p.attendance}</div>
+          <div style="text-align:center;font-weight:600;color:var(--gold)">${p.upsets}</div>
+          <div style="text-align:center;font-size:13px;font-weight:900;color:var(--theme)">${p.composite}</div>
+        </div>`;
+          })
           .join("");
         return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Composite score: rating gain 40% · win% 30% · attendance 20% · upsets 10% (normalized 0-100)</div>
-          ${rows}
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Composite score: rating gain 40% · win% 30% · attendance 20% · upsets 10% (normalized 0-100). ${_mvpLbl} Δ = rating gained, Days = sessions attended.</div>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+            <div style="min-width:346px">
+              <div class="lrace-header" style="${_mvpPg}">
+                <span>#</span>
+                <span>Player</span>
+                <span style="text-align:center">${_mvpLbl} Δ</span>
+                <span style="text-align:center">Win%</span>
+                <span style="text-align:center">Days</span>
+                <span style="text-align:center">Ups</span>
+                <span style="text-align:center">MVP</span>
+              </div>
+              ${rows}
+            </div>
+          </div>
         </div>`;
       })(),
     },
@@ -16548,79 +16613,6 @@ function renderAnalyticsPage() {
       })(),
     },
     {
-      key: "partnernetwork",
-      cat: "pairs",
-      title: "🕸️ Partner Network",
-      body: (() => {
-        const names = playersByMatches.slice(0, 16);
-        if (names.length < 3) return '<div class="sub" style="padding:8px">Need more players.</div>';
-        const W = 300, H = 300, R = 118, CX = W / 2, CY = H / 2;
-        const posOf = {};
-        names.forEach((n, i) => {
-          const a = (i / names.length) * Math.PI * 2 - Math.PI / 2;
-          posOf[n] = { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a) };
-        });
-        const edgeMap = {};
-        Object.values(partnerships).forEach((p) => {
-          if (p.players.length !== 2) return;
-          const [a, b] = p.players;
-          if (!names.includes(a) || !names.includes(b)) return;
-          const key = [a, b].sort().join("|");
-          edgeMap[key] = { a, b, played: p.played, winPct: p.played ? Math.round((p.wins / p.played) * 100) : 0 };
-        });
-        const maxPlayed = Math.max(...Object.values(edgeMap).map((e) => e.played), 1);
-        const edges = Object.values(edgeMap)
-          .map((e) => {
-            const pa = posOf[e.a], pb = posOf[e.b];
-            const w = 0.8 + (e.played / maxPlayed) * 3.2;
-            const col = e.winPct >= 60 ? "rgba(54,212,126,0.55)" : e.winPct <= 40 ? "rgba(240,80,80,0.5)" : "rgba(255,255,255,0.18)";
-            return `<line x1="${pa.x.toFixed(1)}" y1="${pa.y.toFixed(1)}" x2="${pb.x.toFixed(1)}" y2="${pb.y.toFixed(1)}" stroke="${col}" stroke-width="${w.toFixed(1)}"><title>${escHtml(e.a)} & ${escHtml(e.b)}: ${e.played} matches, ${e.winPct}% win</title></line>`;
-          })
-          .join("");
-        const nodes = names
-          .map((n) => {
-            const p = posOf[n];
-            return `<g><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="11" fill="${playerColor(n)}"/><text x="${p.x.toFixed(1)}" y="${(p.y + 3).toFixed(1)}" font-size="8" fill="#fff" text-anchor="middle" font-weight="700">${playerInitials(n)}</text></g>`;
-          })
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Who plays with whom — line thickness = matches together, colour = win% together (green ≥60%, red ≤40%)</div>
-          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${edges}${nodes}</svg>
-        </div>`;
-      })(),
-    },
-    {
-      key: "streakgantt",
-      cat: "records",
-      title: "📊 Streak Timeline",
-      body: (() => {
-        const names = playersByMatches.slice(0, 12);
-        if (!names.length) return '<div class="sub" style="padding:8px">No data.</div>';
-        const rows = names
-          .map((n) => {
-            const segs = streakSegments(sortedM, n);
-            if (!segs.length) return "";
-            const total = segs.reduce((s, g) => s + g.length, 0) || 1;
-            const bars = segs
-              .map((g) => {
-                const w = (g.length / total) * 100;
-                const col = g.type === "W" ? "rgba(54,212,126,0.75)" : "rgba(240,80,80,0.6)";
-                return `<div style="width:${w.toFixed(2)}%;background:${col};height:100%" title="${g.type === "W" ? "Won" : "Lost"} ${g.length} in a row (${fmtDate(g.startDate)}–${fmtDate(g.endDate)})"></div>`;
-              })
-              .join("");
-            return `<div style="margin-bottom:8px">
-              <div style="font-size:10px;font-weight:700;margin-bottom:3px">${escHtml(n)}</div>
-              <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">${bars}</div>
-            </div>`;
-          })
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win (green) / loss (red) streak segments across each player's career, left = earliest</div>
-          ${rows}
-        </div>`;
-      })(),
-    },
-    {
       key: "ratingsmultiples",
       cat: "elo",
       title: "🔬 Ratings Small Multiples",
@@ -16652,137 +16644,6 @@ function renderAnalyticsPage() {
           })
           .join("");
         return `<div class="ana-card" style="padding:10px 12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cards}</div></div>`;
-      })(),
-    },
-    {
-      key: "rollingwinpct",
-      cat: "players",
-      title: "📈 Rolling Form (10-match)",
-      body: (() => {
-        const names = playersByMatches
-          .filter((n) => sortedM.filter((m) => (m.teamA || []).includes(n) || (m.teamB || []).includes(n)).length >= 10)
-          .slice(0, 6);
-        if (!names.length) return '<div class="sub" style="padding:8px">Need players with 10+ matches.</div>';
-        const W = 300, H = 160, PAD = 20;
-        const series = names.map((n) => ({ name: n, pts: rollingWinPct(sortedM, n, 10) }));
-        const maxLen = Math.max(...series.map((s) => s.pts.length));
-        const midY = H - PAD - (50 / 100) * (H - PAD * 2);
-        const lines = series
-          .map((s) => {
-            const pts = s.pts
-              .map((p, i) => {
-                const x = PAD + (i / Math.max(maxLen - 1, 1)) * (W - PAD * 2);
-                const y = H - PAD - (p.pct / 100) * (H - PAD * 2);
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-              })
-              .join(" ");
-            return `<polyline points="${pts}" fill="none" stroke="${playerColor(s.name)}" stroke-width="1.8" opacity="0.85"/>`;
-          })
-          .join("");
-        const legend = names
-          .map(
-            (n) =>
-              `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);margin-right:8px"><span style="width:8px;height:8px;border-radius:50%;background:${playerColor(n)};display:inline-block"></span>${escHtml(n.split(" ")[0])}</span>`,
-          )
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% over a trailing 10-match window, top 6 most-active players</div>
-          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-            <line x1="${PAD}" y1="${midY.toFixed(1)}" x2="${W - PAD}" y2="${midY.toFixed(1)}" stroke="rgba(255,255,255,0.1)" stroke-dasharray="3 3"/>
-            ${lines}
-          </svg>
-          <div style="margin-top:6px">${legend}</div>
-        </div>`;
-      })(),
-    },
-    {
-      key: "marginscatter",
-      cat: "records",
-      title: "🔵 Margin Scatter",
-      body: (() => {
-        if (sortedM.length < 5) return '<div class="sub" style="padding:8px">Need more matches.</div>';
-        const W = 300, H = 150, PAD = 22;
-        const margins = sortedM.map((m) => Math.abs(m.scoreA - m.scoreB));
-        const maxM = Math.max(...margins, 1);
-        const dots = sortedM
-          .map((m, i) => {
-            const x = PAD + (i / Math.max(sortedM.length - 1, 1)) * (W - PAD * 2);
-            const margin = Math.abs(m.scoreA - m.scoreB);
-            const y = H - PAD - (margin / maxM) * (H - PAD * 2);
-            const col = margin <= 1 ? "#36d47e" : margin >= 4 ? "#f04f4f" : "#f5c842";
-            return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="${col}" opacity="0.75"><title>${fmtDate(m.date)}: ${Math.max(m.scoreA, m.scoreB)}-${Math.min(m.scoreA, m.scoreB)}</title></circle>`;
-          })
-          .join("");
-        const winSize = 15;
-        const trendPts = sortedM
-          .map((_, i) => {
-            const slice = margins.slice(Math.max(0, i - winSize + 1), i + 1);
-            const avg = slice.reduce((s, v) => s + v, 0) / slice.length;
-            const x = PAD + (i / Math.max(sortedM.length - 1, 1)) * (W - PAD * 2);
-            const y = H - PAD - (avg / maxM) * (H - PAD * 2);
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-          })
-          .join(" ");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Every match's margin over time (green ≤1, gold 2-3, red ≥4) with a 15-match trend line</div>
-          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-            ${dots}
-            <polyline points="${trendPts}" fill="none" stroke="rgba(var(--theme-rgb),0.9)" stroke-width="1.6"/>
-          </svg>
-        </div>`;
-      })(),
-    },
-    {
-      key: "waterfall",
-      cat: "players",
-      title: "🌊 Rating Waterfall",
-      body: (() => {
-        const histAll = _activeHistory();
-        const names = playersByMatches.filter((n) => (histAll[n] || []).length >= 5);
-        if (!names.length) return '<div class="sub" style="padding:8px">Need more match history.</div>';
-        const opts = names.map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <select id="waterfall-player-sel" onchange="window._renderWaterfall(this.value)" class="hist-select compact-select" style="width:100%;margin-bottom:10px">${opts}</select>
-          <div id="waterfall-body">${_buildWaterfallHtml(names[0])}</div>
-        </div>`;
-      })(),
-    },
-    {
-      key: "multicompare",
-      cat: "players",
-      title: "🆚 Multi-Player Compare",
-      body: (() => {
-        window._mcSelected = new Set();
-        const names = playersByMatches.slice(0, 30);
-        if (names.length < 2) return '<div class="sub" style="padding:8px">Need more players.</div>';
-        const chips = names
-          .map((n) => `<button class="player-pick-chip" data-mc-player="${escHtml(n)}" onclick="window._mcToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Pick 2–4 players to compare side by side</div>
-          <div id="mc-picker" style="display:flex;flex-wrap:wrap;margin-bottom:8px">${chips}</div>
-          <button onclick="window._mcCompare()" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.12);color:var(--theme);font-weight:700;font-size:11px;cursor:pointer">Compare</button>
-          <div id="mc-result" style="margin-top:12px"></div>
-        </div>`;
-      })(),
-    },
-    {
-      key: "fairmatch",
-      cat: "records",
-      title: "⚖️ Fair Match Generator",
-      body: (() => {
-        window._fmgSelected = new Set();
-        const names = playersByMatches.slice(0, 30);
-        if (names.length < 4) return '<div class="sub" style="padding:8px">Need at least 4 players.</div>';
-        const chips = names
-          .map((n) => `<button class="player-pick-chip" data-fmg-player="${escHtml(n)}" onclick="window._fmgToggle(this)" style="margin:2px">${escHtml(n.split(" ")[0])}</button>`)
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Pick the players present today (4, 8, 12…) — generates the most balanced 2v2 split(s) by ${_scLabel}</div>
-          <div id="fmg-picker" style="display:flex;flex-wrap:wrap;margin-bottom:8px">${chips}</div>
-          <button onclick="window._fmgGenerate()" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.12);color:var(--theme);font-weight:700;font-size:11px;cursor:pointer">Generate Balanced Matches</button>
-          <div id="fmg-result" style="margin-top:12px"></div>
-        </div>`;
       })(),
     },
   ];
@@ -20027,11 +19888,44 @@ window.savePlayerEdit = savePlayerEdit;
 function deletePlayerEntry() {
   if (!_editingPlayerId) return;
   const p = state.players[_editingPlayerId];
-  if (!confirm(`Delete player "${p?.name}"?`)) return;
+  if (!p) return;
+  const canonical = p.name;
+  // A match belongs to this player if any team member resolves (via aliases)
+  // to their canonical name. Computed while the alias maps are still intact.
+  const involves = (m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].some(
+      (rp) => normPlayer(rp) === canonical,
+    );
+  const affected = state.matches.filter(involves).length;
+  if (
+    !confirm(
+      `Delete player "${canonical}" and ALL their data?\n\nThis permanently removes ${affected} match${affected !== 1 ? "es" : ""} they played in, plus their name from every dropdown, as if they never existed. This cannot be undone.`,
+    )
+  )
+    return;
+  logAdminAction("Delete Player", `${canonical} (+${affected} matches removed)`);
+  // Hard-remove every match involving the player (reverse splice keeps indices valid).
+  for (let i = state.matches.length - 1; i >= 0; i--) {
+    if (involves(state.matches[i])) {
+      const [removed] = state.matches.splice(i, 1);
+      _removeMatchFromTA(removed);
+    }
+  }
+  // Purge any of their matches lingering in the trash so nothing references them.
+  if (Array.isArray(deletedMatches)) {
+    const before = deletedMatches.length;
+    deletedMatches = deletedMatches.filter((m) => !involves(m));
+    if (deletedMatches.length !== before) saveDeletedMatches();
+  }
   delete state.players[_editingPlayerId];
   delete playerAliasMap[_editingPlayerId];
+  if (typeof photoMap === "object" && photoMap[canonical]) {
+    delete photoMap[canonical];
+    _savePhotosToCloud();
+  }
   rebuildNameMaps();
   saveCloudData();
+  commit();
   closePlayerEditSheet();
   renderNamesTable();
 }

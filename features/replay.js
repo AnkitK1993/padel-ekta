@@ -127,7 +127,8 @@ export function _replayUpdate(idx) {
   const eloMap = computeElo(slice);
   const scoreMap = _replayMode === "ass" ? computeASS(slice) : eloMap;
   const scoreLabel = _replayMode === "ass" ? "ASS" : "ELO";
-  const stats = computeStats(slice, eloMap).slice(0, 8);
+  // Rank/order by the active scoring system so ASS mode reorders the board.
+  const stats = computeStats(slice, scoreMap).slice(0, 8);
   const maxScore = Math.max(...stats.map((s) => scoreMap[s.name] || 1000), 1000);
   const board = document.getElementById("replay-board");
   const slider = document.getElementById("replay-slider");

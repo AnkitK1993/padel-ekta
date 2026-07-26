@@ -8705,6 +8705,26 @@ select.cmp-sel option {
   align-items: center;
   gap: 8px;
 }
+.sim-exp-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+}
+.sim-exp-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.sim-exp-val {
+  font-size: 20px;
+  font-weight: 900;
+}
 .sim-prob-val {
   font-size: 13px;
   font-weight: 900;
@@ -13818,6 +13838,24 @@ select:focus,
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.rp-mode-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 9px;
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  background: rgba(var(--theme-rgb), 0.06);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.rp-mode-btn.active {
+  background: rgba(var(--theme-rgb), 0.2);
+  color: var(--theme);
+  border-color: rgba(var(--theme-rgb), 0.5);
 }
 .ep-step-btn {
   width: 26px;
