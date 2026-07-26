@@ -18,6 +18,47 @@
   --silver: #9898b8;
   --bronze: #c46a28;
   --accent3: #62b6ff;
+
+  /* ── Spacing scale — matches the values already dominant across the app ── */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 10px;
+  --sp-6: 12px;
+  --sp-7: 14px;
+  --sp-8: 16px;
+  --sp-10: 20px;
+  --sp-12: 24px;
+
+  /* ── Radius scale ── */
+  --r-1: 6px;
+  --r-2: 8px;
+  --r-3: 10px;
+  --r-4: 12px;
+  --r-5: 14px;
+  --r-6: 16px;
+  --r-7: 18px;
+  --r-8: 20px;
+  --r-9: 22px;
+  --r-pill: 999px;
+
+  /* ── Overlay tints — translucent white for surfaces/borders on dark bg ── */
+  --ov-1: rgba(255, 255, 255, 0.03);
+  --ov-2: rgba(255, 255, 255, 0.04);
+  --ov-3: rgba(255, 255, 255, 0.05);
+  --ov-4: rgba(255, 255, 255, 0.06);
+  --ov-5: rgba(255, 255, 255, 0.07);
+  --ov-6: rgba(255, 255, 255, 0.08);
+  --ov-7: rgba(255, 255, 255, 0.1);
+  --ov-8: rgba(255, 255, 255, 0.12);
+  --ov-9: rgba(255, 255, 255, 0.14);
+  --ov-10: rgba(255, 255, 255, 0.2);
+
+  /* ── Scrim tints — black backdrops/overlays ── */
+  --scrim-1: rgba(0, 0, 0, 0.35);
+  --scrim-2: rgba(0, 0, 0, 0.5);
+  --scrim-3: rgba(0, 0, 0, 0.65);
 }
 * {
   box-sizing: border-box;
@@ -10790,10 +10831,10 @@ select.cmp-sel:hover,
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 8px;
+  padding: 5px var(--sp-4);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: var(--ov-2);
+  border: 1px dashed var(--ov-7);
   cursor: pointer;
   width: 100%;
   text-align: left;
@@ -10803,8 +10844,8 @@ select.cmp-sel:hover,
 }
 .live-player-slot.live-slot-filled {
   border-style: solid;
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--ov-6);
+  background: var(--ov-4);
 }
 .live-corner-a .live-player-slot.live-slot-filled {
   border-color: rgba(239, 68, 68, 0.2);
@@ -10849,7 +10890,7 @@ select.cmp-sel:hover,
   align-items: center;
   justify-content: center;
   gap: 0;
-  padding: 4px 12px 8px;
+  padding: 4px var(--sp-6) var(--sp-4);
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.01) 0%,
@@ -10861,9 +10902,9 @@ select.cmp-sel:hover,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 8px 8px 6px;
-  border-radius: 16px;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-4) 6px;
+  border-radius: var(--r-6);
 }
 .live-panel-a {
   background: linear-gradient(
@@ -10919,9 +10960,9 @@ select.cmp-sel:hover,
 .live-adj-huge {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-4);
+  border: 2px solid var(--ov-8);
+  background: var(--ov-4);
   color: rgba(255, 255, 255, 0.7);
   font-size: 22px;
   font-weight: 900;
@@ -10934,7 +10975,7 @@ select.cmp-sel:hover,
   -webkit-user-select: none;
 }
 .live-adj-huge:active {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--ov-9);
   transform: scale(0.91);
 }
 .live-adj-huge.live-adj-plus {
@@ -16073,16 +16114,16 @@ body.amethyst-mode #themeBtn {
 .live-session-bar {
   background: rgba(255, 60, 60, 0.1);
   border-bottom: 1px solid rgba(255, 60, 60, 0.25);
-  padding: 7px 12px 6px;
+  padding: 7px var(--sp-6) 6px;
 }
 .live-start-session-bar {
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 12px 14px;
+  background: var(--ov-1);
+  border-bottom: 1px solid var(--ov-5);
+  padding: var(--sp-6) var(--sp-7);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--sp-5);
 }
 .live-no-session-msg {
   font-size: 11px;
@@ -16092,11 +16133,11 @@ body.amethyst-mode #themeBtn {
 .live-start-session-btn {
   background: var(--accent);
   border: none;
-  border-radius: 20px;
+  border-radius: var(--r-8);
   color: #fff;
   font-size: 12px;
   font-weight: 800;
-  padding: 8px 18px;
+  padding: var(--sp-4) 18px;
   cursor: pointer;
   letter-spacing: 0.04em;
 }
@@ -16121,13 +16162,13 @@ body.amethyst-mode #themeBtn {
   color: #ff4040;
 }
 .live-add-player-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  background: var(--ov-7);
+  border: 1px solid var(--ov-10);
+  border-radius: var(--r-6);
   color: var(--fg);
   font-size: 11px;
   font-weight: 700;
-  padding: 5px 12px;
+  padding: 5px var(--sp-6);
   cursor: pointer;
 }
 .live-sync-btn:active {
@@ -16136,11 +16177,11 @@ body.amethyst-mode #themeBtn {
 .live-end-session-btn {
   background: rgba(255, 60, 60, 0.2);
   border: 1px solid rgba(255, 60, 60, 0.4);
-  border-radius: 16px;
+  border-radius: var(--r-6);
   color: #ff6060;
   font-size: 11px;
   font-weight: 800;
-  padding: 5px 12px;
+  padding: 5px var(--sp-6);
   cursor: pointer;
 }
 .live-end-session-btn:active {
@@ -16152,9 +16193,9 @@ body.amethyst-mode #themeBtn {
   gap: 5px;
 }
 .live-session-chip {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 3px 10px;
+  background: var(--ov-6);
+  border-radius: var(--r-8);
+  padding: 3px var(--sp-5);
   font-size: 10px;
   font-weight: 700;
   color: var(--fg);
@@ -16183,13 +16224,13 @@ body.amethyst-mode #themeBtn {
   margin-top: 5px;
 }
 .live-sess-action-btn {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
+  background: var(--ov-5);
+  border: 1px solid var(--ov-9);
+  border-radius: var(--r-4);
   color: var(--fg);
   font-size: 10px;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 4px var(--sp-5);
   cursor: pointer;
   letter-spacing: 0.04em;
 }
@@ -16218,9 +16259,9 @@ body.amethyst-mode #themeBtn {
 
 /* ── SESSION STATS PANEL ─────────────────── */
 .live-session-panel {
-  margin-top: 10px;
-  padding: 10px 0 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: var(--sp-5);
+  padding: var(--sp-5) 0 4px;
+  border-top: 1px solid var(--ov-6);
 }
 .sess-ldr-row {
   display: flex;
