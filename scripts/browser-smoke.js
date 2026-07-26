@@ -240,7 +240,9 @@ async function evaluate(client, expression) {
     expression,
   });
   if (result.exceptionDetails) {
-    throw new Error(result.exceptionDetails.text || "Browser evaluation failed");
+    const d = result.exceptionDetails;
+    const detail = d.exception?.description || d.exception?.value || d.text || "Browser evaluation failed";
+    throw new Error(detail);
   }
   return result.result.value;
 }

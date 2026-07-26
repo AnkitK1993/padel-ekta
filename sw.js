@@ -22,7 +22,6 @@ const STATIC = [
   BASE + "src/ui/view-state.js",
   BASE + "src/ui/components.js",
   BASE + "src/engine/selectors.js",
-  BASE + "src/engine/americano.js",
   BASE + "src/engine/pairs.js",
   BASE + "src/engine/xp.js",
   BASE + "src/engine/badges.js",
