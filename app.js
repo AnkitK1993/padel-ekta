@@ -1226,6 +1226,7 @@ function _resubscribeFirestore() {
           npid = mig.nextPlayerId;
         }
         const incoming = d.matches || [];
+        _ensureMatchIds(incoming);
         const _sessionBuffering = !!_liveSessionData?.sessionActive;
         const _hadOfflineEdits = _hasPendingSync() && !_sessionBuffering;
         if (_hadOfflineEdits) {
@@ -1364,6 +1365,26 @@ function removePlayerPhoto(name) {
 }
 
 // ── SCHEDULED MATCHES ──────────────────────────────────────
+
+// ── MATCH IDS ────────────────────────────────────────────────
+// Every match created from here on gets a permanent unique id, so undo/edit/
+// delete/reorder can target the exact match instead of a content hash (two
+// identical-score rematches in one session used to resolve to the wrong entry).
+function _genMatchId() {
+  return "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+// Backfills `.id` on any match loaded from before this feature existed.
+// Mutates in place; returns true if any id was newly assigned.
+function _ensureMatchIds(matches) {
+  let changed = false;
+  (matches || []).forEach((m) => {
+    if (!m.id) {
+      m.id = _genMatchId();
+      changed = true;
+    }
+  });
+  return changed;
+}
 
 // ── SYNC CONFLICT RESOLUTION ───────────────────────────────
 function _mkMatchKey(m) {
@@ -1537,6 +1558,7 @@ function loadCloudData() {
     const _prevMatchCount = state.matches.length;
 
     state.matches = matches;
+    _ensureMatchIds(state.matches);
     state.players = pls;
     playerAliasMap = pam;
     nextPlayerId = npid || 1;
@@ -3227,6 +3249,7 @@ function addMatches() {
     }
     const prevSnapshot = [...state.matches];
     lastMatchSnapshot = prevSnapshot;
+    _ensureMatchIds(list);
     let step = [...prevSnapshot];
     for (const m of list) {
       const next = [...step, m];
@@ -3936,6 +3959,7 @@ function _commitImportedData(data) {
   const newMatches = incomingMatches.filter(
     (m) => !existingKeys.has(_mkMatchKey(m)),
   );
+  _ensureMatchIds(newMatches);
 
   // Merge matches
   const merged = [...state.matches, ...newMatches].sort((a, b) =>
@@ -7088,7 +7112,7 @@ function saveModernMatch() {
   }
   const teamA = [p1a, p2a];
   const teamB = [p1b, p2b];
-  const candidate = { teamA, teamB, scoreA: sA, scoreB: sB, date };
+  const candidate = { id: _genMatchId(), teamA, teamB, scoreA: sA, scoreB: sB, date };
 
   function _doSave() {
     const prevSnapshot = [...state.matches];
@@ -18175,6 +18199,7 @@ function _commitSaveMatch() {
   const { a1, a2, b1, b2 } = _liveSlots;
   const date = todayISO();
   const match = {
+    id: _genMatchId(),
     teamA: [a1, a2],
     teamB: [b1, b2],
     scoreA: _liveScoreA,
@@ -18186,6 +18211,7 @@ function _commitSaveMatch() {
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
   if (_liveSessionData?.sessionActive) {
     _sessionMatchHistory.push({
+      id: match.id,
       teamA: [a1, a2],
       teamB: [b1, b2],
       scoreA: _liveScoreA,
@@ -18754,8 +18780,7 @@ function confirmUndoSession() {
   closeUndoConfirmSheet();
   if (!_sessionMatchHistory.length) return;
   const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
-  const key = _mkMatchKey(last);
-  const idx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  const idx = state.matches.findIndex((m) => m.id === last.id);
   if (idx !== -1) state.matches.splice(idx, 1);
   _sessionMatchHistory.pop();
   _sessionRedoStack.push(last);
@@ -18789,8 +18814,7 @@ function confirmUndoSession() {
 function deleteSessionMatch(histIdx) {
   const mt = _sessionMatchHistory[histIdx];
   if (!mt) return;
-  const key = _mkMatchKey(mt);
-  const stateIdx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  const stateIdx = state.matches.findIndex((m) => m.id === mt.id);
   if (stateIdx !== -1) state.matches.splice(stateIdx, 1);
   _sessionMatchHistory.splice(histIdx, 1);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
@@ -18809,8 +18833,7 @@ function deleteSessionMatch(histIdx) {
 function editSessionMatch(histIdx) {
   const mt = _sessionMatchHistory[histIdx];
   if (!mt) return;
-  const key = _mkMatchKey(mt);
-  const stateIdx = state.matches.findIndex((m) => _mkMatchKey(m) === key);
+  const stateIdx = state.matches.findIndex((m) => m.id === mt.id);
   if (stateIdx === -1) {
     showToast("Cannot find match to edit", "❌");
     return;
@@ -18928,10 +18951,10 @@ function moveSessionMatch(histIdx, direction) {
   _sessionMatchHistory[targetIdx] = tmp;
 
   // Mirror the swap in state.matches (session matches only)
-  const keyA = _mkMatchKey(_sessionMatchHistory[histIdx]);
-  const keyB = _mkMatchKey(_sessionMatchHistory[targetIdx]);
-  const idxA = state.matches.findIndex((m) => _mkMatchKey(m) === keyA);
-  const idxB = state.matches.findIndex((m) => _mkMatchKey(m) === keyB);
+  const idA = _sessionMatchHistory[histIdx].id;
+  const idB = _sessionMatchHistory[targetIdx].id;
+  const idxA = state.matches.findIndex((m) => m.id === idA);
+  const idxB = state.matches.findIndex((m) => m.id === idB);
   if (idxA !== -1 && idxB !== -1) {
     const tmpM = state.matches[idxA];
     state.matches[idxA] = state.matches[idxB];
@@ -19088,8 +19111,7 @@ function closeSessionSummary() {
 window._openSessionMatchIntro = function(histIdx) {
   const mt = _sessionMatchHistory[histIdx];
   if (!mt) return;
-  const key = _mkMatchKey(mt);
-  const idx = state.matches.findIndex(m => _mkMatchKey(m) === key);
+  const idx = state.matches.findIndex(m => m.id === mt.id);
   if (idx >= 0) openMatchIntro(idx);
 };
 
@@ -19197,15 +19219,15 @@ function _renderLiveSessionDashboard() {
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
   }).join("");
-  // Build all-time ELO delta map keyed by match key (session objs ≠ state.matches refs).
+  // Build all-time ELO delta map keyed by match id (session objs ≠ state.matches refs).
   // Use state.matches (not activeMatches) so guest-involving matches are included.
   const _atDeltaMap = new Map();
-  _computeMatchEloDeltas(state.matches).forEach((d, m) => _atDeltaMap.set(_mkMatchKey(m), d));
+  _computeMatchEloDeltas(state.matches).forEach((d, m) => _atDeltaMap.set(m.id, d));
   const matchesHtml = history
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
       const histIdx = _sessionMatchHistory.indexOf(mt);
-      const delta = _atDeltaMap.get(_mkMatchKey(mt));
+      const delta = _atDeltaMap.get(mt.id);
       const fmtD = (d) => d == null ? "" : `<span class="ssm-elo" style="color:${d >= 0 ? "var(--green)" : "var(--red)"}">${d >= 0 ? "+" : ""}${d}</span>`;
       const teamAStr = escHtml(mt.teamA.map(normPlayer).join(" & "));
       const teamBStr = escHtml(mt.teamB.map(normPlayer).join(" & "));
@@ -19636,6 +19658,18 @@ function _renderSessionActiveCard() {
   </div>`;
 }
 
+// One-time bridge for a session paused before real match IDs existed: match
+// each id-less history entry back to its state.matches entry by content and
+// adopt that id, so undo/edit/delete/reorder work immediately on resume.
+function _migrateSessionHistoryIds() {
+  _sessionMatchHistory.forEach((mt) => {
+    if (mt.id) return;
+    const key = _mkMatchKey(mt);
+    const m = state.matches.find((x) => _mkMatchKey(x) === key);
+    mt.id = m ? m.id : _genMatchId();
+  });
+}
+
 function checkResumeSession() {
   try {
     const saved = localStorage.getItem(_SESSION_SAVE_KEY);
@@ -19645,6 +19679,7 @@ function checkResumeSession() {
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
     _sessionRedoStack = redoStack || [];
+    _migrateSessionHistoryIds();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
     _startSessionTimer();
@@ -19665,6 +19700,7 @@ function resumeSession() {
     _liveSessionData = session;
     _sessionMatchHistory = history || [];
     _sessionRedoStack = redoStack || [];
+    _migrateSessionHistoryIds();
     _sessionPanelOpen = false;
     _syncLiveSessionBar();
     _startSessionTimer();
