@@ -2,7 +2,8 @@ name: CI
 
 # Runs the test suites on every push and PR. `main` auto-deploys to GitHub
 # Pages, so this is the gate that keeps a broken build from reaching production.
-# The project is zero-dependency (no node_modules), so there is no install step.
+# The app itself is zero-dependency; esbuild is a devDependency used only by
+# scripts/build.js (the production minify step Deploy runs before uploading).
 
 on:
   push:
@@ -29,8 +30,16 @@ jobs:
       - uses: browser-actions/setup-chrome@v1
         id: setup-chrome
 
+      - run: npm ci
+
       - name: Unit + golden + americano tests
         run: npm test
+
+      # Verifies the same minify step Deploy runs doesn't break — deploy.yml
+      # only triggers after this workflow succeeds, so a broken build must
+      # fail here, not silently in the deploy job.
+      - name: Production build
+        run: npm run build
 
       # The two headless-Chrome steps occasionally flake on the runner (Chrome
       # launch/connect race or a transient external fetch). They are

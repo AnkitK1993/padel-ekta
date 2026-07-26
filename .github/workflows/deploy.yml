@@ -24,15 +24,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Minifies app.js/styles.css/every src+features module IN PLACE (same
+      # filenames, no bundling) into dist/ — see scripts/build.js for what's
+      # excluded and why.
+      - run: npm run build
+
       # Stamp a fresh millisecond timestamp so sw.js detects the new build.
+      # Written into dist/ directly, after the build, so it reflects this
+      # actual deploy rather than being overwritten by the copy step.
       - name: Stamp build version
-        run: echo "{\"v\":$(date +%s%3N)}" > buildinfo.json
+        run: echo "{\"v\":$(date +%s%3N)}" > dist/buildinfo.json
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
 
       - uses: actions/deploy-pages@v4
         id: deployment

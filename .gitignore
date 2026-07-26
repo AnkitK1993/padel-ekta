@@ -1,2 +1,4 @@
 .vscode/settings.json
 css-coverage-report.json
+node_modules/
+dist/

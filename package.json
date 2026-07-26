@@ -7,6 +7,10 @@
     "test:americano": "node tests/tests-americano.mjs",
     "test:handlers": "node scripts/handler-audit.mjs",
     "test:browser": "node scripts/browser-smoke.js",
-    "css:coverage": "node scripts/css-coverage.js"
+    "css:coverage": "node scripts/css-coverage.js",
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }
