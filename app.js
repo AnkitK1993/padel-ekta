@@ -3344,6 +3344,40 @@ function saveNames() {
     }
   }
 
+  // Block any alias that would end up pointing at two different players —
+  // either two display names in THIS batch sharing an alias, or a batch
+  // alias colliding with an existing player not touched by this import.
+  // Left unchecked, whichever entry rebuildNameMaps() processes last wins
+  // silently, misattributing future text-paste matches with no visible error.
+  const aliasOwner = {}; // alias (lowercased) -> display name that claims it
+  const collisions = [];
+  Object.entries(importMap).forEach(([displayName, aliases]) => {
+    aliases.forEach((a) => {
+      const key = a.toLowerCase();
+      if (aliasOwner[key] && aliasOwner[key] !== displayName) {
+        collisions.push(`"${a}" claimed by both "${aliasOwner[key]}" and "${displayName}"`);
+      } else {
+        aliasOwner[key] = displayName;
+      }
+    });
+  });
+  Object.values(state.players).forEach((p) => {
+    if (importMap[p.name]) return; // this player is itself being updated — fine
+    (playerAliasMap[p.id] || []).forEach((a) => {
+      const key = a.toLowerCase();
+      if (aliasOwner[key] && aliasOwner[key] !== p.name) {
+        collisions.push(`"${a}" in this import already belongs to existing player "${p.name}"`);
+      }
+    });
+  });
+  if (collisions.length) {
+    if (eEl) {
+      eEl.innerHTML = "Alias collision — nothing imported:<br>" + collisions.map(escHtml).join("<br>");
+      eEl.classList.add("show");
+    }
+    return;
+  }
+
   // Merge into players: update existing by name, add new
   Object.entries(importMap).forEach(([displayName, aliases]) => {
     const existing = Object.values(state.players).find((p) => p.name === displayName);
@@ -18827,7 +18861,6 @@ function deleteSessionMatch(histIdx) {
   if (stateIdx !== -1) state.matches.splice(stateIdx, 1);
   _sessionMatchHistory.splice(histIdx, 1);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
-  _updateSyncBadge();
   _invalidateEloMemo();
   _saveSessionState();
   saveCloudData();
@@ -20035,6 +20068,8 @@ window._amConfirmRename = function(oldName, newName) {
   _renderAmAdminTab();
 };
 function americanoBack() {
+  if (_americanoSchedule && !confirm("Change players? This clears the current schedule and any removed-player setup."))
+    return;
   localStorage.removeItem(_AM_SESSION_KEY);
   _americanoSchedule = null;
   _americanoScores = {};
@@ -21010,6 +21045,21 @@ function savePlayerEdit() {
     : [];
 
   const id = _editingPlayerId || nextPlayerId++;
+
+  // Block a name/alias that already belongs to a DIFFERENT player — silently
+  // letting this through means every future text-paste match using that
+  // token gets attributed to whichever player was processed last by
+  // rebuildNameMaps(), misattributing match history with no visible error.
+  const collision = Object.values(state.players).find((p) => {
+    if (p.id === id) return false;
+    const tokens = [p.name, ...(playerAliasMap[p.id] || [])].map((t) => t.toLowerCase());
+    return [name, ...aliases].some((t) => tokens.includes(t.toLowerCase()));
+  });
+  if (collision) {
+    alert(`"${name}"/alias already used by "${collision.name}" — pick a different name or alias.`);
+    return;
+  }
+
   const existing = state.players[id] || {};
   state.players[id] = { ...existing, id, name, email, isGuest };
   playerAliasMap[id] = aliases;

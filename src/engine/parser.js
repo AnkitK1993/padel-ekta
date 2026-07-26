@@ -20,6 +20,8 @@ export function parseDateHdr(s) {
   const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (!m) return null;
   let [, d, mo, y] = m;
+  const dn = Number(d), mn = Number(mo);
+  if (dn < 1 || dn > 31 || mn < 1 || mn > 12) return null;
   if (y.length === 2) y = "20" + y;
   return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
