@@ -13,7 +13,6 @@ import {
   computeAchievements,
   computeArchetype,
   computePlayerForm,
-  computeChemistryScores,
 } from "../src/engine/player-analytics.js";
 import { computeBadges } from "../src/engine/badges.js";
 import {
@@ -22,7 +21,6 @@ import {
   xpThreshold,
   getPrestigeTier,
 } from "../src/engine/xp.js";
-import { getHeadToHeadStats } from "../src/engine/pairs.js";
 import { lastWeekRange } from "../src/engine/dates.js";
 import {
   memoElo,
@@ -41,12 +39,10 @@ import {
   fmtDate,
   playerColor,
   playerInitials,
-  getSRRatingClass,
   _rankColor,
   toLocalISODate,
 } from "../src/ui/format.js";
 import {
-  buildSummaryMatchRow,
   isFireMatch,
   isDominatingMatch,
   isZeroMatch,

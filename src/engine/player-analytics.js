@@ -6,7 +6,7 @@
 // free of app/DOM coupling (same pattern as badges.js).
 import { computeElo, computeEloHistory } from "./elo.js";
 import { computeStats } from "./stats.js";
-import { computeASSTimeline, computeMatchASSDeltas } from "./ass.js";
+import { computeASSTimeline } from "./ass.js";
 
 let _getPairStats, _toLocalISODate;
 export function initPlayerAnalyticsDeps(deps) {

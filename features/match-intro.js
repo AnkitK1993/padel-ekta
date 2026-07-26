@@ -16,16 +16,12 @@ import { getPairKey } from "../src/engine/pairs.js";
 import { memoPairStats } from "../src/app/memo-store.js";
 import {
   escHtml,
-  jsArg,
   fmtDate,
-  playerColor,
-  playerInitials,
 } from "../src/ui/format.js";
 import {
   isFireMatch,
   isDominatingMatch,
   isZeroMatch,
-  buildMatchRowHtml,
 } from "../src/ui/render-match-rows.js";
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────

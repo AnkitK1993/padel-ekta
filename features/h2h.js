@@ -6,7 +6,6 @@ import { normPlayer } from "../src/domain/players.js";
 import { state } from "../src/engine/state.js";
 import { getHeadToHeadStats } from "../src/engine/pairs.js";
 import {
-  escHtml,
   fmtDate,
   playerColor,
   playerInitials,

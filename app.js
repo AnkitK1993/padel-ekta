@@ -1,5 +1,4 @@
 ﻿import {
-  generateAmericano,
   americanoFairness,
   nextMexicanoRound,
   nextAmericanoRound,
@@ -8,10 +7,7 @@ import {
   initEloDeps,
   computeElo,
   computeEloHistory,
-  computeEloPeaks,
-  computeEloLows,
   _lightFingerprint,
-  clearEloCache,
 } from "./src/engine/elo.js";
 import { computeStats, _normScores, eloToSr } from "./src/engine/stats.js";
 import { computeMatchASSDeltas, computeASS } from "./src/engine/ass.js";
@@ -76,13 +72,11 @@ import {
   progressBar,
 } from "./src/ui/components.js";
 import {
-  getAnimLevelRaw,
   resolveAnimLevel,
   setAnimLevelRaw,
   getSmoothMode,
   setSmoothMode,
   getBatterySaverPref,
-  hasBatterySaverPref,
   setBatterySaver,
   getNotifEnabled,
   setNotifEnabled,
@@ -120,7 +114,6 @@ import {
   _activeSeason,
   _inSeason,
   _seasonMatchCount,
-  invalidateAmMemo,
 } from "./src/engine/selectors.js";
 import {
   initHistorySummaryDeps,
@@ -216,8 +209,6 @@ import { fireConfetti } from "./features/confetti.js";
 import { checkMilestones, _checkAnniversaries } from "./features/milestones.js";
 import {
   computeSessionStreak,
-  getWeeklySnaps,
-  saveWeeklySnap,
   autoSaveWeeklySnap,
   getPrevWeekRankMap,
 } from "./features/weekly-stats.js";
@@ -234,24 +225,16 @@ import {
   getPlayerDateRange as _getPlayerDateRange,
 } from "./src/domain/players.js";
 import {
-  historyFilters,
-  homeFilters,
-  compactFilters,
-  renderGen,
   homeFilterKey,
   compactFilterKey,
-  historyFilterKey,
-  historyActiveFilterCount,
 } from "./src/app/filter-state.js";
 import {
   init as initCloudRepo,
   saveCloudData as _cloudRepoSave,
-  loadCloudData as _cloudRepoLoad,
   trySyncNow as _cloudRepoSync,
   buildCloudPayload,
   setPendingSync,
   hasPendingSync,
-  scheduleDocSizeCheck,
   getLastLocalSaveTime,
   checkDocSize as _checkDocSize,
 } from "./src/app/cloud-repo.js";
@@ -278,18 +261,12 @@ import {
   loadEloConfig,
   saveEloConfig,
   getEloDecayParams,
-  loadSeasonsLocal,
-  saveSeasonsLocal,
-  loadPhotosLocal,
-  savePhotosLocal,
 } from "./src/infra/match-store.js";
 import {
   sessionState,
   liveScore,
   americanoState,
   resetSessionState,
-  resetLiveScore,
-  resetAmericanoState,
 } from "./src/app/session-state.js";
 
 // ── BACKWARD-COMPAT BRIDGES ──────────────────────────────────
