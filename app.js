@@ -16706,17 +16706,64 @@ function renderAnalyticsPage() {
   const _hideEmptyToggle = `<div class="ana-toolbar"><button class="ana-hideempty-btn${_hideEmptyOn ? " active" : ""}" onclick="toggleAnaHideEmpty()">${_hideEmptyOn ? "☑" : "☐"} Hide empty</button></div>`;
   container.classList.toggle("ana-hide-empty", _hideEmptyOn);
 
-  container.innerHTML =
-    filterPillsHtml +
-    _seasonBanner +
-    _hideEmptyToggle +
-    orderedKeys
-      .map((key) => {
-        const def = allSecs.find((s) => s.key === key);
-        if (!def) return "";
-        return makeSec(key, def.title, def.body, collapsed.has(key), def.cat);
-      })
-      .join("");
+  const sectionsHtml = orderedKeys
+    .map((key) => {
+      const def = allSecs.find((s) => s.key === key);
+      if (!def) return "";
+      return {
+        key,
+        cat: def.cat,
+        html: makeSec(key, def.title, def.body, collapsed.has(key), def.cat),
+      };
+    })
+    .filter(Boolean);
+
+  const isDesktopDashboard =
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches &&
+    window.innerWidth >= 1100;
+
+  if (!isDesktopDashboard) {
+    container.innerHTML =
+      filterPillsHtml +
+      _seasonBanner +
+      _hideEmptyToggle +
+      sectionsHtml.map((sec) => sec.html).join("");
+  } else {
+    const leftKeys = new Set([
+      "awards",
+      "form",
+      "playerform",
+      "score",
+      "consistency",
+    ]);
+    const rightKeys = new Set([
+      "lrace",
+      "clutchrank",
+      "rivalry",
+      "dayofweek",
+      "pairs",
+      "elo",
+    ]);
+    const fullKeys = new Set(["partnergrid", "pairmatrix"]);
+    const leftHtml = [];
+    const rightHtml = [];
+    const fullHtml = [];
+    sectionsHtml.forEach((sec) => {
+      if (fullKeys.has(sec.key)) fullHtml.push(sec.html);
+      else if (rightKeys.has(sec.key)) rightHtml.push(sec.html);
+      else leftHtml.push(sec.html);
+    });
+    container.innerHTML = `
+      ${filterPillsHtml}
+      ${_seasonBanner}
+      ${_hideEmptyToggle}
+      <div class="ana-dashboard">
+        <div class="ana-col ana-col-left">${leftHtml.join("")}</div>
+        <div class="ana-col ana-col-right">${rightHtml.join("")}</div>
+        <div class="ana-wide-stack">${fullHtml.join("")}</div>
+      </div>
+    `;
+  }
 
   _anaRenderedVersion = _dataVersion;
 

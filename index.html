@@ -14,6 +14,23 @@
     />
     <meta name="apple-mobile-web-app-title" content="Ekta Padel" />
     <meta name="theme-color" content="#09090f" />
+    <script>
+      (function () {
+        const setAppHeight = () => {
+          const vv = window.visualViewport;
+          const height = Math.round((vv && vv.height) || window.innerHeight);
+          document.documentElement.style.setProperty("--app-height", `${height}px`);
+        };
+        setAppHeight();
+        window.addEventListener("resize", setAppHeight, { passive: true });
+        window.addEventListener("orientationchange", setAppHeight, { passive: true });
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener("resize", setAppHeight, { passive: true });
+          window.visualViewport.addEventListener("scroll", setAppHeight, { passive: true });
+        }
+        window.addEventListener("pageshow", setAppHeight, { passive: true });
+      })();
+    </script>
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <!-- iOS ignores SVG for the home-screen icon; PNG is required. -->

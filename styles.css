@@ -74,7 +74,7 @@
 html,
 body {
   height: 100%;
-  height: 100dvh;
+  height: var(--app-height, 100dvh);
   overflow: hidden;
   overflow-x: hidden;
 }
@@ -91,8 +91,8 @@ body {
   inset: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  max-height: 100dvh;
+  height: var(--app-height, 100dvh);
+  max-height: var(--app-height, 100dvh);
   opacity: 0;
   pointer-events: none;
   transform: translateX(8px);
@@ -628,6 +628,7 @@ body {
 
 .page-body-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -17169,15 +17170,143 @@ body.zoomed *::after {
 /* Desktop: pointer:fine = mouse device (laptop/PC), excludes touch phones.
    align-self on page-body-scroll only — avoids centering the tabbar too. */
 @media (hover: hover) and (pointer: fine) {
+  body {
+    align-items: center;
+  }
+
+  .page {
+    width: min(1560px, calc(100vw - 32px));
+    margin-inline: auto;
+    left: 0;
+    right: 0;
+  }
+
+  .page-body-scroll,
+  .tabbar {
+    width: 100%;
+  }
+
+  .page-body-scroll {
+    max-width: none !important;
+  }
+
+  .tabbar {
+    border-radius: 0 0 22px 22px;
+    overflow: hidden;
+  }
+
   /* Summary page: center content column, keep tabbar full-width */
   #pg-compact .page-body-scroll {
     align-self: center !important;
-    width: 100% !important;
-    max-width: 680px !important;
+    width: min(1320px, calc(100vw - 32px)) !important;
+    max-width: none !important;
   }
   #pg-compact .tabbar {
-    width: 100% !important;
+    width: min(1320px, calc(100vw - 32px)) !important;
     align-self: stretch !important;
+  }
+
+  #pg-analytics .page-body-scroll,
+  #pg-history .page-body-scroll,
+  #pg-home .page-body-scroll,
+  #pg-add .page-body-scroll {
+    width: min(1560px, calc(100vw - 32px)) !important;
+    max-width: none !important;
+  }
+
+  #pg-analytics .tabbar,
+  #pg-history .tabbar,
+  #pg-home .tabbar,
+  #pg-add .tabbar {
+    width: min(1560px, calc(100vw - 32px)) !important;
+  }
+
+  #analytics-page-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  #analytics-page-content > .ana-filter-row,
+  #analytics-page-content > .ana-season-banner,
+  #analytics-page-content > .ana-toolbar,
+  #analytics-page-content > .ana-dashboard,
+  #analytics-page-content > .ana-wide-stack {
+    grid-column: 1 / -1;
+  }
+
+  .ana-dashboard {
+    display: contents;
+  }
+
+  .ana-col,
+  .ana-wide-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .ana-col-left {
+    grid-column: 1;
+  }
+
+  .ana-col-right {
+    grid-column: 2;
+  }
+
+  .ana-wide-stack {
+    grid-column: 1 / -1;
+  }
+
+  .ana-wide-stack .ana-sec {
+    width: 100%;
+  }
+
+  .ana-wide-stack .ana-sec[data-key="partnergrid"],
+  .ana-wide-stack .ana-sec[data-key="pairmatrix"] {
+    width: 100%;
+  }
+
+  .pvp-wrap {
+    overflow: visible;
+  }
+
+  .pvp-scroll-wrap {
+    overflow-x: visible;
+  }
+
+  .pvp-table {
+    width: 100%;
+    table-layout: fixed;
+    border-spacing: 3px;
+  }
+
+  .pvp-corner,
+  .pvp-row-hdr {
+    width: 84px;
+    min-width: 84px;
+  }
+
+  .pvp-th,
+  .pvp-td {
+    min-width: 0;
+    width: auto;
+    padding: 5px 2px;
+    font-size: clamp(8px, 0.65vw, 10px);
+  }
+
+  .pvp-total {
+    font-size: clamp(6px, 0.5vw, 8px);
+  }
+
+  .pvp-legend {
+    gap: 6px 12px;
+  }
+
+  .pvp-legend-item {
+    font-size: clamp(8px, 0.55vw, 9px);
   }
 
   /* Detailed page: on desktop viewport is >768px so the max-width:768px
