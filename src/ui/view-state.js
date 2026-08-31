@@ -31,6 +31,10 @@ export const viewState = {
   anaActiveCat: "all",
   anaSearchIdx: -1,
   anaSections: [],
+  // Statistics page date filter
+  anaDateFilter: "all",
+  anaDateFrom: "",
+  anaDateTo: "",
   // ELO win-probability calculator
   eloProbP1: "",
   eloProbP2: "",

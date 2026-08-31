@@ -709,6 +709,7 @@ let _summaryMode = localStorage.getItem("summaryMode") || "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
+let _anaRenderedFilter = "";
 let _histRenderedVersion = -1,
   _histRenderedFilter = "";
 let _excludedPlayers = new Set(
@@ -2925,6 +2926,11 @@ function _resetSubFiltersForSeason() {
   const mt = document.getElementById("matchTo");
   if (mf) mf.value = "";
   if (mt) mt.value = "";
+  // Statistics page keeps its own date filter; reset it when the global
+  // season changes so a fresh season opens on the full range.
+  viewState.anaDateFilter = "all";
+  viewState.anaDateFrom = "";
+  viewState.anaDateTo = "";
 }
 // Switch the active season (id, or "all"). Persists the view preference and
 // re-renders everything via the standard commit() path (bumps _dataVersion,
@@ -11979,8 +11985,8 @@ window.wrcOnSlider       = wrcOnSlider;
 
 // Biggest upsets: replays both ELO and ASS match-by-match, capturing pre-match
 // scores per player. Records any match where either gap > 0.
-function _computeUpsets() {
-  const ms = [...activeMatches()].sort((a, b) =>
+function _computeUpsets(matches = activeMatches()) {
+  const ms = [...matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
   const elo = {}, ass = {};
@@ -12488,8 +12494,8 @@ window._playRatingsRace = function (btn) {
   step();
 };
 
-function _buildBiggestUpsetsHtml() {
-  _cachedUpsets = _computeUpsets();
+function _buildBiggestUpsetsHtml(matches = activeMatches()) {
+  _cachedUpsets = _computeUpsets(matches);
   const _eloOn = getEloEnabled();
   const mode = _eloOn ? (_upsetSortMode ?? _scoringMode) : "ass";
   const toggle = _eloOn ? `<div class="live-sdash-score-toggle" style="margin-bottom:10px">
@@ -12811,25 +12817,148 @@ function _showShutoutMatches(name, type) {
   document.body.appendChild(modal);
 }
 
+const _ANA_DATE_OPTS = [
+  { v: "all", l: "ALL TIME" },
+  { v: "today", l: "TODAY" },
+  { v: "week", l: "WEEK" },
+  { v: "weekend", l: "WEEKEND" },
+  { v: "lastweek", l: "LAST WEEK" },
+  { v: "month", l: "MONTH" },
+  { v: "range", l: "RANGE" },
+];
+
+function _analyticsDateFilterLabel(f, from, to) {
+  if (f === "today") return "Today";
+  if (f === "week") return "This week";
+  if (f === "weekend") return "Weekend";
+  if (f === "lastweek") return "Last week";
+  if (f === "month") return "This month";
+  if (f === "range") {
+    if (from && to) return `${fmtDate(from)} → ${fmtDate(to)}`;
+    if (from) return `From ${fmtDate(from)}`;
+    if (to) return `Until ${fmtDate(to)}`;
+    return "Custom range";
+  }
+  return "All dates";
+}
+
+function _analyticsApplyDateFilter(base, f, from, to) {
+  if (f === "all") return base;
+  const t = todayISO(),
+    sw = weekISO(),
+    swe = t,
+    sm = monthISO(),
+    wr = weekendRange(),
+    lwr = lastWeekRange();
+  return base.filter((m) => {
+    if (f === "all") return true;
+    if (f === "today") return m.date === t;
+    if (f === "week") return m.date >= sw && m.date <= swe;
+    if (f === "weekend") return m.date >= wr.from && m.date <= wr.to;
+    if (f === "month") return m.date >= sm && m.date <= t;
+    if (f === "lastweek") return m.date >= lwr.from && m.date <= lwr.to;
+    if (f === "range") {
+      const d = m.date || "";
+      if (!d) return false;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    }
+    return true;
+  });
+}
+
+function _analyticsMatches() {
+  return _analyticsApplyDateFilter(
+    activeMatches(),
+    viewState.anaDateFilter || "all",
+    viewState.anaDateFrom || "",
+    viewState.anaDateTo || "",
+  );
+}
+
+function _analyticsSeasonControlsHtml() {
+  const activeSeason = _activeSeason();
+  const activeId = activeSeason ? activeSeason.id : "all";
+  const seasons = [...state.seasons].sort((a, b) =>
+    (b.start || "").localeCompare(a.start || ""),
+  );
+  const opts = [
+    {
+      id: "all",
+      label: "ALL SEASONS",
+      title: "Show stats across every season",
+    },
+    ...seasons.map((s) => ({
+      id: s.id,
+      label: s.name || "Season",
+      title: _seasonRangeLabel(s),
+    })),
+  ];
+  return `<div class="ana-filter-row ana-season-row" id="ana-season-row">${opts
+    .map(
+      (o) =>
+        `<button class="ana-filter-pill${activeId === o.id ? " active" : ""}" onclick="setSeason(${jsArg(o.id)})" title="${escHtml(o.title)}">${escHtml(o.label)}</button>`,
+    )
+    .join("")}</div>`;
+}
+
+function _analyticsDateControlsHtml() {
+  const f = viewState.anaDateFilter || "all";
+  const pills = _ANA_DATE_OPTS.map(
+    (o) =>
+      `<button class="ana-filter-pill${f === o.v ? " active" : ""}" onclick="_anaSetDateFilter(${jsArg(o.v)})">${o.l}</button>`,
+  ).join("");
+  const range = f === "range"
+    ? `<div class="ana-toolbar ana-date-toolbar">
+        <input class="ana-date-input" type="date" value="${escHtml(viewState.anaDateFrom || "")}" onchange="_anaSetDateRange('from', this.value)" aria-label="From date">
+        <span class="ana-date-range-sep">→</span>
+        <input class="ana-date-input" type="date" value="${escHtml(viewState.anaDateTo || "")}" onchange="_anaSetDateRange('to', this.value)" aria-label="To date">
+        <button class="ana-filter-pill" onclick="_anaSetDateFilter('all')">CLEAR</button>
+      </div>`
+    : "";
+  return `<div class="ana-filter-row ana-date-row" id="ana-date-row">${pills}</div>${range}`;
+}
+
+function _anaSetDateFilter(v) {
+  viewState.anaDateFilter = v || "all";
+  if (viewState.anaDateFilter !== "range") {
+    viewState.anaDateFrom = "";
+    viewState.anaDateTo = "";
+  }
+  renderAnalyticsPage();
+}
+
+function _anaSetDateRange(which, value) {
+  if (which === "from") viewState.anaDateFrom = value || "";
+  else if (which === "to") viewState.anaDateTo = value || "";
+  if (viewState.anaDateFilter !== "range") viewState.anaDateFilter = "range";
+  renderAnalyticsPage();
+}
+
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
   // Skip full re-render if data hasn't changed since last render
+  const _anaRenderedKey = `${_activeSeasonId}|${viewState.anaDateFilter || "all"}|${viewState.anaDateFrom || ""}|${viewState.anaDateTo || ""}|${viewState.anaActiveCat || "all"}|${getAnaHideEmpty() ? 1 : 0}`;
   if (
     _anaRenderedVersion === _dataVersion &&
+    _anaRenderedFilter === _anaRenderedKey &&
     container.querySelector(".ana-sec")
   )
     return;
   // Statistics run over the season-scoped, GUEST-EXCLUDED set — never raw
   // state.matches — so players marked as guest don't appear in any stat.
-  const am = activeMatches();
+  const am = _analyticsMatches();
   if (!am.length) {
     container.innerHTML = emptyState({
       icon: "📊",
-      title: "No matches yet",
-      message: "Add a match to start tracking stats and rankings.",
+      title: "No matches in this view",
+      message: `Try a different season or date filter. Current scope: ${_analyticsDateFilterLabel(viewState.anaDateFilter || "all", viewState.anaDateFrom || "", viewState.anaDateTo || "")}.`,
       action: { label: "Add match", onClick: "switchMainTab('add')" },
     });
+    _anaRenderedVersion = _dataVersion;
+    _anaRenderedFilter = _anaRenderedKey;
     return;
   }
 
@@ -12877,9 +13006,11 @@ function renderAnalyticsPage() {
   window._shutoutMatchData = { wins: _shutoutWinMatchesByPlayer, losses: _shutoutLossMatchesByPlayer };
 
   // ── ELO ────────────────────────────────────────────────
-  const eloMap = _memoElo(true);
-  const pairLeaderboard = _memoPairStats().slice(0, 8);
-  const playersByMatches = _h2hSortPlayers(getAllPlayerNamesFromMatches());
+  const eloMap = _scoringMode === "ass" ? computeASS(am) : computeElo(am);
+  const pairLeaderboard = getPairStats(am).slice(0, 8);
+  const playersByMatches = _h2hSortPlayers(
+    [...new Set(am.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])].filter(Boolean)))],
+  );
   const matrixSortBar = `<div class="h2h-sort-bar">
     <span class="h2h-sort-lbl">SORT</span>
     ${[
@@ -12898,7 +13029,10 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = _activeStats();
+  const compList = computeStats(am, eloMap);
+  if (_scoringMode === "ass") {
+    compList.sort((a, b) => (eloMap[b.name] || 0) - (eloMap[a.name] || 0));
+  }
   const clutchP = Object.keys(closePlayed)
     .filter((p) => closePlayed[p] >= 3)
     .sort(
@@ -12990,7 +13124,7 @@ function renderAnalyticsPage() {
     : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
 
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
-  const _qwScoreMap = _activeScoreMap();
+  const _qwScoreMap = eloMap;
   // Both ELO and ASS are anchored at 1000, so an unmapped player falls back to
   // the 1000 baseline (previously ASS wrongly used 0, deflating the average).
   const _qwFallback = 1000;
@@ -13080,7 +13214,7 @@ function renderAnalyticsPage() {
     (a, b) => b[1] - a[1],
   )[0];
   const [rivalA, rivalB] = topRivalEntry?.[0]?.split("|") || [null, null];
-  const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB, activeMatches()) : null;
+  const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB, am) : null;
 
   const uniqueMonths = Object.keys(monthlyStats).sort();
   const top5 = [...players]
@@ -13120,7 +13254,7 @@ function renderAnalyticsPage() {
 
   const { from: wkFrom, to: wkTo } = lastWeekRange();
   const rankAll = compList.reduce((o, p, i) => ({ ...o, [p.name]: i + 1 }), {});
-  const _preWkArr = activeMatches().filter((m) => (m.date || "") < wkFrom);
+  const _preWkArr = am.filter((m) => (m.date || "") < wkFrom);
   // Rank 1wk-ago using the same scoring mode as current
   const rank1wk = (() => {
     if (_scoringMode === "ass") {
@@ -13178,7 +13312,7 @@ function renderAnalyticsPage() {
   const bestPairPerP = compList
     .map((p) => ({ name: p.name, partner: p.bestPartner, wins: p.mw }))
     .filter((p) => p.partner && p.wins >= 1);
-  const pairFormData = _memoPairStats()
+  const pairFormData = getPairStats(am)
     .filter((p) => p.played >= 3)
     .map((pair) => {
       const pm = sortedM
@@ -13994,9 +14128,9 @@ function renderAnalyticsPage() {
   const _scLabel = _scoringLabel();
   const { from: wkFromElo } = lastWeekRange();
   // Build active score map + pre-week score map for change calc
-  const _scMapNow  = _activeScoreMap();
+  const _scMapNow  = _scoringMode === "ass" ? computeASS(am) : computeElo(am);
   const _scFallback = 1000; // both ELO and ASS baseline at 1000
-  const _preWkArrElo = activeMatches().filter((m) => (m.date || "") < wkFromElo);
+  const _preWkArrElo = am.filter((m) => (m.date || "") < wkFromElo);
   const _scMapPre = _scoringMode === "ass"
     ? computeASS(_preWkArrElo)
     : computeElo(_preWkArrElo);
@@ -14154,13 +14288,13 @@ function renderAnalyticsPage() {
 
   // ── PAIR CHEMISTRY MATRIX ──────────────────────────────
   const pairMatrixPlayers = [
-    ...new Set(_memoPairStats().flatMap((p) => p.players)),
+    ...new Set(getPairStats(am).flatMap((p) => p.players)),
   ].sort();
   const pairMatrixHtml = (() => {
     if (pairMatrixPlayers.length < 2)
       return '<div class="sub" style="padding:8px">Need more pair data.</div>';
     const pairLookup = {};
-    _memoPairStats().forEach((p) => {
+    getPairStats(am).forEach((p) => {
       pairLookup[p.key] = p;
     });
     const colHeaders = pairMatrixPlayers
@@ -14192,7 +14326,7 @@ function renderAnalyticsPage() {
 
   // ── PERSONAL BESTS ─────────────────────────────────────
   const personalBestsHtml = (() => {
-    const pbStats = computeStats(activeMatches()).filter((p) => p.mp >= 3);
+    const pbStats = computeStats(am).filter((p) => p.mp >= 3);
     if (!pbStats.length)
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
     const rows = pbStats.map((p) => {
@@ -15679,7 +15813,7 @@ function renderAnalyticsPage() {
   // sortable table across every player (min 3 matches).
   const _formRows = compList
     .map((p) => {
-      const f = computePlayerForm(p.name, activeMatches());
+      const f = computePlayerForm(p.name, am);
       if (!f) return null;
       return {
         name: p.name,
@@ -15952,7 +16086,7 @@ function renderAnalyticsPage() {
           label: "Head-to-Head",
           html: (() => {
             const enc = {};
-            activeMatches().forEach((m) => {
+            am.forEach((m) => {
               const tA = m.teamA || [],
                 tB = m.teamB || [];
               const aWon = m.scoreA > m.scoreB;
@@ -16130,14 +16264,14 @@ function renderAnalyticsPage() {
       key: "biggestupsets",
       cat: "records",
       title: "💥 Biggest Upsets",
-      body: _buildBiggestUpsetsHtml(),
+      body: _buildBiggestUpsetsHtml(am),
     },
     {
       key: "ratingdist",
       cat: "elo",
       title: "📊 Rating Distribution",
       body: (() => {
-        const scoreMap = _activeScoreMap();
+        const scoreMap = eloMap;
         const { entries, buckets } = ratingDistribution(scoreMap, 50);
         if (!entries.length) return '<div class="sub" style="padding:8px">No data.</div>';
         const rows = buckets
@@ -16356,7 +16490,7 @@ function renderAnalyticsPage() {
         // (it runs earlier in this same allSecs literal, so _cachedUpsets is
         // populated by now) instead of re-running the full ELO+ASS walk.
         // Falls back to a fresh computation if that assumption ever breaks.
-        const upsets = _cachedUpsets || _computeUpsets();
+        const upsets = _cachedUpsets || _computeUpsets(am);
         const agg = {};
         upsets.forEach((u) => {
           const gap = _scoringMode === "ass" ? u.assGap : u.gap;
@@ -16483,8 +16617,8 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "🏅 Weighted MVP Formula",
       body: (() => {
-        const scoreMap = _activeScoreMap();
-        const upsets = _computeUpsets();
+        const scoreMap = eloMap;
+        const upsets = _computeUpsets(am);
         const upsetCounts = {};
         upsets.forEach((u) => {
           const gap = _scoringMode === "ass" ? u.assGap : u.gap;
@@ -16696,12 +16830,10 @@ function renderAnalyticsPage() {
     cat: s.cat,
   }));
 
-  // Season context banner — every section already respects the active season
-  // via activeMatches(); this makes the scope explicit at the top of the page.
+  // Season context banner — the top of the page now also exposes season/date
+  // controls so the page can be scoped without leaving Statistics.
   const _seasonForBanner = _activeSeason();
-  const _seasonBanner = _seasonForBanner
-    ? `<div class="ana-season-banner">🗓️ <strong>${escHtml(_seasonForBanner.name)}</strong> <span style="opacity:.65">· ${escHtml(_seasonRangeLabel(_seasonForBanner))}</span></div>`
-    : "";
+  const _seasonBanner = `<div class="ana-season-banner">🗓️ <strong>${escHtml(_seasonForBanner ? _seasonForBanner.name : "ALL SEASONS")}</strong> <span style="opacity:.65">· ${escHtml(_seasonForBanner ? _seasonRangeLabel(_seasonForBanner) : "Across every season")} · ${escHtml(_analyticsDateFilterLabel(viewState.anaDateFilter || "all", viewState.anaDateFrom || "", viewState.anaDateTo || ""))}</span></div>`;
   const _hideEmptyOn = getAnaHideEmpty();
   const _hideEmptyToggle = `<div class="ana-toolbar"><button class="ana-hideempty-btn${_hideEmptyOn ? " active" : ""}" onclick="toggleAnaHideEmpty()">${_hideEmptyOn ? "☑" : "☐"} Hide empty</button></div>`;
   container.classList.toggle("ana-hide-empty", _hideEmptyOn);
@@ -16725,6 +16857,8 @@ function renderAnalyticsPage() {
   if (!isDesktopDashboard) {
     container.innerHTML =
       filterPillsHtml +
+      _analyticsSeasonControlsHtml() +
+      _analyticsDateControlsHtml() +
       _seasonBanner +
       _hideEmptyToggle +
       sectionsHtml.map((sec) => sec.html).join("");
@@ -16755,6 +16889,8 @@ function renderAnalyticsPage() {
     });
     container.innerHTML = `
       ${filterPillsHtml}
+      ${_analyticsSeasonControlsHtml()}
+      ${_analyticsDateControlsHtml()}
       ${_seasonBanner}
       ${_hideEmptyToggle}
       <div class="ana-dashboard">
@@ -16766,6 +16902,7 @@ function renderAnalyticsPage() {
   }
 
   _anaRenderedVersion = _dataVersion;
+  _anaRenderedFilter = _anaRenderedKey;
 
   // Re-apply active category filter after re-render
   anaFilterCategory(viewState.anaActiveCat, true);
@@ -17570,6 +17707,8 @@ Object.assign(window, {
   toggleSummaryModeOnly,
   toggleMatchDeltaWindow,
   setCmpSort,
+  _anaSetDateFilter,
+  _anaSetDateRange,
   renderModernMatches,
   _histShowMore,
   setHistPlayerFilter,
