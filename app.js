@@ -23,7 +23,11 @@ import {
   rollingWinPct,
   waterfallTopMoves,
 } from "./src/engine/records.js";
-import { initParserDeps, parseBlock, parseDateHdr } from "./src/engine/parser.js";
+import {
+  initParserDeps,
+  parseBlock,
+  parseDateHdr,
+} from "./src/engine/parser.js";
 import {
   escHtml,
   jsArg,
@@ -137,7 +141,6 @@ import {
   computePlayerForm,
   computePowerRankings,
   computeChemistryScores,
-
   computeAnalyticsPageData,
   computePartnerOpponentMatrix,
 } from "./src/engine/player-analytics.js";
@@ -198,8 +201,16 @@ import {
 } from "./features/h2h.js";
 import { openShareMatchPoster } from "./features/share-poster.js";
 import { openWeeklyDigest } from "./features/weekly-digest.js";
-import { openThemePicker, closeThemePicker, pickTheme } from "./features/theme-picker.js";
-import { openGlobalSearch, closeGlobalSearch, _globalSearchInput } from "./features/global-search.js";
+import {
+  openThemePicker,
+  closeThemePicker,
+  pickTheme,
+} from "./features/theme-picker.js";
+import {
+  openGlobalSearch,
+  closeGlobalSearch,
+  _globalSearchInput,
+} from "./features/global-search.js";
 import { fireConfetti } from "./features/confetti.js";
 import { checkMilestones, _checkAnniversaries } from "./features/milestones.js";
 import {
@@ -219,10 +230,7 @@ import {
   sameMatch,
   getPlayerDateRange as _getPlayerDateRange,
 } from "./src/domain/players.js";
-import {
-  homeFilterKey,
-  compactFilterKey,
-} from "./src/app/filter-state.js";
+import { homeFilterKey, compactFilterKey } from "./src/app/filter-state.js";
 import {
   init as initCloudRepo,
   saveCloudData as _cloudRepoSave,
@@ -257,10 +265,7 @@ import {
   saveEloConfig,
   getEloDecayParams,
 } from "./src/infra/match-store.js";
-import {
-  sessionState,
-  resetSessionState,
-} from "./src/app/session-state.js";
+import { sessionState, resetSessionState } from "./src/app/session-state.js";
 
 // ── BACKWARD-COMPAT BRIDGES ──────────────────────────────────
 // Internal functions that have been extracted to domain/app modules.
@@ -278,20 +283,48 @@ import {
 // split into page modules (see ARCHITECTURE.md roadmap), each page module will
 // import from the canonical source directly and the wrappers can be removed.
 
-function normPlayer(name)                   { return _normPlayer(name); }
-function rebuildNameMaps()                  { return _rebuildNameMaps(state.players, playerAliasMap); }
-function getAllPlayerNamesFromMatches()      { return _getAllPlayerNames(state.matches); }
-function _memoElo(decay = false)            { return memoElo(decay); }
-function _memoEloHistory()                  { return memoEloHistory(); }
-function _memoEloPeaks()                    { return memoEloPeaks(); }
-function _memoEloLows()                     { return memoEloLows(); }
-function _memoStats()                       { return memoStats(); }
-function _statPlayerNames()                 { return memoStatPlayerNames(); }
-function _memoPairStats()                   { return memoPairStats(); }
-function _memoASS()                         { return memoASS(); }
-function _memoASSHistory()                  { return memoASSHistory(); }
-function _memoASSPeaks()                    { return memoASSPeaks(); }
-function _memoASSLows()                     { return memoASSLows(); }
+function normPlayer(name) {
+  return _normPlayer(name);
+}
+function rebuildNameMaps() {
+  return _rebuildNameMaps(state.players, playerAliasMap);
+}
+function getAllPlayerNamesFromMatches() {
+  return _getAllPlayerNames(state.matches);
+}
+function _memoElo(decay = false) {
+  return memoElo(decay);
+}
+function _memoEloHistory() {
+  return memoEloHistory();
+}
+function _memoEloPeaks() {
+  return memoEloPeaks();
+}
+function _memoEloLows() {
+  return memoEloLows();
+}
+function _memoStats() {
+  return memoStats();
+}
+function _statPlayerNames() {
+  return memoStatPlayerNames();
+}
+function _memoPairStats() {
+  return memoPairStats();
+}
+function _memoASS() {
+  return memoASS();
+}
+function _memoASSHistory() {
+  return memoASSHistory();
+}
+function _memoASSPeaks() {
+  return memoASSPeaks();
+}
+function _memoASSLows() {
+  return memoASSLows();
+}
 
 // ── MASTER SCORING MODE ─────────────────────────────────────
 // "ass" = Ankit Scoring System  |  "elo" = classic ELO
@@ -316,22 +349,38 @@ function _activeLows() {
 function _activeStats() {
   if (_scoringMode !== "ass") return _memoStats();
   const assMap = _memoASS();
-  return _memoStats().slice().sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
+  return _memoStats()
+    .slice()
+    .sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
 }
-function _scoringLabel() { return _scoringMode === "ass" ? "ASS" : "ELO"; }
-function saveCloudData(opts) { return _cloudRepoSave(opts); }
+function _scoringLabel() {
+  return _scoringMode === "ass" ? "ASS" : "ELO";
+}
+function saveCloudData(opts) {
+  return _cloudRepoSave(opts);
+}
 // NOTE: saveCloudData is reassigned ~1150 lines below once _lastLocalSaveTime
 // and _invalidateEloMemo are available. That version is the one callers use.
-function _trySyncNow()                      { return _cloudRepoSync(); }
-function _setPendingSync(flag)              { return setPendingSync(flag); }
-function _hasPendingSync()                  { return hasPendingSync(); }
+function _trySyncNow() {
+  return _cloudRepoSync();
+}
+function _setPendingSync(flag) {
+  return setPendingSync(flag);
+}
+function _hasPendingSync() {
+  return hasPendingSync();
+}
 
 // Filter-state bridges: keep old bare variable names working.
 // app.js accesses these as mutable variables; reading through getters is
 // equivalent. The setters at each mutation site already update the filter
 // objects in filter-state.js. Remaining direct reads use the bridged getters.
-function _homeFilterKey()    { return homeFilterKey(); }
-function _compactFilterKey() { return compactFilterKey(); }
+function _homeFilterKey() {
+  return homeFilterKey();
+}
+function _compactFilterKey() {
+  return compactFilterKey();
+}
 
 // Firebase init + db/auth/provider singletons live in src/infra/cloud/firebase.js
 // (imported at top). ADMIN_EMAIL + the Drive token stay here as app state.
@@ -595,6 +644,13 @@ function _ptrEnd() {
     const page = document.querySelector(".page.active");
     const id = page?.id;
     setTimeout(() => {
+      // ✅ Check if page is still active (fix race condition on page switch)
+      const stillActive = document.querySelector(".page.active")?.id === id;
+      if (!stillActive) {
+        _ptrRefreshing = false;
+        return;
+      }
+
       if (id === "pg-home") renderHome();
       else if (id === "pg-compact") renderCompact();
       else if (id === "pg-history") renderModernMatches();
@@ -644,7 +700,12 @@ document.addEventListener("touchcancel", _ptrEnd, { passive: true });
 document.addEventListener(
   "touchmove",
   (e) => {
-    if (e.touches && e.touches.length > 1 && typeof e.scale === "number" && e.scale !== 1)
+    if (
+      e.touches &&
+      e.touches.length > 1 &&
+      typeof e.scale === "number" &&
+      e.scale !== 1
+    )
       e.preventDefault();
   },
   { passive: false },
@@ -682,6 +743,27 @@ document.addEventListener("visibilitychange", () => {
 // players now lives in shared state.players (./state.js) // { [id]: { id, name, email, image, isGuest } }
 let playerAliasMap = {}; // { [id]: [alias1, alias2, ...] }
 let nextPlayerId = 1;
+
+// ✅ PERFORMANCE: Batch localStorage reads at init time (not scattered throughout)
+const _INIT_STORAGE = (() => {
+  const cache = {};
+  try {
+    const keys = [
+      "padel_active_season",
+      "padel_seasons",
+      "summaryMode",
+      "padel-exclude-players",
+      "padel_cmp_hidden_cols_v3",
+      "padel_cmp_col_migrate_v5",
+      "smooth_mode",
+    ];
+    keys.forEach((k) => {
+      cache[k] = localStorage.getItem(k);
+    });
+  } catch (e) {}
+  return cache;
+})();
+
 // ── SEASONS ────────────────────────────────────────────────
 // User-defined date ranges. Each: { id, name, start:"YYYY-MM-DD", end:"YYYY-MM-DD"|null }.
 // `seasons` is shared config (persisted in the cloud doc alongside matches).
@@ -694,8 +776,8 @@ let _activeSeasonId = "all";
 // today) is auto-selected on launch instead of restoring the last manual pick.
 let _seasonManuallySet = false;
 try {
-  _activeSeasonId = localStorage.getItem("padel_active_season") || "all";
-  state.seasons = JSON.parse(localStorage.getItem("padel_seasons") || "[]") || [];
+  _activeSeasonId = _INIT_STORAGE["padel_active_season"] || "all";
+  state.seasons = JSON.parse(_INIT_STORAGE["padel_seasons"] || "[]") || [];
 } catch (e) {}
 _applyAutoSeason(); // override with the ongoing season if auto-select is on
 let _dataVersion = 0;
@@ -705,7 +787,7 @@ let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
 // _summaryMode is Summary-tab-local (badge click), persisted under "summaryMode".
 // _scoringMode (hamburger) drives Stats/Home/Analytics only.
-let _summaryMode = localStorage.getItem("summaryMode") || "ass";
+let _summaryMode = _INIT_STORAGE["summaryMode"] || "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
@@ -715,7 +797,7 @@ let _histRenderedVersion = -1,
 let _excludedPlayers = new Set(
   (() => {
     try {
-      return JSON.parse(localStorage.getItem("padel-exclude-players") || "[]");
+      return JSON.parse(_INIT_STORAGE["padel-exclude-players"] || "[]");
     } catch (e) {
       return [];
     }
@@ -744,7 +826,8 @@ let cmpFilter = "today",
   cmpFrom = null,
   cmpTo = null;
 let _lbWindow = null; // { mode:"first"|"last", count:N } or null — per-player game window
-let _pvpLow = 20, _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
+let _pvpLow = 20,
+  _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
 let cmpSortKey = _summaryMode === "ass" ? "ass" : "sr";
 let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
@@ -762,7 +845,7 @@ const _CMP_TOGGLE_COLS = [
 ];
 function _loadCmpHiddenCols() {
   try {
-    const s = localStorage.getItem("padel_cmp_hidden_cols_v3");
+    const s = _INIT_STORAGE["padel_cmp_hidden_cols_v3"];
     if (s) return new Set(JSON.parse(s));
   } catch (e) {}
   return new Set([]);
@@ -771,10 +854,13 @@ let _cmpHiddenCols = _loadCmpHiddenCols();
 // One-time migration (v5): always show both ELO and ASS columns by default,
 // regardless of the active scoring toggle. Clears any previously-hidden
 // scoring column from saved state.
-if (!localStorage.getItem("padel_cmp_col_migrate_v5")) {
+if (!_INIT_STORAGE["padel_cmp_col_migrate_v5"]) {
   _cmpHiddenCols.delete("elo");
   _cmpHiddenCols.delete("ass");
-  localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([..._cmpHiddenCols]));
+  localStorage.setItem(
+    "padel_cmp_hidden_cols_v3",
+    JSON.stringify([..._cmpHiddenCols]),
+  );
   localStorage.setItem("padel_cmp_col_migrate_v5", "1");
 }
 let prevPage = "home";
@@ -789,51 +875,71 @@ let _emailTimer = null;
 // compiling without renaming. When a page module is extracted for the
 // live-session feature, it will import from session-state.js directly and
 // these aliases can be removed.
-let _liveSessionData        = null; // aliased separately — set by loadCloudData
-const _liveSlots            = { a1: null, a2: null, b1: null, b2: null };
-let _liveScoreA             = 0;
-let _liveScoreB             = 0;
-let _liveActiveSlot         = null;
-let _liveRaceTo             = 4; // "race to" threshold: 4 or 6
+let _liveSessionData = null; // aliased separately — set by loadCloudData
+const _liveSlots = { a1: null, a2: null, b1: null, b2: null };
+let _liveScoreA = 0;
+let _liveScoreB = 0;
+let _liveActiveSlot = null;
+let _liveRaceTo = 4; // "race to" threshold: 4 or 6
 
 // sessionState field aliases — call sites use these bare names; they read/write
 // through to the canonical sessionState object so resetSessionState() stays atomic.
 // Arrays/Sets are aliased by reference (mutations propagate automatically).
 // Scalar aliases use Object.defineProperty so ++ / = writes propagate too.
 Object.defineProperty(globalThis, "_sessionMatchHistory", {
-  get() { return sessionState.matchHistory; },
-  set(v) { sessionState.matchHistory = v; },
+  get() {
+    return sessionState.matchHistory;
+  },
+  set(v) {
+    sessionState.matchHistory = v;
+  },
   configurable: true,
 });
 Object.defineProperty(globalThis, "_sessionRedoStack", {
-  get() { return sessionState.redoStack; },
-  set(v) { sessionState.redoStack = v; },
+  get() {
+    return sessionState.redoStack;
+  },
+  set(v) {
+    sessionState.redoStack = v;
+  },
   configurable: true,
 });
 Object.defineProperty(globalThis, "_sessionPendingCount", {
-  get() { return sessionState.pendingCount; },
-  set(v) { sessionState.pendingCount = v; },
+  get() {
+    return sessionState.pendingCount;
+  },
+  set(v) {
+    sessionState.pendingCount = v;
+  },
   configurable: true,
 });
 Object.defineProperty(globalThis, "_sessionPanelOpen", {
-  get() { return sessionState.panelOpen; },
-  set(v) { sessionState.panelOpen = v; },
+  get() {
+    return sessionState.panelOpen;
+  },
+  set(v) {
+    sessionState.panelOpen = v;
+  },
   configurable: true,
 });
 // _sessionSetupSelected — reassigned at mutation sites; use property alias via globalThis
 Object.defineProperty(globalThis, "_sessionSetupSelected", {
-  get() { return sessionState.setupSelected; },
-  set(v) { sessionState.setupSelected = v; },
+  get() {
+    return sessionState.setupSelected;
+  },
+  set(v) {
+    sessionState.setupSelected = v;
+  },
   configurable: true,
 });
 // Timer interval handle for the session elapsed-time display — scalar, direct let.
 let _sessionTimerInterval = null;
 let _sdashShowGuests = true; // scoreboard guest-filter toggle
 let _sessScoreView = null; // null = follow hamburger _scoringMode; "elo"|"ass"|"both" = explicit
-let _sessSortCol = "sr";   // active sort column key
+let _sessSortCol = "sr"; // active sort column key
 let _sessSortDir = "desc"; // "asc" | "desc"
 let _upsetSortMode = null; // null = follow _scoringMode; "elo"|"ass" = explicit
-let _cachedUpsets = null;  // filled by _buildBiggestUpsetsHtml, reused by toggle
+let _cachedUpsets = null; // filled by _buildBiggestUpsetsHtml, reused by toggle
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -846,7 +952,8 @@ window.isAppBusy = function () {
     if (document.querySelector(".modal.show, .sheet.open, .overlay.open"))
       return true;
     const ae = document.activeElement;
-    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return true;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA"))
+      return true;
   } catch (e) {}
   return false;
 };
@@ -856,7 +963,7 @@ if (_animLevel0 === "medium" || _animLevel0 === "off")
 if (_animLevel0 === "off") document.body.classList.add("no-anim");
 // Smooth mode: default ON if no saved pref
 {
-  if (localStorage.getItem("smooth_mode") === null) setSmoothMode(true);
+  if (_INIT_STORAGE["smooth_mode"] === null) setSmoothMode(true);
   if (getSmoothMode()) {
     document.body.classList.add("smooth-mode");
     const _smCb = document.getElementById("smooth-mode-toggle");
@@ -886,9 +993,11 @@ _applyFontScale(getFontScale());
 // Initialise scoring mode UI from persisted state.
 {
   // Hamburger segmented control reflects _scoringMode (global)
-  document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
-    b.classList.toggle("active", b.dataset.val === _scoringMode),
-  );
+  document
+    .querySelectorAll(".scoring-seg-btn")
+    .forEach((b) =>
+      b.classList.toggle("active", b.dataset.val === _scoringMode),
+    );
   // Summary tab badge reflects _summaryMode (tab-local)
   const _smBadgeInit = document.getElementById("summary-mode-badge");
   if (_smBadgeInit) _smBadgeInit.textContent = _summaryMode.toUpperCase();
@@ -908,14 +1017,18 @@ function _saveDeletedMatchesTrimmed() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutoffISO = toLocalISODate(cutoff);
-  const trimmed = deletedMatches.filter((d) => (d.deletedAt || "") >= cutoffISO);
+  const trimmed = deletedMatches.filter(
+    (d) => (d.deletedAt || "") >= cutoffISO,
+  );
   deletedMatches.length = 0;
   trimmed.forEach((m) => deletedMatches.push(m));
   _saveDeletedMatches(deletedMatches);
 }
 // Provide the old names so no call site changes.
 const DELETED_KEY = "padel_deleted"; // kept for any external tooling references
-function saveDeletedMatches() { _saveDeletedMatchesTrimmed(); }
+function saveDeletedMatches() {
+  _saveDeletedMatchesTrimmed();
+}
 
 // ELO config: loadEloConfig / saveEloConfig / getEloDecayParams → match-store.js
 // saveEloConfig imported above — add the invalidation side-effect here:
@@ -924,8 +1037,9 @@ function _saveEloConfigWithInvalidate(cfg) {
   _saveEloConfigBase(cfg);
   _invalidateEloMemo();
 }
-// Reassign for all in-file callers that expect the side-effectful version.
+// ✅ Reassign for all in-file callers that expect the side-effectful version.
 // (applyEloConfig / resetEloConfig call saveEloConfig — they now go through this.)
+window.saveEloConfig = _saveEloConfigWithInvalidate;
 
 const ELO_DEFAULTS = { perWeek: 4, graceDays: 28, maxDecay: 300, floor: 900 };
 
@@ -978,18 +1092,40 @@ function applyEloConfig() {
   const graceDays = parseInt(document.getElementById("edcfg-grace")?.value);
   const maxDecay = parseInt(document.getElementById("edcfg-max")?.value);
   const floor = parseInt(document.getElementById("edcfg-floor")?.value);
-  if (isNaN(perWeek) || isNaN(graceDays) || isNaN(maxDecay) || isNaN(floor)) {
-    const msg = document.getElementById("elo-cfg-msg");
+  const msg = document.getElementById("elo-cfg-msg");
+
+  const showError = (text) => {
     if (msg) {
       msg.style.display = "block";
       msg.style.color = "var(--red)";
-      msg.textContent = "All fields are required.";
+      msg.textContent = text;
     }
+  };
+
+  // ✅ Comprehensive validation with sensible ranges
+  if (isNaN(perWeek) || isNaN(graceDays) || isNaN(maxDecay) || isNaN(floor)) {
+    showError("All fields are required.");
     return;
   }
+  if (perWeek < 0 || perWeek > 50) {
+    showError("Points/week must be 0–50.");
+    return;
+  }
+  if (graceDays < 1 || graceDays > 365) {
+    showError("Grace period must be 1–365 days.");
+    return;
+  }
+  if (maxDecay < 0 || maxDecay > 500) {
+    showError("Max decay must be 0–500 points.");
+    return;
+  }
+  if (floor < 500 || floor > 1200) {
+    showError("ELO floor must be 500–1200.");
+    return;
+  }
+
   saveEloConfig({ perWeek, graceDays, maxDecay, floor });
   _invalidateEloMemo();
-  const msg = document.getElementById("elo-cfg-msg");
   if (msg) {
     msg.style.display = "block";
     msg.style.color = "var(--green)";
@@ -1008,7 +1144,11 @@ function applyEloConfig() {
 initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
-initParserDeps(() => state.nameMap, () => state.aliasMap, todayISO);
+initParserDeps(
+  () => state.nameMap,
+  () => state.aliasMap,
+  todayISO,
+);
 // Selectors read state.* directly but need app.js's per-device view prefs
 // (reassigned here) and date helpers — injected as getters/functions.
 initSelectorsDeps({
@@ -1023,19 +1163,40 @@ initSelectorsDeps({
   lastWeekRange,
 });
 // History summary card needs three still-in-app helpers (hoisted decls).
-initHistorySummaryDeps({ normPlayer, getPairStats, memoElo: _memoElo, getSummaryMode: () => _summaryMode });
+initHistorySummaryDeps({
+  normPlayer,
+  getPairStats,
+  memoElo: _memoElo,
+  getSummaryMode: () => _summaryMode,
+});
 // Award badges: pure compute, fed the stats/elo/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
 initPairsDeps({ normPlayer });
 // XP / Level / Prestige — computePlayerXP needs normPlayer + activeMatches +
 // the three match-type helpers (isFireMatch/isDominating/isZero) from render-match-rows.
-initXpDeps({ normPlayer, activeMatches, isFireMatch, isDominatingMatch, isZeroMatch });
+initXpDeps({
+  normPlayer,
+  activeMatches,
+  isFireMatch,
+  isDominatingMatch,
+  isZeroMatch,
+});
 // Analytics section builders — HTML generators for the Statistics page.
-initBadgesDeps({ computeStats, computeElo, getPairStats, lastWeekRange, fmtDate });
+initBadgesDeps({
+  computeStats,
+  computeElo,
+  getPairStats,
+  lastWeekRange,
+  fmtDate,
+});
 // Player analytics (form/archetype/power/chemistry/stories/achievements).
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 // Player detail modal — needs playerAvatar which accesses the photoMap in app.js.
-initPlayerDetailDeps({ playerAvatar, getScoringMode: () => _scoringMode, getEloEnabled });
+initPlayerDetailDeps({
+  playerAvatar,
+  getScoringMode: () => _scoringMode,
+  getEloEnabled,
+});
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
 
@@ -1099,7 +1260,10 @@ function _loadAnalyticsFeature() {
 function renderAnalyticsFeature() {
   const container = document.getElementById("analytics-page-content");
   if (container && !container.innerHTML.trim()) {
-    container.innerHTML = loadingState({ message: "Loading analytics…", size: "lg" });
+    container.innerHTML = loadingState({
+      message: "Loading analytics…",
+      size: "lg",
+    });
   }
   return _loadAnalyticsFeature()
     .then((feature) =>
@@ -1567,7 +1731,12 @@ function loadCloudData() {
     _invalidateEloMemo();
     autoSaveWeeklySnap();
     if (window.appCache)
-      window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
+      window.appCache.save(
+        state.matches,
+        state.players,
+        playerAliasMap,
+        nextPlayerId,
+      );
 
     const _onAddPage = () =>
       document.querySelector(".page.active")?.id === "pg-add";
@@ -1723,10 +1892,17 @@ onAuthStateChanged(auth, (user) => {
   updateAdminUI(user);
   if (window.isAdmin) scheduleAutoEmail();
   if (window.isAdmin) _scheduleDriveBackup();
-  if (window.isAdmin) setTimeout(_maybeBackup, 6000); // once data has loaded
+  if (window.isAdmin)
+    setTimeout(_maybeBackup, 6000); // once data has loaded
   else {
-    if (_emailTimer) { clearTimeout(_emailTimer); _emailTimer = null; }
-    if (_driveBackupTimer) { clearTimeout(_driveBackupTimer); _driveBackupTimer = null; }
+    if (_emailTimer) {
+      clearTimeout(_emailTimer);
+      _emailTimer = null;
+    }
+    if (_driveBackupTimer) {
+      clearTimeout(_driveBackupTimer);
+      _driveBackupTimer = null;
+    }
   }
   // Skip re-render on the initial auth state resolution at startup —
   // loadCloudData() already handles the first render. Only re-render
@@ -1744,14 +1920,11 @@ onAuthStateChanged(auth, (user) => {
 function updateAdminUI(user) {
   updateSeasonHamburgerUI();
   const scToggle = document.getElementById("screenshotChoiceToggle");
-  if (scToggle)
-    scToggle.checked = getScreenshotAsk();
+  if (scToggle) scToggle.checked = getScreenshotAsk();
   const rdSel = document.getElementById("rankDeltaDaysSel");
-  if (rdSel)
-    rdSel.value = String(getRankDeltaDays());
+  if (rdSel) rdSel.value = String(getRankDeltaDays());
   const eloTgl = document.getElementById("eloEnabledToggle");
-  if (eloTgl)
-    eloTgl.checked = getEloEnabled();
+  if (eloTgl) eloTgl.checked = getEloEnabled();
   const _al = resolveAnimLevel();
   document
     .querySelectorAll(".anim-seg-btn")
@@ -2259,7 +2432,11 @@ document.addEventListener(
       _swipeCard.classList.remove("swipe-revealed");
     } else {
       if (inner) inner.style.transform = "";
-      _swipeCard.classList.remove("swipe-revealed", "swipe-revealed-r", "swiping");
+      _swipeCard.classList.remove(
+        "swipe-revealed",
+        "swipe-revealed-r",
+        "swiping",
+      );
     }
   },
   { passive: true },
@@ -2311,7 +2488,7 @@ function prefillMatchTADate() {
   if (!ta) return;
   // Only prefill if the textarea is completely empty
   if (ta.value.trim() === "") {
-    const todayMatches = state.matches.filter(m => m.date === todayISO());
+    const todayMatches = state.matches.filter((m) => m.date === todayISO());
     let text = todayDMYY() + "\n";
     if (todayMatches.length) {
       text += todayMatches.map(matchToEditableLine).join("\n") + "\n";
@@ -2538,25 +2715,39 @@ function refreshManage() {
 const ADMIN_LOG_KEY = "padel_admin_audit_log";
 function logAdminAction(action, detail) {
   let log = [];
-  try { log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || []; } catch (e) {}
+  try {
+    log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || [];
+  } catch (e) {}
   log.unshift({ action, detail, at: new Date().toISOString() });
   if (log.length > 100) log.length = 100;
-  try { localStorage.setItem(ADMIN_LOG_KEY, JSON.stringify(log)); } catch (e) {}
+  try {
+    localStorage.setItem(ADMIN_LOG_KEY, JSON.stringify(log));
+  } catch (e) {}
 }
 function renderAuditLogCard() {
   const el = document.getElementById("audit-log-body");
   if (!el) return;
   let log = [];
-  try { log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || []; } catch (e) {}
+  try {
+    log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || [];
+  } catch (e) {}
   if (!log.length) {
-    el.innerHTML = '<div class="sub" style="padding:8px">No admin actions logged yet.</div>';
+    el.innerHTML =
+      '<div class="sub" style="padding:8px">No admin actions logged yet.</div>';
     return;
   }
   const rows = log
     .slice(0, 20)
     .map((e) => {
       const d = new Date(e.at);
-      const when = isNaN(d) ? "" : d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      const when = isNaN(d)
+        ? ""
+        : d.toLocaleString("en-GB", {
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
       return `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
         <div style="font-size:10px;flex:1"><b>${escHtml(e.action)}</b> ${escHtml(e.detail || "")}</div>
         <div style="font-size:9px;color:var(--muted);flex-shrink:0">${when}</div>
@@ -2573,7 +2764,8 @@ function renderBackupHealthCard() {
   const emailDate = localStorage.getItem("padel_last_backup");
   const driveDate = localStorage.getItem(_DRIVE_BACKUP_KEY);
   const today = todayISO();
-  const daysSince = (d) => (d ? Math.round((new Date(today) - new Date(d)) / 86400000) : null);
+  const daysSince = (d) =>
+    d ? Math.round((new Date(today) - new Date(d)) / 86400000) : null;
   const statusOf = (days) =>
     days == null
       ? { col: "var(--red)", label: "Never" }
@@ -2585,7 +2777,11 @@ function renderBackupHealthCard() {
   const eStat = statusOf(daysSince(emailDate));
   const dStat = statusOf(daysSince(driveDate));
   const kb = window._docSizeKB || 0;
-  const row = (icon, label, stat) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+  const row = (
+    icon,
+    label,
+    stat,
+  ) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
     <span style="font-size:16px">${icon}</span>
     <span style="flex:1;font-size:11px;font-weight:700">${label}</span>
     <span style="width:8px;height:8px;border-radius:50%;background:${stat.col};flex-shrink:0"></span>
@@ -2602,17 +2798,31 @@ function renderStorageBreakdownCard() {
   const el = document.getElementById("storage-breakdown-body");
   if (!el) return;
   const payload = _buildCloudPayload();
-  const sizeOf = (v) => { try { return new Blob([JSON.stringify(v)]).size; } catch (e) { return 0; } };
+  const sizeOf = (v) => {
+    try {
+      return new Blob([JSON.stringify(v)]).size;
+    } catch (e) {
+      return 0;
+    }
+  };
   const parts = [
     { label: "Matches", bytes: sizeOf(payload.matches), col: "#5cd0ff" },
-    { label: "Players", bytes: sizeOf(payload.players) + sizeOf(payload.playerAliasMap), col: "#a78bfa" },
+    {
+      label: "Players",
+      bytes: sizeOf(payload.players) + sizeOf(payload.playerAliasMap),
+      col: "#a78bfa",
+    },
     { label: "Seasons", bytes: sizeOf(payload.seasons), col: "#f5c842" },
     { label: "Photos", bytes: sizeOf(photoMap), col: "#ff7a3d" },
   ].filter((p) => p.bytes > 0);
-  if (!parts.length) { el.innerHTML = '<div class="sub" style="padding:8px">No data yet.</div>'; return; }
+  if (!parts.length) {
+    el.innerHTML = '<div class="sub" style="padding:8px">No data yet.</div>';
+    return;
+  }
   const total = parts.reduce((s, p) => s + p.bytes, 0) || 1;
   let offset = 0;
-  const R = 34, C = 2 * Math.PI * R;
+  const R = 34,
+    C = 2 * Math.PI * R;
   const segs = parts
     .map((p) => {
       const len = (p.bytes / total) * C;
@@ -2622,7 +2832,10 @@ function renderStorageBreakdownCard() {
     })
     .join("");
   const legend = parts
-    .map((p) => `<div style="display:flex;align-items:center;gap:6px;font-size:10px;padding:3px 0"><span style="width:9px;height:9px;border-radius:2px;background:${p.col};flex-shrink:0"></span><span style="flex:1">${p.label}</span><span style="color:var(--muted)">${Math.round(p.bytes / 1024)} KB</span></div>`)
+    .map(
+      (p) =>
+        `<div style="display:flex;align-items:center;gap:6px;font-size:10px;padding:3px 0"><span style="width:9px;height:9px;border-radius:2px;background:${p.col};flex-shrink:0"></span><span style="flex:1">${p.label}</span><span style="color:var(--muted)">${Math.round(p.bytes / 1024)} KB</span></div>`,
+    )
     .join("");
   el.innerHTML = `<div style="display:flex;align-items:center;gap:14px">
     <svg width="84" height="84" viewBox="0 0 84 84" style="flex-shrink:0">${segs}</svg>
@@ -2640,20 +2853,35 @@ window.runDataHealthCheck = function () {
   state.matches.forEach((m, i) => {
     const key = _mkMatchKey(m);
     if (seen.has(key)) {
-      issues.push({ type: "dup", msg: `Duplicate: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`, idx: i });
+      issues.push({
+        type: "dup",
+        msg: `Duplicate: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`,
+        idx: i,
+      });
     } else seen.set(key, i);
   });
   state.matches.forEach((m, i) => {
-    const a = Number(m.scoreA), b = Number(m.scoreB);
+    const a = Number(m.scoreA),
+      b = Number(m.scoreB);
     if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) {
-      issues.push({ type: "score", msg: `Bad score ${m.scoreA}-${m.scoreB}: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`, idx: i });
+      issues.push({
+        type: "score",
+        msg: `Bad score ${m.scoreA}-${m.scoreB}: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`,
+        idx: i,
+      });
     }
   });
   const playedNames = new Set();
-  state.matches.forEach((m) => [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => playedNames.add(p)));
+  state.matches.forEach((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => playedNames.add(p)),
+  );
   Object.values(state.players).forEach((p) => {
     if (!p.isGuest && !playedNames.has(p.name)) {
-      issues.push({ type: "orphan", msg: `${p.name} is in the roster but has 0 matches`, idx: null });
+      issues.push({
+        type: "orphan",
+        msg: `${p.name} is in the roster but has 0 matches`,
+        idx: null,
+      });
     }
   });
   if (!issues.length) {
@@ -2663,7 +2891,9 @@ window.runDataHealthCheck = function () {
   const rows = issues
     .slice(0, 20)
     .map(
-      (iss) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      (
+        iss,
+      ) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
         <span style="font-size:14px;flex-shrink:0">${iss.type === "dup" ? "🧬" : iss.type === "score" ? "⚠️" : "👻"}</span>
         <span style="flex:1;font-size:10px">${escHtml(iss.msg)}</span>
         ${iss.idx != null ? `<button onclick="deleteMatchByIndex(${iss.idx});runDataHealthCheck()" style="font-size:9px;padding:3px 7px;border-radius:6px;border:1px solid rgba(240,80,80,0.4);background:rgba(240,80,80,0.1);color:var(--red);cursor:pointer;flex-shrink:0">Delete</button>` : ""}
@@ -2677,9 +2907,17 @@ window.runDataHealthCheck = function () {
 function renderPlayerMergeCard() {
   const el = document.getElementById("player-merge-body");
   if (!el) return;
-  const names = Object.values(state.players).map((p) => p.name).sort();
-  if (names.length < 2) { el.innerHTML = '<div class="sub" style="padding:8px">Need at least 2 players.</div>'; return; }
-  const opts = names.map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
+  const names = Object.values(state.players)
+    .map((p) => p.name)
+    .sort();
+  if (names.length < 2) {
+    el.innerHTML =
+      '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
+    return;
+  }
+  const opts = names
+    .map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`)
+    .join("");
   el.innerHTML = `
     <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Merge a duplicate player into another — rewrites all match history, then removes the duplicate from the roster.</div>
     <select id="merge-from-sel" class="hist-select compact-select" style="width:100%;margin-bottom:6px"><option value="">Merge this player…</option>${opts}</select>
@@ -2692,68 +2930,132 @@ window.mergePlayers = function () {
   const intoName = document.getElementById("merge-into-sel")?.value;
   const msgEl = document.getElementById("merge-msg");
   if (!fromName || !intoName || fromName === intoName) {
-    if (msgEl) { msgEl.textContent = "Pick two different players."; msgEl.className = "msg err show"; }
+    if (msgEl) {
+      msgEl.textContent = "Pick two different players.";
+      msgEl.className = "msg err show";
+    }
     return;
   }
-  if (!window.confirm(`Merge "${fromName}" into "${intoName}"? This rewrites all match history and cannot be undone.`)) return;
+  if (
+    !window.confirm(
+      `Merge "${fromName}" into "${intoName}"? This rewrites all match history and cannot be undone.`,
+    )
+  )
+    return;
   let rewritten = 0;
   state.matches.forEach((m) => {
     let changed = false;
-    m.teamA = (m.teamA || []).map((p) => { if (p === fromName) { changed = true; return intoName; } return p; });
-    m.teamB = (m.teamB || []).map((p) => { if (p === fromName) { changed = true; return intoName; } return p; });
+    m.teamA = (m.teamA || []).map((p) => {
+      if (p === fromName) {
+        changed = true;
+        return intoName;
+      }
+      return p;
+    });
+    m.teamB = (m.teamB || []).map((p) => {
+      if (p === fromName) {
+        changed = true;
+        return intoName;
+      }
+      return p;
+    });
     if (changed) rewritten++;
   });
   deletedMatches.forEach((m) => {
     m.teamA = (m.teamA || []).map((p) => (p === fromName ? intoName : p));
     m.teamB = (m.teamB || []).map((p) => (p === fromName ? intoName : p));
   });
-  const fromEntry = Object.entries(state.players).find(([, p]) => p.name === fromName);
+  const fromEntry = Object.entries(state.players).find(
+    ([, p]) => p.name === fromName,
+  );
   if (fromEntry) {
     const [fromId] = fromEntry;
     delete state.players[fromId];
     delete playerAliasMap[fromId];
   }
   rebuildNameMaps();
-  logAdminAction("Merge Players", `${fromName} → ${intoName} (${rewritten} matches)`);
+  logAdminAction(
+    "Merge Players",
+    `${fromName} → ${intoName} (${rewritten} matches)`,
+  );
   saveCloudData();
   commit();
   refreshManage();
   renderNamesTable();
-  if (msgEl) { msgEl.textContent = `Merged — ${rewritten} match(es) rewritten.`; msgEl.className = "msg ok show"; }
+  if (msgEl) {
+    msgEl.textContent = `Merged — ${rewritten} match(es) rewritten.`;
+    msgEl.className = "msg ok show";
+  }
 };
 
 // ── ASS FORMULA EDITOR (sandbox preview only — does not alter live scoring) ──
 function _previewASS(matches, params) {
-  const { marginWeight, baseWeight, multClampMin, multClampMax, partnerTaxWeight } = params;
-  const elo = {}, ass = {};
+  const {
+    marginWeight,
+    baseWeight,
+    multClampMin,
+    multClampMax,
+    partnerTaxWeight,
+  } = params;
+  const elo = {},
+    ass = {};
   [...matches]
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
     .forEach((m) => {
       const allP = [...(m.teamA || []), ...(m.teamB || [])];
-      allP.forEach((p) => { if (!(p in elo)) elo[p] = 1000; if (!(p in ass)) ass[p] = 1000; });
+      allP.forEach((p) => {
+        if (!(p in elo)) elo[p] = 1000;
+        if (!(p in ass)) ass[p] = 1000;
+      });
       const margin = Math.abs(m.scoreA - m.scoreB);
       const total = m.scoreA + m.scoreB;
       const quality = marginWeight * margin + baseWeight * total;
       const aWon = m.scoreA > m.scoreB;
-      const avgEloA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-      const avgEloB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
+      const avgEloA =
+        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
+      const avgEloB =
+        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
       const expA = 1 / (1 + Math.pow(10, (avgEloB - avgEloA) / 400));
       const eloDA = Math.round(32 * ((aWon ? 1 : 0) - expA));
       const eloDB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
       m.teamA.forEach((p) => {
         const partner = m.teamA.find((pp) => pp !== p);
         const partnerElo = partner ? elo[partner] : elo[p];
-        const mult = Math.max(multClampMin, Math.min(multClampMax, 1 + (avgEloB - elo[p]) / 400 - partnerTaxWeight * (partnerElo - elo[p]) / 400));
-        ass[p] += aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+        const mult = Math.max(
+          multClampMin,
+          Math.min(
+            multClampMax,
+            1 +
+              (avgEloB - elo[p]) / 400 -
+              (partnerTaxWeight * (partnerElo - elo[p])) / 400,
+          ),
+        );
+        ass[p] += aWon
+          ? Math.round(quality * mult)
+          : -Math.round(quality / mult);
       });
       m.teamB.forEach((p) => {
         const partner = m.teamB.find((pp) => pp !== p);
         const partnerElo = partner ? elo[partner] : elo[p];
-        const mult = Math.max(multClampMin, Math.min(multClampMax, 1 + (avgEloA - elo[p]) / 400 - partnerTaxWeight * (partnerElo - elo[p]) / 400));
-        ass[p] += !aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+        const mult = Math.max(
+          multClampMin,
+          Math.min(
+            multClampMax,
+            1 +
+              (avgEloA - elo[p]) / 400 -
+              (partnerTaxWeight * (partnerElo - elo[p])) / 400,
+          ),
+        );
+        ass[p] += !aWon
+          ? Math.round(quality * mult)
+          : -Math.round(quality / mult);
       });
-      m.teamA.forEach((p) => { elo[p] += eloDA; });
-      m.teamB.forEach((p) => { elo[p] += eloDB; });
+      m.teamA.forEach((p) => {
+        elo[p] += eloDA;
+      });
+      m.teamB.forEach((p) => {
+        elo[p] += eloDB;
+      });
     });
   return ass;
 }
@@ -2781,16 +3083,21 @@ window.previewASSFormula = function () {
   const el = document.getElementById("ass-formula-preview");
   if (!el) return;
   const params = {
-    marginWeight: parseFloat(document.getElementById("assf-margin")?.value) || 4,
+    marginWeight:
+      parseFloat(document.getElementById("assf-margin")?.value) || 4,
     baseWeight: parseFloat(document.getElementById("assf-base")?.value) || 0,
-    multClampMin: parseFloat(document.getElementById("assf-clampmin")?.value) || 0.5,
-    multClampMax: parseFloat(document.getElementById("assf-clampmax")?.value) || 2.0,
+    multClampMin:
+      parseFloat(document.getElementById("assf-clampmin")?.value) || 0.5,
+    multClampMax:
+      parseFloat(document.getElementById("assf-clampmax")?.value) || 2.0,
     partnerTaxWeight: 0.5,
   };
   const am2 = activeMatches();
   const currentAss = computeASS(am2);
   const previewAss = _previewASS(am2, params);
-  const currentRank = Object.entries(currentAss).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const currentRank = Object.entries(currentAss)
+    .sort((a, b) => b[1] - a[1])
+    .map(([n]) => n);
   const previewRanked = Object.entries(previewAss).sort((a, b) => b[1] - a[1]);
   const rows = previewRanked
     .slice(0, 12)
@@ -2798,7 +3105,12 @@ window.previewASSFormula = function () {
       const oldRank = currentRank.indexOf(name) + 1;
       const newRank = i + 1;
       const diff = oldRank - newRank;
-      const arrow = diff > 0 ? `<span style="color:var(--green)">▲${diff}</span>` : diff < 0 ? `<span style="color:var(--red)">▼${Math.abs(diff)}</span>` : `<span style="color:var(--muted)">–</span>`;
+      const arrow =
+        diff > 0
+          ? `<span style="color:var(--green)">▲${diff}</span>`
+          : diff < 0
+            ? `<span style="color:var(--red)">▼${Math.abs(diff)}</span>`
+            : `<span style="color:var(--muted)">–</span>`;
       return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
         <div style="width:22px;font-size:10px;color:var(--muted)">#${newRank}</div>
         <div style="flex:1;font-size:11px;font-weight:700">${escHtml(name)}</div>
@@ -2863,7 +3175,9 @@ function _currentOngoingSeason() {
   const t = todayISO();
   const inRange = state.seasons.filter((s) => _inSeason(s, t));
   if (!inRange.length) return null;
-  return inRange.sort((a, b) => (b.start || "").localeCompare(a.start || ""))[0];
+  return inRange.sort((a, b) =>
+    (b.start || "").localeCompare(a.start || ""),
+  )[0];
 }
 // When auto-select is on, point _activeSeasonId at the ongoing season (or "all").
 // Used at launch and when fresh cloud seasons arrive (unless the user has made a
@@ -2917,7 +3231,9 @@ function _resetSubFiltersForSeason() {
   matchTabFilter = "all";
   const hdf = document.getElementById("histDateFilter");
   if (hdf) hdf.value = "all";
-  document.querySelectorAll("[data-mf]").forEach((b) => b.classList.remove("on"));
+  document
+    .querySelectorAll("[data-mf]")
+    .forEach((b) => b.classList.remove("on"));
   document.querySelector('[data-mf="all"]')?.classList.add("on");
   document.getElementById("matchDr")?.classList.remove("show");
   const mdp = document.getElementById("matchDayPicker");
@@ -3029,7 +3345,6 @@ function getMomentumBadge(playerName) {
   return "";
 }
 
-
 // getPairKey → src/engine/pairs.js
 
 // getPairStats → src/engine/pairs.js
@@ -3049,13 +3364,44 @@ function getMomentumBadge(playerName) {
 // previewed/added, so this only has to get the grammar right.
 function _parseVoiceMatch(transcript) {
   const NUM_WORDS = {
-    zero: 0, oh: 0, love: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
-    six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
-    thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
-    eighteen: 18, nineteen: 19, twenty: 20,
+    zero: 0,
+    oh: 0,
+    love: 0,
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+    thirteen: 13,
+    fourteen: 14,
+    fifteen: 15,
+    sixteen: 16,
+    seventeen: 17,
+    eighteen: 18,
+    nineteen: 19,
+    twenty: 20,
   };
-  const SEPARATORS = ["beat", "beats", "defeated", "def", "vs", "versus", "against", "v"];
-  const text = transcript.toLowerCase().trim().replace(/[.,!?]/g, "");
+  const SEPARATORS = [
+    "beat",
+    "beats",
+    "defeated",
+    "def",
+    "vs",
+    "versus",
+    "against",
+    "v",
+  ];
+  const text = transcript
+    .toLowerCase()
+    .trim()
+    .replace(/[.,!?]/g, "");
   const tokens = text.split(/\s+/).filter(Boolean);
   const sepIdx = tokens.findIndex((t) => SEPARATORS.includes(t));
   if (sepIdx < 1) return null;
@@ -3079,7 +3425,8 @@ function _parseVoiceMatch(transcript) {
     scoreTokens.unshift(n);
     nameTokens.pop();
   }
-  if (scoreTokens.length < 2 || !teamATokens.length || !nameTokens.length) return null;
+  if (scoreTokens.length < 2 || !teamATokens.length || !nameTokens.length)
+    return null;
   const titleCase = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   const teamA = teamATokens.map(titleCase).join(" ");
   const teamB = nameTokens.map(titleCase).join(" ");
@@ -3088,14 +3435,25 @@ function _parseVoiceMatch(transcript) {
 window.startVoiceMatchEntry = function () {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const btn = document.getElementById("voice-entry-btn");
-  if (!SR) { showToast("Voice entry isn't supported in this browser", "⚠️"); return; }
-  if (window._voiceRecognition) { window._voiceRecognition.stop(); return; }
+  if (!SR) {
+    showToast("Voice entry isn't supported in this browser", "⚠️");
+    return;
+  }
+  if (window._voiceRecognition) {
+    window._voiceRecognition.stop();
+    return;
+  }
   const rec = new SR();
   rec.lang = "en-US";
   rec.interimResults = false;
   rec.maxAlternatives = 1;
   window._voiceRecognition = rec;
-  if (btn) { btn.style.background = "rgba(240,80,80,0.15)"; btn.style.borderColor = "rgba(240,80,80,0.5)"; btn.style.color = "var(--red)"; btn.textContent = "🎙️ Listening… (tap to stop)"; }
+  if (btn) {
+    btn.style.background = "rgba(240,80,80,0.15)";
+    btn.style.borderColor = "rgba(240,80,80,0.5)";
+    btn.style.color = "var(--red)";
+    btn.textContent = "🎙️ Listening… (tap to stop)";
+  }
   rec.onresult = (e) => {
     const transcript = e.results[0][0].transcript;
     const line = _parseVoiceMatch(transcript);
@@ -3106,15 +3464,27 @@ window.startVoiceMatchEntry = function () {
       previewMatchImport();
       showToast(`Heard: "${transcript}"`, "🎤");
     } else {
-      showToast(`Couldn't parse "${transcript}" — try "P1 P2 beat P3 P4 six four"`, "⚠️");
+      showToast(
+        `Couldn't parse "${transcript}" — try "P1 P2 beat P3 P4 six four"`,
+        "⚠️",
+      );
     }
   };
   rec.onerror = () => showToast("Voice entry error — try again", "⚠️");
   rec.onend = () => {
     window._voiceRecognition = null;
-    if (btn) { btn.style.background = "rgba(var(--theme-rgb),0.08)"; btn.style.borderColor = "rgba(var(--theme-rgb),0.35)"; btn.style.color = "var(--theme)"; btn.textContent = "🎤 Voice Entry"; }
+    if (btn) {
+      btn.style.background = "rgba(var(--theme-rgb),0.08)";
+      btn.style.borderColor = "rgba(var(--theme-rgb),0.35)";
+      btn.style.color = "var(--theme)";
+      btn.textContent = "🎤 Voice Entry";
+    }
   };
-  try { rec.start(); } catch (e) { showToast("Could not start voice entry", "⚠️"); }
+  try {
+    rec.start();
+  } catch (e) {
+    showToast("Could not start voice entry", "⚠️");
+  }
 };
 
 function previewMatchImport() {
@@ -3133,22 +3503,36 @@ function previewMatchImport() {
 
   // Count-based: same logic as addMatches() so preview matches actual behaviour
   const _mk = (m) =>
-    `${m.date}|${[...(m.teamA||[])].sort()}|${[...(m.teamB||[])].sort()}|${m.scoreA}-${m.scoreB}`;
+    `${m.date}|${[...(m.teamA || [])].sort()}|${[...(m.teamB || [])].sort()}|${m.scoreA}-${m.scoreB}`;
   const dbCounts = new Map();
-  state.matches.forEach((m) => { const k=_mk(m); dbCounts.set(k,(dbCounts.get(k)||0)+1); });
+  state.matches.forEach((m) => {
+    const k = _mk(m);
+    dbCounts.set(k, (dbCounts.get(k) || 0) + 1);
+  });
   const seenCounts = new Map();
-  let silentSkipCount = 0, askCount = 0;
+  let silentSkipCount = 0,
+    askCount = 0;
 
   const rows = parsed.slice(0, 5).map((m) => {
     const k = _mk(m);
     const seen = seenCounts.get(k) || 0;
     seenCounts.set(k, seen + 1);
     const inDb = dbCounts.get(k) || 0;
-    const badP = new Set([...m.teamA,...m.teamB]).size < m.teamA.length + m.teamB.length;
-    let tag = "", warn = false;
-    if (badP) { tag = " · repeated player!"; warn = true; }
-    else if (seen < inDb) { tag = " · already exists (skip)"; silentSkipCount++; }
-    else if (inDb > 0) { tag = " · exists — will ask"; warn = true; askCount++; }
+    const badP =
+      new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
+    let tag = "",
+      warn = false;
+    if (badP) {
+      tag = " · repeated player!";
+      warn = true;
+    } else if (seen < inDb) {
+      tag = " · already exists (skip)";
+      silentSkipCount++;
+    } else if (inDb > 0) {
+      tag = " · exists — will ask";
+      warn = true;
+      askCount++;
+    }
     return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${warn ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${tag}</strong></div>`;
   });
   // Finish counting for rows not shown — mirror the visible loop exactly:
@@ -3158,13 +3542,15 @@ function previewMatchImport() {
     const seen = seenCounts.get(k) || 0;
     seenCounts.set(k, seen + 1);
     const inDb = dbCounts.get(k) || 0;
-    const badP = new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
+    const badP =
+      new Set([...m.teamA, ...m.teamB]).size < m.teamA.length + m.teamB.length;
     if (badP) return;
     if (seen < inDb) silentSkipCount++;
     else if (inDb > 0) askCount++;
   });
 
-  const newCount = parsed.length - silentSkipCount - askCount - dupPlayers.length;
+  const newCount =
+    parsed.length - silentSkipCount - askCount - dupPlayers.length;
   box.innerHTML = `
     <div>
       <strong style="color:var(--text)">${parsed.length}</strong> parsed ·
@@ -3239,9 +3625,13 @@ function addMatches() {
     const seen = seenCounts.get(k) || 0;
     seenCounts.set(k, seen + 1);
     const inDb = dbCounts.get(k) || 0;
-    if (seen < inDb) { skipCount++; continue; } // prefilled/dup → silent skip
-    if (inDb > 0) toConfirm.push(m);           // new occurrence of same key → ask
-    else toAdd.push(m);                          // new match (different score or teams) → add
+    if (seen < inDb) {
+      skipCount++;
+      continue;
+    } // prefilled/dup → silent skip
+    if (inDb > 0)
+      toConfirm.push(m); // new occurrence of same key → ask
+    else toAdd.push(m); // new match (different score or teams) → add
   }
 
   function _commit(list) {
@@ -3278,13 +3668,22 @@ function addMatches() {
 
   // Process per-line confirmations sequentially, then commit everything.
   (function _processQueue() {
-    if (!toConfirm.length) { _commit(toAdd); return; }
+    if (!toConfirm.length) {
+      _commit(toAdd);
+      return;
+    }
     const m = toConfirm.shift();
     const label = `${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} ${m.scoreA}–${m.scoreB} (${m.date})`;
     showDupConfirmSheet(
       `This match already exists:\n${label}\nIs this a new genuine match?`,
-      () => { toAdd.push(m); _processQueue(); },  // Yes → include and continue
-      () => { skipCount++; _processQueue(); },     // No  → skip and continue
+      () => {
+        toAdd.push(m);
+        _processQueue();
+      }, // Yes → include and continue
+      () => {
+        skipCount++;
+        _processQueue();
+      }, // No  → skip and continue
     );
   })();
 }
@@ -3375,7 +3774,9 @@ function saveNames() {
     aliases.forEach((a) => {
       const key = a.toLowerCase();
       if (aliasOwner[key] && aliasOwner[key] !== displayName) {
-        collisions.push(`"${a}" claimed by both "${aliasOwner[key]}" and "${displayName}"`);
+        collisions.push(
+          `"${a}" claimed by both "${aliasOwner[key]}" and "${displayName}"`,
+        );
       } else {
         aliasOwner[key] = displayName;
       }
@@ -3386,13 +3787,17 @@ function saveNames() {
     (playerAliasMap[p.id] || []).forEach((a) => {
       const key = a.toLowerCase();
       if (aliasOwner[key] && aliasOwner[key] !== p.name) {
-        collisions.push(`"${a}" in this import already belongs to existing player "${p.name}"`);
+        collisions.push(
+          `"${a}" in this import already belongs to existing player "${p.name}"`,
+        );
       }
     });
   });
   if (collisions.length) {
     if (eEl) {
-      eEl.innerHTML = "Alias collision — nothing imported:<br>" + collisions.map(escHtml).join("<br>");
+      eEl.innerHTML =
+        "Alias collision — nothing imported:<br>" +
+        collisions.map(escHtml).join("<br>");
       eEl.classList.add("show");
     }
     return;
@@ -3400,7 +3805,9 @@ function saveNames() {
 
   // Merge into players: update existing by name, add new
   Object.entries(importMap).forEach(([displayName, aliases]) => {
-    const existing = Object.values(state.players).find((p) => p.name === displayName);
+    const existing = Object.values(state.players).find(
+      (p) => p.name === displayName,
+    );
     if (existing) {
       playerAliasMap[existing.id] = aliases;
     } else {
@@ -3447,11 +3854,15 @@ function renderNamesTable() {
 
   // Merge formal registry with all players derived from match data
   const registryByName = {};
-  Object.values(state.players).forEach((p) => { registryByName[p.name] = p; });
-  const allNames = [...new Set([
-    ...Object.keys(registryByName),
-    ...getAllPlayerNamesFromMatches(),
-  ])].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  Object.values(state.players).forEach((p) => {
+    registryByName[p.name] = p;
+  });
+  const allNames = [
+    ...new Set([
+      ...Object.keys(registryByName),
+      ...getAllPlayerNamesFromMatches(),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
 
   const badge = document.getElementById("names-count-badge");
   if (badge) badge.textContent = allNames.length;
@@ -3461,48 +3872,57 @@ function renderNamesTable() {
     return;
   }
 
-  table.innerHTML = allNames.map((name) => {
-    const p = registryByName[name];
-    const aliases = p ? (playerAliasMap[p.id] || []) : [];
-    const { first, last } = _getPlayerDateRange(name, state.matches);
-    const initials = (name || "?").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-    const photo = photoMap[name];
+  table.innerHTML = allNames
+    .map((name) => {
+      const p = registryByName[name];
+      const aliases = p ? playerAliasMap[p.id] || [] : [];
+      const { first, last } = _getPlayerDateRange(name, state.matches);
+      const initials = (name || "?")
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+      const photo = photoMap[name];
 
-    const avatarInner = photo
-      ? `<img src="${photo}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
-      : `<span style="font-weight:800;font-size:13px;color:#000">${escHtml(initials)}</span>`;
-    const photoControls = window.isAdmin && p
-      ? `<div style="display:flex;gap:4px;margin-top:3px;justify-content:center">
+      const avatarInner = photo
+        ? `<img src="${photo}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+        : `<span style="font-weight:800;font-size:13px;color:#000">${escHtml(initials)}</span>`;
+      const photoControls =
+        window.isAdmin && p
+          ? `<div style="display:flex;gap:4px;margin-top:3px;justify-content:center">
           <button onclick="savePlayerPhoto(${jsArg(name)})" title="Upload photo" style="font-size:12px;background:none;border:none;cursor:pointer;padding:0;line-height:1;opacity:0.5">📷</button>
           ${photo ? `<button onclick="removePlayerPhoto(${jsArg(name)})" title="Remove photo" style="font-size:10px;background:none;border:none;cursor:pointer;padding:0;color:var(--muted);line-height:1">✕</button>` : ""}
         </div>`
-      : "";
+          : "";
 
-    const guestBadge = p?.isGuest
-      ? `<span style="font-size:8px;padding:1px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:orange;font-weight:800;letter-spacing:0.06em">GUEST</span>`
-      : "";
+      const guestBadge = p?.isGuest
+        ? `<span style="font-size:8px;padding:1px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:orange;font-weight:800;letter-spacing:0.06em">GUEST</span>`
+        : "";
 
-    const mappingChips = aliases.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${
-          aliases.map((a) =>
-            `<span style="font-size:9px;font-weight:700;letter-spacing:0.05em;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);color:var(--accent);border-radius:5px;padding:2px 7px">${escHtml(a)}</span>`
-          ).join("")
-        }</div>`
-      : "";
+      const mappingChips = aliases.length
+        ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${aliases
+            .map(
+              (a) =>
+                `<span style="font-size:9px;font-weight:700;letter-spacing:0.05em;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);color:var(--accent);border-radius:5px;padding:2px 7px">${escHtml(a)}</span>`,
+            )
+            .join("")}</div>`
+        : "";
 
-    const dateRange = (first || last)
-      ? `<div style="font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:0.03em">${first ? fmtDate(first) : "—"} → ${last ? fmtDate(last) : "—"}</div>`
-      : "";
+      const dateRange =
+        first || last
+          ? `<div style="font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:0.03em">${first ? fmtDate(first) : "—"} → ${last ? fmtDate(last) : "—"}</div>`
+          : "";
 
-    const emailLine = p?.email
-      ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">✉ ${escHtml(p.email)}</div>`
-      : "";
+      const emailLine = p?.email
+        ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">✉ ${escHtml(p.email)}</div>`
+        : "";
 
-    const actionBtn = p
-      ? `<button onclick="openPlayerEditSheet(${p.id})" style="flex-shrink:0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text);font-size:10px;font-weight:700;letter-spacing:0.08em;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap">EDIT</button>`
-      : `<button onclick="openPlayerEditSheet(null)" style="flex-shrink:0;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:var(--accent);font-size:10px;font-weight:700;letter-spacing:0.08em;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap">+ ADD</button>`;
+      const actionBtn = p
+        ? `<button onclick="openPlayerEditSheet(${p.id})" style="flex-shrink:0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text);font-size:10px;font-weight:700;letter-spacing:0.08em;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap">EDIT</button>`
+        : `<button onclick="openPlayerEditSheet(null)" style="flex-shrink:0;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:var(--accent);font-size:10px;font-weight:700;letter-spacing:0.08em;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap">+ ADD</button>`;
 
-    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 13px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;margin-bottom:7px">
+      return `<div style="display:flex;align-items:center;gap:12px;padding:11px 13px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;margin-bottom:7px">
       <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
         <div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${avatarInner}</div>
         ${photoControls}
@@ -3516,7 +3936,8 @@ function renderNamesTable() {
       </div>
       ${actionBtn}
     </div>`;
-  }).join("");
+    })
+    .join("");
 }
 
 function setScreenshotChoiceSetting(val) {
@@ -3608,7 +4029,10 @@ function clearMatches() {
 }
 function clearNames() {
   if (!confirm("Clear all players?")) return;
-  logAdminAction("Clear Aliases", `${Object.keys(state.players).length} players removed`);
+  logAdminAction(
+    "Clear Aliases",
+    `${Object.keys(state.players).length} players removed`,
+  );
   state.players = {};
   playerAliasMap = {};
   nextPlayerId = 1;
@@ -3621,7 +4045,12 @@ function exportData() {
   navigator.clipboard
     .writeText(
       JSON.stringify(
-        { matches: state.matches, players: state.players, playerAliasMap, nextPlayerId },
+        {
+          matches: state.matches,
+          players: state.players,
+          playerAliasMap,
+          nextPlayerId,
+        },
         null,
         2,
       ),
@@ -3706,10 +4135,18 @@ async function _ensureDriveToken() {
     if (!_driveAccessToken) throw new Error("no-token");
     return true;
   } catch (e) {
-    if (e?.code === "auth/popup-blocked" || e?.code === "auth/popup-closed-by-user") {
+    if (
+      e?.code === "auth/popup-blocked" ||
+      e?.code === "auth/popup-closed-by-user"
+    ) {
       throw new Error("popup-blocked");
     }
-    if (e?.message === "not-signed-in" || e?.message === "no-token" || e?.message === "popup-blocked") throw e;
+    if (
+      e?.message === "not-signed-in" ||
+      e?.message === "no-token" ||
+      e?.message === "popup-blocked"
+    )
+      throw e;
     throw new Error("reauth-failed");
   }
 }
@@ -3723,7 +4160,12 @@ async function backupToDrive() {
   try {
     await _ensureDriveToken();
   } catch (e) {
-    showToast(e?.message === "not-signed-in" ? "Sign in to use Drive backup" : "Sign out and sign back in to enable Drive access", "⚠️");
+    showToast(
+      e?.message === "not-signed-in"
+        ? "Sign in to use Drive backup"
+        : "Sign out and sign back in to enable Drive access",
+      "⚠️",
+    );
     return;
   }
   showToast("Uploading to Drive…", "☁️");
@@ -3738,7 +4180,10 @@ async function backupToDrive() {
       el.innerHTML = `Saved! <a href="${escHtml(link)}" target="_blank"
         style="color:var(--theme);text-decoration:underline">Open in Drive ↗</a>`;
       el.classList.add("show");
-      setTimeout(() => { el.classList.remove("show"); el.innerHTML = ""; }, 8000);
+      setTimeout(() => {
+        el.classList.remove("show");
+        el.innerHTML = "";
+      }, 8000);
     }
   } catch (e) {
     const msg = e?.message || String(e);
@@ -3754,12 +4199,18 @@ async function exportJsonFile() {
   });
   const filename = _backupFilename();
   const file = new File([blob], filename, { type: "application/json" });
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({
-      files: [file],
-      title: "Ekta Padel Backup",
-      text: `Full backup — ${state.matches.length} matches`,
-    }).catch(() => {});
+  if (
+    navigator.share &&
+    navigator.canShare &&
+    navigator.canShare({ files: [file] })
+  ) {
+    await navigator
+      .share({
+        files: [file],
+        title: "Ekta Padel Backup",
+        text: `Full backup — ${state.matches.length} matches`,
+      })
+      .catch(() => {});
   } else {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -3777,7 +4228,9 @@ async function exportJsonFile() {
 }
 
 // Keep the old name as an alias so any saved bookmarks / existing calls still work.
-async function exportBackupFile() { return backupToDrive(); }
+async function exportBackupFile() {
+  return backupToDrive();
+}
 
 // Find-or-create the app-owned Drive folder that holds every backup. Under the
 // drive.file scope the app can only see files/folders IT created, so this folder
@@ -3824,14 +4277,17 @@ async function _ensureDriveBackupFolder() {
   } catch {}
   // 3) Create it.
   try {
-    const r = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
-      method: "POST",
-      headers: { ...auth, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: _DRIVE_FOLDER_NAME,
-        mimeType: "application/vnd.google-apps.folder",
-      }),
-    });
+    const r = await fetch(
+      "https://www.googleapis.com/drive/v3/files?fields=id",
+      {
+        method: "POST",
+        headers: { ...auth, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: _DRIVE_FOLDER_NAME,
+          mimeType: "application/vnd.google-apps.folder",
+        }),
+      },
+    );
     if (r.ok) {
       const d = await r.json();
       localStorage.setItem(_DRIVE_FOLDER_KEY, d.id);
@@ -3868,7 +4324,9 @@ async function _uploadToDrive(blob, filename) {
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
     let errMsg = `HTTP ${resp.status}`;
-    try { errMsg = JSON.parse(body)?.error?.message || errMsg; } catch {}
+    try {
+      errMsg = JSON.parse(body)?.error?.message || errMsg;
+    } catch {}
     console.error("Drive API error", resp.status, body);
     // Token expired/invalid → clear so next call triggers re-auth
     if (resp.status === 401 || resp.status === 403) _driveAccessToken = null;
@@ -3906,7 +4364,10 @@ function _applyImportedData(data) {
       if (!knownNames.has(p)) newPlayerNames.add(p);
     }),
   );
-  const dates = newMatches.map((m) => m.date).filter(Boolean).sort();
+  const dates = newMatches
+    .map((m) => m.date)
+    .filter(Boolean)
+    .sort();
   const dateRange = dates.length
     ? dates[0] === dates[dates.length - 1]
       ? fmtDate(dates[0])
@@ -3926,7 +4387,14 @@ function _applyImportedData(data) {
 // Restore diff preview: shows exactly what an import would change (new
 // matches, date range, new players, seasons) before touching any data —
 // the actual merge only runs if the user taps Apply.
-function _showRestoreDiffSheet({ newMatchCount, skipped, newSeasonCount, newPlayerNames, dateRange, data }) {
+function _showRestoreDiffSheet({
+  newMatchCount,
+  skipped,
+  newSeasonCount,
+  newPlayerNames,
+  dateRange,
+  data,
+}) {
   document.getElementById("restore-diff-sheet")?.remove();
   const sheet = document.createElement("div");
   sheet.id = "restore-diff-sheet";
@@ -3987,7 +4455,9 @@ function _commitImportedData(data) {
   // Merge seasons (dedup by id)
   if (Array.isArray(data.seasons) && data.seasons.length) {
     const existingIds = new Set(state.seasons.map((s) => s.id));
-    const newSeasons = data.seasons.filter((s) => s.id && !existingIds.has(s.id));
+    const newSeasons = data.seasons.filter(
+      (s) => s.id && !existingIds.has(s.id),
+    );
     if (newSeasons.length) {
       state.seasons = [...state.seasons, ...newSeasons].sort((a, b) =>
         (a.start || "").localeCompare(b.start || ""),
@@ -4029,7 +4499,9 @@ function importBackupFile() {
     }
     // Validate it's a recognisable backup
     if (!data.matches && !data.allMatches) {
-      alert("This file doesn't look like an Ekta Padel backup (no matches array).");
+      alert(
+        "This file doesn't look like an Ekta Padel backup (no matches array).",
+      );
       return;
     }
     _applyImportedData(data);
@@ -4046,7 +4518,10 @@ async function importFromDrive() {
     if (e?.message === "not-signed-in") {
       showToast("Sign in first to access Drive backups", "⚠️");
     } else if (e?.message === "popup-blocked") {
-      showToast("Popup blocked — sign out and sign in again to refresh Drive access", "⚠️");
+      showToast(
+        "Popup blocked — sign out and sign in again to refresh Drive access",
+        "⚠️",
+      );
     } else {
       showToast("Sign out and sign back in to enable Drive access", "⚠️");
     }
@@ -4070,7 +4545,9 @@ async function importFromDrive() {
         return;
       }
       let msg = `HTTP ${resp.status}`;
-      try { msg = JSON.parse(body)?.error?.message || msg; } catch {}
+      try {
+        msg = JSON.parse(body)?.error?.message || msg;
+      } catch {}
       throw new Error(msg);
     }
     files = (await resp.json()).files || [];
@@ -4096,10 +4573,17 @@ async function importFromDrive() {
       <div style="font-size:13px;font-weight:800;padding:4px 0 12px;letter-spacing:0.04em">
         ☁️ RESTORE FROM DRIVE
       </div>
-      ${files.map((f, i) => {
-        const d = new Date(f.createdTime).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
-        const kb = f.size ? `${Math.round(f.size / 1024)} KB` : "";
-        return `<button class="live-sheet-item" onclick="
+      ${files
+        .map((f, i) => {
+          const d = new Date(f.createdTime).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const kb = f.size ? `${Math.round(f.size / 1024)} KB` : "";
+          return `<button class="live-sheet-item" onclick="
           document.getElementById('drive-pick-sheet')?.remove();
           _downloadDriveBackup(${JSON.stringify(f.id)},${JSON.stringify(f.name)})
         " style="flex-direction:column;align-items:flex-start;gap:2px">
@@ -4110,7 +4594,8 @@ async function importFromDrive() {
           </span>
           <span style="font-size:10px;color:var(--muted);margin-left:24px">${d}</span>
         </button>`;
-      }).join("")}
+        })
+        .join("")}
       <button class="live-sheet-item" style="color:var(--muted);margin-top:4px"
         onclick="document.getElementById('drive-pick-sheet')?.remove()">Cancel</button>
     </div>`;
@@ -4118,7 +4603,12 @@ async function importFromDrive() {
 }
 
 async function _downloadDriveBackup(fileId, filename) {
-  try { await _ensureDriveToken(); } catch { showToast("Sign out and sign back in to re-enable Drive access", "⚠️"); return; }
+  try {
+    await _ensureDriveToken();
+  } catch {
+    showToast("Sign out and sign back in to re-enable Drive access", "⚠️");
+    return;
+  }
   showToast(`Downloading ${filename}…`, "☁️");
   try {
     const resp = await fetch(
@@ -4183,7 +4673,6 @@ function onHomeFilterChange(val) {
     renderHome();
   }
 }
-
 
 function _saveExcludedPlayers() {
   try {
@@ -4385,7 +4874,6 @@ function onCmpFilter() {
 
 // home filter handled by onHomeFilterChange dropdown
 
-
 // getSRRatingClass now lives in ./format.js.
 
 // _hudGaugeId + buildHudGaugeSvg now live in ./charts.js.
@@ -4399,13 +4887,16 @@ function renderHome() {
   // use the memoised results to avoid redundant full-dataset walks.
   const _isAllFilter = homeFilter === "all" && !homeFrom && !homeTo;
   const homeEloMapFull = _isAllFilter ? _memoElo() : computeElo(filtered);
-  const homeASSMap     = _isAllFilter ? _memoASS()   : computeASS(filtered);
+  const homeASSMap = _isAllFilter ? _memoASS() : computeASS(filtered);
   // SR (the gauge/rating on every card) and the card ordering both follow the
   // active scoring mode: derive SR from the ASS score in ASS mode, ELO otherwise.
   // computeStats already sorts by SR desc, so ASS mode is ordered by ASS too.
-  const stats = _scoringMode === "ass"
-    ? computeStats(filtered, homeASSMap)
-    : (_isAllFilter ? _memoStats() : computeStats(filtered, homeEloMapFull));
+  const stats =
+    _scoringMode === "ass"
+      ? computeStats(filtered, homeASSMap)
+      : _isAllFilter
+        ? _memoStats()
+        : computeStats(filtered, homeEloMapFull);
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
   const uniqD = new Set(filtered.map((m) => m.date)).size;
   const board = document.getElementById("board");
@@ -4415,7 +4906,11 @@ function renderHome() {
       icon: "🏓",
       title: "No matches yet",
       message: "Tap + Add to log your first match.",
-      action: { label: "Add Matches", onClick: "goTo('add')", variant: "primary" },
+      action: {
+        label: "Add Matches",
+        onClick: "goTo('add')",
+        variant: "primary",
+      },
     });
     const sb = document.getElementById("session-streak-badge");
     if (sb) sb.style.display = "none";
@@ -4430,10 +4925,18 @@ function renderHome() {
   const homeEloMap = homeEloMapFull;
 
   // Precompute rank divergence for home card badges — O(n) index lookup, not O(n²) indexOf
-  const _homeEloRanked = Object.entries(homeEloMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
-  const _homeAssRanked = Object.entries(homeASSMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
-  const _eloRankIdx = Object.fromEntries(_homeEloRanked.map((n, i) => [n, i + 1]));
-  const _assRankIdx = Object.fromEntries(_homeAssRanked.map((n, i) => [n, i + 1]));
+  const _homeEloRanked = Object.entries(homeEloMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([n]) => n);
+  const _homeAssRanked = Object.entries(homeASSMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([n]) => n);
+  const _eloRankIdx = Object.fromEntries(
+    _homeEloRanked.map((n, i) => [n, i + 1]),
+  );
+  const _assRankIdx = Object.fromEntries(
+    _homeAssRanked.map((n, i) => [n, i + 1]),
+  );
   const _homeRankDivMap = {};
   _homeEloRanked.forEach((name) => {
     const diff = (_assRankIdx[name] || 0) - _eloRankIdx[name];
@@ -4442,9 +4945,8 @@ function renderHome() {
 
   // Score deltas (recent-5 and 30-day trend) for the card badges.
   // Uses active scoring mode — ELO or ASS — from the master hamburger toggle.
-  const _histAll = _scoringMode === "ass"
-    ? _memoASSHistory()
-    : computeEloHistory(filtered);
+  const _histAll =
+    _scoringMode === "ass" ? _memoASSHistory() : computeEloHistory(filtered);
   const _thirtyAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -4525,28 +5027,46 @@ function renderHome() {
         : "";
     const playerBadges = computeBadges(p.name, p, homeEloMap, filtered, stats);
     const _divDiff = _homeRankDivMap[p.name];
-    const _divBadge = _divDiff !== undefined
-      ? `<span class="card-badge-pill" title="ASS rank ${_divDiff < 0 ? "higher" : "lower"} than ELO rank by ${Math.abs(_divDiff)} positions" style="color:${_divDiff < 0 ? "var(--green)" : "var(--red)"}">⚡ ASS ${_divDiff < 0 ? "↑" : "↓"}${Math.abs(_divDiff)}</span>`
-      : "";
-    const badgePillsHtml = (playerBadges.length || _divBadge)
-      ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}${_divBadge}</div>`
-      : "";
+    const _divBadge =
+      _divDiff !== undefined
+        ? `<span class="card-badge-pill" title="ASS rank ${_divDiff < 0 ? "higher" : "lower"} than ELO rank by ${Math.abs(_divDiff)} positions" style="color:${_divDiff < 0 ? "var(--green)" : "var(--red)"}">⚡ ASS ${_divDiff < 0 ? "↑" : "↓"}${Math.abs(_divDiff)}</span>`
+        : "";
+    const badgePillsHtml =
+      playerBadges.length || _divBadge
+        ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}${_divBadge}</div>`
+        : "";
 
     // Component-system primitives shared by both card variants
-    const srBar = progressBar({ value: p.sr, max: maxSR, label: `SR score: ${p.sr.toFixed(2)}` });
+    const srBar = progressBar({
+      value: p.sr,
+      max: maxSR,
+      label: `SR score: ${p.sr.toFixed(2)}`,
+    });
     const statsRow = statRow([
       { value: p.mp, label: "Played" },
-      { value: `${p.mw}W–${p.ml}L`, label: "Record", tone: p.mw > p.ml ? "success" : p.mw < p.ml ? "danger" : "neutral" },
+      {
+        value: `${p.mw}W–${p.ml}L`,
+        label: "Record",
+        tone: p.mw > p.ml ? "success" : p.mw < p.ml ? "danger" : "neutral",
+      },
       { value: `${p.winPct.toFixed(0)}%`, label: "Win %" },
-      { value: `${p.gw}–${p.gl} ${ds}`, label: "G Diff", tone: p.diff > 0 ? "success" : p.diff < 0 ? "danger" : "neutral" },
-      { value: `${p.gamePct.toFixed(0)}%`, label: "G%", tone: p.gamePct >= 50 ? "success" : "danger" },
+      {
+        value: `${p.gw}–${p.gl} ${ds}`,
+        label: "G Diff",
+        tone: p.diff > 0 ? "success" : p.diff < 0 ? "danger" : "neutral",
+      },
+      {
+        value: `${p.gamePct.toFixed(0)}%`,
+        label: "G%",
+        tone: p.gamePct >= 50 ? "success" : "danger",
+      },
     ]);
 
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? (homeASSMap[p.name] || 1000) : (homeEloMap[p.name] || 1000)}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? homeASSMap[p.name] || 1000 : homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? (homeASSMap[p.name] || 1000) : (homeEloMap[p.name] || 1000)}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? homeASSMap[p.name] || 1000 : homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
   });
 
   _renderSessionActiveCard();
@@ -4628,9 +5148,10 @@ function _renderLbWindowBar() {
   if (!bar) return;
   const mode = _lbWindow ? _lbWindow.mode : "all";
   const count = _lbWindow ? _lbWindow.count : 10;
-  const chip = mode !== "all"
-    ? `<button class="cmp-count-chip" style="margin-left:2px" onclick="_lbSetWindow('${mode}')">${count}</button>`
-    : "";
+  const chip =
+    mode !== "all"
+      ? `<button class="cmp-count-chip" style="margin-left:2px" onclick="_lbSetWindow('${mode}')">${count}</button>`
+      : "";
   bar.innerHTML = `<div style="display:flex;gap:4px;align-items:center;padding:4px 12px 6px">
     <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.1em;flex-shrink:0">GAMES</span>
     <button class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_lbSetWindow('all')" style="padding:2px 7px;font-size:9px">ALL</button>
@@ -4656,9 +5177,9 @@ function _lbSetWindow(mode) {
 
 function toggleMatchDeltaWindow(win) {
   _matchDeltaWindow = win;
-  document.querySelectorAll(".mdw-btn").forEach((b) =>
-    b.classList.toggle("active", b.dataset.window === win),
-  );
+  document
+    .querySelectorAll(".mdw-btn")
+    .forEach((b) => b.classList.toggle("active", b.dataset.window === win));
   document.body.classList.add("no-cascade");
   renderCompact();
   document.body.classList.remove("no-cascade");
@@ -4676,9 +5197,9 @@ function _applyEloMode() {
     cmpSortKey = "ass";
     _upsetSortMode = null;
     _sessScoreView = null;
-    document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
-      b.classList.toggle("active", b.dataset.val === "ass"),
-    );
+    document
+      .querySelectorAll(".scoring-seg-btn")
+      .forEach((b) => b.classList.toggle("active", b.dataset.val === "ass"));
   }
 }
 window.setEloEnabledAndRefresh = function (on) {
@@ -4700,9 +5221,9 @@ function setScoringMode(mode) {
   _scoringMode = mode;
   localStorage.setItem("scoringMode", mode);
   // Sync hamburger segmented control buttons
-  document.querySelectorAll(".scoring-seg-btn").forEach((b) =>
-    b.classList.toggle("active", b.dataset.val === mode),
-  );
+  document
+    .querySelectorAll(".scoring-seg-btn")
+    .forEach((b) => b.classList.toggle("active", b.dataset.val === mode));
   // Invalidate home and analytics so next visit re-renders with new mode
   _homeRenderedVersion = -1;
   _anaRenderedVersion = -1;
@@ -4732,7 +5253,9 @@ function toggleSummaryModeOnly() {
 }
 
 // toggleSummaryMode kept for back-compat with any existing onclick using it.
-function toggleSummaryMode(mode) { setScoringMode(mode); }
+function toggleSummaryMode(mode) {
+  setScoringMode(mode);
+}
 
 // ── RENDER COMPACT ─────────────────────────────────────────
 // _sweepNeedle -> ./render-anim.js
@@ -4741,30 +5264,37 @@ function toggleSummaryMode(mode) { setScoringMode(mode); }
 
 function _buildRankDivergenceHtml(eloMap, assMap) {
   if (!getEloEnabled()) return "";
-  const eloRanked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
-  const assRanked = Object.entries(assMap).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  const eloRanked = Object.entries(eloMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([n]) => n);
+  const assRanked = Object.entries(assMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([n]) => n);
   const eloIdx = Object.fromEntries(eloRanked.map((n, i) => [n, i + 1]));
   const assIdx = Object.fromEntries(assRanked.map((n, i) => [n, i + 1]));
   const diverged = eloRanked
     .filter((n) => assMap[n])
     .map((n) => {
-      const er = eloIdx[n], ar = assIdx[n] || 0;
+      const er = eloIdx[n],
+        ar = assIdx[n] || 0;
       return { name: n, eloRank: er, assRank: ar, diff: ar - er };
     })
     .filter((p) => Math.abs(p.diff) >= 2)
     .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
   if (!diverged.length) return "";
-  const rows = diverged.map((p) => {
-    const col = p.diff < 0 ? "var(--green)" : "var(--red)";
-    const arrow = p.diff < 0 ? "↑" : "↓";
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+  const rows = diverged
+    .map((p) => {
+      const col = p.diff < 0 ? "var(--green)" : "var(--red)";
+      const arrow = p.diff < 0 ? "↑" : "↓";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
       <div style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>
       <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
       <div style="font-size:9px;color:var(--muted)">ELO #${p.eloRank}</div>
       <div style="font-size:9px;color:var(--muted)">ASS #${p.assRank}</div>
       <div style="font-size:12px;font-weight:900;color:${col};min-width:28px;text-align:right">${arrow}${Math.abs(p.diff)}</div>
     </div>`;
-  }).join("");
+    })
+    .join("");
   return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
     <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--muted);margin-bottom:8px">⚡ RANK DIVERGENCE — ELO vs ASS</div>
     <div style="font-size:8px;color:var(--muted);margin-bottom:6px">Players ranked differently by ELO and ASS (≥2 positions)</div>
@@ -4834,7 +5364,9 @@ function renderCompact() {
     // map otherwise. ELO all-time still uses the memoised stats for speed.
     stats = isASS
       ? computeStats(filtered, _cmpASSMap)
-      : (_isCmpAllFilter ? _memoStats() : computeStats(filtered, _cmpEloMap));
+      : _isCmpAllFilter
+        ? _memoStats()
+        : computeStats(filtered, _cmpEloMap);
   }
   const sortFns = {
     name: (a, b) =>
@@ -4922,11 +5454,12 @@ function renderCompact() {
     const _atElo = _memoElo();
     const _atAss = _memoASS();
     // For score columns substitute all-time maps; all other columns reuse sortFns.
-    const _atSort = cmpSortKey === "elo"
-      ? (a, b) => (_atElo[a.name] || 1000) - (_atElo[b.name] || 1000)
-      : cmpSortKey === "ass"
-      ? (a, b) => (_atAss[a.name] || 1000) - (_atAss[b.name] || 1000)
-      : sortFns[cmpSortKey] || sortFns.sr;
+    const _atSort =
+      cmpSortKey === "elo"
+        ? (a, b) => (_atElo[a.name] || 1000) - (_atElo[b.name] || 1000)
+        : cmpSortKey === "ass"
+          ? (a, b) => (_atAss[a.name] || 1000) - (_atAss[b.name] || 1000)
+          : sortFns[cmpSortKey] || sortFns.sr;
     const _atAll = [..._activeStats()].sort((a, b) => {
       const cmp = _atSort(a, b);
       if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
@@ -4952,10 +5485,13 @@ function renderCompact() {
       const _mAss = computeASS(_mMonth);
       const _mStats = computeStats(_mMonth, isASS ? _mAss : _mElo);
       const _mSortFn =
-        cmpSortKey === "elo" ? (a, b) => (_mElo[a.name] || 1000) - (_mElo[b.name] || 1000) :
-        cmpSortKey === "ass" ? (a, b) => (_mAss[a.name] || 1000) - (_mAss[b.name] || 1000) :
-        cmpSortKey === "sr"  ? (a, b) => a.sr - b.sr :
-        sortFns[cmpSortKey]  || ((a, b) => a.sr - b.sr);
+        cmpSortKey === "elo"
+          ? (a, b) => (_mElo[a.name] || 1000) - (_mElo[b.name] || 1000)
+          : cmpSortKey === "ass"
+            ? (a, b) => (_mAss[a.name] || 1000) - (_mAss[b.name] || 1000)
+            : cmpSortKey === "sr"
+              ? (a, b) => a.sr - b.sr
+              : sortFns[cmpSortKey] || ((a, b) => a.sr - b.sr);
       const _mSorted = [..._mStats].sort((a, b) => {
         const cmp = _mSortFn(a, b);
         if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
@@ -5012,7 +5548,8 @@ function renderCompact() {
     }
     const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
     const assVal = Math.round(_cmpASSMap[p.name] || 1000);
-    const _scoreColor = (v) => v > 1000 ? "var(--green)" : v < 1000 ? "var(--red)" : "var(--muted)";
+    const _scoreColor = (v) =>
+      v > 1000 ? "var(--green)" : v < 1000 ? "var(--red)" : "var(--muted)";
     const eloColHtml = `<span style="font-weight:700;color:${_scoreColor(eloVal)}">${eloVal}</span>`;
     const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assVal)}">${assVal}</span>`;
     return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
@@ -5025,9 +5562,10 @@ function renderCompact() {
   // match's delta reflects its true historical ELO/ASS context. TODAY starts
   // fresh from ELO=1000 and walks only today's matches (session-relative).
   const _allActive = activeMatches();
-  const _deltaMatches = _matchDeltaWindow === "today"
-    ? _allActive.filter((m) => m.date === todayISO())
-    : _allActive;
+  const _deltaMatches =
+    _matchDeltaWindow === "today"
+      ? _allActive.filter((m) => m.date === todayISO())
+      : _allActive;
   const matchEloDeltas = isASS
     ? computeMatchASSDeltas(_deltaMatches)
     : _computeMatchEloDeltas(_deltaMatches);
@@ -5035,9 +5573,11 @@ function renderCompact() {
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
   if (_deltaLbl) _deltaLbl.textContent = isASS ? "ASS" : "ELO";
-  document.querySelectorAll(".mdw-btn").forEach((b) =>
-    b.classList.toggle("active", b.dataset.window === _matchDeltaWindow),
-  );
+  document
+    .querySelectorAll(".mdw-btn")
+    .forEach((b) =>
+      b.classList.toggle("active", b.dataset.window === _matchDeltaWindow),
+    );
   const reversedMatches = [...filtered].reverse();
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
@@ -5047,7 +5587,11 @@ function renderCompact() {
   // Subsequent renders (sort / filter) reconcile in place via morphList so the
   // table reorders smoothly instead of re-playing the whole cascade.
   const _firstPaint = !tbody.querySelector("tr[data-key]");
-  if (_firstPaint && splashDone && !document.body.classList.contains("no-cascade")) {
+  if (
+    _firstPaint &&
+    splashDone &&
+    !document.body.classList.contains("no-cascade")
+  ) {
     tbody.innerHTML = "";
     cmpMatchesEl.innerHTML = "";
     matchesHeader.style.opacity = "0";
@@ -5112,8 +5656,10 @@ function renderCompact() {
       if (summaryHtml || divergenceHtml) {
         setTimeout(
           () => {
-            if (divergenceHtml) cmpMatchesEl.insertAdjacentHTML("beforeend", divergenceHtml);
-            if (summaryHtml) cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
+            if (divergenceHtml)
+              cmpMatchesEl.insertAdjacentHTML("beforeend", divergenceHtml);
+            if (summaryHtml)
+              cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
             setTimeout(_animEloCounts, 80);
           },
           matchStartDelay + animCount * 100 + 100,
@@ -5121,7 +5667,12 @@ function renderCompact() {
       }
     } else {
       setTimeout(() => {
-        cmpMatchesEl.innerHTML = emptyState({ card: true, size: "sm", icon: "🏓", message: "No matches found" });
+        cmpMatchesEl.innerHTML = emptyState({
+          card: true,
+          size: "sm",
+          icon: "🏓",
+          message: "No matches found",
+        });
       }, matchStartDelay);
     }
   } else {
@@ -5149,7 +5700,12 @@ function renderCompact() {
         buildHistorySummary(filtered, cmpFilter);
       setTimeout(_animEloCounts, 80);
     } else {
-      cmpMatchesEl.innerHTML = emptyState({ card: true, size: "sm", icon: "🏓", message: "No matches found" });
+      cmpMatchesEl.innerHTML = emptyState({
+        card: true,
+        size: "sm",
+        icon: "🏓",
+        message: "No matches found",
+      });
     }
   }
 }
@@ -5871,9 +6427,7 @@ function renderModernMatches() {
 
   // Collect feature cards first, then match cards. The only feature card left
   // is the pair/h2h stats card (shown when those filters are active).
-  const featureCards = Array.from(
-    tmpAll.querySelectorAll(".pair-stats-card"),
-  );
+  const featureCards = Array.from(tmpAll.querySelectorAll(".pair-stats-card"));
   const matchCards = Array.from(tmpAll.querySelectorAll(".match-card"));
   const emptyEl = tmpAll.querySelector(".ui-empty");
 
@@ -5946,10 +6500,13 @@ function renderModernMatches() {
       histList.appendChild(emptyEl);
     }
     if (moreBtn) {
-      setTimeout(() => {
-        if (_renderModernGen !== _gen) return;
-        histList.appendChild(moreBtn);
-      }, (allAnimated.length + 1) * 100);
+      setTimeout(
+        () => {
+          if (_renderModernGen !== _gen) return;
+          histList.appendChild(moreBtn);
+        },
+        (allAnimated.length + 1) * 100,
+      );
     }
   } else {
     // Re-render (or no-cascade): reconcile in place. Resolve final scores up
@@ -6508,11 +7065,13 @@ function _updateCmpSlots() {
   const aBtn = document.getElementById("cmpSlotA");
   const bBtn = document.getElementById("cmpSlotB");
   if (aBtn) {
-    document.getElementById("cmpLabelA").textContent = viewState.cmpPlayerA || "P1";
+    document.getElementById("cmpLabelA").textContent =
+      viewState.cmpPlayerA || "P1";
     aBtn.classList.toggle("h2h-slot-filled", !!viewState.cmpPlayerA);
   }
   if (bBtn) {
-    document.getElementById("cmpLabelB").textContent = viewState.cmpPlayerB || "P2";
+    document.getElementById("cmpLabelB").textContent =
+      viewState.cmpPlayerB || "P2";
     bBtn.classList.toggle("h2h-slot-filled", !!viewState.cmpPlayerB);
   }
 }
@@ -6646,7 +7205,10 @@ function _removeMatchFromTA(m) {
 function deleteMatchByIndex(i) {
   const removed = state.matches.splice(i, 1)[0];
   if (!removed) return;
-  logAdminAction("Delete Match", `${(removed.teamA || []).join("/")} vs ${(removed.teamB || []).join("/")} on ${fmtDate(removed.date)}`);
+  logAdminAction(
+    "Delete Match",
+    `${(removed.teamA || []).join("/")} vs ${(removed.teamB || []).join("/")} on ${fmtDate(removed.date)}`,
+  );
   removed.deletedAt = todayISO();
   deletedMatches.unshift(removed);
   _removeMatchFromTA(removed);
@@ -6668,7 +7230,10 @@ function deleteMatchByIndex(i) {
 function restoreMatch(i) {
   const m = deletedMatches.splice(i, 1)[0];
   if (!m) return;
-  logAdminAction("Restore Match", `${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`);
+  logAdminAction(
+    "Restore Match",
+    `${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`,
+  );
   delete m.deletedAt;
   state.matches.push(m);
   saveDeletedMatches();
@@ -7118,7 +7683,14 @@ function saveModernMatch() {
   }
   const teamA = [p1a, p2a];
   const teamB = [p1b, p2b];
-  const candidate = { id: _genMatchId(), teamA, teamB, scoreA: sA, scoreB: sB, date };
+  const candidate = {
+    id: _genMatchId(),
+    teamA,
+    teamB,
+    scoreA: sA,
+    scoreB: sB,
+    date,
+  };
 
   function _doSave() {
     const prevSnapshot = [...state.matches];
@@ -7154,7 +7726,6 @@ function saveModernMatch() {
   }
   _doSave();
 }
-
 
 function _animEloCounts() {
   document
@@ -7597,7 +8168,6 @@ function openShareCard(name) {
   document.body.appendChild(overlay);
 }
 
-
 function _digestMatches(filter, player) {
   const today = todayISO();
   const { from: wkFrom, to: wkTo } = lastWeekRange();
@@ -7697,10 +8267,14 @@ function _buildDigestContent(filter, player) {
 
 function renderDigestCard(filter, player) {
   viewState.digestFilter = filter || viewState.digestFilter;
-  viewState.digestPlayer = player !== undefined ? player : viewState.digestPlayer;
+  viewState.digestPlayer =
+    player !== undefined ? player : viewState.digestPlayer;
   const content = document.getElementById("digest-content");
   if (content)
-    content.innerHTML = _buildDigestContent(viewState.digestFilter, viewState.digestPlayer);
+    content.innerHTML = _buildDigestContent(
+      viewState.digestFilter,
+      viewState.digestPlayer,
+    );
   // Update active filter button
   document
     .querySelectorAll(".digest-filter-btn")
@@ -7720,9 +8294,7 @@ function openDigestPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = sortPlayersGuestsLast(
-    _statPlayerNames(),
-  );
+  const players = sortPlayersGuestsLast(_statPlayerNames());
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">ALL</div><span>All Players</span></div>` +
     players
@@ -7786,7 +8358,9 @@ function _pairsSortedRows() {
     if (av !== bv) return dir < 0 ? bv - av : av - bv;
     return b.played - a.played;
   });
-  const toShow = viewState.pairsShowAll ? sorted : sorted.slice(0, PAIRS_PAGE_LIMIT);
+  const toShow = viewState.pairsShowAll
+    ? sorted
+    : sorted.slice(0, PAIRS_PAGE_LIMIT);
   const moreCount = sorted.length - PAIRS_PAGE_LIMIT;
   const rowsHtml = toShow
     .map((p, i) => {
@@ -7921,7 +8495,6 @@ function openSessionHighlights(date) {
   </div>`;
   document.body.appendChild(overlay);
 }
-
 
 function getMatrixAlias(name) {
   // If already an alias array from firebase
@@ -8120,7 +8693,8 @@ function _h2hHighlightRow(tr) {
 
 function _pvpRangeOpen() {
   document.getElementById("pvp-range-popup")?.remove();
-  let low = _pvpLow, high = _pvpHigh;
+  let low = _pvpLow,
+    high = _pvpHigh;
   let dragging = null;
 
   function grad() {
@@ -8128,11 +8702,11 @@ function _pvpRangeOpen() {
   }
   function render() {
     const bar = document.getElementById("pvp-rng-bar");
-    const tl  = document.getElementById("pvp-rng-tl");
-    const th  = document.getElementById("pvp-rng-th");
+    const tl = document.getElementById("pvp-rng-tl");
+    const th = document.getElementById("pvp-rng-th");
     if (bar) bar.style.background = grad();
-    if (tl)  tl.style.left  = low  + "%";
-    if (th)  th.style.left  = high + "%";
+    if (tl) tl.style.left = low + "%";
+    if (th) th.style.left = high + "%";
     const rl = document.getElementById("pvp-rng-rl");
     const ol = document.getElementById("pvp-rng-ol");
     const gl = document.getElementById("pvp-rng-gl");
@@ -8144,7 +8718,8 @@ function _pvpRangeOpen() {
   const el = document.createElement("div");
   el.id = "pvp-range-popup";
   el.setAttribute("role", "dialog");
-  el.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
+  el.style.cssText =
+    "position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
 
   el.innerHTML = `
     <div style="background:var(--bg-card,#12121c);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:18px;padding:20px;max-width:340px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.6)">
@@ -8196,44 +8771,78 @@ function _pvpRangeOpen() {
   const track = document.getElementById("pvp-rng-track");
   function getPct(clientX) {
     const rect = track.getBoundingClientRect();
-    return Math.round(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)));
+    return Math.round(
+      Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
+    );
   }
   function onMove(clientX) {
     if (!dragging) return;
     const p = getPct(clientX);
-    if (dragging === "l") low  = Math.max(0, Math.min(p, high - 1));
-    else                  high = Math.max(low + 1, Math.min(p, 100));
+    if (dragging === "l") low = Math.max(0, Math.min(p, high - 1));
+    else high = Math.max(low + 1, Math.min(p, 100));
     render();
   }
 
   const tl = document.getElementById("pvp-rng-tl");
   const th = document.getElementById("pvp-rng-th");
-  tl.addEventListener("mousedown",  (e) => { dragging = "l"; e.preventDefault(); });
-  th.addEventListener("mousedown",  (e) => { dragging = "h"; e.preventDefault(); });
-  tl.addEventListener("touchstart", (e) => { dragging = "l"; e.preventDefault(); }, { passive: false });
-  th.addEventListener("touchstart", (e) => { dragging = "h"; e.preventDefault(); }, { passive: false });
+  tl.addEventListener("mousedown", (e) => {
+    dragging = "l";
+    e.preventDefault();
+  });
+  th.addEventListener("mousedown", (e) => {
+    dragging = "h";
+    e.preventDefault();
+  });
+  tl.addEventListener(
+    "touchstart",
+    (e) => {
+      dragging = "l";
+      e.preventDefault();
+    },
+    { passive: false },
+  );
+  th.addEventListener(
+    "touchstart",
+    (e) => {
+      dragging = "h";
+      e.preventDefault();
+    },
+    { passive: false },
+  );
 
   const mmov = (e) => onMove(e.clientX);
-  const tmov = (e) => { e.preventDefault(); onMove(e.touches[0].clientX); };
-  const mup  = () => { dragging = null; };
+  const tmov = (e) => {
+    e.preventDefault();
+    onMove(e.touches[0].clientX);
+  };
+  const mup = () => {
+    dragging = null;
+  };
   document.addEventListener("mousemove", mmov);
-  document.addEventListener("touchmove",  tmov, { passive: false });
-  document.addEventListener("mouseup",   mup);
-  document.addEventListener("touchend",  mup);
+  document.addEventListener("touchmove", tmov, { passive: false });
+  document.addEventListener("mouseup", mup);
+  document.addEventListener("touchend", mup);
 
   function cleanup() {
     document.removeEventListener("mousemove", mmov);
-    document.removeEventListener("touchmove",  tmov);
-    document.removeEventListener("mouseup",   mup);
-    document.removeEventListener("touchend",  mup);
+    document.removeEventListener("touchmove", tmov);
+    document.removeEventListener("mouseup", mup);
+    document.removeEventListener("touchend", mup);
   }
   window._pvpRangeApply = () => {
-    _pvpLow = low; _pvpHigh = high;
-    el.remove(); cleanup();
+    _pvpLow = low;
+    _pvpHigh = high;
+    el.remove();
+    cleanup();
     _refreshPairMatrix();
   };
-  window._pvpRangeClose = () => { el.remove(); cleanup(); };
-  el.onclick = (e) => { if (e.target === el) window._pvpRangeClose(); };
+  window._pvpRangeClose = () => {
+    el.remove();
+    cleanup();
+  };
+  el.onclick = (e) => {
+    if (e.target === el) window._pvpRangeClose();
+  };
 }
 
 function _pairMatrixSetPeriod(btn, period) {
@@ -8296,7 +8905,8 @@ function _pairMatrixInner() {
   );
   const _allTimeElo = _memoElo();
   const players = Object.keys(played).sort(
-    (a, b) => (_allTimeElo[b] || 1000) - (_allTimeElo[a] || 1000) || a.localeCompare(b),
+    (a, b) =>
+      (_allTimeElo[b] || 1000) - (_allTimeElo[a] || 1000) || a.localeCompare(b),
   );
 
   const caption =
@@ -8328,7 +8938,12 @@ function _pairMatrixInner() {
             return `<td class="pvp-td" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}, opposed ${d.opposed}`)}"><span style="color:var(--green);font-weight:800">${d.partnered}</span><span style="color:var(--muted);font-size:8px;margin:0 1px">/</span><span style="color:var(--red);font-weight:800">${d.opposed}</span></td>`;
           }
           const pct = Math.round((d.partnered / both) * 100);
-          const cls = pct >= _pvpHigh ? "pvp-win" : pct > _pvpLow ? "pvp-even" : "pvp-loss";
+          const cls =
+            pct >= _pvpHigh
+              ? "pvp-win"
+              : pct > _pvpLow
+                ? "pvp-even"
+                : "pvp-loss";
           return `<td class="pvp-td ${cls}" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}/${both} (${pct}%), opposed ${d.opposed}/${both} (${100 - pct}%)`)}">${pct}%<sub class="pvp-total">${both}</sub></td>`;
         })
         .join("");
@@ -8343,8 +8958,9 @@ function _pairMatrixInner() {
     )
     .join("");
 
-  const rangeBtn = mode === "pct"
-    ? `<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px">
+  const rangeBtn =
+    mode === "pct"
+      ? `<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px">
         <button onclick="_pvpRangeOpen()" style="display:flex;align-items:center;gap:5px;background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:700;color:var(--text);cursor:pointer;letter-spacing:0.04em">
           <span style="font-size:12px">⚙</span> COLOR RANGE
           <span style="background:rgba(240,80,80,0.2);color:#f04f4f;border-radius:3px;padding:1px 4px;font-size:9px">≤${_pvpLow}%</span>
@@ -8352,7 +8968,7 @@ function _pairMatrixInner() {
           <span style="background:rgba(54,212,126,0.15);color:#36d47e;border-radius:3px;padding:1px 4px;font-size:9px">≥${_pvpHigh + 1}%</span>
         </button>
       </div>`
-    : "";
+      : "";
 
   return `${periodPills}${modePills}${rangeBtn}
     <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">${caption}</div>
@@ -8366,7 +8982,6 @@ function _pairMatrixInner() {
       <div class="pvp-legend">${legend}</div>
     </div>`;
 }
-
 
 // ── PLAYER COMPARISON ─────────────────────────────────────
 const CMP_DATE_OPTS = [
@@ -8383,7 +8998,11 @@ const CMP_DATE_OPTS = [
 function _getPlayerWindowMatches(playerName, baseMatches, window) {
   if (!window || window.mode === "all") return baseMatches;
   const playerMatches = baseMatches
-    .filter((m) => (m.teamA || []).includes(playerName) || (m.teamB || []).includes(playerName))
+    .filter(
+      (m) =>
+        (m.teamA || []).includes(playerName) ||
+        (m.teamB || []).includes(playerName),
+    )
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const count = Math.max(1, window.count || 10);
   const slice =
@@ -8410,19 +9029,26 @@ function _cmpCountPickerOpen(slot, mode) {
   const title = document.getElementById("cmp-count-title");
   if (title) {
     const modeLabel = mode === "first" ? "FIRST" : "LAST";
-    title.textContent = slot === "lb"
-      ? `${modeLabel} GAMES — LEADERBOARD`
-      : `${modeLabel} GAMES — P${slot}`;
+    title.textContent =
+      slot === "lb"
+        ? `${modeLabel} GAMES — LEADERBOARD`
+        : `${modeLabel} GAMES — P${slot}`;
   }
   const numEl = document.getElementById("cmp-count-num");
   if (numEl) numEl.textContent = _cmpPickerCount;
-  document.getElementById("cmp-count-overlay")?.classList.add("live-sheet-open");
+  document
+    .getElementById("cmp-count-overlay")
+    ?.classList.add("live-sheet-open");
   document.getElementById("cmp-count-sheet")?.classList.add("live-sheet-open");
 }
 
 function _cmpCountPickerClose() {
-  document.getElementById("cmp-count-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("cmp-count-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("cmp-count-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("cmp-count-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 function _cmpCountStep(delta) {
@@ -8477,9 +9103,10 @@ function _cmpWindowCtrlHtml(slot) {
   const mode = w ? w.mode : "all";
   const count = w ? w.count : 10;
   const justify = slot === "B" ? "justify-content:flex-end;" : "";
-  const chip = mode !== "all"
-    ? `<button class="cmp-count-chip" onclick="_cmpCountPickerOpen('${slot}','${mode}')">${count}</button>`
-    : "";
+  const chip =
+    mode !== "all"
+      ? `<button class="cmp-count-chip" onclick="_cmpCountPickerOpen('${slot}','${mode}')">${count}</button>`
+      : "";
   return `<div id="cmpWinCtrl${slot}" style="display:flex;gap:3px;align-items:center;flex:1;${justify}">
     <button class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','all')" style="padding:2px 6px;font-size:9px">ALL</button>
     <button class="digest-filter-btn${mode === "first" ? " active" : ""}" onclick="_cmpSetWindow('${slot}','first')" style="padding:2px 6px;font-size:9px">FIRST</button>
@@ -8520,9 +9147,7 @@ function openCmpSheet(slot) {
   if (!list) return;
   const taken = slot === "A" ? viewState.cmpPlayerB : viewState.cmpPlayerA;
   const selected = slot === "A" ? viewState.cmpPlayerA : viewState.cmpPlayerB;
-  const players = sortPlayersGuestsLast(
-    _statPlayerNames(),
-  );
+  const players = sortPlayersGuestsLast(_statPlayerNames());
   list.innerHTML = players
     .map((p) => {
       const disabled =
@@ -8574,12 +9199,20 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
   const baseMatches = filterMatches(dateFilter);
 
   // Compute each player's stats from their own game window (independent)
-  const matchesA = _getPlayerWindowMatches(nameA, baseMatches, viewState.cmpWindowA);
+  const matchesA = _getPlayerWindowMatches(
+    nameA,
+    baseMatches,
+    viewState.cmpWindowA,
+  );
   const eloMapA = computeElo(matchesA);
   const statsA = computeStats(matchesA, eloMapA);
   const sA = statsA.find((s) => s.name === nameA);
 
-  const matchesB = _getPlayerWindowMatches(nameB, baseMatches, viewState.cmpWindowB);
+  const matchesB = _getPlayerWindowMatches(
+    nameB,
+    baseMatches,
+    viewState.cmpWindowB,
+  );
   const eloMapB = computeElo(matchesB);
   const statsB = computeStats(matchesB, eloMapB);
   const sB = statsB.find((s) => s.name === nameB);
@@ -8635,7 +9268,9 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     `<span style="color:var(--muted);font-size:11px">${n} — no data for this period</span>`;
 
   const _winLabel = (w) =>
-    !w || w.mode === "all" ? null : `${w.mode === "first" ? "FIRST" : "LAST"} ${w.count}`;
+    !w || w.mode === "all"
+      ? null
+      : `${w.mode === "first" ? "FIRST" : "LAST"} ${w.count}`;
   const labelA = _winLabel(viewState.cmpWindowA);
   const labelB = _winLabel(viewState.cmpWindowB);
   const hasWindow = labelA || labelB;
@@ -8704,9 +9339,7 @@ function renderCompareSelector() {
     card.innerHTML = "";
     return;
   }
-  const players = sortPlayersGuestsLast(
-    _statPlayerNames(),
-  );
+  const players = sortPlayersGuestsLast(_statPlayerNames());
   const opts =
     `<option value="">P1</option>` +
     players
@@ -8900,7 +9533,10 @@ function anaSearchKey(e) {
     return;
   }
   if (e.key === "ArrowDown") {
-    viewState.anaSearchIdx = Math.min(viewState.anaSearchIdx + 1, items.length - 1);
+    viewState.anaSearchIdx = Math.min(
+      viewState.anaSearchIdx + 1,
+      items.length - 1,
+    );
   } else if (e.key === "ArrowUp") {
     viewState.anaSearchIdx = Math.max(viewState.anaSearchIdx - 1, 0);
   } else if (e.key === "Enter" && viewState.anaSearchIdx >= 0) {
@@ -8918,7 +9554,10 @@ function anaSearchSelect(key) {
   closeAnaSearch();
   const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
   if (!el) return;
-  if (viewState.anaActiveCat !== "all" && el.dataset.cat !== viewState.anaActiveCat)
+  if (
+    viewState.anaActiveCat !== "all" &&
+    el.dataset.cat !== viewState.anaActiveCat
+  )
     anaFilterCategory("all", true);
   if (el.classList.contains("collapsed")) toggleAnaSection(key);
   setTimeout(
@@ -9286,7 +9925,6 @@ function mkLvlRow(displayName) {
 // ── PARTNERSHIP CHEMISTRY SCORE ───────────────────────────────
 // computeChemistryScores → src/engine/player-analytics.js
 
-
 // ── ACHIEVEMENTS (new additions beyond computeBadges) ─────────
 // computeAchievements → src/engine/player-analytics.js
 
@@ -9470,7 +10108,12 @@ function _anaSubTab(btn, tab) {
 }
 
 function _simUpdateSlots() {
-  const slots = { a1: viewState.simA1, a2: viewState.simA2, b1: viewState.simB1, b2: viewState.simB2 };
+  const slots = {
+    a1: viewState.simA1,
+    a2: viewState.simA2,
+    b1: viewState.simB1,
+    b2: viewState.simB2,
+  };
   Object.entries(slots).forEach(([k, v]) => {
     const lbl = document.getElementById(`sim-label-${k}`);
     const btn = document.getElementById(`sim-slot-${k}`);
@@ -9521,7 +10164,10 @@ function runMatchSimulator() {
   const TARGET = 6;
   const pWin = Math.max(expA, expB);
   const pLose = Math.min(expA, expB);
-  const loserGames = Math.max(0, Math.min(5, Math.round(TARGET * (pLose / pWin))));
+  const loserGames = Math.max(
+    0,
+    Math.min(5, Math.round(TARGET * (pLose / pWin))),
+  );
   const aFav = expA >= expB;
   const expScoreA = aFav ? TARGET : loserGames;
   const expScoreB = aFav ? loserGames : TARGET;
@@ -9570,7 +10216,8 @@ function buildEloTimelineHtml(filterKey) {
     .sort((a, b) => (eloNow[b] || 1000) - (eloNow[a] || 1000));
   if (!players.length)
     return '<div class="sub" style="padding:8px">No ELO data yet.</div>';
-  if (!viewState.eloTLPlayer || !history[viewState.eloTLPlayer]) viewState.eloTLPlayer = players[0];
+  if (!viewState.eloTLPlayer || !history[viewState.eloTLPlayer])
+    viewState.eloTLPlayer = players[0];
   const name = viewState.eloTLPlayer;
   let pts = [...(history[name] || [])];
   const now = new Date();
@@ -9639,7 +10286,11 @@ function buildEloTimelineHtml(filterKey) {
   } else {
     // Pre-compute overlay pts so Y range includes both players
     let overlayPts = [];
-    if (viewState.eloTLOverlay && viewState.eloTLOverlay !== name && history[viewState.eloTLOverlay]) {
+    if (
+      viewState.eloTLOverlay &&
+      viewState.eloTLOverlay !== name &&
+      history[viewState.eloTLOverlay]
+    ) {
       let rawOpts = [...history[viewState.eloTLOverlay]];
       if (filterKey === "3m") {
         const c = new Date(now);
@@ -9813,7 +10464,8 @@ function openEloTLOverlaySheet() {
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
       .map((p) => {
-        const sel = p === viewState.eloTLOverlay ? " live-sheet-item-selected" : "";
+        const sel =
+          p === viewState.eloTLOverlay ? " live-sheet-item-selected" : "";
         return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
       })
       .join("");
@@ -9874,7 +10526,12 @@ function _updateEloProbSlots() {
       viewState.eloProbP2 || "P2";
     bBtn.classList.toggle("h2h-slot-filled", !!viewState.eloProbP2);
   }
-  if (viewState.eloProbP1 && viewState.eloProbP2 && viewState.eloProbP1 !== viewState.eloProbP2) calcEloWinProb();
+  if (
+    viewState.eloProbP1 &&
+    viewState.eloProbP2 &&
+    viewState.eloProbP1 !== viewState.eloProbP2
+  )
+    calcEloWinProb();
   else {
     const r = document.getElementById("elo-prob-result");
     if (r) r.innerHTML = "";
@@ -9889,9 +10546,7 @@ function openEloProbSheet(slot) {
   if (!list) return;
   const taken = slot === "p1" ? viewState.eloProbP2 : viewState.eloProbP1;
   const selected = slot === "p1" ? viewState.eloProbP1 : viewState.eloProbP2;
-  const players = sortPlayersGuestsLast(
-    _statPlayerNames(),
-  );
+  const players = sortPlayersGuestsLast(_statPlayerNames());
   list.innerHTML = players
     .map((p) => {
       const disabled =
@@ -9912,12 +10567,11 @@ function openWhatIfPlayerSheet() {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const players = sortPlayersGuestsLast(
-    _statPlayerNames(),
-  );
+  const players = sortPlayersGuestsLast(_statPlayerNames());
   list.innerHTML = players
     .map((p) => {
-      const sel = p === viewState.whatIfPlayer ? " live-sheet-item-selected" : "";
+      const sel =
+        p === viewState.whatIfPlayer ? " live-sheet-item-selected" : "";
       return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
     })
     .join("");
@@ -10006,11 +10660,12 @@ function _renderWhatIfRows(playerName, playerMatches) {
   if (!matchesEl) return;
   const visible = playerMatches.slice(-_whatIfVisible);
   const remaining = playerMatches.length - _whatIfVisible;
-  const moreBtn = remaining > 0
-    ? `<button class="whatif-action-btn" style="margin-top:6px;width:100%" onclick="toggleWhatIfShowAll()">
+  const moreBtn =
+    remaining > 0
+      ? `<button class="whatif-action-btn" style="margin-top:6px;width:100%" onclick="toggleWhatIfShowAll()">
         ▼ Show ${Math.min(remaining, _WHATIF_PAGE)} more (${remaining} remaining)
       </button>`
-    : "";
+      : "";
   matchesEl.innerHTML =
     `<div class="whatif-list">` +
     visible
@@ -10058,8 +10713,10 @@ function toggleWhatIfShowAll() {
 }
 
 function toggleWhatIfMatch(idx) {
-  viewState.whatIfToggles[idx] = viewState.whatIfToggles[idx] === false ? true : false;
-  if (viewState.whatIfToggles[idx] === false) viewState.whatIfFlips[idx] = false; // can't flip excluded
+  viewState.whatIfToggles[idx] =
+    viewState.whatIfToggles[idx] === false ? true : false;
+  if (viewState.whatIfToggles[idx] === false)
+    viewState.whatIfFlips[idx] = false; // can't flip excluded
   _refreshWhatIfRows();
 }
 
@@ -10074,7 +10731,8 @@ function whatIfFlipAllLosses() {
     if (!viewState.whatIfToggles.hasOwnProperty(i)) return;
     const inA = (m.teamA || []).includes(viewState.whatIfPlayer);
     const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-    if (!won && viewState.whatIfToggles[i] !== false) viewState.whatIfFlips[i] = true;
+    if (!won && viewState.whatIfToggles[i] !== false)
+      viewState.whatIfFlips[i] = true;
   });
   _refreshWhatIfRows();
 }
@@ -10123,14 +10781,15 @@ function recomputeWhatIfElo() {
   const whatIfAss = Math.round(whatIfAssMap[viewState.whatIfPlayer] || 1000);
   const assDiff = whatIfAss - actualAss;
   const assSign = assDiff > 0 ? "+" : "";
-  const assPillCls = assDiff > 0 ? "positive" : assDiff < 0 ? "negative" : "neutral";
+  const assPillCls =
+    assDiff > 0 ? "positive" : assDiff < 0 ? "negative" : "neutral";
   // Rank change
   const actualRanked = Object.entries(_memoElo()).sort((a, b) => b[1] - a[1]);
-  const whatIfRanked = Object.entries(whatIfEloMap).sort(
-    (a, b) => b[1] - a[1],
-  );
-  const actualRank = actualRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
-  const whatIfRank = whatIfRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
+  const whatIfRanked = Object.entries(whatIfEloMap).sort((a, b) => b[1] - a[1]);
+  const actualRank =
+    actualRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
+  const whatIfRank =
+    whatIfRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
   const rankDiff = actualRank - whatIfRank;
   const rankStr =
     rankDiff > 0
@@ -10144,7 +10803,9 @@ function recomputeWhatIfElo() {
       : rankDiff < 0
         ? "var(--red)"
         : "var(--muted)";
-  const excluded = Object.values(viewState.whatIfToggles).filter((v) => !v).length;
+  const excluded = Object.values(viewState.whatIfToggles).filter(
+    (v) => !v,
+  ).length;
   const flipped = Object.values(viewState.whatIfFlips).filter((v) => v).length;
   const eloPillCls = diff > 0 ? "positive" : diff < 0 ? "negative" : "neutral";
   const rankPillCls =
@@ -10521,7 +11182,9 @@ function _buildRankReignHtml() {
   const histNames = Object.keys(histAll);
   const runElo = {}; // running rating per player, as of the current date
   const ptr = {};
-  histNames.forEach((n) => { ptr[n] = 0; });
+  histNames.forEach((n) => {
+    ptr[n] = 0;
+  });
   let maxRank = 1;
   const tally = {};
   allDates.forEach((date) => {
@@ -10544,8 +11207,7 @@ function _buildRankReignHtml() {
     ranked.forEach(([name]) => {
       if (!dayPlayers.has(name)) return;
       qualRank++;
-      if (!tally[name])
-        tally[name] = { name, rankCounts: {}, days: 0 };
+      if (!tally[name]) tally[name] = { name, rankCounts: {}, days: 0 };
       tally[name].days++;
       tally[name].rankCounts[qualRank] =
         (tally[name].rankCounts[qualRank] || 0) + 1;
@@ -11428,9 +12090,7 @@ function openPredictSheet(slot) {
     viewState.predictPlayerB,
     viewState.predictPartnerB,
   ].filter((v, i) => v && ["a1", "a2", "b1", "b2"][i] !== slot);
-  const players = sortPlayersGuestsLast(
-    _statPlayerNames(),
-  );
+  const players = sortPlayersGuestsLast(_statPlayerNames());
   const selected =
     slot === "a1"
       ? viewState.predictPlayerA
@@ -11462,15 +12122,18 @@ function openSimSheet(slot) {
   if (el) el.textContent = "SELECT PLAYER";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const taken = { a1: viewState.simA1, a2: viewState.simA2, b1: viewState.simB1, b2: viewState.simB2 };
+  const taken = {
+    a1: viewState.simA1,
+    a2: viewState.simA2,
+    b1: viewState.simB1,
+    b2: viewState.simB2,
+  };
   const current = taken[slot];
   const others = Object.entries(taken)
     .filter(([k]) => k !== slot)
     .map(([, v]) => v)
     .filter(Boolean);
-  const players = sortPlayersGuestsLast(
-    _statPlayerNames(),
-  );
+  const players = sortPlayersGuestsLast(_statPlayerNames());
   list.innerHTML =
     `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
     players
@@ -11489,8 +12152,12 @@ function openSimSheet(slot) {
 }
 
 function runMatchPrediction() {
-  const teamA = [viewState.predictPlayerA, viewState.predictPartnerA].filter(Boolean);
-  const teamB = [viewState.predictPlayerB, viewState.predictPartnerB].filter(Boolean);
+  const teamA = [viewState.predictPlayerA, viewState.predictPartnerA].filter(
+    Boolean,
+  );
+  const teamB = [viewState.predictPlayerB, viewState.predictPartnerB].filter(
+    Boolean,
+  );
   const res = document.getElementById("predict-result");
   if (!res) return;
   if (!teamA.length || !teamB.length) {
@@ -11587,7 +12254,6 @@ function runMatchPrediction() {
     </div>`;
 }
 
-
 function _buildSeasonModeHtml() {
   const buckets = computeSeasons(activeMatches());
   if (!buckets.length)
@@ -11650,36 +12316,62 @@ function _buildStreakLeaderboardHtml() {
   window._streakData = stats.map((p) => {
     const recentN = Math.min(p.results.length, 10);
     const recentW = p.results.slice(-recentN).filter((r) => r.won).length;
-    const mtmDelta = p.mp >= 5
-      ? Math.round((recentW / recentN - p.mw / p.mp) * 100)
-      : null;
+    const mtmDelta =
+      p.mp >= 5 ? Math.round((recentW / recentN - p.mw / p.mp) * 100) : null;
 
     // Bounce-back: % of loss streaks snapped in 1 match; avg W/L streak lengths
-    let lossStreaks = 0, bounced = 0, inLoss = false, lossLen = 0;
-    let wRuns = 0, wTotal = 0, lRuns = 0, lTotal = 0, runType = null, runLen = 0;
+    let lossStreaks = 0,
+      bounced = 0,
+      inLoss = false,
+      lossLen = 0;
+    let wRuns = 0,
+      wTotal = 0,
+      lRuns = 0,
+      lTotal = 0,
+      runType = null,
+      runLen = 0;
     p.results.forEach((r) => {
       // bounce-back
       if (!r.won) {
-        if (!inLoss) { inLoss = true; lossLen = 1; lossStreaks++; }
-        else lossLen++;
+        if (!inLoss) {
+          inLoss = true;
+          lossLen = 1;
+          lossStreaks++;
+        } else lossLen++;
       } else if (inLoss) {
         if (lossLen === 1) bounced++;
-        inLoss = false; lossLen = 0;
+        inLoss = false;
+        lossLen = 0;
       }
       // avg streak lengths
       const t = r.won ? "W" : "L";
-      if (t === runType) { runLen++; }
-      else {
-        if (runType === "W") { wRuns++; wTotal += runLen; }
-        else if (runType === "L") { lRuns++; lTotal += runLen; }
-        runType = t; runLen = 1;
+      if (t === runType) {
+        runLen++;
+      } else {
+        if (runType === "W") {
+          wRuns++;
+          wTotal += runLen;
+        } else if (runType === "L") {
+          lRuns++;
+          lTotal += runLen;
+        }
+        runType = t;
+        runLen = 1;
       }
     });
-    if (runType === "W") { wRuns++; wTotal += runLen; }
-    else if (runType === "L") { lRuns++; lTotal += runLen; }
-    const bbPct = lossStreaks > 0 ? Math.round((bounced / lossStreaks) * 100) : null;
-    const avgWStreak = wRuns > 0 ? parseFloat((wTotal / wRuns).toFixed(1)) : null;
-    const avgLStreak = lRuns > 0 ? parseFloat((lTotal / lRuns).toFixed(1)) : null;
+    if (runType === "W") {
+      wRuns++;
+      wTotal += runLen;
+    } else if (runType === "L") {
+      lRuns++;
+      lTotal += runLen;
+    }
+    const bbPct =
+      lossStreaks > 0 ? Math.round((bounced / lossStreaks) * 100) : null;
+    const avgWStreak =
+      wRuns > 0 ? parseFloat((wTotal / wRuns).toFixed(1)) : null;
+    const avgLStreak =
+      lRuns > 0 ? parseFloat((lTotal / lRuns).toFixed(1)) : null;
 
     return {
       name: p.name,
@@ -11695,11 +12387,14 @@ function _buildStreakLeaderboardHtml() {
     };
   });
 
-  if (!window._streakState) window._streakState = { col: "curSigned", dir: "desc" };
+  if (!window._streakState)
+    window._streakState = { col: "curSigned", dir: "desc" };
 
-  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px 36px";
+  const PG =
+    "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px 36px";
   const HDR = `display:grid;${PG};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
-  const NH = "text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden";
+  const NH =
+    "text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden";
   const header = `<div style="${HDR}">
     <div onclick="window._streakSort('name')" style="cursor:pointer;white-space:nowrap">Player</div>
     <div onclick="window._streakSort('curSigned')" style="${NH}">Streak</div>
@@ -11716,22 +12411,40 @@ function _buildStreakLeaderboardHtml() {
   const asc = dir === "asc";
   const CEL = `display:grid;${PG};align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
   const initSorted = [...window._streakData].sort((a, b) => {
-    const av = a[col], bv = b[col];
+    const av = a[col],
+      bv = b[col];
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
     if (bv == null) return -1;
-    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    if (col === "name")
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
     return asc ? av - bv : bv - av;
   });
-  const bodyRows = initSorted.map((r) => {
-    const onW = r.curType === "W";
-    const sCol = onW ? "var(--green)" : "var(--red)";
-    const ico  = onW ? "🔥" : "❄️";
-    const mtmCol = r.mtmDelta > 0 ? "var(--green)" : r.mtmDelta < 0 ? "var(--red)" : "var(--muted)";
-    const mtmStr = r.mtmDelta == null ? "—" : (r.mtmDelta > 0 ? "+" : "") + r.mtmDelta + "%";
-    const bbCol  = r.bbPct == null ? "var(--muted)" : r.bbPct >= 70 ? "var(--green)" : r.bbPct >= 40 ? "var(--gold)" : "var(--red)";
-    const bbStr  = r.bbPct == null ? "—" : r.bbPct + "%";
-    return `<div style="${CEL}">
+  const bodyRows = initSorted
+    .map((r) => {
+      const onW = r.curType === "W";
+      const sCol = onW ? "var(--green)" : "var(--red)";
+      const ico = onW ? "🔥" : "❄️";
+      const mtmCol =
+        r.mtmDelta > 0
+          ? "var(--green)"
+          : r.mtmDelta < 0
+            ? "var(--red)"
+            : "var(--muted)";
+      const mtmStr =
+        r.mtmDelta == null
+          ? "—"
+          : (r.mtmDelta > 0 ? "+" : "") + r.mtmDelta + "%";
+      const bbCol =
+        r.bbPct == null
+          ? "var(--muted)"
+          : r.bbPct >= 70
+            ? "var(--green)"
+            : r.bbPct >= 40
+              ? "var(--gold)"
+              : "var(--red)";
+      const bbStr = r.bbPct == null ? "—" : r.bbPct + "%";
+      return `<div style="${CEL}">
       <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name)}</div>
       <div style="color:${sCol};text-align:center">${ico} ${onW ? "W" : "L"}${r.curStreak}</div>
       <div style="color:var(--green);text-align:center">${r.bestWinStreak}</div>
@@ -11741,7 +12454,8 @@ function _buildStreakLeaderboardHtml() {
       <div style="color:var(--green);text-align:center">${r.avgWStreak ?? "—"}</div>
       <div style="color:var(--red);text-align:center">${r.avgLStreak ?? "—"}</div>
     </div>`;
-  }).join("");
+    })
+    .join("");
 
   return `<div class="ana-card" style="padding:8px 12px;overflow-x:auto">${header}<div id="streak-body">${bodyRows}</div></div>`;
 }
@@ -11749,7 +12463,8 @@ function _buildStreakLeaderboardHtml() {
 // ── WIN RATE CALCULATOR ─────────────────────────────────────
 // Returns {mp, mw} for a player across given matches (already sorted).
 function _wrcStats(name, ms) {
-  let mp = 0, mw = 0;
+  let mp = 0,
+    mw = 0;
   ms.forEach((m) => {
     const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
     const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
@@ -11764,18 +12479,22 @@ function _wrcStats(name, ms) {
 // Change in W% over last N matches vs overall (null if fewer than N matches).
 function _wrcDelta(name, sorted, n) {
   const pms = sorted.filter((m) =>
-    [...(m.teamA || []), ...(m.teamB || [])].some((p) => normPlayer(p) === name)
+    [...(m.teamA || []), ...(m.teamB || [])].some(
+      (p) => normPlayer(p) === name,
+    ),
   );
   if (pms.length < n) return null;
   const overall = _wrcStats(name, pms);
-  const recent  = _wrcStats(name, pms.slice(-n));
+  const recent = _wrcStats(name, pms.slice(-n));
   const overallWR = overall.mw / overall.mp;
-  const recentWR  = recent.mw  / n;
+  const recentWR = recent.mw / n;
   return Math.round((recentWR - overallWR) * 100); // signed integer pp
 }
 
 function _buildWinRateCalcHtml() {
-  const ms = [...activeMatches()].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const ms = [...activeMatches()].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
   const players = getAllPlayerNamesFromMatches();
 
   // Build per-player stats row
@@ -11796,12 +12515,14 @@ function _buildWinRateCalcHtml() {
   const fmtDelta = (d) => {
     if (d === null) return `<span class="wrc-d-na">—</span>`;
     const sign = d > 0 ? "+" : "";
-    const cls  = d > 0 ? "wrc-d-pos" : d < 0 ? "wrc-d-neg" : "wrc-d-zero";
+    const cls = d > 0 ? "wrc-d-pos" : d < 0 ? "wrc-d-neg" : "wrc-d-zero";
     return `<span class="${cls}">${sign}${d}%</span>`;
   };
 
-  const tableRows = rows.map((r, i) =>
-    `<tr class="wrc-tr" onclick="wrcSelectPlayer(${jsArg(r.name)})" data-name="${escHtml(r.name)}">
+  const tableRows = rows
+    .map(
+      (r, i) =>
+        `<tr class="wrc-tr" onclick="wrcSelectPlayer(${jsArg(r.name)})" data-name="${escHtml(r.name)}">
       <td class="wrc-td-rank">${i + 1}</td>
       <td class="wrc-td-name">${escHtml(r.name)}</td>
       <td class="wrc-td-mp">${r.mp}</td>
@@ -11810,8 +12531,9 @@ function _buildWinRateCalcHtml() {
       <td class="wrc-td-d">${fmtDelta(r.d20)}</td>
       <td class="wrc-td-d">${fmtDelta(r.d30)}</td>
       <td class="wrc-td-d">${fmtDelta(r.d40)}</td>
-    </tr>`
-  ).join("");
+    </tr>`,
+    )
+    .join("");
 
   return `<div class="wrc-card">
     <div class="wrc-tbl-wrap">
@@ -11882,86 +12604,107 @@ function wrcSelectPlayer(name) {
   const ml = mp - mw;
   const wr = mp > 0 ? Math.round((mw / mp) * 100) : 0;
   document.getElementById("wrc-cur-mp").textContent = mp;
-  document.getElementById("wrc-cur-w").textContent  = mw;
-  document.getElementById("wrc-cur-l").textContent  = ml;
+  document.getElementById("wrc-cur-w").textContent = mw;
+  document.getElementById("wrc-cur-l").textContent = ml;
   document.getElementById("wrc-cur-wr").textContent = `${wr}%`;
 
   const tSlider = document.getElementById("wrc-target");
-  if (tSlider) { tSlider.min = Math.min(wr + 1, 99); tSlider.max = 99; tSlider.value = Math.min(wr + 5, 95); }
+  if (tSlider) {
+    tSlider.min = Math.min(wr + 1, 99);
+    tSlider.max = 99;
+    tSlider.value = Math.min(wr + 5, 95);
+  }
   const fSlider = document.getElementById("wrc-future");
-  if (fSlider) { fSlider.min = wr + 1; fSlider.max = 100; fSlider.value = Math.min(Math.max(80, wr + 10), 100); }
+  if (fSlider) {
+    fSlider.min = wr + 1;
+    fSlider.max = 100;
+    fSlider.value = Math.min(Math.max(80, wr + 10), 100);
+  }
 
   document.getElementById("wrc-popup-overlay").classList.add("wrc-popup-open");
   wrcOnSlider();
 }
 
 function wrcCloseCalc() {
-  document.getElementById("wrc-popup-overlay")?.classList.remove("wrc-popup-open");
+  document
+    .getElementById("wrc-popup-overlay")
+    ?.classList.remove("wrc-popup-open");
 }
 
 function wrcOnSlider() {
-  const name  = _wrcSelectedPlayer;
+  const name = _wrcSelectedPlayer;
   const resEl = document.getElementById("wrc-result");
   if (!name || !resEl) return;
   const targetSlider = document.getElementById("wrc-target");
   const futureSlider = document.getElementById("wrc-future");
   const targetWR = parseInt(targetSlider?.value || 0) / 100;
-  let   futureWR = parseInt(futureSlider?.value || 0) / 100;
+  let futureWR = parseInt(futureSlider?.value || 0) / 100;
   // Clamp future above target
   if (futureWR <= targetWR) {
     const clamped = Math.min(Math.round(targetWR * 100) + 1, 100);
     if (futureSlider) futureSlider.value = clamped;
     futureWR = clamped / 100;
   }
-  document.getElementById("wrc-target-val").textContent = `${Math.round(targetWR * 100)}%`;
-  document.getElementById("wrc-future-val").textContent = `${Math.round(futureWR * 100)}%`;
+  document.getElementById("wrc-target-val").textContent =
+    `${Math.round(targetWR * 100)}%`;
+  document.getElementById("wrc-future-val").textContent =
+    `${Math.round(futureWR * 100)}%`;
 
   const ms = activeMatches();
   const { mp, mw } = _wrcStats(name, ms);
   const numerator = targetWR * mp - mw;
-  const n = numerator <= 0
-    ? 0
-    : Math.ceil(numerator / (futureWR - targetWR));
+  const n = numerator <= 0 ? 0 : Math.ceil(numerator / (futureWR - targetWR));
 
   if (n === 0) {
     resEl.innerHTML = `<div class="wrc-achieved">🎉 Already at or above ${Math.round(targetWR * 100)}%!</div>`;
     return;
   }
   const newMp = mp + n;
-  const futureWins  = Math.round(n * futureWR);
+  const futureWins = Math.round(n * futureWR);
   const futureLosses = n - futureWins;
-  const newW  = mw + futureWins;
-  const newL  = newMp - newW;
+  const newW = mw + futureWins;
+  const newL = newMp - newW;
   const newWR = Math.round((newW / newMp) * 100);
 
   // ELO gain estimate: K=32, vs match-frequency-weighted average opponent ELO.
   // Players who appear in more matches are more likely to be faced, so their
   // ELO carries proportionally more weight in the average.
-  const eloMap  = _memoElo();
-  const myElo   = eloMap[name] || 1000;
+  const eloMap = _memoElo();
+  const myElo = eloMap[name] || 1000;
   // Use only non-guest matches for the opponent ELO average
-  const guestSet = new Set(Object.values(state.players).filter((p) => p.isGuest).map((p) => p.name));
+  const guestSet = new Set(
+    Object.values(state.players)
+      .filter((p) => p.isGuest)
+      .map((p) => p.name),
+  );
   const nonGuestMs = activeMatches().filter(
-    (m) => ![...(m.teamA || []), ...(m.teamB || [])].some((p) => guestSet.has(p)),
+    (m) =>
+      ![...(m.teamA || []), ...(m.teamB || [])].some((p) => guestSet.has(p)),
   );
   // Count how many matches each non-guest opponent played (weighted average)
   const oppCount = {};
   nonGuestMs.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
       const cn = normPlayer(p);
-      if (cn !== name && !guestSet.has(p)) oppCount[cn] = (oppCount[cn] || 0) + 1;
+      if (cn !== name && !guestSet.has(p))
+        oppCount[cn] = (oppCount[cn] || 0) + 1;
     });
   });
   const oppEntries = Object.entries(oppCount);
   const totalOppMatches = oppEntries.reduce((s, [, c]) => s + c, 0);
-  const avgOpp = oppEntries.length && totalOppMatches > 0
-    ? oppEntries.reduce((s, [p, c]) => s + (eloMap[p] || 1000) * c, 0) / totalOppMatches
-    : 1000;
+  const avgOpp =
+    oppEntries.length && totalOppMatches > 0
+      ? oppEntries.reduce((s, [p, c]) => s + (eloMap[p] || 1000) * c, 0) /
+        totalOppMatches
+      : 1000;
   const expected = 1 / (1 + Math.pow(10, (avgOpp - myElo) / 400));
-  const eloGain  = Math.round(futureWins * 32 * (1 - expected) + futureLosses * 32 * (0 - expected));
+  const eloGain = Math.round(
+    futureWins * 32 * (1 - expected) + futureLosses * 32 * (0 - expected),
+  );
   const finalElo = myElo + eloGain;
-  const eloSign  = eloGain >= 0 ? "+" : "";
-  const eloCol   = eloGain > 0 ? "var(--green)" : eloGain < 0 ? "var(--red)" : "var(--muted)";
+  const eloSign = eloGain >= 0 ? "+" : "";
+  const eloCol =
+    eloGain > 0 ? "var(--green)" : eloGain < 0 ? "var(--red)" : "var(--muted)";
 
   resEl.innerHTML = `
     <div class="wrc-result-hero">
@@ -11979,9 +12722,9 @@ function wrcOnSlider() {
       </div>
     </div>`;
 }
-window.wrcSelectPlayer   = wrcSelectPlayer;
-window.wrcCloseCalc      = wrcCloseCalc;
-window.wrcOnSlider       = wrcOnSlider;
+window.wrcSelectPlayer = wrcSelectPlayer;
+window.wrcCloseCalc = wrcCloseCalc;
+window.wrcOnSlider = wrcOnSlider;
 
 // Biggest upsets: replays both ELO and ASS match-by-match, capturing pre-match
 // scores per player. Records any match where either gap > 0.
@@ -11989,19 +12732,25 @@ function _computeUpsets(matches = activeMatches()) {
   const ms = [...matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
-  const elo = {}, ass = {};
+  const elo = {},
+    ass = {};
   const seed = (n) => {
     if (!(n in elo)) elo[n] = 1000;
     if (!(n in ass)) ass[n] = 1000;
   };
   const upsets = [];
   ms.forEach((m) => {
-    const tA = m.teamA || [], tB = m.teamB || [];
+    const tA = m.teamA || [],
+      tB = m.teamB || [];
     [...tA, ...tB].forEach(seed);
 
     // Snapshot pre-match ratings for every player in this match
-    const preElo = {}, preAss = {};
-    [...tA, ...tB].forEach((p) => { preElo[p] = elo[p]; preAss[p] = ass[p]; });
+    const preElo = {},
+      preAss = {};
+    [...tA, ...tB].forEach((p) => {
+      preElo[p] = elo[p];
+      preAss[p] = ass[p];
+    });
 
     const avgEloA = tA.reduce((s, p) => s + elo[p], 0) / Math.max(tA.length, 1);
     const avgEloB = tB.reduce((s, p) => s + elo[p], 0) / Math.max(tB.length, 1);
@@ -12009,7 +12758,7 @@ function _computeUpsets(matches = activeMatches()) {
     const avgAssB = tB.reduce((s, p) => s + ass[p], 0) / Math.max(tB.length, 1);
     const aWon = m.scoreA > m.scoreB;
     const winners = aWon ? tA : tB;
-    const losers  = aWon ? tB : tA;
+    const losers = aWon ? tB : tA;
     const eloGap = Math.round(aWon ? avgEloB - avgEloA : avgEloA - avgEloB);
     const assGap = Math.round(aWon ? avgAssB - avgAssA : avgAssA - avgAssB);
 
@@ -12019,16 +12768,28 @@ function _computeUpsets(matches = activeMatches()) {
     tA.forEach((p) => {
       const partner = tA.find((pp) => pp !== p);
       const pElo = partner ? elo[partner] : elo[p];
-      const mult = Math.max(0.5, Math.min(2.0,
-        1 + (avgEloB - elo[p]) / 400 - 0.5 * (pElo - elo[p]) / 400));
+      const mult = Math.max(
+        0.5,
+        Math.min(
+          2.0,
+          1 + (avgEloB - elo[p]) / 400 - (0.5 * (pElo - elo[p])) / 400,
+        ),
+      );
       ass[p] += aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
     });
     tB.forEach((p) => {
       const partner = tB.find((pp) => pp !== p);
       const pElo = partner ? elo[partner] : elo[p];
-      const mult = Math.max(0.5, Math.min(2.0,
-        1 + (avgEloA - elo[p]) / 400 - 0.5 * (pElo - elo[p]) / 400));
-      ass[p] += !aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
+      const mult = Math.max(
+        0.5,
+        Math.min(
+          2.0,
+          1 + (avgEloA - elo[p]) / 400 - (0.5 * (pElo - elo[p])) / 400,
+        ),
+      );
+      ass[p] += !aWon
+        ? Math.round(quality * mult)
+        : -Math.round(quality / mult);
     });
 
     // Then advance ELO
@@ -12040,10 +12801,15 @@ function _computeUpsets(matches = activeMatches()) {
 
     if (eloGap > 0 || assGap > 0)
       upsets.push({
-        date: m.date, gap: eloGap, assGap,
-        winners, losers,
-        sw: Math.max(m.scoreA, m.scoreB), sl: Math.min(m.scoreA, m.scoreB),
-        preElo, preAss,
+        date: m.date,
+        gap: eloGap,
+        assGap,
+        winners,
+        losers,
+        sw: Math.max(m.scoreA, m.scoreB),
+        sl: Math.min(m.scoreA, m.scoreB),
+        preElo,
+        preAss,
       });
   });
   return upsets;
@@ -12052,14 +12818,20 @@ function _computeUpsets(matches = activeMatches()) {
 function _upsetCard(u, mode) {
   const isASS = mode === "ass";
   const primaryGap = isASS ? u.assGap : u.gap;
-  const secGap     = isASS ? u.gap    : u.assGap;
+  const secGap = isASS ? u.gap : u.assGap;
   const primaryLbl = isASS ? "ASS" : "ELO";
-  const secLbl     = isASS ? "ELO" : "ASS";
-  const scoreMap   = isASS ? u.preAss : u.preElo;
+  const secLbl = isASS ? "ELO" : "ASS";
+  const scoreMap = isASS ? u.preAss : u.preElo;
   const fmt = (g) => (g >= 0 ? "+" : "") + g;
-  const secCol = secGap > 0 ? "var(--green)" : secGap < 0 ? "var(--red)" : "var(--muted)";
+  const secCol =
+    secGap > 0 ? "var(--green)" : secGap < 0 ? "var(--red)" : "var(--muted)";
   const teamLine = (team) =>
-    team.map((p) => `${escHtml(normPlayer(p))} <span style="color:var(--muted);font-weight:600">${Math.round(scoreMap[p] ?? 1000)}</span>`).join(" <span style='color:var(--muted)'>&</span> ");
+    team
+      .map(
+        (p) =>
+          `${escHtml(normPlayer(p))} <span style="color:var(--muted);font-weight:600">${Math.round(scoreMap[p] ?? 1000)}</span>`,
+      )
+      .join(" <span style='color:var(--muted)'>&</span> ");
   return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
       <div style="flex:1;min-width:0;font-size:11px;font-weight:800;color:var(--green)">${teamLine(u.winners)}</div>
@@ -12086,7 +12858,7 @@ function _renderBiggestUpsetsCards() {
     : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
 }
 
-window._setUpsetMode = function(mode) {
+window._setUpsetMode = function (mode) {
   _upsetSortMode = mode;
   document.querySelectorAll(".upset-mode-btn").forEach((b) => {
     b.classList.toggle("lsst-active", b.dataset.mode === mode);
@@ -12094,10 +12866,12 @@ window._setUpsetMode = function(mode) {
   _renderBiggestUpsetsCards();
 };
 
-window._streakSort = function(col) {
-  if (!window._streakState) window._streakState = { col: "curSigned", dir: "desc" };
+window._streakSort = function (col) {
+  if (!window._streakState)
+    window._streakState = { col: "curSigned", dir: "desc" };
   if (window._streakState.col === col) {
-    window._streakState.dir = window._streakState.dir === "desc" ? "asc" : "desc";
+    window._streakState.dir =
+      window._streakState.dir === "desc" ? "asc" : "desc";
   } else {
     window._streakState.col = col;
     window._streakState.dir = col === "name" ? "asc" : "desc";
@@ -12105,30 +12879,49 @@ window._streakSort = function(col) {
   window._renderStreakTable();
 };
 
-window._renderStreakTable = function() {
+window._renderStreakTable = function () {
   const el = document.getElementById("streak-body");
   if (!el || !window._streakData || !window._streakState) return;
   const { col, dir } = window._streakState;
   const asc = dir === "asc";
-  const PG = "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px 36px";
+  const PG =
+    "grid-template-columns:minmax(80px,1fr) 52px 48px 48px 44px 36px 36px 36px";
   const CEL = `display:grid;${PG};align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
   const sorted = [...window._streakData].sort((a, b) => {
-    const av = a[col], bv = b[col];
+    const av = a[col],
+      bv = b[col];
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
     if (bv == null) return -1;
-    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    if (col === "name")
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
     return asc ? av - bv : bv - av;
   });
-  el.innerHTML = sorted.map((r) => {
-    const onW = r.curType === "W";
-    const sCol = onW ? "var(--green)" : "var(--red)";
-    const ico  = onW ? "🔥" : "❄️";
-    const mtmCol = r.mtmDelta > 0 ? "var(--green)" : r.mtmDelta < 0 ? "var(--red)" : "var(--muted)";
-    const mtmStr = r.mtmDelta == null ? "—" : (r.mtmDelta > 0 ? "+" : "") + r.mtmDelta + "%";
-    const bbCol  = r.bbPct == null ? "var(--muted)" : r.bbPct >= 70 ? "var(--green)" : r.bbPct >= 40 ? "var(--gold)" : "var(--red)";
-    const bbStr  = r.bbPct == null ? "—" : r.bbPct + "%";
-    return `<div style="${CEL}">
+  el.innerHTML = sorted
+    .map((r) => {
+      const onW = r.curType === "W";
+      const sCol = onW ? "var(--green)" : "var(--red)";
+      const ico = onW ? "🔥" : "❄️";
+      const mtmCol =
+        r.mtmDelta > 0
+          ? "var(--green)"
+          : r.mtmDelta < 0
+            ? "var(--red)"
+            : "var(--muted)";
+      const mtmStr =
+        r.mtmDelta == null
+          ? "—"
+          : (r.mtmDelta > 0 ? "+" : "") + r.mtmDelta + "%";
+      const bbCol =
+        r.bbPct == null
+          ? "var(--muted)"
+          : r.bbPct >= 70
+            ? "var(--green)"
+            : r.bbPct >= 40
+              ? "var(--gold)"
+              : "var(--red)";
+      const bbStr = r.bbPct == null ? "—" : r.bbPct + "%";
+      return `<div style="${CEL}">
       <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name)}</div>
       <div style="color:${sCol};text-align:center">${ico} ${onW ? "W" : "L"}${r.curStreak}</div>
       <div style="color:var(--green);text-align:center">${r.bestWinStreak}</div>
@@ -12138,22 +12931,25 @@ window._renderStreakTable = function() {
       <div style="color:var(--green);text-align:center">${r.avgWStreak ?? "—"}</div>
       <div style="color:var(--red);text-align:center">${r.avgLStreak ?? "—"}</div>
     </div>`;
-  }).join("");
+    })
+    .join("");
 };
 
-window._synSort = function(col) {
+window._synSort = function (col) {
   if (!window._synState) window._synState = { col: "delta", dir: "desc" };
   if (window._synState.col === col) {
     window._synState.dir = window._synState.dir === "desc" ? "asc" : "desc";
   } else {
     window._synState.col = col;
-    window._synState.dir = col === "player" || col === "partner" ? "asc" : "desc";
+    window._synState.dir =
+      col === "player" || col === "partner" ? "asc" : "desc";
   }
   window._renderSynTable();
 };
 
-window._synSetPlayer = function(name) {
-  if (!window._synState) window._synState = { col: "delta", dir: "desc", player: "" };
+window._synSetPlayer = function (name) {
+  if (!window._synState)
+    window._synState = { col: "delta", dir: "desc", player: "" };
   window._synState.player = name;
   document.querySelectorAll(".syn-filter-pill").forEach((b) => {
     b.classList.toggle("lsst-active", b.dataset.player === name);
@@ -12161,28 +12957,38 @@ window._synSetPlayer = function(name) {
   window._renderSynTable();
 };
 
-window._renderSynTable = function() {
+window._renderSynTable = function () {
   const el = document.getElementById("syn-body");
   if (!el || !window._synData || !window._synState) return;
   const { col, dir, player } = window._synState;
   const asc = dir === "asc";
   const pg = "grid-template-columns:1fr 1fr 34px 46px 50px 52px";
   const CEL = `display:grid;${pg};align-items:center;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
-  const base = player ? window._synData.filter((r) => r.player === player) : window._synData;
+  const base = player
+    ? window._synData.filter((r) => r.player === player)
+    : window._synData;
   const sorted = [...base].sort((a, b) => {
-    const av = a[col], bv = b[col];
+    const av = a[col],
+      bv = b[col];
     if (col === "player" || col === "partner")
       return asc ? av.localeCompare(bv) : bv.localeCompare(av);
     return asc ? av - bv : bv - av;
   });
   el.innerHTML = sorted.length
-    ? sorted.map((r) => {
-        const col2 = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
-        const sign = r.delta >= 0 ? "+" : "";
-        const sc = r.scoreDelta || 0;
-        const scCol = sc > 0 ? "var(--green)" : sc < 0 ? "var(--red)" : "var(--muted)";
-        const scSign = sc >= 0 ? "+" : "";
-        return `<div style="${CEL}">
+    ? sorted
+        .map((r) => {
+          const col2 =
+            r.delta > 5
+              ? "var(--green)"
+              : r.delta < -5
+                ? "var(--red)"
+                : "var(--muted)";
+          const sign = r.delta >= 0 ? "+" : "";
+          const sc = r.scoreDelta || 0;
+          const scCol =
+            sc > 0 ? "var(--green)" : sc < 0 ? "var(--red)" : "var(--muted)";
+          const scSign = sc >= 0 ? "+" : "";
+          return `<div style="${CEL}">
           <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
           <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner)}</div>
           <div style="text-align:center">${r.played}</div>
@@ -12190,11 +12996,12 @@ window._renderSynTable = function() {
           <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
           <div style="text-align:center;color:${scCol}">${scSign}${sc}</div>
         </div>`;
-      }).join("")
+        })
+        .join("")
     : `<div style="padding:10px 4px;font-size:11px;color:var(--muted)">No data for this player.</div>`;
 };
 
-window._bstatSort = function(col) {
+window._bstatSort = function (col) {
   if (!window._bstatState) window._bstatState = { col: "sr", dir: "desc" };
   if (window._bstatState.col === col) {
     window._bstatState.dir = window._bstatState.dir === "desc" ? "asc" : "desc";
@@ -12205,40 +13012,51 @@ window._bstatSort = function(col) {
   window._renderBstatTable();
 };
 
-window._renderBstatTable = function() {
+window._renderBstatTable = function () {
   const el = document.getElementById("bstat-body");
   if (!el || !window._bstatData || !window._bstatState) return;
   const { col, dir } = window._bstatState;
   const asc = dir === "asc";
-  const TP = "rgba(96,165,250,0.07)", TS = "rgba(52,211,153,0.07)";
-  const TO = "rgba(251,191,36,0.07)",  TC = "rgba(248,113,113,0.07)";
-  const TM = "rgba(167,139,250,0.07)", FRZ = "var(--surface)";
-  const CEL  = "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
-  const FRZX = "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
+  const TP = "rgba(96,165,250,0.07)",
+    TS = "rgba(52,211,153,0.07)";
+  const TO = "rgba(251,191,36,0.07)",
+    TC = "rgba(248,113,113,0.07)";
+  const TM = "rgba(167,139,250,0.07)",
+    FRZ = "var(--surface)";
+  const CEL =
+    "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
+  const FRZX =
+    "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
   const d = (val, bg, c2 = "var(--text)", frz = false) =>
     `<div style="${CEL}background:${frz ? FRZ : bg};color:${c2};${frz ? FRZX : ""}">${val}</div>`;
   const sorted = [...window._bstatData].sort((a, b) => {
-    const av = a[col], bv = b[col];
+    const av = a[col],
+      bv = b[col];
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
     if (bv == null) return -1;
-    if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    if (col === "name")
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
     return asc ? av - bv : bv - av;
   });
-  el.innerHTML = sorted.map((r) => [
-    d(r.name,                                                          null, "var(--text)", true),
-    d(r.winPct.toFixed(0) + "%",                                       TP, r.wCol),
-    d(r.sr.toFixed(2),                                                 TP),
-    d(r.avgG.toFixed(1),                                               TS),
-    d((r.avgMgn >= 0 ? "+" : "") + r.avgMgn.toFixed(1),               TS, r.mCol),
-    d(r.gLost.toFixed(1),                                              TS),
-    d(r.oppSR.toFixed(2),                                              TO),
-    d(r.vsTop != null ? r.vsTop + "%" : "—",                          TO),
-    d(r.firePct + "%",                                                  TC),
-    d(r.clutchPct != null ? r.clutchPct + "%" : "—",                  TC),
-    d(r.domPct != null ? r.domPct + "%" : "—",                        TC),
-    d(r.prtns,                                                          TM),
-  ].join("")).join("");
+  el.innerHTML = sorted
+    .map((r) =>
+      [
+        d(r.name, null, "var(--text)", true),
+        d(r.winPct.toFixed(0) + "%", TP, r.wCol),
+        d(r.sr.toFixed(2), TP),
+        d(r.avgG.toFixed(1), TS),
+        d((r.avgMgn >= 0 ? "+" : "") + r.avgMgn.toFixed(1), TS, r.mCol),
+        d(r.gLost.toFixed(1), TS),
+        d(r.oppSR.toFixed(2), TO),
+        d(r.vsTop != null ? r.vsTop + "%" : "—", TO),
+        d(r.firePct + "%", TC),
+        d(r.clutchPct != null ? r.clutchPct + "%" : "—", TC),
+        d(r.domPct != null ? r.domPct + "%" : "—", TC),
+        d(r.prtns, TM),
+      ].join(""),
+    )
+    .join("");
 };
 
 // Multi-player compare: overlaid 6-axis radar (win%, rating, clutch, form,
@@ -12249,27 +13067,46 @@ function _buildMultiCompareHtml(names) {
   const am2 = activeMatches();
   const scoreMap = _activeScoreMap();
   const allVals = Object.values(scoreMap);
-  const maxSc = Math.max(...allVals, 1000), minSc = Math.min(...allVals, 1000);
+  const maxSc = Math.max(...allVals, 1000),
+    minSc = Math.min(...allVals, 1000);
   const scRange = Math.max(maxSc - minSc, 1);
   const compListAll = _activeStats();
   const maxMp = Math.max(...compListAll.map((p) => p.mp), 1);
   const formMapAll = {};
   names.forEach((n) => {
-    const pm = am2.filter((m) => (m.teamA || []).includes(n) || (m.teamB || []).includes(n)).slice(-10);
+    const pm = am2
+      .filter((m) => (m.teamA || []).includes(n) || (m.teamB || []).includes(n))
+      .slice(-10);
     if (pm.length < 3) return;
-    const w = pm.filter((m) => { const inA = (m.teamA || []).includes(n); return inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA; }).length;
+    const w = pm.filter((m) => {
+      const inA = (m.teamA || []).includes(n);
+      return inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+    }).length;
     formMapAll[n] = Math.round((w / pm.length) * 100);
   });
   const clutchOf = (name) => {
-    const cMs = am2.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name) && Math.abs(m.scoreA - m.scoreB) <= 2);
+    const cMs = am2.filter(
+      (m) =>
+        [...(m.teamA || []), ...(m.teamB || [])].includes(name) &&
+        Math.abs(m.scoreA - m.scoreB) <= 2,
+    );
     if (cMs.length < 2) return 50;
-    const w = cMs.filter((m) => { const inA = (m.teamA || []).includes(name); return inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA; }).length;
+    const w = cMs.filter((m) => {
+      const inA = (m.teamA || []).includes(name);
+      return inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
+    }).length;
     return Math.round((w / cMs.length) * 100);
   };
   const marginOf = (name) => {
-    const ms = am2.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name));
-    const margins = ms.map((m) => { const inA = (m.teamA || []).includes(name); return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA); });
-    const avg = margins.reduce((s, v) => s + v, 0) / Math.max(margins.length, 1);
+    const ms = am2.filter((m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].includes(name),
+    );
+    const margins = ms.map((m) => {
+      const inA = (m.teamA || []).includes(name);
+      return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA);
+    });
+    const avg =
+      margins.reduce((s, v) => s + v, 0) / Math.max(margins.length, 1);
     return Math.min(100, Math.max(0, ((avg + 5) / 10) * 100));
   };
   const playerData = names.map((n) => {
@@ -12277,43 +13114,87 @@ function _buildMultiCompareHtml(names) {
     return {
       name: n,
       winRate: p ? p.winPct : 0,
-      rating: Math.round(((((scoreMap[n] || 1000) - minSc) / scRange)) * 100),
+      rating: Math.round((((scoreMap[n] || 1000) - minSc) / scRange) * 100),
       clutch: clutchOf(n),
-      form: formMapAll[n] != null ? formMapAll[n] : (p ? p.winPct : 0),
+      form: formMapAll[n] != null ? formMapAll[n] : p ? p.winPct : 0,
       activity: p ? Math.round((p.mp / maxMp) * 100) : 0,
       margin: marginOf(n),
-      mp: p ? p.mp : 0, mw: p ? p.mw : 0, ml: p ? p.ml : 0, sr: p ? p.sr : 0,
+      mp: p ? p.mp : 0,
+      mw: p ? p.mw : 0,
+      ml: p ? p.ml : 0,
+      sr: p ? p.sr : 0,
     };
   });
   const axes = ["winRate", "rating", "clutch", "form", "activity", "margin"];
-  const axisLabels = { winRate: "WIN%", rating: _scoringLabel(), clutch: "CLUTCH", form: "FORM", activity: "ACTIVITY", margin: "MARGIN" };
-  const N = axes.length, cx = 110, cy = 110, R = 78;
-  const xy = (i, scale) => { const angle = (Math.PI * 2 * i) / N - Math.PI / 2; return { x: cx + scale * R * Math.cos(angle), y: cy + scale * R * Math.sin(angle) }; };
+  const axisLabels = {
+    winRate: "WIN%",
+    rating: _scoringLabel(),
+    clutch: "CLUTCH",
+    form: "FORM",
+    activity: "ACTIVITY",
+    margin: "MARGIN",
+  };
+  const N = axes.length,
+    cx = 110,
+    cy = 110,
+    R = 78;
+  const xy = (i, scale) => {
+    const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
+    return {
+      x: cx + scale * R * Math.cos(angle),
+      y: cy + scale * R * Math.sin(angle),
+    };
+  };
   const gridLines = [0.25, 0.5, 0.75, 1]
-    .map((sc) => `<polygon points="${axes.map((_, i) => { const p = xy(i, sc); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(" ")}" fill="none" stroke="rgba(255,255,255,0.06)"/>`)
+    .map(
+      (sc) =>
+        `<polygon points="${axes
+          .map((_, i) => {
+            const p = xy(i, sc);
+            return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+          })
+          .join(" ")}" fill="none" stroke="rgba(255,255,255,0.06)"/>`,
+    )
     .join("");
-  const spokes = axes.map((_, i) => { const p = xy(i, 1); return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)"/>`; }).join("");
+  const spokes = axes
+    .map((_, i) => {
+      const p = xy(i, 1);
+      return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.08)"/>`;
+    })
+    .join("");
   const labels = axes
     .map((a, i) => {
       const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
-      const lx = cx + (R + 22) * Math.cos(angle), ly = cy + (R + 22) * Math.sin(angle);
-      const anchor = Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
+      const lx = cx + (R + 22) * Math.cos(angle),
+        ly = cy + (R + 22) * Math.sin(angle);
+      const anchor =
+        Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end";
       return `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="700" fill="rgba(255,255,255,0.55)">${axisLabels[a]}</text>`;
     })
     .join("");
   const polys = playerData
     .map((pd) => {
       const col = playerColor(pd.name);
-      const pts = axes.map((a, i) => { const p = xy(i, (pd[a] || 0) / 100); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(" ");
+      const pts = axes
+        .map((a, i) => {
+          const p = xy(i, (pd[a] || 0) / 100);
+          return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+        })
+        .join(" ");
       return `<polygon points="${pts}" fill="${col}" fill-opacity="0.12" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>`;
     })
     .join("");
   const legend = playerData
-    .map((pd) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;margin-right:10px"><span style="width:10px;height:10px;border-radius:50%;background:${playerColor(pd.name)}"></span>${escHtml(pd.name)}</span>`)
+    .map(
+      (pd) =>
+        `<span style="display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;margin-right:10px"><span style="width:10px;height:10px;border-radius:50%;background:${playerColor(pd.name)}"></span>${escHtml(pd.name)}</span>`,
+    )
     .join("");
   const statCols = playerData
     .map(
-      (pd) => `<div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.03);border-radius:8px;min-width:0">
+      (
+        pd,
+      ) => `<div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.03);border-radius:8px;min-width:0">
         <div style="font-size:10px;font-weight:800;margin-bottom:4px;color:${playerColor(pd.name)};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(pd.name.split(" ")[0])}</div>
         <div style="font-size:9px;color:var(--muted)">MP <b style="color:var(--text)">${pd.mp}</b></div>
         <div style="font-size:9px;color:var(--muted)">W-L <b style="color:var(--text)">${pd.mw}-${pd.ml}</b></div>
@@ -12335,7 +13216,10 @@ window._mcToggle = function (btn) {
     window._mcSelected.delete(name);
     btn.classList.remove("active");
   } else {
-    if (window._mcSelected.size >= 4) { showToast("Pick up to 4 players", "⚠️"); return; }
+    if (window._mcSelected.size >= 4) {
+      showToast("Pick up to 4 players", "⚠️");
+      return;
+    }
     window._mcSelected.add(name);
     btn.classList.add("active");
   }
@@ -12345,7 +13229,8 @@ window._mcCompare = function () {
   if (!el) return;
   const names = [...window._mcSelected];
   if (names.length < 2) {
-    el.innerHTML = '<div class="sub" style="padding:8px">Pick at least 2 players.</div>';
+    el.innerHTML =
+      '<div class="sub" style="padding:8px">Pick at least 2 players.</div>';
     return;
   }
   el.innerHTML = _buildMultiCompareHtml(names);
@@ -12367,11 +13252,19 @@ function _fmgRankSplits(group) {
   const scoreMap = _activeScoreMap();
   return _fmgCombos4(group)
     .map((s) => {
-      const avgA = s.teamA.reduce((sum, p) => sum + (scoreMap[p] || 1000), 0) / 2;
-      const avgB = s.teamB.reduce((sum, p) => sum + (scoreMap[p] || 1000), 0) / 2;
+      const avgA =
+        s.teamA.reduce((sum, p) => sum + (scoreMap[p] || 1000), 0) / 2;
+      const avgB =
+        s.teamB.reduce((sum, p) => sum + (scoreMap[p] || 1000), 0) / 2;
       const gap = Math.abs(avgA - avgB);
       const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      return { ...s, avgA: Math.round(avgA), avgB: Math.round(avgB), gap: Math.round(gap), probA: Math.round(expA * 100) };
+      return {
+        ...s,
+        avgA: Math.round(avgA),
+        avgB: Math.round(avgB),
+        gap: Math.round(gap),
+        probA: Math.round(expA * 100),
+      };
     })
     .sort((a, b) => a.gap - b.gap);
 }
@@ -12391,11 +13284,13 @@ window._fmgGenerate = function () {
   if (!el) return;
   const names = [...window._fmgSelected];
   if (names.length < 4) {
-    el.innerHTML = '<div class="sub" style="padding:8px">Pick at least 4 players.</div>';
+    el.innerHTML =
+      '<div class="sub" style="padding:8px">Pick at least 4 players.</div>';
     return;
   }
   const groups = [];
-  for (let i = 0; i + 4 <= names.length; i += 4) groups.push(names.slice(i, i + 4));
+  for (let i = 0; i + 4 <= names.length; i += 4)
+    groups.push(names.slice(i, i + 4));
   const leftover = names.length % 4;
   const cardsHtml = groups
     .map((g, gi) => {
@@ -12403,7 +13298,10 @@ window._fmgGenerate = function () {
       const best = ranked[0];
       const rows = ranked
         .map(
-          (s, i) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;${i === 0 ? "" : "border-top:1px solid rgba(255,255,255,0.04)"}">
+          (
+            s,
+            i,
+          ) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;${i === 0 ? "" : "border-top:1px solid rgba(255,255,255,0.04)"}">
             <div style="font-size:10px;font-weight:${i === 0 ? 800 : 600}">${escHtml(s.teamA.join(" & "))} <span style="color:var(--muted)">vs</span> ${escHtml(s.teamB.join(" & "))}</div>
             <div style="font-size:10px;font-weight:800;color:${s.gap <= 20 ? "var(--green)" : s.gap <= 50 ? "var(--gold)" : "var(--red)"};flex-shrink:0">${s.probA}% / ${100 - s.probA}%</div>
           </div>`,
@@ -12415,7 +13313,11 @@ window._fmgGenerate = function () {
       </div>`;
     })
     .join("");
-  el.innerHTML = cardsHtml + (leftover ? `<div class="sub" style="padding:8px">${leftover} player(s) left over — not enough for another match.</div>` : "");
+  el.innerHTML =
+    cardsHtml +
+    (leftover
+      ? `<div class="sub" style="padding:8px">${leftover} player(s) left over — not enough for another match.</div>`
+      : "");
 };
 
 // Rating waterfall: a player's N biggest single-match rating swings, rendered
@@ -12423,7 +13325,8 @@ window._fmgGenerate = function () {
 function _buildWaterfallHtml(name) {
   const hist = _activeHistory()[name] || [];
   const moves = waterfallTopMoves(hist, 8);
-  if (!moves.length) return '<div class="sub" style="padding:8px">Not enough data.</div>';
+  if (!moves.length)
+    return '<div class="sub" style="padding:8px">Not enough data.</div>';
   let running = moves[0].elo - moves[0].delta;
   const seq = [{ label: "Start", val: running }];
   moves.forEach((m) => {
@@ -12431,9 +13334,12 @@ function _buildWaterfallHtml(name) {
     seq.push({ label: fmtDate(m.date), val: running, delta: m.delta });
   });
   const vals = seq.map((s) => s.val);
-  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const minV = Math.min(...vals),
+    maxV = Math.max(...vals);
   const range = Math.max(maxV - minV, 1);
-  const W = 300, H = 160, PAD = 24;
+  const W = 300,
+    H = 160,
+    PAD = 24;
   const colW = (W - PAD * 2) / seq.length;
   const y = (v) => H - PAD - ((v - minV) / range) * (H - PAD * 2);
   const bars = seq
@@ -12443,7 +13349,11 @@ function _buildWaterfallHtml(name) {
       const prevVal = isFirst ? s.val : seq[i - 1].val;
       const yTop = y(Math.max(s.val, prevVal));
       const yBot = y(Math.min(s.val, prevVal));
-      const col = isFirst ? "var(--muted)" : s.delta >= 0 ? "#36d47e" : "#f04f4f";
+      const col = isFirst
+        ? "var(--muted)"
+        : s.delta >= 0
+          ? "#36d47e"
+          : "#f04f4f";
       const h = Math.max(2, yBot - yTop);
       return `<rect x="${(x + 2).toFixed(1)}" y="${yTop.toFixed(1)}" width="${(colW - 4).toFixed(1)}" height="${h.toFixed(1)}" fill="${col}"><title>${s.label}: ${isFirst ? Math.round(s.val) : (s.delta >= 0 ? "+" : "") + s.delta}</title></rect>`;
     })
@@ -12469,7 +13379,11 @@ window._renderWaterfall = function (name) {
 // so this stays a pure DOM walker with no closure over render-time state.
 window._playRatingsRace = function (btn) {
   let data;
-  try { data = JSON.parse(btn.dataset.race); } catch (e) { return; }
+  try {
+    data = JSON.parse(btn.dataset.race);
+  } catch (e) {
+    return;
+  }
   const { names, frames, maxScore } = data;
   if (!frames || !frames.length) return;
   btn.disabled = true;
@@ -12489,7 +13403,10 @@ window._playRatingsRace = function (btn) {
     });
     i++;
     if (i < frames.length) setTimeout(step, 650);
-    else { btn.disabled = false; btn.textContent = "▶ Play Race"; }
+    else {
+      btn.disabled = false;
+      btn.textContent = "▶ Play Race";
+    }
   };
   step();
 };
@@ -12498,10 +13415,12 @@ function _buildBiggestUpsetsHtml(matches = activeMatches()) {
   _cachedUpsets = _computeUpsets(matches);
   const _eloOn = getEloEnabled();
   const mode = _eloOn ? (_upsetSortMode ?? _scoringMode) : "ass";
-  const toggle = _eloOn ? `<div class="live-sdash-score-toggle" style="margin-bottom:10px">
-    <button class="lsst-btn upset-mode-btn${mode === 'elo' ? ' lsst-active' : ''}" data-mode="elo" onclick="window._setUpsetMode('elo')">ELO</button>
-    <button class="lsst-btn upset-mode-btn${mode === 'ass' ? ' lsst-active' : ''}" data-mode="ass" onclick="window._setUpsetMode('ass')">ASS</button>
-  </div>` : "";
+  const toggle = _eloOn
+    ? `<div class="live-sdash-score-toggle" style="margin-bottom:10px">
+    <button class="lsst-btn upset-mode-btn${mode === "elo" ? " lsst-active" : ""}" data-mode="elo" onclick="window._setUpsetMode('elo')">ELO</button>
+    <button class="lsst-btn upset-mode-btn${mode === "ass" ? " lsst-active" : ""}" data-mode="ass" onclick="window._setUpsetMode('ass')">ASS</button>
+  </div>`
+    : "";
   const isASS = mode === "ass";
   const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
   eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
@@ -12551,7 +13470,11 @@ function _buildSeasonComparisonHtml() {
             return `<td style="text-align:center;padding:4px 6px;color:var(--muted)">—</td>`;
           const e = Math.round(ps.elo[name] || 1000);
           const col =
-            e >= 1030 ? "var(--green)" : e <= 970 ? "var(--red)" : "var(--text)";
+            e >= 1030
+              ? "var(--green)"
+              : e <= 970
+                ? "var(--red)"
+                : "var(--text)";
           return `<td style="text-align:center;padding:4px 6px"><div style="font-size:12px;font-weight:800;color:${col}">${e}</div><div style="font-size:8px;color:var(--muted)">${st.mw}-${st.ml}</div></td>`;
         })
         .join("");
@@ -12560,9 +13483,6 @@ function _buildSeasonComparisonHtml() {
     .join("");
   return `<div class="ana-card" style="padding:8px"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div><div style="font-size:9px;color:var(--muted);margin-top:6px">Season ELO per player (W–L below). — = didn't play that season.</div></div>`;
 }
-
-
-
 
 window._renderHiLoTable = function () {
   const el = document.getElementById("hi-lo-elo-body");
@@ -12642,9 +13562,9 @@ window._eloProj = {
 window._eloprojSetMode = function (mode) {
   if (mode !== "ass" && mode !== "elo") return;
   window._eloProj.mode = mode;
-  document.querySelectorAll(".rp-mode-btn").forEach((b) =>
-    b.classList.toggle("active", b.dataset.mode === mode),
-  );
+  document
+    .querySelectorAll(".rp-mode-btn")
+    .forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
   window._renderEloProjTable();
 };
 
@@ -12687,8 +13607,7 @@ window._renderEloProjTable = function () {
 
   const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   if (!ranked.length) {
-    tableEl.innerHTML =
-      `<div class="sub" style="padding:8px">No ${ratingLbl} data.</div>`;
+    tableEl.innerHTML = `<div class="sub" style="padding:8px">No ${ratingLbl} data.</div>`;
     return;
   }
 
@@ -12792,20 +13711,29 @@ window._renderEloProjTable = function () {
 function _showShutoutMatches(name, type) {
   document.getElementById("shutout-drill-modal")?.remove();
   const data = window._shutoutMatchData || {};
-  const matches = (type === "win" ? data.wins?.[name] : data.losses?.[name]) || [];
-  const title = type === "win" ? `${name} — Shutout Wins (W×0)` : `${name} — Shutout Losses (L×0)`;
+  const matches =
+    (type === "win" ? data.wins?.[name] : data.losses?.[name]) || [];
+  const title =
+    type === "win"
+      ? `${name} — Shutout Wins (W×0)`
+      : `${name} — Shutout Losses (L×0)`;
   const col = type === "win" ? "var(--green)" : "var(--red)";
-  const rows = [...matches].reverse().map((m) => {
-    const idx = state.matches.indexOf(m);
-    return buildSummaryMatchRow(m, "", idx >= 0 ? idx : null);
-  }).join("");
+  const rows = [...matches]
+    .reverse()
+    .map((m) => {
+      const idx = state.matches.indexOf(m);
+      return buildSummaryMatchRow(m, "", idx >= 0 ? idx : null);
+    })
+    .join("");
   const body = matches.length
     ? `<div class="smr-list">${rows}</div>`
     : `<div style="padding:20px;text-align:center;color:var(--muted)">No matches found.</div>`;
   const modal = document.createElement("div");
   modal.id = "shutout-drill-modal";
   modal.className = "h2h-modal-overlay";
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
   modal.innerHTML = `<div class="h2h-modal-card" style="max-height:80vh;display:flex;flex-direction:column">
     <div class="h2h-modal-header">
       <span class="h2h-modal-title" style="color:${col}">💀 ${escHtml(title)}</span>
@@ -12905,18 +13833,21 @@ function _analyticsSeasonControlsHtml() {
 
 function _analyticsDateControlsHtml() {
   const f = viewState.anaDateFilter || "all";
-  const pills = _ANA_DATE_OPTS.map(
-    (o) =>
-      `<button class="ana-filter-pill${f === o.v ? " active" : ""}" onclick="_anaSetDateFilter(${jsArg(o.v)})">${o.l}</button>`,
-  ).join("");
-  const range = f === "range"
-    ? `<div class="ana-toolbar ana-date-toolbar">
+  const pills = _ANA_DATE_OPTS
+    .map(
+      (o) =>
+        `<button class="ana-filter-pill${f === o.v ? " active" : ""}" onclick="_anaSetDateFilter(${jsArg(o.v)})">${o.l}</button>`,
+    )
+    .join("");
+  const range =
+    f === "range"
+      ? `<div class="ana-toolbar ana-date-toolbar">
         <input class="ana-date-input" type="date" value="${escHtml(viewState.anaDateFrom || "")}" onchange="_anaSetDateRange('from', this.value)" aria-label="From date">
         <span class="ana-date-range-sep">→</span>
         <input class="ana-date-input" type="date" value="${escHtml(viewState.anaDateTo || "")}" onchange="_anaSetDateRange('to', this.value)" aria-label="To date">
         <button class="ana-filter-pill" onclick="_anaSetDateFilter('all')">CLEAR</button>
       </div>`
-    : "";
+      : "";
   return `<div class="ana-filter-row ana-date-row" id="ana-date-row">${pills}</div>${range}`;
 }
 
@@ -12964,10 +13895,26 @@ function renderAnalyticsPage() {
 
   // ── DATA COLLECTION + DERIVED (pure, moved to player-analytics.js) ─────────
   const {
-    stats, shutoutWins, shutoutLosses, highestMargins, partnerships, teamMatchups,
-    monthlyStats, dateCounts, scoreDist, rivalryCount, closeWins, closePlayed,
-    mostActive, topWinRate, topStreak, mostShutoutWinsEntry,
-    maxLosses, mostShutoutLosses, biggestWin, bestPartnership,
+    stats,
+    shutoutWins,
+    shutoutLosses,
+    highestMargins,
+    partnerships,
+    teamMatchups,
+    monthlyStats,
+    dateCounts,
+    scoreDist,
+    rivalryCount,
+    closeWins,
+    closePlayed,
+    mostActive,
+    topWinRate,
+    topStreak,
+    mostShutoutWinsEntry,
+    maxLosses,
+    mostShutoutLosses,
+    biggestWin,
+    bestPartnership,
   } = computeAnalyticsPageData(am);
   // Two locals the render body still needs (the data fn derives them internally
   // but returns only the rolled-up stats): the player list and sorted matches.
@@ -12996,21 +13943,33 @@ function renderAnalyticsPage() {
       const myScore = inA ? m.scoreA : m.scoreB;
       const oppScore = inA ? m.scoreB : m.scoreA;
       if (won && oppScore === 0) {
-        (_shutoutWinMatchesByPlayer[p] || (_shutoutWinMatchesByPlayer[p] = [])).push(m);
+        (
+          _shutoutWinMatchesByPlayer[p] || (_shutoutWinMatchesByPlayer[p] = [])
+        ).push(m);
       }
       if (!won && myScore === 0) {
-        (_shutoutLossMatchesByPlayer[p] || (_shutoutLossMatchesByPlayer[p] = [])).push(m);
+        (
+          _shutoutLossMatchesByPlayer[p] ||
+          (_shutoutLossMatchesByPlayer[p] = [])
+        ).push(m);
       }
     });
   });
-  window._shutoutMatchData = { wins: _shutoutWinMatchesByPlayer, losses: _shutoutLossMatchesByPlayer };
+  window._shutoutMatchData = {
+    wins: _shutoutWinMatchesByPlayer,
+    losses: _shutoutLossMatchesByPlayer,
+  };
 
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _scoringMode === "ass" ? computeASS(am) : computeElo(am);
   const pairLeaderboard = getPairStats(am).slice(0, 8);
-  const playersByMatches = _h2hSortPlayers(
-    [...new Set(am.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])].filter(Boolean)))],
-  );
+  const playersByMatches = _h2hSortPlayers([
+    ...new Set(
+      am.flatMap((m) =>
+        [...(m.teamA || []), ...(m.teamB || [])].filter(Boolean),
+      ),
+    ),
+  ]);
   const matrixSortBar = `<div class="h2h-sort-bar">
     <span class="h2h-sort-lbl">SORT</span>
     ${[
@@ -13156,7 +14115,10 @@ function renderAnalyticsPage() {
   am.forEach((m) => {
     const _aw = m.scoreA > m.scoreB;
     const _losers2 = _aw ? m.teamB : m.teamA;
-    const _combScore = _losers2.reduce((s, p) => s + (_qwScoreMap[p] ?? _qwFallback), 0);
+    const _combScore = _losers2.reduce(
+      (s, p) => s + (_qwScoreMap[p] ?? _qwFallback),
+      0,
+    );
     if (_combScore > _hardestCombinedScore) {
       _hardestCombinedScore = _combScore;
       _hardestWinMatch = m;
@@ -13177,10 +14139,12 @@ function renderAnalyticsPage() {
     : "";
 
   // Determine dynamic thresholds for quality label (percentile-based in ASS mode)
-  const _qwScores = qualityRanked.map(p => p.score);
-  const _qwMed = _qwScores.length ? _qwScores[Math.floor(_qwScores.length / 2)] : _qwFallback;
+  const _qwScores = qualityRanked.map((p) => p.score);
+  const _qwMed = _qwScores.length
+    ? _qwScores[Math.floor(_qwScores.length / 2)]
+    : _qwFallback;
   const _qwHigh = _scoringMode === "ass" ? _qwMed + 30 : 1050;
-  const _qwLow  = _scoringMode === "ass" ? _qwMed - 30 : 980;
+  const _qwLow = _scoringMode === "ass" ? _qwMed - 30 : 980;
 
   // grid: Rank | Player | Wins | Avg Opp score
   const qualGrid = "grid-template-columns:40px 1fr 44px 72px";
@@ -13214,7 +14178,8 @@ function renderAnalyticsPage() {
     (a, b) => b[1] - a[1],
   )[0];
   const [rivalA, rivalB] = topRivalEntry?.[0]?.split("|") || [null, null];
-  const rivalry = rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB, am) : null;
+  const rivalry =
+    rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB, am) : null;
 
   const uniqueMonths = Object.keys(monthlyStats).sort();
   const top5 = [...players]
@@ -13748,34 +14713,48 @@ function renderAnalyticsPage() {
         if (team.length !== 2) return;
         team.forEach((p) => {
           const partner = team.find((pp) => pp !== p);
-          pairNetDelta[`${p}|||${partner}`] = (pairNetDelta[`${p}|||${partner}`] || 0) + (info.playerDeltas[p] || 0);
+          pairNetDelta[`${p}|||${partner}`] =
+            (pairNetDelta[`${p}|||${partner}`] || 0) +
+            (info.playerDeltas[p] || 0);
         });
       });
     });
   } else {
     const _runElo = {};
     sortedM.forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => { if (!(p in _runElo)) _runElo[p] = 1000; });
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in _runElo)) _runElo[p] = 1000;
+      });
       const aWon = m.scoreA > m.scoreB;
-      const avgA = m.teamA.reduce((s, p) => s + _runElo[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB = m.teamB.reduce((s, p) => s + _runElo[p], 0) / Math.max(m.teamB.length, 1);
+      const avgA =
+        m.teamA.reduce((s, p) => s + _runElo[p], 0) /
+        Math.max(m.teamA.length, 1);
+      const avgB =
+        m.teamB.reduce((s, p) => s + _runElo[p], 0) /
+        Math.max(m.teamB.length, 1);
       const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
       const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
       const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
       if (m.teamA.length === 2) {
         m.teamA.forEach((p) => {
           const partner = m.teamA.find((pp) => pp !== p);
-          pairNetDelta[`${p}|||${partner}`] = (pairNetDelta[`${p}|||${partner}`] || 0) + dA;
+          pairNetDelta[`${p}|||${partner}`] =
+            (pairNetDelta[`${p}|||${partner}`] || 0) + dA;
         });
       }
       if (m.teamB.length === 2) {
         m.teamB.forEach((p) => {
           const partner = m.teamB.find((pp) => pp !== p);
-          pairNetDelta[`${p}|||${partner}`] = (pairNetDelta[`${p}|||${partner}`] || 0) + dB;
+          pairNetDelta[`${p}|||${partner}`] =
+            (pairNetDelta[`${p}|||${partner}`] || 0) + dB;
         });
       }
-      m.teamA.forEach((p) => { _runElo[p] += dA; });
-      m.teamB.forEach((p) => { _runElo[p] += dB; });
+      m.teamA.forEach((p) => {
+        _runElo[p] += dA;
+      });
+      m.teamB.forEach((p) => {
+        _runElo[p] += dB;
+      });
     });
   }
 
@@ -13806,21 +14785,27 @@ function renderAnalyticsPage() {
     }
   });
   window._synData = synergyRows;
-  if (!window._synState) window._synState = { col: "delta", dir: "desc", player: "" };
+  if (!window._synState)
+    window._synState = { col: "delta", dir: "desc", player: "" };
   else window._synState.player = ""; // reset filter on analytics re-render
   const synergyHtml = (() => {
     if (!synergyRows.length)
       return '<div class="sub" style="padding:8px">Not enough data.</div>';
 
     const synPlayers = [...new Set(synergyRows.map((r) => r.player))].sort();
-    const pillWrap = "display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;";
+    const pillWrap =
+      "display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;";
     const pillStyle = "flex:none;padding:5px 10px;font-size:9px;"; // extends .lsst-btn
-    const fab = `<div style="${pillWrap}">` +
+    const fab =
+      `<div style="${pillWrap}">` +
       `<button class="lsst-btn lsst-active syn-filter-pill" data-player="" onclick="window._synSetPlayer('')" style="${pillStyle}">All</button>` +
-      synPlayers.map((p) =>
-        `<button class="lsst-btn syn-filter-pill" data-player="${escHtml(p)}" onclick="window._synSetPlayer('${escHtml(p)}')" style="${pillStyle}">${escHtml(p)}</button>`
-      ).join("") +
-    `</div>`;
+      synPlayers
+        .map(
+          (p) =>
+            `<button class="lsst-btn syn-filter-pill" data-player="${escHtml(p)}" onclick="window._synSetPlayer('${escHtml(p)}')" style="${pillStyle}">${escHtml(p)}</button>`,
+        )
+        .join("") +
+      `</div>`;
 
     const pg = "grid-template-columns:1fr 1fr 34px 46px 50px 52px";
     const HDR = `display:grid;${pg};padding:5px 4px 7px;border-bottom:1px solid var(--border);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);`;
@@ -13838,18 +14823,26 @@ function renderAnalyticsPage() {
     const asc = dir === "asc";
     const CEL = `display:grid;${pg};align-items:center;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;font-weight:700;`;
     const sorted = [...synergyRows].sort((a, b) => {
-      const av = a[col], bv = b[col];
+      const av = a[col],
+        bv = b[col];
       if (col === "player" || col === "partner")
         return asc ? av.localeCompare(bv) : bv.localeCompare(av);
       return asc ? av - bv : bv - av;
     });
-    const bodyRows = sorted.map((r) => {
-      const col2 = r.delta > 5 ? "var(--green)" : r.delta < -5 ? "var(--red)" : "var(--muted)";
-      const sign = r.delta >= 0 ? "+" : "";
-      const sc = r.scoreDelta || 0;
-      const scCol = sc > 0 ? "var(--green)" : sc < 0 ? "var(--red)" : "var(--muted)";
-      const scSign = sc >= 0 ? "+" : "";
-      return `<div style="${CEL}">
+    const bodyRows = sorted
+      .map((r) => {
+        const col2 =
+          r.delta > 5
+            ? "var(--green)"
+            : r.delta < -5
+              ? "var(--red)"
+              : "var(--muted)";
+        const sign = r.delta >= 0 ? "+" : "";
+        const sc = r.scoreDelta || 0;
+        const scCol =
+          sc > 0 ? "var(--green)" : sc < 0 ? "var(--red)" : "var(--muted)";
+        const scSign = sc >= 0 ? "+" : "";
+        return `<div style="${CEL}">
         <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.player)}</div>
         <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${escHtml(r.partner)}</div>
         <div style="text-align:center">${r.played}</div>
@@ -13857,7 +14850,8 @@ function renderAnalyticsPage() {
         <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
         <div style="text-align:center;color:${scCol}">${scSign}${sc}</div>
       </div>`;
-    }).join("");
+      })
+      .join("");
     return `${fab}${header}<div id="syn-body">${bodyRows}</div>`;
   })();
 
@@ -14128,12 +15122,13 @@ function renderAnalyticsPage() {
   const _scLabel = _scoringLabel();
   const { from: wkFromElo } = lastWeekRange();
   // Build active score map + pre-week score map for change calc
-  const _scMapNow  = _scoringMode === "ass" ? computeASS(am) : computeElo(am);
+  const _scMapNow = _scoringMode === "ass" ? computeASS(am) : computeElo(am);
   const _scFallback = 1000; // both ELO and ASS baseline at 1000
   const _preWkArrElo = am.filter((m) => (m.date || "") < wkFromElo);
-  const _scMapPre = _scoringMode === "ass"
-    ? computeASS(_preWkArrElo)
-    : computeElo(_preWkArrElo);
+  const _scMapPre =
+    _scoringMode === "ass"
+      ? computeASS(_preWkArrElo)
+      : computeElo(_preWkArrElo);
   const eloRanked = Object.entries(_scMapNow).sort((a, b) => b[1] - a[1]);
   const preWkRanked = Object.entries(_scMapPre).sort((a, b) => b[1] - a[1]);
   const maxEloVal = eloRanked[0]?.[1] ?? _scFallback;
@@ -14162,9 +15157,16 @@ function renderAnalyticsPage() {
                 : rankChange < 0
                   ? `<span class="elo-rank-arrow elo-rank-down">▼${Math.abs(rankChange)}</span>`
                   : `<span class="elo-rank-arrow elo-rank-same">—</span>`;
-          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(0);
+          const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(
+            0,
+          );
           const _midVal = _scFallback;
-          const col = ev > 1000 ? "var(--green)" : ev < 1000 ? "var(--red)" : "var(--theme)";
+          const col =
+            ev > 1000
+              ? "var(--green)"
+              : ev < 1000
+                ? "var(--red)"
+                : "var(--theme)";
           const peak = eloPeaks[pname] ?? ev;
           const fromPeak = ev - peak;
           const fromPeakStr =
@@ -14173,13 +15175,16 @@ function renderAnalyticsPage() {
               : `<span style="color:var(--red);font-size:8px">${fromPeak}</span>`;
           const pts5 = (eloHistoryAll[pname] || []).slice(-5);
           const dots5 = pts5
-            .map((pt) =>
-              `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"};margin-right:1px"></span>`,
+            .map(
+              (pt) =>
+                `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${pt.won ? "var(--green)" : "var(--red)"};margin-right:1px"></span>`,
             )
             .join("");
           const momDeltas = pts5.map((pt) => pt.delta);
           const momAvg = momDeltas.length
-            ? Math.round(momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length)
+            ? Math.round(
+                momDeltas.reduce((s, d) => s + d, 0) / momDeltas.length,
+              )
             : 0;
           const momStr =
             momAvg > 0
@@ -14334,7 +15339,9 @@ function renderAnalyticsPage() {
       // Longest win streak ever = bestWinStreak from computeStats
       const longestWS = p.bestWinStreak;
       // Biggest win margin
-      let biggestMargin = 0, biggestScore = "", biggestWinDate = null;
+      let biggestMargin = 0,
+        biggestScore = "",
+        biggestWinDate = null;
       playerMs.forEach((m) => {
         const inA = (m.teamA || []).includes(p.name);
         const own = inA ? m.scoreA : m.scoreB;
@@ -14363,17 +15370,20 @@ function renderAnalyticsPage() {
       const mostMatchesDay = Object.entries(byDate).sort(
         (a, b) => b[1].played - a[1].played,
       )[0];
-      let mostDayStr = "—", mostDayDate = null;
+      let mostDayStr = "—",
+        mostDayDate = null;
       if (mostMatchesDay) {
         const [mdDate, mdData] = mostMatchesDay;
         const totalOnDay = matchCountByDate[mdDate] || 0;
         mostDayStr = `${mdData.played}/${totalOnDay}`;
         mostDayDate = mdDate;
       }
-      const BT = "background:none;border:none;color:inherit;font:inherit;cursor:pointer;padding:0;text-align:center;";
-      const dayBtn = (label, date) => date
-        ? `<button style="${BT}" onclick="window._goToSummaryDay('${date}')" title="View ${date} in Summary">${label}</button>`
-        : `<span>${label}</span>`;
+      const BT =
+        "background:none;border:none;color:inherit;font:inherit;cursor:pointer;padding:0;text-align:center;";
+      const dayBtn = (label, date) =>
+        date
+          ? `<button style="${BT}" onclick="window._goToSummaryDay('${date}')" title="View ${date} in Summary">${label}</button>`
+          : `<span>${label}</span>`;
       return `<div class="pb-row">
         <div class="pb-name">${escHtml(p.name)}</div>
         <div class="pb-stat" title="Longest win streak">🔥${longestWS}W</div>
@@ -14816,7 +15826,9 @@ function renderAnalyticsPage() {
     // Top-half SR set for "vs Top" metric
     const _sortedBySR = [...compList].sort((a, b) => b.sr - a.sr);
     const _topHalfSet = new Set(
-      _sortedBySR.slice(0, Math.ceil(_sortedBySR.length / 2)).map((q) => q.name)
+      _sortedBySR
+        .slice(0, Math.ceil(_sortedBySR.length / 2))
+        .map((q) => q.name),
     );
 
     // Precompute per-player stats; stored on window so _renderBstatTable can re-sort
@@ -14824,30 +15836,49 @@ function renderAnalyticsPage() {
       .filter((p) => p.mp >= 1)
       .map((p) => {
         const pms = matchesByPlayer[p.name] || [];
-        const mp  = pms.length || 1;
-        let normGW = 0, normGL = 0, normMgn = 0, oppSRSum = 0;
-        let thPlayed = 0, thWins = 0, fireCnt = 0;
-        let clutchP = 0, clutchW = 0, totWins = 0, domWins = 0;
+        const mp = pms.length || 1;
+        let normGW = 0,
+          normGL = 0,
+          normMgn = 0,
+          oppSRSum = 0;
+        let thPlayed = 0,
+          thWins = 0,
+          fireCnt = 0;
+        let clutchP = 0,
+          clutchW = 0,
+          totWins = 0,
+          domWins = 0;
 
         pms.forEach((m) => {
-          const inA  = (m.teamA || []).includes(p.name);
+          const inA = (m.teamA || []).includes(p.name);
           const rawPS = inA ? m.scoreA : m.scoreB;
           const rawOS = inA ? m.scoreB : m.scoreA;
-          const f    = Math.max(rawPS, rawOS) > 4 ? 4 / Math.max(rawPS, rawOS) : 1;
-          normGW  += rawPS * f;
-          normGL  += rawOS * f;
+          const f = Math.max(rawPS, rawOS) > 4 ? 4 / Math.max(rawPS, rawOS) : 1;
+          normGW += rawPS * f;
+          normGL += rawOS * f;
           normMgn += (rawPS - rawOS) * f;
 
-          const opps = inA ? (m.teamB || []) : (m.teamA || []);
-          const won  = rawPS > rawOS;
+          const opps = inA ? m.teamB || [] : m.teamA || [];
+          const won = rawPS > rawOS;
 
           if (opps.length)
-            oppSRSum += opps.reduce((s, op) => s + eloToSr(eloMap[op] || 1000), 0) / opps.length;
+            oppSRSum +=
+              opps.reduce((s, op) => s + eloToSr(eloMap[op] || 1000), 0) /
+              opps.length;
 
-          if (opps.some((op) => _topHalfSet.has(op))) { thPlayed++; if (won) thWins++; }
+          if (opps.some((op) => _topHalfSet.has(op))) {
+            thPlayed++;
+            if (won) thWins++;
+          }
           if (isFireMatch(m)) fireCnt++;
-          if (Math.abs(m.scoreA - m.scoreB) === 1) { clutchP++; if (won) clutchW++; }
-          if (won) { totWins++; if (isDominatingMatch(m)) domWins++; }
+          if (Math.abs(m.scoreA - m.scoreB) === 1) {
+            clutchP++;
+            if (won) clutchW++;
+          }
+          if (won) {
+            totWins++;
+            if (isDominatingMatch(m)) domWins++;
+          }
         });
 
         const mgnV = normMgn / mp;
@@ -14860,27 +15891,44 @@ function renderAnalyticsPage() {
           avgMgn: mgnV,
           gLost: normGL / mp,
           oppSR: oppSRSum / mp,
-          vsTop: thPlayed > 0 ? Math.round(thWins / thPlayed * 100) : null,
-          firePct: Math.round(fireCnt / mp * 100),
-          clutchPct: clutchP > 0 ? Math.round(clutchW / clutchP * 100) : null,
-          domPct: totWins > 0 ? Math.round(domWins / totWins * 100) : null,
+          vsTop: thPlayed > 0 ? Math.round((thWins / thPlayed) * 100) : null,
+          firePct: Math.round((fireCnt / mp) * 100),
+          clutchPct: clutchP > 0 ? Math.round((clutchW / clutchP) * 100) : null,
+          domPct: totWins > 0 ? Math.round((domWins / totWins) * 100) : null,
           prtns: Object.keys(stats[p.name]?.teammates || {}).length,
-          wCol: wPct >= 60 ? "var(--green)" : wPct <= 40 ? "var(--red)" : "var(--text)",
-          mCol: mgnV > 0 ? "var(--green)" : mgnV < 0 ? "var(--red)" : "var(--muted)",
+          wCol:
+            wPct >= 60
+              ? "var(--green)"
+              : wPct <= 40
+                ? "var(--red)"
+                : "var(--text)",
+          mCol:
+            mgnV > 0
+              ? "var(--green)"
+              : mgnV < 0
+                ? "var(--red)"
+                : "var(--muted)",
         };
       });
 
     if (!window._bstatState) window._bstatState = { col: "sr", dir: "desc" };
 
     // Column group background tints
-    const TP = "rgba(96,165,250,0.07)", TS = "rgba(52,211,153,0.07)";
-    const TO = "rgba(251,191,36,0.07)",  TC = "rgba(248,113,113,0.07)";
-    const TM = "rgba(167,139,250,0.07)", FRZ = "var(--surface)";
+    const TP = "rgba(96,165,250,0.07)",
+      TS = "rgba(52,211,153,0.07)";
+    const TO = "rgba(251,191,36,0.07)",
+      TC = "rgba(248,113,113,0.07)";
+    const TM = "rgba(167,139,250,0.07)",
+      FRZ = "var(--surface)";
 
-    const COLS = "max-content 44px 44px 44px 54px 44px 54px 50px 44px 54px 44px 44px";
-    const HDR  = "padding:5px 6px;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;cursor:pointer;";
-    const CEL  = "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
-    const FRZX = "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
+    const COLS =
+      "max-content 44px 44px 44px 54px 44px 54px 50px 44px 54px 44px 44px";
+    const HDR =
+      "padding:5px 6px;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;cursor:pointer;";
+    const CEL =
+      "padding:7px 6px;font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);";
+    const FRZX =
+      "position:sticky;left:0;z-index:2;border-right:1px solid var(--border);";
 
     const h = (label, col, bg, frz = false) =>
       `<div onclick="window._bstatSort('${col}')" style="${HDR}background:${frz ? FRZ : bg};${frz ? FRZX + "z-index:3;" : ""}">${label}</div>`;
@@ -14888,39 +15936,51 @@ function renderAnalyticsPage() {
       `<div style="${CEL}background:${frz ? FRZ : bg};color:${col};${frz ? FRZX : ""}">${val}</div>`;
 
     const headers = [
-      h("Player",  "name",     null, true),
-      h("Win%",    "winPct",   TP),  h("SR",      "sr",       TP),
-      h("Avg G",   "avgG",     TS),  h("Avg Mgn", "avgMgn",   TS),  h("G Lost", "gLost",    TS),
-      h("Opp SR",  "oppSR",    TO),  h("vs Top",  "vsTop",    TO),
-      h("Fire%",   "firePct",  TC),  h("Clutch%", "clutchPct",TC),  h("Dom%",   "domPct",   TC),
-      h("Prtns",   "prtns",    TM),
+      h("Player", "name", null, true),
+      h("Win%", "winPct", TP),
+      h("SR", "sr", TP),
+      h("Avg G", "avgG", TS),
+      h("Avg Mgn", "avgMgn", TS),
+      h("G Lost", "gLost", TS),
+      h("Opp SR", "oppSR", TO),
+      h("vs Top", "vsTop", TO),
+      h("Fire%", "firePct", TC),
+      h("Clutch%", "clutchPct", TC),
+      h("Dom%", "domPct", TC),
+      h("Prtns", "prtns", TM),
     ].join("");
 
     // Render initial sorted rows (same logic as _renderBstatTable)
     const { col, dir } = window._bstatState;
     const asc = dir === "asc";
     const initSorted = [...window._bstatData].sort((a, b) => {
-      const av = a[col], bv = b[col];
+      const av = a[col],
+        bv = b[col];
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
       if (bv == null) return -1;
-      if (col === "name") return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+      if (col === "name")
+        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
       return asc ? av - bv : bv - av;
     });
-    const initRows = initSorted.map((r) => [
-      d(r.name,                                                          null, "var(--text)", true),
-      d(r.winPct.toFixed(0) + "%",                                       TP, r.wCol),
-      d(r.sr.toFixed(2),                                                 TP),
-      d(r.avgG.toFixed(1),                                               TS),
-      d((r.avgMgn >= 0 ? "+" : "") + r.avgMgn.toFixed(1),               TS, r.mCol),
-      d(r.gLost.toFixed(1),                                              TS),
-      d(r.oppSR.toFixed(2),                                              TO),
-      d(r.vsTop != null ? r.vsTop + "%" : "—",                          TO),
-      d(r.firePct + "%",                                                  TC),
-      d(r.clutchPct != null ? r.clutchPct + "%" : "—",                  TC),
-      d(r.domPct != null ? r.domPct + "%" : "—",                        TC),
-      d(r.prtns,                                                          TM),
-    ].join("")).join("");
+    const initRows = initSorted
+      .map((r) =>
+        [
+          d(r.name, null, "var(--text)", true),
+          d(r.winPct.toFixed(0) + "%", TP, r.wCol),
+          d(r.sr.toFixed(2), TP),
+          d(r.avgG.toFixed(1), TS),
+          d((r.avgMgn >= 0 ? "+" : "") + r.avgMgn.toFixed(1), TS, r.mCol),
+          d(r.gLost.toFixed(1), TS),
+          d(r.oppSR.toFixed(2), TO),
+          d(r.vsTop != null ? r.vsTop + "%" : "—", TO),
+          d(r.firePct + "%", TC),
+          d(r.clutchPct != null ? r.clutchPct + "%" : "—", TC),
+          d(r.domPct != null ? r.domPct + "%" : "—", TC),
+          d(r.prtns, TM),
+        ].join(""),
+      )
+      .join("");
 
     return `<div class="ana-card" style="padding:8px 12px">
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
@@ -15605,18 +16665,22 @@ function renderAnalyticsPage() {
         : `rgba(245,87,87,${(0.12 + 0.55 * intensity).toFixed(2)})`;
     };
     // Rows = players (ranked), Columns = days of week
-    const thStyle = "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
-    const tdStyle = (v) => `padding:5px 4px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
+    const thStyle =
+      "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
+    const tdStyle = (v) =>
+      `padding:5px 4px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
     const headerRow = `<tr><th style="${thStyle};text-align:left">Player</th>${DAY.map((d) => `<th style="${thStyle}">${d}</th>`).join("")}</tr>`;
-    const dataRows = players.map((pname, i) => {
-      const nameCell = `<td style="padding:5px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--text)">#${i + 1} ${escHtml(pname)}</td>`;
-      const dayCells = DAY.map((_, d) => {
-        const v = matrix[d][pname];
-        const disp = v === undefined ? "—" : (v > 0 ? `+${v}` : `${v}`);
-        return `<td style="${tdStyle(v)}">${disp}</td>`;
-      }).join("");
-      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">${nameCell}${dayCells}</tr>`;
-    }).join("");
+    const dataRows = players
+      .map((pname, i) => {
+        const nameCell = `<td style="padding:5px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--text)">#${i + 1} ${escHtml(pname)}</td>`;
+        const dayCells = DAY.map((_, d) => {
+          const v = matrix[d][pname];
+          const disp = v === undefined ? "—" : v > 0 ? `+${v}` : `${v}`;
+          return `<td style="${tdStyle(v)}">${disp}</td>`;
+        }).join("");
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">${nameCell}${dayCells}</tr>`;
+      })
+      .join("");
     return `<div class="ana-card" style="padding:8px 6px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Net ${scLbl} per player per day — ranked by current ${scLbl} score</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
@@ -15631,7 +16695,8 @@ function renderAnalyticsPage() {
   const _dowAltMatrixHtml = (() => {
     // Always shows the other system: ELO when active mode is ASS, and vice versa
     const altLabel = _scoringMode === "ass" ? "ELO" : "ASS";
-    const altHist = _scoringMode === "ass" ? _memoEloHistory() : _memoASSHistory();
+    const altHist =
+      _scoringMode === "ass" ? _memoEloHistory() : _memoASSHistory();
     const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const players = compList.map((p) => p.name);
     const matrix = Array.from({ length: 7 }, () => ({}));
@@ -15656,18 +16721,22 @@ function renderAnalyticsPage() {
         ? `rgba(72,199,116,${(0.12 + 0.55 * intensity).toFixed(2)})`
         : `rgba(245,87,87,${(0.12 + 0.55 * intensity).toFixed(2)})`;
     };
-    const thStyle = "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
-    const tdStyle = (v) => `padding:5px 4px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
+    const thStyle =
+      "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
+    const tdStyle = (v) =>
+      `padding:5px 4px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
     const headerRow = `<tr><th style="${thStyle};text-align:left">Player</th>${DAY.map((d) => `<th style="${thStyle}">${d}</th>`).join("")}</tr>`;
-    const dataRows = players.map((pname, i) => {
-      const nameCell = `<td style="padding:5px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--text)">#${i + 1} ${escHtml(pname)}</td>`;
-      const dayCells = DAY.map((_, d) => {
-        const v = matrix[d][pname];
-        const disp = v === undefined ? "—" : (v > 0 ? `+${v}` : `${v}`);
-        return `<td style="${tdStyle(v)}">${disp}</td>`;
-      }).join("");
-      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">${nameCell}${dayCells}</tr>`;
-    }).join("");
+    const dataRows = players
+      .map((pname, i) => {
+        const nameCell = `<td style="padding:5px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--text)">#${i + 1} ${escHtml(pname)}</td>`;
+        const dayCells = DAY.map((_, d) => {
+          const v = matrix[d][pname];
+          const disp = v === undefined ? "—" : v > 0 ? `+${v}` : `${v}`;
+          return `<td style="${tdStyle(v)}">${disp}</td>`;
+        }).join("");
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">${nameCell}${dayCells}</tr>`;
+      })
+      .join("");
     return `<div class="ana-card" style="padding:8px 6px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Net ${altLabel} per player per day — always shows the other scoring system for comparison</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
@@ -15682,34 +16751,53 @@ function renderAnalyticsPage() {
   const _scatterPlotHtml = (() => {
     const eloMap = _memoElo();
     const assMap = _memoASS();
-    const players = compList.map((p) => p.name).filter((n) => eloMap[n] && assMap[n]);
-    if (players.length < 2) return '<div class="sub" style="padding:8px">Need more data.</div>';
+    const players = compList
+      .map((p) => p.name)
+      .filter((n) => eloMap[n] && assMap[n]);
+    if (players.length < 2)
+      return '<div class="sub" style="padding:8px">Need more data.</div>';
     const elos = players.map((n) => eloMap[n] || 1000);
     const asses = players.map((n) => assMap[n] || 1000);
-    const minElo = Math.min(...elos), maxElo = Math.max(...elos);
-    const minAss = Math.min(...asses), maxAss = Math.max(...asses);
+    const minElo = Math.min(...elos),
+      maxElo = Math.max(...elos);
+    const minAss = Math.min(...asses),
+      maxAss = Math.max(...asses);
     const eloRange = Math.max(maxElo - minElo, 1);
     const assRange = Math.max(maxAss - minAss, 1);
-    const W = 280, H = 200, PAD = 28;
-    const cx = (elo) => PAD + Math.round(((elo - minElo) / eloRange) * (W - PAD * 2));
-    const cy = (ass) => H - PAD - Math.round(((ass - minAss) / assRange) * (H - PAD * 2));
-    const dots = players.map((n, i) => {
-      const x = cx(elos[i]), y = cy(asses[i]);
-      const col = playerColor(n);
-      const initials = playerInitials(n);
-      const eloRank = [...players].sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000)).indexOf(n) + 1;
-      const assRank = [...players].sort((a, b) => (assMap[b] || 1000) - (assMap[a] || 1000)).indexOf(n) + 1;
-      const diverge = Math.abs(eloRank - assRank) >= 2;
-      return `<circle cx="${x}" cy="${y}" r="8" fill="${col}" opacity="0.85"/>
+    const W = 280,
+      H = 200,
+      PAD = 28;
+    const cx = (elo) =>
+      PAD + Math.round(((elo - minElo) / eloRange) * (W - PAD * 2));
+    const cy = (ass) =>
+      H - PAD - Math.round(((ass - minAss) / assRange) * (H - PAD * 2));
+    const dots = players
+      .map((n, i) => {
+        const x = cx(elos[i]),
+          y = cy(asses[i]);
+        const col = playerColor(n);
+        const initials = playerInitials(n);
+        const eloRank =
+          [...players]
+            .sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000))
+            .indexOf(n) + 1;
+        const assRank =
+          [...players]
+            .sort((a, b) => (assMap[b] || 1000) - (assMap[a] || 1000))
+            .indexOf(n) + 1;
+        const diverge = Math.abs(eloRank - assRank) >= 2;
+        return `<circle cx="${x}" cy="${y}" r="8" fill="${col}" opacity="0.85"/>
         <text x="${x}" y="${y + 3}" text-anchor="middle" font-size="7" font-weight="800" fill="#fff">${initials}</text>
         ${diverge ? `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="2,2"/>` : ""}`;
-    }).join("");
+      })
+      .join("");
     const diagonalPct = (pct) => {
       const elo = minElo + eloRange * (pct / 100);
       const ass = minAss + assRange * (pct / 100);
       return { x: cx(elo), y: cy(ass) };
     };
-    const d0 = diagonalPct(0), d100 = diagonalPct(100);
+    const d0 = diagonalPct(0),
+      d100 = diagonalPct(100);
     return `<div class="ana-card" style="padding:10px 12px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">ELO (x-axis) vs ASS (y-axis) — dashed ring = rank divergence ≥2 positions</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center">
@@ -15738,7 +16826,7 @@ function renderAnalyticsPage() {
   window._shutoutSortCol = window._shutoutSortCol || "sw";
   window._shutoutSortAsc = window._shutoutSortAsc ?? false;
 
-  window._shutoutSort = function(col) {
+  window._shutoutSort = function (col) {
     if (window._shutoutSortCol === col) {
       window._shutoutSortAsc = !window._shutoutSortAsc;
     } else {
@@ -15747,24 +16835,33 @@ function renderAnalyticsPage() {
     }
     const asc = window._shutoutSortAsc;
     const sorted = [..._shutoutRows].sort((a, b) => {
-      const va = a[col], vb = b[col];
-      if (col === "name") return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      const va = a[col],
+        vb = b[col];
+      if (col === "name")
+        return asc ? va.localeCompare(vb) : vb.localeCompare(va);
       return asc ? va - vb : vb - va;
     });
     const pg = "grid-template-columns:minmax(80px,1fr) 44px 44px 58px 58px";
     const body = document.getElementById("shutout-body");
-    if (body) body.innerHTML = sorted.map((r) => `
+    if (body)
+      body.innerHTML = sorted
+        .map(
+          (r) => `
       <div class="lrace-row" style="${pg}">
         <div class="lrace-name">${escHtml(r.name)}</div>
         <div style="text-align:center;font-weight:700;color:var(--green);${r.sw > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sw > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'win')"` : ""}>${r.sw}</div>
         <div style="text-align:center;font-weight:700;color:var(--red);${r.sl > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sl > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'loss')"` : ""}>${r.sl}</div>
         <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
         <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
-      </div>`).join("");
+      </div>`,
+        )
+        .join("");
     // Update header arrows
-    ["name","sw","sl","swPct","slPct"].forEach((c) => {
+    ["name", "sw", "sl", "swPct", "slPct"].forEach((c) => {
       const el = document.getElementById(`shutout-hdr-${c}`);
-      if (el) el.textContent = c === window._shutoutSortCol ? (asc ? " ▲" : " ▼") : "";
+      if (el)
+        el.textContent =
+          c === window._shutoutSortCol ? (asc ? " ▲" : " ▼") : "";
     });
   };
 
@@ -15774,38 +16871,46 @@ function renderAnalyticsPage() {
     const sc = window._shutoutSortCol;
     const asc = window._shutoutSortAsc;
     const sorted = [..._shutoutRows].sort((a, b) => {
-      const va = a[sc], vb = b[sc];
-      if (sc === "name") return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      const va = a[sc],
+        vb = b[sc];
+      if (sc === "name")
+        return asc ? va.localeCompare(vb) : vb.localeCompare(va);
       return asc ? va - vb : vb - va;
     });
     const pg = "grid-template-columns:minmax(80px,1fr) 44px 44px 58px 58px";
-    const arrow = (c) => sc === c ? (asc ? " ▲" : " ▼") : "";
+    const arrow = (c) => (sc === c ? (asc ? " ▲" : " ▼") : "");
     const hdr = (c, label, col) =>
       `<span style="text-align:center;color:${col};cursor:pointer" onclick="_shutoutSort('${c}')">${label}<span id="shutout-hdr-${c}" style="font-size:8px">${arrow(c)}</span></span>`;
-    return `<div class="ana-card" style="padding:8px 12px">
+    return (
+      `<div class="ana-card" style="padding:8px 12px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Shutout = opponent/you scored 0. % = of total matches played. Tap column to sort.</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <div style="min-width:284px">
           <div class="lrace-header" style="${pg}">
             <span style="cursor:pointer" onclick="_shutoutSort('name')">Player<span id="shutout-hdr-name" style="font-size:8px">${arrow("name")}</span></span>
-            ${hdr("sw","W×0","var(--green)")}
-            ${hdr("sl","L×0","var(--red)")}
-            ${hdr("swPct","W×0 %","var(--green)")}
-            ${hdr("slPct","L×0 %","var(--red)")}
+            ${hdr("sw", "W×0", "var(--green)")}
+            ${hdr("sl", "L×0", "var(--red)")}
+            ${hdr("swPct", "W×0 %", "var(--green)")}
+            ${hdr("slPct", "L×0 %", "var(--red)")}
           </div>
           <div id="shutout-body">` +
-          sorted.map((r) => `
+      sorted
+        .map(
+          (r) => `
           <div class="lrace-row" style="${pg}">
             <div class="lrace-name">${escHtml(r.name)}</div>
             <div style="text-align:center;font-weight:700;color:var(--green);${r.sw > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sw > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'win')"` : ""}>${r.sw}</div>
             <div style="text-align:center;font-weight:700;color:var(--red);${r.sl > 0 ? "cursor:pointer;text-decoration:underline dotted" : ""}" ${r.sl > 0 ? `onclick="_showShutoutMatches(${jsArg(r.name)},'loss')"` : ""}>${r.sl}</div>
             <div style="text-align:center;font-weight:600;color:var(--green)">${r.swPct}%</div>
             <div style="text-align:center;font-weight:600;color:var(--red)">${r.slPct}%</div>
-          </div>`).join("") +
-        `</div>
+          </div>`,
+        )
+        .join("") +
+      `</div>
         </div>
       </div>
-    </div>`;
+    </div>`
+    );
   })();
 
   // ── PLAYER FORM LEADERBOARD ─────────────────────────────────
@@ -15845,7 +16950,8 @@ function renderAnalyticsPage() {
     [..._formRows].sort((a, b) => {
       const va = a[col],
         vb = b[col];
-      if (col === "name") return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      if (col === "name")
+        return asc ? va.localeCompare(vb) : vb.localeCompare(va);
       return asc ? va - vb : vb - va;
     });
   window._playerFormSort = function (col) {
@@ -15857,10 +16963,21 @@ function renderAnalyticsPage() {
     }
     const asc = window._playerFormSortAsc;
     const body = document.getElementById("player-form-body");
-    if (body) body.innerHTML = _formSortRows(col, asc).map(_formRowHtml).join("");
-    ["name", "score", "winPct10", "avgMargin10", "momentumDelta", "pressureScore", "winQuality"].forEach((c) => {
+    if (body)
+      body.innerHTML = _formSortRows(col, asc).map(_formRowHtml).join("");
+    [
+      "name",
+      "score",
+      "winPct10",
+      "avgMargin10",
+      "momentumDelta",
+      "pressureScore",
+      "winQuality",
+    ].forEach((c) => {
       const el = document.getElementById(`pform-hdr-${c}`);
-      if (el) el.textContent = c === window._playerFormSortCol ? (asc ? " ▲" : " ▼") : "";
+      if (el)
+        el.textContent =
+          c === window._playerFormSortCol ? (asc ? " ▲" : " ▼") : "";
     });
   };
   const _playerFormLeaderboardHtml = (() => {
@@ -15871,7 +16988,8 @@ function renderAnalyticsPage() {
     const arrow = (c) => (sc === c ? (asc ? " ▲" : " ▼") : "");
     const hdr = (c, label) =>
       `<span style="text-align:center;cursor:pointer" onclick="_playerFormSort('${c}')">${label}<span id="pform-hdr-${c}" style="font-size:8px">${arrow(c)}</span></span>`;
-    return `<div class="ana-card" style="padding:8px 12px">
+    return (
+      `<div class="ana-card" style="padding:8px 12px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Form over recent matches. W%10 = last-10 win rate · Marg = avg margin last 10 · Mom = momentum (last 5 vs prev 5) · Pres = close-match win % · WinQ = avg ELO of opponents beaten. Tap column to sort.</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <div style="min-width:384px">
@@ -15889,7 +17007,8 @@ function renderAnalyticsPage() {
       `</div>
         </div>
       </div>
-    </div>`;
+    </div>`
+    );
   })();
 
   const allSecs = [
@@ -15965,7 +17084,8 @@ function renderAnalyticsPage() {
           label: "Streak Timeline",
           html: (() => {
             const names = playersByMatches.slice(0, 12);
-            if (!names.length) return '<div class="sub" style="padding:8px">No data.</div>';
+            if (!names.length)
+              return '<div class="sub" style="padding:8px">No data.</div>';
             const rows = names
               .map((n) => {
                 const segs = streakSegments(sortedM, n);
@@ -15974,7 +17094,10 @@ function renderAnalyticsPage() {
                 const bars = segs
                   .map((g) => {
                     const w = (g.length / total) * 100;
-                    const col = g.type === "W" ? "rgba(54,212,126,0.75)" : "rgba(240,80,80,0.6)";
+                    const col =
+                      g.type === "W"
+                        ? "rgba(54,212,126,0.75)"
+                        : "rgba(240,80,80,0.6)";
                     return `<div style="width:${w.toFixed(2)}%;background:${col};height:100%" title="${g.type === "W" ? "Won" : "Lost"} ${g.length} in a row (${fmtDate(g.startDate)}–${fmtDate(g.endDate)})"></div>`;
                   })
                   .join("");
@@ -16039,9 +17162,15 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "🎯 Performance",
       body: _tabbedSection([
-        { label: "Clutch", html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>` },
+        {
+          label: "Clutch",
+          html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>`,
+        },
         { label: "Clutch Trends", html: clutchTrendHtml },
-        { label: "Quality", html: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>` },
+        {
+          label: "Quality",
+          html: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
+        },
         { label: "Dominance", html: _dominanceHtml },
         { label: "Carry", html: carryHtml },
       ]),
@@ -16051,8 +17180,13 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "📐 Consistency",
       body: _tabbedSection([
-        { label: "Rankings", html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>` },
-        ...(getEloEnabled() ? [{ label: "ELO Volatility", html: eloVolatilityHtml }] : []),
+        {
+          label: "Rankings",
+          html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
+        },
+        ...(getEloEnabled()
+          ? [{ label: "ELO Volatility", html: eloVolatilityHtml }]
+          : []),
       ]),
     },
     {
@@ -16066,7 +17200,10 @@ function renderAnalyticsPage() {
       cat: "activity",
       title: "📊 Scores",
       body: _tabbedSection([
-        { label: "Distribution", html: `<div class="ana-card">${_sdCallout}${sdHtml}</div>` },
+        {
+          label: "Distribution",
+          html: `<div class="ana-card">${_sdCallout}${sdHtml}</div>`,
+        },
         { label: "Heatmap", html: _scoreHeatmapHtml },
         { label: "Margin Trend", html: _scoreMargTrendHtml },
         { label: "💀 Shutouts", html: _shutoutLeaderboardHtml },
@@ -16077,7 +17214,10 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "🔥 Rivalries",
       body: _tabbedSection([
-        { label: "Spotlight", html: `<div class="ana-card">${rivalHtml}</div>` },
+        {
+          label: "Spotlight",
+          html: `<div class="ana-card">${rivalHtml}</div>`,
+        },
         {
           label: "Matrix",
           html: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
@@ -16095,7 +17235,12 @@ function renderAnalyticsPage() {
                   const sorted = [normPlayer(a), normPlayer(b)].sort();
                   const key = sorted.join(" vs ");
                   if (!enc[key])
-                    enc[key] = { total: 0, wins0: 0, p0: sorted[0], p1: sorted[1] };
+                    enc[key] = {
+                      total: 0,
+                      wins0: 0,
+                      p0: sorted[0],
+                      p1: sorted[1],
+                    };
                   enc[key].total++;
                   const p0IsA = normPlayer(a) === sorted[0];
                   if ((p0IsA && aWon) || (!p0IsA && !aWon)) enc[key].wins0++;
@@ -16114,9 +17259,17 @@ function renderAnalyticsPage() {
                   p1w = r.total - r.wins0;
                 const p0pct = Math.round((p0w / r.total) * 100);
                 const col0 =
-                  p0pct >= 60 ? "var(--green)" : p0pct <= 40 ? "var(--red)" : "var(--muted)";
+                  p0pct >= 60
+                    ? "var(--green)"
+                    : p0pct <= 40
+                      ? "var(--red)"
+                      : "var(--muted)";
                 const col1 =
-                  p0pct <= 40 ? "var(--green)" : p0pct >= 60 ? "var(--red)" : "var(--muted)";
+                  p0pct <= 40
+                    ? "var(--green)"
+                    : p0pct >= 60
+                      ? "var(--red)"
+                      : "var(--muted)";
                 return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
               <span style="font-size:12px;font-weight:800;color:${col0}">${escHtml(r.p0)}</span>
@@ -16151,14 +17304,20 @@ function renderAnalyticsPage() {
       body: _tabbedSection([
         { label: "Volume", html: dowHtml },
         { label: "Win %", html: _dowPlayerHtml },
-        ...(getEloEnabled() ? [
-          { label: "ELO Gain", html: _eloDowHtml },
-          { label: `${_scoringLabel()} Matrix`, html: _dowPlayerMatrixHtml },
-          { label: `${_scoringMode === "ass" ? "ELO" : "ASS"} Matrix`, html: _dowAltMatrixHtml },
-          { label: "Scatter", html: _scatterPlotHtml },
-        ] : [
-          { label: "ASS Matrix", html: _dowPlayerMatrixHtml },
-        ]),
+        ...(getEloEnabled()
+          ? [
+              { label: "ELO Gain", html: _eloDowHtml },
+              {
+                label: `${_scoringLabel()} Matrix`,
+                html: _dowPlayerMatrixHtml,
+              },
+              {
+                label: `${_scoringMode === "ass" ? "ELO" : "ASS"} Matrix`,
+                html: _dowAltMatrixHtml,
+              },
+              { label: "Scatter", html: _scatterPlotHtml },
+            ]
+          : [{ label: "ASS Matrix", html: _dowPlayerMatrixHtml }]),
       ]),
     },
     {
@@ -16167,7 +17326,10 @@ function renderAnalyticsPage() {
       title: "🤝 Pairs",
       body: _tabbedSection([
         { label: "Top 10", html: _pairLeaderboardHtml },
-        { label: "All Pairs", html: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>` },
+        {
+          label: "All Pairs",
+          html: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`,
+        },
         {
           label: "Synergy",
           html: `<div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner (vs solo avg)</div>${synergyHtml}</div>`,
@@ -16184,16 +17346,16 @@ function renderAnalyticsPage() {
       title: `⚡ ${_scLabel}`,
       body: _tabbedSection([
         { label: "Rankings", html: eloHtml },
-        ...(getEloEnabled() ? [
-          {
-            label: "History Chart",
-            html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
-          },
-          { label: "Peak / Low", html: _peakEloHtml },
-          { label: "Win Probability", html: eloWinProbHtml },
-        ] : [
-          { label: "Peak / Low", html: _peakEloHtml },
-        ]),
+        ...(getEloEnabled()
+          ? [
+              {
+                label: "History Chart",
+                html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
+              },
+              { label: "Peak / Low", html: _peakEloHtml },
+              { label: "Win Probability", html: eloWinProbHtml },
+            ]
+          : [{ label: "Peak / Low", html: _peakEloHtml }]),
       ]),
     },
     {
@@ -16273,7 +17435,8 @@ function renderAnalyticsPage() {
       body: (() => {
         const scoreMap = eloMap;
         const { entries, buckets } = ratingDistribution(scoreMap, 50);
-        if (!entries.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        if (!entries.length)
+          return '<div class="sub" style="padding:8px">No data.</div>';
         const rows = buckets
           .map((b) => {
             const chips = b.players
@@ -16297,23 +17460,39 @@ function renderAnalyticsPage() {
       title: "📉 League Competitiveness",
       body: (() => {
         const scoreFn = _scoringMode === "ass" ? computeASS : computeElo;
-        const series = competitivenessOverTime(sortedM, scoreFn).filter((s) => s.n >= 2);
-        if (series.length < 2) return '<div class="sub" style="padding:8px">Need more months of data.</div>';
-        const W = 300, H = 130, PAD = 26;
+        const series = competitivenessOverTime(sortedM, scoreFn).filter(
+          (s) => s.n >= 2,
+        );
+        if (series.length < 2)
+          return '<div class="sub" style="padding:8px">Need more months of data.</div>';
+        const W = 300,
+          H = 130,
+          PAD = 26;
         const maxSD = Math.max(...series.map((s) => s.stddev), 10);
         const pts = series.map((s, i) => {
           const x = PAD + (i / Math.max(series.length - 1, 1)) * (W - PAD * 2);
           const y = H - PAD - (s.stddev / maxSD) * (H - PAD * 2 - 10);
           return { x, y, s };
         });
-        const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+        const path = pts
+          .map(
+            (p, i) =>
+              `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`,
+          )
+          .join(" ");
         const dots = pts
-          .map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--theme)"><title>${p.s.month}: σ${p.s.stddev}</title></circle>`)
+          .map(
+            (p) =>
+              `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--theme)"><title>${p.s.month}: σ${p.s.stddev}</title></circle>`,
+          )
           .join("");
         const step = Math.ceil(pts.length / 6) || 1;
         const labels = pts
           .filter((_, i) => i % step === 0)
-          .map((p) => `<text x="${p.x.toFixed(1)}" y="${H - 6}" font-size="7" fill="var(--muted)" text-anchor="middle">${p.s.month.slice(2)}</text>`)
+          .map(
+            (p) =>
+              `<text x="${p.x.toFixed(1)}" y="${H - 6}" font-size="7" fill="var(--muted)" text-anchor="middle">${p.s.month.slice(2)}</text>`,
+          )
           .join("");
         const trend =
           series[series.length - 1].stddev < series[0].stddev
@@ -16335,22 +17514,29 @@ function renderAnalyticsPage() {
       title: "📶 Activity Over Time",
       body: (() => {
         const months = uniqueMonths.slice(-12);
-        if (months.length < 2) return '<div class="sub" style="padding:8px">Need more months of data.</div>';
+        if (months.length < 2)
+          return '<div class="sub" style="padding:8px">Need more months of data.</div>';
         const topPlayers = playersByMatches.slice(0, 8);
-        const W = 300, H = 150, PAD = 8;
+        const W = 300,
+          H = 150,
+          PAD = 8;
         const maxTotal = Math.max(
-          ...months.map((mo) => topPlayers.reduce((s, p) => s + (monthlyStats[mo]?.[p]?.m || 0), 0)),
+          ...months.map((mo) =>
+            topPlayers.reduce((s, p) => s + (monthlyStats[mo]?.[p]?.m || 0), 0),
+          ),
           1,
         );
         const colW = (W - PAD * 2) / months.length;
         const areas = topPlayers
           .map((p, pi) => {
             const col = playerColor(p);
-            const topPts = [], botPts = [];
+            const topPts = [],
+              botPts = [];
             months.forEach((mo, mi) => {
               const x = PAD + mi * colW + colW / 2;
               let below = 0;
-              for (let k = 0; k < pi; k++) below += monthlyStats[mo]?.[topPlayers[k]]?.m || 0;
+              for (let k = 0; k < pi; k++)
+                below += monthlyStats[mo]?.[topPlayers[k]]?.m || 0;
               const val = monthlyStats[mo]?.[p]?.m || 0;
               const yTop = H - PAD - ((below + val) / maxTotal) * (H - PAD * 2);
               const yBot = H - PAD - (below / maxTotal) * (H - PAD * 2);
@@ -16379,10 +17565,16 @@ function renderAnalyticsPage() {
       title: "🎯 Favourite-Wins Curve",
       body: (() => {
         const curve = favouriteWinCurve(sortedM);
-        if (!curve.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        if (!curve.length)
+          return '<div class="sub" style="padding:8px">No data.</div>';
         const rows = curve
           .map((b) => {
-            const col = b.pct >= 70 ? "var(--green)" : b.pct >= 55 ? "var(--gold)" : "var(--red)";
+            const col =
+              b.pct >= 70
+                ? "var(--green)"
+                : b.pct >= 55
+                  ? "var(--gold)"
+                  : "var(--red)";
             return `<div style="margin-bottom:8px">
               <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px"><span style="color:var(--muted)">Gap ${b.label}</span><span style="font-weight:800;color:${col}">${b.pct}%</span></div>
               <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden"><div style="width:${b.pct}%;height:100%;background:${col}"></div></div>
@@ -16409,8 +17601,12 @@ function renderAnalyticsPage() {
               `<div class="sdist-row"><div class="sdist-lbl">${b.margin} games</div><div class="sdist-bar-wrap"><div class="sdist-bar" style="width:${((b.count / maxC) * 100).toFixed(0)}%"></div></div><div class="sdist-count">${b.count}</div></div>`,
           )
           .join("");
-        const blowouts = buckets.filter((b) => ["4", "5+"].includes(b.margin)).reduce((s, b) => s + b.count, 0);
-        const nailbiters = buckets.filter((b) => ["0", "1"].includes(b.margin)).reduce((s, b) => s + b.count, 0);
+        const blowouts = buckets
+          .filter((b) => ["4", "5+"].includes(b.margin))
+          .reduce((s, b) => s + b.count, 0);
+        const nailbiters = buckets
+          .filter((b) => ["0", "1"].includes(b.margin))
+          .reduce((s, b) => s + b.count, 0);
         return `<div class="ana-card" style="padding:10px 12px">
           <div style="display:flex;gap:8px;margin-bottom:10px">
             <div style="flex:1;background:rgba(54,212,126,0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--muted)">NAIL-BITERS (±1)</div><div style="font-size:18px;font-weight:900;color:var(--green)">${nailbiters}</div></div>
@@ -16426,20 +17622,28 @@ function renderAnalyticsPage() {
       title: "🌟 Form vs Class",
       body: (() => {
         const formMap = {};
-        formTable.forEach((f) => { formMap[f.name] = f.pct; });
+        formTable.forEach((f) => {
+          formMap[f.name] = f.pct;
+        });
         const pts = compList
           .filter((p) => formMap[p.name] != null)
           .map((p) => ({ name: p.name, cls: p.sr, form: formMap[p.name] }));
-        if (pts.length < 3) return '<div class="sub" style="padding:8px">Need more data.</div>';
-        const minCls = Math.min(...pts.map((p) => p.cls)), maxCls = Math.max(...pts.map((p) => p.cls));
+        if (pts.length < 3)
+          return '<div class="sub" style="padding:8px">Need more data.</div>';
+        const minCls = Math.min(...pts.map((p) => p.cls)),
+          maxCls = Math.max(...pts.map((p) => p.cls));
         const clsRange = Math.max(maxCls - minCls, 0.1);
-        const W = 280, H = 220, PAD = 30;
+        const W = 280,
+          H = 220,
+          PAD = 30;
         const cx = (v) => PAD + ((v - minCls) / clsRange) * (W - PAD * 2);
         const cy = (v) => H - PAD - (v / 100) * (H - PAD * 2);
-        const midX = cx((minCls + maxCls) / 2), midY = cy(50);
+        const midX = cx((minCls + maxCls) / 2),
+          midY = cy(50);
         const dots = pts
           .map((p) => {
-            const x = cx(p.cls), y = cy(p.form);
+            const x = cx(p.cls),
+              y = cy(p.form);
             return `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="${playerColor(p.name)}" opacity="0.85"/><text x="${x.toFixed(1)}" y="${(y + 2.5).toFixed(1)}" font-size="7" fill="#fff" text-anchor="middle" font-weight="700">${playerInitials(p.name)}</text><title>${escHtml(p.name)}: SR ${p.cls.toFixed(1)} · Form ${p.form}%</title></g>`;
           })
           .join("");
@@ -16474,7 +17678,8 @@ function renderAnalyticsPage() {
             </div>`;
           })
           .join("");
-        if (!rows) return '<div class="sub" style="padding:8px">Need 3+ meetings between players.</div>';
+        if (!rows)
+          return '<div class="sub" style="padding:8px">Need 3+ meetings between players.</div>';
         return `<div class="ana-card" style="padding:10px 12px">
           <div style="display:flex;font-size:8px;color:var(--muted);font-weight:700;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06)"><div style="flex:1">PLAYER</div><div style="width:96px;text-align:right">NEMESIS</div><div style="width:96px;text-align:right">BUNNY</div></div>
           ${rows}
@@ -16501,8 +17706,11 @@ function renderAnalyticsPage() {
             agg[p].maxGap = Math.max(agg[p].maxGap, gap);
           });
         });
-        const ranked = Object.entries(agg).sort((a, b) => b[1].count - a[1].count || b[1].maxGap - a[1].maxGap);
-        if (!ranked.length) return '<div class="sub" style="padding:8px">No upset wins yet.</div>';
+        const ranked = Object.entries(agg).sort(
+          (a, b) => b[1].count - a[1].count || b[1].maxGap - a[1].maxGap,
+        );
+        if (!ranked.length)
+          return '<div class="sub" style="padding:8px">No upset wins yet.</div>';
         const rows = ranked
           .slice(0, 12)
           .map(
@@ -16522,11 +17730,17 @@ function renderAnalyticsPage() {
       title: "💞 Partner Loyalty",
       body: (() => {
         const loyalty = partnerLoyalty(am, 3);
-        if (!loyalty.length) return '<div class="sub" style="padding:8px">Need more doubles data.</div>';
+        if (!loyalty.length)
+          return '<div class="sub" style="padding:8px">Need more doubles data.</div>';
         const rows = loyalty
           .slice(0, 12)
           .map((p) => {
-            const col = p.pct >= 70 ? "var(--green)" : p.pct <= 30 ? "var(--gold)" : "var(--muted)";
+            const col =
+              p.pct >= 70
+                ? "var(--green)"
+                : p.pct <= 30
+                  ? "var(--gold)"
+                  : "var(--muted)";
             return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
               <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
               <div style="font-size:9px;color:var(--muted)">with ${escHtml((p.topPartner || "").split(" ")[0])}</div>
@@ -16545,9 +17759,20 @@ function renderAnalyticsPage() {
       cat: "records",
       title: "🏛️ Hall of Fame",
       body: (() => {
-        const hof = hallOfFameRecords(am, players, _memoEloHistory(), _memoASSHistory());
-        if (!hof) return '<div class="sub" style="padding:8px">No data yet.</div>';
-        const item = (icon, label, value, sub) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        const hof = hallOfFameRecords(
+          am,
+          players,
+          _memoEloHistory(),
+          _memoASSHistory(),
+        );
+        if (!hof)
+          return '<div class="sub" style="padding:8px">No data yet.</div>';
+        const item = (
+          icon,
+          label,
+          value,
+          sub,
+        ) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
           <div style="font-size:20px;width:30px;text-align:center">${icon}</div>
           <div style="flex:1">
             <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">${label}</div>
@@ -16556,12 +17781,52 @@ function renderAnalyticsPage() {
           </div>
         </div>`;
         const rows = [
-          hof.biggestWin ? item("💥", "Biggest Win Ever", hof.biggestWin.score, `${escHtml(hof.biggestWin.winners.join(" & "))} vs ${escHtml(hof.biggestWin.losers.join(" & "))} · ${fmtDate(hof.biggestWin.date)}`) : "",
-          hof.longestStreak ? item("🔥", "Longest Win Streak", `${hof.longestStreak.bestStreak} matches`, escHtml(hof.longestStreak.name)) : "",
-          hof.mostInDay ? item("📅", "Most Matches in a Day", `${hof.mostInDay.n} matches`, `${escHtml(hof.mostInDay.name)} · ${fmtDate(hof.mostInDay.date)}`) : "",
-          hof.peakElo ? item("⚡", "Highest ELO Ever", `${Math.round(hof.peakElo.val)}`, `${escHtml(hof.peakElo.name)} · ${fmtDate(hof.peakElo.date)}`) : "",
-          hof.peakAss ? item("🏆", "Highest ASS Ever", `${Math.round(hof.peakAss.val)}`, `${escHtml(hof.peakAss.name)} · ${fmtDate(hof.peakAss.date)}`) : "",
-          item("🎾", "Total Matches Played", `${hof.totalMatches}`, `across ${hof.totalDays} playing days`),
+          hof.biggestWin
+            ? item(
+                "💥",
+                "Biggest Win Ever",
+                hof.biggestWin.score,
+                `${escHtml(hof.biggestWin.winners.join(" & "))} vs ${escHtml(hof.biggestWin.losers.join(" & "))} · ${fmtDate(hof.biggestWin.date)}`,
+              )
+            : "",
+          hof.longestStreak
+            ? item(
+                "🔥",
+                "Longest Win Streak",
+                `${hof.longestStreak.bestStreak} matches`,
+                escHtml(hof.longestStreak.name),
+              )
+            : "",
+          hof.mostInDay
+            ? item(
+                "📅",
+                "Most Matches in a Day",
+                `${hof.mostInDay.n} matches`,
+                `${escHtml(hof.mostInDay.name)} · ${fmtDate(hof.mostInDay.date)}`,
+              )
+            : "",
+          hof.peakElo
+            ? item(
+                "⚡",
+                "Highest ELO Ever",
+                `${Math.round(hof.peakElo.val)}`,
+                `${escHtml(hof.peakElo.name)} · ${fmtDate(hof.peakElo.date)}`,
+              )
+            : "",
+          hof.peakAss
+            ? item(
+                "🏆",
+                "Highest ASS Ever",
+                `${Math.round(hof.peakAss.val)}`,
+                `${escHtml(hof.peakAss.name)} · ${fmtDate(hof.peakAss.date)}`,
+              )
+            : "",
+          item(
+            "🎾",
+            "Total Matches Played",
+            `${hof.totalMatches}`,
+            `across ${hof.totalDays} playing days`,
+          ),
         ].join("");
         return `<div class="ana-card" style="padding:10px 12px">${rows}</div>`;
       })(),
@@ -16572,10 +17837,13 @@ function renderAnalyticsPage() {
       title: "🕰️ Milestone Timeline",
       body: (() => {
         const events = buildMilestoneTimeline(sortedM).slice(-25).reverse();
-        if (!events.length) return '<div class="sub" style="padding:8px">No milestones yet.</div>';
+        if (!events.length)
+          return '<div class="sub" style="padding:8px">No milestones yet.</div>';
         const rows = events
           .map(
-            (e) => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+            (
+              e,
+            ) => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
           <div style="font-size:16px;width:24px;text-align:center;flex-shrink:0">${e.icon}</div>
           <div style="flex:1">
             <div style="font-size:11px;font-weight:700">${escHtml(e.text)}</div>
@@ -16592,12 +17860,20 @@ function renderAnalyticsPage() {
       cat: "activity",
       title: "📌 Attendance Streaks",
       body: (() => {
-        const streaks = attendanceStreaks(am).filter((s) => s.sessionsPlayed >= 3);
-        if (!streaks.length) return '<div class="sub" style="padding:8px">Need more session history.</div>';
+        const streaks = attendanceStreaks(am).filter(
+          (s) => s.sessionsPlayed >= 3,
+        );
+        if (!streaks.length)
+          return '<div class="sub" style="padding:8px">Need more session history.</div>';
         const rows = streaks
           .slice(0, 12)
           .map((s, i) => {
-            const col = s.current >= 3 ? "var(--green)" : s.current > 0 ? "var(--gold)" : "var(--muted)";
+            const col =
+              s.current >= 3
+                ? "var(--green)"
+                : s.current > 0
+                  ? "var(--gold)"
+                  : "var(--muted)";
             return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
               <div style="width:20px;font-size:10px;color:var(--muted)">#${i + 1}</div>
               <div style="flex:1;font-size:11px;font-weight:700">${escHtml(s.name)}</div>
@@ -16622,7 +17898,10 @@ function renderAnalyticsPage() {
         const upsetCounts = {};
         upsets.forEach((u) => {
           const gap = _scoringMode === "ass" ? u.assGap : u.gap;
-          if (gap > 0) u.winners.forEach((p) => { upsetCounts[p] = (upsetCounts[p] || 0) + 1; });
+          if (gap > 0)
+            u.winners.forEach((p) => {
+              upsetCounts[p] = (upsetCounts[p] || 0) + 1;
+            });
         });
         const attendance = {};
         am.forEach((m) => {
@@ -16638,14 +17917,17 @@ function renderAnalyticsPage() {
           upsets: upsetCounts[p.name] || 0,
         }));
         const ranked = weightedMvpScore(input);
-        if (!ranked.length) return '<div class="sub" style="padding:8px">No data.</div>';
+        if (!ranked.length)
+          return '<div class="sub" style="padding:8px">No data.</div>';
         const _mvpLbl = _scoringLabel();
-        const _mvpPg = "grid-template-columns:24px minmax(70px,1fr) 56px 46px 44px 44px 44px";
+        const _mvpPg =
+          "grid-template-columns:24px minmax(70px,1fr) 56px 46px 44px 44px 44px";
         const rows = ranked
           .slice(0, 10)
           .map((p, i) => {
             const rg = Math.round(p.ratingGain);
-            const rgCol = rg > 0 ? "var(--green)" : rg < 0 ? "var(--red)" : "var(--muted)";
+            const rgCol =
+              rg > 0 ? "var(--green)" : rg < 0 ? "var(--red)" : "var(--muted)";
             return `<div class="lrace-row" style="${_mvpPg}">
           <div style="text-align:center;font-size:10px;color:var(--muted)">#${i + 1}</div>
           <div class="lrace-name">${escHtml(p.name)}</div>
@@ -16686,17 +17968,22 @@ function renderAnalyticsPage() {
         playersByMatches.forEach((name) => {
           const badges = computeBadges(name, null, eloMapAll, am, compList);
           badges.forEach((b) => {
-            if (!holders[b.label]) holders[b.label] = { icon: b.icon, desc: b.desc, players: [] };
+            if (!holders[b.label])
+              holders[b.label] = { icon: b.icon, desc: b.desc, players: [] };
             holders[b.label].players.push(name);
           });
         });
         const labels = Object.keys(holders);
-        if (!labels.length) return '<div class="sub" style="padding:8px">No badges earned yet.</div>';
+        if (!labels.length)
+          return '<div class="sub" style="padding:8px">No badges earned yet.</div>';
         const rows = labels
           .map((label) => {
             const h = holders[label];
             const chips = h.players
-              .map((p) => `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.05);border-radius:14px;padding:3px 9px;font-size:10px;font-weight:700;margin:2px">${escHtml(p)}</span>`)
+              .map(
+                (p) =>
+                  `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.05);border-radius:14px;padding:3px 9px;font-size:10px;font-weight:700;margin:2px">${escHtml(p)}</span>`,
+              )
               .join("");
             return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:16px">${h.icon}</span><span style="font-size:11px;font-weight:800">${escHtml(label)}</span><span style="font-size:8px;color:var(--muted)">${escHtml(h.desc || "")}</span></div>
@@ -16713,13 +18000,21 @@ function renderAnalyticsPage() {
       title: "🏁 Ratings Race",
       body: (() => {
         const months = uniqueMonths.slice(-12);
-        if (months.length < 3) return '<div class="sub" style="padding:8px">Need more months of history.</div>';
+        if (months.length < 3)
+          return '<div class="sub" style="padding:8px">Need more months of history.</div>';
         const scoreFn = _scoringMode === "ass" ? computeASS : computeElo;
         const frames = ratingsByMonth(sortedM, scoreFn, months);
         const finalScores = frames[frames.length - 1].scores;
-        const topNames = Object.entries(finalScores).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([n]) => n);
-        if (!topNames.length) return '<div class="sub" style="padding:8px">No data.</div>';
-        const maxScore = Math.max(...frames.flatMap((f) => topNames.map((n) => f.scores[n] || 1000)), 1200);
+        const topNames = Object.entries(finalScores)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(([n]) => n);
+        if (!topNames.length)
+          return '<div class="sub" style="padding:8px">No data.</div>';
+        const maxScore = Math.max(
+          ...frames.flatMap((f) => topNames.map((n) => f.scores[n] || 1000)),
+          1200,
+        );
         const bars = topNames
           .map((n, i) => {
             const val = Math.round(frames[0].scores[n] || 1000);
@@ -16734,7 +18029,10 @@ function renderAnalyticsPage() {
         const raceData = escHtml(
           JSON.stringify({
             names: topNames,
-            frames: frames.map((f) => ({ month: f.month, scores: topNames.map((n) => Math.round(f.scores[n] || 1000)) })),
+            frames: frames.map((f) => ({
+              month: f.month,
+              scores: topNames.map((n) => Math.round(f.scores[n] || 1000)),
+            })),
             maxScore,
           }),
         );
@@ -16752,23 +18050,31 @@ function renderAnalyticsPage() {
       title: "🔬 Ratings Small Multiples",
       body: (() => {
         const hist = _activeHistory();
-        const names = playersByMatches.filter((n) => (hist[n] || []).length >= 3).slice(0, 16);
-        if (!names.length) return '<div class="sub" style="padding:8px">Need more match history.</div>';
-        const W = 100, H = 40, PAD = 3;
+        const names = playersByMatches
+          .filter((n) => (hist[n] || []).length >= 3)
+          .slice(0, 16);
+        if (!names.length)
+          return '<div class="sub" style="padding:8px">Need more match history.</div>';
+        const W = 100,
+          H = 40,
+          PAD = 3;
         const cards = names
           .map((n) => {
             const h = hist[n];
             const vals = h.map((pt) => pt.elo);
-            const min = Math.min(...vals), max = Math.max(...vals);
+            const min = Math.min(...vals),
+              max = Math.max(...vals);
             const range = Math.max(max - min, 1);
             const pts = vals
               .map((v, i) => {
-                const x = PAD + (i / Math.max(vals.length - 1, 1)) * (W - PAD * 2);
+                const x =
+                  PAD + (i / Math.max(vals.length - 1, 1)) * (W - PAD * 2);
                 const y = H - PAD - ((v - min) / range) * (H - PAD * 2);
                 return `${x.toFixed(1)},${y.toFixed(1)}`;
               })
               .join(" ");
-            const last = vals[vals.length - 1], first = vals[0];
+            const last = vals[vals.length - 1],
+              first = vals[0];
             const col = last >= first ? "#36d47e" : "#f04f4f";
             return `<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:6px">
               <div style="font-size:9px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(n.split(" ")[0])}</div>
@@ -17060,7 +18366,12 @@ async function sendBackupEmail() {
     }
     const todayStr = todayISO();
     const jsonData = JSON.stringify(
-      { matches: state.matches, players: state.players, playerAliasMap, nextPlayerId },
+      {
+        matches: state.matches,
+        players: state.players,
+        playerAliasMap,
+        nextPlayerId,
+      },
       null,
       2,
     );
@@ -17195,7 +18506,9 @@ async function _pruneDriveBackups(keep = 7) {
         const removeParents = (f.parents || []).join(",");
         const url =
           `https://www.googleapis.com/drive/v3/files/${f.id}?addParents=${folderId}` +
-          (removeParents ? `&removeParents=${encodeURIComponent(removeParents)}` : "") +
+          (removeParents
+            ? `&removeParents=${encodeURIComponent(removeParents)}`
+            : "") +
           `&fields=id`;
         _moved++;
         return fetch(url, {
@@ -17215,7 +18528,10 @@ async function _pruneDriveBackups(keep = 7) {
 // same time. Called from scheduleAutoEmail's timer path and startup.
 let _driveBackupTimer = null;
 function _scheduleDriveBackup() {
-  if (_driveBackupTimer) { clearTimeout(_driveBackupTimer); _driveBackupTimer = null; }
+  if (_driveBackupTimer) {
+    clearTimeout(_driveBackupTimer);
+    _driveBackupTimer = null;
+  }
   if (!window.isAdmin) return;
 
   const now = new Date();
@@ -17249,18 +18565,22 @@ function _scheduleDriveBackup() {
   const _pFilter = _p.get("filter");
   if (_tab === "summary") {
     // Defer until data + splash are ready so the tab switch doesn't race startup.
-    document.addEventListener("padel-data-ready", () => {
-      // Let the initial render settle before switching tab.
-      setTimeout(() => {
-        if (_pSeason) setSeason(_pSeason);
-        if (_pFilter) {
-          cmpFilter = _pFilter;
-          const el = document.getElementById("cmpFilter");
-          if (el) el.value = _pFilter;
-        }
-        switchMainTab("compact", true);
-      }, 100);
-    }, { once: true });
+    document.addEventListener(
+      "padel-data-ready",
+      () => {
+        // Let the initial render settle before switching tab.
+        setTimeout(() => {
+          if (_pSeason) setSeason(_pSeason);
+          if (_pFilter) {
+            cmpFilter = _pFilter;
+            const el = document.getElementById("cmpFilter");
+            if (el) el.value = _pFilter;
+          }
+          switchMainTab("compact", true);
+        }, 100);
+      },
+      { once: true },
+    );
   }
 }
 
@@ -17280,7 +18600,7 @@ setTimeout(() => {
 }, 0);
 
 // Expose globals
-window._goToSummaryDay = function(date) {
+window._goToSummaryDay = function (date) {
   cmpFilter = "day";
   cmpFrom = date;
   cmpTo = null;
@@ -17298,20 +18618,43 @@ window._goToSummaryDay = function(date) {
 
 window._mReportText = "";
 
-window._showPlayerMonthReport = function(mo, playerName) {
+window._showPlayerMonthReport = function (mo, playerName) {
   document.getElementById("player-month-report-modal")?.remove();
-  const moN2 = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const moN2 = [
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const [year, monthNum] = mo.split("-");
   const moLabel = `${moN2[parseInt(monthNum)]} ${year}`;
 
   const allMs = activeMatches()
-    .filter((m) => (m.date || "").startsWith(mo) && [...(m.teamA || []), ...(m.teamB || [])].includes(playerName))
+    .filter(
+      (m) =>
+        (m.date || "").startsWith(mo) &&
+        [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
+    )
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (!allMs.length) return;
 
-  let mp = 0, mw = 0, gw = 0, gl = 0;
-  let bestWin = null, bestLoss = null;
-  let run = 0, maxWStreak = 0;
+  let mp = 0,
+    mw = 0,
+    gw = 0,
+    gl = 0;
+  let bestWin = null,
+    bestLoss = null;
+  let run = 0,
+    maxWStreak = 0;
   const results = [];
   const oppRecord = {}; // key: sorted opp team string → {w, l}
 
@@ -17321,7 +18664,9 @@ window._showPlayerMonthReport = function(mo, playerName) {
     const oppScore = inA ? m.scoreB : m.scoreA;
     const won = myScore > oppScore;
     const margin = Math.abs(myScore - oppScore);
-    const partner = (inA ? m.teamA : m.teamB).filter((x) => x !== playerName).join(" & ");
+    const partner = (inA ? m.teamA : m.teamB)
+      .filter((x) => x !== playerName)
+      .join(" & ");
     const oppTeam = (inA ? m.teamB : m.teamA).join(" & ");
 
     mp++;
@@ -17331,19 +18676,37 @@ window._showPlayerMonthReport = function(mo, playerName) {
       mw++;
       run++;
       maxWStreak = Math.max(maxWStreak, run);
-      if (!bestWin || margin > bestWin.margin) bestWin = { margin, score: `${myScore}-${oppScore}`, partner, opp: oppTeam, date: m.date };
+      if (!bestWin || margin > bestWin.margin)
+        bestWin = {
+          margin,
+          score: `${myScore}-${oppScore}`,
+          partner,
+          opp: oppTeam,
+          date: m.date,
+        };
     } else {
       run = 0;
-      if (!bestLoss || margin > bestLoss.margin) bestLoss = { margin, score: `${myScore}-${oppScore}`, partner, opp: oppTeam, date: m.date };
+      if (!bestLoss || margin > bestLoss.margin)
+        bestLoss = {
+          margin,
+          score: `${myScore}-${oppScore}`,
+          partner,
+          opp: oppTeam,
+          date: m.date,
+        };
     }
     results.push(won ? "W" : "L");
     if (!oppRecord[oppTeam]) oppRecord[oppTeam] = { w: 0, l: 0 };
-    if (won) oppRecord[oppTeam].w++; else oppRecord[oppTeam].l++;
+    if (won) oppRecord[oppTeam].w++;
+    else oppRecord[oppTeam].l++;
   });
 
   const winPct = Math.round((mw / mp) * 100);
-  const winCol = winPct >= 61 ? "var(--green)" : winPct >= 45 ? "var(--gold)" : "var(--red)";
-  const oppEntries = Object.entries(oppRecord).sort((a, b) => (b[1].w + b[1].l) - (a[1].w + a[1].l));
+  const winCol =
+    winPct >= 61 ? "var(--green)" : winPct >= 45 ? "var(--gold)" : "var(--red)";
+  const oppEntries = Object.entries(oppRecord).sort(
+    (a, b) => b[1].w + b[1].l - (a[1].w + a[1].l),
+  );
 
   // ── WhatsApp text ─────────────────────────────────────────
   const lines = [];
@@ -17351,16 +18714,22 @@ window._showPlayerMonthReport = function(mo, playerName) {
   lines.push("");
   lines.push(`📊 *RECORD*`);
   lines.push(`${mw}W-${mp - mw}L · ${winPct}% · ${mp} matches`);
-  lines.push(`Games: ${gw}–${gl} (${Math.round(gw / (gw + gl) * 100)}% game win rate)`);
+  lines.push(
+    `Games: ${gw}–${gl} (${Math.round((gw / (gw + gl)) * 100)}% game win rate)`,
+  );
   lines.push("");
   if (bestWin) {
     lines.push(`🔥 *BEST WIN*`);
-    lines.push(`${bestWin.score}${bestWin.partner ? ` with ${bestWin.partner}` : ""} vs ${bestWin.opp} (${fmtDate(bestWin.date)})`);
+    lines.push(
+      `${bestWin.score}${bestWin.partner ? ` with ${bestWin.partner}` : ""} vs ${bestWin.opp} (${fmtDate(bestWin.date)})`,
+    );
     lines.push("");
   }
   if (bestLoss) {
     lines.push(`😬 *WORST LOSS*`);
-    lines.push(`${bestLoss.score}${bestLoss.partner ? ` with ${bestLoss.partner}` : ""} vs ${bestLoss.opp} (${fmtDate(bestLoss.date)})`);
+    lines.push(
+      `${bestLoss.score}${bestLoss.partner ? ` with ${bestLoss.partner}` : ""} vs ${bestLoss.opp} (${fmtDate(bestLoss.date)})`,
+    );
     lines.push("");
   }
   if (maxWStreak >= 2) {
@@ -17371,21 +18740,32 @@ window._showPlayerMonthReport = function(mo, playerName) {
   lines.push(`🆚 *VS OPPONENTS*`);
   oppEntries.forEach(([opp, rec]) => {
     const tot = rec.w + rec.l;
-    lines.push(`• ${opp}: ${rec.w}W-${rec.l}L (${Math.round(rec.w / tot * 100)}%)`);
+    lines.push(
+      `• ${opp}: ${rec.w}W-${rec.l}L (${Math.round((rec.w / tot) * 100)}%)`,
+    );
   });
   lines.push("");
   lines.push(`_via EktaPadel 🏓_`);
   window._mReportText = lines.join("\n");
 
   // ── HTML ──────────────────────────────────────────────────
-  const formHtml = results.slice(-15).map((r) => `<span class="fd fd-lg ${r === "W" ? "fd-w" : "fd-l"}">${r}</span>`).join("");
+  const formHtml = results
+    .slice(-15)
+    .map(
+      (r) =>
+        `<span class="fd fd-lg ${r === "W" ? "fd-w" : "fd-l"}">${r}</span>`,
+    )
+    .join("");
 
-  const oppHtml = oppEntries.map(([opp, rec]) => {
-    const tot = rec.w + rec.l;
-    const pct = Math.round(rec.w / tot * 100);
-    const col = pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
-    return `<div class="chem-row"><div class="chem-names" style="font-size:10px">${escHtml(opp)}</div><div class="chem-wl">${rec.w}–${rec.l}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pct}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pct}%</div></div>`;
-  }).join("");
+  const oppHtml = oppEntries
+    .map(([opp, rec]) => {
+      const tot = rec.w + rec.l;
+      const pct = Math.round((rec.w / tot) * 100);
+      const col =
+        pct >= 60 ? "var(--green)" : pct <= 40 ? "var(--red)" : "var(--muted)";
+      return `<div class="chem-row"><div class="chem-names" style="font-size:10px">${escHtml(opp)}</div><div class="chem-wl">${rec.w}–${rec.l}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pct}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pct}%</div></div>`;
+    })
+    .join("");
 
   const card = (title, content) =>
     `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px"><div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${title}</div>${content}</div>`;
@@ -17401,9 +18781,15 @@ window._showPlayerMonthReport = function(mo, playerName) {
     </div>`;
 
   const highLowHtml = [
-    bestWin ? `<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">Best Win: ${bestWin.score}</div><div style="font-size:9px;color:var(--muted)">${bestWin.partner ? `with ${escHtml(bestWin.partner)} · ` : ""}vs ${escHtml(bestWin.opp)} · ${fmtDate(bestWin.date)}</div></div></div>` : "",
-    bestLoss ? `<div class="chem-row"><span style="font-size:16px">😬</span><div><div style="font-size:11px;font-weight:700">Worst Loss: ${bestLoss.score}</div><div style="font-size:9px;color:var(--muted)">${bestLoss.partner ? `with ${escHtml(bestLoss.partner)} · ` : ""}vs ${escHtml(bestLoss.opp)} · ${fmtDate(bestLoss.date)}</div></div></div>` : "",
-  ].filter(Boolean).join("");
+    bestWin
+      ? `<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">Best Win: ${bestWin.score}</div><div style="font-size:9px;color:var(--muted)">${bestWin.partner ? `with ${escHtml(bestWin.partner)} · ` : ""}vs ${escHtml(bestWin.opp)} · ${fmtDate(bestWin.date)}</div></div></div>`
+      : "",
+    bestLoss
+      ? `<div class="chem-row"><span style="font-size:16px">😬</span><div><div style="font-size:11px;font-weight:700">Worst Loss: ${bestLoss.score}</div><div style="font-size:9px;color:var(--muted)">${bestLoss.partner ? `with ${escHtml(bestLoss.partner)} · ` : ""}vs ${escHtml(bestLoss.opp)} · ${fmtDate(bestLoss.date)}</div></div></div>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("");
 
   const html = `<div id="player-month-report-modal" style="position:fixed;inset:0;z-index:1000;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
     <div style="max-width:480px;margin:0 auto;padding:16px 12px 88px">
@@ -17427,22 +18813,44 @@ window._showPlayerMonthReport = function(mo, playerName) {
   document.body.insertAdjacentHTML("beforeend", html);
 };
 
-window._copyMonthReport = function() {
+window._copyMonthReport = function () {
   if (!window._mReportText) return;
   navigator.clipboard?.writeText(window._mReportText).then(() => {
     const btn = document.getElementById("mr-copy-btn");
-    if (btn) { btn.textContent = "✓ Copied!"; setTimeout(() => { btn.textContent = "📋 Copy Text"; }, 2000); }
+    if (btn) {
+      btn.textContent = "✓ Copied!";
+      setTimeout(() => {
+        btn.textContent = "📋 Copy Text";
+      }, 2000);
+    }
   });
 };
 
-window._shareMonthWhatsApp = function() {
+window._shareMonthWhatsApp = function () {
   if (!window._mReportText) return;
-  window.open("https://wa.me/?text=" + encodeURIComponent(window._mReportText), "_blank");
+  window.open(
+    "https://wa.me/?text=" + encodeURIComponent(window._mReportText),
+    "_blank",
+  );
 };
 
-window._showMonthReport = function(mo) {
+window._showMonthReport = function (mo) {
   document.getElementById("month-report-modal")?.remove();
-  const moN2 = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const moN2 = [
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const [year, monthNum] = mo.split("-");
   const moLabel = `${moN2[parseInt(monthNum)]} ${year}`;
 
@@ -17458,35 +18866,67 @@ window._showMonthReport = function(mo) {
 
   // ── Per-player accumulation ──────────────────────────────
   const P = {};
-  const mkp = (n) => (P[n] = P[n] || { mp: 0, mw: 0, gw: 0, gl: 0, bestWin: null, bestLoss: null, results: [] });
+  const mkp = (n) =>
+    (P[n] = P[n] || {
+      mp: 0,
+      mw: 0,
+      gw: 0,
+      gl: 0,
+      bestWin: null,
+      bestLoss: null,
+      results: [],
+    });
 
   const byDate = {};
-  let closestM = null, bigWinM = null;
-  let fireCount = 0, shutouts = 0;
+  let closestM = null,
+    bigWinM = null;
+  let fireCount = 0,
+    shutouts = 0;
 
   allMs.forEach((m) => {
     const aWon = m.scoreA > m.scoreB;
     const margin = Math.abs(m.scoreA - m.scoreB);
     if (m.date) byDate[m.date] = (byDate[m.date] || 0) + 1;
-    if (!closestM || margin < Math.abs(closestM.scoreA - closestM.scoreB)) closestM = m;
-    if (!bigWinM || margin > Math.abs(bigWinM.scoreA - bigWinM.scoreB)) bigWinM = m;
+    if (!closestM || margin < Math.abs(closestM.scoreA - closestM.scoreB))
+      closestM = m;
+    if (!bigWinM || margin > Math.abs(bigWinM.scoreA - bigWinM.scoreB))
+      bigWinM = m;
     if (m.scoreA === 0 || m.scoreB === 0) shutouts++;
     if (isFireMatch(m)) fireCount++;
 
-    [[m.teamA, m.teamB, aWon], [m.teamB, m.teamA, !aWon]].forEach(([mine, theirs, won]) => {
+    [
+      [m.teamA, m.teamB, aWon],
+      [m.teamB, m.teamA, !aWon],
+    ].forEach(([mine, theirs, won]) => {
       mine.forEach((p) => {
         const ps = mkp(p);
         ps.mp++;
-        ps.gw += won ? Math.max(m.scoreA, m.scoreB) : Math.min(m.scoreA, m.scoreB);
-        ps.gl += won ? Math.min(m.scoreA, m.scoreB) : Math.max(m.scoreA, m.scoreB);
+        ps.gw += won
+          ? Math.max(m.scoreA, m.scoreB)
+          : Math.min(m.scoreA, m.scoreB);
+        ps.gl += won
+          ? Math.min(m.scoreA, m.scoreB)
+          : Math.max(m.scoreA, m.scoreB);
         if (won) {
           ps.mw++;
           if (!ps.bestWin || margin > ps.bestWin.margin) {
-            ps.bestWin = { margin, label: `${Math.max(m.scoreA, m.scoreB)}-${Math.min(m.scoreA, m.scoreB)}`, partner: mine.filter((x) => x !== p).join(" & "), opp: theirs.join(" & "), date: m.date };
+            ps.bestWin = {
+              margin,
+              label: `${Math.max(m.scoreA, m.scoreB)}-${Math.min(m.scoreA, m.scoreB)}`,
+              partner: mine.filter((x) => x !== p).join(" & "),
+              opp: theirs.join(" & "),
+              date: m.date,
+            };
           }
         } else {
           if (!ps.bestLoss || margin > ps.bestLoss.margin) {
-            ps.bestLoss = { margin, label: `${Math.min(m.scoreA, m.scoreB)}-${Math.max(m.scoreA, m.scoreB)}`, partner: mine.filter((x) => x !== p).join(" & "), opp: theirs.join(" & "), date: m.date };
+            ps.bestLoss = {
+              margin,
+              label: `${Math.min(m.scoreA, m.scoreB)}-${Math.max(m.scoreA, m.scoreB)}`,
+              partner: mine.filter((x) => x !== p).join(" & "),
+              opp: theirs.join(" & "),
+              date: m.date,
+            };
           }
         }
         ps.results.push(won ? "W" : "L");
@@ -17496,8 +18936,14 @@ window._showMonthReport = function(mo) {
 
   // Max win streak per player this month
   Object.values(P).forEach((ps) => {
-    let run = 0, max = 0;
-    ps.results.forEach((r) => { if (r === "W") { run++; max = Math.max(max, run); } else run = 0; });
+    let run = 0,
+      max = 0;
+    ps.results.forEach((r) => {
+      if (r === "W") {
+        run++;
+        max = Math.max(max, run);
+      } else run = 0;
+    });
     ps.maxWStreak = max;
   });
 
@@ -17513,10 +18959,17 @@ window._showMonthReport = function(mo) {
 
   const potm = standings.find((p) => p.mp >= 2) || standings[0];
   const medals = ["🥇", "🥈", "🥉"];
-  const [topDay, topDayCount] = Object.entries(byDate).sort((a, b) => b[1] - a[1])[0] || [];
-  const streaker = [...standings].sort((a, b) => b.maxWStreak - a.maxWStreak)[0];
-  const bottom = [...standings].sort((a, b) => a.winPct - b.winPct || a.mp - b.mp);
-  const nailCount = allMs.filter((m) => Math.abs(m.scoreA - m.scoreB) === 1).length;
+  const [topDay, topDayCount] =
+    Object.entries(byDate).sort((a, b) => b[1] - a[1])[0] || [];
+  const streaker = [...standings].sort(
+    (a, b) => b.maxWStreak - a.maxWStreak,
+  )[0];
+  const bottom = [...standings].sort(
+    (a, b) => a.winPct - b.winPct || a.mp - b.mp,
+  );
+  const nailCount = allMs.filter(
+    (m) => Math.abs(m.scoreA - m.scoreB) === 1,
+  ).length;
 
   // ── WhatsApp text ────────────────────────────────────────
   const lines = [];
@@ -17524,12 +18977,16 @@ window._showMonthReport = function(mo) {
   lines.push("");
   if (potm) {
     lines.push(`🏆 *PLAYER OF THE MONTH*`);
-    lines.push(`${potm.name} — ${potm.ass} ASS (${potm.mw}W-${potm.mp - potm.mw}L)`);
+    lines.push(
+      `${potm.name} — ${potm.ass} ASS (${potm.mw}W-${potm.mp - potm.mw}L)`,
+    );
     lines.push("");
   }
   lines.push(`📊 *STANDINGS*`);
   standings.forEach((p, i) => {
-    lines.push(`${medals[i] || `${i + 1}.`} ${p.name} — ${p.ass} ASS · ${p.elo} ELO (${p.mw}W-${p.mp - p.mw}L)`);
+    lines.push(
+      `${medals[i] || `${i + 1}.`} ${p.name} — ${p.ass} ASS · ${p.elo} ELO (${p.mw}W-${p.mp - p.mw}L)`,
+    );
   });
   lines.push("");
   lines.push(`🔥 *HIGHLIGHTS*`);
@@ -17537,19 +18994,31 @@ window._showMonthReport = function(mo) {
     const bw = bigWinM.scoreA > bigWinM.scoreB;
     const wT = (bw ? bigWinM.teamA : bigWinM.teamB).join(" & ");
     const lT = (bw ? bigWinM.teamB : bigWinM.teamA).join(" & ");
-    lines.push(`• Biggest result: ${wT} ${Math.max(bigWinM.scoreA, bigWinM.scoreB)}-${Math.min(bigWinM.scoreA, bigWinM.scoreB)} vs ${lT} (${fmtDate(bigWinM.date)})`);
+    lines.push(
+      `• Biggest result: ${wT} ${Math.max(bigWinM.scoreA, bigWinM.scoreB)}-${Math.min(bigWinM.scoreA, bigWinM.scoreB)} vs ${lT} (${fmtDate(bigWinM.date)})`,
+    );
   }
   if (streaker && streaker.maxWStreak >= 3) {
-    lines.push(`• ${streaker.name} went on a ${streaker.maxWStreak}-match winning streak`);
+    lines.push(
+      `• ${streaker.name} went on a ${streaker.maxWStreak}-match winning streak`,
+    );
   }
   if (shutouts > 0) lines.push(`• ${shutouts} shutout result(s) (4-0)`);
   if (fireCount > 0) lines.push(`• ${fireCount} 🔥 fire match(es) played`);
   lines.push("");
   lines.push(`📉 *TOUGH MONTH*`);
   if (bottom[0] && bottom[0].winPct < 40) {
-    lines.push(`• ${bottom[0].name} — ${bottom[0].mw}W-${bottom[0].mp - bottom[0].mw}L (${bottom[0].winPct}%)`);
-    if (bottom[1] && bottom[1].winPct < 40 && bottom[1].name !== bottom[0].name) {
-      lines.push(`• ${bottom[1].name} — ${bottom[1].mw}W-${bottom[1].mp - bottom[1].mw}L (${bottom[1].winPct}%)`);
+    lines.push(
+      `• ${bottom[0].name} — ${bottom[0].mw}W-${bottom[0].mp - bottom[0].mw}L (${bottom[0].winPct}%)`,
+    );
+    if (
+      bottom[1] &&
+      bottom[1].winPct < 40 &&
+      bottom[1].name !== bottom[0].name
+    ) {
+      lines.push(
+        `• ${bottom[1].name} — ${bottom[1].mw}W-${bottom[1].mp - bottom[1].mw}L (${bottom[1].winPct}%)`,
+      );
     }
   } else {
     lines.push(`• Everyone held their own this month! 💪`);
@@ -17559,7 +19028,8 @@ window._showMonthReport = function(mo) {
   lines.push(`• Matches played: ${allMs.length}`);
   lines.push(`• Active days: ${Object.keys(byDate).length}`);
   lines.push(`• Players: ${standings.length}`);
-  if (topDay) lines.push(`• Busiest day: ${fmtDate(topDay)} (${topDayCount} matches)`);
+  if (topDay)
+    lines.push(`• Busiest day: ${fmtDate(topDay)} (${topDayCount} matches)`);
   if (nailCount > 0) lines.push(`• Nail-biters (±1 margin): ${nailCount} 💓`);
   lines.push(`_via EktaPadel 🏓_`);
   window._mReportText = lines.join("\n");
@@ -17576,17 +19046,27 @@ window._showMonthReport = function(mo) {
     "linear-gradient(90deg, rgba(0,220,255,0.10), rgba(0,220,255,0.02))",
     "linear-gradient(90deg, rgba(180,90,255,0.10), rgba(180,90,255,0.02))",
   ];
-  const _medalBorder = ["rgba(255,190,0,0.4)", "rgba(0,220,255,0.35)", "rgba(180,90,255,0.35)"];
-  const standHtml = standings.map((p, i) => {
-    const isTop3 = i < 3;
-    const rowBg = isTop3 ? _medalBg[i] : i % 2 === 1 ? "rgba(255,255,255,0.025)" : "transparent";
-    const rankHtml = medals[i]
-      ? `<span style="font-size:17px">${medals[i]}</span>`
-      : `<span style="font-size:15px;font-weight:800;color:rgba(255,255,255,0.4)">${i + 1}</span>`;
-    const wl = p.mw - (p.mp - p.mw);
-    const wlColor = wl > 0 ? "var(--green)" : wl < 0 ? "var(--red)" : "var(--muted)";
-    const isLast = i === standings.length - 1;
-    return `<div style="display:flex;align-items:center;gap:10px;margin:0 -12px;padding:9px 12px;background:${rowBg};border-left:3px solid ${isTop3 ? _medalBorder[i] : "transparent"};border-bottom:${isLast ? "none" : "1px solid rgba(255,255,255,0.05)"};${isLast ? "border-radius:0 0 14px 14px" : ""};cursor:pointer" onclick="window._showPlayerMonthReport(${jsArg(mo)},${jsArg(p.name)})">
+  const _medalBorder = [
+    "rgba(255,190,0,0.4)",
+    "rgba(0,220,255,0.35)",
+    "rgba(180,90,255,0.35)",
+  ];
+  const standHtml = standings
+    .map((p, i) => {
+      const isTop3 = i < 3;
+      const rowBg = isTop3
+        ? _medalBg[i]
+        : i % 2 === 1
+          ? "rgba(255,255,255,0.025)"
+          : "transparent";
+      const rankHtml = medals[i]
+        ? `<span style="font-size:17px">${medals[i]}</span>`
+        : `<span style="font-size:15px;font-weight:800;color:rgba(255,255,255,0.4)">${i + 1}</span>`;
+      const wl = p.mw - (p.mp - p.mw);
+      const wlColor =
+        wl > 0 ? "var(--green)" : wl < 0 ? "var(--red)" : "var(--muted)";
+      const isLast = i === standings.length - 1;
+      return `<div style="display:flex;align-items:center;gap:10px;margin:0 -12px;padding:9px 12px;background:${rowBg};border-left:3px solid ${isTop3 ? _medalBorder[i] : "transparent"};border-bottom:${isLast ? "none" : "1px solid rgba(255,255,255,0.05)"};${isLast ? "border-radius:0 0 14px 14px" : ""};cursor:pointer" onclick="window._showPlayerMonthReport(${jsArg(mo)},${jsArg(p.name)})">
       <div style="width:24px;text-align:center;flex-shrink:0">${rankHtml}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:800;letter-spacing:0.01em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name.toUpperCase())}</div>
@@ -17598,28 +19078,54 @@ window._showMonthReport = function(mo) {
       </div>
       <div style="font-size:11px;color:var(--muted);flex-shrink:0">›</div>
     </div>`;
-  }).join("");
+    })
+    .join("");
 
   // Highlights
   const highRows = [];
-  if (potm) highRows.push(`<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.ass} ASS · ${potm.elo} ELO · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`);
+  if (potm)
+    highRows.push(
+      `<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.ass} ASS · ${potm.elo} ELO · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`,
+    );
   if (bigWinM) {
     const bw = bigWinM.scoreA > bigWinM.scoreB;
     const wT = (bw ? bigWinM.teamA : bigWinM.teamB).join(" & ");
-    highRows.push(`<div class="chem-row"><span style="font-size:16px">💥</span><div><div style="font-size:11px;font-weight:700">Biggest Result: ${Math.max(bigWinM.scoreA, bigWinM.scoreB)}-${Math.min(bigWinM.scoreA, bigWinM.scoreB)}</div><div style="font-size:9px;color:var(--muted)">${escHtml(wT)} · ${fmtDate(bigWinM.date)}</div></div></div>`);
+    highRows.push(
+      `<div class="chem-row"><span style="font-size:16px">💥</span><div><div style="font-size:11px;font-weight:700">Biggest Result: ${Math.max(bigWinM.scoreA, bigWinM.scoreB)}-${Math.min(bigWinM.scoreA, bigWinM.scoreB)}</div><div style="font-size:9px;color:var(--muted)">${escHtml(wT)} · ${fmtDate(bigWinM.date)}</div></div></div>`,
+    );
   }
-  if (streaker && streaker.maxWStreak >= 3) highRows.push(`<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">${escHtml(streaker.name)}: ${streaker.maxWStreak}-match streak</div><div style="font-size:9px;color:var(--muted)">Best winning run of the month</div></div></div>`);
-  if (shutouts > 0) highRows.push(`<div class="chem-row"><span style="font-size:16px">💀</span><div><div style="font-size:11px;font-weight:700">${shutouts} Shutout result(s)</div><div style="font-size:9px;color:var(--muted)">Games ending 4-0</div></div></div>`);
-  if (fireCount > 0) highRows.push(`<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">${fireCount} Fire Match(es)</div><div style="font-size:9px;color:var(--muted)">High-intensity, closely fought games</div></div></div>`);
+  if (streaker && streaker.maxWStreak >= 3)
+    highRows.push(
+      `<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">${escHtml(streaker.name)}: ${streaker.maxWStreak}-match streak</div><div style="font-size:9px;color:var(--muted)">Best winning run of the month</div></div></div>`,
+    );
+  if (shutouts > 0)
+    highRows.push(
+      `<div class="chem-row"><span style="font-size:16px">💀</span><div><div style="font-size:11px;font-weight:700">${shutouts} Shutout result(s)</div><div style="font-size:9px;color:var(--muted)">Games ending 4-0</div></div></div>`,
+    );
+  if (fireCount > 0)
+    highRows.push(
+      `<div class="chem-row"><span style="font-size:16px">🔥</span><div><div style="font-size:11px;font-weight:700">${fireCount} Fire Match(es)</div><div style="font-size:9px;color:var(--muted)">High-intensity, closely fought games</div></div></div>`,
+    );
 
   // Lows
   const lowRows = [];
   bottom.slice(0, 2).forEach((p) => {
-    if (p.winPct < 45) lowRows.push(`<div class="chem-row"><span style="font-size:16px">📉</span><div><div style="font-size:11px;font-weight:700">${escHtml(p.name)}: ${p.winPct}%</div><div style="font-size:9px;color:var(--muted)">${p.mw}W-${p.mp - p.mw}L · ${p.mp} matches</div></div></div>`);
+    if (p.winPct < 45)
+      lowRows.push(
+        `<div class="chem-row"><span style="font-size:16px">📉</span><div><div style="font-size:11px;font-weight:700">${escHtml(p.name)}: ${p.winPct}%</div><div style="font-size:9px;color:var(--muted)">${p.mw}W-${p.mp - p.mw}L · ${p.mp} matches</div></div></div>`,
+      );
   });
-  const worstLossP = standings.filter((p) => p.bestLoss).sort((a, b) => b.bestLoss.margin - a.bestLoss.margin)[0];
-  if (worstLossP?.bestLoss) lowRows.push(`<div class="chem-row"><span style="font-size:16px">😬</span><div><div style="font-size:11px;font-weight:700">${escHtml(worstLossP.name)}: Lost ${worstLossP.bestLoss.label}</div><div style="font-size:9px;color:var(--muted)">vs ${escHtml(worstLossP.bestLoss.opp)} · ${fmtDate(worstLossP.bestLoss.date)}</div></div></div>`);
-  if (!lowRows.length) lowRows.push(`<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0">Everyone held their own! 💪</div>`);
+  const worstLossP = standings
+    .filter((p) => p.bestLoss)
+    .sort((a, b) => b.bestLoss.margin - a.bestLoss.margin)[0];
+  if (worstLossP?.bestLoss)
+    lowRows.push(
+      `<div class="chem-row"><span style="font-size:16px">😬</span><div><div style="font-size:11px;font-weight:700">${escHtml(worstLossP.name)}: Lost ${worstLossP.bestLoss.label}</div><div style="font-size:9px;color:var(--muted)">vs ${escHtml(worstLossP.bestLoss.opp)} · ${fmtDate(worstLossP.bestLoss.date)}</div></div></div>`,
+    );
+  if (!lowRows.length)
+    lowRows.push(
+      `<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0">Everyone held their own! 💪</div>`,
+    );
 
   // Numbers
   const numRows = [
@@ -17627,9 +19133,18 @@ window._showMonthReport = function(mo) {
     `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Playing days</span><span style="font-size:11px;font-weight:700">${Object.keys(byDate).length}</span></div>`,
     `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Players active</span><span style="font-size:11px;font-weight:700">${standings.length}</span></div>`,
   ];
-  if (topDay) numRows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Busiest day</span><span style="font-size:11px;font-weight:700">${fmtDate(topDay)} (${topDayCount})</span></div>`);
-  if (nailCount > 0) numRows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Nail-biters (±1)</span><span style="font-size:11px;font-weight:700">${nailCount} 💓</span></div>`);
-  if (fireCount > 0) numRows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="font-size:11px;color:var(--muted)">🔥 Fire matches</span><span style="font-size:11px;font-weight:700">${fireCount}</span></div>`);
+  if (topDay)
+    numRows.push(
+      `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Busiest day</span><span style="font-size:11px;font-weight:700">${fmtDate(topDay)} (${topDayCount})</span></div>`,
+    );
+  if (nailCount > 0)
+    numRows.push(
+      `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;color:var(--muted)">Nail-biters (±1)</span><span style="font-size:11px;font-weight:700">${nailCount} 💓</span></div>`,
+    );
+  if (fireCount > 0)
+    numRows.push(
+      `<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="font-size:11px;color:var(--muted)">🔥 Fire matches</span><span style="font-size:11px;font-weight:700">${fireCount}</span></div>`,
+    );
 
   const html = `<div id="month-report-modal" style="position:fixed;inset:0;z-index:999;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
     <div style="max-width:480px;margin:0 auto;padding:16px 12px 88px">
@@ -18027,7 +19542,9 @@ function openLivePlayerSheet(slot) {
     _liveSessionData?.sessionPlayers?.length >= 2
       ? _liveSessionData.sessionPlayers
       : null;
-  const players = (sessionPlayers || getAllPlayerNamesFromMatches()).slice().sort((a, b) => a.localeCompare(b));
+  const players = (sessionPlayers || getAllPlayerNamesFromMatches())
+    .slice()
+    .sort((a, b) => a.localeCompare(b));
   const clearBtn = `<button class="live-sheet-item live-sheet-item-clear" onclick="selectLivePlayer(null,${jsArg(slot)})">
       <span class="live-sheet-item-av" style="background:rgba(255,70,70,0.18);color:#ff5555">✕</span>
       <span class="live-sheet-item-name">CLEAR SLOT</span>
@@ -18108,8 +19625,12 @@ function setLiveRaceTo(n) {
 }
 
 function _syncRaceToggleUI() {
-  document.getElementById("live-race-4")?.classList.toggle("live-race-pill-active", _liveRaceTo === 4);
-  document.getElementById("live-race-6")?.classList.toggle("live-race-pill-active", _liveRaceTo === 6);
+  document
+    .getElementById("live-race-4")
+    ?.classList.toggle("live-race-pill-active", _liveRaceTo === 4);
+  document
+    .getElementById("live-race-6")
+    ?.classList.toggle("live-race-pill-active", _liveRaceTo === 6);
 }
 
 function _showRaceReachedPrompt() {
@@ -18121,8 +19642,10 @@ function _showRaceReachedPrompt() {
   if (matchup) {
     const { a1, a2, b1, b2 } = _liveSlots;
     const aWon = _liveScoreA > _liveScoreB;
-    const na1 = normPlayer(a1) || "?", na2 = normPlayer(a2) || "?";
-    const nb1 = normPlayer(b1) || "?", nb2 = normPlayer(b2) || "?";
+    const na1 = normPlayer(a1) || "?",
+      na2 = normPlayer(a2) || "?";
+    const nb1 = normPlayer(b1) || "?",
+      nb2 = normPlayer(b2) || "?";
     const winTeam = aWon ? `${na1} & ${na2}` : `${nb1} & ${nb2}`;
     const loseTeam = aWon ? `${nb1} & ${nb2}` : `${na1} & ${na2}`;
     const winScore = aWon ? _liveScoreA : _liveScoreB;
@@ -18303,8 +19826,6 @@ function _commitSaveMatch() {
   // Stay on live page — do NOT call goTo("live") here as it would corrupt prevPage
 }
 
-
-
 // Global Escape-to-close. Closes the topmost open dialog. Each bottom-sheet
 // has a backdrop overlay whose existing onclick already runs the correct close
 // (with any state cleanup), so Esc reuses that tested path rather than guessing.
@@ -18327,7 +19848,11 @@ document.addEventListener("keydown", (e) => {
     ),
   ].filter((el) => {
     const cs = getComputedStyle(el);
-    return cs.display !== "none" && cs.visibility !== "hidden" && el.offsetParent !== null;
+    return (
+      cs.display !== "none" &&
+      cs.visibility !== "hidden" &&
+      el.offsetParent !== null
+    );
   });
   const top = overlays[overlays.length - 1];
   if (top && typeof top.onclick === "function") top.click();
@@ -18364,7 +19889,10 @@ document.addEventListener("keydown", (e) => {
       // transforms to cards while the browser is zooming forces huge composited
       // layers and crashes mobile WebKit. Leave pinch entirely to the browser.
       if (e.touches.length > 1) {
-        if (_tc) { _tReset(_tc); _tc = null; }
+        if (_tc) {
+          _tReset(_tc);
+          _tc = null;
+        }
         return;
       }
       const card = e.target.closest(".pc");
@@ -18498,8 +20026,7 @@ function _renderSittingOut() {
     `<span class="sittingout-label">SITTING OUT</span>` +
     sitting
       .map(
-        (p) =>
-          `<span class="sittingout-chip">${escHtml(normPlayer(p))}</span>`,
+        (p) => `<span class="sittingout-chip">${escHtml(normPlayer(p))}</span>`,
       )
       .join("");
 }
@@ -18579,7 +20106,8 @@ function _buildSessionLeaderboard() {
     .map(([name, s]) => {
       const pct = s.m ? Math.round((s.w / s.m) * 100) : 0;
       const sc = _sessScore(name);
-      const scCol = sc > 1000 ? "var(--green)" : sc < 1000 ? "var(--red)" : "var(--muted)";
+      const scCol =
+        sc > 1000 ? "var(--green)" : sc < 1000 ? "var(--red)" : "var(--muted)";
       return `<div class="sess-ldr-row">
       <div class="sess-ldr-name">${escHtml(normPlayer(name))}</div>
       <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
@@ -18634,19 +20162,19 @@ function toggleSessionPanel() {
   if (_sessionPanelOpen) _updateSessionPanel();
 }
 
-window.toggleSdashGuests = function() {
+window.toggleSdashGuests = function () {
   _sdashShowGuests = !_sdashShowGuests;
   const btn = document.getElementById("sdash-guest-toggle");
   if (btn) btn.classList.toggle("live-sess-act-active", _sdashShowGuests);
   _renderLiveSessionDashboard();
 };
 
-window._sessSetScoreView = function(view) {
+window._sessSetScoreView = function (view) {
   _sessScoreView = view;
   _renderLiveSessionDashboard();
 };
 
-window._sessSortBy = function(col) {
+window._sessSortBy = function (col) {
   if (_sessSortCol === col) {
     _sessSortDir = _sessSortDir === "desc" ? "asc" : "desc";
   } else {
@@ -18705,9 +20233,9 @@ function _showSuggestSheet(suggestions) {
       const expA = 1 / (1 + Math.pow(10, (s.avgB - s.avgA) / 400));
       const probA = Math.round(expA * 100);
       const probB = 100 - probA;
-      const dAwin  = Math.round(32 * (1 - expA));
+      const dAwin = Math.round(32 * (1 - expA));
       const dAlose = Math.round(32 * (0 - expA));
-      const dBwin  = Math.round(32 * expA);
+      const dBwin = Math.round(32 * expA);
       const dBlose = Math.round(32 * (expA - 1));
       const favA = probA >= probB;
       return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-bottom:10px">
@@ -18845,7 +20373,10 @@ function confirmUndoSession() {
   _checkRematchWarning();
   document
     .getElementById("live-undo-match-btn")
-    ?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
+    ?.style.setProperty(
+      "display",
+      _sessionMatchHistory.length > 0 ? "" : "none",
+    );
   document
     .getElementById("live-redo-match-btn")
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
@@ -18952,14 +20483,19 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
   const sb = parseInt(document.getElementById("edit-sb")?.value);
   const note = document.getElementById("edit-note")?.value.trim();
   const errEl = document.getElementById("edit-match-err");
-  const show = (msg) => { errEl.textContent = msg; errEl.style.display = "block"; };
+  const show = (msg) => {
+    errEl.textContent = msg;
+    errEl.style.display = "block";
+  };
   if (!a1 || !b1) return show("Select at least P1 for each team.");
   if (isNaN(sa) || isNaN(sb)) return show("Enter valid scores.");
   if (sa === sb) return show("Scores cannot be equal.");
-  if (date && date > todayISO()) return show("Match date cannot be in the future.");
+  if (date && date > todayISO())
+    return show("Match date cannot be in the future.");
   const teamA = [a1, a2].filter(Boolean);
   const teamB = [b1, b2].filter(Boolean);
-  if (teamA.length !== teamB.length) return show("Both teams must have the same size.");
+  if (teamA.length !== teamB.length)
+    return show("Both teams must have the same size.");
   if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
     return show("All players in a match must be different.");
   m.date = date || m.date;
@@ -18967,7 +20503,8 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
   m.teamB = teamB;
   m.scoreA = sa;
   m.scoreB = sb;
-  if (note) m.note = note; else delete m.note;
+  if (note) m.note = note;
+  else delete m.note;
   // Sync the session history entry
   const hist = _sessionMatchHistory[histIdx];
   if (hist) {
@@ -18976,7 +20513,8 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
     hist.teamB = [...teamB];
     hist.scoreA = sa;
     hist.scoreB = sb;
-    if (note) hist.note = note; else delete hist.note;
+    if (note) hist.note = note;
+    else delete hist.note;
   }
   _invalidateEloMemo();
   _saveSessionState();
@@ -19155,10 +20693,10 @@ function closeSessionSummary() {
     ?.classList.remove("live-sheet-open");
 }
 
-window._openSessionMatchIntro = function(histIdx) {
+window._openSessionMatchIntro = function (histIdx) {
   const mt = _sessionMatchHistory[histIdx];
   if (!mt) return;
-  const idx = state.matches.findIndex(m => m.id === mt.id);
+  const idx = state.matches.findIndex((m) => m.id === mt.id);
   if (idx >= 0) openMatchIntro(idx);
 };
 
@@ -19181,13 +20719,22 @@ function _renderLiveSessionDashboard() {
 
   // Scroll into view when the first match is saved
   if (wasHidden || _sessionMatchHistory.length === 1)
-    requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    requestAnimationFrame(() =>
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+    );
 
   // Apply guest filter
-  const guestSet = new Set(Object.values(state.players).filter(p => p.isGuest).map(p => p.name));
-  const history = (_sdashShowGuests || !guestSet.size)
-    ? _sessionMatchHistory
-    : _sessionMatchHistory.filter(m => ![...m.teamA, ...m.teamB].some(p => guestSet.has(p)));
+  const guestSet = new Set(
+    Object.values(state.players)
+      .filter((p) => p.isGuest)
+      .map((p) => p.name),
+  );
+  const history =
+    _sdashShowGuests || !guestSet.size
+      ? _sessionMatchHistory
+      : _sessionMatchHistory.filter(
+          (m) => ![...m.teamA, ...m.teamB].some((p) => guestSet.has(p)),
+        );
 
   // Session ELO + ASS: everyone starts at 1000, computed from today's session matches only
   const sessionEloMap = computeElo(history);
@@ -19199,28 +20746,41 @@ function _renderLiveSessionDashboard() {
   const rawStats = computeStats(history, primaryMap);
   const effectiveSortCol =
     (_sessSortCol === "elo" && !showElo) || (_sessSortCol === "ass" && !showASS)
-      ? "sr" : _sessSortCol;
+      ? "sr"
+      : _sessSortCol;
   const getSortVal = (p) => {
     switch (effectiveSortCol) {
-      case "name":  return p.name.toLowerCase();
-      case "mp":    return p.mp;
-      case "wl":    return p.mw;
-      case "wpct":  return p.mp > 0 ? p.mw / p.mp : 0;
-      case "gw":    return p.gw;
-      case "gl":    return p.gl;
-      case "gpct":  return (p.gw + p.gl) > 0 ? p.gw / (p.gw + p.gl) : 0;
-      case "elo":   return sessionEloMap[p.name] || 1000;
-      case "ass":   return sessionASSMap[p.name] || 1000;
+      case "name":
+        return p.name.toLowerCase();
+      case "mp":
+        return p.mp;
+      case "wl":
+        return p.mw;
+      case "wpct":
+        return p.mp > 0 ? p.mw / p.mp : 0;
+      case "gw":
+        return p.gw;
+      case "gl":
+        return p.gl;
+      case "gpct":
+        return p.gw + p.gl > 0 ? p.gw / (p.gw + p.gl) : 0;
+      case "elo":
+        return sessionEloMap[p.name] || 1000;
+      case "ass":
+        return sessionASSMap[p.name] || 1000;
       case "sr":
       default: {
         const _esr = eloToSr(sessionEloMap[p.name] || 1000);
         const _asr = eloToSr(sessionASSMap[p.name] || 1000);
-        return effectiveView === "both" ? (_esr + _asr) / 2 : eloToSr(primaryMap[p.name] || 1000);
+        return effectiveView === "both"
+          ? (_esr + _asr) / 2
+          : eloToSr(primaryMap[p.name] || 1000);
       }
     }
   };
   const stats = [...rawStats].sort((a, b) => {
-    const va = getSortVal(a), vb = getSortVal(b);
+    const va = getSortVal(a),
+      vb = getSortVal(b);
     if (typeof va === "string") {
       const c = va.localeCompare(vb);
       return _sessSortDir === "desc" ? -c : c;
@@ -19228,31 +20788,45 @@ function _renderLiveSessionDashboard() {
     return _sessSortDir === "desc" ? vb - va : va - vb;
   });
   const rankColor = (i) =>
-    i === 0 ? "var(--gold,#f5c842)" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "var(--muted)";
+    i === 0
+      ? "var(--gold,#f5c842)"
+      : i === 1
+        ? "#c0c0c0"
+        : i === 2
+          ? "#cd7f32"
+          : "var(--muted)";
   const scoreViewToggle = getEloEnabled()
     ? `<div class="live-sdash-score-toggle">
-    <button class="lsst-btn${effectiveView === 'elo' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('elo')">ELO</button>
-    <button class="lsst-btn${effectiveView === 'ass' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('ass')">ASS</button>
-    <button class="lsst-btn${effectiveView === 'both' ? ' lsst-active' : ''}" onclick="window._sessSetScoreView('both')">BOTH</button>
+    <button class="lsst-btn${effectiveView === "elo" ? " lsst-active" : ""}" onclick="window._sessSetScoreView('elo')">ELO</button>
+    <button class="lsst-btn${effectiveView === "ass" ? " lsst-active" : ""}" onclick="window._sessSetScoreView('ass')">ASS</button>
+    <button class="lsst-btn${effectiveView === "both" ? " lsst-active" : ""}" onclick="window._sessSetScoreView('both')">BOTH</button>
   </div>`
     : "";
-  const thElo = showElo ? `<th onclick="window._sessSortBy('elo')" style="cursor:pointer">ELO</th>` : "";
-  const thASS = showASS ? `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">ASS</th>` : "";
-  const tableRows = stats.map((p, i) => {
-    const ml = p.mp - p.mw;
-    const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
-    const total = p.gw + p.gl;
-    const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
-    const elo = Math.round(sessionEloMap[p.name] || 1000);
-    const ass = Math.round(sessionASSMap[p.name] || 1000);
-    const eloSr = eloToSr(sessionEloMap[p.name] || 1000);
-    const assSr = eloToSr(sessionASSMap[p.name] || 1000);
-    const sr = effectiveView === "both"
-      ? ((eloSr + assSr) / 2).toFixed(2)
-      : eloToSr(primaryMap[p.name] || 1000).toFixed(2);
-    const eloCol = elo > 1000 ? "var(--green)" : elo < 1000 ? "var(--red)" : "var(--text)";
-    const assCol = ass > 1000 ? "var(--green)" : ass < 1000 ? "var(--red)" : "var(--text)";
-    return `<tr class="live-sdash-tr">
+  const thElo = showElo
+    ? `<th onclick="window._sessSortBy('elo')" style="cursor:pointer">ELO</th>`
+    : "";
+  const thASS = showASS
+    ? `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">ASS</th>`
+    : "";
+  const tableRows = stats
+    .map((p, i) => {
+      const ml = p.mp - p.mw;
+      const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
+      const total = p.gw + p.gl;
+      const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
+      const elo = Math.round(sessionEloMap[p.name] || 1000);
+      const ass = Math.round(sessionASSMap[p.name] || 1000);
+      const eloSr = eloToSr(sessionEloMap[p.name] || 1000);
+      const assSr = eloToSr(sessionASSMap[p.name] || 1000);
+      const sr =
+        effectiveView === "both"
+          ? ((eloSr + assSr) / 2).toFixed(2)
+          : eloToSr(primaryMap[p.name] || 1000).toFixed(2);
+      const eloCol =
+        elo > 1000 ? "var(--green)" : elo < 1000 ? "var(--red)" : "var(--text)";
+      const assCol =
+        ass > 1000 ? "var(--green)" : ass < 1000 ? "var(--red)" : "var(--text)";
+      return `<tr class="live-sdash-tr">
       <td style="color:${rankColor(i)};font-weight:900">${i + 1}</td>
       <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(normPlayer(p.name))}</span></td>
       <td>${p.mp}</td>
@@ -19265,17 +20839,23 @@ function _renderLiveSessionDashboard() {
       ${showASS ? `<td style="color:${assCol}">${ass}</td>` : ""}
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
   // Build all-time ELO delta map keyed by match id (session objs ≠ state.matches refs).
   // Use state.matches (not activeMatches) so guest-involving matches are included.
   const _atDeltaMap = new Map();
-  _computeMatchEloDeltas(state.matches).forEach((d, m) => _atDeltaMap.set(m.id, d));
+  _computeMatchEloDeltas(state.matches).forEach((d, m) =>
+    _atDeltaMap.set(m.id, d),
+  );
   const matchesHtml = history
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
       const histIdx = _sessionMatchHistory.indexOf(mt);
       const delta = _atDeltaMap.get(mt.id);
-      const fmtD = (d) => d == null ? "" : `<span class="ssm-elo" style="color:${d >= 0 ? "var(--green)" : "var(--red)"}">${d >= 0 ? "+" : ""}${d}</span>`;
+      const fmtD = (d) =>
+        d == null
+          ? ""
+          : `<span class="ssm-elo" style="color:${d >= 0 ? "var(--green)" : "var(--red)"}">${d >= 0 ? "+" : ""}${d}</span>`;
       const teamAStr = escHtml(mt.teamA.map(normPlayer).join(" & "));
       const teamBStr = escHtml(mt.teamB.map(normPlayer).join(" & "));
       return `<div class="smr-wrap">
@@ -19354,13 +20934,17 @@ function _syncLiveSessionBar() {
 
 function openSessionSetup() {
   const guestNames = new Set(
-    Object.values(state.players).filter((p) => p.isGuest).map((p) => p.name),
+    Object.values(state.players)
+      .filter((p) => p.isGuest)
+      .map((p) => p.name),
   );
-  const players = getAllPlayerNamesFromMatches().slice().sort((a, b) => {
-    const ag = guestNames.has(a) ? 1 : 0;
-    const bg = guestNames.has(b) ? 1 : 0;
-    return ag !== bg ? ag - bg : a.localeCompare(b);
-  });
+  const players = getAllPlayerNamesFromMatches()
+    .slice()
+    .sort((a, b) => {
+      const ag = guestNames.has(a) ? 1 : 0;
+      const bg = guestNames.has(b) ? 1 : 0;
+      return ag !== bg ? ag - bg : a.localeCompare(b);
+    });
   _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
@@ -19373,7 +20957,9 @@ function openSessionSetup() {
       const av = photo
         ? `<img src="${photo}" class="ssp-av" style="object-fit:cover" alt="">`
         : `<span class="ssp-av" style="background:${playerColor(p)}">${playerInitials(p)}</span>`;
-      const guestTag = isGuest ? `<span class="ssp-guest-tag">GUEST</span>` : "";
+      const guestTag = isGuest
+        ? `<span class="ssp-guest-tag">GUEST</span>`
+        : "";
       return `<label class="ssp-row">
         <input type="checkbox" class="ssp-cb" onchange="window._sspToggle(${jsArg(p)}, this.checked)">
         ${av}
@@ -19505,12 +21091,20 @@ function _renderSeasonList() {
 // snapshot stored on the season object, so re-opening it never recomputes
 // (and stays stable even if match history or scoring config changes later).
 function archiveSeason(id) {
-  if (!window.isAdmin) { showToast("Admin only", "🔒"); return; }
+  if (!window.isAdmin) {
+    showToast("Admin only", "🔒");
+    return;
+  }
   const s = state.seasons.find((x) => x.id === id);
   if (!s) return;
   const ms = activeMatches().filter((m) => _inSeason(s, m.date));
-  if (!ms.length) { showToast("No matches in this season", "⚠️"); return; }
-  const priorMs = s.start ? activeMatches().filter((m) => (m.date || "") < s.start) : [];
+  if (!ms.length) {
+    showToast("No matches in this season", "⚠️");
+    return;
+  }
+  const priorMs = s.start
+    ? activeMatches().filter((m) => (m.date || "") < s.start)
+    : [];
   const awards = _periodAwards(ms, priorMs);
   const scoreMap = _scoringMode === "ass" ? computeASS(ms) : computeElo(ms);
   const standings = computeStats(ms, scoreMap);
@@ -19518,11 +21112,21 @@ function archiveSeason(id) {
   s.archivedAt = todayISO();
   s.archivedSnapshot = {
     matches: ms.length,
-    mvp: awards.mvp ? { name: awards.mvp.name, mp: awards.mvp.mp, mw: awards.mvp.mw } : null,
-    topPair: awards.topPair ? { players: awards.topPair.players, winPct: awards.topPair.winPct } : null,
-    mostImproved: awards.mostImproved ? { name: awards.mostImproved.name } : null,
-    ironMan: awards.ironMan ? { name: awards.ironMan.name, mp: awards.ironMan.mp } : null,
-    standings: standings.slice(0, 20).map((p) => ({ name: p.name, mp: p.mp, mw: p.mw, ml: p.ml, sr: p.sr })),
+    mvp: awards.mvp
+      ? { name: awards.mvp.name, mp: awards.mvp.mp, mw: awards.mvp.mw }
+      : null,
+    topPair: awards.topPair
+      ? { players: awards.topPair.players, winPct: awards.topPair.winPct }
+      : null,
+    mostImproved: awards.mostImproved
+      ? { name: awards.mostImproved.name }
+      : null,
+    ironMan: awards.ironMan
+      ? { name: awards.ironMan.name, mp: awards.ironMan.mp }
+      : null,
+    standings: standings
+      .slice(0, 20)
+      .map((p) => ({ name: p.name, mp: p.mp, mw: p.mw, ml: p.ml, sr: p.sr })),
     scoringMode: _scoringMode,
   };
   _persistSeasons();
@@ -19538,7 +21142,10 @@ function viewSeasonArchive(id) {
   document.getElementById("season-archive-modal")?.remove();
   const rows = snap.standings
     .map(
-      (p, i) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      (
+        p,
+        i,
+      ) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
         <div style="width:20px;font-size:10px;color:var(--muted)">#${i + 1}</div>
         <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
         <div style="font-size:9px;color:var(--muted)">${p.mw}W-${p.ml}L</div>
@@ -19733,10 +21340,16 @@ function checkResumeSession() {
     _renderSessionActiveCard();
     document
       .getElementById("live-undo-match-btn")
-      ?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
+      ?.style.setProperty(
+        "display",
+        _sessionMatchHistory.length > 0 ? "" : "none",
+      );
     document
       .getElementById("live-redo-match-btn")
-      ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+      ?.style.setProperty(
+        "display",
+        _sessionRedoStack.length > 0 ? "" : "none",
+      );
   } catch (e) {}
 }
 function resumeSession() {
@@ -19754,10 +21367,16 @@ function resumeSession() {
     _renderSessionActiveCard();
     document
       .getElementById("live-undo-match-btn")
-      ?.style.setProperty("display", _sessionMatchHistory.length > 0 ? "" : "none");
+      ?.style.setProperty(
+        "display",
+        _sessionMatchHistory.length > 0 ? "" : "none",
+      );
     document
       .getElementById("live-redo-match-btn")
-      ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
+      ?.style.setProperty(
+        "display",
+        _sessionRedoStack.length > 0 ? "" : "none",
+      );
     showToast("Session resumed!", "✅");
   } catch (e) {
     showToast("Could not resume session", "❌");
@@ -19866,7 +21485,10 @@ function openRemovePlayerSheet() {
   const list = document.getElementById("remove-player-list");
   if (!list) return;
   const current = _liveSessionData?.sessionPlayers || [];
-  if (!current.length) { showToast("No players in session", "ℹ️"); return; }
+  if (!current.length) {
+    showToast("No players in session", "ℹ️");
+    return;
+  }
   const inSlot = new Set(Object.values(_liveSlots).filter(Boolean));
   list.innerHTML = current
     .map((p) => {
@@ -19878,18 +21500,28 @@ function openRemovePlayerSheet() {
       </button>`;
     })
     .join("");
-  document.getElementById("remove-player-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("remove-player-sheet")?.classList.add("live-sheet-open");
+  document
+    .getElementById("remove-player-overlay")
+    ?.classList.add("live-sheet-open");
+  document
+    .getElementById("remove-player-sheet")
+    ?.classList.add("live-sheet-open");
 }
 
 function closeRemovePlayerSheet() {
-  document.getElementById("remove-player-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("remove-player-sheet")?.classList.remove("live-sheet-open");
+  document
+    .getElementById("remove-player-overlay")
+    ?.classList.remove("live-sheet-open");
+  document
+    .getElementById("remove-player-sheet")
+    ?.classList.remove("live-sheet-open");
 }
 
 function removePlayerFromSession(name) {
   closeRemovePlayerSheet();
-  const players = (_liveSessionData?.sessionPlayers || []).filter((p) => p !== name);
+  const players = (_liveSessionData?.sessionPlayers || []).filter(
+    (p) => p !== name,
+  );
   _liveSessionData = { ..._liveSessionData, sessionPlayers: players };
   _syncLiveSessionBar();
   _renderSittingOut();
@@ -19934,10 +21566,7 @@ function _sendMatchNotification(count, latestMatch) {
   if (Notification.permission !== "granted") return;
   // Don't notify if the page is visible — the live update already visible.
   if (!document.hidden) return;
-  const players = [
-    ...(latestMatch?.teamA || []),
-    ...(latestMatch?.teamB || []),
-  ]
+  const players = [...(latestMatch?.teamA || []), ...(latestMatch?.teamB || [])]
     .map((p) => normPlayer(p).split(" ")[0])
     .join(", ");
   const body =
@@ -19967,13 +21596,15 @@ function toggleMatchNotifications(on) {
   const cb = document.getElementById("notif-toggle");
   if (cb) cb.checked = on;
   if (on && "Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission().then((perm) => {
-      if (perm !== "granted") {
-        setNotifEnabled(false);
-        if (cb) cb.checked = false;
-        showToast("Notifications blocked by browser", "⚠️");
-      }
-    }).catch(() => {});
+    Notification.requestPermission()
+      .then((perm) => {
+        if (perm !== "granted") {
+          setNotifEnabled(false);
+          if (cb) cb.checked = false;
+          showToast("Notifications blocked by browser", "⚠️");
+        }
+      })
+      .catch(() => {});
   }
   showToast(on ? "Match notifications on 🔔" : "Match notifications off 🔕");
 }
@@ -19986,7 +21617,9 @@ let _editingPlayerId = null;
 function openPlayerEditSheet(id) {
   _editingPlayerId = id || null;
   const isNew = !id;
-  const p = isNew ? { name: "", email: "", isGuest: false } : state.players[id] || {};
+  const p = isNew
+    ? { name: "", email: "", isGuest: false }
+    : state.players[id] || {};
   const aliases = isNew ? [] : playerAliasMap[id] || [];
   const { first, last } = isNew
     ? { first: null, last: null }
@@ -20052,11 +21685,15 @@ function savePlayerEdit() {
   // rebuildNameMaps(), misattributing match history with no visible error.
   const collision = Object.values(state.players).find((p) => {
     if (p.id === id) return false;
-    const tokens = [p.name, ...(playerAliasMap[p.id] || [])].map((t) => t.toLowerCase());
+    const tokens = [p.name, ...(playerAliasMap[p.id] || [])].map((t) =>
+      t.toLowerCase(),
+    );
     return [name, ...aliases].some((t) => tokens.includes(t.toLowerCase()));
   });
   if (collision) {
-    alert(`"${name}"/alias already used by "${collision.name}" — pick a different name or alias.`);
+    alert(
+      `"${name}"/alias already used by "${collision.name}" — pick a different name or alias.`,
+    );
     return;
   }
 
@@ -20089,7 +21726,10 @@ function deletePlayerEntry() {
     )
   )
     return;
-  logAdminAction("Delete Player", `${canonical} (+${affected} matches removed)`);
+  logAdminAction(
+    "Delete Player",
+    `${canonical} (+${affected} matches removed)`,
+  );
   // Hard-remove every match involving the player (reverse splice keeps indices valid).
   for (let i = state.matches.length - 1; i >= 0; i--) {
     if (involves(state.matches[i])) {
@@ -20199,8 +21839,10 @@ function openMatchSaveSheet() {
   const { a1, a2, b1, b2 } = _liveSlots;
   if (el) {
     const aWon = _liveScoreA > _liveScoreB;
-    const na1 = normPlayer(a1) || "?", na2 = normPlayer(a2) || "?";
-    const nb1 = normPlayer(b1) || "?", nb2 = normPlayer(b2) || "?";
+    const na1 = normPlayer(a1) || "?",
+      na2 = normPlayer(a2) || "?";
+    const nb1 = normPlayer(b1) || "?",
+      nb2 = normPlayer(b2) || "?";
     const winTeam = aWon ? `${na1} & ${na2}` : `${nb1} & ${nb2}`;
     const loseTeam = aWon ? `${nb1} & ${nb2}` : `${na1} & ${na2}`;
     const winScore = aWon ? _liveScoreA : _liveScoreB;
