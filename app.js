@@ -4016,7 +4016,15 @@ async function exportJsonFile() {
   });
   const filename = _backupFilename();
   const file = new File([blob], filename, { type: "application/json" });
+  // Desktop Chrome/Edge (Windows included) also report canShare({files:...})
+  // as true, routing this "Export" action through the OS share sheet instead
+  // of a real download — on Windows that sheet has no "save file" option, so
+  // the export silently produces nothing in Downloads. This button means
+  // "save a backup file", not "share", so only use Web Share on touch
+  // devices, where a direct download is the one that's often unreliable.
+  const isTouchDevice = !window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   if (
+    isTouchDevice &&
     navigator.share &&
     navigator.canShare &&
     navigator.canShare({ files: [file] })
