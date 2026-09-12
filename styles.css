@@ -18518,69 +18518,180 @@ body.battery-saver .ui-toggle-thumb {
    selectors here win on specificity+importance without touching that. */
 @media (min-width: 1100px) {
   #pg-compact table.cmp {
-    max-width: 1000px !important;
+    max-width: 1200px !important;
   }
   #pg-compact table.cmp thead th {
-    padding: 10px 8px !important;
-    font-size: 13px !important;
+    padding: 12px 10px !important;
+    font-size: 16px !important;
   }
   #pg-compact table.cmp tbody td {
-    padding: 13px 8px !important;
-    font-size: 15px !important;
+    padding: 15px 10px !important;
+    font-size: 18px !important;
   }
   #pg-compact table.cmp th:nth-child(1),
   #pg-compact table.cmp td:nth-child(1) {
-    width: 38px !important;
+    width: 46px !important;
   }
   #pg-compact table.cmp th:nth-child(2),
   #pg-compact table.cmp td:nth-child(2) {
-    width: 140px !important; min-width: 120px !important; max-width: 180px !important;
+    width: 170px !important; min-width: 150px !important; max-width: 220px !important;
   }
   #pg-compact table.cmp th:nth-child(3),
   #pg-compact table.cmp td:nth-child(3) {
-    width: 54px !important;
+    width: 64px !important;
   }
   #pg-compact table.cmp th:nth-child(4),
   #pg-compact table.cmp td:nth-child(4) {
-    width: 72px !important;
+    width: 86px !important;
   }
   #pg-compact table.cmp th:nth-child(5),
   #pg-compact table.cmp td:nth-child(5) {
-    width: 58px !important;
+    width: 70px !important;
   }
   #pg-compact table.cmp th:nth-child(6),
   #pg-compact table.cmp td:nth-child(6) {
-    width: 52px !important;
+    width: 62px !important;
   }
   #pg-compact table.cmp th:nth-child(7),
   #pg-compact table.cmp td:nth-child(7) {
-    width: 52px !important;
+    width: 62px !important;
   }
   #pg-compact table.cmp th:nth-child(8),
   #pg-compact table.cmp td:nth-child(8) {
-    width: 58px !important;
+    width: 70px !important;
   }
   #pg-compact table.cmp th:nth-child(9),
   #pg-compact table.cmp td:nth-child(9) {
-    width: 64px !important;
+    width: 76px !important;
   }
   #pg-compact table.cmp th[data-col="sr"],
   #pg-compact table.cmp td[data-col="sr"] {
-    width: 92px !important;
+    width: 110px !important;
   }
   #pg-compact #cmp-ass-th {
-    width: 72px !important;
+    width: 86px !important;
   }
   #pg-compact .cmp-ass-cell,
   #pg-compact table.cmp tbody .rec-cell {
-    font-size: 15px !important;
+    font-size: 18px !important;
   }
   #pg-compact .sr-pill-val {
-    font-size: 17px !important;
+    font-size: 20px !important;
   }
   #pg-compact .sort-arrow {
+    font-size: 13px;
+    width: 13px;
+  }
+
+  /* "MATCHES PLAYED" section header */
+  #pg-compact .cmp-matches-header .t1 {
+    font-size: 22px;
+  }
+  #pg-compact .cmp-delta-lbl {
     font-size: 11px;
-    width: 11px;
+  }
+  #pg-compact .mdw-btn {
+    font-size: 10px;
+    padding: 4px 9px;
+  }
+  #pg-compact .cmp-matches-chevron {
+    font-size: 14px;
+  }
+
+  /* Individual match rows under "MATCHES PLAYED" */
+  #pg-compact .cmr-date {
+    font-size: 13px;
+    width: 60px;
+  }
+  #pg-compact .cmr-team {
+    font-size: 14px;
+  }
+  #pg-compact .cmr-sv {
+    font-size: 18px;
+  }
+  #pg-compact .cmr-dash {
+    font-size: 13px;
+  }
+  #pg-compact .smr-ed {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  /* "HIGHLIGHTS" card — stat tiles, Player of the Day, Top Performers,
+     Awards, Hot & Cold, ASS Changes table */
+  #pg-compact .hist-summary-card {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 20px 22px 18px;
+  }
+  #pg-compact .hsum-title {
+    font-size: 13px;
+    padding: 4px 12px;
+  }
+  #pg-compact .hsum-count {
+    font-size: 13px;
+  }
+  #pg-compact .hsum-val {
+    font-size: 28px;
+  }
+  #pg-compact .hsum-lbl {
+    font-size: 10px;
+  }
+  #pg-compact .hsum-section-lbl {
+    font-size: 11px;
+  }
+  #pg-compact .potw-crown {
+    font-size: 32px;
+  }
+  #pg-compact .potw-label {
+    font-size: 11px;
+  }
+  #pg-compact .potw-name {
+    font-size: 22px;
+  }
+  #pg-compact .potw-meta {
+    font-size: 14px;
+  }
+  #pg-compact .hsum-row {
+    grid-template-columns: 30px 1fr 74px 56px 76px;
+    padding: 10px 14px;
+  }
+  #pg-compact .hsum-medal {
+    font-size: 20px;
+  }
+  #pg-compact .hsum-pname {
+    font-size: 16px;
+  }
+  #pg-compact .hsum-rec {
+    font-size: 13px;
+  }
+  #pg-compact .hsum-pct {
+    font-size: 14px;
+  }
+  #pg-compact .hsum-sr {
+    font-size: 13px;
+  }
+  #pg-compact .hsum-hl-icon {
+    font-size: 17px;
+  }
+  #pg-compact .hsum-hl-label {
+    font-size: 11px;
+    min-width: 80px;
+  }
+  #pg-compact .hsum-hl-val {
+    font-size: 14px;
+  }
+  /* ASS Changes table inside the Highlights card sets font-size/padding via
+     inline styles (src/ui/render-history-summary.js) — !important is needed
+     to win over those, not just over the other CSS in this file. */
+  #pg-compact .hist-summary-card table th {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+  }
+  #pg-compact .hist-summary-card table td {
+    font-size: 14px !important;
+    padding: 6px 10px !important;
   }
 }
 
