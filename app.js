@@ -13507,7 +13507,11 @@ function renderAnalyticsPage() {
 
   // ── ELO ────────────────────────────────────────────────
   const eloMap = _scoringMode === "ass" ? computeASS(am) : computeASS(am);
-  const pairLeaderboard = getPairStats(am).slice(0, 8);
+  // One getPairStats(am) pass, reused by every section below that needs it
+  // (pair leaderboard, pair form, pair chemistry matrix) instead of each
+  // recomputing pair stats over the full match history separately.
+  const _pairStatsAm = getPairStats(am);
+  const pairLeaderboard = _pairStatsAm.slice(0, 8);
   const playersByMatches = _h2hSortPlayers([
     ...new Set(
       am.flatMap((m) =>
@@ -13822,7 +13826,7 @@ function renderAnalyticsPage() {
   const bestPairPerP = compList
     .map((p) => ({ name: p.name, partner: p.bestPartner, wins: p.mw }))
     .filter((p) => p.partner && p.wins >= 1);
-  const pairFormData = getPairStats(am)
+  const pairFormData = _pairStatsAm
     .filter((p) => p.played >= 3)
     .map((pair) => {
       const pm = sortedM
@@ -14666,8 +14670,10 @@ function renderAnalyticsPage() {
   // ── SCORING RANKINGS (ELO or ASS depending on master toggle) ──────────
   const _scLabel = _scoringLabel();
   const { from: wkFromElo } = lastWeekRange();
-  // Build active score map + pre-week score map for change calc
-  const _scMapNow = _scoringMode === "ass" ? computeASS(am) : computeASS(am);
+  // Build active score map + pre-week score map for change calc.
+  // eloMap (above) is already computeASS(am) — reuse it instead of a second
+  // full pass over the same dataset.
+  const _scMapNow = eloMap;
   const _scFallback = 1000; // both ELO and ASS baseline at 1000
   const _preWkArrElo = am.filter((m) => (m.date || "") < wkFromElo);
   const _scMapPre =
@@ -14838,13 +14844,13 @@ function renderAnalyticsPage() {
 
   // ── PAIR CHEMISTRY MATRIX ──────────────────────────────
   const pairMatrixPlayers = [
-    ...new Set(getPairStats(am).flatMap((p) => p.players)),
+    ...new Set(_pairStatsAm.flatMap((p) => p.players)),
   ].sort();
   const pairMatrixHtml = (() => {
     if (pairMatrixPlayers.length < 2)
       return '<div class="sub" style="padding:8px">Need more pair data.</div>';
     const pairLookup = {};
-    getPairStats(am).forEach((p) => {
+    _pairStatsAm.forEach((p) => {
       pairLookup[p.key] = p;
     });
     const colHeaders = pairMatrixPlayers
@@ -15640,9 +15646,9 @@ function renderAnalyticsPage() {
       // Player of the Month = top of the leaderboard for that month
       const moMatches = sortedM.filter((m) => (m.date || "").startsWith(mo));
       if (!moMatches.length) return;
-      const _moElo = computeASS(moMatches);
-      const _moAss = computeASS(moMatches);
-      const moScores = _scoringMode === "ass" ? _moAss : _moElo;
+      // _scoringMode is always "ass" — one computeASS pass per month instead
+      // of two identical ones.
+      const moScores = computeASS(moMatches);
       const moPlayers = Object.entries(moScores)
         .filter(([p]) => monthlyStats[mo]?.[p]?.m > 0)
         .sort((a, b) => (moScores[b[0]] || 1000) - (moScores[a[0]] || 1000));
