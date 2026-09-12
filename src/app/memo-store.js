@@ -14,13 +14,7 @@
 import { _lightFingerprint } from "../domain/fingerprint.js";
 import { computeStats } from "../domain/stats.js";
 import { getPairStats } from "../domain/pairs.js";
-import {
-  activeMatches,
-  invalidateAmMemo,
-  _activeSeason,
-  matchesThroughSeasonEnd,
-  matchesBeforeSeasonStart,
-} from "../domain/selectors.js";
+import { activeMatches, invalidateAmMemo } from "../domain/selectors.js";
 import { computeASS, computeASSTimeline } from "../domain/ass.js";
 
 // Per-section caches that grow one entry per distinct dataset and would
@@ -77,39 +71,9 @@ export function memoPairStats() {
 // Memoises computeASS(activeMatches()) — the most frequently called
 // un-cached computation in the codebase (hit by home, compact, analytics,
 // power rankings, scatter plot, rank divergence per render).
-//
-// Season-adjusted scoring: when a specific season (not ALL SEASONS) is
-// selected, ASS is NOT computeASS() run fresh on just that season's own
-// matches from a 1000 baseline. Instead, each player's seasonal rating is
-//   (cumulative ASS through the end of this season)
-//   - (cumulative ASS through the end of the PREVIOUS season)
-//   + 1000
-// i.e. how much their ALL-TIME-computed rating moved during this season,
-// re-based to 1000. For the earliest season (nothing before it), the
-// subtracted term is empty and this reduces to the plain cumulative ASS —
-// unchanged from today's behaviour. This intentionally does NOT reduce to
-// computeASS(activeMatches()) for later seasons: ASS is path-dependent
-// (a sequential walk, not additive across date ranges), and this is the
-// season-comparison-consistent notion of "how did you do THIS season",
-// not a fresh from-1000 mini-competition.
 let _assMemo = null, _assMemoKey = "";
 
 export function memoASS() {
-  const season = _activeSeason();
-  if (season) {
-    const throughEnd = matchesThroughSeasonEnd(season);
-    const key = `season:${season.id}|${_lightFingerprint(throughEnd)}`;
-    if (_assMemoKey === key && _assMemo) return _assMemo;
-    _assMemoKey = key;
-    const endASS = computeASS(throughEnd);
-    const beforeASS = computeASS(matchesBeforeSeasonStart(season));
-    const merged = {};
-    new Set([...Object.keys(endASS), ...Object.keys(beforeASS)]).forEach((name) => {
-      merged[name] = (endASS[name] ?? 1000) - (beforeASS[name] ?? 1000) + 1000;
-    });
-    _assMemo = merged;
-    return _assMemo;
-  }
   const am = activeMatches();
   const key = _lightFingerprint(am);
   if (_assMemoKey === key && _assMemo) return _assMemo;

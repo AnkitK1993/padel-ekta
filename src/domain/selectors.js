@@ -149,40 +149,6 @@ function _applyDateFilter(base, f, from, to) {
   });
 }
 
-// ── SEASON-CUMULATIVE WINDOWS (for season-adjusted ASS) ─────
-// activeMatches() only ever returns ONE season's own [start,end] slice.
-// Season-adjusted ASS needs two wider windows instead: everything up to the
-// end of a given season, and everything strictly before it started. Both
-// apply the same guest/excluded-player whole-match filtering activeMatches()
-// uses, so a player hidden from the leaderboard stays hidden here too.
-function _guestExcludedArr() {
-  return [...guestNames(), ...deps.getExcludedPlayers()];
-}
-function _withGuestExclusion(base) {
-  const excludedArr = _guestExcludedArr();
-  if (!excludedArr.length) return base;
-  const excluded = new Set(excludedArr);
-  return base.filter(
-    (m) => ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
-  );
-}
-// Matches from the start of history through the end of season `s` (inclusive).
-// An open-ended season (no `end` — the current/ongoing one) is all matches.
-export function matchesThroughSeasonEnd(s) {
-  if (!s) return _withGuestExclusion(state.matches);
-  const base = s.end
-    ? state.matches.filter((m) => (m.date || "") <= s.end)
-    : state.matches;
-  return _withGuestExclusion(base);
-}
-// Matches strictly before season `s` started — empty for the earliest season.
-export function matchesBeforeSeasonStart(s) {
-  if (!s || !s.start) return [];
-  return _withGuestExclusion(
-    state.matches.filter((m) => (m.date || "") < s.start),
-  );
-}
-
 // Stats / leaderboards: guest-excluded base.
 export function filterMatches(f, from, to) {
   return _applyDateFilter(activeMatches(), f, from, to);
