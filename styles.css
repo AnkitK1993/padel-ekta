@@ -18518,7 +18518,10 @@ body.battery-saver .ui-toggle-thumb {
    selectors here win on specificity+importance without touching that. */
 @media (min-width: 1100px) {
   #pg-compact table.cmp {
-    max-width: 1200px !important;
+    /* No cap — match the full width of every sibling section (filter bar,
+       "MATCHES PLAYED" header, match rows) instead of the table picking
+       its own narrower column, which is what caused the misalignment. */
+    max-width: none !important;
   }
   #pg-compact table.cmp thead th {
     padding: 12px 10px !important;
@@ -18620,9 +18623,8 @@ body.battery-saver .ui-toggle-thumb {
   /* "HIGHLIGHTS" card — stat tiles, Player of the Day, Top Performers,
      Awards, Hot & Cold, ASS Changes table */
   #pg-compact .hist-summary-card {
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
+    /* No cap here either — same reasoning as table.cmp above: match the
+       full-width siblings instead of picking its own narrower column. */
     padding: 20px 22px 18px;
   }
   #pg-compact .hsum-title {
