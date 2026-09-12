@@ -350,11 +350,11 @@ body.paused-animations *{
           for (var i = 0; i < THEMES.length; i++)
             if (THEMES[i].name === name) { idx = i; break; }
           // Default theme for new users (no saved pick) or anyone whose saved
-          // theme was since removed: Holo HUD. Fall back to index 0 only if it
-          // were ever dropped from THEMES.
+          // theme was since removed: Midnight OLED. Fall back to index 0 only
+          // if it were ever dropped from THEMES.
           if (idx < 0) {
             for (var j = 0; j < THEMES.length; j++)
-              if (THEMES[j].name === "Holo HUD") { idx = j; break; }
+              if (THEMES[j].name === "Midnight OLED") { idx = j; break; }
             if (idx < 0) idx = 0;
           }
           _themeIdx = idx;
