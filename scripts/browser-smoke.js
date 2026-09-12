@@ -717,43 +717,44 @@ async function main() {
       "Expected active season to equal the ongoing season id",
     );
 
-    // #2: with user-defined Seasons present, the merged "Seasons" section is
+    // #2: with user-defined Seasons present, the "Season Awards" section is
     // bucketed by those seasons (the seeded May matches land in the "May 2026"
-    // season card under its Awards tab), not auto monthly buckets.
+    // season card), not auto monthly buckets.
     await evaluate(client, `switchMainTab("home", true);`);
     await evaluate(client, `switchMainTab("analytics", true);`);
     await waitFor(
       client,
       `!!document.querySelector('.ana-sec[data-key="seasonmode"]')`,
-      "Analytics rendered the merged Seasons section",
+      "Analytics rendered the Season Awards section",
     );
     const awards = await evaluate(client, `(() => {
       const html = document.getElementById("analytics-page-content").innerHTML;
-      const subLabels = (key) =>
-        [...document.querySelectorAll('.ana-sec[data-key="' + key + '"] .ana-subtab')]
-          .map((b) => b.textContent.trim());
+      const hasSec = (key) => !!document.querySelector('.ana-sec[data-key="' + key + '"]');
       return {
         hasMay: html.includes("May 2026"),
         hasRecap: html.includes("Monthly Recap"),
         hasOldMonthly: html.includes("Monthly Awards"),
         hasFeared: html.includes("MOST FEARED"),
         subtabCount: document.querySelectorAll(".ana-subtab").length,
-        hasOldAntiPodium: html.includes("Anti-Podium Tracker"),
+        hasAntiPodium: html.includes("Anti-Podium Tracker"),
         hasDayOfWeek: html.includes("Day-of-Week"),
         hasUpsets: html.includes("Biggest Upsets"),
-        // Merged sections: these features now live as sub-tabs, not top-level cards.
-        hasSeasonCompare: subLabels("seasonmode").includes("Comparison"),
-        eloHasPeakLow: subLabels("elo").includes("Peak / Low"),
-        rivalryHasMatrix: subLabels("rivalry").includes("Matrix"),
-        formHasStreaks: subLabels("form").includes("Streak Leaderboard"),
-        standingsHasPower: subLabels("lrace").includes("Power"),
-        standingsHasReplay: subLabels("lrace").includes("Replay"),
-        perfHasCarry: subLabels("clutchrank").includes("Carry"),
-        predictHasSim: subLabels("predacc").includes("Match Sim"),
-        pairsHasSynergy: subLabels("pairs").includes("Synergy"),
-        chemHasH2H: subLabels("pairmatrix").includes("H2H Records"),
-        activityHasSessions: subLabels("calendar").includes("Sessions"),
-        awardsHasPB: subLabels("awards").includes("Personal Bests"),
+        // Statistics page split: every former sub-tab now renders as its own
+        // top-level section (no more bundling several topics into one card).
+        hasSeasonCompare: hasSec("seasoncompare"),
+        hasAssPeakLow: hasSec("asspeaklow"),
+        hasRivalMatrix: hasSec("rivalmatrix"),
+        hasStreakLb: hasSec("streaklb"),
+        hasPowerRank: hasSec("powerrank"),
+        hasLbReplay: hasSec("lbreplay"),
+        hasCarry: hasSec("carry"),
+        hasMatchSim: hasSec("matchsim"),
+        hasWhatIf: hasSec("whatif"),
+        hasRatingProj: hasSec("ratingproj"),
+        hasPairSynergy: hasSec("pairsynergy"),
+        hasPairedH2H: hasSec("pairedh2h"),
+        hasSessions: hasSec("sessions"),
+        hasPersonalBests: hasSec("personalbests"),
         // Partner/Opponent grid renders and its period/mode toggles are wired.
         partnerGrid: (() => {
           const sec = document.querySelector('.ana-sec[data-key="partnergrid"]');
@@ -762,10 +763,6 @@ async function main() {
           window._pairMatrixSetMode({}, "pct"); // exercise the re-render path
           return !!document.getElementById("pair-matrix-box");
         })(),
-        noOldSecs: ["pvp","peakelo","eloTimeline","eloWinProb","streakboard","upcomingmilestones","seasoncompare",
-          "simulator","eloproj","powerrankings","podiumtracker","rankreign","lreplay","qualitywins","dominance","carryfactor","radar","partnership","pairedh2h",
-          "session","monthlystats","personalbests"]
-          .every((k) => !document.querySelector('.ana-sec[data-key="' + k + '"]')),
         hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
         emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
       };
@@ -778,33 +775,31 @@ async function main() {
     for (const k of [
       "hasUpsets",
       "hasSeasonCompare",
-      "eloHasPeakLow",
-      "rivalryHasMatrix",
-      "formHasStreaks",
-      "standingsHasPower",
-      "standingsHasReplay",
-      "perfHasCarry",
-      "predictHasSim",
-      "pairsHasSynergy",
-      "chemHasH2H",
-      "activityHasSessions",
-      "awardsHasPB",
+      "hasAssPeakLow",
+      "hasRivalMatrix",
+      "hasStreakLb",
+      "hasPowerRank",
+      "hasLbReplay",
+      "hasCarry",
+      "hasMatchSim",
+      "hasWhatIf",
+      "hasRatingProj",
+      "hasPairSynergy",
+      "hasPairedH2H",
+      "hasSessions",
+      "hasPersonalBests",
       "partnerGrid",
     ])
-      assert(awards[k], `Expected merged section sub-tab present: ${k}`);
+      assert(awards[k], `Expected standalone analytics section present: ${k}`);
     assert(
-      awards.noOldSecs,
-      "Expected retired standalone analytics sections to be merged away",
+      awards.subtabCount === 0,
+      `Expected the Statistics page to be fully flattened (no merged sub-tabs left), got ${awards.subtabCount}`,
     );
     assert(
-      awards.subtabCount >= 12,
-      `Expected merged sections to render sub-tabs, got ${awards.subtabCount}`,
+      awards.hasAntiPodium,
+      "Expected standalone 'Anti-Podium Tracker' section present",
     );
-    assert(
-      !awards.hasOldAntiPodium,
-      "Expected old 'Anti-Podium Tracker' section to be merged away",
-    );
-    assert(awards.hasDayOfWeek, "Expected merged 'Day-of-Week' section present");
+    assert(awards.hasDayOfWeek, "Expected a 'Day-of-Week' section present");
     assert(
       awards.hasMay,
       "Expected a 'May 2026' season card in Season Awards",
@@ -815,11 +810,11 @@ async function main() {
     );
     assert(
       !awards.hasOldMonthly,
-      "Expected the standalone 'Monthly Awards' section to be removed (unified)",
+      "Expected the legacy standalone 'Monthly Awards' title to be gone",
     );
     assert(
       awards.hasFeared,
-      "Expected merged awards (e.g. MOST FEARED) inside the season card",
+      "Expected awards (e.g. MOST FEARED) inside the season card",
     );
 
     // Season banner: selecting a season shows its scope at the top of analytics.

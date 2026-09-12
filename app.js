@@ -9697,25 +9697,6 @@ function computeSeasons(matches) {
     .reverse();
 }
 
-// ── GENERIC IN-CARD SUB-TABS (merged analytics sections) ──────
-// Build a tabbed body from [{label, html}]. Used to fold several same-topic
-// sections into one card. Panels are scoped to their own .ana-sec-body so
-// multiple tabbed sections coexist without id/selector collisions.
-function _tabbedSection(tabs) {
-  const bar = `<div class="ana-subtabs">${tabs
-    .map(
-      (t, i) =>
-        `<button class="ana-subtab${i === 0 ? " active" : ""}" onclick="_anaSubTab(this,${i})">${t.label}</button>`,
-    )
-    .join("")}</div>`;
-  const panels = `<div class="ana-subtab-panels">${tabs
-    .map(
-      (t, i) =>
-        `<div data-subtab="${i}"${i === 0 ? "" : ' style="display:none"'}>${t.html}</div>`,
-    )
-    .join("")}</div>`;
-  return bar + panels;
-}
 // Toggle the Hide-empty view (CSS hides .ana-sec.is-empty under .ana-hide-empty).
 function toggleAnaHideEmpty() {
   const on = !getAnaHideEmpty();
@@ -9742,20 +9723,6 @@ function _secIsEmpty(body) {
     text,
   );
 }
-function _anaSubTab(btn, tab) {
-  const body = btn.closest(".ana-sec-body");
-  if (!body) return;
-  const panelWrap = body.querySelector(".ana-subtab-panels");
-  if (panelWrap)
-    panelWrap.querySelectorAll(":scope > [data-subtab]").forEach((p) => {
-      p.style.display = p.dataset.subtab === String(tab) ? "" : "none";
-    });
-  btn.parentElement
-    ?.querySelectorAll(".ana-subtab")
-    .forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
-}
-
 function _simUpdateSlots() {
   const slots = {
     a1: viewState.simA1,
@@ -10125,8 +10092,7 @@ function openEloTLOverlaySheet() {
 }
 
 function _rerenderEloTLSection() {
-  // ELO History Chart is a tab inside the merged "⚡ ELO" section; target its
-  // stable wrapper rather than a top-level section body.
+  // Target the History Chart section's stable wrapper directly.
   const el = document.getElementById("elo-tl-section");
   if (el) el.innerHTML = buildEloTimelineHtml(viewState.eloTLFilter);
 }
@@ -16473,18 +16439,30 @@ function renderAnalyticsPage() {
   const allSecs = [
     {
       key: "predacc",
-      cat: "records",
-      title: "🔮 Predict & Simulate",
-      body: _tabbedSection([
-        { label: "Accuracy", html: predAccHtml },
-        { label: "Match Sim", html: simulatorHtml },
-        { label: "What-If", html: whatIfHtml },
-        {
-          label: "Rating Projection",
-          html: (() => {
-            const formN = window._eloProj?.formN || 10;
-            const futureM = window._eloProj?.futureM || 20;
-            return `<div class="ana-card" style="padding:10px 12px">
+      cat: "elo",
+      title: "🎯 Prediction Accuracy",
+      body: predAccHtml,
+    },
+    {
+      key: "matchsim",
+      cat: "elo",
+      title: "🕹️ Match Simulator",
+      body: simulatorHtml,
+    },
+    {
+      key: "whatif",
+      cat: "elo",
+      title: "🔀 What-If Simulator",
+      body: whatIfHtml,
+    },
+    {
+      key: "ratingproj",
+      cat: "elo",
+      title: "📈 Rating Projection",
+      body: (() => {
+        const formN = window._eloProj?.formN || 10;
+        const futureM = window._eloProj?.futureM || 20;
+        return `<div class="ana-card" style="padding:10px 12px">
           <div class="ep-controls">
             <div class="ep-ctrl-group">
               <div class="ep-ctrl-label">FORM WINDOW</div>
@@ -16508,80 +16486,84 @@ function renderAnalyticsPage() {
           </div>
           <div id="eloproj-table"></div>
         </div>`;
-          })(),
-        },
-      ]),
+      })(),
     },
     {
       key: "awards",
       cat: "records",
-      title: "🏅 Awards & Records",
-      body: _tabbedSection([
-        {
-          label: "Awards Board",
-          html: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
-        },
-        { label: "Personal Bests", html: personalBestsHtml },
-      ]),
+      title: "🏅 Awards Board",
+      body: `<div class="awards-grid">${scard("🏃", "Most Active", mostActive?.name, `${mostActive?.matches || 0} matches played`)}${awardsHtml}${scard("🏆", "Best Win Rate", topWinRate?.name, `${topWinRate ? Math.round((topWinRate.wins / topWinRate.matches) * 100) : 0}% (${topWinRate?.wins || 0}W–${topWinRate?.losses || 0}L)`)}${scard("🔥", "Longest Streak", topStreak?.name, `${topStreak?.bestStreak || 0} consecutive wins`)}${scard("⚔️", "Most Dominant", destroyer?.name, `+${destroyer?.avgMargin?.toFixed(1) || 0} avg margin`)}</div>`,
     },
     {
-      key: "form",
+      key: "personalbests",
+      cat: "records",
+      title: "📈 Personal Bests",
+      body: personalBestsHtml,
+    },
+    {
+      key: "currentform",
       cat: "players",
-      title: "🔥 Form & Streaks",
-      body: _tabbedSection([
-        {
-          label: "Current Form",
-          html: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
-        },
-        { label: "Streak Leaderboard", html: _buildStreakLeaderboardHtml() },
-        {
-          label: "Streak Timeline",
-          html: (() => {
-            const names = playersByMatches.slice(0, 12);
-            if (!names.length)
-              return '<div class="sub" style="padding:8px">No data.</div>';
-            const rows = names
-              .map((n) => {
-                const segs = streakSegments(sortedM, n);
-                if (!segs.length) return "";
-                const total = segs.reduce((s, g) => s + g.length, 0) || 1;
-                const bars = segs
-                  .map((g) => {
-                    const w = (g.length / total) * 100;
-                    const col =
-                      g.type === "W"
-                        ? "rgba(54,212,126,0.75)"
-                        : "rgba(240,80,80,0.6)";
-                    return `<div style="width:${w.toFixed(2)}%;background:${col};height:100%" title="${g.type === "W" ? "Won" : "Lost"} ${g.length} in a row (${fmtDate(g.startDate)}–${fmtDate(g.endDate)})"></div>`;
-                  })
-                  .join("");
-                return `<div style="margin-bottom:8px">
-                  <div style="font-size:10px;font-weight:700;margin-bottom:3px">${escHtml(n)}</div>
-                  <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">${bars}</div>
-                </div>`;
+      title: "🔥 Current Form",
+      body: `<div class="ana-card" style="padding:8px 12px"><div class="ftable-header"><span>#</span><span>Player</span><span>Last 10</span><span>Win%</span><span>Streak</span></div>${ftHtml}</div>`,
+    },
+    {
+      key: "streaklb",
+      cat: "players",
+      title: "🏅 Streak Leaderboard",
+      body: _buildStreakLeaderboardHtml(),
+    },
+    {
+      key: "streaktl",
+      cat: "players",
+      title: "📊 Streak Timeline",
+      body: (() => {
+        const names = playersByMatches.slice(0, 12);
+        if (!names.length)
+          return '<div class="sub" style="padding:8px">No data.</div>';
+        const rows = names
+          .map((n) => {
+            const segs = streakSegments(sortedM, n);
+            if (!segs.length) return "";
+            const total = segs.reduce((s, g) => s + g.length, 0) || 1;
+            const bars = segs
+              .map((g) => {
+                const w = (g.length / total) * 100;
+                const col =
+                  g.type === "W"
+                    ? "rgba(54,212,126,0.75)"
+                    : "rgba(240,80,80,0.6)";
+                return `<div style="width:${w.toFixed(2)}%;background:${col};height:100%" title="${g.type === "W" ? "Won" : "Lost"} ${g.length} in a row (${fmtDate(g.startDate)}–${fmtDate(g.endDate)})"></div>`;
               })
               .join("");
-            return `<div class="ana-card" style="padding:10px 12px">
-              <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win (green) / loss (red) streak segments across each player's career, left = earliest</div>
-              ${rows}
+            return `<div style="margin-bottom:8px">
+              <div style="font-size:10px;font-weight:700;margin-bottom:3px">${escHtml(n)}</div>
+              <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">${bars}</div>
             </div>`;
-          })(),
-        },
-      ]),
+          })
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win (green) / loss (red) streak segments across each player's career, left = earliest</div>
+          ${rows}
+        </div>`;
+      })(),
     },
     {
-      key: "lrace",
+      key: "powerrank",
       cat: "players",
-      title: "🏆 Standings",
-      body: _tabbedSection([
-        { label: "Power", html: _buildPowerRankingsHtml() },
-        {
-          label: "Race",
-          html: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
-        },
-        {
-          label: "🥇 Podium",
-          html: `<div>
+      title: "⚡ Power Rankings",
+      body: _buildPowerRankingsHtml(),
+    },
+    {
+      key: "lbrace",
+      cat: "players",
+      title: "🏁 Leaderboard Race",
+      body: `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header"><span>Rank</span><span>Player</span><span>Last Wk.</span><span>Trend</span></div>${lrHtml}</div>`,
+    },
+    {
+      key: "podium",
+      cat: "players",
+      title: "🥇 Podium Tracker",
+      body: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_podiumSetPeriod(this,'today')">DAILY</button>
           <button class="digest-filter-btn" onclick="_podiumSetPeriod(this,'week')">WEEKLY</button>
@@ -16590,10 +16572,12 @@ function renderAnalyticsPage() {
         </div>
         <div class="podium-content">${_secBody(() => _buildPodiumTrackerHtml("today"))}</div>
       </div>`,
-        },
-        {
-          label: "🪣 Anti-Podium",
-          html: `<div>
+    },
+    {
+      key: "antipodium",
+      cat: "players",
+      title: "🪣 Anti-Podium Tracker",
+      body: `<div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           <button class="digest-filter-btn active" onclick="_antiPodiumSetPeriod(this,'today')">DAILY</button>
           <button class="digest-filter-btn" onclick="_antiPodiumSetPeriod(this,'week')">WEEKLY</button>
@@ -16602,44 +16586,66 @@ function renderAnalyticsPage() {
         </div>
         <div class="antipodium-content">${_secBody(() => _buildAntiPodiumTrackerHtml("today"))}</div>
       </div>`,
-        },
-        { label: "Reign", html: _secBody(() => _buildRankReignHtml()) },
-        {
-          label: "Timeline",
-          html: _secBody(() => _buildRankTimelineHtml("today")),
-        },
-        { label: "Replay", html: _buildLeaderboardReplayHtml() },
-      ]),
     },
     {
-      key: "clutchrank",
+      key: "rankreign",
       cat: "players",
-      title: "🎯 Performance",
-      body: _tabbedSection([
-        {
-          label: "Clutch",
-          html: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>`,
-        },
-        { label: "Clutch Trends", html: clutchTrendHtml },
-        {
-          label: "Quality",
-          html: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
-        },
-        { label: "Dominance", html: _dominanceHtml },
-        { label: "Carry", html: carryHtml },
-      ]),
+      title: "👑 Rank Reign",
+      body: _secBody(() => _buildRankReignHtml()),
+    },
+    {
+      key: "ranktimeline",
+      cat: "players",
+      title: "📈 Rank Timeline",
+      body: _secBody(() => _buildRankTimelineHtml("today")),
+    },
+    {
+      key: "lbreplay",
+      cat: "players",
+      title: "🎬 Leaderboard Replay",
+      body: _buildLeaderboardReplayHtml(),
+    },
+    {
+      key: "clutch",
+      cat: "players",
+      title: "🎯 Clutch Rankings",
+      body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>`,
+    },
+    {
+      key: "clutchtrends",
+      cat: "players",
+      title: "📈 Clutch Trends",
+      body: clutchTrendHtml,
+    },
+    {
+      key: "quality",
+      cat: "players",
+      title: "💎 Quality Rankings",
+      body: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
+    },
+    {
+      key: "dominance",
+      cat: "players",
+      title: "💪 Dominance Rankings",
+      body: _dominanceHtml,
+    },
+    {
+      key: "carry",
+      cat: "players",
+      title: "🚀 Carry Rankings",
+      body: carryHtml,
     },
     {
       key: "consistency",
       cat: "players",
-      title: "📐 Consistency",
-      body: _tabbedSection([
-        {
-          label: "Rankings",
-          html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
-        },
-        { label: "ASS Volatility", html: eloVolatilityHtml },
-      ]),
+      title: "📐 Consistency Rankings",
+      body: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
+    },
+    {
+      key: "assvolatility",
+      cat: "players",
+      title: "📉 ASS Volatility",
+      body: eloVolatilityHtml,
     },
     {
       key: "playerform",
@@ -16648,35 +16654,46 @@ function renderAnalyticsPage() {
       body: _playerFormLeaderboardHtml,
     },
     {
-      key: "score",
+      key: "scoredist",
       cat: "activity",
-      title: "📊 Scores",
-      body: _tabbedSection([
-        {
-          label: "Distribution",
-          html: `<div class="ana-card">${_sdCallout}${sdHtml}</div>`,
-        },
-        { label: "Heatmap", html: _scoreHeatmapHtml },
-        { label: "Margin Trend", html: _scoreMargTrendHtml },
-        { label: "💀 Shutouts", html: _shutoutLeaderboardHtml },
-      ]),
+      title: "📊 Score Distribution",
+      body: `<div class="ana-card">${_sdCallout}${sdHtml}</div>`,
     },
     {
-      key: "rivalry",
+      key: "scoreheatmap",
+      cat: "activity",
+      title: "🗓️ Score Heatmap",
+      body: _scoreHeatmapHtml,
+    },
+    {
+      key: "margintrend",
+      cat: "activity",
+      title: "📉 Margin Trend",
+      body: _scoreMargTrendHtml,
+    },
+    {
+      key: "shutouts",
+      cat: "activity",
+      title: "💀 Shutout Leaderboard",
+      body: _shutoutLeaderboardHtml,
+    },
+    {
+      key: "rivalspotlight",
       cat: "players",
-      title: "🔥 Rivalries",
-      body: _tabbedSection([
-        {
-          label: "Spotlight",
-          html: `<div class="ana-card">${rivalHtml}</div>`,
-        },
-        {
-          label: "Matrix",
-          html: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
-        },
-        {
-          label: "Head-to-Head",
-          html: (() => {
+      title: "🔥 Rivalry Spotlight",
+      body: `<div class="ana-card">${rivalHtml}</div>`,
+    },
+    {
+      key: "rivalmatrix",
+      cat: "players",
+      title: "🧮 Rivalry Matrix",
+      body: `<div class="ana-card" style="padding:10px 8px"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % of <strong style="color:var(--accent)">row</strong> vs column. — = never met.</div>${matrixHtml}</div>`,
+    },
+    {
+      key: "h2h",
+      cat: "players",
+      title: "⚔️ Head-to-Head",
+      body: (() => {
             const enc = {};
             am.forEach((m) => {
               const tA = m.teamA || [],
@@ -16739,9 +16756,7 @@ function renderAnalyticsPage() {
           </div>`;
               })
               .join("");
-          })(),
-        },
-      ]),
+      })(),
     },
     {
       key: "partnergrid",
@@ -16750,81 +16765,119 @@ function renderAnalyticsPage() {
       body: _buildPairMatrixHtml(),
     },
     {
-      key: "dayofweek",
+      key: "dowvolume",
       cat: "activity",
-      title: "📅 Day-of-Week",
-      body: _tabbedSection([
-        { label: "Volume", html: dowHtml },
-        { label: "Win %", html: _dowPlayerHtml },
-        { label: "ASS Gain", html: _eloDowHtml },
-        { label: "ASS Matrix", html: _dowPlayerMatrixHtml },
-      ]),
+      title: "📅 Day-of-Week Volume",
+      body: dowHtml,
     },
     {
-      key: "pairs",
+      key: "dowwinpct",
+      cat: "activity",
+      title: "📅 Day-of-Week Win %",
+      body: _dowPlayerHtml,
+    },
+    {
+      key: "dowassgain",
+      cat: "activity",
+      title: "📅 Day-of-Week ASS Gain",
+      body: _eloDowHtml,
+    },
+    {
+      key: "dowmatrix",
+      cat: "activity",
+      title: "📅 Day-of-Week Matrix",
+      body: _dowPlayerMatrixHtml,
+    },
+    {
+      key: "toppairs",
       cat: "pairs",
-      title: "🤝 Pairs",
-      body: _tabbedSection([
-        { label: "Top 10", html: _pairLeaderboardHtml },
-        {
-          label: "All Pairs",
-          html: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`,
-        },
-        {
-          label: "Synergy",
-          html: `<div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner (vs solo avg)</div>${synergyHtml}</div>`,
-        },
-        {
-          label: "Form",
-          html: `<div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
-        },
-      ]),
+      title: "🏅 Top Pairs",
+      body: _pairLeaderboardHtml,
     },
     {
-      key: "elo",
+      key: "allpairs",
+      cat: "pairs",
+      title: "📋 All Pairs",
+      body: `<div class="ana-card" style="padding:10px 12px">${allPairsHtml}</div>`,
+    },
+    {
+      key: "pairsynergy",
+      cat: "pairs",
+      title: "🧪 Pair Synergy",
+      body: `<div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner (vs solo avg)</div>${synergyHtml}</div>`,
+    },
+    {
+      key: "pairform",
+      cat: "pairs",
+      title: "🔥 Pair Form",
+      body: `<div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
+    },
+    {
+      key: "assrankings",
       cat: "elo",
-      title: `⚡ ${_scLabel}`,
-      body: _tabbedSection([
-        { label: "Rankings", html: eloHtml },
-        {
-          label: "History Chart",
-          html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
-        },
-        { label: "Peak / Low", html: _peakEloHtml },
-        { label: "Win Probability", html: eloWinProbHtml },
-      ]),
+      title: `⚡ ${_scLabel} Rankings`,
+      body: eloHtml,
     },
     {
-      key: "pairmatrix",
+      key: "asshistory",
+      cat: "elo",
+      title: `📈 ${_scLabel} History`,
+      body: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
+    },
+    {
+      key: "asspeaklow",
+      cat: "elo",
+      title: `🔝 ${_scLabel} Peak / Low`,
+      body: _peakEloHtml,
+    },
+    {
+      key: "winprob",
+      cat: "elo",
+      title: "🎲 Win Probability",
+      body: eloWinProbHtml,
+    },
+    {
+      key: "chemmatrix",
       cat: "pairs",
-      title: "🧪 Pair Chemistry",
-      body: _tabbedSection([
-        { label: "Matrix", html: pairMatrixHtml },
-        { label: "Leaderboard", html: _buildChemistryLeaderboardHtml() },
-        {
-          label: "H2H Records",
-          html: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
-        },
-      ]),
+      title: "🧪 Chemistry Matrix",
+      body: pairMatrixHtml,
     },
     {
-      // Keeps key "calendar" so the lazy-render wiring in toggleAnaSection /
-      // the first-paint rAF (both keyed on "calendar") still fires when this
-      // card is expanded. Calendar is the first tab so it's visible on expand.
+      key: "chemlb",
+      cat: "pairs",
+      title: "🧪 Chemistry Leaderboard",
+      body: _buildChemistryLeaderboardHtml(),
+    },
+    {
+      key: "pairedh2h",
+      cat: "pairs",
+      title: "🤝 Paired Head-to-Head",
+      body: `<div class="ana-card" style="padding:8px 12px">${pairedH2HHtml}</div>`,
+    },
+    {
+      // Keeps key "calendar" — the lazy-render wiring in toggleAnaSection /
+      // the first-paint rAF are both keyed on this section existing.
       key: "calendar",
       cat: "activity",
-      title: "📅 Activity",
-      body: _tabbedSection([
-        {
-          label: "Calendar",
-          html: `<div id="match-calendar" class="match-calendar"></div>`,
-        },
-        { label: "Sessions", html: sessHtml },
-        ...(uniqueMonths.length >= 1
-          ? [{ label: "Monthly", html: _monthlyStatsTableHtml }]
-          : []),
-      ]),
+      title: "📅 Match Calendar",
+      body: `<div id="match-calendar" class="match-calendar"></div>`,
     },
+    {
+      key: "sessions",
+      cat: "activity",
+      title: "📅 Session Log",
+      body: sessHtml,
+    },
+    ...(uniqueMonths.length >= 1
+      ? [
+          {
+            key: "monthlystats",
+            cat: "activity",
+            title: "📊 Monthly Stats",
+            body: _monthlyStatsTableHtml,
+          },
+        ]
+      : []),
     {
       key: "playerstats",
       cat: "players",
@@ -16841,15 +16894,14 @@ function renderAnalyticsPage() {
       key: "seasonmode",
       cat: "records",
       // Driven by user-defined Seasons when any exist, else auto monthly buckets.
-      // (Distinct from the separate "Monthly Awards" section above.)
-      title: state.seasons.length ? "🏆 Seasons" : "📅 Monthly Recap",
-      body: _tabbedSection([
-        {
-          label: state.seasons.length ? "Awards" : "Recap",
-          html: _buildSeasonModeHtml(),
-        },
-        { label: "Comparison", html: _buildSeasonComparisonHtml() },
-      ]),
+      title: state.seasons.length ? "🏆 Season Awards" : "📅 Monthly Recap",
+      body: _buildSeasonModeHtml(),
+    },
+    {
+      key: "seasoncompare",
+      cat: "records",
+      title: "🆚 Season Comparison",
+      body: _buildSeasonComparisonHtml(),
     },
     // ── NEW SECTIONS ───────────────────────────────────────────
     {
@@ -18620,7 +18672,6 @@ Object.assign(window, {
   toggleSmoothMode,
   toggleBatterySaver,
   toggleMatchNotifications,
-  _anaSubTab,
   toggleAnaHideEmpty,
   openSeasonSheet,
   closeSeasonSheet,
