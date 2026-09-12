@@ -7907,7 +7907,7 @@ function _buildDigestContent(filter, player) {
   return `<div style="padding:0">
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${ms.length} matches · ${players.length} players${player ? ` · ${player}` : ""}</div>
     ${topWinner ? statRow("🏆", "Most Wins", topWinner.name, `${topWinner.mw}W–${topWinner.ml}L`) : ""}
-    ${mover ? statRow("⚡", "Biggest ELO Gain", mover.name, `+${mover.gain > 0 ? mover.gain : 0}`) : ""}
+    ${mover ? statRow("⚡", `Biggest ${_scoringLabel()} Gain`, mover.name, `+${mover.gain > 0 ? mover.gain : 0}`) : ""}
     ${hotPlayer ? statRow("🔥", "Hot Streak", hotPlayer.name, `${hotPlayer.curStreak} in a row`) : ""}
     ${wkPairs ? statRow("🤝", "Best Pair", wkPairs.players.join(" & "), `${wkPairs.wins}W ${wkPairs.winPct}%`) : ""}
     ${stats[0] ? statRow("📊", "Top Performer", stats[0].name, `SR ${stats[0].sr.toFixed(2)}`) : ""}
@@ -7966,7 +7966,7 @@ function _pairsHeaderHtml() {
   };
   return `<div class="chem-header">
     <div class="chem-rank">RANK</div>
-    <div class="chem-elo-rank chem-sort-hd" onclick="sortPairsBy('eloRank')">ELO${arrow("eloRank")}</div>
+    <div class="chem-elo-rank chem-sort-hd" onclick="sortPairsBy('eloRank')">${_scoringLabel()}${arrow("eloRank")}</div>
     <div class="chem-names chem-sort-hd" onclick="sortPairsBy('name')">PAIR${arrow("name")}</div>
     <div class="chem-wl chem-sort-hd" onclick="sortPairsBy('wins')">W–L${arrow("wins")}</div>
     <div class="chem-bar-wrap"></div>
@@ -20412,7 +20412,7 @@ function openSessionSetup() {
         ${av}
         <span class="ssp-meta">
           <span class="ssp-name">${escHtml(p)}</span>
-          <span class="ssp-elo">${guestTag}ELO ${elo}</span>
+          <span class="ssp-elo">${guestTag}${_scoringLabel()} ${elo}</span>
         </span>
         <span class="ssp-check-ring"></span>
       </label>`;
