@@ -18504,3 +18504,83 @@ body.battery-saver .ui-toggle-thumb {
   }
 }
 
+/* ── Summary (Compact) leaderboard table — desktop scale-up ──────────────
+   Same problem as #board: table.cmp was sized purely for mobile (9-11px
+   text, column widths as tight as 24-46px) with a fixed 680px cap and
+   never got a desktop pass. table.cmp is used in exactly one place
+   (#pg-compact), so no extra scoping is needed to keep this isolated.
+   Unlike #board, table.cmp isn't a flex item that fails to stretch — its
+   own width:100%/max-width already resolves against a fully-stretched
+   .cmp-scroll parent, confirmed via computed-style inspection before
+   writing this, so no width:100% workaround is needed here. The existing
+   per-column widths and font-sizes are !important (to beat the dead-weight
+   @media(max-width) rules further down this file); #pg-compact-qualified
+   selectors here win on specificity+importance without touching that. */
+@media (min-width: 1100px) {
+  #pg-compact table.cmp {
+    max-width: 1000px !important;
+  }
+  #pg-compact table.cmp thead th {
+    padding: 10px 8px !important;
+    font-size: 13px !important;
+  }
+  #pg-compact table.cmp tbody td {
+    padding: 13px 8px !important;
+    font-size: 15px !important;
+  }
+  #pg-compact table.cmp th:nth-child(1),
+  #pg-compact table.cmp td:nth-child(1) {
+    width: 38px !important;
+  }
+  #pg-compact table.cmp th:nth-child(2),
+  #pg-compact table.cmp td:nth-child(2) {
+    width: 140px !important; min-width: 120px !important; max-width: 180px !important;
+  }
+  #pg-compact table.cmp th:nth-child(3),
+  #pg-compact table.cmp td:nth-child(3) {
+    width: 54px !important;
+  }
+  #pg-compact table.cmp th:nth-child(4),
+  #pg-compact table.cmp td:nth-child(4) {
+    width: 72px !important;
+  }
+  #pg-compact table.cmp th:nth-child(5),
+  #pg-compact table.cmp td:nth-child(5) {
+    width: 58px !important;
+  }
+  #pg-compact table.cmp th:nth-child(6),
+  #pg-compact table.cmp td:nth-child(6) {
+    width: 52px !important;
+  }
+  #pg-compact table.cmp th:nth-child(7),
+  #pg-compact table.cmp td:nth-child(7) {
+    width: 52px !important;
+  }
+  #pg-compact table.cmp th:nth-child(8),
+  #pg-compact table.cmp td:nth-child(8) {
+    width: 58px !important;
+  }
+  #pg-compact table.cmp th:nth-child(9),
+  #pg-compact table.cmp td:nth-child(9) {
+    width: 64px !important;
+  }
+  #pg-compact table.cmp th[data-col="sr"],
+  #pg-compact table.cmp td[data-col="sr"] {
+    width: 92px !important;
+  }
+  #pg-compact #cmp-ass-th {
+    width: 72px !important;
+  }
+  #pg-compact .cmp-ass-cell,
+  #pg-compact table.cmp tbody .rec-cell {
+    font-size: 15px !important;
+  }
+  #pg-compact .sr-pill-val {
+    font-size: 17px !important;
+  }
+  #pg-compact .sort-arrow {
+    font-size: 11px;
+    width: 11px;
+  }
+}
+
