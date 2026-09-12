@@ -158,17 +158,6 @@
             </label>
           </div>
           <div class="hmenu-divider"></div>
-          <div class="hmenu-item" id="pwa-install-btn" style="display: none">
-            <span class="hmenu-label">Install App</span>
-            <button onclick="triggerInstall()" class="hmenu-action-btn">
-              📲 Add
-            </button>
-          </div>
-          <div
-            class="hmenu-divider"
-            id="pwa-install-divider"
-            style="display: none"
-          ></div>
           <div class="hmenu-item hmenu-item--full">
             <button
               id="loginBtn"
@@ -1804,31 +1793,6 @@ Puneet - Pun, PK
         window.addEventListener("focus", _askCheck);
         setInterval(_askCheck, 60 * 60 * 1000); // hourly while open
       }
-
-      // In-app install prompt
-      let _deferredInstall = null;
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault();
-        _deferredInstall = e;
-        const btn = document.getElementById("pwa-install-btn");
-        const div = document.getElementById("pwa-install-divider");
-        if (btn) btn.style.display = "flex";
-        if (div) div.style.display = "";
-      });
-      window.addEventListener("appinstalled", () => {
-        _deferredInstall = null;
-        const btn = document.getElementById("pwa-install-btn");
-        const div = document.getElementById("pwa-install-divider");
-        if (btn) btn.style.display = "none";
-        if (div) div.style.display = "none";
-      });
-      window.triggerInstall = () => {
-        if (!_deferredInstall) return;
-        _deferredInstall.prompt();
-        _deferredInstall.userChoice.then(() => {
-          _deferredInstall = null;
-        });
-      };
     </script>
 
     <!-- MATCH INTRO OVERLAY -->
