@@ -5795,9 +5795,9 @@ function renderMatchCalendar() {
 
   cal.innerHTML = `
     <div class="cal-header">
-      <button class="cal-nav" onclick="calNav(-1)">‹</button>
+      <button class="cal-nav" onclick="calNav(-1)" aria-label="Previous month" title="Previous month">‹</button>
       <span class="cal-month-lbl">${monthName}</span>
-      <button class="cal-nav" onclick="calNav(1)">›</button>
+      <button class="cal-nav" onclick="calNav(1)" aria-label="Next month" title="Next month">›</button>
     </div>
     <div class="cal-dow-row">
       ${["M", "T", "W", "T", "F", "S", "S"].map((d) => `<div class="cal-dow">${d}</div>`).join("")}
@@ -6930,7 +6930,7 @@ function renderTrash() {
         <div style="font-size:12px;font-weight:600;color:var(--text)">${label}</div>
         <div style="font-size:10px;color:var(--muted)">${fmtDate(m.date)} · deleted ${fmtDate(m.deletedAt)}</div>
       </div>
-      <button onclick="restoreMatch(${i})" style="font-size:10px;font-weight:700;padding:4px 8px;border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--theme);cursor:pointer">↩</button>
+      <button onclick="restoreMatch(${i})" aria-label="Restore match" title="Restore match" style="font-size:10px;font-weight:700;padding:4px 8px;border-radius:8px;border:1px solid rgba(var(--theme-rgb),0.3);background:transparent;color:var(--theme);cursor:pointer">↩</button>
     </div>`;
     })
     .join("");
@@ -6977,7 +6977,7 @@ function editMatchByIndex(i, btn) {
   el.innerHTML = `
     <div class="mei-header">
       <span class="mei-title">✏ EDIT MATCH</span>
-      <button class="mei-close" onclick="closeMatchEdit()">✕</button>
+      <button class="mei-close" onclick="closeMatchEdit()" aria-label="Close" title="Close">✕</button>
     </div>
     <div class="mei-section-lbl">DATE</div>
     <input id="edit-match-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${m.date || todayISO()}">
@@ -7046,7 +7046,7 @@ function openEditMatch(idx) {
     <div class="mem-panel">
       <div class="mei-header">
         <span class="mei-title">✏ EDIT MATCH</span>
-        <button class="mei-close" onclick="closeMatchEdit()">✕</button>
+        <button class="mei-close" onclick="closeMatchEdit()" aria-label="Close" title="Close">✕</button>
       </div>
       <div class="mei-section-lbl">DATE</div>
       <input id="edit-match-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${m.date || todayISO()}">
@@ -8129,7 +8129,7 @@ function openSessionHighlights(date) {
   overlay.innerHTML = `<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 16px 40px;max-height:80vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div style="font-size:14px;font-weight:900;letter-spacing:0.04em">📋 ${fmtDate(date).toUpperCase()}</div>
-      <button onclick="document.getElementById('session-highlights-modal').remove()" style="background:rgba(255,255,255,0.06);border:none;color:var(--muted);font-size:14px;border-radius:8px;width:28px;height:28px;cursor:pointer">✕</button>
+      <button onclick="document.getElementById('session-highlights-modal').remove()" aria-label="Close" title="Close" style="background:rgba(255,255,255,0.06);border:none;color:var(--muted);font-size:14px;border-radius:8px;width:28px;height:28px;cursor:pointer">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:14px;font-weight:800;color:var(--theme)">${sortedMs.length}</div><div style="font-size:9px;color:var(--muted);font-weight:700">MATCHES</div></div>
@@ -8936,7 +8936,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     <div class="cmp-inline-card">
       <div class="cmp-inline-header">
         <span class="cmp-inline-title">⚡ Battle Stats</span>
-        <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
+        <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''" aria-label="Close comparison" title="Close comparison">×</button>
       </div>
       ${_cmpSelectorHtml()}
       ${
@@ -9010,7 +9010,7 @@ function renderCompareSelector() {
     <div class="cmp-inline-card">
       <div class="cmp-inline-header">
         <span class="cmp-inline-title">⚡ Battle Stats</span>
-        <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''">×</button>
+        <button class="cmp-inline-close" onclick="document.getElementById('compare-card').style.display='none';document.getElementById('compare-card').innerHTML=''" aria-label="Close comparison" title="Close comparison">×</button>
       </div>
       ${_cmpSelectorHtml()}
     </div>`;
@@ -10051,7 +10051,7 @@ function buildEloTimelineHtml(filterKey) {
   // Build overlay selector
   const overlaySelector = `<div style="display:flex;align-items:center;gap:6px;margin:6px 0">
     <button class="filter-fab-btn${viewState.eloTLOverlay ? " filter-fab-active" : ""}" onclick="openEloTLOverlaySheet()" style="flex:1;text-align:left"><span>${viewState.eloTLOverlay || "+ COMPARE WITH…"}</span></button>
-    ${viewState.eloTLOverlay ? `<button class="elo-tl-clear" onclick="_eloTLSetOverlay('')">✕</button>` : ""}
+    ${viewState.eloTLOverlay ? `<button class="elo-tl-clear" onclick="_eloTLSetOverlay('')" aria-label="Clear overlay" title="Clear overlay">✕</button>` : ""}
   </div>`;
   return `<div class="ana-card" style="padding:10px 12px">
     <div class="elo-tl-players">${chips}</div>
@@ -11113,7 +11113,7 @@ function _openPodiumDrill(playerName, rankVal, periodType) {
           <div style="font-size:14px;font-weight:800">${escHtml(playerName)} ${medalEmoji} ${rankLabel}</div>
           <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${matching.length} period${matching.length !== 1 ? "s" : ""}</div>
         </div>
-        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+        <button onclick="_closePodiumDrill()" aria-label="Close" title="Close" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
       </div>
       ${head}${moreBlock}
     </div>
@@ -11266,7 +11266,7 @@ function _openAntiPodiumDrill(playerName, bottomPos, periodType) {
           <div style="font-size:14px;font-weight:800">${escHtml(playerName)} ${posEmoji} ${posLabel}</div>
           <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${matching.length} period${matching.length !== 1 ? "s" : ""}</div>
         </div>
-        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+        <button onclick="_closePodiumDrill()" aria-label="Close" title="Close" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
       </div>
       ${head}${moreBlock}
     </div>
@@ -11323,7 +11323,7 @@ function _openRankCalendar(playerName, periodType) {
           <div style="font-size:14px;font-weight:800">${escHtml(playerName)} — Rank History</div>
           <div style="font-size:10px;color:var(--muted);margin-top:3px">${periodLabel} · ${totalPeriods} period${totalPeriods !== 1 ? "s" : ""} played</div>
         </div>
-        <button onclick="_closePodiumDrill()" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
+        <button onclick="_closePodiumDrill()" aria-label="Close" title="Close" style="background:rgba(255,255,255,0.08);border:none;border-radius:50%;width:28px;height:28px;color:var(--text);font-size:14px;cursor:pointer;flex-shrink:0;margin-top:2px">✕</button>
       </div>
       ${body}
     </div>
@@ -11881,7 +11881,7 @@ function _buildSeasonModeHtml() {
           <div style="width:20px;height:20px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${playerInitials(p.name)}</div>
           <div style="flex:1;font-size:11px;font-weight:700">${p.name}</div>
           <div style="font-size:11px;font-weight:800;color:var(--muted)">${p.mw}W ${Math.round((p.mw / p.mp) * 100)}%</div>
-          <button onclick="event.stopPropagation();window._showPlayerMonthReport(${jsArg(s.month)},${jsArg(p.name)})" style="font-size:9px;background:rgba(255,255,255,0.06);border:none;color:var(--muted);border-radius:5px;padding:2px 6px;cursor:pointer">📋</button>
+          <button onclick="event.stopPropagation();window._showPlayerMonthReport(${jsArg(s.month)},${jsArg(p.name)})" aria-label="View month report" title="View month report" style="font-size:9px;background:rgba(255,255,255,0.06);border:none;color:var(--muted);border-radius:5px;padding:2px 6px;cursor:pointer">📋</button>
         </div>`,
           )
           .join("")}
@@ -12161,7 +12161,7 @@ function wrcSelectPlayer(name) {
       <div class="wrc-popup" onclick="event.stopPropagation()">
         <div class="wrc-popup-top">
           <div class="wrc-popup-title" id="wrc-calc-header"></div>
-          <button class="wrc-popup-close" onclick="wrcCloseCalc()">✕</button>
+          <button class="wrc-popup-close" onclick="wrcCloseCalc()" aria-label="Close" title="Close">✕</button>
         </div>
         <div class="wrc-cur-stats" id="wrc-cur-stats">
           <div class="wrc-stat"><div class="wrc-stat-val" id="wrc-cur-mp">—</div><div class="wrc-stat-lbl">PLAYED</div></div>
@@ -13286,7 +13286,7 @@ function _showShutoutMatches(name, type) {
   modal.innerHTML = `<div class="h2h-modal-card" style="max-height:80vh;display:flex;flex-direction:column">
     <div class="h2h-modal-header">
       <span class="h2h-modal-title" style="color:${col}">💀 ${escHtml(title)}</span>
-      <button class="h2h-modal-close" onclick="document.getElementById('shutout-drill-modal').remove()">✕</button>
+      <button class="h2h-modal-close" onclick="document.getElementById('shutout-drill-modal').remove()" aria-label="Close" title="Close">✕</button>
     </div>
     <div style="font-size:10px;color:var(--muted);padding:6px 14px 4px">${matches.length} match${matches.length !== 1 ? "es" : ""} — tap a row to view details</div>
     <div style="overflow-y:auto;flex:1;padding:4px 8px 12px">${body}</div>
@@ -16473,20 +16473,20 @@ function renderAnalyticsPage() {
             <div class="ep-ctrl-group">
               <div class="ep-ctrl-label">FORM WINDOW</div>
               <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)">−</button>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)" aria-label="Decrease form window" title="Decrease form window">−</button>
                 <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
                 <span class="ep-step-unit">games</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)">+</button>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)" aria-label="Increase form window" title="Increase form window">+</button>
               </div>
             </div>
             <div class="ep-ctrl-divider"></div>
             <div class="ep-ctrl-group">
               <div class="ep-ctrl-label">PROJECT AHEAD</div>
               <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)">−</button>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)" aria-label="Decrease matches to project ahead" title="Decrease matches to project ahead">−</button>
                 <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
                 <span class="ep-step-unit">matches</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)">+</button>
+                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)" aria-label="Increase matches to project ahead" title="Increase matches to project ahead">+</button>
               </div>
             </div>
           </div>
@@ -18303,7 +18303,7 @@ window._showPlayerMonthReport = function (mo, playerName) {
   const html = `<div id="player-month-report-modal" style="position:fixed;inset:0;z-index:1000;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
     <div style="max-width:480px;margin:0 auto;padding:16px 12px 88px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <button onclick="document.getElementById('player-month-report-modal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;flex-shrink:0">←</button>
+        <button onclick="document.getElementById('player-month-report-modal').remove()" aria-label="Back" title="Back" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;flex-shrink:0">←</button>
         <div>
           <div style="font-size:16px;font-weight:900;letter-spacing:0.04em">${escHtml(playerName)}</div>
           <div style="font-size:10px;color:var(--muted)">${moLabel}</div>
@@ -18657,7 +18657,7 @@ window._showMonthReport = function (mo) {
     <div style="max-width:480px;margin:0 auto;padding:16px 12px 88px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div style="font-size:16px;font-weight:900;letter-spacing:0.04em">📊 ${moLabel.toUpperCase()}</div>
-        <button onclick="document.getElementById('month-report-modal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+        <button onclick="document.getElementById('month-report-modal').remove()" aria-label="Close" title="Close" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
       ${card("📊 Standings", standHtml)}
       ${highRows.length ? card("🔥 Highlights", highRows.join("")) : ""}
@@ -19622,16 +19622,16 @@ function _buildSessionLeaderboard() {
       const isLast = i === total - 1;
       const adminBtns = window.isAdmin
         ? `<div class="sess-hist-actions">
-            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1)" ${i === 0 ? "disabled" : ""}>↑</button>
-            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1)" ${i === total - 1 ? "disabled" : ""}>↓</button>
-            <button class="sess-hist-edit-btn" onclick="editSessionMatch(${i})">✏</button>
-            <button class="sess-hist-del-btn" onclick="deleteSessionMatch(${i})">🗑</button>
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1)" ${i === 0 ? "disabled" : ""} aria-label="Move match up" title="Move up">↑</button>
+            <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1)" ${i === total - 1 ? "disabled" : ""} aria-label="Move match down" title="Move down">↓</button>
+            <button class="sess-hist-edit-btn" onclick="editSessionMatch(${i})" aria-label="Edit match" title="Edit match">✏</button>
+            <button class="sess-hist-del-btn" onclick="deleteSessionMatch(${i})" aria-label="Delete match" title="Delete match">🗑</button>
            </div>`
         : "";
       return `<div class="sess-hist-row${isLast ? " sess-hist-last" : ""}">
       <span class="sess-hist-num">#${i + 1}</span>
       <span class="sess-hist-teams">${escHtml(tA)} <span class="sess-hist-score ${aWon ? "p" : "n"}">${mt.scoreA}–${mt.scoreB}</span> ${escHtml(tB)}</span>
-      ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()">↶</button>` : ""}
+      ${isLast ? `<button class="sess-hist-undo-btn" onclick="undoSessionMatch()" aria-label="Undo last match" title="Undo last match">↶</button>` : ""}
       ${adminBtns}
     </div>`;
     })
@@ -19925,7 +19925,7 @@ function editSessionMatch(histIdx) {
     <div class="mem-panel">
       <div class="mei-header">
         <span class="mei-title">✏ EDIT SESSION MATCH</span>
-        <button class="mei-close" onclick="closeMatchEdit()">✕</button>
+        <button class="mei-close" onclick="closeMatchEdit()" aria-label="Close" title="Close">✕</button>
       </div>
       <div class="mei-section-lbl">DATE</div>
       <input id="edit-match-date" type="date" class="mei-input" style="width:100%;margin-bottom:10px" value="${m.date || todayISO()}">
@@ -20142,8 +20142,8 @@ function openSessionSummary() {
             const aWon = mt.scoreA > mt.scoreB;
             const adminBtns = window.isAdmin
               ? `<div class="sess-hist-actions">
-                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1);openSessionSummary()" ${i === 0 ? "disabled" : ""}>↑</button>
-                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1);openSessionSummary()" ${i === _smTotal - 1 ? "disabled" : ""}>↓</button>
+                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},-1);openSessionSummary()" ${i === 0 ? "disabled" : ""} aria-label="Move match up" title="Move up">↑</button>
+                  <button class="sess-hist-move-btn" onclick="moveSessionMatch(${i},1);openSessionSummary()" ${i === _smTotal - 1 ? "disabled" : ""} aria-label="Move match down" title="Move down">↓</button>
                 </div>`
               : "";
             return `<div class="sess-sum-match">
@@ -20609,7 +20609,7 @@ function viewSeasonArchive(id) {
   const html = `<div id="season-archive-modal" style="position:fixed;inset:0;z-index:1000;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
     <div style="max-width:480px;margin:0 auto;padding:16px 12px 40px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <button onclick="document.getElementById('season-archive-modal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer">←</button>
+        <button onclick="document.getElementById('season-archive-modal').remove()" aria-label="Back" title="Back" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer">←</button>
         <div>
           <div style="font-size:16px;font-weight:900">📦 ${escHtml(s.name)}</div>
           <div style="font-size:10px;color:var(--muted)">Archived ${fmtDate(s.archivedAt)} · frozen snapshot, ${snap.matches} matches</div>
