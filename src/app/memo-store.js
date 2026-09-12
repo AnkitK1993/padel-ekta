@@ -171,3 +171,18 @@ export function invalidateAll() {
   for (const k in reignCache) delete reignCache[k];
   for (const k in rankPeriodCache) delete rankPeriodCache[k];
 }
+
+// Clears only the memos the Statistics/Analytics page reads (stats, ASS,
+// pair stats, reign + rank-period lookups) — the Statistics page is meant to
+// always recompute on demand rather than reuse a stale in-memory result.
+// Leaves the Elo memos alone since Home/Compact/History depend on those and
+// aren't part of this "don't cache" requirement.
+export function clearAnalyticsCache() {
+  _statNamesKey = "";    _statNamesMemo = null;
+  _statsMemoKey = "";    _statsMemo = null;
+  _pairStatsKey = "";    _pairStatsMemo = null;
+  _assMemoKey = "";      _assMemo = null;
+  _assTimelineKey = ""; _assTimelineMemo = null;
+  for (const k in reignCache) delete reignCache[k];
+  for (const k in rankPeriodCache) delete rankPeriodCache[k];
+}

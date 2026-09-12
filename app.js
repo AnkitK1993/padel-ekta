@@ -255,6 +255,7 @@ import {
   memoASSPeaks,
   memoASSLows,
   invalidateAll as _invalidateAllMemos,
+  clearAnalyticsCache as _clearAnalyticsCache,
   reignCache as _reignCache,
   rankPeriodCache as _rankPeriodCache,
 } from "./src/app/memo-store.js";
@@ -1275,32 +1276,6 @@ function renderAnalyticsFeature() {
     .catch((err) => _handleFeatureLoadError("Analytics", err));
 }
 
-// Pre-render analytics in the background so the tab opens instantly.
-// Runs only when the user is NOT already on the analytics tab and the
-// rendered version is stale. Uses requestIdleCallback (with a 10s timeout
-// fallback) to avoid competing with primary UI work.
-let _anaPrefetchScheduled = false;
-function _scheduleAnalyticsPrefetch() {
-  if (_anaPrefetchScheduled) return;
-  // Battery-saver: skip the speculative background render of the Statistics page
-  // (the heaviest render in the app) — it runs on every data load/sync even for
-  // users who never open the tab. In saver mode we render lazily on first open
-  // instead, trading a one-time open cost for no wasted background CPU/battery.
-  if (document.body.classList.contains("battery-saver")) return;
-  _anaPrefetchScheduled = true;
-  const run = () => {
-    _anaPrefetchScheduled = false;
-    if (document.querySelector(".page.active")?.id === "pg-analytics") return;
-    if (_anaRenderedVersion === _dataVersion) return;
-    renderAnalyticsPage();
-  };
-  if (typeof requestIdleCallback !== "undefined") {
-    requestIdleCallback(run, { timeout: 10000 });
-  } else {
-    setTimeout(run, 3000);
-  }
-}
-
 function _loadLiveFeature() {
   if (!_liveFeaturePromise) {
     _liveFeaturePromise = import("./features/live-session.js");
@@ -1762,8 +1737,6 @@ function loadCloudData() {
       document.dispatchEvent(new CustomEvent("padel-data-ready"));
       setTimeout(_checkAnniversaries, 1800);
       setTimeout(checkResumeSession, 800); // Enhancement 13: show session resume banner if saved state exists
-      // Pre-render analytics in background after primary tab settles
-      if (activePageId !== "pg-analytics") _scheduleAnalyticsPrefetch();
     } else {
       // Genuine new data from Firestore — notify if new matches arrived and the
       // user has opted in to notifications and the page is backgrounded.
@@ -1796,8 +1769,6 @@ function loadCloudData() {
           });
           board.style.opacity = "1";
         }
-        // Re-invalidate analytics cache after Firestore update; pre-render in background
-        _scheduleAnalyticsPrefetch();
       }, 160);
     }
   }
@@ -2125,6 +2096,12 @@ function switchMainTab(id, skipAnim = false) {
   }
   if (id === "analytics") {
     renderAnalyticsFeature();
+  } else if (curPage?.id === "pg-analytics") {
+    // Leaving Statistics — it's load-on-demand only, so drop its cached
+    // computations rather than let them sit in memory until data changes.
+    _clearAnalyticsCache();
+    _anaRenderedVersion = -1;
+    _anaRenderedFilter = "";
   }
   if (id === "add") {
     refreshManage();
@@ -5211,6 +5188,26 @@ window.setEloEnabledAndRefresh = function (on) {
   const _pg = document.querySelector(".page.active")?.id;
   if (_pg === "pg-analytics") renderAnalyticsPage();
   if (_pg === "pg-home") renderHome();
+};
+
+// Manual "Remove Cache" admin action — drops the Statistics page's in-memory
+// memo results so the next open recomputes from scratch instead of reusing
+// whatever was last computed (mirrors the automatic clear in switchMainTab()).
+window.removeStatsCache = function removeStatsCache() {
+  _clearAnalyticsCache();
+  _anaRenderedVersion = -1;
+  _anaRenderedFilter = "";
+  if (document.querySelector(".page.active")?.id === "pg-analytics") {
+    renderAnalyticsPage();
+  }
+  const btn = document.getElementById("remove-cache-btn");
+  if (btn) {
+    const original = btn.textContent;
+    btn.textContent = "✓ Cache Cleared";
+    setTimeout(() => {
+      btn.textContent = original;
+    }, 1500);
+  }
 };
 
 // setScoringMode drives the hamburger master toggle — affects Stats/Home/Analytics only.
@@ -13870,14 +13867,10 @@ function _anaSetDateRange(which, value) {
 function renderAnalyticsPage() {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
-  // Skip full re-render if data hasn't changed since last render
+  // Statistics page always recomputes fresh on open (no cached-render skip) —
+  // its underlying memo values (memoStats/memoASS/pair/reign/rank) are cleared
+  // as soon as the user navigates away, in switchMainTab().
   const _anaRenderedKey = `${_activeSeasonId}|${viewState.anaDateFilter || "all"}|${viewState.anaDateFrom || ""}|${viewState.anaDateTo || ""}|${viewState.anaActiveCat || "all"}|${getAnaHideEmpty() ? 1 : 0}`;
-  if (
-    _anaRenderedVersion === _dataVersion &&
-    _anaRenderedFilter === _anaRenderedKey &&
-    container.querySelector(".ana-sec")
-  )
-    return;
   // Statistics run over the season-scoped, GUEST-EXCLUDED set — never raw
   // state.matches — so players marked as guest don't appear in any stat.
   const am = _analyticsMatches();
