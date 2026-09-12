@@ -307,7 +307,7 @@ function _pdBuildRadarHtml(name, form) {
   const formNorm = form ? form.score / 10 : winRateNorm;
   const maxMp = Math.max(...allStats.map((p) => p.mp), 1);
   const actNorm = ps.mp / maxMp;
-  const margins = state.matches.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name))
+  const margins = activeMatches().filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(name))
     .map((m) => { const inA = (m.teamA || []).includes(name); return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA); });
   const avgM = margins.reduce((s, v) => s + v, 0) / Math.max(margins.length, 1);
   const consistNorm = Math.min(1, Math.max(0, (avgM + 5) / 10));
@@ -322,7 +322,7 @@ function _pdBuildRadarHtml(name, form) {
   const avgForm = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
   const avgAct  = _avg((p) => p.mp / maxMp);
   const avgConsist = _avg((p) => {
-    const ms2 = state.matches.filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))
+    const ms2 = activeMatches().filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name))
       .map((m) => { const inA = (m.teamA || []).includes(p.name); return (inA ? m.scoreA : m.scoreB) - (inA ? m.scoreB : m.scoreA); });
     const a2 = ms2.reduce((a, v) => a + v, 0) / Math.max(ms2.length, 1);
     return Math.min(1, Math.max(0, (a2 + 5) / 10));
@@ -763,7 +763,7 @@ function openPlayerDetail(name) {
     : "";
 
   // Shared match list for enhancements 14-16 and recent cards
-  const pdSortedAll14 = [...state.matches].sort((a, b) =>
+  const pdSortedAll14 = [...activeMatches()].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
   const pdPlayerMs = pdSortedAll14.filter((m) =>
@@ -893,7 +893,7 @@ function openPlayerDetail(name) {
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
   // Best rank: find minimum rank position across all match-date snapshots
-  const _sortedAll = [...state.matches].sort((a, b) =>
+  const _sortedAll = [...activeMatches()].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
   const _playerDates = [
@@ -1062,7 +1062,7 @@ function openPlayerDetail(name) {
     });
     // Cumulative ASS delta when paired with each partner
     const partnerAssDelta = {};
-    const sortedForAss15 = [...state.matches].sort((a, b) =>
+    const sortedForAss15 = [...activeMatches()].sort((a, b) =>
       (a.date || "").localeCompare(b.date || ""),
     );
     const assDeltas15 = computeMatchASSDeltas(sortedForAss15);
