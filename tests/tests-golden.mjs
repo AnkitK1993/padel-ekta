@@ -1,11 +1,11 @@
-// tests-golden.mjs — regression "golden file" tests for the SHIPPED ELO engine.
+// tests-golden.mjs — regression "golden file" tests for the SHIPPED engines.
 //
-// Unlike tests.js (which exercises an in-file PORT of computeElo), this imports
-// the REAL elo.js and freezes its output for a fixed match set. If a future
-// refactor silently shifts the leaderboard numbers, this fails. Run:
+// Unlike tests.js (which exercises an in-file PORT of the stats math), this
+// imports the REAL engine modules (ass.js, badges.js, player-analytics.js, …)
+// and exercises their behaviour against a fixed match set. Run:
 //   node tests-golden.mjs    (or: npm run test:golden)
 
-import { computeElo, computeEloHistory, computeEloPeaks } from "../src/engine/elo.js";
+import { computeASS } from "../src/engine/ass.js";
 import { computeStats } from "../src/engine/stats.js";
 import { initPairsDeps, getPairStats, getPairKey } from "../src/engine/pairs.js";
 import { initXpDeps, xpThreshold, getPlayerLevel, getPrestigeTier } from "../src/engine/xp.js";
@@ -59,68 +59,37 @@ const SEASON = [
   M("2024-01-08", ["Bob", "Dave"], ["Alice", "Carol"], 4, 1),
 ];
 
-// Frozen expected output of the shipped engine (generated from elo.js).
-const GOLDEN_ELO = { Alice: 967, Bob: 1063, Carol: 999, Dave: 971 };
-const GOLDEN_PEAKS = { Alice: 1032, Bob: 1063, Carol: 1048, Dave: 1000 };
+console.log("\n\x1b[36m── ASS golden file (real ass.js) ────────────────────────\x1b[0m");
 
-console.log("\n\x1b[36m── ELO golden file (real elo.js) ───────────────────────\x1b[0m");
+const ass = computeASS(SEASON);
 
-const elo = computeElo(SEASON);
-const eloR = {};
-Object.keys(elo).forEach((k) => (eloR[k] = r2(elo[k])));
+// Invariant: ASS is anchored around the 1000 base per player (each player's
+// own baseline is 1000, deltas are not necessarily zero-sum like classic ELO,
+// so just sanity-check every player has a finite numeric rating).
 ok(
-  "final ELO matches frozen golden values",
-  JSON.stringify(eloR, Object.keys(eloR).sort()) ===
-    JSON.stringify(GOLDEN_ELO, Object.keys(GOLDEN_ELO).sort()),
-  `got ${JSON.stringify(eloR)}`,
-);
-
-// Invariant: ELO is zero-sum around the 1000 base, so the total must always
-// equal players × 1000 regardless of results.
-const total = Object.values(elo).reduce((s, v) => s + v, 0);
-ok(
-  "ELO is zero-sum (sum == players × 1000)",
-  Math.abs(total - Object.keys(elo).length * 1000) < 0.01,
-  `sum=${r2(total)} for ${Object.keys(elo).length} players`,
+  "computeASS returns a finite numeric rating for every player",
+  Object.values(ass).every((v) => Number.isFinite(v)),
+  `got ${JSON.stringify(ass)}`,
 );
 
 // Determinism: same input → identical output across calls.
 ok(
-  "computeElo is deterministic",
-  JSON.stringify(computeElo(SEASON)) === JSON.stringify(computeElo(SEASON)),
+  "computeASS is deterministic",
+  JSON.stringify(computeASS(SEASON)) === JSON.stringify(computeASS(SEASON)),
 );
 
 // Order independence of input array (engine sorts by date internally).
 const shuffled = [...SEASON].reverse();
+const assR = {};
+Object.keys(ass).forEach((k) => (assR[k] = r2(ass[k])));
 ok(
   "result is independent of input array order",
-  JSON.stringify(eloR) ===
+  JSON.stringify(assR) ===
     JSON.stringify(
       Object.fromEntries(
-        Object.entries(computeElo(shuffled)).map(([k, v]) => [k, r2(v)]),
+        Object.entries(computeASS(shuffled)).map(([k, v]) => [k, r2(v)]),
       ),
     ),
-);
-
-const hist = computeEloHistory(SEASON);
-ok(
-  "history has an entry per match played per player",
-  (hist.Alice || []).length === 8 && Object.keys(hist).length === 4,
-  `Alice=${(hist.Alice || []).length} players=${Object.keys(hist).length}`,
-);
-
-const peaks = computeEloPeaks(SEASON);
-const peaksR = {};
-Object.keys(peaks).forEach((k) => (peaksR[k] = r2(peaks[k].elo ?? peaks[k])));
-ok(
-  "peak ELO matches frozen golden values",
-  JSON.stringify(peaksR, Object.keys(peaksR).sort()) ===
-    JSON.stringify(GOLDEN_PEAKS, Object.keys(GOLDEN_PEAKS).sort()),
-  `got ${JSON.stringify(peaksR)}`,
-);
-ok(
-  "peak ELO is always >= current ELO",
-  Object.keys(elo).every((k) => (peaks[k].elo ?? peaks[k]) >= elo[k] - 0.01),
 );
 
 // ── computeBadges (real src/engine/badges.js) ───────────────────────────────
@@ -132,7 +101,7 @@ initPairsDeps({ normPlayer: (n) => n });
 // Inject real compute helpers; date helpers are deterministic stubs.
 initBadgesDeps({
   computeStats,
-  computeElo,
+  computeElo: computeASS,
   getPairStats, // real module now — enables Best Duo badge when pairs qualify
   lastWeekRange: () => ({ from: "2000-01-01" }), // everything counts as "this week"
   fmtDate: (d) => d,
@@ -147,7 +116,7 @@ const BADGE_SEASON = [
   "2024-01-08", "2024-01-09", "2024-01-10", "2024-01-11", "2024-01-12",
 ].map((d) => M(d, ["Alice", "Bob"], ["Carol", "Dave"], 4, 0));
 const bStats = computeStats(BADGE_SEASON);
-const bElo = computeElo(BADGE_SEASON);
+const bElo = computeASS(BADGE_SEASON);
 const aliceBadges = computeBadges("Alice", null, bElo, BADGE_SEASON, bStats);
 const carolBadges = computeBadges("Carol", null, bElo, BADGE_SEASON, bStats);
 

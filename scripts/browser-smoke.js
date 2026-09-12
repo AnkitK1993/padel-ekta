@@ -260,7 +260,12 @@ function _isBenignNoise(text) {
     // arrive nondeterministically and were intermittently failing the Chrome CI
     // steps (flaky red builds that pass on re-run). Suppress resource-load noise.
     /failed to load resource/i.test(text) ||
-    /net::ERR_(FAILED|INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|CONNECTION_(REFUSED|CLOSED)|ABORTED|TIMED_OUT|BLOCKED_BY_CLIENT)/i.test(text)
+    /net::ERR_(FAILED|INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|CONNECTION_(REFUSED|CLOSED)|ABORTED|TIMED_OUT|BLOCKED_BY_CLIENT)/i.test(text) ||
+    // Chrome blocks navigator.vibrate() outside a real user gesture and logs
+    // it as an "Intervention" — milestone/confetti celebrations call it
+    // wrapped in try/catch (harmless if blocked), but the synthetic add-match
+    // step in this script isn't a real tap, so it can legitimately fire here.
+    /blocked call to navigator\.vibrate/i.test(text)
   );
 }
 function _eventText(event) {

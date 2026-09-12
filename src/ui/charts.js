@@ -2,7 +2,7 @@
 // Pure SVG string builders — no DOM, no app state.
 import { state } from "../engine/state.js";
 import { computeStats } from "../engine/stats.js";
-import { computeElo } from "../engine/elo.js";
+import { computeASS } from "../engine/ass.js";
 
 let _hudGaugeId = 0;
 
@@ -92,7 +92,7 @@ export function getFormSparkline(playerName, width = 80, height = 28) {
 
   const srPoints = last10.map((_, i) => {
     const window = pMatches.slice(0, pMatches.indexOf(last10[i]) + 1);
-    const s = computeStats(window, computeElo(window)).find(
+    const s = computeStats(window, computeASS(window)).find(
       (p) => p.name === playerName,
     );
     return s ? s.sr : 0;

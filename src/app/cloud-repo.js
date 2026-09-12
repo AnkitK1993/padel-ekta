@@ -174,7 +174,7 @@ export async function trySyncNow() {
 
 // ── Firestore subscription ─────────────────────────────────────
 // dataFingerprint: compact representation used to skip no-op re-renders.
-// Uses the same FNV hash approach as elo.js (avoids O(dataset) string pinning).
+// Uses the same FNV hash approach as fingerprint.js (avoids O(dataset) string pinning).
 function _fnv(h, s) {
   for (let i = 0; i < s.length; i++)
     h = Math.imul(h ^ s.charCodeAt(i), 16777619);

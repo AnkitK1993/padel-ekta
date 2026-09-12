@@ -1,6 +1,6 @@
 // ── MATCH-TEXT PARSER ──────────────────────────────────────
 // Pure parsing of the admin "add matches" textarea — no DOM, no Firebase.
-// Like elo.js, it receives its app-state dependencies (the alias/name maps and
+// Like other engine modules, it receives its app-state dependencies (the alias/name maps and
 // today's date) via initParserDeps() so it never reaches into app globals.
 // The maps are passed as GETTERS because app.js reassigns nameMap/aliasMap on
 // data load — a getter always sees the current object.

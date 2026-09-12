@@ -6,7 +6,6 @@
 // are re-exposed on window by app.js for the inline onclick handlers.
 import { state } from "../src/engine/state.js";
 import { withoutGuestMatches } from "../src/engine/selectors.js";
-import { computeElo } from "../src/engine/elo.js";
 import { computeASS } from "../src/engine/ass.js";
 import { computeStats } from "../src/engine/stats.js";
 import { escHtml, fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
@@ -19,7 +18,6 @@ let _replayIdx = 0,
   _replayLoop = false,
   _replayReverse = false,
   _replaySpotlight = "",
-  _replayMode = "elo",
   _replayPrevElos = {},
   _replayPrevRanks = {};
 
@@ -69,7 +67,7 @@ export function _buildLeaderboardReplayHtml() {
         (d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`,
       )
       .join("");
-  const topPlayers = computeStats(sorted, computeElo(sorted));
+  const topPlayers = computeStats(sorted, computeASS(sorted));
   const spotlightOpts =
     '<option value="">👁 Spotlight: All</option>' +
     topPlayers
@@ -96,10 +94,6 @@ export function _buildLeaderboardReplayHtml() {
           )
           .join("")}
       </div>
-      <div class="lr-mode-group">
-        <button class="lr-speed-pill${_replayMode === "elo" ? " active" : ""}" onclick="_replayToggleMode('elo')">ELO</button>
-        <button class="lr-speed-pill${_replayMode === "ass" ? " active" : ""}" onclick="_replayToggleMode('ass')">ASS</button>
-      </div>
       <button class="lr-toggle lr-toggle-loop${_replayLoop ? " active" : ""}" onclick="_replayToggleLoop()" title="Loop">↻</button>
       <button class="lr-toggle lr-toggle-rev${_replayReverse ? " active" : ""}" onclick="_replayToggleReverse()" title="Reverse">⇄</button>
     </div>
@@ -124,10 +118,8 @@ export function _replayUpdate(idx) {
     Math.min(parseInt(idx, 10) || _REPLAY_MIN, sorted.length),
   );
   const slice = sorted.slice(0, _replayIdx);
-  const eloMap = computeElo(slice);
-  const scoreMap = _replayMode === "ass" ? computeASS(slice) : eloMap;
-  const scoreLabel = _replayMode === "ass" ? "ASS" : "ELO";
-  // Rank/order by the active scoring system so ASS mode reorders the board.
+  const scoreMap = computeASS(slice);
+  const scoreLabel = "ASS";
   const stats = computeStats(slice, scoreMap).slice(0, 8);
   const maxScore = Math.max(...stats.map((s) => scoreMap[s.name] || 1000), 1000);
   const board = document.getElementById("replay-board");
@@ -142,7 +134,7 @@ export function _replayUpdate(idx) {
     const ws = Math.max(m.scoreA, m.scoreB);
     const ls = Math.min(m.scoreA, m.scoreB);
     const prevSlice = sorted.slice(0, _replayIdx - 1);
-    const prevScoreMap = _replayMode === "ass" ? computeASS(prevSlice) : computeElo(prevSlice);
+    const prevScoreMap = computeASS(prevSlice);
     const winnerName = winners[0];
     const scoreDelta =
       (scoreMap[winnerName] || 1000) - (prevScoreMap[winnerName] || 1000);
@@ -205,14 +197,6 @@ export function _replayUpdate(idx) {
     _replayPrevElos[p.name] = scoreMap[p.name] || 1000;
     _replayPrevRanks[p.name] = i;
   });
-}
-
-export function _replayToggleMode(mode) {
-  _replayMode = mode || (_replayMode === "elo" ? "ass" : "elo");
-  document.querySelectorAll(".lr-mode-group .lr-speed-pill").forEach((b) => {
-    b.classList.toggle("active", b.textContent === _replayMode.toUpperCase());
-  });
-  _replayUpdate(_replayIdx);
 }
 
 export function _replayStep(delta) {

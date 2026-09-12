@@ -1,11 +1,9 @@
 // ── HISTORY / SESSION SUMMARY CARD ─────────────────────────
 // Builds the "HIGHLIGHTS" card (podium, awards, hot/cold, player-of-the-period,
-// ELO changes) as an HTML string. Pure string output. Imports what's already
-// modular; the three app-coupled helpers (normPlayer, getPairStats, the
-// memoised ELO accessor) are injected via initHistorySummaryDeps so the body
-// stays a verbatim copy of the original.
+// ASS changes) as an HTML string. Pure string output. Imports what's already
+// modular; the app-coupled helpers (normPlayer, getPairStats) are injected via
+// initHistorySummaryDeps so the body stays close to the original.
 import { computeStats } from "../engine/stats.js";
-import { computeElo } from "../engine/elo.js";
 import { computeASS } from "../engine/ass.js";
 import { _rankColor } from "./format.js";
 import { activeMatches } from "../engine/selectors.js";
@@ -13,8 +11,7 @@ import { activeMatches } from "../engine/selectors.js";
 let _deps = {
   normPlayer: (n) => n,
   getPairStats: () => [],
-  memoElo: () => ({}),
-  getSummaryMode: () => "elo",
+  memoAss: () => ({}),
 };
 export function initHistorySummaryDeps(d) {
   _deps = { ..._deps, ...d };
@@ -22,12 +19,11 @@ export function initHistorySummaryDeps(d) {
 // Thin aliases so the function body below is an unmodified copy of the original.
 const normPlayer = (n) => _deps.normPlayer(n);
 const getPairStats = (m) => _deps.getPairStats(m);
-const _memoElo = () => _deps.memoElo();
-const _getSummaryMode = () => _deps.getSummaryMode();
+const _memoASS = () => _deps.memoAss();
 
 export function buildHistorySummary(matches, filter = "all") {
   if (matches.length < 3) return "";
-  const stats = computeStats(matches, computeElo(matches));
+  const stats = computeStats(matches, computeASS(matches));
   const playerSet = new Set();
   let totalGames = 0,
     totalMargin = 0;
@@ -117,7 +113,7 @@ export function buildHistorySummary(matches, filter = "all") {
     hotColdHtml = `<div class="hsum-section-lbl">HOT &amp; COLD</div><div class="hsum-highlights">${rows.join("")}</div>`;
   }
 
-  // Top ELO gainer within the filtered period
+  // Top ASS gainer within the filtered period
   const potwLabels = {
     today: { title: "PLAYER OF THE DAY", sub: "matches today" },
     week: { title: "PLAYER OF THE WEEK", sub: "matches this week" },
@@ -130,13 +126,12 @@ export function buildHistorySummary(matches, filter = "all") {
   const potwLabel = potwLabels[filter] || potwLabels.all;
   let potwHtml = "";
   if (matches.length >= 2) {
-    const _mode = _getSummaryMode();
-    const _scoringLbl = _mode === "ass" ? "ASS" : "ELO";
+    const _scoringLbl = "ASS";
     const periodDates = matches.map((m) => m.date || "").filter(Boolean);
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
     const beforeMatches = activeMatches().filter((m) => (m.date || "") < firstDate);
-    const preScore = _mode === "ass" ? computeASS(beforeMatches) : computeElo(beforeMatches);
-    const fullScore = _mode === "ass" ? computeASS(activeMatches()) : _memoElo();
+    const preScore = computeASS(beforeMatches);
+    const fullScore = _memoASS();
     const periodPlayers = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -166,7 +161,7 @@ export function buildHistorySummary(matches, filter = "all") {
     }
   }
 
-  // Combined ASS + ELO changes table — always shows both regardless of mode
+  // ASS changes table for the filtered period
   let sessionRecapHtml = "";
   if (matches.length) {
     const periodDates2 = matches.map((m) => m.date || "1970-01-01");
@@ -174,8 +169,6 @@ export function buildHistorySummary(matches, filter = "all") {
     const beforeMs2 = activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate2);
     const assAfter  = computeASS(activeMatches());
     const assBefore = computeASS(beforeMs2);
-    const eloAfter  = _memoElo();
-    const eloBefore = computeElo(beforeMs2);
     const periodPlayers2 = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -190,10 +183,7 @@ export function buildHistorySummary(matches, filter = "all") {
         const assStart = Math.round(assBefore[p] || 1000);
         const assEnd   = Math.round(assAfter[p]  || 1000);
         const assDelta = assEnd - assStart;
-        const eloStart = Math.round(eloBefore[p] || 1000);
-        const eloEnd   = Math.round(eloAfter[p]  || 1000);
-        const eloDelta = eloEnd - eloStart;
-        return { name, assStart, assEnd, assDelta, eloStart, eloEnd, eloDelta };
+        return { name, assStart, assEnd, assDelta };
       })
       .sort((a, b) => b.assDelta - a.assDelta);
     const th = (label) => `<th style="padding:3px 5px;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:0.06em;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08)">${label}</th>`;
@@ -209,18 +199,14 @@ export function buildHistorySummary(matches, filter = "all") {
         ${numCell(r.assStart)}
         ${numCell(r.assEnd)}
         ${deltaCell(r.assDelta)}
-        ${numCell(r.eloStart)}
-        ${numCell(r.eloEnd)}
-        ${deltaCell(r.eloDelta)}
       </tr>`).join("");
     sessionRecapHtml = `
-      <div class="hsum-section-lbl">ASS &amp; ELO CHANGES</div>
+      <div class="hsum-section-lbl">ASS CHANGES</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table style="width:100%;border-collapse:collapse;table-layout:auto">
           <thead><tr>
             ${th("PLAYER")}
             ${th("ASS START")}${th("ASS NOW")}${th("ASS Δ")}
-            ${th("ELO START")}${th("ELO NOW")}${th("ELO Δ")}
           </tr></thead>
           <tbody>${tableRows}</tbody>
         </table>

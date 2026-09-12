@@ -142,14 +142,6 @@
             </label>
           </div>
           <div class="hmenu-divider"></div>
-          <div class="hmenu-item" id="hmenu-scoring-item">
-            <span class="hmenu-label">Scoring</span>
-            <div class="scoring-seg" id="scoringSeg">
-              <button class="scoring-seg-btn" data-val="ass" onclick="setScoringMode('ass')">ASS</button>
-              <button class="scoring-seg-btn" data-val="elo" onclick="setScoringMode('elo')">ELO</button>
-            </div>
-          </div>
-          <div class="hmenu-divider"></div>
           <div class="hmenu-item">
             <span class="hmenu-label">🔋 Battery Saver</span>
             <label class="hmenu-toggle">
@@ -351,7 +343,7 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
-          <div id="summary-mode-badge" class="smt-mode-badge" onclick="toggleSummaryModeOnly()" style="cursor:pointer" title="Tap to toggle ASS / ELO"></div>
+          <div id="summary-mode-badge" class="smt-mode-badge">ASS</div>
         </div>
         <!-- Filter bar — date FAB + action icons -->
         <div class="summary-filter-bar">
@@ -424,9 +416,6 @@
                   <th class="sortable" data-col="gamePct" onclick="setCmpSort('gamePct')">
                     G% <span class="sort-arrow" id="sort-gamePct"></span>
                   </th>
-                  <th class="sortable" data-col="elo" onclick="setCmpSort('elo')" id="cmp-elo-th">
-                    ELO <span class="sort-arrow" id="sort-elo"></span>
-                  </th>
                   <th class="sortable" data-col="ass" onclick="setCmpSort('ass')" id="cmp-ass-th">
                     ASS <span class="sort-arrow" id="sort-ass"></span>
                   </th>
@@ -454,7 +443,7 @@
           >
             <div class="t1">MATCHES <span>PLAYED</span></div>
             <div class="cmp-delta-ctrl">
-              <span class="cmp-delta-lbl"><span id="cmp-delta-mode-lbl">ELO</span> change</span>
+              <span class="cmp-delta-lbl"><span id="cmp-delta-mode-lbl">ASS</span> change</span>
               <div class="mdw-wrap">
                 <button class="mdw-btn active" data-window="alltime" onclick="event.stopPropagation();toggleMatchDeltaWindow('alltime')">ALL TIME</button>
                 <button class="mdw-btn" data-window="today" onclick="event.stopPropagation();toggleMatchDeltaWindow('today')">TODAY</button>
@@ -944,17 +933,6 @@ Puneet - Pun, PK
                   <span class="mng-toggle-slider"></span>
                 </label>
               </div>
-              <div class="mng-setting-row" style="margin-top: 10px">
-                <span class="mng-setting-label">⚡ ELO ranking system</span>
-                <label class="mng-toggle">
-                  <input
-                    type="checkbox"
-                    id="eloEnabledToggle"
-                    onchange="setEloEnabledAndRefresh(this.checked)"
-                  />
-                  <span class="mng-toggle-slider"></span>
-                </label>
-              </div>
               <button
                 id="remove-cache-btn"
                 class="btn-s"
@@ -1049,16 +1027,6 @@ Puneet - Pun, PK
               >
                 Empty Trash
               </button>
-            </div>
-
-            <!-- ELO Decay Config -->
-            <div class="mng-card" data-card-id="elo-decay">
-              <div class="mng-card-header">
-                <span class="mng-card-drag-handle">⠿</span>
-                <span class="mng-card-icon">⚡</span>
-                <span class="mng-card-title">ELO Decay Settings</span>
-              </div>
-              <div id="elo-decay-config"></div>
             </div>
 
             <!-- Backup Health -->
@@ -1302,7 +1270,7 @@ Puneet - Pun, PK
           </div>
         </div>
 
-        <!-- ELO CHANGE + Win Predictor — single merged row -->
+        <!-- ASS CHANGE + Win Predictor — single merged row -->
         <div class="live-elo-preview" id="live-elo-preview" style="display:none">
           <div class="lep-side lep-side-a">
             <span class="lep-label">RED</span>

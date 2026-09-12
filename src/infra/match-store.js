@@ -1,8 +1,8 @@
 // ── MATCH STORE · local persistence adapter ────────────────────────────────
 // Owns localStorage keys and serialisation for the match-adjacent tables that
-// are NOT part of the main cloud payload: deleted matches, ELO config, and the
-// milestone log. Keeps every storage key in one place; callers never touch
-// localStorage for these concerns directly.
+// are NOT part of the main cloud payload: deleted matches and the milestone
+// log. Keeps every storage key in one place; callers never touch localStorage
+// for these concerns directly.
 
 // ── Deleted matches (soft-delete bin) ─────────────────────────
 const _DELETED_KEY = "padel_deleted_matches";
@@ -19,34 +19,6 @@ export function saveDeletedMatches(matches) {
   try {
     localStorage.setItem(_DELETED_KEY, JSON.stringify(matches));
   } catch (e) {}
-}
-
-// ── ELO decay configuration ────────────────────────────────────
-const _ELO_CFG_KEY = "padel_elo_cfg";
-const _ELO_DEFAULTS = { perWeek: 1, graceDays: 28, maxDecay: 30, floor: 900 };
-
-export function loadEloConfig() {
-  try {
-    return JSON.parse(localStorage.getItem(_ELO_CFG_KEY)) || {};
-  } catch (e) {
-    return {};
-  }
-}
-
-export function saveEloConfig(cfg) {
-  try {
-    localStorage.setItem(_ELO_CFG_KEY, JSON.stringify(cfg));
-  } catch (e) {}
-}
-
-export function getEloDecayParams() {
-  const cfg = loadEloConfig();
-  return {
-    perWeek:    cfg.perWeek    ?? _ELO_DEFAULTS.perWeek,
-    graceDays:  cfg.graceDays  ?? _ELO_DEFAULTS.graceDays,
-    maxDecay:   cfg.maxDecay   ?? _ELO_DEFAULTS.maxDecay,
-    floor:      cfg.floor      ?? _ELO_DEFAULTS.floor,
-  };
 }
 
 // ── Milestone log ──────────────────────────────────────────────

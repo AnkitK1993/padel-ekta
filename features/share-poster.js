@@ -3,7 +3,7 @@
 // Pure src/ deps only — no app.js closure state needed.
 import { state } from "../src/engine/state.js";
 import { activeMatches } from "../src/engine/selectors.js";
-import { computeElo } from "../src/engine/elo.js";
+import { computeASS } from "../src/engine/ass.js";
 import { fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
 export function openShareMatchPoster(matchIdx) {
@@ -13,8 +13,8 @@ export function openShareMatchPoster(matchIdx) {
   const _amSlice = activeMatches();
   const _upToIncl = new Set(state.matches.slice(0, matchIdx + 1));
   const _upToBefore = new Set(state.matches.slice(0, matchIdx));
-  const eloMap = computeElo(_amSlice.filter((m) => _upToIncl.has(m)));
-  const eloMapBefore = computeElo(_amSlice.filter((m) => _upToBefore.has(m)));
+  const eloMap = computeASS(_amSlice.filter((m) => _upToIncl.has(m)));
+  const eloMapBefore = computeASS(_amSlice.filter((m) => _upToBefore.has(m)));
   const aWon = m.scoreA > m.scoreB;
   const winTeam = aWon ? m.teamA : m.teamB;
   const losTeam = aWon ? m.teamB : m.teamA;
@@ -74,7 +74,7 @@ export function openShareMatchPoster(matchIdx) {
           <div style="width:16px;height:16px;border-radius:4px;background:${winCol};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000">P</div>
           <div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:${winCol}">PADEL EKTA</div>
         </div>
-        <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:600">ELO changes shown</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:600">ASS changes shown</div>
       </div>
     </div>`;
 

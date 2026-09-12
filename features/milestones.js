@@ -4,7 +4,6 @@
 // Calls window.showToast / window.fireConfetti (already on window).
 import { state } from "../src/engine/state.js";
 import { computeStats } from "../src/engine/stats.js";
-import { computeElo, computeEloPeaks } from "../src/engine/elo.js";
 import { computeASS, computeASSTimeline } from "../src/engine/ass.js";
 import { normPlayer } from "../src/domain/players.js";
 import { todayISO } from "../src/engine/dates.js";
@@ -99,27 +98,27 @@ export function checkMilestones(prevMatches, newMatches) {
       window.fireConfetti({ count: 80, duration: 2200 });
     }
   });
-  // ELO threshold milestones
-  const eloThresholds = [1050, 1100, 1150, 1200, 1250, 1300];
+  // ASS threshold milestones
+  const assThresholds = [1050, 1100, 1150, 1200, 1250, 1300];
   if (prevMatches.length > 0) {
-    const prevEloMap = computeElo(prevMatches);
-    const newEloMap = computeElo(newMatches);
+    const prevAssMap = computeASS(prevMatches);
+    const newAssMap = computeASS(newMatches);
     allPlayers.forEach((player) => {
-      const prev = prevEloMap[player] || 1000;
-      const curr = newEloMap[player] || 1000;
-      eloThresholds.forEach((t) => {
+      const prev = prevAssMap[player] || 1000;
+      const curr = newAssMap[player] || 1000;
+      assThresholds.forEach((t) => {
         if (prev < t && curr >= t) {
           const display = normPlayer(player);
-          window.showToast(`${display} hit ELO ${t}!`, "⚡");
-          saveMilestoneEntry(`${display} hit ELO ${t}!`, "⚡");
+          window.showToast(`${display} hit ASS ${t}!`, "⚡");
+          saveMilestoneEntry(`${display} hit ASS ${t}!`, "⚡");
           window.fireConfetti({ count: 90, duration: 2400 });
         }
       });
     });
   }
-  // Record-break celebrations: new all-time rating peak (ELO/ASS, at any
-  // level — not just the fixed thresholds above) and new personal-best win
-  // streak, both compared against the player's own history before this match.
+  // Record-break celebrations: new all-time ASS peak (at any level — not just
+  // the fixed thresholds above) and new personal-best win streak, both
+  // compared against the player's own history before this match.
   // Gated to players with an established history (10+ prior matches) — early
   // on, every win is trivially a "new peak", which would fire on nearly every
   // match and cheapen the celebration.
@@ -131,8 +130,6 @@ export function checkMilestones(prevMatches, newMatches) {
         prevMatchCounts[p] = (prevMatchCounts[p] || 0) + 1;
       }),
     );
-    const prevEloPeaks = computeEloPeaks(prevMatches);
-    const newEloNow = computeElo(newMatches);
     const prevAssPeaks = computeASSTimeline(prevMatches).peaks;
     const newAssNow = computeASS(newMatches);
     const prevBestStreak = _bestStreakMap(prevMatches);
@@ -140,13 +137,6 @@ export function checkMilestones(prevMatches, newMatches) {
     allPlayers.forEach((player) => {
       if ((prevMatchCounts[player] || 0) < MIN_MATCHES_FOR_RECORD) return;
       const display = normPlayer(player);
-      const prevPeakElo = prevEloPeaks[player] || 1000;
-      const curElo = newEloNow[player] || 1000;
-      if (curElo > prevPeakElo) {
-        window.showToast(`${display} hit a new all-time ELO peak: ${Math.round(curElo)}!`, "📈");
-        saveMilestoneEntry(`${display} hit a new all-time ELO peak: ${Math.round(curElo)}!`, "📈");
-        window.fireConfetti({ count: 90, duration: 2200 });
-      }
       const prevPeakAss = prevAssPeaks[player] || 1000;
       const curAss = newAssNow[player] || 1000;
       if (curAss > prevPeakAss) {

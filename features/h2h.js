@@ -5,6 +5,7 @@ import { activeMatches } from "../src/engine/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
 import { state } from "../src/engine/state.js";
 import { getHeadToHeadStats } from "../src/engine/pairs.js";
+import { computeMatchASSDeltas } from "../src/engine/ass.js";
 import {
   fmtDate,
   playerColor,
@@ -95,36 +96,28 @@ function openH2HDetail(a, b) {
   });
   const aGPct = Math.round((aGW / (aGW + bGW || 1)) * 100);
 
-  // ELO walk for per-match deltas
+  // ASS walk for per-match deltas
   const h2hDeltaMap = new Map();
-  const _e = {};
-  [...state.matches]
-    .sort((x, y) => (x.date || "").localeCompare(y.date || ""))
-    .forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        if (!(p in _e)) _e[p] = 1000;
+  const _sortedForAss = [...state.matches].sort((x, y) =>
+    (x.date || "").localeCompare(y.date || ""),
+  );
+  const _assDeltasAll = computeMatchASSDeltas(_sortedForAss);
+  _sortedForAss.forEach((m) => {
+    const info = _assDeltasAll.get(m);
+    if (!info) return;
+    const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
+    const aInB = (m.teamB || []).some((p) => normPlayer(p) === a);
+    const bInA = (m.teamA || []).some((p) => normPlayer(p) === b);
+    const bInB = (m.teamB || []).some((p) => normPlayer(p) === b);
+    if ((aInA && bInB) || (aInB && bInA)) {
+      const aRaw = (m.teamA || []).find((p) => normPlayer(p) === a) ?? (m.teamB || []).find((p) => normPlayer(p) === a);
+      const bRaw = (m.teamA || []).find((p) => normPlayer(p) === b) ?? (m.teamB || []).find((p) => normPlayer(p) === b);
+      h2hDeltaMap.set(m, {
+        ad: info.playerDeltas?.[aRaw] ?? 0,
+        bd: info.playerDeltas?.[bRaw] ?? 0,
       });
-      const mAWon = m.scoreA > m.scoreB;
-      const avgA =
-        m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB =
-        m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      const dA = Math.round(32 * ((mAWon ? 1 : 0) - expA));
-      const dB = Math.round(32 * ((mAWon ? 0 : 1) - (1 - expA)));
-      m.teamA.forEach((p) => {
-        _e[p] = (_e[p] || 1000) + dA;
-      });
-      m.teamB.forEach((p) => {
-        _e[p] = (_e[p] || 1000) + dB;
-      });
-      const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
-      const aInB = (m.teamB || []).some((p) => normPlayer(p) === a);
-      const bInA = (m.teamA || []).some((p) => normPlayer(p) === b);
-      const bInB = (m.teamB || []).some((p) => normPlayer(p) === b);
-      if ((aInA && bInB) || (aInB && bInA))
-        h2hDeltaMap.set(m, { ad: aInA ? dA : dB, bd: bInA ? dA : dB });
-    });
+    }
+  });
   let aEloTotal = 0,
     bEloTotal = 0;
   h2hDeltaMap.forEach((v) => {
@@ -254,13 +247,13 @@ function openH2HDetail(a, b) {
 
           <div class="h2h-elo-row">
             <div class="h2h-elo-card" style="border-top-color:${borderCol(aEloTotal)}">
-              <div class="h2h-elo-label">ELO IMPACT</div>
+              <div class="h2h-elo-label">ASS IMPACT</div>
               <div class="h2h-elo-player" style="color:${col1}">${a}</div>
               <div class="h2h-elo-delta" style="color:${dCol(aEloTotal)}">${fmtD(aEloTotal)}</div>
               <div class="h2h-elo-sub">from ${total} meetings</div>
             </div>
             <div class="h2h-elo-card" style="border-top-color:${borderCol(bEloTotal)}">
-              <div class="h2h-elo-label">ELO IMPACT</div>
+              <div class="h2h-elo-label">ASS IMPACT</div>
               <div class="h2h-elo-player" style="color:${col2}">${b}</div>
               <div class="h2h-elo-delta" style="color:${dCol(bEloTotal)}">${fmtD(bEloTotal)}</div>
               <div class="h2h-elo-sub">from ${total} meetings</div>
@@ -437,36 +430,26 @@ function renderH2HDeepDive() {
       '<div class="sub" style="padding:8px">These players have never faced each other.</div>';
     return;
   }
-  // Walk full ELO to capture per-match deltas for this H2H pair
+  // Walk full ASS to capture per-match deltas for this H2H pair
   const h2hDeltaMap = new Map();
-  const _e = {};
-  [...state.matches]
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-    .forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        if (!(p in _e)) _e[p] = 1000;
+  const _sortedForAss2 = [...state.matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const _assDeltasAll2 = computeMatchASSDeltas(_sortedForAss2);
+  _sortedForAss2.forEach((m) => {
+    const info = _assDeltasAll2.get(m);
+    if (!info) return;
+    const p1InA = (m.teamA || []).includes(p1);
+    const p1InB = (m.teamB || []).includes(p1);
+    const p2InA = (m.teamA || []).includes(p2);
+    const p2InB = (m.teamB || []).includes(p2);
+    if ((p1InA && p2InB) || (p1InB && p2InA)) {
+      h2hDeltaMap.set(m, {
+        p1d: info.playerDeltas?.[p1] ?? 0,
+        p2d: info.playerDeltas?.[p2] ?? 0,
       });
-      const aWon = m.scoreA > m.scoreB;
-      const avgA =
-        m.teamA.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB =
-        m.teamB.reduce((s, p) => s + _e[p], 0) / Math.max(m.teamB.length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      m.teamA.forEach((p) => {
-        _e[p] = (_e[p] || 1000) + dA;
-      });
-      m.teamB.forEach((p) => {
-        _e[p] = (_e[p] || 1000) + dB;
-      });
-      const p1InA = (m.teamA || []).includes(p1);
-      const p1InB = (m.teamB || []).includes(p1);
-      const p2InA = (m.teamA || []).includes(p2);
-      const p2InB = (m.teamB || []).includes(p2);
-      if ((p1InA && p2InB) || (p1InB && p2InA))
-        h2hDeltaMap.set(m, { p1d: p1InA ? dA : dB, p2d: p2InA ? dA : dB });
-    });
+    }
+  });
   let p1Total = 0,
     p2Total = 0;
   h2hDeltaMap.forEach((v) => {
@@ -534,13 +517,13 @@ function renderH2HDeepDive() {
 
       <div class="h2h-elo-row">
         <div class="h2h-elo-card" style="border-top-color:${borderCol(p1Total)}">
-          <div class="h2h-elo-label">ELO IMPACT</div>
+          <div class="h2h-elo-label">ASS IMPACT</div>
           <div class="h2h-elo-player" style="color:${col1}">${p1}</div>
           <div class="h2h-elo-delta" style="color:${dCol(p1Total)}">${fmtD(p1Total)}</div>
           <div class="h2h-elo-sub">from ${total} meetings</div>
         </div>
         <div class="h2h-elo-card" style="border-top-color:${borderCol(p2Total)}">
-          <div class="h2h-elo-label">ELO IMPACT</div>
+          <div class="h2h-elo-label">ASS IMPACT</div>
           <div class="h2h-elo-player" style="color:${col2}">${p2}</div>
           <div class="h2h-elo-delta" style="color:${dCol(p2Total)}">${fmtD(p2Total)}</div>
           <div class="h2h-elo-sub">from ${total} meetings</div>

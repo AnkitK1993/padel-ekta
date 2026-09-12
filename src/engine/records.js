@@ -231,7 +231,7 @@ export function attendanceStreaks(matches) {
 }
 
 // ── Hall of Fame / all-time records ──
-export function hallOfFameRecords(matches, statsArr, eloHistoryMap, assHistoryMap) {
+export function hallOfFameRecords(matches, statsArr, assHistoryMap) {
   if (!matches.length) return null;
   let biggestWin = null;
   matches.forEach((m) => {
@@ -272,7 +272,6 @@ export function hallOfFameRecords(matches, statsArr, eloHistoryMap, assHistoryMa
     biggestWin,
     longestStreak,
     mostInDay,
-    peakElo: peakOf(eloHistoryMap),
     peakAss: peakOf(assHistoryMap),
     totalMatches: matches.length,
     totalDays: new Set(matches.map((m) => m.date)).size,

@@ -1,5 +1,5 @@
 // ── STATS ENGINE ───────────────────────────────────────────
-// Pure computation — no DOM, no Firebase, no app state. Mirrors the elo.js
+// Pure computation — no DOM, no Firebase, no app state. Mirrors the ass.js
 // pattern: app.js imports these and passes all inputs as arguments.
 
 // ── SCORE NORMALISATION (cap max side to 4) ────────────────
@@ -12,16 +12,17 @@ export function _normScores(sA, sB) {
   return [sA * f, sB * f];
 }
 
-// ── ELO → SKILL RATING (0–10 scale) ────────────────────────
-export function eloToSr(elo) {
-  return parseFloat(((elo - 700) / 60).toFixed(2));
+// ── RATING → SKILL RATING (0–10 scale) ─────────────────────
+export function ratingToSr(rating) {
+  return parseFloat(((rating - 700) / 60).toFixed(2));
 }
 
 // ── COMPUTE STATS ──────────────────────────────────────────
-// Aggregates per-player stats from a list of matches. When eloMap has an entry
-// for a player, their skill rating (sr) is derived from ELO; otherwise it falls
-// back to a win-rate/games/activity blend.
-export function computeStats(matches, eloMap = {}) {
+// Aggregates per-player stats from a list of matches. When ratingMap has an
+// entry for a player, their skill rating (sr) is derived from that rating
+// (ASS, baselined to the same 1000-centered scale); otherwise it falls back
+// to a win-rate/games/activity blend.
+export function computeStats(matches, ratingMap = {}) {
   const P = {};
   const g = (n) => {
     if (!P[n])
@@ -97,8 +98,8 @@ export function computeStats(matches, eloMap = {}) {
         gwr = total > 0 ? p.gw / total : 0,
         act = p.mp / maxMP;
       const sr =
-        p.name in eloMap
-          ? eloToSr(eloMap[p.name])
+        p.name in ratingMap
+          ? ratingToSr(ratingMap[p.name])
           : mwr * 5 + gwr * 3 + act * 2;
 
       // Feature 1: win streak

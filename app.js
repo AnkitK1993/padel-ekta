@@ -1,11 +1,6 @@
-﻿import {
-  initEloDeps,
-  computeElo,
-  computeEloHistory,
-  _lightFingerprint,
-} from "./src/engine/elo.js";
-import { computeStats, _normScores, eloToSr } from "./src/engine/stats.js";
-import { computeMatchASSDeltas, computeASS } from "./src/engine/ass.js";
+﻿import { _lightFingerprint } from "./src/engine/fingerprint.js";
+import { computeStats, _normScores, ratingToSr } from "./src/engine/stats.js";
+import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "./src/engine/ass.js";
 import {
   ratingDistribution,
   competitivenessOverTime,
@@ -87,8 +82,6 @@ import {
   setAnaHideEmpty,
   getRankDeltaDays,
   setRankDeltaDays,
-  getEloEnabled,
-  setEloEnabled,
   getFontScale,
   setFontScale,
   FONT_SCALE_MIN,
@@ -178,7 +171,6 @@ import {
   _replaySetSpotlight,
   _replayPlay,
   _replayReset,
-  _replayToggleMode,
 } from "./features/replay.js";
 import {
   initPlayerDetailDeps,
@@ -243,10 +235,6 @@ import {
 } from "./src/app/cloud-repo.js";
 import {
   initMemoStoreDeps,
-  memoElo,
-  memoEloHistory,
-  memoEloPeaks,
-  memoEloLows,
   memoStats,
   memoStatPlayerNames,
   memoPairStats,
@@ -262,9 +250,6 @@ import {
 import {
   loadDeletedMatches,
   saveDeletedMatches as _saveDeletedMatches,
-  loadEloConfig,
-  saveEloConfig,
-  getEloDecayParams,
 } from "./src/infra/match-store.js";
 import { sessionState, resetSessionState } from "./src/app/session-state.js";
 
@@ -277,7 +262,7 @@ import { sessionState, resetSessionState } from "./src/app/session-state.js";
 // Naming convention:
 //   Functions moved to src/domain/players.js    → delegate via _normPlayer etc.
 //   Functions moved to src/infra/match-store.js → now imported directly above.
-//   Functions moved to src/app/memo-store.js    → delegate via memoElo etc.
+//   Functions moved to src/app/memo-store.js    → delegate via memoASS etc.
 //   Functions moved to src/app/cloud-repo.js    → delegate via _cloudRepo*.
 //
 // These wrappers exist ONLY for the transition period. When app.js is further
@@ -292,18 +277,6 @@ function rebuildNameMaps() {
 }
 function getAllPlayerNamesFromMatches() {
   return _getAllPlayerNames(state.matches);
-}
-function _memoElo(decay = false) {
-  return memoElo(decay);
-}
-function _memoEloHistory() {
-  return memoEloHistory();
-}
-function _memoEloPeaks() {
-  return memoEloPeaks();
-}
-function _memoEloLows() {
-  return memoEloLows();
 }
 function _memoStats() {
   return memoStats();
@@ -328,34 +301,31 @@ function _memoASSLows() {
 }
 
 // ── MASTER SCORING MODE ─────────────────────────────────────
-// "ass" = Ankit Scoring System  |  "elo" = classic ELO
-// Drives ALL scoring displays app-wide: home cards, summary leaderboard,
-// analytics ELO section, history deltas.
-let _scoringMode = localStorage.getItem("scoringMode") || "ass";
+// ASS (Ankit Scoring System) is the sole scoring system. These wrappers are
+// kept so the ~200 existing call sites app-wide (home cards, summary
+// leaderboard, analytics, history deltas) don't need touching individually.
+const _scoringMode = "ass";
 
-// Active-mode wrappers — renderers call these instead of the raw memo fns.
-function _activeScoreMap(decay = false) {
-  if (_scoringMode !== "ass") return _memoElo(decay);
+function _activeScoreMap() {
   return _memoASS();
 }
 function _activeHistory() {
-  return _scoringMode === "ass" ? _memoASSHistory() : _memoEloHistory();
+  return _memoASSHistory();
 }
 function _activePeaks() {
-  return _scoringMode === "ass" ? _memoASSPeaks() : _memoEloPeaks();
+  return _memoASSPeaks();
 }
 function _activeLows() {
-  return _scoringMode === "ass" ? _memoASSLows() : _memoEloLows();
+  return _memoASSLows();
 }
 function _activeStats() {
-  if (_scoringMode !== "ass") return _memoStats();
   const assMap = _memoASS();
   return _memoStats()
     .slice()
     .sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
 }
 function _scoringLabel() {
-  return _scoringMode === "ass" ? "ASS" : "ELO";
+  return "ASS";
 }
 function saveCloudData(opts) {
   return _cloudRepoSave(opts);
@@ -786,9 +756,8 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-// _summaryMode is Summary-tab-local (badge click), persisted under "summaryMode".
-// _scoringMode (hamburger) drives Stats/Home/Analytics only.
-let _summaryMode = _INIT_STORAGE["summaryMode"] || "ass";
+// ASS is the sole scoring system — no more Summary-tab-local mode toggle.
+const _summaryMode = "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
@@ -829,7 +798,7 @@ let cmpFilter = "today",
 let _lbWindow = null; // { mode:"first"|"last", count:N } or null — per-player game window
 let _pvpLow = 20,
   _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
-let cmpSortKey = _summaryMode === "ass" ? "ass" : "sr";
+let cmpSortKey = "ass";
 let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
@@ -841,7 +810,6 @@ const _CMP_TOGGLE_COLS = [
   { key: "gw", label: "GW" },
   { key: "gl", label: "GL" },
   { key: "gamePct", label: "G%" },
-  { key: "elo", label: "ELO" },
   { key: "ass", label: "ASS" },
 ];
 function _loadCmpHiddenCols() {
@@ -936,10 +904,8 @@ Object.defineProperty(globalThis, "_sessionSetupSelected", {
 // Timer interval handle for the session elapsed-time display — scalar, direct let.
 let _sessionTimerInterval = null;
 let _sdashShowGuests = true; // scoreboard guest-filter toggle
-let _sessScoreView = null; // null = follow hamburger _scoringMode; "elo"|"ass"|"both" = explicit
 let _sessSortCol = "sr"; // active sort column key
 let _sessSortDir = "desc"; // "asc" | "desc"
-let _upsetSortMode = null; // null = follow _scoringMode; "elo"|"ass" = explicit
 let _cachedUpsets = null; // filled by _buildBiggestUpsetsHtml, reused by toggle
 
 let _analyticsFeaturePromise = null;
@@ -991,21 +957,7 @@ _applyFontScale(getFontScale());
     if (_ncb) _ncb.checked = true;
   }
 }
-// Initialise scoring mode UI from persisted state.
-{
-  // Hamburger segmented control reflects _scoringMode (global)
-  document
-    .querySelectorAll(".scoring-seg-btn")
-    .forEach((b) =>
-      b.classList.toggle("active", b.dataset.val === _scoringMode),
-    );
-  // Summary tab badge reflects _summaryMode (tab-local)
-  const _smBadgeInit = document.getElementById("summary-mode-badge");
-  if (_smBadgeInit) _smBadgeInit.textContent = _summaryMode.toUpperCase();
-}
-// Apply ELO-enabled pref — must run after scoring mode UI init above.
-_applyEloMode();
-// Deleted matches + ELO config now live in src/infra/match-store.js.
+// Deleted matches now live in src/infra/match-store.js.
 // The module-level variable remains here so the 20+ mutation sites in app.js
 // (splice/unshift/push) keep working without change.
 let deletedMatches = [];
@@ -1031,118 +983,11 @@ function saveDeletedMatches() {
   _saveDeletedMatchesTrimmed();
 }
 
-// ELO config: loadEloConfig / saveEloConfig / getEloDecayParams → match-store.js
-// saveEloConfig imported above — add the invalidation side-effect here:
-const _saveEloConfigBase = saveEloConfig;
-function _saveEloConfigWithInvalidate(cfg) {
-  _saveEloConfigBase(cfg);
-  _invalidateEloMemo();
-}
-// ✅ Reassign for all in-file callers that expect the side-effectful version.
-// (applyEloConfig / resetEloConfig call saveEloConfig — they now go through this.)
-window.saveEloConfig = _saveEloConfigWithInvalidate;
-
-const ELO_DEFAULTS = { perWeek: 4, graceDays: 28, maxDecay: 300, floor: 900 };
-
-function renderEloConfigCard() {
-  const p = getEloDecayParams();
-  const d = ELO_DEFAULTS;
-  const el = document.getElementById("elo-decay-config");
-  if (!el) return;
-  const isDefault =
-    p.perWeek === d.perWeek &&
-    p.graceDays === d.graceDays &&
-    p.maxDecay === d.maxDecay &&
-    p.floor === d.floor;
-  const cfgRow = (id, label, val, def, min, max, step, desc) => `
-    <div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
-        <span style="font-size:10px;color:var(--muted);font-weight:700">${label}</span>
-        <span style="font-size:9px;color:var(--muted)">default: ${def}</span>
-      </div>
-      <input id="${id}" type="number" inputmode="numeric" pattern="[0-9]*" min="${min}" max="${max}" step="${step || 1}" value="${val}" class="mei-input" style="width:100%">
-      <div style="font-size:9px;color:var(--muted);margin-top:3px">${desc}</div>
-    </div>`;
-  el.innerHTML = `
-    <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;margin-bottom:10px;font-size:10px;color:var(--muted);line-height:1.6">
-      📉 Inactive players lose ELO over time. After <strong style="color:var(--fg)">${p.graceDays} days</strong> without a match,
-      they drop <strong style="color:var(--fg)">${p.perWeek} pt/week</strong>, capped at <strong style="color:var(--fg)">${p.maxDecay} pts total</strong>,
-      never falling below <strong style="color:var(--fg)">ELO ${p.floor}</strong>.
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      ${cfgRow("edcfg-per-week", "POINTS / WEEK", p.perWeek, d.perWeek, 0, 50, 0.5, "ELO lost each week of inactivity")}
-      ${cfgRow("edcfg-grace", "GRACE PERIOD (days)", p.graceDays, d.graceDays, 1, 365, 1, "Days without play before decay starts")}
-      ${cfgRow("edcfg-max", "MAX DECAY (pts)", p.maxDecay, d.maxDecay, 0, 500, 1, "Maximum total ELO loss from decay")}
-      ${cfgRow("edcfg-floor", "ELO FLOOR", p.floor, d.floor, 500, 1200, 1, "ELO cannot drop below this value")}
-    </div>
-    <div id="elo-cfg-msg" style="font-size:11px;margin-bottom:6px;display:none"></div>
-    <div style="display:flex;gap:8px">
-      <button onclick="applyEloConfig()" style="flex:1;padding:8px;border-radius:10px;font-weight:700;font-size:12px;background:rgba(var(--theme-rgb),0.15);border:1px solid rgba(var(--theme-rgb),0.4);color:var(--theme);cursor:pointer">Save</button>
-      ${!isDefault ? `<button onclick="resetEloConfig()" style="padding:8px 12px;border-radius:10px;font-weight:700;font-size:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--muted);cursor:pointer">Reset Defaults</button>` : ""}
-    </div>`;
-}
-function resetEloConfig() {
-  saveEloConfig(ELO_DEFAULTS);
-  _invalidateEloMemo();
-  renderEloConfigCard();
-  renderAnalyticsPage();
-  showToast("Reset to defaults", "↺");
-}
-function applyEloConfig() {
-  const perWeek = parseFloat(document.getElementById("edcfg-per-week")?.value);
-  const graceDays = parseInt(document.getElementById("edcfg-grace")?.value);
-  const maxDecay = parseInt(document.getElementById("edcfg-max")?.value);
-  const floor = parseInt(document.getElementById("edcfg-floor")?.value);
-  const msg = document.getElementById("elo-cfg-msg");
-
-  const showError = (text) => {
-    if (msg) {
-      msg.style.display = "block";
-      msg.style.color = "var(--red)";
-      msg.textContent = text;
-    }
-  };
-
-  // ✅ Comprehensive validation with sensible ranges
-  if (isNaN(perWeek) || isNaN(graceDays) || isNaN(maxDecay) || isNaN(floor)) {
-    showError("All fields are required.");
-    return;
-  }
-  if (perWeek < 0 || perWeek > 50) {
-    showError("Points/week must be 0–50.");
-    return;
-  }
-  if (graceDays < 1 || graceDays > 365) {
-    showError("Grace period must be 1–365 days.");
-    return;
-  }
-  if (maxDecay < 0 || maxDecay > 500) {
-    showError("Max decay must be 0–500 points.");
-    return;
-  }
-  if (floor < 500 || floor > 1200) {
-    showError("ELO floor must be 500–1200.");
-    return;
-  }
-
-  saveEloConfig({ perWeek, graceDays, maxDecay, floor });
-  _invalidateEloMemo();
-  if (msg) {
-    msg.style.display = "block";
-    msg.style.color = "var(--green)";
-    msg.textContent = "Config saved!";
-    setTimeout(() => (msg.style.display = "none"), 2000);
-  }
-  renderAnalyticsPage();
-  showToast("ELO decay config saved", "⚡");
-}
-
-// ── ELO MEMO ─────────────────────────────────────────────
-// All ELO/stats memoisation is now owned by src/app/memo-store.js.
+// ── STATS/ASS MEMO ─────────────────────────────────────────
+// All ASS/stats memoisation is now owned by src/app/memo-store.js.
 // _reignCache / _rankPeriodCache are imported at the top of this file as
 // named exports from memo-store.js; references in the analytics/rank sections
 // below continue to work via those bound names.
-initEloDeps(getEloDecayParams, todayISO);
 // Getters (not the objects) so the parser always sees the current maps —
 // nameMap/aliasMap are reassigned on data load.
 initParserDeps(
@@ -1167,10 +1012,9 @@ initSelectorsDeps({
 initHistorySummaryDeps({
   normPlayer,
   getPairStats,
-  memoElo: _memoElo,
-  getSummaryMode: () => _summaryMode,
+  memoAss: _memoASS,
 });
-// Award badges: pure compute, fed the stats/elo/pair + date helpers it needs.
+// Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
 initPairsDeps({ normPlayer });
 // XP / Level / Prestige — computePlayerXP needs normPlayer + activeMatches +
@@ -1185,7 +1029,7 @@ initXpDeps({
 // Analytics section builders — HTML generators for the Statistics page.
 initBadgesDeps({
   computeStats,
-  computeElo,
+  computeElo: computeASS,
   getPairStats,
   lastWeekRange,
   fmtDate,
@@ -1196,7 +1040,6 @@ initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 initPlayerDetailDeps({
   playerAvatar,
   getScoringMode: () => _scoringMode,
-  getEloEnabled,
 });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
@@ -1205,8 +1048,6 @@ initH2HDeps({ playerAvatar });
 // memo-store needs the app-level data-version counter and ELO config.
 initMemoStoreDeps({
   getDataVersion: () => _dataVersion,
-  getEloDecayParams,
-  todayISO,
 });
 
 // cloud-repo needs access to current state for payload building and conflict checks.
@@ -1225,10 +1066,10 @@ initCloudRepo({
 });
 
 // All memo functions now live in src/app/memo-store.js.
-// _memoElo / _memoStats / _memoPairStats / _memoEloHistory / _memoEloPeaks /
-// _memoEloLows — backward-compat bridges at top of file delegate to them.
+// _memoASS / _memoStats / _memoPairStats / _memoASSHistory / _memoASSPeaks /
+// _memoASSLows — backward-compat bridges at top of file delegate to them.
 
-function _invalidateEloMemo() {
+function _invalidateStatsMemo() {
   _invalidateAllMemos();
 }
 
@@ -1313,7 +1154,7 @@ function _buildCloudPayload() {
   // eslint-disable-next-line no-func-assign — intentional bridge
   saveCloudData = function saveCloudData(opts) {
     _lastLocalSaveTime = Date.now(); // arm conflict-suppression window for ALL mutation paths
-    _invalidateEloMemo();
+    _invalidateStatsMemo();
     _dataVersion++;
     return _repoSave(opts);
   };
@@ -1385,7 +1226,7 @@ function _resubscribeFirestore() {
             playerAliasMap = pam;
             nextPlayerId = npid;
             rebuildNameMaps();
-            _invalidateEloMemo();
+            _invalidateStatsMemo();
             saveCloudData();
             showToast(
               `Pushed ${offlineAdditions.length} offline match${offlineAdditions.length !== 1 ? "es" : ""} to cloud ☁️`,
@@ -1405,7 +1246,7 @@ function _resubscribeFirestore() {
         playerAliasMap = pam;
         nextPlayerId = npid;
         rebuildNameMaps();
-        _invalidateEloMemo();
+        _invalidateStatsMemo();
         _setPendingSync(false);
         renderHome();
         renderCompact();
@@ -1703,7 +1544,7 @@ function loadCloudData() {
     playerAliasMap = pam;
     nextPlayerId = npid || 1;
     rebuildNameMaps();
-    _invalidateEloMemo();
+    _invalidateStatsMemo();
     autoSaveWeeklySnap();
     if (window.appCache)
       window.appCache.save(
@@ -1894,8 +1735,6 @@ function updateAdminUI(user) {
   if (scToggle) scToggle.checked = getScreenshotAsk();
   const rdSel = document.getElementById("rankDeltaDaysSel");
   if (rdSel) rdSel.value = String(getRankDeltaDays());
-  const eloTgl = document.getElementById("eloEnabledToggle");
-  if (eloTgl) eloTgl.checked = getEloEnabled();
   const _al = resolveAnimLevel();
   document
     .querySelectorAll(".anim-seg-btn")
@@ -2677,7 +2516,6 @@ function refreshManage() {
     `Matches: <strong>${state.matches.length}</strong><br>Days: <strong>${days}</strong><br>Players mapped: <strong>${Object.keys(state.aliasMap).length}</strong>`;
   renderEmailStatus();
   renderTrash();
-  renderEloConfigCard();
   _checkDocSize(_buildCloudPayload());
   renderBackupHealthCard();
   renderStorageBreakdownCard();
@@ -3290,7 +3128,7 @@ function _ingestSeasons(arr) {
 // activeMatches() is called 80+ times per render. The result only changes when
 // the data mutates, the active season changes, or the guest/exclude set changes —
 // so memoize the filtered array and skip the O(matches) passes when nothing moved.
-// Invalidation: _invalidateEloMemo() (called on every data mutation) nulls _amMemo,
+// Invalidation: _invalidateStatsMemo() (called on every data mutation) nulls _amMemo,
 // and the key carries the season id + exclusion set (exclusion toggles re-render
 // without touching _dataVersion / the ELO memo). Callers treat the result as
 // read-only — the no-filter path has always returned the shared `state.matches`.
@@ -4833,10 +4671,6 @@ function _applyCmpColClasses() {
   _CMP_TOGGLE_COLS.forEach((c) =>
     table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)),
   );
-  // Always hide the scoring column that doesn't match the active mode
-  const isASS = _summaryMode === "ass";
-  if (isASS) table.classList.add("hide-col-elo");
-  else table.classList.add("hide-col-ass");
 }
 
 function onCmpFilter() {
@@ -4863,17 +4697,10 @@ function renderHome() {
   // When filter is "all" (no date range), filtered === activeMatches() content —
   // use the memoised results to avoid redundant full-dataset walks.
   const _isAllFilter = homeFilter === "all" && !homeFrom && !homeTo;
-  const homeEloMapFull = _isAllFilter ? _memoElo() : computeElo(filtered);
   const homeASSMap = _isAllFilter ? _memoASS() : computeASS(filtered);
-  // SR (the gauge/rating on every card) and the card ordering both follow the
-  // active scoring mode: derive SR from the ASS score in ASS mode, ELO otherwise.
-  // computeStats already sorts by SR desc, so ASS mode is ordered by ASS too.
-  const stats =
-    _scoringMode === "ass"
-      ? computeStats(filtered, homeASSMap)
-      : _isAllFilter
-        ? _memoStats()
-        : computeStats(filtered, homeEloMapFull);
+  // SR (the gauge/rating on every card) and the card ordering both follow ASS.
+  // computeStats already sorts by SR desc, so this orders cards by ASS too.
+  const stats = computeStats(filtered, homeASSMap);
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
   const uniqD = new Set(filtered.map((m) => m.date)).size;
   const board = document.getElementById("board");
@@ -4899,52 +4726,30 @@ function renderHome() {
   const streakEl = document.getElementById("session-streak-badge");
   if (streakEl) streakEl.style.display = "none";
   const maxSR = stats[0].sr || 1;
-  const homeEloMap = homeEloMapFull;
 
-  // Precompute rank divergence for home card badges — O(n) index lookup, not O(n²) indexOf
-  const _homeEloRanked = Object.entries(homeEloMap)
-    .sort((a, b) => b[1] - a[1])
-    .map(([n]) => n);
-  const _homeAssRanked = Object.entries(homeASSMap)
-    .sort((a, b) => b[1] - a[1])
-    .map(([n]) => n);
-  const _eloRankIdx = Object.fromEntries(
-    _homeEloRanked.map((n, i) => [n, i + 1]),
-  );
-  const _assRankIdx = Object.fromEntries(
-    _homeAssRanked.map((n, i) => [n, i + 1]),
-  );
-  const _homeRankDivMap = {};
-  _homeEloRanked.forEach((name) => {
-    const diff = (_assRankIdx[name] || 0) - _eloRankIdx[name];
-    if (Math.abs(diff) >= 2) _homeRankDivMap[name] = diff;
-  });
-
-  // Score deltas (recent-5 and 30-day trend) for the card badges.
-  // Uses active scoring mode — ELO or ASS — from the master hamburger toggle.
-  const _histAll =
-    _scoringMode === "ass" ? _memoASSHistory() : computeEloHistory(filtered);
+  // Score deltas (recent-5 and 30-day trend) for the card badges, from ASS.
+  const _histAll = _memoASSHistory();
   const _thirtyAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
     return d.toISOString().slice(0, 10);
   })();
-  const eloDeltaMap = {};
-  const monthlyEloDeltaMap = {};
+  const assDeltaMap = {};
+  const monthlyAssDeltaMap = {};
   stats.forEach((p) => {
     const hist = _histAll[p.name] || [];
     if (!hist.length) {
-      eloDeltaMap[p.name] = null;
-      monthlyEloDeltaMap[p.name] = null;
+      assDeltaMap[p.name] = null;
+      monthlyAssDeltaMap[p.name] = null;
       return;
     }
     const cur = hist[hist.length - 1].elo;
-    // Last-5 trend: ELO now vs ELO just before this player's last 5 matches.
+    // Last-5 trend: ASS now vs ASS just before this player's last 5 matches.
     const base5 = hist.length > 5 ? hist[hist.length - 6].elo : 1000;
-    eloDeltaMap[p.name] = Math.round(cur - base5);
-    // 30-day trend: ELO now vs ELO just before the first match in the window.
+    assDeltaMap[p.name] = Math.round(cur - base5);
+    // 30-day trend: ASS now vs ASS just before the first match in the window.
     const idx30 = hist.findIndex((h) => (h.date || "") >= _thirtyAgo);
-    monthlyEloDeltaMap[p.name] =
+    monthlyAssDeltaMap[p.name] =
       idx30 === -1
         ? null
         : Math.round(cur - (idx30 > 0 ? hist[idx30 - 1].elo : 1000));
@@ -4973,8 +4778,8 @@ function renderHome() {
     const last5DotsHtml = p.form.length
       ? `<span class="spark-dots">${p.form.map((r) => `<span class="s5-dot ${r === "W" ? "s5-w" : "s5-l"}"></span>`).join("")}</span>`
       : "";
-    const eld = eloDeltaMap[p.name];
-    const mEld = monthlyEloDeltaMap[p.name];
+    const eld = assDeltaMap[p.name];
+    const mEld = monthlyAssDeltaMap[p.name];
     const eldHtml =
       mEld !== null && mEld !== undefined
         ? badge({
@@ -5002,15 +4807,10 @@ function renderHome() {
       : streakChip
         ? `<div class="spark-row">${streakChip}</div>`
         : "";
-    const playerBadges = computeBadges(p.name, p, homeEloMap, filtered, stats);
-    const _divDiff = _homeRankDivMap[p.name];
-    const _divBadge =
-      _divDiff !== undefined
-        ? `<span class="card-badge-pill" title="ASS rank ${_divDiff < 0 ? "higher" : "lower"} than ELO rank by ${Math.abs(_divDiff)} positions" style="color:${_divDiff < 0 ? "var(--green)" : "var(--red)"}">⚡ ASS ${_divDiff < 0 ? "↑" : "↓"}${Math.abs(_divDiff)}</span>`
-        : "";
+    const playerBadges = computeBadges(p.name, p, homeASSMap, filtered, stats);
     const badgePillsHtml =
-      playerBadges.length || _divBadge
-        ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}${_divBadge}</div>`
+      playerBadges.length
+        ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
         : "";
 
     // Component-system primitives shared by both card variants
@@ -5041,9 +4841,9 @@ function renderHome() {
 
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? homeASSMap[p.name] || 1000 : homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeASSMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_scoringMode === "ass" ? homeASSMap[p.name] || 1000 : homeEloMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeASSMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
   });
 
   _renderSessionActiveCard();
@@ -5100,24 +4900,20 @@ function _computeLbWindowStats(baseMatches) {
     (m.teamA || []).forEach((p) => playerNames.add(p));
     (m.teamB || []).forEach((p) => playerNames.add(p));
   });
-  const isASS = _summaryMode === "ass";
   const statsList = [];
-  const eloMap = {};
   const assMap = {};
   for (const playerName of playerNames) {
     const pm = _getPlayerWindowMatches(playerName, baseMatches, _lbWindow);
-    const pEloMap = computeElo(pm);
     const pAssMap = computeASS(pm);
-    // SR derives from the active scoring system over the windowed matches.
-    const pStats = computeStats(pm, isASS ? pAssMap : pEloMap);
+    // SR derives from ASS over the windowed matches.
+    const pStats = computeStats(pm, pAssMap);
     const ps = pStats.find((s) => s.name === playerName);
     if (ps) {
       statsList.push(ps);
-      eloMap[playerName] = pEloMap[playerName];
       assMap[playerName] = pAssMap[playerName];
     }
   }
-  return { stats: statsList, eloMap, assMap };
+  return { stats: statsList, assMap };
 }
 
 function _renderLbWindowBar() {
@@ -5162,34 +4958,6 @@ function toggleMatchDeltaWindow(win) {
   document.body.classList.remove("no-cascade");
 }
 
-// ── ELO GLOBAL TOGGLE ────────────────────────────────────────
-// Applies the persisted ELO-enabled pref to document.body and forces modes.
-// Called once on startup and every time the Admin pref changes.
-function _applyEloMode() {
-  const enabled = getEloEnabled();
-  document.body.classList.toggle("elo-disabled", !enabled);
-  if (!enabled) {
-    _scoringMode = "ass";
-    _summaryMode = "ass";
-    cmpSortKey = "ass";
-    _upsetSortMode = null;
-    _sessScoreView = null;
-    document
-      .querySelectorAll(".scoring-seg-btn")
-      .forEach((b) => b.classList.toggle("active", b.dataset.val === "ass"));
-  }
-}
-window.setEloEnabledAndRefresh = function (on) {
-  setEloEnabled(on);
-  _applyEloMode();
-  _homeRenderedVersion = -1;
-  _anaRenderedVersion = -1;
-  renderCompact();
-  const _pg = document.querySelector(".page.active")?.id;
-  if (_pg === "pg-analytics") renderAnalyticsPage();
-  if (_pg === "pg-home") renderHome();
-};
-
 // Manual "Remove Cache" admin action — drops the Statistics page's in-memory
 // memo results so the next open recomputes from scratch instead of reusing
 // whatever was last computed (mirrors the automatic clear in switchMainTab()).
@@ -5210,94 +4978,10 @@ window.removeStatsCache = function removeStatsCache() {
   }
 };
 
-// setScoringMode drives the hamburger master toggle — affects Stats/Home/Analytics only.
-// The Summary tab has its own independent _summaryMode (see toggleSummaryModeOnly).
-function setScoringMode(mode) {
-  if (!getEloEnabled() && mode === "elo") return;
-  if (mode !== "ass" && mode !== "elo") return;
-  _scoringMode = mode;
-  localStorage.setItem("scoringMode", mode);
-  // Sync hamburger segmented control buttons
-  document
-    .querySelectorAll(".scoring-seg-btn")
-    .forEach((b) => b.classList.toggle("active", b.dataset.val === mode));
-  // Invalidate home and analytics so next visit re-renders with new mode
-  _homeRenderedVersion = -1;
-  _anaRenderedVersion = -1;
-  const _activePg = document.querySelector(".page.active")?.id;
-  if (_activePg === "pg-analytics") renderAnalyticsPage();
-  if (_activePg === "pg-home") renderHome();
-}
-
-// Toggles Summary-tab scoring mode independently of the global hamburger toggle.
-function toggleSummaryModeOnly() {
-  if (!getEloEnabled()) return;
-  const newMode = _summaryMode === "ass" ? "elo" : "ass";
-  _summaryMode = newMode;
-  localStorage.setItem("summaryMode", newMode);
-  // Both ELO and ASS columns stay visible regardless of mode; the toggle only
-  // changes which score drives SR and the default sort.
-  cmpSortKey = newMode === "ass" ? "ass" : "sr";
-  cmpSortAsc = false;
-  _renderColChips();
-  const badge = document.getElementById("summary-mode-badge");
-  if (badge) badge.textContent = newMode.toUpperCase();
-  document.body.classList.add("no-cascade");
-  const tbody = document.getElementById("cmpBody");
-  if (tbody) tbody.innerHTML = "";
-  renderCompact();
-  document.body.classList.remove("no-cascade");
-}
-
-// toggleSummaryMode kept for back-compat with any existing onclick using it.
-function toggleSummaryMode(mode) {
-  setScoringMode(mode);
-}
-
 // ── RENDER COMPACT ─────────────────────────────────────────
 // _sweepNeedle -> ./render-anim.js
 
 // runSpeedometerSweep -> ./render-anim.js
-
-function _buildRankDivergenceHtml(eloMap, assMap) {
-  if (!getEloEnabled()) return "";
-  const eloRanked = Object.entries(eloMap)
-    .sort((a, b) => b[1] - a[1])
-    .map(([n]) => n);
-  const assRanked = Object.entries(assMap)
-    .sort((a, b) => b[1] - a[1])
-    .map(([n]) => n);
-  const eloIdx = Object.fromEntries(eloRanked.map((n, i) => [n, i + 1]));
-  const assIdx = Object.fromEntries(assRanked.map((n, i) => [n, i + 1]));
-  const diverged = eloRanked
-    .filter((n) => assMap[n])
-    .map((n) => {
-      const er = eloIdx[n],
-        ar = assIdx[n] || 0;
-      return { name: n, eloRank: er, assRank: ar, diff: ar - er };
-    })
-    .filter((p) => Math.abs(p.diff) >= 2)
-    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
-  if (!diverged.length) return "";
-  const rows = diverged
-    .map((p) => {
-      const col = p.diff < 0 ? "var(--green)" : "var(--red)";
-      const arrow = p.diff < 0 ? "↑" : "↓";
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-      <div style="width:22px;height:22px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${playerInitials(p.name)}</div>
-      <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
-      <div style="font-size:9px;color:var(--muted)">ELO #${p.eloRank}</div>
-      <div style="font-size:9px;color:var(--muted)">ASS #${p.assRank}</div>
-      <div style="font-size:12px;font-weight:900;color:${col};min-width:28px;text-align:right">${arrow}${Math.abs(p.diff)}</div>
-    </div>`;
-    })
-    .join("");
-  return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
-    <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--muted);margin-bottom:8px">⚡ RANK DIVERGENCE — ELO vs ASS</div>
-    <div style="font-size:8px;color:var(--muted);margin-bottom:6px">Players ranked differently by ELO and ASS (≥2 positions)</div>
-    ${rows}
-  </div>`;
-}
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
@@ -5344,26 +5028,17 @@ function renderCompact() {
   }
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const isASS = _summaryMode === "ass";
   const _isCmpAllFilter = cmpFilter === "all" && !cmpFrom && !cmpTo;
-  let _cmpEloMap, _cmpASSMap, stats;
+  let _cmpASSMap, stats;
   if (_lbWindow) {
-    // FIRST/LAST window: recompute ELO, ASS and SR over each player's windowed
-    // matches so all three reflect the chosen window (not the all-time set).
+    // FIRST/LAST window: recompute ASS and SR over each player's windowed
+    // matches so both reflect the chosen window (not the all-time set).
     const r = _computeLbWindowStats(filtered);
-    _cmpEloMap = r.eloMap;
     _cmpASSMap = r.assMap;
     stats = r.stats;
   } else {
     _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
-    _cmpEloMap = _isCmpAllFilter ? _memoElo() : computeElo(filtered);
-    // SR is derived from whichever score is active: ASS map in ASS mode, ELO
-    // map otherwise. ELO all-time still uses the memoised stats for speed.
-    stats = isASS
-      ? computeStats(filtered, _cmpASSMap)
-      : _isCmpAllFilter
-        ? _memoStats()
-        : computeStats(filtered, _cmpEloMap);
+    stats = computeStats(filtered, _cmpASSMap);
   }
   const sortFns = {
     name: (a, b) =>
@@ -5383,7 +5058,6 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    elo: (a, b) => (_cmpEloMap[a.name] || 1000) - (_cmpEloMap[b.name] || 1000),
     ass: (a, b) => (_cmpASSMap[a.name] || 1000) - (_cmpASSMap[b.name] || 1000),
     sr: (a, b) => {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
@@ -5444,19 +5118,16 @@ function renderCompact() {
 
   const splashDone = document.body.classList.contains("splash-done");
 
-  // All-time rank map — built with the same mode (ELO/ASS) and sort key as the
-  // current view, using competition ranking, so the delta is always like-for-like.
+  // All-time rank map — built with the same sort key as the current view,
+  // using competition ranking, so the delta is always like-for-like.
   const _allTimeRankMap = {};
   {
-    const _atElo = _memoElo();
     const _atAss = _memoASS();
-    // For score columns substitute all-time maps; all other columns reuse sortFns.
+    // For the score column substitute the all-time map; other columns reuse sortFns.
     const _atSort =
-      cmpSortKey === "elo"
-        ? (a, b) => (_atElo[a.name] || 1000) - (_atElo[b.name] || 1000)
-        : cmpSortKey === "ass"
-          ? (a, b) => (_atAss[a.name] || 1000) - (_atAss[b.name] || 1000)
-          : sortFns[cmpSortKey] || sortFns.sr;
+      cmpSortKey === "ass"
+        ? (a, b) => (_atAss[a.name] || 1000) - (_atAss[b.name] || 1000)
+        : sortFns[cmpSortKey] || sortFns.sr;
     const _atAll = [..._activeStats()].sort((a, b) => {
       const cmp = _atSort(a, b);
       if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
@@ -5471,24 +5142,21 @@ function renderCompact() {
   }
 
   // This-month rank map — used only in ALL TIME view to compute the ▲▼ delta.
-  // Built with the same sort key, mode and competition ranking as the current
+  // Built with the same sort key and competition ranking as the current
   // leaderboard, so the delta exactly matches the rank gap if the user switches
   // to the THIS MONTH filter.
   const _recentRankMap = {};
   if (cmpFilter === "all") {
     const _mMonth = filterMatches("month");
     if (_mMonth.length > 0) {
-      const _mElo = computeElo(_mMonth);
       const _mAss = computeASS(_mMonth);
-      const _mStats = computeStats(_mMonth, isASS ? _mAss : _mElo);
+      const _mStats = computeStats(_mMonth, _mAss);
       const _mSortFn =
-        cmpSortKey === "elo"
-          ? (a, b) => (_mElo[a.name] || 1000) - (_mElo[b.name] || 1000)
-          : cmpSortKey === "ass"
-            ? (a, b) => (_mAss[a.name] || 1000) - (_mAss[b.name] || 1000)
-            : cmpSortKey === "sr"
-              ? (a, b) => a.sr - b.sr
-              : sortFns[cmpSortKey] || ((a, b) => a.sr - b.sr);
+        cmpSortKey === "ass"
+          ? (a, b) => (_mAss[a.name] || 1000) - (_mAss[b.name] || 1000)
+          : cmpSortKey === "sr"
+            ? (a, b) => a.sr - b.sr
+            : sortFns[cmpSortKey] || ((a, b) => a.sr - b.sr);
       const _mSorted = [..._mStats].sort((a, b) => {
         const cmp = _mSortFn(a, b);
         if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
@@ -5543,33 +5211,29 @@ function renderCompact() {
       else if (diff < 0)
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
     }
-    const eloVal = Math.round(_cmpEloMap[p.name] || 1000);
     const assVal = Math.round(_cmpASSMap[p.name] || 1000);
     const _scoreColor = (v) =>
       v > 1000 ? "var(--green)" : v < 1000 ? "var(--red)" : "var(--muted)";
-    const eloColHtml = `<span style="font-weight:700;color:${_scoreColor(eloVal)}">${eloVal}</span>`;
     const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assVal)}">${assVal}</span>`;
-    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="elo" class="cmp-elo-cell">${eloColHtml}</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
   // Delta walk base: ALL TIME uses the full active-season trajectory so each
-  // match's delta reflects its true historical ELO/ASS context. TODAY starts
-  // fresh from ELO=1000 and walks only today's matches (session-relative).
+  // match's delta reflects its true historical ASS context. TODAY starts
+  // fresh and walks only today's matches (session-relative).
   const _allActive = activeMatches();
   const _deltaMatches =
     _matchDeltaWindow === "today"
       ? _allActive.filter((m) => m.date === todayISO())
       : _allActive;
-  const matchEloDeltas = isASS
-    ? computeMatchASSDeltas(_deltaMatches)
-    : _computeMatchEloDeltas(_deltaMatches);
+  const matchEloDeltas = computeMatchASSDeltas(_deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
-  if (_deltaLbl) _deltaLbl.textContent = isASS ? "ASS" : "ELO";
+  if (_deltaLbl) _deltaLbl.textContent = "ASS";
   document
     .querySelectorAll(".mdw-btn")
     .forEach((b) =>
@@ -5649,14 +5313,10 @@ function renderCompact() {
         );
       }
       const summaryHtml = buildHistorySummary(filtered, cmpFilter);
-      const divergenceHtml = _buildRankDivergenceHtml(_cmpEloMap, _cmpASSMap);
-      if (summaryHtml || divergenceHtml) {
+      if (summaryHtml) {
         setTimeout(
           () => {
-            if (divergenceHtml)
-              cmpMatchesEl.insertAdjacentHTML("beforeend", divergenceHtml);
-            if (summaryHtml)
-              cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
+            cmpMatchesEl.insertAdjacentHTML("beforeend", summaryHtml);
             setTimeout(_animEloCounts, 80);
           },
           matchStartDelay + animCount * 100 + 100,
@@ -5693,7 +5353,6 @@ function renderCompact() {
     if (initRows.length) {
       cmpMatchesEl.innerHTML =
         `<div class="smr-list">${initRows.join("")}</div>` +
-        _buildRankDivergenceHtml(_cmpEloMap, _cmpASSMap) +
         buildHistorySummary(filtered, cmpFilter);
       setTimeout(_animEloCounts, 80);
     } else {
@@ -5807,8 +5466,8 @@ function _computeMatchEloDeltas(matches, startElo = {}) {
 // buildSummaryMatchRow → ./render-match-rows.js
 // buildSummaryMatchRows → ./render-match-rows.js
 
-// Heavy precompute for the history feed: one chronological ELO walk yielding
-// per-match ELO deltas + pre-match pair ranks, plus the pair-vs-pair H2H map.
+// Heavy precompute for the history feed: one chronological ASS walk yielding
+// per-match ASS deltas + pre-match pair ranks, plus the pair-vs-pair H2H map.
 // Depends only on state.matches, so it's memoized on (_dataVersion, array
 // identity). buildMatchCards runs on every history render/filter and this walk
 // is O(matches × pairs) — recomputing it each time was a mobile hot spot.
@@ -5822,50 +5481,41 @@ function _matchCardPrecompute() {
     return _mcPrecompMemo;
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  const elo = {};
+  const ass = {};
   const allPairsList = _memoPairStats(); // all pairs ever formed
-  [...state.matches]
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-    .forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        if (!(p in elo)) elo[p] = 1000;
-      });
-      // Rank all pairs by their avg ELO right now (before this match)
-      matchPairRankMap.set(
-        m,
-        new Map(
-          allPairsList
-            .map((p) => ({
-              key: p.key,
-              avgElo:
-                p.players.reduce((s, n) => s + (elo[n] || 1000), 0) /
-                p.players.length,
-            }))
-            .sort((a, b) => b.avgElo - a.avgElo)
-            .map(({ key }, i) => [key, i + 1]),
-        ),
-      );
-      const aWon = m.scoreA > m.scoreB;
-      const avgA =
-        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB =
-        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      const mData = {};
-      (m.teamA || []).forEach((p) => {
-        const after = (elo[p] || 1000) + dA;
-        mData[p] = { delta: dA, after };
-        elo[p] = after;
-      });
-      (m.teamB || []).forEach((p) => {
-        const after = (elo[p] || 1000) + dB;
-        mData[p] = { delta: dB, after };
-        elo[p] = after;
-      });
-      eloMatchMap.set(m, mData);
+  const sortedForPrecompute = [...state.matches].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
+  );
+  const assDeltasAll = computeMatchASSDeltas(sortedForPrecompute);
+  sortedForPrecompute.forEach((m) => {
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      if (!(p in ass)) ass[p] = 1000;
     });
+    // Rank all pairs by their avg ASS right now (before this match)
+    matchPairRankMap.set(
+      m,
+      new Map(
+        allPairsList
+          .map((p) => ({
+            key: p.key,
+            avgElo:
+              p.players.reduce((s, n) => s + (ass[n] || 1000), 0) /
+              p.players.length,
+          }))
+          .sort((a, b) => b.avgElo - a.avgElo)
+          .map(({ key }, i) => [key, i + 1]),
+      ),
+    );
+    const info = assDeltasAll.get(m);
+    const mData = {};
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+      const delta = info?.playerDeltas?.[p] ?? 0;
+      const after = (ass[p] || 1000) + delta;
+      mData[p] = { delta, after };
+      ass[p] = after;
+    });
+    eloMatchMap.set(m, mData);
+  });
   // Enhancement 8: pre-compute pair-vs-pair H2H records
   const pvpMap = {};
   state.matches.forEach((hm) => {
@@ -5917,7 +5567,7 @@ function buildMatchCards(matches, showAdmin) {
     const crown = won ? "👑 " : "";
     const rank = preMatchRankMap?.get(getPairKey(players));
     const rankHtml = rank
-      ? `<div class="team-pair-rank">ELO #${rank}</div>`
+      ? `<div class="team-pair-rank">ASS #${rank}</div>`
       : "";
     if (players.length >= 2) {
       const p2Suffix = hasZeroEmoji ? " 😭" : "";
@@ -6290,7 +5940,7 @@ function renderModernMatches() {
           ? "var(--red)"
           : "var(--text)";
     const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
-    const h2hEloHist = _memoEloHistory();
+    const h2hEloHist = _memoASSHistory();
     const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) =>
       pt.opponent.split(" & ").includes(h2hFilterB),
     );
@@ -6329,13 +5979,13 @@ function renderModernMatches() {
               <div class="psc-stat"><div class="psc-sv" style="color:${bCol}">${bWinPct}%</div><div class="psc-sl">${escHtml(h2hFilterB.split(" ")[0])} Win%</div></div>
             </div>
             <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)" onclick="event.stopPropagation()">
-              <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">ELO IMPACT FROM THIS RIVALRY</div>
+              <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">ASS IMPACT FROM THIS RIVALRY</div>
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <div>
                   <div style="font-size:16px;font-weight:900">${fmtEloImpact(h2hP1Impact)}</div>
                   <div style="font-size:9px;color:var(--muted)">${escHtml(h2hFilterA.toUpperCase())}</div>
                 </div>
-                <div style="font-size:9px;color:var(--muted)">ELO GAINED / LOST</div>
+                <div style="font-size:9px;color:var(--muted)">ASS GAINED / LOST</div>
                 <div style="text-align:right">
                   <div style="font-size:16px;font-weight:900">${fmtEloImpact(h2hP2Impact)}</div>
                   <div style="font-size:9px;color:var(--muted)">${escHtml(h2hFilterB.toUpperCase())}</div>
@@ -6568,7 +6218,7 @@ function renderActivePage() {
 }
 function commit() {
   _dataVersion++;
-  _invalidateEloMemo();
+  _invalidateStatsMemo();
   renderActivePage();
 }
 
@@ -8056,7 +7706,7 @@ function openShareCard(name) {
   const detail = getPlayerDetail(name);
   if (!detail.stats) return;
   const s = detail.stats;
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   const elo = Math.round(eloMap[name] || 1000);
   const col = playerColor(name);
 
@@ -8107,7 +7757,7 @@ function openShareCard(name) {
           <div style="font-size:22px;font-weight:900;color:#f0ecff;letter-spacing:-0.01em;line-height:1.1">${name}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
             <span style="background:${col}22;color:${col};font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;border:1px solid ${col}44;letter-spacing:0.04em">#${rank} RANK</span>
-            <span style="color:#4a4a6a;font-size:10px;font-weight:600">${elo} ELO</span>
+            <span style="color:#4a4a6a;font-size:10px;font-weight:600">${elo} ASS</span>
           </div>
         </div>
       </div>
@@ -8207,8 +7857,8 @@ function _buildDigestContent(filter, player) {
   const accentCol = "var(--theme)";
   if (ms.length < 2)
     return `<div class="sub" style="padding:16px;text-align:center">Not enough matches for selected filter.</div>`;
-  const eloNow = _memoElo();
-  const eloAt = computeElo(
+  const eloNow = _memoASS();
+  const eloAt = computeASS(
     activeMatches().filter((m) => {
       const base =
         filter === "week"
@@ -8225,7 +7875,7 @@ function _buildDigestContent(filter, player) {
       return (m.date || "") < base;
     }),
   );
-  const stats = computeStats(ms, computeElo(ms));
+  const stats = computeStats(ms, computeASS(ms));
   const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
   const mover = Object.keys(eloNow)
     .map((p) => ({ name: p, gain: (eloNow[p] || 1000) - (eloAt[p] || 1000) }))
@@ -8413,8 +8063,8 @@ function openSessionHighlights(date) {
     ),
   ];
   const _amD = activeMatches();
-  const eloAfter = computeElo(_amD.filter((m) => (m.date || "") <= date));
-  const eloBefore = computeElo(_amD.filter((m) => (m.date || "") < date));
+  const eloAfter = computeASS(_amD.filter((m) => (m.date || "") <= date));
+  const eloBefore = computeASS(_amD.filter((m) => (m.date || "") < date));
   const gains = players
     .map((p) => ({
       name: p,
@@ -8487,7 +8137,7 @@ function openSessionHighlights(date) {
     ${closest ? `<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">🔥 CLOSEST GAME</div><div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700">${closest.teamA.map((p) => p.split(" ")[0]).join("&")} ${closest.scoreA}–${closest.scoreB} ${closest.teamB.map((p) => p.split(" ")[0]).join("&")}</div>` : ""}
     <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">ALL MATCHES</div>
     <div style="margin-bottom:12px">${matchRows}</div>
-    <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">⚡ ELO CHANGES</div>
+    <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">⚡ ASS CHANGES</div>
     <div>${gainRows}</div>
   </div>`;
   document.body.appendChild(overlay);
@@ -8525,7 +8175,7 @@ function getMatrixAlias(name) {
 
 function _h2hSortPlayers(players) {
   if (!Array.isArray(players)) return [];
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   // One O(matches) pass for everyone's played/won counts — the old per-player
   // scan was O(players × matches) and ran on every analytics render AND every
   // sort-pill click.
@@ -8900,7 +8550,7 @@ function _pairMatrixInner() {
       played[n] = (played[n] || 0) + 1;
     }),
   );
-  const _allTimeElo = _memoElo();
+  const _allTimeElo = _memoASS();
   const players = Object.keys(played).sort(
     (a, b) =>
       (_allTimeElo[b] || 1000) - (_allTimeElo[a] || 1000) || a.localeCompare(b),
@@ -9201,7 +8851,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     baseMatches,
     viewState.cmpWindowA,
   );
-  const eloMapA = computeElo(matchesA);
+  const eloMapA = computeASS(matchesA);
   const statsA = computeStats(matchesA, eloMapA);
   const sA = statsA.find((s) => s.name === nameA);
 
@@ -9210,7 +8860,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     baseMatches,
     viewState.cmpWindowB,
   );
-  const eloMapB = computeElo(matchesB);
+  const eloMapB = computeASS(matchesB);
   const statsB = computeStats(matchesB, eloMapB);
   const sB = statsB.find((s) => s.name === nameB);
 
@@ -9312,7 +8962,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
           ${row("Games Lost", sA.gl, sB.gl, false)}
           ${row("Game %", sA.gamePct.toFixed(0) + "%", sB.gamePct.toFixed(0) + "%")}
           ${row("Skill Rating", sA.sr.toFixed(2), sB.sr.toFixed(2))}
-          ${row("ELO", eloMapA[nameA] || 1000, eloMapB[nameB] || 1000)}
+          ${row("ASS", eloMapA[nameA] || 1000, eloMapB[nameB] || 1000)}
           ${row("Best Streak", sA.bestWinStreak + "W", sB.bestWinStreak + "W")}
           ${row("Avg Margin", (sA.avgMargin >= 0 ? "+" : "") + sA.avgMargin.toFixed(1), (sB.avgMargin >= 0 ? "+" : "") + sB.avgMargin.toFixed(1))}
           ${sA.consistency !== null && sB.consistency !== null ? row("Consistency ±", sA.consistency, sB.consistency, false) : ""}
@@ -9506,7 +9156,7 @@ function anaSearchInput(q) {
     activity: "Activity",
     players: "Players",
     records: "Records",
-    elo: "ELO",
+    elo: "ASS",
     rivals: "Rivals",
   };
   res.innerHTML = matches
@@ -9932,7 +9582,7 @@ function mkLvlRow(displayName) {
 // to live in the separate "Monthly Awards" section (Most Consistent, Most Feared)
 // so the two are unified into one section.
 function _periodAwards(ms, priorMs) {
-  const eloMap = computeElo(ms);
+  const eloMap = computeASS(ms);
   // MVP ranks by ASS rating — same metric as the Monthly Recap Player of the
   // Month, so the two awards never disagree on who tops the period.
   const assMap = computeASS(ms);
@@ -9944,7 +9594,7 @@ function _periodAwards(ms, priorMs) {
     ? [...stats].sort((a, b) => b.mp - a.mp)[0]
     : null;
   const priorEloMap =
-    priorMs && priorMs.length && stats.length > 1 ? computeElo(priorMs) : null;
+    priorMs && priorMs.length && stats.length > 1 ? computeASS(priorMs) : null;
   const mostImproved = priorEloMap
     ? [...stats].sort(
         (a, b) =>
@@ -10138,7 +9788,7 @@ function runMatchSimulator() {
     return;
   }
 
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   const e = (p) => eloMap[p] || 1000;
   const avgA = (e(a1) + e(a2)) / 2;
   const avgB = (e(b1) + e(b2)) / 2;
@@ -10206,13 +9856,13 @@ function runMatchSimulator() {
 function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || viewState.eloTLFilter || "all";
   viewState.eloTLFilter = filterKey;
-  const history = _memoEloHistory();
-  const eloNow = _memoElo();
+  const history = _memoASSHistory();
+  const eloNow = _memoASS();
   const players = Object.keys(history)
     .filter((p) => (history[p] || []).length >= 2)
     .sort((a, b) => (eloNow[b] || 1000) - (eloNow[a] || 1000));
   if (!players.length)
-    return '<div class="sub" style="padding:8px">No ELO data yet.</div>';
+    return '<div class="sub" style="padding:8px">No ASS data yet.</div>';
   if (!viewState.eloTLPlayer || !history[viewState.eloTLPlayer])
     viewState.eloTLPlayer = players[0];
   const name = viewState.eloTLPlayer;
@@ -10410,7 +10060,7 @@ function buildEloTimelineHtml(filterKey) {
 
     chartHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px">
         <div style="font-size:9px;color:var(--muted)">● W &nbsp;● L &nbsp;· ${pts.length} matches</div>
-        <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ELO</div>
+        <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ASS</div>
       </div>
       <div style="overflow-x:auto">
         <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
@@ -10453,7 +10103,7 @@ function openEloTLOverlaySheet() {
   if (el) el.textContent = "COMPARE WITH";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const history = _memoEloHistory();
+  const history = _memoASSHistory();
   const players = sortPlayersGuestsLast(
     Object.keys(history).filter((p) => p !== viewState.eloTLPlayer),
   );
@@ -10504,7 +10154,7 @@ function showEloMatchDetail(idx) {
     <div style="margin-top:3px;font-size:11px">vs <strong>${p.opponent.toUpperCase()}</strong></div>
     <div style="margin-top:3px;display:flex;gap:12px;font-size:11px">
       <span style="color:var(--muted)">Score: <strong style="color:var(--fg)">${p.scoreA}–${p.scoreB}</strong></span>
-      <span style="color:var(--muted)">ELO: <strong style="color:var(--fg)">${p.elo}</strong></span>
+      <span style="color:var(--muted)">ASS: <strong style="color:var(--fg)">${p.elo}</strong></span>
       <span style="font-weight:700;color:${dCol}">${dStr}</span>
     </div>
   </div>`;
@@ -10588,7 +10238,7 @@ function calcEloWinProb() {
       '<div class="sub" style="color:var(--red);padding:4px">Select two different players.</div>';
     return;
   }
-  const em = _memoElo();
+  const em = _memoASS();
   const e1 = em[p1] || 1000;
   const e2 = em[p2] || 1000;
   const prob = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
@@ -10605,19 +10255,19 @@ function calcEloWinProb() {
       <div>
         <div style="font-size:22px;font-weight:900;color:${col1}">${pct1}%</div>
         <div style="font-size:10px;color:var(--muted)">${p1.toUpperCase()}</div>
-        <div style="font-size:9px;color:var(--muted)">ELO ${e1}</div>
+        <div style="font-size:9px;color:var(--muted)">ASS ${e1}</div>
       </div>
       <div style="font-size:10px;color:var(--muted);padding-top:6px">WIN CHANCE</div>
       <div style="text-align:right">
         <div style="font-size:22px;font-weight:900;color:${col2}">${pct2}%</div>
         <div style="font-size:10px;color:var(--muted)">${p2.toUpperCase()}</div>
-        <div style="font-size:9px;color:var(--muted)">ELO ${e2}</div>
+        <div style="font-size:9px;color:var(--muted)">ASS ${e2}</div>
       </div>
     </div>
   </div>`;
 }
 
-// ── ELO WIN PROBABILITY STATE ──────────────────────────────
+// ── ASS WIN PROBABILITY STATE ──────────────────────────────
 
 // ── WHAT-IF SIMULATOR STATE ────────────────────────────────
 const _WHATIF_PAGE = 20;
@@ -10723,7 +10373,7 @@ function toggleWhatIfFlip(idx) {
 }
 
 function whatIfFlipAllLosses() {
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   state.matches.forEach((m, i) => {
     if (!viewState.whatIfToggles.hasOwnProperty(i)) return;
     const inA = (m.teamA || []).includes(viewState.whatIfPlayer);
@@ -10767,12 +10417,6 @@ function recomputeWhatIfElo() {
       }
       return m;
     });
-  const actualElo = _memoElo()[viewState.whatIfPlayer] || 1000;
-  const whatIfEloMap = computeElo(whatIfMatches);
-  const whatIfElo = whatIfEloMap[viewState.whatIfPlayer] || 1000;
-  const diff = whatIfElo - actualElo;
-  const sign = diff > 0 ? "+" : "";
-  // ASS counterfactual (mirrors the ELO calc over the same modified match list)
   const actualAss = Math.round(_memoASS()[viewState.whatIfPlayer] || 1000);
   const whatIfAssMap = computeASS(whatIfMatches);
   const whatIfAss = Math.round(whatIfAssMap[viewState.whatIfPlayer] || 1000);
@@ -10781,8 +10425,8 @@ function recomputeWhatIfElo() {
   const assPillCls =
     assDiff > 0 ? "positive" : assDiff < 0 ? "negative" : "neutral";
   // Rank change
-  const actualRanked = Object.entries(_memoElo()).sort((a, b) => b[1] - a[1]);
-  const whatIfRanked = Object.entries(whatIfEloMap).sort((a, b) => b[1] - a[1]);
+  const actualRanked = Object.entries(_memoASS()).sort((a, b) => b[1] - a[1]);
+  const whatIfRanked = Object.entries(whatIfAssMap).sort((a, b) => b[1] - a[1]);
   const actualRank =
     actualRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
   const whatIfRank =
@@ -10794,46 +10438,27 @@ function recomputeWhatIfElo() {
       : rankDiff < 0
         ? `▼${Math.abs(rankDiff)}`
         : "—";
-  const rankCol =
-    rankDiff > 0
-      ? "var(--green)"
-      : rankDiff < 0
-        ? "var(--red)"
-        : "var(--muted)";
   const excluded = Object.values(viewState.whatIfToggles).filter(
     (v) => !v,
   ).length;
   const flipped = Object.values(viewState.whatIfFlips).filter((v) => v).length;
-  const eloPillCls = diff > 0 ? "positive" : diff < 0 ? "negative" : "neutral";
   const rankPillCls =
     rankDiff > 0 ? "positive" : rankDiff < 0 ? "negative" : "neutral";
   resultEl.innerHTML = `<div class="whatif-result-card">
     <div class="wi-res-row">
       <div class="wi-res-cell">
-        <div class="wi-res-label">ACTUAL ELO</div>
-        <div class="wi-res-val">${actualElo}</div>
-        <div class="wi-res-sub">Rank #${actualRank}</div>
-      </div>
-      <div class="wi-res-arrow">→</div>
-      <div class="wi-res-cell">
-        <div class="wi-res-label">WHAT-IF ELO</div>
-        <div class="wi-res-val">${whatIfElo}</div>
-        <div class="wi-res-sub">Rank #${whatIfRank}</div>
-      </div>
-    </div>
-    <div class="wi-res-row" style="margin-top:8px">
-      <div class="wi-res-cell">
         <div class="wi-res-label">ACTUAL ASS</div>
         <div class="wi-res-val">${actualAss}</div>
+        <div class="wi-res-sub">Rank #${actualRank}</div>
       </div>
       <div class="wi-res-arrow">→</div>
       <div class="wi-res-cell">
         <div class="wi-res-label">WHAT-IF ASS</div>
         <div class="wi-res-val">${whatIfAss}</div>
+        <div class="wi-res-sub">Rank #${whatIfRank}</div>
       </div>
     </div>
     <div class="wi-res-deltas">
-      <span class="wi-delta-pill ${eloPillCls}">${sign}${diff} ELO</span>
       <span class="wi-delta-pill ${assPillCls}">${assSign}${assDiff} ASS</span>
       <span class="wi-delta-pill ${rankPillCls}">${rankStr} rank</span>
       ${flipped ? `<span class="wi-delta-pill neutral">${flipped} flipped</span>` : ""}
@@ -10953,7 +10578,7 @@ function _computeRankPeriods(periodType) {
           totalPlayers: 0,
           idx,
         };
-      const eloMap = computeElo(b.matches);
+      const eloMap = computeASS(b.matches);
       const statsArr = computeStats(b.matches, eloMap);
       if (statsArr.length < _MIN_RANK_PLAYERS)
         return {
@@ -11161,7 +10786,7 @@ function _buildRankReignHtml() {
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
 
   // Current ALL TIME rank (latest snapshot = full history) in the active system.
-  const eloMap = isAss ? _memoASS() : _memoElo();
+  const eloMap = isAss ? _memoASS() : _memoASS();
   const eloRanking = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   const eloRankOf = {};
   eloRanking.forEach(([name], i) => {
@@ -11175,7 +10800,7 @@ function _buildRankReignHtml() {
   const sorted = [...allM].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
-  const histAll = isAss ? _memoASSHistory() : _memoEloHistory();
+  const histAll = isAss ? _memoASSHistory() : _memoASSHistory();
   const histNames = Object.keys(histAll);
   const runElo = {}; // running rating per player, as of the current date
   const ptr = {};
@@ -11262,7 +10887,7 @@ function _buildRankReignHtml() {
     .join("");
 
   const html = `<div class="ana-card" style="padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${allDates.length} MATCH DAYS · ${isAss ? "ASS" : "ELO"}</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:0.04em">ALL TIME · ${allDates.length} MATCH DAYS · ASS</div>
     <table style="border-collapse:separate;border-spacing:0;width:max-content;min-width:100%">
       <thead>${thead}</thead>
       <tbody>${tbody}</tbody>
@@ -11298,7 +10923,7 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
   });
 
   // Current ALL TIME ELO rank
-  const eloMapTl = computeElo(activeMatches());
+  const eloMapTl = computeASS(activeMatches());
   const eloRankOfTl = {};
   Object.entries(eloMapTl)
     .sort((a, b) => b[1] - a[1])
@@ -12162,7 +11787,7 @@ function runMatchPrediction() {
       '<div style="color:var(--red);font-size:11px;padding:4px">Select at least one player per team.</div>';
     return;
   }
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   const avgA =
     teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
   const avgB =
@@ -12663,10 +12288,10 @@ function wrcOnSlider() {
   const newL = newMp - newW;
   const newWR = Math.round((newW / newMp) * 100);
 
-  // ELO gain estimate: K=32, vs match-frequency-weighted average opponent ELO.
+  // ASS gain estimate: K=32-style win-probability heuristic, vs match-frequency-weighted average opponent ASS.
   // Players who appear in more matches are more likely to be faced, so their
-  // ELO carries proportionally more weight in the average.
-  const eloMap = _memoElo();
+  // ASS carries proportionally more weight in the average.
+  const eloMap = _memoASS();
   const myElo = eloMap[name] || 1000;
   // Use only non-guest matches for the opponent ELO average
   const guestSet = new Set(
@@ -12714,7 +12339,7 @@ function wrcOnSlider() {
       <div class="wrc-rg-cell wrc-rg-lose"><div class="wrc-rg-label">NEW LOSSES</div><div class="wrc-rg-val">${newL}</div></div>
       <div class="wrc-rg-cell wrc-rg-hl"><div class="wrc-rg-label">FINAL W%</div><div class="wrc-rg-val">${newWR}%</div></div>
       <div class="wrc-rg-cell" style="grid-column:span 2">
-        <div class="wrc-rg-label">ELO GAIN</div>
+        <div class="wrc-rg-label">ASS GAIN</div>
         <div class="wrc-rg-val" style="color:${eloCol}">${eloSign}${eloGain} → ${finalElo}</div>
       </div>
     </div>`;
@@ -12729,6 +12354,8 @@ function _computeUpsets(matches = activeMatches()) {
   const ms = [...matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
+  // `elo` here is a private strength-walk helper feeding the ASS partner/
+  // opponent multiplier below — mirrors ass.js's own internal computation.
   const elo = {},
     ass = {};
   const seed = (n) => {
@@ -12741,11 +12368,9 @@ function _computeUpsets(matches = activeMatches()) {
       tB = m.teamB || [];
     [...tA, ...tB].forEach(seed);
 
-    // Snapshot pre-match ratings for every player in this match
-    const preElo = {},
-      preAss = {};
+    // Snapshot pre-match ASS ratings for every player in this match
+    const preAss = {};
     [...tA, ...tB].forEach((p) => {
-      preElo[p] = elo[p];
       preAss[p] = ass[p];
     });
 
@@ -12756,10 +12381,9 @@ function _computeUpsets(matches = activeMatches()) {
     const aWon = m.scoreA > m.scoreB;
     const winners = aWon ? tA : tB;
     const losers = aWon ? tB : tA;
-    const eloGap = Math.round(aWon ? avgEloB - avgEloA : avgEloA - avgEloB);
     const assGap = Math.round(aWon ? avgAssB - avgAssA : avgAssA - avgAssB);
 
-    // Advance ASS first (uses pre-match ELO for strength multiplier, same as ass.js)
+    // Advance ASS (uses pre-match strength walk for the partner multiplier, same as ass.js)
     const margin = Math.abs(m.scoreA - m.scoreB);
     const quality = 4 * margin + (m.scoreA + m.scoreB);
     tA.forEach((p) => {
@@ -12789,44 +12413,34 @@ function _computeUpsets(matches = activeMatches()) {
         : -Math.round(quality / mult);
     });
 
-    // Then advance ELO
+    // Advance the internal strength walk
     const expA = 1 / (1 + Math.pow(10, (avgEloB - avgEloA) / 400));
     const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
     const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
     tA.forEach((p) => (elo[p] += dA));
     tB.forEach((p) => (elo[p] += dB));
 
-    if (eloGap > 0 || assGap > 0)
+    if (assGap > 0)
       upsets.push({
         date: m.date,
-        gap: eloGap,
         assGap,
         winners,
         losers,
         sw: Math.max(m.scoreA, m.scoreB),
         sl: Math.min(m.scoreA, m.scoreB),
-        preElo,
         preAss,
       });
   });
   return upsets;
 }
 
-function _upsetCard(u, mode) {
-  const isASS = mode === "ass";
-  const primaryGap = isASS ? u.assGap : u.gap;
-  const secGap = isASS ? u.gap : u.assGap;
-  const primaryLbl = isASS ? "ASS" : "ELO";
-  const secLbl = isASS ? "ELO" : "ASS";
-  const scoreMap = isASS ? u.preAss : u.preElo;
+function _upsetCard(u) {
   const fmt = (g) => (g >= 0 ? "+" : "") + g;
-  const secCol =
-    secGap > 0 ? "var(--green)" : secGap < 0 ? "var(--red)" : "var(--muted)";
   const teamLine = (team) =>
     team
       .map(
         (p) =>
-          `${escHtml(normPlayer(p))} <span style="color:var(--muted);font-weight:600">${Math.round(scoreMap[p] ?? 1000)}</span>`,
+          `${escHtml(normPlayer(p))} <span style="color:var(--muted);font-weight:600">${Math.round(u.preAss[p] ?? 1000)}</span>`,
       )
       .join(" <span style='color:var(--muted)'>&</span> ");
   return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
@@ -12836,7 +12450,7 @@ function _upsetCard(u, mode) {
       <div style="flex:1;min-width:0;font-size:11px;font-weight:800;color:var(--muted);text-align:right">${teamLine(u.losers)}</div>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
-      <span>${primaryLbl} <span style="color:var(--green)">${fmt(primaryGap)}</span> · ${secLbl} <span style="color:${secCol}">${fmt(secGap)}</span> underdog gap</span>
+      <span>ASS <span style="color:var(--green)">${fmt(u.assGap)}</span> underdog gap</span>
       <span>${fmtDate(u.date)}</span>
     </div>
   </div>`;
@@ -12845,23 +12459,13 @@ function _upsetCard(u, mode) {
 function _renderBiggestUpsetsCards() {
   const el = document.getElementById("biggest-upsets-body");
   if (!el || !_cachedUpsets) return;
-  const mode = _upsetSortMode ?? _scoringMode;
-  const isASS = mode === "ass";
-  const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
-  eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
+  const eligible = _cachedUpsets.filter((u) => u.assGap > 0);
+  eligible.sort((a, b) => b.assGap - a.assGap);
   const top = eligible.slice(0, 10);
   el.innerHTML = top.length
-    ? top.map((u) => _upsetCard(u, mode)).join("")
+    ? top.map((u) => _upsetCard(u)).join("")
     : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
 }
-
-window._setUpsetMode = function (mode) {
-  _upsetSortMode = mode;
-  document.querySelectorAll(".upset-mode-btn").forEach((b) => {
-    b.classList.toggle("lsst-active", b.dataset.mode === mode);
-  });
-  _renderBiggestUpsetsCards();
-};
 
 window._streakSort = function (col) {
   if (!window._streakState)
@@ -13410,22 +13014,13 @@ window._playRatingsRace = function (btn) {
 
 function _buildBiggestUpsetsHtml(matches = activeMatches()) {
   _cachedUpsets = _computeUpsets(matches);
-  const _eloOn = getEloEnabled();
-  const mode = _eloOn ? (_upsetSortMode ?? _scoringMode) : "ass";
-  const toggle = _eloOn
-    ? `<div class="live-sdash-score-toggle" style="margin-bottom:10px">
-    <button class="lsst-btn upset-mode-btn${mode === "elo" ? " lsst-active" : ""}" data-mode="elo" onclick="window._setUpsetMode('elo')">ELO</button>
-    <button class="lsst-btn upset-mode-btn${mode === "ass" ? " lsst-active" : ""}" data-mode="ass" onclick="window._setUpsetMode('ass')">ASS</button>
-  </div>`
-    : "";
-  const isASS = mode === "ass";
-  const eligible = _cachedUpsets.filter((u) => (isASS ? u.assGap : u.gap) > 0);
-  eligible.sort((a, b) => (isASS ? b.assGap - a.assGap : b.gap - a.gap));
+  const eligible = _cachedUpsets.filter((u) => u.assGap > 0);
+  eligible.sort((a, b) => b.assGap - a.assGap);
   const top = eligible.slice(0, 10);
   const cards = top.length
-    ? top.map((u) => _upsetCard(u, mode)).join("")
+    ? top.map((u) => _upsetCard(u)).join("")
     : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
-  return `${toggle}<div id="biggest-upsets-body">${cards}</div>`;
+  return `<div id="biggest-upsets-body">${cards}</div>`;
 }
 
 // Compare every player's ELO across the user-defined Seasons (cross-season).
@@ -13439,7 +13034,7 @@ function _buildSeasonComparisonHtml() {
   const _allM = withoutGuestMatches(state.matches);
   const perSeason = ordered.map((s) => {
     const sm = _allM.filter((m) => _inSeason(s, m.date));
-    return { s, elo: computeElo(sm), stats: computeStats(sm) };
+    return { s, elo: computeASS(sm), stats: computeStats(sm) };
   });
   const totals = {};
   _allM.forEach((m) =>
@@ -13478,7 +13073,7 @@ function _buildSeasonComparisonHtml() {
       return `<tr><td style="text-align:left;padding:4px 6px;font-size:11px;font-weight:700;position:sticky;left:0;background:var(--surface);white-space:nowrap">${escHtml(name)}</td>${cells}</tr>`;
     })
     .join("");
-  return `<div class="ana-card" style="padding:8px"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div><div style="font-size:9px;color:var(--muted);margin-top:6px">Season ELO per player (W–L below). — = didn't play that season.</div></div>`;
+  return `<div class="ana-card" style="padding:8px"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div><div style="font-size:9px;color:var(--muted);margin-top:6px">Season ASS per player (W–L below). — = didn't play that season.</div></div>`;
 }
 
 window._renderHiLoTable = function () {
@@ -13553,16 +13148,6 @@ window._eloProj = {
   futureM: 20,
   sortCol: "currentRank",
   sortAsc: true,
-  mode: "ass", // "ass" | "elo" — default to ASS
-};
-
-window._eloprojSetMode = function (mode) {
-  if (mode !== "ass" && mode !== "elo") return;
-  window._eloProj.mode = mode;
-  document
-    .querySelectorAll(".rp-mode-btn")
-    .forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
-  window._renderEloProjTable();
 };
 
 window._eloprojAdj = function (type, delta) {
@@ -13595,11 +13180,10 @@ window._eloprojSort = function (col) {
 window._renderEloProjTable = function () {
   const tableEl = document.getElementById("eloproj-table");
   if (!tableEl) return;
-  const { formN, futureM, sortCol, sortAsc, mode } = window._eloProj;
-  const isAss = mode === "ass";
-  const ratingLbl = isAss ? "ASS" : "ELO";
-  const eloMap = isAss ? _memoASS() : _memoElo();
-  const histAll = isAss ? _memoASSHistory() : _memoEloHistory();
+  const { formN, futureM, sortCol, sortAsc } = window._eloProj;
+  const ratingLbl = "ASS";
+  const eloMap = _memoASS();
+  const histAll = _memoASSHistory();
   if (!histAll || !eloMap) return;
 
   const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
@@ -13954,7 +13538,7 @@ function renderAnalyticsPage() {
   };
 
   // ── ELO ────────────────────────────────────────────────
-  const eloMap = _scoringMode === "ass" ? computeASS(am) : computeElo(am);
+  const eloMap = _scoringMode === "ass" ? computeASS(am) : computeASS(am);
   const pairLeaderboard = getPairStats(am).slice(0, 8);
   const playersByMatches = _h2hSortPlayers([
     ...new Set(
@@ -14221,7 +13805,7 @@ function renderAnalyticsPage() {
         .sort((a, b) => b[1] - a[1])
         .reduce((o, [name], i) => ({ ...o, [name]: i + 1 }), {});
     }
-    return computeStats(_preWkArr, computeElo(_preWkArr)).reduce(
+    return computeStats(_preWkArr, computeASS(_preWkArr)).reduce(
       (o, p, i) => ({ ...o, [p.name]: i + 1 }),
       {},
     );
@@ -15115,13 +14699,13 @@ function renderAnalyticsPage() {
   const _scLabel = _scoringLabel();
   const { from: wkFromElo } = lastWeekRange();
   // Build active score map + pre-week score map for change calc
-  const _scMapNow = _scoringMode === "ass" ? computeASS(am) : computeElo(am);
+  const _scMapNow = _scoringMode === "ass" ? computeASS(am) : computeASS(am);
   const _scFallback = 1000; // both ELO and ASS baseline at 1000
   const _preWkArrElo = am.filter((m) => (m.date || "") < wkFromElo);
   const _scMapPre =
     _scoringMode === "ass"
       ? computeASS(_preWkArrElo)
-      : computeElo(_preWkArrElo);
+      : computeASS(_preWkArrElo);
   const eloRanked = Object.entries(_scMapNow).sort((a, b) => b[1] - a[1]);
   const preWkRanked = Object.entries(_scMapPre).sort((a, b) => b[1] - a[1]);
   const maxEloVal = eloRanked[0]?.[1] ?? _scFallback;
@@ -15214,7 +14798,7 @@ function renderAnalyticsPage() {
   const eloWinProbHtml =
     playersByMatches.length >= 2
       ? `<div class="ana-card" style="padding:10px 12px">
-        <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Pick two players to see win probability based on current ELO ratings.</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Pick two players to see win probability based on current ASS ratings.</div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <button class="h2h-slot-btn" id="eloProb-slot-p1" onclick="openEloProbSheet('p1')" style="flex:1">
             <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 1</span>
@@ -15249,7 +14833,7 @@ function renderAnalyticsPage() {
       .sort((a, b) => a.stdDev - b.stdDev);
     const maxStd = rows[rows.length - 1]?.stdDev || 1;
     return `<div class="ana-card" style="padding:10px 12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Lower deviation = more consistent ELO swings per match.</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Lower deviation = more consistent ASS swings per match.</div>
       ${rows
         .map((r, i) => {
           const barW = Math.max(5, (r.stdDev / maxStd) * 100).toFixed(0);
@@ -15555,7 +15139,7 @@ function renderAnalyticsPage() {
 
   // ── CARRY FACTOR ───────────────────────────────────────
   const carryHtml = (() => {
-    const eloMapFull = _memoElo();
+    const eloMapFull = _memoASS();
     const playerList = _statPlayerNames();
     if (playerList.length < 2)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
@@ -15780,7 +15364,7 @@ function renderAnalyticsPage() {
   // ── WHAT-IF SIMULATOR ──────────────────────────────────
   const whatIfHtml = (() => {
     return `<div class="ana-card" style="padding:12px">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Select a player — flip individual losses to wins, exclude matches, and see the counterfactual ELO</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Select a player — flip individual losses to wins, exclude matches, and see the counterfactual ASS</div>
       <button class="filter-fab-btn" id="whatif-player-fab" onclick="openWhatIfPlayerSheet()" style="margin-bottom:10px"><span class="whatif-fab-label">SELECT PLAYER</span></button>
       <div id="whatif-controls" style="display:none;margin-bottom:8px;gap:6px;flex-wrap:wrap">
         <button class="whatif-action-btn" onclick="whatIfFlipAllLosses()">↩ Flip All Losses</button>
@@ -15856,7 +15440,7 @@ function renderAnalyticsPage() {
 
           if (opps.length)
             oppSRSum +=
-              opps.reduce((s, op) => s + eloToSr(eloMap[op] || 1000), 0) /
+              opps.reduce((s, op) => s + ratingToSr(eloMap[op] || 1000), 0) /
               opps.length;
 
           if (opps.some((op) => _topHalfSet.has(op))) {
@@ -16034,7 +15618,7 @@ function renderAnalyticsPage() {
       return '<div class="sub" style="padding:8px">Need 2+ games per pair.</div>';
     const pg2 = "grid-template-columns:1fr 44px 52px 54px 54px";
     return (
-      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg2}"><span>Pair</span><span>Played</span><span>Win%</span><span>vs ELO</span><span>Streak</span></div>` +
+      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg2}"><span>Pair</span><span>Played</span><span>Win%</span><span>vs ASS</span><span>Streak</span></div>` +
       top10
         .map(([key, pd], i) => {
           const pct = Math.round((pd.wins / pd.played) * 100);
@@ -16088,7 +15672,7 @@ function renderAnalyticsPage() {
       // Player of the Month = top of the leaderboard for that month
       const moMatches = sortedM.filter((m) => (m.date || "").startsWith(mo));
       if (!moMatches.length) return;
-      const _moElo = computeElo(moMatches);
+      const _moElo = computeASS(moMatches);
       const _moAss = computeASS(moMatches);
       const moScores = _scoringMode === "ass" ? _moAss : _moElo;
       const moPlayers = Object.entries(moScores)
@@ -16587,7 +16171,7 @@ function renderAnalyticsPage() {
   // Avg ELO gained per win, by weekday — extracted so the Day-of-Week section
   // can fold Volume / Win% / ELO Gain into one tabbed card.
   const _eloDowHtml = (() => {
-    const hist = _memoEloHistory();
+    const hist = _memoASSHistory();
     const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const byDay = Array.from({ length: 7 }, () => ({
       wSum: 0,
@@ -16623,7 +16207,7 @@ function renderAnalyticsPage() {
             <div style="font-size:7px;color:rgba(255,255,255,0.35)">${cnt}g</div>
           </div>`;
     }).join("");
-    return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ELO gained per win by day — higher = more upsets / ELO at stake</div></div>`;
+    return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ASS gained per win by day — higher = more upsets / ASS at stake</div></div>`;
   })();
 
   // ── DOW × PLAYER GAIN MATRIX (active scoring mode) ─────────
@@ -16685,126 +16269,6 @@ function renderAnalyticsPage() {
     </div>`;
   })();
 
-  const _dowAltMatrixHtml = (() => {
-    // Always shows the other system: ELO when active mode is ASS, and vice versa
-    const altLabel = _scoringMode === "ass" ? "ELO" : "ASS";
-    const altHist =
-      _scoringMode === "ass" ? _memoEloHistory() : _memoASSHistory();
-    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const players = compList.map((p) => p.name);
-    const matrix = Array.from({ length: 7 }, () => ({}));
-    players.forEach((pname) => {
-      (altHist[pname] || []).forEach((e) => {
-        if (!e.date) return;
-        const d = new Date(e.date + "T00:00:00").getDay();
-        matrix[d][pname] = (matrix[d][pname] || 0) + e.delta;
-      });
-    });
-    let maxAbs = 1;
-    players.forEach((pname) => {
-      DAY.forEach((_, d) => {
-        const v = matrix[d][pname];
-        if (v !== undefined && Math.abs(v) > maxAbs) maxAbs = Math.abs(v);
-      });
-    });
-    const cellCol = (v) => {
-      if (!v) return "rgba(255,255,255,0.04)";
-      const intensity = Math.min(1, Math.abs(v) / maxAbs);
-      return v > 0
-        ? `rgba(72,199,116,${(0.12 + 0.55 * intensity).toFixed(2)})`
-        : `rgba(245,87,87,${(0.12 + 0.55 * intensity).toFixed(2)})`;
-    };
-    const thStyle =
-      "padding:4px 5px;font-size:8px;font-weight:700;letter-spacing:0.04em;color:var(--muted);text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap";
-    const tdStyle = (v) =>
-      `padding:5px 4px;text-align:center;font-size:9px;font-weight:700;background:${cellCol(v)};color:${v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--muted)"};font-variant-numeric:tabular-nums`;
-    const headerRow = `<tr><th style="${thStyle};text-align:left">Player</th>${DAY.map((d) => `<th style="${thStyle}">${d}</th>`).join("")}</tr>`;
-    const dataRows = players
-      .map((pname, i) => {
-        const nameCell = `<td style="padding:5px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--text)">#${i + 1} ${escHtml(pname)}</td>`;
-        const dayCells = DAY.map((_, d) => {
-          const v = matrix[d][pname];
-          const disp = v === undefined ? "—" : v > 0 ? `+${v}` : `${v}`;
-          return `<td style="${tdStyle(v)}">${disp}</td>`;
-        }).join("");
-        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">${nameCell}${dayCells}</tr>`;
-      })
-      .join("");
-    return `<div class="ana-card" style="padding:8px 6px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Net ${altLabel} per player per day — always shows the other scoring system for comparison</div>
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-        <table style="width:100%;border-collapse:collapse;table-layout:auto">
-          <thead>${headerRow}</thead>
-          <tbody>${dataRows}</tbody>
-        </table>
-      </div>
-    </div>`;
-  })();
-
-  const _scatterPlotHtml = (() => {
-    const eloMap = _memoElo();
-    const assMap = _memoASS();
-    const players = compList
-      .map((p) => p.name)
-      .filter((n) => eloMap[n] && assMap[n]);
-    if (players.length < 2)
-      return '<div class="sub" style="padding:8px">Need more data.</div>';
-    const elos = players.map((n) => eloMap[n] || 1000);
-    const asses = players.map((n) => assMap[n] || 1000);
-    const minElo = Math.min(...elos),
-      maxElo = Math.max(...elos);
-    const minAss = Math.min(...asses),
-      maxAss = Math.max(...asses);
-    const eloRange = Math.max(maxElo - minElo, 1);
-    const assRange = Math.max(maxAss - minAss, 1);
-    const W = 280,
-      H = 200,
-      PAD = 28;
-    const cx = (elo) =>
-      PAD + Math.round(((elo - minElo) / eloRange) * (W - PAD * 2));
-    const cy = (ass) =>
-      H - PAD - Math.round(((ass - minAss) / assRange) * (H - PAD * 2));
-    const dots = players
-      .map((n, i) => {
-        const x = cx(elos[i]),
-          y = cy(asses[i]);
-        const col = playerColor(n);
-        const initials = playerInitials(n);
-        const eloRank =
-          [...players]
-            .sort((a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000))
-            .indexOf(n) + 1;
-        const assRank =
-          [...players]
-            .sort((a, b) => (assMap[b] || 1000) - (assMap[a] || 1000))
-            .indexOf(n) + 1;
-        const diverge = Math.abs(eloRank - assRank) >= 2;
-        return `<circle cx="${x}" cy="${y}" r="8" fill="${col}" opacity="0.85"/>
-        <text x="${x}" y="${y + 3}" text-anchor="middle" font-size="7" font-weight="800" fill="#fff">${initials}</text>
-        ${diverge ? `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="2,2"/>` : ""}`;
-      })
-      .join("");
-    const diagonalPct = (pct) => {
-      const elo = minElo + eloRange * (pct / 100);
-      const ass = minAss + assRange * (pct / 100);
-      return { x: cx(elo), y: cy(ass) };
-    };
-    const d0 = diagonalPct(0),
-      d100 = diagonalPct(100);
-    return `<div class="ana-card" style="padding:10px 12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">ELO (x-axis) vs ASS (y-axis) — dashed ring = rank divergence ≥2 positions</div>
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center">
-        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible">
-          <line x1="${d0.x}" y1="${d0.y}" x2="${d100.x}" y2="${d100.y}" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,4"/>
-          <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-          <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H - PAD}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-          <text x="${W / 2}" y="${H - 6}" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.4)">ELO</text>
-          <text x="10" y="${H / 2}" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.4)" transform="rotate(-90,10,${H / 2})">ASS</text>
-          ${dots}
-        </svg>
-      </div>
-    </div>`;
-  })();
 
   // ── SHUTOUT LEADERBOARD ─────────────────────────────────────
   const _shutoutRows = compList
@@ -16983,7 +16447,7 @@ function renderAnalyticsPage() {
       `<span style="text-align:center;cursor:pointer" onclick="_playerFormSort('${c}')">${label}<span id="pform-hdr-${c}" style="font-size:8px">${arrow(c)}</span></span>`;
     return (
       `<div class="ana-card" style="padding:8px 12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Form over recent matches. W%10 = last-10 win rate · Marg = avg margin last 10 · Mom = momentum (last 5 vs prev 5) · Pres = close-match win % · WinQ = avg ELO of opponents beaten. Tap column to sort.</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Form over recent matches. W%10 = last-10 win rate · Marg = avg margin last 10 · Mom = momentum (last 5 vs prev 5) · Pres = close-match win % · WinQ = avg ASS of opponents beaten. Tap column to sort.</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <div style="min-width:384px">
           <div class="lrace-header" style="${_formPg}">
@@ -17018,12 +16482,7 @@ function renderAnalyticsPage() {
           html: (() => {
             const formN = window._eloProj?.formN || 10;
             const futureM = window._eloProj?.futureM || 20;
-            const mode = window._eloProj?.mode || "ass";
             return `<div class="ana-card" style="padding:10px 12px">
-          <div class="rp-mode-toggle" style="display:flex;gap:6px;margin-bottom:10px">
-            <button class="rp-mode-btn${mode === "ass" ? " active" : ""}" data-mode="ass" onclick="window._eloprojSetMode('ass')">ASS</button>
-            <button class="rp-mode-btn${mode === "elo" ? " active" : ""}" data-mode="elo" onclick="window._eloprojSetMode('elo')">ELO</button>
-          </div>
           <div class="ep-controls">
             <div class="ep-ctrl-group">
               <div class="ep-ctrl-label">FORM WINDOW</div>
@@ -17177,9 +16636,7 @@ function renderAnalyticsPage() {
           label: "Rankings",
           html: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
         },
-        ...(getEloEnabled()
-          ? [{ label: "ELO Volatility", html: eloVolatilityHtml }]
-          : []),
+        { label: "ASS Volatility", html: eloVolatilityHtml },
       ]),
     },
     {
@@ -17297,20 +16754,8 @@ function renderAnalyticsPage() {
       body: _tabbedSection([
         { label: "Volume", html: dowHtml },
         { label: "Win %", html: _dowPlayerHtml },
-        ...(getEloEnabled()
-          ? [
-              { label: "ELO Gain", html: _eloDowHtml },
-              {
-                label: `${_scoringLabel()} Matrix`,
-                html: _dowPlayerMatrixHtml,
-              },
-              {
-                label: `${_scoringMode === "ass" ? "ELO" : "ASS"} Matrix`,
-                html: _dowAltMatrixHtml,
-              },
-              { label: "Scatter", html: _scatterPlotHtml },
-            ]
-          : [{ label: "ASS Matrix", html: _dowPlayerMatrixHtml }]),
+        { label: "ASS Gain", html: _eloDowHtml },
+        { label: "ASS Matrix", html: _dowPlayerMatrixHtml },
       ]),
     },
     {
@@ -17339,16 +16784,12 @@ function renderAnalyticsPage() {
       title: `⚡ ${_scLabel}`,
       body: _tabbedSection([
         { label: "Rankings", html: eloHtml },
-        ...(getEloEnabled()
-          ? [
-              {
-                label: "History Chart",
-                html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
-              },
-              { label: "Peak / Low", html: _peakEloHtml },
-              { label: "Win Probability", html: eloWinProbHtml },
-            ]
-          : [{ label: "Peak / Low", html: _peakEloHtml }]),
+        {
+          label: "History Chart",
+          html: `<div id="elo-tl-section">${buildEloTimelineHtml("all")}</div>`,
+        },
+        { label: "Peak / Low", html: _peakEloHtml },
+        { label: "Win Probability", html: eloWinProbHtml },
       ]),
     },
     {
@@ -17452,7 +16893,7 @@ function renderAnalyticsPage() {
       cat: "elo",
       title: "📉 League Competitiveness",
       body: (() => {
-        const scoreFn = _scoringMode === "ass" ? computeASS : computeElo;
+        const scoreFn = computeASS;
         const series = competitivenessOverTime(sortedM, scoreFn).filter(
           (s) => s.n >= 2,
         );
@@ -17752,12 +17193,7 @@ function renderAnalyticsPage() {
       cat: "records",
       title: "🏛️ Hall of Fame",
       body: (() => {
-        const hof = hallOfFameRecords(
-          am,
-          players,
-          _memoEloHistory(),
-          _memoASSHistory(),
-        );
+        const hof = hallOfFameRecords(am, players, _memoASSHistory());
         if (!hof)
           return '<div class="sub" style="padding:8px">No data yet.</div>';
         const item = (
@@ -17796,14 +17232,6 @@ function renderAnalyticsPage() {
                 "Most Matches in a Day",
                 `${hof.mostInDay.n} matches`,
                 `${escHtml(hof.mostInDay.name)} · ${fmtDate(hof.mostInDay.date)}`,
-              )
-            : "",
-          hof.peakElo
-            ? item(
-                "⚡",
-                "Highest ELO Ever",
-                `${Math.round(hof.peakElo.val)}`,
-                `${escHtml(hof.peakElo.name)} · ${fmtDate(hof.peakElo.date)}`,
               )
             : "",
           hof.peakAss
@@ -17956,7 +17384,7 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "🎖️ Badge Gallery",
       body: (() => {
-        const eloMapAll = _memoElo();
+        const eloMapAll = _memoASS();
         const holders = {};
         playersByMatches.forEach((name) => {
           const badges = computeBadges(name, null, eloMapAll, am, compList);
@@ -17995,7 +17423,7 @@ function renderAnalyticsPage() {
         const months = uniqueMonths.slice(-12);
         if (months.length < 3)
           return '<div class="sub" style="padding:8px">Need more months of history.</div>';
-        const scoreFn = _scoringMode === "ass" ? computeASS : computeElo;
+        const scoreFn = computeASS;
         const frames = ratingsByMonth(sortedM, scoreFn, months);
         const finalScores = frames[frames.length - 1].scores;
         const topNames = Object.entries(finalScores)
@@ -18211,7 +17639,7 @@ function renderAnalyticsPage() {
 
   requestAnimationFrame(() => window._renderHiLoTable?.());
 
-  // Seed ELO Projection state (preserve existing formN/futureM across re-renders)
+  // Seed ASS Projection state (preserve existing formN/futureM across re-renders)
   window._eloProj = {
     formN: window._eloProj?.formN || 10,
     futureM: window._eloProj?.futureM || 20,
@@ -18588,9 +18016,6 @@ if (_offlineToggleEl) _offlineToggleEl.checked = _forcedOffline;
 loadPhotos();
 loadDeletedMatches();
 scheduleAutoEmail();
-setTimeout(() => {
-  renderEloConfigCard();
-}, 0);
 
 // Expose globals
 window._goToSummaryDay = function (date) {
@@ -18852,9 +18277,8 @@ window._showMonthReport = function (mo) {
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (!allMs.length) return;
 
-  // ELO/ASS computed over just this month's matches — POTM and the
+  // ASS computed over just this month's matches — POTM and the
   // standings leaderboard rank by ASS rating, not win%.
-  const _moElo = computeElo(allMs);
   const _moAss = computeASS(allMs);
 
   // ── Per-player accumulation ──────────────────────────────
@@ -18946,7 +18370,6 @@ window._showMonthReport = function (mo) {
       ...ps,
       winPct: Math.round((ps.mw / ps.mp) * 100),
       ass: Math.round(_moAss[name] || 1000),
-      elo: Math.round(_moElo[name] || 1000),
     }))
     .sort((a, b) => b.ass - a.ass || b.mp - a.mp);
 
@@ -18978,7 +18401,7 @@ window._showMonthReport = function (mo) {
   lines.push(`📊 *STANDINGS*`);
   standings.forEach((p, i) => {
     lines.push(
-      `${medals[i] || `${i + 1}.`} ${p.name} — ${p.ass} ASS · ${p.elo} ELO (${p.mw}W-${p.mp - p.mw}L)`,
+      `${medals[i] || `${i + 1}.`} ${p.name} — ${p.ass} ASS (${p.mw}W-${p.mp - p.mw}L)`,
     );
   });
   lines.push("");
@@ -19063,7 +18486,7 @@ window._showMonthReport = function (mo) {
       <div style="width:24px;text-align:center;flex-shrink:0">${rankHtml}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:800;letter-spacing:0.01em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name.toUpperCase())}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">⚡ ${p.elo} ELO&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:${wlColor}">${p.mw}W–${p.mp - p.mw}L</span>&nbsp;&nbsp;·&nbsp;&nbsp;${p.winPct}%</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">⚡ ${p.ass} ASS&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:${wlColor}">${p.mw}W–${p.mp - p.mw}L</span>&nbsp;&nbsp;·&nbsp;&nbsp;${p.winPct}%</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:16px;font-weight:900;color:var(--theme)">${p.ass}</div>
@@ -19078,7 +18501,7 @@ window._showMonthReport = function (mo) {
   const highRows = [];
   if (potm)
     highRows.push(
-      `<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.ass} ASS · ${potm.elo} ELO · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`,
+      `<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.ass} ASS · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`,
     );
   if (bigWinM) {
     const bw = bigWinM.scoreA > bigWinM.scoreB;
@@ -19210,9 +18633,6 @@ Object.assign(window, {
   toggleOfflineMode,
   renderHome,
   renderCompact,
-  setScoringMode,
-  toggleSummaryMode,
-  toggleSummaryModeOnly,
   toggleMatchDeltaWindow,
   setCmpSort,
   _anaSetDateFilter,
@@ -19271,7 +18691,6 @@ Object.assign(window, {
   saveQuickName,
   previewMatchImport,
   undoLastAdd,
-  computeElo,
   computeBadges,
   openPlayerDetail,
   openPairDetail,
@@ -19315,8 +18734,6 @@ Object.assign(window, {
   closeSnapshot,
   shareSnapshot,
   quickRematch,
-  applyEloConfig,
-  resetEloConfig,
   runMatchSimulator,
   openSimSheet,
   _showAllPairs,
@@ -19348,7 +18765,6 @@ Object.assign(window, {
   _replayToggleLoop,
   _replayToggleReverse,
   _replaySetSpotlight,
-  _replayToggleMode,
   toggleMatchCalendar,
   toggleMatchesSection,
   calNav,
@@ -19501,9 +18917,8 @@ function _renderLiveSlot(slot) {
     slotEl?.classList.add("live-slot-filled");
     const eloEl = document.getElementById(`live-elo-${slot}`);
     if (eloEl) {
-      const isASS = _scoringMode === "ass";
-      const score = Math.round((isASS ? _memoASS() : _memoElo())[p] || 1000);
-      eloEl.textContent = `${isASS ? "ASS" : "ELO"} ${score}`;
+      const score = Math.round(_memoASS()[p] || 1000);
+      eloEl.textContent = `ASS ${score}`;
       eloEl.style.display = "block";
     }
   } else {
@@ -19676,7 +19091,7 @@ function _updateLiveWinProb() {
     return;
   }
   wrap.style.display = "";
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
   const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
   const baseProb = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
@@ -19719,7 +19134,7 @@ function _updateLiveEloPreview() {
     el.style.display = "none";
     return;
   }
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
   const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
   const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
@@ -19792,7 +19207,7 @@ function _commitSaveMatch() {
       .getElementById("live-redo-match-btn")
       ?.style.setProperty("display", "none");
     _saveSessionState();
-    _invalidateEloMemo();
+    _invalidateStatsMemo();
   }
   saveCloudData(); // always persist — offline handled automatically by cloud-repo
   commit();
@@ -20070,13 +19485,10 @@ function _buildSessionLeaderboard() {
       }
     });
   });
-  // Session standings follow the active scoring system (ELO or ASS), computed
-  // over just this session's matches so the points start fresh at 1000.
-  const _sessIsASS = _scoringMode === "ass";
-  const _sessScoreMap = _sessIsASS
-    ? computeASS(_sessionMatchHistory)
-    : computeElo(_sessionMatchHistory);
-  const _sessScoreLbl = _sessIsASS ? "ASS" : "ELO";
+  // Session standings follow ASS, computed over just this session's matches
+  // so the points start fresh at 1000.
+  const _sessScoreMap = computeASS(_sessionMatchHistory);
+  const _sessScoreLbl = "ASS";
   const _sessScore = (n) => Math.round(_sessScoreMap[n] ?? 1000);
   const sorted = Object.entries(stats).sort((a, b) => {
     const sd = _sessScore(b[0]) - _sessScore(a[0]);
@@ -20162,11 +19574,6 @@ window.toggleSdashGuests = function () {
   _renderLiveSessionDashboard();
 };
 
-window._sessSetScoreView = function (view) {
-  _sessScoreView = view;
-  _renderLiveSessionDashboard();
-};
-
 window._sessSortBy = function (col) {
   if (_sessSortCol === col) {
     _sessSortDir = _sessSortDir === "desc" ? "asc" : "desc";
@@ -20195,7 +19602,7 @@ function suggestNextMatch() {
     showToast("Need 4+ players in session", "❌");
     return;
   }
-  const scoreMap = _scoringMode === "ass" ? _memoASS() : _memoElo();
+  const scoreMap = _scoringMode === "ass" ? _memoASS() : _memoASS();
   const counts = {};
   sessionPlayers.forEach((p) => (counts[p] = 0));
   _sessionMatchHistory.forEach((m) => {
@@ -20373,7 +19780,7 @@ function confirmUndoSession() {
   document
     .getElementById("live-redo-match-btn")
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
-  _invalidateEloMemo();
+  _invalidateStatsMemo();
   _saveSessionState();
   commit();
   saveCloudData({ immediate: true }); // persist removal immediately
@@ -20389,7 +19796,7 @@ function deleteSessionMatch(histIdx) {
   if (stateIdx !== -1) state.matches.splice(stateIdx, 1);
   _sessionMatchHistory.splice(histIdx, 1);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
-  _invalidateEloMemo();
+  _invalidateStatsMemo();
   _saveSessionState();
   saveCloudData();
   commit();
@@ -20509,7 +19916,7 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
     if (note) hist.note = note;
     else delete hist.note;
   }
-  _invalidateEloMemo();
+  _invalidateStatsMemo();
   _saveSessionState();
   saveCloudData();
   closeMatchEdit();
@@ -20540,7 +19947,7 @@ function moveSessionMatch(histIdx, direction) {
   }
 
   // ELO depends on match order — invalidate and re-commit
-  _invalidateEloMemo();
+  _invalidateStatsMemo();
   _saveSessionState();
   saveCloudData();
   commit();
@@ -20575,7 +19982,7 @@ function redoSessionMatch() {
   document
     .getElementById("live-redo-match-btn")
     ?.style.setProperty("display", _sessionRedoStack.length > 0 ? "" : "none");
-  _invalidateEloMemo();
+  _invalidateStatsMemo();
   _saveSessionState();
   commit();
   saveCloudData(); // persist redo to cloud
@@ -20729,18 +20136,10 @@ function _renderLiveSessionDashboard() {
           (m) => ![...m.teamA, ...m.teamB].some((p) => guestSet.has(p)),
         );
 
-  // Session ELO + ASS: everyone starts at 1000, computed from today's session matches only
-  const sessionEloMap = computeElo(history);
+  // Session ASS: everyone starts at 1000, computed from today's session matches only
   const sessionASSMap = computeASS(history);
-  const effectiveView = _sessScoreView ?? _scoringMode; // null → follow hamburger
-  const showElo = effectiveView !== "ass";
-  const showASS = effectiveView !== "elo";
-  const primaryMap = showElo ? sessionEloMap : sessionASSMap;
-  const rawStats = computeStats(history, primaryMap);
-  const effectiveSortCol =
-    (_sessSortCol === "elo" && !showElo) || (_sessSortCol === "ass" && !showASS)
-      ? "sr"
-      : _sessSortCol;
+  const rawStats = computeStats(history, sessionASSMap);
+  const effectiveSortCol = _sessSortCol === "elo" ? "ass" : _sessSortCol;
   const getSortVal = (p) => {
     switch (effectiveSortCol) {
       case "name":
@@ -20757,18 +20156,11 @@ function _renderLiveSessionDashboard() {
         return p.gl;
       case "gpct":
         return p.gw + p.gl > 0 ? p.gw / (p.gw + p.gl) : 0;
-      case "elo":
-        return sessionEloMap[p.name] || 1000;
       case "ass":
         return sessionASSMap[p.name] || 1000;
       case "sr":
-      default: {
-        const _esr = eloToSr(sessionEloMap[p.name] || 1000);
-        const _asr = eloToSr(sessionASSMap[p.name] || 1000);
-        return effectiveView === "both"
-          ? (_esr + _asr) / 2
-          : eloToSr(primaryMap[p.name] || 1000);
-      }
+      default:
+        return ratingToSr(sessionASSMap[p.name] || 1000);
     }
   };
   const stats = [...rawStats].sort((a, b) => {
@@ -20788,35 +20180,15 @@ function _renderLiveSessionDashboard() {
         : i === 2
           ? "#cd7f32"
           : "var(--muted)";
-  const scoreViewToggle = getEloEnabled()
-    ? `<div class="live-sdash-score-toggle">
-    <button class="lsst-btn${effectiveView === "elo" ? " lsst-active" : ""}" onclick="window._sessSetScoreView('elo')">ELO</button>
-    <button class="lsst-btn${effectiveView === "ass" ? " lsst-active" : ""}" onclick="window._sessSetScoreView('ass')">ASS</button>
-    <button class="lsst-btn${effectiveView === "both" ? " lsst-active" : ""}" onclick="window._sessSetScoreView('both')">BOTH</button>
-  </div>`
-    : "";
-  const thElo = showElo
-    ? `<th onclick="window._sessSortBy('elo')" style="cursor:pointer">ELO</th>`
-    : "";
-  const thASS = showASS
-    ? `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">ASS</th>`
-    : "";
+  const thASS = `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">ASS</th>`;
   const tableRows = stats
     .map((p, i) => {
       const ml = p.mp - p.mw;
       const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
       const total = p.gw + p.gl;
       const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
-      const elo = Math.round(sessionEloMap[p.name] || 1000);
       const ass = Math.round(sessionASSMap[p.name] || 1000);
-      const eloSr = eloToSr(sessionEloMap[p.name] || 1000);
-      const assSr = eloToSr(sessionASSMap[p.name] || 1000);
-      const sr =
-        effectiveView === "both"
-          ? ((eloSr + assSr) / 2).toFixed(2)
-          : eloToSr(primaryMap[p.name] || 1000).toFixed(2);
-      const eloCol =
-        elo > 1000 ? "var(--green)" : elo < 1000 ? "var(--red)" : "var(--text)";
+      const sr = ratingToSr(sessionASSMap[p.name] || 1000).toFixed(2);
       const assCol =
         ass > 1000 ? "var(--green)" : ass < 1000 ? "var(--red)" : "var(--text)";
       return `<tr class="live-sdash-tr">
@@ -20828,8 +20200,7 @@ function _renderLiveSessionDashboard() {
       <td>${p.gw}</td>
       <td>${p.gl}</td>
       <td>${gamePct}%</td>
-      ${showElo ? `<td style="color:${eloCol}">${elo}</td>` : ""}
-      ${showASS ? `<td style="color:${assCol}">${ass}</td>` : ""}
+      <td style="color:${assCol}">${ass}</td>
       <td style="color:var(--accent)">${sr}</td>
     </tr>`;
     })
@@ -20865,13 +20236,12 @@ function _renderLiveSessionDashboard() {
     })
     .join("");
   el.innerHTML = `
-    ${scoreViewToggle}
     <div class="live-sdash-section">SCOREBOARD</div>
     <div class="live-sdash-table-wrap">
       <table class="live-sdash-table">
         <thead><tr>
           <th>#</th><th onclick="window._sessSortBy('name')" style="cursor:pointer">PLAYER</th><th onclick="window._sessSortBy('mp')" style="cursor:pointer">MP</th><th onclick="window._sessSortBy('wl')" style="cursor:pointer">W–L</th><th onclick="window._sessSortBy('wpct')" style="cursor:pointer">W%</th>
-          <th onclick="window._sessSortBy('gw')" style="cursor:pointer">GW</th><th onclick="window._sessSortBy('gl')" style="cursor:pointer">GL</th><th onclick="window._sessSortBy('gpct')" style="cursor:pointer">G%</th>${thElo}${thASS}<th onclick="window._sessSortBy('sr')" style="cursor:pointer">SR</th>
+          <th onclick="window._sessSortBy('gw')" style="cursor:pointer">GW</th><th onclick="window._sessSortBy('gl')" style="cursor:pointer">GL</th><th onclick="window._sessSortBy('gpct')" style="cursor:pointer">G%</th>${thASS}<th onclick="window._sessSortBy('sr')" style="cursor:pointer">SR</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
@@ -20941,7 +20311,7 @@ function openSessionSetup() {
   _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
-  const eloMap = _memoElo();
+  const eloMap = _memoASS();
   list.innerHTML = players
     .map((p) => {
       const isGuest = guestNames.has(p);
@@ -21099,7 +20469,7 @@ function archiveSeason(id) {
     ? activeMatches().filter((m) => (m.date || "") < s.start)
     : [];
   const awards = _periodAwards(ms, priorMs);
-  const scoreMap = _scoringMode === "ass" ? computeASS(ms) : computeElo(ms);
+  const scoreMap = _scoringMode === "ass" ? computeASS(ms) : computeASS(ms);
   const standings = computeStats(ms, scoreMap);
   s.archived = true;
   s.archivedAt = todayISO();

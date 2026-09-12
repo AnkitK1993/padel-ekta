@@ -5,7 +5,6 @@
 import { activeMatches } from "../src/engine/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
 import { state } from "../src/engine/state.js";
-import { computeElo } from "../src/engine/elo.js";
 import { computeASS } from "../src/engine/ass.js";
 import { _normScores } from "../src/engine/stats.js";
 import {
@@ -27,7 +26,7 @@ import {
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
 let _mioTimers = [];
 let _mioFinalize = null;
-let _mioEloMemo = null; // { idx, amRef, priorElo, afterElo } — see openMatchIntro
+let _mioAssMemo = null; // { idx, amRef, priorAss, afterAss } — see openMatchIntro
 function _mioSched(fn, delay) {
   const id = setTimeout(() => {
     _mioTimers = _mioTimers.filter((t) => t !== id);
@@ -51,42 +50,38 @@ function openMatchIntro(idx) {
   _mioFinalize = null;
 
   const _amE = activeMatches();
-  // Pre/post-match ELO over the active set. Two O(n) computeElo passes; cached
-  // on (idx, activeMatches identity) so re-opening the same banner — or any
-  // re-trigger — skips the recompute. activeMatches() returns a memoized array,
-  // so a season/exclusion/data change yields a new ref and invalidates this.
-  // _upToBeforeE (matches strictly before this one) is used throughout the rest
-  // of this function (H2H, last-meeting, context lines), so it must live at the
-  // function scope — NOT inside the memo else-branch, or it's undefined on the
-  // memo-hit path and a ReferenceError elsewhere (which silently aborts the
-  // whole overlay).
+  // Pre/post-match ASS over the active set. One O(n) computeASS pass each side;
+  // cached on (idx, activeMatches identity) so re-opening the same banner — or
+  // any re-trigger — skips the recompute. activeMatches() returns a memoized
+  // array, so a season/exclusion/data change yields a new ref and invalidates
+  // this. _upToBeforeE (matches strictly before this one) is used throughout
+  // the rest of this function (H2H, last-meeting, context lines), so it must
+  // live at the function scope — NOT inside the memo else-branch, or it's
+  // undefined on the memo-hit path and a ReferenceError elsewhere (which
+  // silently aborts the whole overlay).
   const _upToBeforeE = new Set(state.matches.slice(0, idx));
-  let priorElo, afterElo, priorAss, afterAss;
-  if (_mioEloMemo && _mioEloMemo.idx === idx && _mioEloMemo.amRef === _amE) {
-    priorElo = _mioEloMemo.priorElo;
-    afterElo = _mioEloMemo.afterElo;
-    priorAss = _mioEloMemo.priorAss;
-    afterAss = _mioEloMemo.afterAss;
+  let priorAss, afterAss;
+  if (_mioAssMemo && _mioAssMemo.idx === idx && _mioAssMemo.amRef === _amE) {
+    priorAss = _mioAssMemo.priorAss;
+    afterAss = _mioAssMemo.afterAss;
   } else {
     const _upToInclE = new Set(state.matches.slice(0, idx + 1));
     const _before = _amE.filter((mm) => _upToBeforeE.has(mm));
     const _incl = _amE.filter((mm) => _upToInclE.has(mm));
-    priorElo = computeElo(_before);
-    afterElo = computeElo(_incl);
     priorAss = computeASS(_before);
     afterAss = computeASS(_incl);
-    _mioEloMemo = { idx, amRef: _amE, priorElo, afterElo, priorAss, afterAss };
+    _mioAssMemo = { idx, amRef: _amE, priorAss, afterAss };
   }
   const aWon = m.scoreA > m.scoreB;
 
   // Pre-match individual and pair ranks
-  const indivRanked = Object.entries(priorElo).sort((a, b) => b[1] - a[1]);
+  const indivRanked = Object.entries(priorAss).sort((a, b) => b[1] - a[1]);
   const allPairs = memoPairStats();
   const pairsByElo = allPairs
     .map((p) => ({
       key: p.key,
       avg:
-        p.players.reduce((s, n) => s + (priorElo[n] || 1000), 0) /
+        p.players.reduce((s, n) => s + (priorAss[n] || 1000), 0) /
         p.players.length,
     }))
     .sort((a, b) => b.avg - a.avg);
@@ -101,11 +96,6 @@ function openMatchIntro(idx) {
     return i >= 0 ? `#${i + 1}` : "";
   };
 
-  const avgElo = (players) =>
-    Math.round(
-      players.reduce((s, p) => s + (priorElo[p] || 1000), 0) /
-        Math.max(players.length, 1),
-    );
   const avgAss = (players) =>
     Math.round(
       players.reduce((s, p) => s + (priorAss[p] || 1000), 0) /
@@ -158,9 +148,9 @@ function openMatchIntro(idx) {
     return Math.round(levels.reduce((s, l) => s + l, 0) / levels.length);
   };
   document.getElementById("mio-elo-a").textContent =
-    `ELO ${avgElo(m.teamA)} · ASS ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
+    `ASS ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
   document.getElementById("mio-elo-b").textContent =
-    `ELO ${avgElo(m.teamB)} · ASS ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
+    `ASS ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
 
   const scoreAEl = document.getElementById("mio-score-a");
   const scoreBEl = document.getElementById("mio-score-b");
@@ -173,16 +163,13 @@ function openMatchIntro(idx) {
   document.getElementById("mio-result-line").textContent =
     `${winner.toUpperCase()} WIN`;
 
-  // ELO + ASS delta pills — each player shows both point systems for the match.
+  // ASS delta pills — each player shows their ASS change for the match.
   const deltaPills = [...m.teamA, ...m.teamB]
     .map((p) => {
-      const eDelta = Math.round((afterElo[p] || 1000) - (priorElo[p] || 1000));
       const aDelta = Math.round((afterAss[p] || 1000) - (priorAss[p] || 1000));
-      const eSign = eDelta >= 0 ? "+" : "";
       const aSign = aDelta >= 0 ? "+" : "";
-      const eCls = eDelta >= 0 ? "gain" : "loss";
       const aCls = aDelta >= 0 ? "gain" : "loss";
-      return `<span class="mio-delta-pill"><span class="mio-delta-name">${normPlayer(p)}</span><span class="mio-delta-sub ${eCls}">ELO ${eSign}${eDelta}</span><span class="mio-delta-sub ${aCls}">ASS ${aSign}${aDelta}</span></span>`;
+      return `<span class="mio-delta-pill"><span class="mio-delta-name">${normPlayer(p)}</span><span class="mio-delta-sub ${aCls}">ASS ${aSign}${aDelta}</span></span>`;
     })
     .join("");
   document.getElementById("mio-elo-deltas").innerHTML = deltaPills;
@@ -372,17 +359,17 @@ function openMatchIntro(idx) {
       }
     });
 
-    // ELO tier cross: check if any player crossed a tier boundary
-    const ELO_TIERS = [
+    // ASS tier cross: check if any player crossed a tier boundary
+    const ASS_TIERS = [
       { t: 900, n: "BRONZE" },
       { t: 1000, n: "SILVER" },
       { t: 1100, n: "GOLD" },
       { t: 1200, n: "PLATINUM" },
     ];
     [...m.teamA, ...m.teamB].forEach((p) => {
-      const pre = priorElo[p] || 1000;
-      const post = afterElo[p] || 1000;
-      ELO_TIERS.forEach(({ t, n }) => {
+      const pre = priorAss[p] || 1000;
+      const post = afterAss[p] || 1000;
+      ASS_TIERS.forEach(({ t, n }) => {
         if (pre < t && post >= t)
           ctxParts.push(`⭐ ${normPlayer(p)} reached ${n}`);
         else if (pre >= t && post < t)

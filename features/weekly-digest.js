@@ -3,7 +3,7 @@
 // (already on window from app.js) for the single toast notification.
 import { state } from "../src/engine/state.js";
 import { activeMatches } from "../src/engine/selectors.js";
-import { computeElo } from "../src/engine/elo.js";
+import { computeASS } from "../src/engine/ass.js";
 import { computeStats } from "../src/engine/stats.js";
 import { getPairStats } from "../src/engine/pairs.js";
 import { todayISO, weekISO, lastWeekRange } from "../src/engine/dates.js";
@@ -25,17 +25,17 @@ export function openWeeklyDigest() {
     return;
   }
 
-  const eloNow = computeElo(_amWk);
-  const eloPre = computeElo(
+  const eloNow = computeASS(_amWk);
+  const eloPre = computeASS(
     _amWk.filter(
       (m) => (m.date || "") < (thisWkMatches.length >= 3 ? weekISO() : wkFrom),
     ),
   );
-  const stats = computeStats(useMatches, computeElo(useMatches));
+  const stats = computeStats(useMatches, computeASS(useMatches));
 
   // Most wins
   const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
-  // Biggest ELO mover
+  // Biggest ASS mover
   const mover = Object.keys(eloNow)
     .map((p) => ({ name: p, gain: (eloNow[p] || 1000) - (eloPre[p] || 1000) }))
     .filter((p) =>
@@ -112,10 +112,10 @@ export function openWeeklyDigest() {
       </div>
       <div style="margin:0 16px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px 12px">
         ${topWinner ? statRow("🏆", "Top Winner", topWinner.name, `${topWinner.mw}W–${topWinner.ml}L`) : ""}
-        ${mover && mover.gain > 0 ? statRow("📈", "Biggest Mover", mover.name, `+${mover.gain} ELO`) : ""}
+        ${mover && mover.gain > 0 ? statRow("📈", "Biggest Mover", mover.name, `+${mover.gain} ASS`) : ""}
         ${hotPlayer ? statRow("🔥", "On Fire", hotPlayer.name, `${hotPlayer.curStreak}-match win streak`) : ""}
         ${wkPairs ? statRow("🤝", "Best Duo", wkPairs.key, `${wkPairs.winPct}% · ${wkPairs.played}g`) : ""}
-        ${biggestUpset ? statRow("⚡", "Biggest Upset", biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ") + " won", `+${biggestUpset.gap} ELO gap`) : ""}
+        ${biggestUpset ? statRow("⚡", "Biggest Upset", biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ") + " won", `+${biggestUpset.gap} ASS gap`) : ""}
       </div>
       <div style="margin:0 16px 20px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)"></div>
       <div style="padding:0 22px 20px;display:flex;justify-content:space-between;align-items:center">
@@ -134,14 +134,14 @@ export function openWeeklyDigest() {
       ? `🏆 Top Winner: ${topWinner.name} (${topWinner.mw}W–${topWinner.ml}L)`
       : "",
     mover && mover.gain > 0
-      ? `📈 Biggest Mover: ${mover.name} (+${mover.gain} ELO)`
+      ? `📈 Biggest Mover: ${mover.name} (+${mover.gain} ASS)`
       : "",
     hotPlayer
       ? `🔥 On Fire: ${hotPlayer.name} (${hotPlayer.curStreak}-match streak)`
       : "",
     wkPairs ? `🤝 Best Duo: ${wkPairs.key} (${wkPairs.winPct}%)` : "",
     biggestUpset
-      ? `⚡ Biggest Upset: ${biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ")} (+${biggestUpset.gap} ELO gap)`
+      ? `⚡ Biggest Upset: ${biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ")} (+${biggestUpset.gap} ASS gap)`
       : "",
   ]
     .filter(Boolean)

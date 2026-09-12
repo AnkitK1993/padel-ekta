@@ -1,6 +1,6 @@
 // ── MEMO STORE ─────────────────────────────────────────────────────────────
 // Centralises all app-level memoised computations that sit above the engine
-// modules (elo, stats, pairs) but below the view renderers.
+// modules (ass, stats, pairs) but below the view renderers.
 //
 // Why a module instead of inline lets in app.js:
 //   • All invalidation in ONE place — _invalidateAll() is the only entry point.
@@ -11,7 +11,7 @@
 // Pattern: each memo is (key → value). On any data change invalidate() resets
 // all keys; per-read key comparison re-computes only when the dataset changed.
 
-import { computeElo, computeEloHistory, computeEloPeaks, computeEloLows, clearEloCache, _lightFingerprint } from "../engine/elo.js";
+import { _lightFingerprint } from "../engine/fingerprint.js";
 import { computeStats } from "../engine/stats.js";
 import { getPairStats } from "../engine/pairs.js";
 import { activeMatches, invalidateAmMemo } from "../engine/selectors.js";
@@ -22,69 +22,16 @@ import { computeASS, computeASSTimeline } from "../engine/ass.js";
 export const reignCache = {};
 export const rankPeriodCache = {};
 
-// ── Elo (decay-aware) ──────────────────────────────────────────
-let _eloMemo = null, _eloMemoKey = "", _eloMemoDecay = false;
-
-export function memoElo(decay = false) {
-  const am = activeMatches();
-  const key = decay
-    ? `d|${JSON.stringify({ ...getEloDecayParams(), today: _todayISO() })}|${_lightFingerprint(am)}`
-    : `r||${_lightFingerprint(am)}`;
-  if (_eloMemoKey === key && _eloMemo) return _eloMemo;
-  _eloMemoKey = key;
-  _eloMemoDecay = decay;
-  _eloMemo = computeElo(am, decay);
-  return _eloMemo;
-}
-
-// ── Elo history ────────────────────────────────────────────────
-let _eloHistMemo = null, _eloHistKey = "";
-
-export function memoEloHistory() {
-  const am = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_eloHistKey === key && _eloHistMemo) return _eloHistMemo;
-  _eloHistKey = key;
-  _eloHistMemo = computeEloHistory(am);
-  return _eloHistMemo;
-}
-
-// ── Elo peaks / lows ───────────────────────────────────────────
-let _eloPeaksMemo = null, _eloPeaksKey = "";
-let _eloLowsMemo = null, _eloLowsKey = "";
-
-export function memoEloPeaks() {
-  const am = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_eloPeaksKey === key && _eloPeaksMemo) return _eloPeaksMemo;
-  _eloPeaksKey = key;
-  _eloPeaksMemo = computeEloPeaks(am);
-  return _eloPeaksMemo;
-}
-
-export function memoEloLows() {
-  const am = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_eloLowsKey === key && _eloLowsMemo) return _eloLowsMemo;
-  _eloLowsKey = key;
-  _eloLowsMemo = computeEloLows(am);
-  return _eloLowsMemo;
-}
-
 // ── Stats ──────────────────────────────────────────────────────
 let _statsMemo = null, _statsMemoKey = "";
 let _statNamesMemo = null, _statNamesKey = "";
 let _dataVersionRef = { v: 0 };  // injected by app.js
 
-export function initMemoStoreDeps({ getDataVersion, getEloDecayParams: _gdp, todayISO: _t }) {
+export function initMemoStoreDeps({ getDataVersion }) {
   _getDataVersion = getDataVersion;
-  getEloDecayParams = _gdp;
-  _todayISO = _t;
 }
 
 let _getDataVersion = () => 0;
-let getEloDecayParams = () => ({ perWeek: 1, graceDays: 28, maxDecay: 30, floor: 900 });
-let _todayISO = () => new Date().toISOString().slice(0, 10);
 
 function _statKey() {
   return `${_getDataVersion()}|${_lightFingerprint(activeMatches())}`;
@@ -94,7 +41,7 @@ export function memoStats() {
   const key = _statKey();
   if (_statsMemoKey !== key || !_statsMemo) {
     _statsMemoKey = key;
-    _statsMemo = computeStats(activeMatches(), memoElo());
+    _statsMemo = computeStats(activeMatches(), memoASS());
   }
   return _statsMemo.slice(); // safe copy for callers that sort
 }
@@ -154,15 +101,10 @@ export function memoASSLows()    { return _getASSTimeline().lows; }
 
 // ── Invalidation ───────────────────────────────────────────────
 // Single entry point called by commit() — resets every cache key so that the
-// next read for any memo unconditionally recomputes. Also clears the engine
-// LRU (elo.js) and the activeMatches selector cache.
+// next read for any memo unconditionally recomputes. Also clears the
+// activeMatches selector cache.
 export function invalidateAll() {
   invalidateAmMemo();
-  clearEloCache();
-  _eloMemoKey = "";      _eloMemo = null;
-  _eloHistKey = "";      _eloHistMemo = null;
-  _eloPeaksKey = "";     _eloPeaksMemo = null;
-  _eloLowsKey = "";      _eloLowsMemo = null;
   _statNamesKey = "";    _statNamesMemo = null;
   _statsMemoKey = "";    _statsMemo = null;
   _pairStatsKey = "";    _pairStatsMemo = null;
@@ -175,8 +117,6 @@ export function invalidateAll() {
 // Clears only the memos the Statistics/Analytics page reads (stats, ASS,
 // pair stats, reign + rank-period lookups) — the Statistics page is meant to
 // always recompute on demand rather than reuse a stale in-memory result.
-// Leaves the Elo memos alone since Home/Compact/History depend on those and
-// aren't part of this "don't cache" requirement.
 export function clearAnalyticsCache() {
   _statNamesKey = "";    _statNamesMemo = null;
   _statsMemoKey = "";    _statsMemo = null;

@@ -1860,7 +1860,7 @@ table.cmp tbody td:nth-child(2) {
 /* ── Per-column widths/padding/alignment (auto-layout hints) ──
    All !important: matches the generic thead th / tbody td rules above in
    staying ahead of the @media(max-width) breakpoints below, and the ID
-   rule #cmp-elo-th{width:46px} for column 9. */
+   rule #cmp-ass-th{width:46px} for the ASS column. */
 table.cmp th:nth-child(1), table.cmp td:nth-child(1) {
   width: 24px !important; text-align: center !important;
   padding-left: 3px !important; padding-right: 2px !important;
@@ -2530,32 +2530,6 @@ textarea:focus {
 }
 .anim-seg-btn:first-child { border-left: none; }
 .anim-seg-btn.active {
-  background: rgba(var(--theme-rgb), 0.22);
-  color: var(--accent);
-}
-
-/* Scoring mode segmented control (hamburger) — ASS / ELO */
-.scoring-seg {
-  display: flex;
-  border: 1px solid rgba(var(--theme-rgb), 0.3);
-  border-radius: 6px;
-  overflow: hidden;
-}
-.scoring-seg-btn {
-  flex: 1;
-  height: 28px;
-  background: transparent;
-  border: none;
-  border-left: 1px solid rgba(var(--theme-rgb), 0.2);
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.scoring-seg-btn:first-child { border-left: none; }
-.scoring-seg-btn.active {
   background: rgba(var(--theme-rgb), 0.22);
   color: var(--accent);
 }
@@ -7735,13 +7709,13 @@ body:not(.splash-done) #board .pc {
 
 /* ══════════════════════════════════════ */
 
-/* ── ELO / ASS columns ── */
-.cmp-elo-cell, .cmp-ass-cell {
+/* ── ASS column ── */
+.cmp-ass-cell {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-#cmp-elo-th, #cmp-ass-th { width: 46px; }
+#cmp-ass-th { width: 46px; }
 
 /* ── Column visibility toggle ── */
 .cmp.hide-col-mp [data-col="mp"],
@@ -7749,8 +7723,7 @@ body:not(.splash-done) #board .pc {
 .cmp.hide-col-winPct [data-col="winPct"],
 .cmp.hide-col-gw [data-col="gw"],
 .cmp.hide-col-gl [data-col="gl"],
-.cmp.hide-col-gamePct [data-col="gamePct"],
-.cmp.hide-col-elo [data-col="elo"] { display: none; }
+.cmp.hide-col-gamePct [data-col="gamePct"] { display: none; }
 .cmp.hide-col-ass [data-col="ass"] { display: none; }
 
 /* ── Column chip strip ── */
@@ -13882,24 +13855,6 @@ select:focus,
   align-items: center;
   gap: 6px;
 }
-.rp-mode-btn {
-  flex: 1;
-  padding: 7px 0;
-  border-radius: 9px;
-  border: 1px solid rgba(var(--theme-rgb), 0.3);
-  background: rgba(var(--theme-rgb), 0.06);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.rp-mode-btn.active {
-  background: rgba(var(--theme-rgb), 0.2);
-  color: var(--theme);
-  border-color: rgba(var(--theme-rgb), 0.5);
-}
 .ep-step-btn {
   width: 26px;
   height: 26px;
@@ -18243,27 +18198,6 @@ body.battery-saver .ui-toggle-thumb {
   .ui-toggle-thumb { transition: none; }
 }
 
-/* ── ELO DISABLED MODE ─────────────────────────────────────────────────────── */
-/* When ELO ranking is disabled in Admin → Settings, these elements are hidden. */
-body.elo-disabled #hmenu-scoring-item,
-body.elo-disabled #summary-mode-badge,
-body.elo-disabled #cmp-elo-th,
-body.elo-disabled [data-col="elo"],
-body.elo-disabled .h2h-elo-row,
-body.elo-disabled .h2h-elo-card,
-body.elo-disabled .h2h-elo-pill,
-body.elo-disabled .live-slot-elo,
-body.elo-disabled #live-elo-preview,
-body.elo-disabled #mio-elo-a,
-body.elo-disabled #mio-elo-b,
-body.elo-disabled #mio-elo-deltas,
-body.elo-disabled .ssp-elo,
-body.elo-disabled .ssm-elo,
-body.elo-disabled .pd-elo-row,
-body.elo-disabled .mng-card[data-card-id="elo-decay"] {
-  display: none !important;
-}
-
 /* ══ MODERN ADMIN PANEL ═══════════════════════════════════════════════════ */
 /* Admin tabs — floating segmented pills instead of flat underline tabs */
 .itabs {
@@ -18349,7 +18283,6 @@ body.elo-disabled .mng-card[data-card-id="elo-decay"] {
 .mng-card[data-card-id="email"]     { --card-rgb: 255, 190, 70; }
 .mng-card[data-card-id="data"]      { --card-rgb: 70, 215, 150; }
 .mng-card[data-card-id="trash"]     { --card-rgb: 255, 130, 100; }
-.mng-card[data-card-id="elo-decay"] { --card-rgb: 255, 150, 50; }
 .mng-card                            { --card-rgb: 140, 150, 180; }
 .mng-danger-card                     { --card-rgb: 240, 80, 80; }
 

@@ -74,7 +74,7 @@ export function computeBadges(name, stats, eloMap, allMatchesArr, precomputedSta
     }
   }
 
-  // 🧗 Climber: biggest positive ELO gain this week
+  // 🧗 Climber: biggest positive ASS gain this week
   const { from: wkFrom } = _lastWeekRange();
   const preWkElo = _computeElo(
     allMatchesArr.filter((m) => (m.date || "") < wkFrom),
@@ -88,7 +88,7 @@ export function computeBadges(name, stats, eloMap, allMatchesArr, precomputedSta
     badges.push({
       icon: "🧗",
       label: "Climber",
-      desc: `+${topGainer.gain} ELO this week`,
+      desc: `+${topGainer.gain} ASS this week`,
     });
 
   // 🦁 Clutch King: best win% in close matches (margin <= 1) with ≥3 close games
@@ -335,7 +335,7 @@ export function computeBadges(name, stats, eloMap, allMatchesArr, precomputedSta
     }
   }
 
-  // Underdog: won as the lower-ELO team
+  // Underdog: won as the lower-ASS team
   if (ps) {
     const eloMapCur = eloMap;
     let underdogWins = 0;

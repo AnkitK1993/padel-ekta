@@ -4,9 +4,8 @@
 // stat helpers are imported directly, the two app/ui-side helpers (getPairStats,
 // toLocalISODate) are injected via initPlayerAnalyticsDeps to keep this module
 // free of app/DOM coupling (same pattern as badges.js).
-import { computeElo, computeEloHistory } from "./elo.js";
 import { computeStats } from "./stats.js";
-import { computeASSTimeline } from "./ass.js";
+import { computeASS, computeASSTimeline } from "./ass.js";
 
 let _getPairStats, _toLocalISODate;
 export function initPlayerAnalyticsDeps(deps) {
@@ -23,7 +22,7 @@ export function computePlayerForm(name, matches) {
   );
   if (playerMs.length < 3) return null;
 
-  const eloMap = computeElo(matches);
+  const eloMap = computeASS(matches);
   const last10 = playerMs.slice(-10);
   const prev10 = playerMs.slice(-20, -10);
 
@@ -43,7 +42,7 @@ export function computePlayerForm(name, matches) {
       return s + (myScore - theirScore);
     }, 0) / Math.max(last10.length, 1);
 
-  // Win quality: avg opponent ELO in last 10 wins
+  // Win quality: avg opponent rating in last 10 wins
   let qualSum = 0,
     qualCount = 0;
   last10.forEach((m) => {
@@ -150,7 +149,7 @@ export function computeArchetype(name, matches) {
   );
   if (playerMs.length < 5) return null;
 
-  const eloMap = computeElo(matches);
+  const eloMap = computeASS(matches);
   const wins = playerMs.filter((m) => {
     const inA = (m.teamA || []).includes(name);
     return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
@@ -189,7 +188,7 @@ export function computeArchetype(name, matches) {
   }
   const volatility = changes / Math.max(playerMs.length - 1, 1);
 
-  // Win quality (avg opponent ELO in wins)
+  // Win quality (avg opponent rating in wins)
   let qualSum = 0,
     qualCount = 0;
   wins.forEach((m) => {
@@ -253,7 +252,7 @@ export function computeArchetype(name, matches) {
 }
 
 export function computePowerRankings(matches, externalScoreMap = null) {
-  const eloMap = computeElo(matches);
+  const eloMap = computeASS(matches);
   const stats = computeStats(matches, eloMap);
   if (!stats.length) return [];
 
@@ -274,7 +273,7 @@ export function computePowerRankings(matches, externalScoreMap = null) {
       const formNorm = form ? form.score / 10 : p.mw / Math.max(p.mp, 1);
       const activityNorm = p.mp / maxMp;
 
-      // Win quality: avg ELO of opponents beaten
+      // Win quality: avg rating of opponents beaten
       let qualSum = 0,
         qualCount = 0;
       sorted
@@ -312,7 +311,7 @@ export function computePowerRankings(matches, externalScoreMap = null) {
 }
 
 export function computeChemistryScores(matches) {
-  const eloMap = computeElo(matches);
+  const eloMap = computeASS(matches);
   const pairs = _getPairStats(matches).filter((p) => p.played >= 3);
   if (!pairs.length) return [];
 
@@ -329,7 +328,7 @@ export function computeChemistryScores(matches) {
       const marginNorm = Math.min(1, Math.max(0, (avgMargin + 5) / 10));
       const activityNorm = p.played / maxPlayed;
 
-      // vs-strong: wins against above-average ELO opponents
+      // vs-strong: wins against above-average rating opponents
       const sorted = [...matches].sort((a, b) =>
         (a.date || "").localeCompare(b.date || ""),
       );
@@ -390,9 +389,7 @@ export function computeAchievements(name, matches) {
   const playerMs = sorted.filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].includes(name),
   );
-  const eloMap = computeElo(matches);
-  const eloHistory = computeEloHistory(matches);
-  const pts = eloHistory[name] || [];
+  const eloMap = computeASS(matches);
   const allStats = computeStats(matches, eloMap);
   const ps = allStats.find((p) => p.name === name);
   if (!ps) return [];
@@ -471,17 +468,6 @@ export function computeAchievements(name, matches) {
     `${Math.min(ps.bestWinStreak, 5)}/5`,
   );
 
-  // Diamond — reach ELO 1200
-  const peakElo =
-    pts.length > 0 ? Math.max(...pts.map((p) => p.elo)) : eloMap[name] || 1000;
-  add(
-    "💎",
-    "Diamond",
-    "Reach ELO 1200",
-    peakElo >= 1200,
-    `Peak: ${Math.round(peakElo)}`,
-  );
-
   // Chemistry Lab — 10 wins with same partner
   const partnerWins = ps.partnerWins || {};
   const bestPartnerWins = Math.max(0, ...Object.values(partnerWins));
@@ -521,7 +507,7 @@ export function computeAchievements(name, matches) {
     `${Math.min(closeWins.length, 3)}/3`,
   );
 
-  // Upset Artist — beat 3 higher-ELO opponents in a row
+  // Upset Artist — beat 3 higher-rated opponents in a row
   let consecUpsets = 0,
     maxConsecUpsets = 0;
   playerMs.forEach((m) => {
@@ -545,7 +531,7 @@ export function computeAchievements(name, matches) {
   add(
     "🎲",
     "Upset Artist",
-    "Beat 3 higher-ELO opponents in a row",
+    "Beat 3 higher-rated opponents in a row",
     maxConsecUpsets >= 3,
     `${Math.min(maxConsecUpsets, 3)}/3`,
   );
@@ -741,7 +727,6 @@ export function computeMatchStories(matches) {
     (a.date || "").localeCompare(b.date || ""),
   );
   const stories = [];
-  const eloHistory = {};
   const assHistory = {};
   const internalElo = {};
   const streaks = {};
@@ -749,24 +734,13 @@ export function computeMatchStories(matches) {
   sorted.forEach((m, idx) => {
     const allP = [...(m.teamA || []), ...(m.teamB || [])];
     allP.forEach((p) => {
-      if (!(p in eloHistory)) eloHistory[p] = 1000;
       if (!(p in assHistory)) assHistory[p] = 1000;
       if (!(p in internalElo)) internalElo[p] = 1000;
       if (!(p in streaks)) streaks[p] = { type: null, count: 0 };
     });
 
     const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + eloHistory[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + eloHistory[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-
-    const prevElos = { ...eloHistory };
     const prevAss  = { ...assHistory };
-
-    m.teamA.forEach((p) => { eloHistory[p] = (eloHistory[p] || 1000) + dA; });
-    m.teamB.forEach((p) => { eloHistory[p] = (eloHistory[p] || 1000) + dB; });
 
     const margin  = Math.abs(m.scoreA - m.scoreB);
     const total   = m.scoreA + m.scoreB;
@@ -802,25 +776,21 @@ export function computeMatchStories(matches) {
 
     const date = m.date;
 
-    // Upset (lower ELO team wins)
-    const eloDiff = Math.abs(avgA - avgB);
-    if (eloDiff >= 60) {
-      const upsetTeam = aWon && avgA < avgB ? m.teamA : !aWon && avgB < avgA ? m.teamB : null;
+    // Upset (lower-rated team wins), using the internal strength track
+    const strengthDiff = Math.abs(avgIEloA - avgIEloB);
+    if (strengthDiff >= 60) {
+      const upsetTeam = aWon && avgIEloA < avgIEloB ? m.teamA : !aWon && avgIEloB < avgIEloA ? m.teamB : null;
       const favoriteTeam = upsetTeam === m.teamA ? m.teamB : m.teamA;
       if (upsetTeam) {
         stories.push({ icon: "😱", type: "upset",
-          text: `${upsetTeam.join(" & ")} upset ${favoriteTeam.join(" & ")} (+${Math.round(eloDiff)} ELO gap)`,
+          text: `${upsetTeam.join(" & ")} upset ${favoriteTeam.join(" & ")} (+${Math.round(strengthDiff)} rating gap)`,
           date, score: `${m.scoreA}–${m.scoreB}`, matchIdx: idx });
       }
     }
 
-    // ELO / ASS milestones
+    // ASS milestones
     allP.forEach((p) => {
       [1050, 1100, 1150, 1200, 1250].forEach((milestone) => {
-        if (prevElos[p] < milestone && eloHistory[p] >= milestone)
-          stories.push({ icon: "🏆", type: "milestone",
-            text: `${p} crossed ELO ${milestone} for the first time!`,
-            date, score: `ELO ${Math.round(eloHistory[p])}`, matchIdx: idx });
         if (prevAss[p] < milestone && assHistory[p] >= milestone)
           stories.push({ icon: "⭐", type: "ass-milestone",
             text: `${p} crossed ASS ${milestone} for the first time!`,

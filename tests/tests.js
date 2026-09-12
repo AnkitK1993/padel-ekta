@@ -76,8 +76,8 @@ function _normScores(sA, sB) {
   return [sA * f, sB * f];
 }
 
-function eloToSr(elo) {
-  return parseFloat(Math.min(10, Math.max(0, (elo - 700) / 60)).toFixed(2));
+function ratingToSr(rating) {
+  return parseFloat(Math.min(10, Math.max(0, (rating - 700) / 60)).toFixed(2));
 }
 
 function normalizedScoreline(m) {
@@ -122,81 +122,6 @@ function getPrestigeTier(level) {
   if (level >= 10) return "silver";
   if (level >= 5)  return "bronze";
   return "rookie";
-}
-
-// computeElo — no caching; decay params injected so tests control "today"
-function computeElo(matches, applyDecay = false, decayParams = null, todayStr = null) {
-  const elo = {};
-  const g = n => { if (!(n in elo)) elo[n] = 1000; };
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  sorted.forEach(m => {
-    const aWon = m.scoreA > m.scoreB;
-    [...m.teamA, ...m.teamB].forEach(g);
-    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA  = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const deltaA = 32 * ((aWon ? 1 : 0) - expA);
-    const deltaB = 32 * ((aWon ? 0 : 1) - (1 - expA));
-    m.teamA.forEach(p => { elo[p] = Math.round(elo[p] + deltaA); });
-    m.teamB.forEach(p => { elo[p] = Math.round(elo[p] + deltaB); });
-  });
-  if (applyDecay && sorted.length && decayParams && todayStr) {
-    const { perWeek, graceDays, maxDecay, floor } = decayParams;
-    const lastSeen = {};
-    sorted.forEach(m => {
-      [...m.teamA, ...m.teamB].forEach(p => {
-        if (!lastSeen[p] || m.date > lastSeen[p]) lastSeen[p] = m.date;
-      });
-    });
-    Object.keys(elo).forEach(p => {
-      const last = lastSeen[p];
-      if (!last) return;
-      const daysSince = Math.round((new Date(todayStr) - new Date(last)) / 86400000);
-      if (daysSince > graceDays) {
-        const decay = Math.min(maxDecay, Math.floor((daysSince - graceDays) / 7) * perWeek);
-        elo[p] = Math.max(floor, elo[p] - decay);
-      }
-    });
-  }
-  return elo;
-}
-
-function computeEloHistory(matches) {
-  const elo = {}, history = {};
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  sorted.forEach(m => {
-    [...(m.teamA || []), ...(m.teamB || [])].forEach(p => {
-      if (!(p in elo)) { elo[p] = 1000; history[p] = []; }
-    });
-    const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-    m.teamA.forEach(p => { elo[p] = (elo[p] || 1000) + dA; history[p].push({ date: m.date, elo: elo[p], delta: dA, won: aWon, opponent: m.teamB.join(" & ") }); });
-    m.teamB.forEach(p => { elo[p] = (elo[p] || 1000) + dB; history[p].push({ date: m.date, elo: elo[p], delta: dB, won: !aWon, opponent: m.teamA.join(" & ") }); });
-  });
-  return history;
-}
-
-function computeEloPeaks(matches) {
-  const elo = {}, peaks = {};
-  const sorted = [...matches].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  sorted.forEach(m => {
-    [...(m.teamA || []), ...(m.teamB || [])].forEach(p => {
-      if (!(p in elo)) { elo[p] = 1000; peaks[p] = 1000; }
-    });
-    const aWon = m.scoreA > m.scoreB;
-    const avgA = m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-    const avgB = m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-    const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-    m.teamA.forEach(p => { elo[p] = (elo[p] || 1000) + dA; if (elo[p] > peaks[p]) peaks[p] = elo[p]; });
-    m.teamB.forEach(p => { elo[p] = (elo[p] || 1000) + dB; if (elo[p] > peaks[p]) peaks[p] = elo[p]; });
-  });
-  return peaks;
 }
 
 function getPairKey(team) {
@@ -247,7 +172,7 @@ function getPairStats(matches) {
   })).sort((a, b) => b.winPct - a.winPct || b.played - a.played || b.diff - a.diff);
 }
 
-function computeStats(matches, eloMap = {}) {
+function computeStats(matches, ratingMap = {}) {
   const P = {};
   const g = n => {
     if (!P[n]) P[n] = { name: n, mp: 0, mw: 0, gw: 0, gl: 0, ngw: 0, results: [], partnerPlayed: {}, partnerWins: {}, oppPlayed: {}, oppWins: {} };
@@ -297,7 +222,7 @@ function computeStats(matches, eloMap = {}) {
     const mwr = p.mp > 0 ? p.mw / p.mp : 0;
     const gwr = total > 0 ? p.gw / total : 0;
     const act = p.mp / maxMP;
-    const sr  = p.name in eloMap ? eloToSr(eloMap[p.name]) : mwr * 5 + gwr * 3 + act * 2;
+    const sr  = p.name in ratingMap ? ratingToSr(ratingMap[p.name]) : mwr * 5 + gwr * 3 + act * 2;
     let curStreak = 0, curType = "", bestWinStreak = 0, runW = 0;
     if (p.results.length > 0) {
       curType = p.results[p.results.length - 1].won ? "W" : "L";
@@ -538,217 +463,28 @@ test("both zeros: floor is 1 → unchanged 0-0", () => {
   assertEqual(a, 0); assertEqual(b, 0);
 });
 
-group("eloToSr");
-test("ELO 700 → SR 0.00", () => {
-  assertEqual(eloToSr(700), 0.00);
+group("ratingToSr");
+test("rating 700 → SR 0.00", () => {
+  assertEqual(ratingToSr(700), 0.00);
 });
-test("ELO 1000 → SR 5.00", () => {
-  assertEqual(eloToSr(1000), 5.00);
+test("rating 1000 → SR 5.00", () => {
+  assertEqual(ratingToSr(1000), 5.00);
 });
-test("ELO 1300 → SR 10.00", () => {
-  assertEqual(eloToSr(1300), 10.00);
+test("rating 1300 → SR 10.00", () => {
+  assertEqual(ratingToSr(1300), 10.00);
 });
-test("ELO below 700 is clamped to 0", () => {
-  assertEqual(eloToSr(100), 0.00);
+test("rating below 700 is clamped to 0", () => {
+  assertEqual(ratingToSr(100), 0.00);
 });
-test("ELO above 1300 is clamped to 10", () => {
-  assertEqual(eloToSr(2000), 10.00);
+test("rating above 1300 is clamped to 10", () => {
+  assertEqual(ratingToSr(2000), 10.00);
 });
-test("ELO 850 → SR 2.50", () => {
-  assertEqual(eloToSr(850), 2.50);
+test("rating 850 → SR 2.50", () => {
+  assertEqual(ratingToSr(850), 2.50);
 });
-test("ELO 1060 → SR 6.00 (round number)", () => {
+test("rating 1060 → SR 6.00 (round number)", () => {
   // (1060 - 700) / 60 = 360/60 = 6.00
-  assertEqual(eloToSr(1060), 6.00);
-});
-
-group("computeElo — basic");
-test("empty matches returns empty object", () => {
-  assertDeepEqual(computeElo([]), {});
-});
-test("all players start at 1000", () => {
-  // No matches played yet — computed from a match to seed values
-  const elo = computeElo([M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 3)]);
-  assert("Alice" in elo && "Carol" in elo, "all four players present");
-});
-test("winner gains ELO, loser loses ELO", () => {
-  const elo = computeElo([M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 3)]);
-  assert(elo["Alice"] > 1000, "Alice should gain");
-  assert(elo["Bob"]   > 1000, "Bob should gain");
-  assert(elo["Carol"] < 1000, "Carol should lose");
-  assert(elo["Dave"]  < 1000, "Dave should lose");
-});
-test("equal teams: winner gains 16, loser loses 16", () => {
-  const elo = computeElo([M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 3)]);
-  assertEqual(elo["Alice"], 1016);
-  assertEqual(elo["Bob"],   1016);
-  assertEqual(elo["Carol"], 984);
-  assertEqual(elo["Dave"],  984);
-});
-test("all teammates share the same ELO delta", () => {
-  const elo = computeElo([M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 6, 2)]);
-  assertEqual(elo["Alice"], elo["Bob"]);
-  assertEqual(elo["Carol"], elo["Dave"]);
-});
-test("score margin does NOT affect ELO — 6-0 same as 6-5", () => {
-  const elo1 = computeElo([M("2024-01-01", ["A", "B"], ["C", "D"], 6, 0)]);
-  const elo2 = computeElo([M("2024-01-01", ["A", "B"], ["C", "D"], 6, 5)]);
-  assertEqual(elo1["A"], elo2["A"]);
-  assertEqual(elo1["C"], elo2["C"]);
-});
-test("ELO is symmetric: A gains what B loses (2-player equal teams)", () => {
-  const elo = computeElo([M("2024-01-01", ["Alice"], ["Bob"], 4, 2)]);
-  assertEqual(elo["Alice"] + elo["Bob"], 2000, "sum stays constant");
-});
-test("ELO sum is conserved across all four players", () => {
-  const elo = computeElo([M("2024-01-01", ["A", "B"], ["C", "D"], 4, 2)]);
-  assertEqual(elo["A"] + elo["B"] + elo["C"] + elo["D"], 4000);
-});
-test("chronological order enforced regardless of input order", () => {
-  const forward  = computeElo([
-    M("2024-01-01", ["A", "B"], ["C", "D"], 4, 2),
-    M("2024-01-02", ["C", "D"], ["A", "B"], 4, 1),
-  ]);
-  const backward = computeElo([
-    M("2024-01-02", ["C", "D"], ["A", "B"], 4, 1),
-    M("2024-01-01", ["A", "B"], ["C", "D"], 4, 2),
-  ]);
-  assertDeepEqual(forward, backward, "should produce identical ELOs");
-});
-test("underdog winning yields larger gain than favourite winning", () => {
-  // Make Alice/Bob very strong (800 points ahead)
-  const setupMatches = Array.from({ length: 50 }, (_, i) =>
-    M(`2024-01-${String(i+1).padStart(2,"0")}`, ["Alice","Bob"], ["Carol","Dave"], 4, 1)
-  );
-  // Now Carol/Dave (underdogs) win one match
-  const underdogWin = computeElo([
-    ...setupMatches,
-    M("2024-03-01", ["Carol","Dave"], ["Alice","Bob"], 4, 1)
-  ]);
-  // And Alice/Bob (favourites) win another
-  const favouriteWin = computeElo([
-    ...setupMatches,
-    M("2024-03-01", ["Alice","Bob"], ["Carol","Dave"], 4, 1)
-  ]);
-  assert(underdogWin["Carol"] > favouriteWin["Carol"], "underdog gains more");
-});
-test("single-player team (singles-style) works", () => {
-  const elo = computeElo([M("2024-01-01", ["Alice"], ["Bob"], 4, 2)]);
-  assert(elo["Alice"] > 1000);
-  assert(elo["Bob"] < 1000);
-});
-test("same player in multiple matches — ELO accumulates correctly", () => {
-  const elo = computeElo([
-    M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2),
-    M("2024-01-02", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2),
-    M("2024-01-03", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2),
-  ]);
-  assert(elo["Alice"] > 1032, "Alice should be well above starting ELO after 3 wins");
-  assert(elo["Carol"] < 968, "Carol should be well below starting ELO after 3 losses");
-});
-
-group("computeElo — decay");
-const DEFAULT_DECAY = { perWeek: 1, graceDays: 28, maxDecay: 30, floor: 900 };
-test("no decay within grace period (28 days)", () => {
-  const matches = [M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2)];
-  const withoutDecay = computeElo(matches);
-  const withDecay    = computeElo(matches, true, DEFAULT_DECAY, "2024-01-29");
-  assertEqual(withDecay["Alice"], withoutDecay["Alice"], "exactly 28 days — no decay");
-});
-test("decay kicks in after grace period (35 days = 1 week = 1 pt)", () => {
-  const matches = [M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2)];
-  const base       = computeElo(matches);
-  const withDecay  = computeElo(matches, true, DEFAULT_DECAY, "2024-02-05"); // 35 days later
-  assertEqual(withDecay["Alice"], base["Alice"] - 1, "1 week past grace = 1pt decay");
-});
-test("decay caps at maxDecay (30 pts default)", () => {
-  const matches = [M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2)];
-  const withDecay = computeElo(matches, true, DEFAULT_DECAY, "2026-01-01"); // years later
-  const base = computeElo(matches);
-  assertEqual(withDecay["Alice"], base["Alice"] - 30, "capped at maxDecay");
-});
-test("ELO floor prevents decay from pushing below 900", () => {
-  // One match puts both teams near 1000; then a very long inactivity triggers max decay.
-  // The decay floor (900) should prevent going below it — but only guards the decay step,
-  // not natural match-loss drops.
-  const matches = [M("2020-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 3)];
-  // "today" is far in the future → triggers heavy decay on everyone
-  const withDecay = computeElo(matches, true, DEFAULT_DECAY, "2026-01-01");
-  // After one match everyone is near 1000 ±16; decay can take at most 30 pts.
-  // So nobody should be below 900 (1000 - 16 - 30 = 954 worst case for loser).
-  Object.values(withDecay).forEach(elo => {
-    assert(elo >= 900, `ELO ${elo} fell below floor after decay`);
-  });
-});
-test("player with recent match is not decayed", () => {
-  const matches = [
-    M("2024-01-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2),
-    M("2024-06-01", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2), // Alice active
-  ];
-  const base      = computeElo(matches);
-  const withDecay = computeElo(matches, true, DEFAULT_DECAY, "2024-06-20"); // 19 days after last match
-  assertEqual(withDecay["Alice"], base["Alice"], "Alice played recently, no decay");
-});
-
-group("computeEloHistory");
-test("returns history keyed by player name", () => {
-  const history = computeEloHistory([M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2)]);
-  assert("Alice" in history && "Carol" in history);
-});
-test("first history entry starts from 1000", () => {
-  const history = computeEloHistory([M("2024-01-01", ["Alice"], ["Bob"], 4, 2)]);
-  assert(history["Alice"][0].elo === 1016, "Alice wins, first ELO is 1016 (1000+16)");
-});
-test("history entries ordered chronologically", () => {
-  const history = computeEloHistory([
-    M("2024-01-03", ["Alice","Bob"], ["Carol","Dave"], 4, 2),
-    M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2),
-  ]);
-  assert(history["Alice"][0].date < history["Alice"][1].date, "sorted by date");
-});
-test("history entry has required fields", () => {
-  const history = computeEloHistory([M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2)]);
-  const entry = history["Alice"][0];
-  assert("date" in entry && "elo" in entry && "delta" in entry && "won" in entry && "opponent" in entry);
-});
-test("delta is positive for winner, negative for loser", () => {
-  const history = computeEloHistory([M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2)]);
-  assert(history["Alice"][0].delta > 0, "winner has positive delta");
-  assert(history["Carol"][0].delta < 0, "loser has negative delta");
-});
-test("winner entry has won=true, loser has won=false", () => {
-  const history = computeEloHistory([M("2024-01-01", ["Alice"], ["Bob"], 4, 2)]);
-  assertEqual(history["Alice"][0].won, true);
-  assertEqual(history["Bob"][0].won,   false);
-});
-
-group("computeEloPeaks");
-test("all players start at peak 1000", () => {
-  const peaks = computeEloPeaks([M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 1, 4)]);
-  // Alice loses first match, peak should still be 1000
-  assertEqual(peaks["Alice"], 1000);
-});
-test("peak tracks highest ELO ever reached", () => {
-  const peaks = computeEloPeaks([
-    M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2),
-    M("2024-01-02", ["Carol","Dave"], ["Alice","Bob"], 4, 1),
-    M("2024-01-03", ["Carol","Dave"], ["Alice","Bob"], 4, 1),
-  ]);
-  const full = computeElo([
-    M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2),
-  ]);
-  assert(peaks["Alice"] >= full["Alice"], "peak ≥ current ELO after wins then losses");
-});
-test("peak never decreases", () => {
-  const matches = [
-    M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2),
-    M("2024-01-02", ["Carol","Dave"], ["Alice","Bob"], 4, 1),
-    M("2024-01-03", ["Carol","Dave"], ["Alice","Bob"], 4, 1),
-    M("2024-01-04", ["Carol","Dave"], ["Alice","Bob"], 4, 1),
-  ];
-  const peaks = computeEloPeaks(matches);
-  const final = computeElo(matches);
-  assert(peaks["Alice"] >= final["Alice"], "Alice's peak ≥ final ELO after a losing run");
+  assertEqual(ratingToSr(1060), 6.00);
 });
 
 group("xpThreshold");
@@ -1197,22 +933,22 @@ test("case-insensitive sort", () => {
   assertDeepEqual(sorted, ["Alice","bob","charlie"]);
 });
 
-group("ELO + Stats integration");
-test("ELO feeds into SR rating in computeStats", () => {
+group("Rating + Stats integration");
+test("rating map feeds into SR rating in computeStats", () => {
   const matches = [M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2)];
-  const eloMap  = computeElo(matches);
-  const stats   = computeStats(matches, eloMap);
+  const ratingMap = { Alice: 1050, Bob: 1050, Carol: 950, Dave: 950 };
+  const stats   = computeStats(matches, ratingMap);
   const alice   = stats.find(p => p.name === "Alice");
   const carol   = stats.find(p => p.name === "Carol");
-  assertEqual(alice.sr, eloToSr(eloMap["Alice"]));
-  assertEqual(carol.sr, eloToSr(eloMap["Carol"]));
+  assertEqual(alice.sr, ratingToSr(ratingMap["Alice"]));
+  assertEqual(carol.sr, ratingToSr(ratingMap["Carol"]));
 });
-test("winner ranked higher than loser after consistent results", () => {
+test("winner ranked higher than loser when rating map reflects it", () => {
   const matches = Array.from({ length: 5 }, (_, i) =>
     M(`2024-01-${String(i+1).padStart(2,"0")}`, ["Alice","Bob"], ["Carol","Dave"], 4, 2)
   );
-  const eloMap = computeElo(matches);
-  const stats  = computeStats(matches, eloMap);
+  const ratingMap = { Alice: 1200, Bob: 1200, Carol: 800, Dave: 800 };
+  const stats  = computeStats(matches, ratingMap);
   const alice  = stats.find(p => p.name === "Alice");
   const carol  = stats.find(p => p.name === "Carol");
   assert(alice.sr > carol.sr, "persistent winner should rank above loser");
@@ -1230,16 +966,6 @@ test("filtered matches produce different stats than unfiltered", () => {
   const alicePart = partial.find(p => p.name === "Alice");
   assertEqual(aliceFull.mp, 3);
   assertEqual(alicePart.mp, 2, "filtered: Guest match excluded");
-});
-test("ELO of player only in active matches differs from ELO in all matches", () => {
-  const allMatches = [
-    M("2024-01-01", ["Alice","Bob"], ["Carol","Dave"], 4, 2),
-    M("2024-01-02", ["Alice","Guest"], ["Carol","Dave"], 4, 2),
-  ];
-  const eloAll    = computeElo(allMatches);
-  const active    = makeActiveMatches(allMatches, new Set(["Guest"]), new Set(), new Set());
-  const eloActive = computeElo(active);
-  assert(eloAll["Alice"] !== eloActive["Alice"], "ELO differs when guest match included vs excluded");
 });
 
 group("inSeason (date-range membership)");
@@ -1305,11 +1031,12 @@ test("season-scoped stats differ from all-time stats", () => {
   assertEqual(aliceAll.mp, 5);
   assertEqual(aliceSeason.mp, 3, "Alice played 3 matches inside the season");
 });
-test("season-scoped ELO resets from 1000 (independent of prior seasons)", () => {
-  // ELO over only the in-range matches must not depend on the out-of-range ones.
+test("season scoping via the pipeline matches manual date filtering", () => {
+  // The season-scope pipeline must select exactly the same matches as filtering
+  // the raw list by date directly — no leakage from outside the season range.
   const inRangeOnly = SEASON_MATCHES.filter(m => inSeason(SEASON_CLOSED, m.date));
   const viaPipeline = makeActiveMatchesWithSeason(SEASON_MATCHES, SEASON_CLOSED, new Set(), new Set(), new Set());
-  assertDeepEqual(computeElo(viaPipeline), computeElo(inRangeOnly));
+  assertDeepEqual(viaPipeline, inRangeOnly);
 });
 
 // ─── SUMMARY ─────────────────────────────────────────────────────────────────
