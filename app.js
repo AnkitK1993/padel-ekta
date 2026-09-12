@@ -21698,6 +21698,40 @@ function savePlayerEdit() {
   }
 
   const existing = state.players[id] || {};
+
+  // Guest → regular player: their guest-era matches are about to start
+  // counting toward stats/rankings. Offer a clean slate instead.
+  if (existing.isGuest && !isGuest) {
+    const canonical = existing.name;
+    const involves = (m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].some(
+        (rp) => normPlayer(rp) === canonical,
+      );
+    const affected = state.matches.filter(involves).length;
+    if (
+      affected > 0 &&
+      confirm(
+        `"${canonical}" is no longer a guest.\n\nDelete the ${affected} match${affected !== 1 ? "es" : ""} they played as a guest?\n\nYes = erase that match history. No = keep it (they'll now count toward stats).`,
+      )
+    ) {
+      logAdminAction(
+        "Delete Guest Matches",
+        `${canonical} (+${affected} matches removed)`,
+      );
+      for (let i = state.matches.length - 1; i >= 0; i--) {
+        if (involves(state.matches[i])) {
+          const [removed] = state.matches.splice(i, 1);
+          _removeMatchFromTA(removed);
+        }
+      }
+      if (Array.isArray(deletedMatches)) {
+        const before = deletedMatches.length;
+        deletedMatches = deletedMatches.filter((m) => !involves(m));
+        if (deletedMatches.length !== before) saveDeletedMatches();
+      }
+    }
+  }
+
   state.players[id] = { ...existing, id, name, email, isGuest };
   playerAliasMap[id] = aliases;
   rebuildNameMaps();
