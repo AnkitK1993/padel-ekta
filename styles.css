@@ -18414,3 +18414,92 @@ body.battery-saver .ui-toggle-thumb {
   box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.12);
 }
 
+/* ── Detailed (Home) player cards — desktop scale-up ─────────────────────
+   #board's cards were sized for mobile and never got a desktop pass, so at
+   wide viewports the same small type/gauge just floats in a huge, mostly
+   empty card. Scoped entirely to #board .pc (the only place these classes
+   are used) so mobile and every other page are untouched. Caps the column
+   to a comfortable centered width (a single stretched-to-2000px card reads
+   as unfinished no matter how big the type is) and scales up every child
+   element in proportion. Some selectors need !important to beat pre-existing
+   unscoped !important rules elsewhere in this file (e.g. bare .rb/.pname) —
+   using #board-qualified selectors keeps that override contained here. */
+@media (min-width: 1100px) {
+  #board {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  #board .pc {
+    padding: 22px 26px 20px !important;
+    border-radius: 22px !important;
+    margin-bottom: 18px !important;
+  }
+  #board .ct {
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  #board .rb {
+    width: 46px !important;
+    height: 46px !important;
+    font-size: 19px !important;
+  }
+  #board .pname {
+    font-size: 32px !important;
+  }
+  #board .pname-elo-row .pname {
+    margin-right: 16px;
+  }
+  #board .pname-elo {
+    font-size: 17px;
+  }
+  #board .mini-gauge-wrap {
+    transform: scale(1.35);
+    transform-origin: right center;
+    margin-right: 6px;
+  }
+  #board .ui-stat-row {
+    gap: 6px;
+  }
+  #board .ui-stat {
+    padding: 11px 6px;
+    border-radius: 14px;
+  }
+  #board .ui-stat-val {
+    font-size: 14px;
+  }
+  #board .ui-stat-lbl {
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  #board .ui-progress-track {
+    height: 8px;
+  }
+  #board .spark-row {
+    padding: 6px 10px;
+    margin-top: 8px;
+    gap: 8px;
+  }
+  #board .spark-lbl,
+  #board .spark-full {
+    font-size: 9px;
+  }
+  #board .spark-lbl {
+    width: 32px;
+  }
+  #board .card-badge-pill {
+    font-size: 11px;
+    padding: 3px 9px;
+  }
+  #board .lvl-badge {
+    font-size: 9px;
+    padding: 2px 7px;
+  }
+  #board .xp-bar-mini {
+    width: 64px;
+    height: 4px;
+  }
+  #board .xp-pct-lbl {
+    font-size: 9px;
+  }
+}
+
