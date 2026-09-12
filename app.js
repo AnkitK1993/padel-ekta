@@ -2979,9 +2979,11 @@ function sheetAvSm(name) {
 // ── AUTO-SELECT ONGOING SEASON (per-device) ────────────────
 function _isAutoSeasonEnabled() {
   try {
-    return localStorage.getItem("padel_season_auto") === "1";
+    // Defaults ON (unset key) so leaderboards show the current season out of
+    // the box — only an explicit "0" (user turned the toggle off) disables it.
+    return localStorage.getItem("padel_season_auto") !== "0";
   } catch (e) {
-    return false;
+    return true;
   }
 }
 // The season whose range contains today; if several overlap, the latest-starting
