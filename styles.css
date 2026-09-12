@@ -17214,6 +17214,12 @@ body.zoomed *::after {
 @media (hover: hover) and (pointer: fine) {
   body {
     align-items: center;
+    /* The (min-width:600px) phone-frame rule above caps body at 480px on ANY
+       wide screen, including real desktops. That containing block never grew,
+       so .page's width:min(1560px,...) below was resolving back down to 480px
+       (over-constrained abs-pos box model) and its wide children were being
+       silently clipped by .page's overflow-x:hidden. Must be relaxed here. */
+    max-width: none;
   }
 
   .page {
