@@ -1,6 +1,6 @@
-﻿import { _lightFingerprint } from "./src/engine/fingerprint.js";
-import { computeStats, _normScores, ratingToSr } from "./src/engine/stats.js";
-import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "./src/engine/ass.js";
+﻿import { _lightFingerprint } from "./src/domain/fingerprint.js";
+import { computeStats, _normScores, ratingToSr } from "./src/domain/stats.js";
+import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "./src/domain/ass.js";
 import {
   ratingDistribution,
   competitivenessOverTime,
@@ -17,12 +17,12 @@ import {
   streakSegments,
   rollingWinPct,
   waterfallTopMoves,
-} from "./src/engine/records.js";
+} from "./src/domain/records.js";
 import {
   initParserDeps,
   parseBlock,
   parseDateHdr,
-} from "./src/engine/parser.js";
+} from "./src/domain/parser.js";
 import {
   escHtml,
   jsArg,
@@ -35,14 +35,14 @@ import {
   _rankBg,
 } from "./src/ui/format.js";
 import { buildHudGaugeSvg, getFormSparkline } from "./src/ui/charts.js";
-import { state } from "./src/engine/state.js";
+import { state } from "./src/domain/state.js";
 import {
   todayISO,
   weekISO,
   weekendRange,
   monthISO,
   lastWeekRange,
-} from "./src/engine/dates.js";
+} from "./src/domain/dates.js";
 import {
   getAnaPillOrder,
   saveAnaPillOrder,
@@ -106,12 +106,12 @@ import {
   _activeSeason,
   _inSeason,
   _seasonMatchCount,
-} from "./src/engine/selectors.js";
+} from "./src/domain/selectors.js";
 import {
   initHistorySummaryDeps,
   buildHistorySummary,
 } from "./src/ui/render-history-summary.js";
-import { initBadgesDeps, computeBadges } from "./src/engine/badges.js";
+import { initBadgesDeps, computeBadges } from "./src/domain/badges.js";
 import {
   initPairsDeps,
   getPairKey,
@@ -119,14 +119,14 @@ import {
   getHeadToHeadStats,
   pairInMatch,
   playersOpposed,
-} from "./src/engine/pairs.js";
+} from "./src/domain/pairs.js";
 import {
   initXpDeps,
   xpThreshold,
   getPlayerLevel,
   getPrestigeTier,
   computePlayerXP,
-} from "./src/engine/xp.js";
+} from "./src/domain/xp.js";
 import {
   initPlayerAnalyticsDeps,
   computeAchievements,
@@ -136,7 +136,7 @@ import {
   computeChemistryScores,
   computeAnalyticsPageData,
   computePartnerOpponentMatrix,
-} from "./src/engine/player-analytics.js";
+} from "./src/domain/player-analytics.js";
 import {
   morphList,
   animateGauges,
@@ -2938,7 +2938,7 @@ window.previewASSFormula = function () {
 };
 
 // ── DATE HELPERS ───────────────────────────────────────────
-// todayISO/weekISO/weekendRange/monthISO/lastWeekRange → ./src/engine/dates.js
+// todayISO/weekISO/weekendRange/monthISO/lastWeekRange → ./src/domain/dates.js
 
 // parseDateHdr, parseBlock (+ internal resolve/resolveInitial/parseMatchLine)
 // now live in ./parser.js, imported at the top of this file. App-state deps
@@ -3162,15 +3162,15 @@ function getMomentumBadge(playerName) {
   return "";
 }
 
-// getPairKey → src/engine/pairs.js
+// getPairKey → src/domain/pairs.js
 
-// getPairStats → src/engine/pairs.js
+// getPairStats → src/domain/pairs.js
 
-// pairInMatch → src/engine/pairs.js
+// pairInMatch → src/domain/pairs.js
 
-// playersOpposed → src/engine/pairs.js
+// playersOpposed → src/domain/pairs.js
 
-// getHeadToHeadStats → src/engine/pairs.js
+// getHeadToHeadStats → src/domain/pairs.js
 
 // ── ADD MATCHES ────────────────────────────────────────────
 // ── VOICE SCORE ENTRY ────────────────────────────────────────
@@ -9531,13 +9531,13 @@ function _pillOnUp(e) {
 }
 
 // ── XP + LEVELS ────────────────────────────────────────────
-// xpThreshold → src/engine/xp.js
+// xpThreshold → src/domain/xp.js
 
-// computePlayerXP → src/engine/xp.js
+// computePlayerXP → src/domain/xp.js
 
-// getPlayerLevel → src/engine/xp.js
+// getPlayerLevel → src/domain/xp.js
 
-// getPrestigeTier → src/engine/xp.js
+// getPrestigeTier → src/domain/xp.js
 
 function mkLvlRow(displayName) {
   const xp = computePlayerXP(displayName);
@@ -9557,25 +9557,25 @@ function mkLvlRow(displayName) {
   return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">${level}</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
 }
 
-// computeBadges → src/engine/badges.js (injected via initBadgesDeps)
+// computeBadges → src/domain/badges.js (injected via initBadgesDeps)
 
 // ══════════════════════════════════════════════════════════════
 // ── PHASE 1: PLAYER FORM ENGINE ───────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-// computePlayerForm → src/engine/player-analytics.js
+// computePlayerForm → src/domain/player-analytics.js
 
 // ── PLAY STYLE ARCHETYPE ──────────────────────────────────────
-// computeArchetype → src/engine/player-analytics.js
+// computeArchetype → src/domain/player-analytics.js
 
 // ── SMART POWER RANKINGS ──────────────────────────────────────
-// computePowerRankings → src/engine/player-analytics.js
+// computePowerRankings → src/domain/player-analytics.js
 
 // ── PARTNERSHIP CHEMISTRY SCORE ───────────────────────────────
-// computeChemistryScores → src/engine/player-analytics.js
+// computeChemistryScores → src/domain/player-analytics.js
 
 // ── ACHIEVEMENTS (new additions beyond computeBadges) ─────────
-// computeAchievements → src/engine/player-analytics.js
+// computeAchievements → src/domain/player-analytics.js
 
 // ── SEASON AWARDS ─────────────────────────────────────────────
 // Award set for one period (a month or a user-defined season). `priorMs` is the

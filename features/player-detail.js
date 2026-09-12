@@ -2,24 +2,24 @@
 // Extracted from app.js: getPlayerDetail, all _pd* builders, openPlayerDetail,
 // _buildStreakCalendarHtml, streakCalDayClick, _dowDayRecord.
 // Dependency injection via initPlayerDetailDeps for playerAvatar (uses photoMap).
-import { activeMatches } from "../src/engine/selectors.js";
+import { activeMatches } from "../src/domain/selectors.js";
 import { normPlayer, getPlayerDateRange } from "../src/domain/players.js";
-import { state } from "../src/engine/state.js";
-import { computeStats, ratingToSr } from "../src/engine/stats.js";
-import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "../src/engine/ass.js";
+import { state } from "../src/domain/state.js";
+import { computeStats, ratingToSr } from "../src/domain/stats.js";
+import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "../src/domain/ass.js";
 import {
   computeAchievements,
   computeArchetype,
   computePlayerForm,
-} from "../src/engine/player-analytics.js";
-import { computeBadges } from "../src/engine/badges.js";
+} from "../src/domain/player-analytics.js";
+import { computeBadges } from "../src/domain/badges.js";
 import {
   computePlayerXP,
   getPlayerLevel,
   xpThreshold,
   getPrestigeTier,
-} from "../src/engine/xp.js";
-import { lastWeekRange } from "../src/engine/dates.js";
+} from "../src/domain/xp.js";
+import { lastWeekRange } from "../src/domain/dates.js";
 import {
   memoStats,
   memoASS,

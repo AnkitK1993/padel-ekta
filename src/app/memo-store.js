@@ -11,11 +11,11 @@
 // Pattern: each memo is (key → value). On any data change invalidate() resets
 // all keys; per-read key comparison re-computes only when the dataset changed.
 
-import { _lightFingerprint } from "../engine/fingerprint.js";
-import { computeStats } from "../engine/stats.js";
-import { getPairStats } from "../engine/pairs.js";
-import { activeMatches, invalidateAmMemo } from "../engine/selectors.js";
-import { computeASS, computeASSTimeline } from "../engine/ass.js";
+import { _lightFingerprint } from "../domain/fingerprint.js";
+import { computeStats } from "../domain/stats.js";
+import { getPairStats } from "../domain/pairs.js";
+import { activeMatches, invalidateAmMemo } from "../domain/selectors.js";
+import { computeASS, computeASSTimeline } from "../domain/ass.js";
 
 // Per-section caches that grow one entry per distinct dataset and would
 // otherwise leak unbounded across a session. Cleared on every invalidation.

@@ -1,8 +1,8 @@
 // ── CHART / SVG BUILDERS ───────────────────────────────────
 // Pure SVG string builders — no DOM, no app state.
-import { state } from "../engine/state.js";
-import { computeStats } from "../engine/stats.js";
-import { computeASS } from "../engine/ass.js";
+import { state } from "../domain/state.js";
+import { computeStats } from "../domain/stats.js";
+import { computeASS } from "../domain/ass.js";
 
 let _hudGaugeId = 0;
 

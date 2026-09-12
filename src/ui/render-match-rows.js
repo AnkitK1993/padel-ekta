@@ -4,7 +4,7 @@
 // returned strings. Inline onclick handlers (openMatchIntro, deleteMatchByIndex)
 // resolve against window at click time, so only their names appear here.
 import { escHtml, fmtDate } from "./format.js";
-import { state } from "../engine/state.js";
+import { state } from "../domain/state.js";
 import { emptyState } from "./components.js";
 
 // ── Match classification flags ─────────────────────────────

@@ -3,7 +3,7 @@
 // No DOM, no Firebase, no app-level state — all inputs are parameters.
 // app.js owns the mutable state objects; it calls these as pure functions.
 
-import { state } from "../engine/state.js";
+import { state } from "./state.js";
 
 // ── Identity helpers ──────────────────────────────────────────
 // Resolve a raw player token (alias or canonical name) to the display name.

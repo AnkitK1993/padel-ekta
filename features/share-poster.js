@@ -1,9 +1,9 @@
 // ── SHAREABLE MATCH POSTER ─────────────────────────────────
 // Self-contained overlay that generates a visual match result card.
 // Pure src/ deps only — no app.js closure state needed.
-import { state } from "../src/engine/state.js";
-import { activeMatches } from "../src/engine/selectors.js";
-import { computeASS } from "../src/engine/ass.js";
+import { state } from "../src/domain/state.js";
+import { activeMatches } from "../src/domain/selectors.js";
+import { computeASS } from "../src/domain/ass.js";
 import { fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
 export function openShareMatchPoster(matchIdx) {

@@ -5,11 +5,11 @@
 // and exercises their behaviour against a fixed match set. Run:
 //   node tests-golden.mjs    (or: npm run test:golden)
 
-import { computeASS } from "../src/engine/ass.js";
-import { computeStats } from "../src/engine/stats.js";
-import { initPairsDeps, getPairStats, getPairKey } from "../src/engine/pairs.js";
-import { initXpDeps, xpThreshold, getPlayerLevel, getPrestigeTier } from "../src/engine/xp.js";
-import { computeBadges, initBadgesDeps } from "../src/engine/badges.js";
+import { computeASS } from "../src/domain/ass.js";
+import { computeStats } from "../src/domain/stats.js";
+import { initPairsDeps, getPairStats, getPairKey } from "../src/domain/pairs.js";
+import { initXpDeps, xpThreshold, getPlayerLevel, getPrestigeTier } from "../src/domain/xp.js";
+import { computeBadges, initBadgesDeps } from "../src/domain/badges.js";
 import {
   initPlayerAnalyticsDeps,
   computeAchievements,
@@ -19,9 +19,9 @@ import {
   computeChemistryScores,
   computeMatchStories,
   computePartnerOpponentMatrix,
-} from "../src/engine/player-analytics.js";
+} from "../src/domain/player-analytics.js";
 import { toLocalISODate } from "../src/ui/format.js";
-import { state } from "../src/engine/state.js";
+import { state } from "../src/domain/state.js";
 import {
   initSelectorsDeps,
   activeMatches,
@@ -29,7 +29,7 @@ import {
   filterHistoryMatches,
   filterMatches,
   invalidateAmMemo,
-} from "../src/engine/selectors.js";
+} from "../src/domain/selectors.js";
 
 let pass = 0,
   fail = 0;
@@ -92,7 +92,7 @@ ok(
     ),
 );
 
-// ── computeBadges (real src/engine/badges.js) ───────────────────────────────
+// ── computeBadges (real src/domain/badges.js) ───────────────────────────────
 console.log(
   "\n\x1b[36m── Badges golden (real badges.js) ───────────────────────\x1b[0m",
 );
@@ -150,7 +150,7 @@ ok(
 );
 ok("empty match set → no badges", computeBadges("Nobody", null, {}, [], []).length === 0);
 
-// ── player-analytics (real src/engine/player-analytics.js) ──────────────────
+// ── player-analytics (real src/domain/player-analytics.js) ──────────────────
 console.log(
   "\n\x1b[36m── Player analytics golden (real module) ────────────────\x1b[0m",
 );
@@ -341,7 +341,7 @@ ok(
   `got ${activeMatches().length}`,
 );
 
-// ── pairs golden (real src/engine/pairs.js) ─────────────────────────────────
+// ── pairs golden (real src/domain/pairs.js) ─────────────────────────────────
 console.log(
   "\n\x1b[36m── Pairs golden (real pairs.js) ─────────────────────────\x1b[0m",
 );
@@ -353,7 +353,7 @@ ok("getPairKey is order-independent", getPairKey(["Alice","Bob"]) === getPairKey
 ok("getPairKey normalises to sorted & format", getPairKey(["Bob","Alice"]) === "Alice & Bob");
 ok("getPairStats is deterministic", JSON.stringify(getPairStats(BADGE_SEASON)) === JSON.stringify(pairs));
 
-// ── XP golden (real src/engine/xp.js) ───────────────────────────────────────
+// ── XP golden (real src/domain/xp.js) ───────────────────────────────────────
 console.log("\n\x1b[36m── XP/Level golden (real xp.js) ─────────────────────────\x1b[0m");
 // computePlayerXP reads matches — stub with empty activeMatches; match-type
 // helpers not needed for pure level/prestige tests.

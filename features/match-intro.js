@@ -2,16 +2,16 @@
 // Extracted from app.js: all match-intro state, animation helpers, openMatchIntro,
 // closeMatchIntro, and the match-card click listener.
 // openEditMatch is called via window.openEditMatch since it lives in app.js.
-import { activeMatches } from "../src/engine/selectors.js";
+import { activeMatches } from "../src/domain/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
-import { state } from "../src/engine/state.js";
-import { computeASS } from "../src/engine/ass.js";
-import { _normScores } from "../src/engine/stats.js";
+import { state } from "../src/domain/state.js";
+import { computeASS } from "../src/domain/ass.js";
+import { _normScores } from "../src/domain/stats.js";
 import {
   computePlayerXP,
   getPlayerLevel,
-} from "../src/engine/xp.js";
-import { getPairKey } from "../src/engine/pairs.js";
+} from "../src/domain/xp.js";
+import { getPairKey } from "../src/domain/pairs.js";
 import { memoPairStats } from "../src/app/memo-store.js";
 import {
   escHtml,

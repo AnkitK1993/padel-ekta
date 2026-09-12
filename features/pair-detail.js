@@ -1,7 +1,7 @@
 // ── PAIR DETAIL FEATURE MODULE ────────────────────────────────────────────────
 // Extracted from app.js: openPairDetail modal with pair stats, form, and history.
-// No app.js-specific dependencies — all imports are from stable engine/ui modules.
-import { activeMatches } from "../src/engine/selectors.js";
+// No app.js-specific dependencies — all imports are from stable domain/ui modules.
+import { activeMatches } from "../src/domain/selectors.js";
 import { badge, emptyState } from "../src/ui/components.js";
 import { escHtml, fmtDate } from "../src/ui/format.js";
 import { isFireMatch, isDominatingMatch } from "../src/ui/render-match-rows.js";

@@ -1,12 +1,12 @@
 // ── WEEKLY DIGEST OVERLAY ──────────────────────────────────
 // Share card summarising the week's highlights. Uses window.showToast
 // (already on window from app.js) for the single toast notification.
-import { state } from "../src/engine/state.js";
-import { activeMatches } from "../src/engine/selectors.js";
-import { computeASS } from "../src/engine/ass.js";
-import { computeStats } from "../src/engine/stats.js";
-import { getPairStats } from "../src/engine/pairs.js";
-import { todayISO, weekISO, lastWeekRange } from "../src/engine/dates.js";
+import { state } from "../src/domain/state.js";
+import { activeMatches } from "../src/domain/selectors.js";
+import { computeASS } from "../src/domain/ass.js";
+import { computeStats } from "../src/domain/stats.js";
+import { getPairStats } from "../src/domain/pairs.js";
+import { todayISO, weekISO, lastWeekRange } from "../src/domain/dates.js";
 
 export function openWeeklyDigest() {
   document.getElementById("share-card-overlay")?.remove();

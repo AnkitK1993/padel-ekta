@@ -3,10 +3,10 @@
 // ASS changes) as an HTML string. Pure string output. Imports what's already
 // modular; the app-coupled helpers (normPlayer, getPairStats) are injected via
 // initHistorySummaryDeps so the body stays close to the original.
-import { computeStats } from "../engine/stats.js";
-import { computeASS } from "../engine/ass.js";
+import { computeStats } from "../domain/stats.js";
+import { computeASS } from "../domain/ass.js";
 import { _rankColor } from "./format.js";
-import { activeMatches } from "../engine/selectors.js";
+import { activeMatches } from "../domain/selectors.js";
 
 let _deps = {
   normPlayer: (n) => n,

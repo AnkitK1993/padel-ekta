@@ -14,7 +14,7 @@
 // "one instance" guarantee with less ceremony and better tree-shaking.
 
 import { db, auth, doc, setDoc, onSnapshot } from "../infra/cloud/firebase.js";
-import { state } from "../engine/state.js";
+import { state } from "../domain/state.js";
 
 // ── Injected dependencies (app.js injects via init()) ─────────
 let _deps = {

@@ -2,11 +2,11 @@
 // Detects player achievements when matches are committed and fires
 // toast + confetti. Also fires anniversary toasts on app startup.
 // Calls window.showToast / window.fireConfetti (already on window).
-import { state } from "../src/engine/state.js";
-import { computeStats } from "../src/engine/stats.js";
-import { computeASS, computeASSTimeline } from "../src/engine/ass.js";
+import { state } from "../src/domain/state.js";
+import { computeStats } from "../src/domain/stats.js";
+import { computeASS, computeASSTimeline } from "../src/domain/ass.js";
 import { normPlayer } from "../src/domain/players.js";
-import { todayISO } from "../src/engine/dates.js";
+import { todayISO } from "../src/domain/dates.js";
 
 // Best-ever win streak per player, walked fresh from a match array — used to
 // detect "new personal-best streak" independent of the fixed 3/5/10 thresholds.

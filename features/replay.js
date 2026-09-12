@@ -4,10 +4,10 @@
 // dependencies (only src/ engine + format helpers + DOM + its own _replay*
 // state), so moving it decouples that shared state and shrinks app.js. Exports
 // are re-exposed on window by app.js for the inline onclick handlers.
-import { state } from "../src/engine/state.js";
-import { withoutGuestMatches } from "../src/engine/selectors.js";
-import { computeASS } from "../src/engine/ass.js";
-import { computeStats } from "../src/engine/stats.js";
+import { state } from "../src/domain/state.js";
+import { withoutGuestMatches } from "../src/domain/selectors.js";
+import { computeASS } from "../src/domain/ass.js";
+import { computeStats } from "../src/domain/stats.js";
 import { escHtml, fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
 const _REPLAY_MIN = 5;

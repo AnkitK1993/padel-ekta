@@ -2,8 +2,8 @@
 // Searches players, match scorelines, and match dates.
 // Calls openPlayerDetail / openMatchIntro via inline onclick strings
 // (already on window from their respective feature modules).
-import { state } from "../src/engine/state.js";
-import { activeMatches } from "../src/engine/selectors.js";
+import { state } from "../src/domain/state.js";
+import { activeMatches } from "../src/domain/selectors.js";
 import { escHtml, jsArg, playerColor, playerInitials } from "../src/ui/format.js";
 
 export function openGlobalSearch() {

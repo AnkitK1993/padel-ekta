@@ -1,8 +1,8 @@
 // ── WEEKLY STATS & SNAPSHOTS ───────────────────────────────
 // Computes the consecutive-weeks-played streak and persists weekly
 // rank snapshots in localStorage for "rank change since last week" arrows.
-import { state } from "../src/engine/state.js";
-import { activeMatches } from "../src/engine/selectors.js";
+import { state } from "../src/domain/state.js";
+import { activeMatches } from "../src/domain/selectors.js";
 import { memoStats } from "../src/app/memo-store.js";
 import { toLocalISODate } from "../src/ui/format.js";
 

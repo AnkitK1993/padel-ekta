@@ -458,7 +458,7 @@ async function main() {
 
     // Source corpus for the "dynamically built class name" filter.
     // Must include every file that can set a class on an element. The app is
-    // split across many ES modules under src/ (engine/, ui/) + features/, so
+    // split across many ES modules under src/ (domain/, ui/) + features/, so
     // walk those dirs recursively plus index.html — a hardcoded list goes stale
     // on every module split/reorg and yields false "dead" positives. Test
     // files and the tests/ dir are excluded so they can't mask an unused class.

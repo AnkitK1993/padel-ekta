@@ -1,11 +1,11 @@
 // ── HEAD-TO-HEAD FEATURE MODULE ──────────────────────────────────────────────
 // Extracted from app.js: computeH2HStreak, openH2HDetail, openRivalryScreen,
 // renderH2HDeepDive. playerAvatar injected via initH2HDeps (uses photoMap).
-import { activeMatches } from "../src/engine/selectors.js";
+import { activeMatches } from "../src/domain/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
-import { state } from "../src/engine/state.js";
-import { getHeadToHeadStats } from "../src/engine/pairs.js";
-import { computeMatchASSDeltas } from "../src/engine/ass.js";
+import { state } from "../src/domain/state.js";
+import { getHeadToHeadStats } from "../src/domain/pairs.js";
+import { computeMatchASSDeltas } from "../src/domain/ass.js";
 import {
   fmtDate,
   playerColor,
