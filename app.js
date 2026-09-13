@@ -9022,39 +9022,67 @@ function _setSeasonScoringMode(mode) {
   document.body.classList.remove("no-cascade");
 }
 
-// ── SCORING INFO SHEET (ⓘ icon beside the badge) ────────────
-// Plain-language explainer for every system and season format — separate
-// from the picker sheet so tapping ⓘ never accidentally changes a selection.
+// ── SCORING INFO POPUP (ⓘ icon beside the badge) ────────────
+// Plain-language explainer for every system and season format, each with a
+// worked numeric example — a floating popup (not the picker sheet) so
+// tapping ⓘ never accidentally changes a selection.
+const SCORING_SYSTEM_EXAMPLES = {
+  ass: `<b>Example:</b> a 6–3 win (margin 3, 9 games total) has "quality" 4×3+9 = 21. If the teams were evenly matched, the winners each gain about +21 and the losers each lose about +21. Beating a much stronger average-rated team can push a win up toward +30–40; beating a much weaker team can shrink it down toward +10 or less.`,
+  glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
+  openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
+  fairshare: `<b>Example:</b> a 1300-rated player and a 700-rated player team up and beat two 1000-rated players; the win is worth 18 points to the team. Because Puneet (700) is the weaker partner, he gets the bigger share: <b>Puneet +26, Ankit +10</b> (average 18 — the team total either way). Had they LOST instead, Puneet would drop more too — <b>Puneet −35, Ankit −13</b> — the split always favours whichever partner the match rode on more, win or lose.`,
+};
+
+const SEASON_SCORING_EXAMPLES = {
+  reset: `<b>Example:</b> you finished last season at 1400. This season you (and everyone else) start over at exactly 1000, as if last season never happened.`,
+  flip: `<b>Example:</b> you finished last season at 650 → this season you start at 2000−650 = <b>1350</b>. A player who finished at 1200 instead starts at 2000−1200 = <b>800</b>. From there, matches play out normally on top of that new starting point.`,
+  fair: `<b>Example:</b> a player who's really 1300-strength (all-time) beats a 700-strength player for 5 points in the season's first match. Their season score becomes 1000+5 = <b>1005</b> (not 1305) — match points are earned using true strength, but credited on a clean 1000 season baseline.`,
+};
+
 function _scoringInfoHtml() {
   const sysRows = SCORING_SYSTEMS.map((sys) => `
     <div class="scoring-info-row">
       <div class="scoring-info-title">${SCORING_SYSTEM_LABELS[sys]}</div>
       <div class="scoring-info-body">${SCORING_SYSTEM_BLURBS[sys]}</div>
+      <div class="scoring-info-example">${SCORING_SYSTEM_EXAMPLES[sys] || ""}</div>
     </div>`).join("");
   const fmtRows = SEASON_SCORING_MODES.map((mode) => `
     <div class="scoring-info-row">
       <div class="scoring-info-title">${SEASON_SCORING_LABELS[mode]}</div>
       <div class="scoring-info-body">${SEASON_SCORING_DESCRIPTIONS[mode]}</div>
+      <div class="scoring-info-example">${SEASON_SCORING_EXAMPLES[mode] || ""}</div>
     </div>`).join("");
   return `
     <div class="scoring-info-section-lbl">SCORING SYSTEMS</div>
     ${sysRows}
     <div class="scoring-info-section-lbl" style="margin-top:12px">SEASON FORMATS <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(ASS only)</span></div>
     ${fmtRows}
-    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">Every system starts new players at 1000 (or a conservative low estimate for OpenSkill's own leaderboard-sort number). "±" columns show how confident the system is — a wide band means "not proven yet," and it narrows the more a player plays.</div>
+    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">Every system starts new players at 1000. "±" columns show how confident the system is — a wide band means "not proven yet," and it narrows the more a player plays.</div>
   `;
 }
 
+// Floating popup (same pattern as the H2H / shutout-drill modals) rather than
+// a bottom sheet, so it reads like a reference card, not a picker.
 function openScoringInfoSheet() {
-  const body = document.getElementById("scoring-info-body");
-  if (body) body.innerHTML = _scoringInfoHtml();
-  document.getElementById("scoring-info-overlay")?.classList.add("live-sheet-open");
-  document.getElementById("scoring-info-sheet")?.classList.add("live-sheet-open");
+  document.getElementById("scoring-info-modal")?.remove();
+  const modal = document.createElement("div");
+  modal.id = "scoring-info-modal";
+  modal.className = "h2h-modal-overlay";
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+  modal.innerHTML = `<div class="h2h-modal-card" style="max-height:82vh;display:flex;flex-direction:column">
+    <div class="h2h-modal-header">
+      <span class="h2h-modal-title">ⓘ HOW SCORING WORKS</span>
+      <button class="h2h-modal-close" onclick="document.getElementById('scoring-info-modal').remove()" aria-label="Close" title="Close">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:2px 4px 4px">${_scoringInfoHtml()}</div>
+  </div>`;
+  document.body.appendChild(modal);
 }
 
 function closeScoringInfoSheet() {
-  document.getElementById("scoring-info-overlay")?.classList.remove("live-sheet-open");
-  document.getElementById("scoring-info-sheet")?.classList.remove("live-sheet-open");
+  document.getElementById("scoring-info-modal")?.remove();
 }
 
 // Reflects the badge's text/subscript with the effective mode — falls back to

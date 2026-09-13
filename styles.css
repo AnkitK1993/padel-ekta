@@ -2622,6 +2622,19 @@ textarea:focus {
   color: var(--muted);
   line-height: 1.4;
 }
+.scoring-info-example {
+  font-size: 10px;
+  color: var(--fg);
+  line-height: 1.5;
+  margin-top: 6px;
+  padding: 7px 9px;
+  background: rgba(var(--theme-rgb), 0.08);
+  border: 1px solid rgba(var(--theme-rgb), 0.18);
+  border-radius: 8px;
+}
+.scoring-info-example b {
+  color: var(--theme);
+}
 
 /* Text Size control (mirrors .anim-seg) — A− / readout / A+ */
 .font-seg {

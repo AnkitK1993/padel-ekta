@@ -1868,13 +1868,9 @@ Puneet - Pun, PK
       <div class="live-sheet-list" id="season-scoring-list"></div>
     </div>
 
-    <!-- Scoring info sheet (ⓘ icon beside the Summary tab badge) -->
-    <div class="live-sheet-overlay" id="scoring-info-overlay" onclick="closeScoringInfoSheet()"></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="scoring-info-sheet">
-      <div class="live-sheet-handle"></div>
-      <div class="live-sheet-title">HOW SCORING WORKS</div>
-      <div class="live-sheet-list" id="scoring-info-body"></div>
-    </div>
+    <!-- Scoring info popup (ⓘ icon beside the Summary tab badge) is built
+         dynamically as a floating .h2h-modal-overlay by openScoringInfoSheet()
+         in app.js — no static markup needed here. -->
 
     <!-- History filter bottom sheet (player / pair) -->
     <div
