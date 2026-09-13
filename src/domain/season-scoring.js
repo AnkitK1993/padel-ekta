@@ -59,58 +59,54 @@ export function computeFlipASS(allMatches, seasons, season) {
 }
 
 // ── FAIR ──────────────────────────────────────────────────────
-// The continuous, never-reset number — identical to what "ALL SEASONS" shows,
-// evaluated at each match up through the active season. Opponent-strength
-// weighting uses true all-time context instead of an artificially-reset 1000.
+// Each match's win/loss points are calculated using true all-time strength
+// (so a 1300-rated player beating a 700-rated player earns only a handful of
+// points, exactly like it would look on the all-time leaderboard) — but
+// those points are credited against a clean 1000 baseline for the season,
+// not against the player's real all-time number. Concretely:
+//   Fair[p](t) = 1000 + (continuousAllTime[p](t) - continuousAllTime[p](seasonStart))
+// continuousAllTime is the never-reset ASS walk across the player's entire
+// history (S1 + S2 + …), so the STRENGTH MULTIPLIER inside each match's delta
+// reflects who they really are, not an artificially-reset-to-1000 opponent —
+// only the running total displayed for the season is re-based to 1000.
+// Example: a 1300 all-time player beats a 700 all-time player in the first
+// match of the season and the match is worth 5 points either way — the 1300
+// player's season score becomes 1005 (not 1305) and the 700 player's becomes
+// 995 (not 695).
 export function computeFairASS(allMatches, seasons, season) {
   const ref = referenceSeasonFor(seasons, season);
   if (!ref) return null;
   const upToNow = allMatches.filter((m) => (m.date || "") <= _latestDate(allMatches, season));
-  return computeASS(upToNow);
-}
-
-// ── PULSE ─────────────────────────────────────────────────────
-// Net swing since the season boundary, using the same true-strength-aware
-// engine as Fair, but re-based to a clean 1000 at season start — a fair
-// "how did you do this season" ranking without Reset's early-season noise
-// (where opponent strength is judged purely within-season, before enough
-// matches accumulate to mean anything).
-export function computePulseASS(allMatches, seasons, season) {
-  const ref = referenceSeasonFor(seasons, season);
-  if (!ref) return null;
-  const fair = computeFairASS(allMatches, seasons, season);
-  if (!fair) return null;
+  const continuousNow = computeASS(upToNow);
   const seed = _allTimeBeforeSeasonStart(allMatches, season);
   const out = {};
-  Object.keys(fair).forEach((p) => {
-    out[p] = Math.round(1000 + (fair[p] - (seed[p] ?? 1000)));
+  Object.keys(continuousNow).forEach((p) => {
+    out[p] = Math.round(1000 + (continuousNow[p] - (seed[p] ?? 1000)));
   });
   return out;
 }
 
 // Latest match date within `season` (or the season's own matches' max date) —
-// Fair/Pulse should only ever look as far as the active season goes, even
-// though their calculation basis is the full continuous history.
+// Fair should only ever look as far as the active season goes, even though
+// its calculation basis is the full continuous history.
 function _latestDate(allMatches, season) {
   const seasonMatches = allMatches.filter((m) => _inSeason(season, m.date));
   const dates = seasonMatches.map((m) => m.date || "").filter(Boolean).sort();
   return dates.length ? dates[dates.length - 1] : "9999-99-99";
 }
 
-export const SEASON_SCORING_MODES = ["reset", "flip", "fair", "pulse"];
+export const SEASON_SCORING_MODES = ["reset", "flip", "fair"];
 
 export const SEASON_SCORING_LABELS = {
   reset: "RESET",
   flip: "FLIP",
   fair: "FAIR",
-  pulse: "PULSE",
 };
 
 export const SEASON_SCORING_DESCRIPTIONS = {
-  reset: "Standard — everyone starts the season fresh at 1000.",
+  reset: "Standard — everyone starts the season fresh at 1000, and each match is judged only against this season's own (reset) opponents.",
   flip: "Inverts last season's final standings: your S1 finish of X starts you at 2000-X.",
-  fair: "Uses your true all-time score — no reset, exactly like ALL SEASONS.",
-  pulse: "Net change since the season started, weighted by real opponent strength — 1000 baseline, no early-season noise.",
+  fair: "Match points are earned using your true all-time strength (so a 1300 beating a 700 earns very little) but credited on top of a clean 1000 season baseline, not your real all-time number.",
 };
 
 // Compute the ASS map for `mode`, falling back to the standard per-season
@@ -124,9 +120,6 @@ export function computeSeasonScoringASS(mode, allMatches, seasonMatches, seasons
     if (r) return r;
   } else if (mode === "fair") {
     const r = computeFairASS(allMatches, seasons, season);
-    if (r) return r;
-  } else if (mode === "pulse") {
-    const r = computePulseASS(allMatches, seasons, season);
     if (r) return r;
   }
   return computeASS(seasonMatches);

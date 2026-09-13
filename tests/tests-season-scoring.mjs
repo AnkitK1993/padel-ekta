@@ -1,5 +1,5 @@
 // tests-season-scoring.mjs — regression tests for the Summary tab's
-// Flip/Fair/Pulse scoring-carryover variants (src/domain/season-scoring.js).
+// Flip/Fair scoring-carryover variants (src/domain/season-scoring.js).
 // Run: node tests/tests-season-scoring.mjs
 
 import { computeASS } from "../src/domain/ass.js";
@@ -8,7 +8,6 @@ import {
   hasSeasonScoringReference,
   computeFlipASS,
   computeFairASS,
-  computePulseASS,
   computeSeasonScoringASS,
 } from "../src/domain/season-scoring.js";
 
@@ -28,7 +27,7 @@ const M = (date, a, b, sa, sb) => ({ date, teamA: a, teamB: b, scoreA: sa, score
 
 // Two seasons: S1 (Jan) then S2 (Mar), matching the app's real shape
 // ({id, name, start, end}) with a gap in between (Feb, no matches — should
-// not matter, since Fair/Pulse key off match dates, not season adjacency).
+// not matter, since Fair keys off match dates, not season adjacency).
 const S1 = { id: "s1", name: "Season 1", start: "2024-01-01", end: "2024-01-31" };
 const S2 = { id: "s2", name: "Season 2", start: "2024-03-01", end: null };
 const SEASONS = [S1, S2];
@@ -98,46 +97,47 @@ console.log("\n\x1b[36m── FAIR ───────────────
 const fair = computeFairASS(ALL_MATCHES, SEASONS, S2);
 const continuousAllTime = computeASS(ALL_MATCHES); // "ALL SEASONS" view — never reset
 
-ok("computeFair returns a map for S2", fair !== null);
-ok(
-  "Fair mode is identical to the continuous all-time ASS (no reset)",
-  JSON.stringify(fair) === JSON.stringify(continuousAllTime),
-  `fair=${JSON.stringify(fair)} continuous=${JSON.stringify(continuousAllTime)}`,
-);
-ok("computeFairASS falls back to null with no reference (S1)", computeFairASS(ALL_MATCHES, SEASONS, S1) === null);
+ok("computeFairASS returns a map for S2", fair !== null);
 
-console.log("\n\x1b[36m── PULSE ─────────────────────────────────────────────\x1b[0m");
-
-const pulse = computePulseASS(ALL_MATCHES, SEASONS, S2);
-ok("computePulse returns a map for S2", pulse !== null);
-
-Object.keys(pulse).forEach((p) => {
-  const expected = Math.round(1000 + (fair[p] - Math.round(s1Final[p] ?? 1000)));
-  ok(
-    `pulse[${p}] = Fair − season-start offset, based at 1000`,
-    pulse[p] === expected,
-    `got ${pulse[p]}, expected ${expected}`,
-  );
-});
-
-// Pulse and Fair should move by the exact same amount match-to-match (they
-// differ only by a per-player constant offset) — verify via two cumulative
-// cutoffs within S2.
-const partialAll = [...S1_MATCHES, S2_MATCHES[0]];
-const fairPartial = computeFairASS(partialAll, SEASONS, S2);
-const pulsePartial = computePulseASS(partialAll, SEASONS, S2);
+// Fair's formula: 1000 + (continuous-all-time-now - continuous-all-time-at-
+// season-start). Verify every player's value matches that directly, rather
+// than trusting the raw continuous number itself (which is NOT what Fair
+// should display — the whole point is match points are computed with true
+// all-time strength but credited on a clean 1000 season baseline).
 Object.keys(fair).forEach((p) => {
-  if (!(p in fairPartial)) return;
-  const fairDelta = fair[p] - fairPartial[p];
-  const pulseDelta = pulse[p] - pulsePartial[p];
+  const seed = Math.round(s1Final[p] ?? 1000);
+  const expected = Math.round(1000 + (continuousAllTime[p] - seed));
   ok(
-    `pulse and fair move identically for ${p} between cutoffs`,
-    fairDelta === pulseDelta,
-    `fairDelta=${fairDelta} pulseDelta=${pulseDelta}`,
+    `fair[${p}] = 1000 + (continuous-now − continuous-at-season-start)`,
+    fair[p] === expected,
+    `got ${fair[p]}, expected ${expected}`,
   );
 });
 
-ok("computePulseASS falls back to null with no reference (S1)", computePulseASS(ALL_MATCHES, SEASONS, S1) === null);
+ok(
+  "Fair is NOT just the raw continuous all-time number (unless every seed was exactly 1000)",
+  Object.keys(fair).some((p) => Math.round(s1Final[p] ?? 1000) !== 1000)
+    ? JSON.stringify(fair) !== JSON.stringify(continuousAllTime)
+    : true,
+);
+
+// Direct worked example from the request: a 1300 all-time player beats a 700
+// all-time player and the match is worth 5 points either way — the 1300
+// player's season score should land at 1005 (not 1305), the 700 player's at
+// 995 (not 695). Verify the rebasing arithmetic in isolation.
+(function workedExample() {
+  const seedHigh = 1300,
+    seedLow = 700,
+    matchPoints = 5;
+  const continuousHighAfter = seedHigh + matchPoints;
+  const continuousLowAfter = seedLow - matchPoints;
+  const fairHigh = 1000 + (continuousHighAfter - seedHigh);
+  const fairLow = 1000 + (continuousLowAfter - seedLow);
+  ok("worked example: 1300 winner's season score is 1005, not 1305", fairHigh === 1005);
+  ok("worked example: 700 loser's season score is 995, not 695", fairLow === 995);
+})();
+
+ok("computeFairASS falls back to null with no reference (S1)", computeFairASS(ALL_MATCHES, SEASONS, S1) === null);
 
 console.log("\n\x1b[36m── computeSeasonScoringASS (mode dispatch + fallback) ─\x1b[0m");
 
@@ -157,11 +157,6 @@ ok(
     JSON.stringify(fair),
 );
 ok(
-  "'pulse' mode matches computePulseASS",
-  JSON.stringify(computeSeasonScoringASS("pulse", ALL_MATCHES, S2_MATCHES, SEASONS, S2)) ===
-    JSON.stringify(pulse),
-);
-ok(
   "unknown mode falls back to reset",
   JSON.stringify(computeSeasonScoringASS("bogus", ALL_MATCHES, S2_MATCHES, SEASONS, S2)) ===
     JSON.stringify(s2Reset),
@@ -174,11 +169,6 @@ ok(
 ok(
   "'fair' on S1 (no reference) falls back to reset",
   JSON.stringify(computeSeasonScoringASS("fair", ALL_MATCHES, S1_MATCHES, SEASONS, S1)) ===
-    JSON.stringify(computeASS(S1_MATCHES)),
-);
-ok(
-  "'pulse' on S1 (no reference) falls back to reset",
-  JSON.stringify(computeSeasonScoringASS("pulse", ALL_MATCHES, S1_MATCHES, SEASONS, S1)) ===
     JSON.stringify(computeASS(S1_MATCHES)),
 );
 ok(

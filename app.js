@@ -789,7 +789,7 @@ let _compactRenderedVersion = -1,
 const _summaryMode = "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 // Season-carryover scoring variant for the Summary tab leaderboard — "reset"
-// (default, unchanged behaviour), "flip", "fair", or "pulse". Only takes
+// (default, unchanged behaviour), "flip", or "fair". Only takes
 // effect on the ALL TIME view of a season that has a valid reference (prior)
 // season; every other surface keeps using the canonical per-season computeASS.
 let _seasonScoringMode = "reset";
@@ -799,7 +799,7 @@ try {
 } catch (e) {}
 
 // Summary-tab scoring SYSTEM — "ass" (default), "glicko2", or "openskill".
-// Independent of _seasonScoringMode: the Flip/Fair/Pulse season-carryover
+// Independent of _seasonScoringMode: the Flip/Fair season-carryover
 // variants are ASS-specific and only apply when this is "ass".
 const SCORING_SYSTEMS = ["ass", "glicko2", "openskill"];
 const SCORING_SYSTEM_LABELS = { ass: "ASS", glicko2: "GLICKO-2", openskill: "OPENSKILL" };
@@ -5154,7 +5154,7 @@ function renderCompact() {
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const _isCmpAllFilter = cmpFilter === "all" && !cmpFrom && !cmpTo;
-  // Season-carryover scoring (Flip/Fair/Pulse) is ASS-specific and only makes
+  // Season-carryover scoring (Flip/Fair) is ASS-specific and only makes
   // sense on the full, undated ALL TIME view of a season with a real prior
   // season to draw from — FIRST/LAST windows, narrower date filters, and the
   // other scoring systems always fall back to a plain per-season computation.
@@ -5384,16 +5384,16 @@ function renderCompact() {
 
   // Delta walk base: ALL TIME uses the full active-season trajectory so each
   // match's delta reflects its true historical ASS context. TODAY starts
-  // fresh and walks only today's matches (session-relative). Fair/Pulse never
-  // reset — their whole premise is continuous, true-strength-weighted deltas —
-  // so they always walk the complete cross-season history regardless of window.
+  // fresh and walks only today's matches (session-relative). Fair never
+  // resets — its whole premise is continuous, true-strength-weighted deltas —
+  // so it always walks the complete cross-season history regardless of window.
   const _allActive = activeMatches();
   const _deltaMatches =
     _matchDeltaWindow === "today"
       ? _allActive.filter((m) => m.date === todayISO())
       : _allActive;
   const matchEloDeltas =
-    _scoringSystem === "ass" && (_effSeasonScoringMode === "fair" || _effSeasonScoringMode === "pulse")
+    _scoringSystem === "ass" && _effSeasonScoringMode === "fair"
       ? computeMatchASSDeltas(withoutGuestMatches(state.matches))
       : _matchDeltasForSystem(_scoringSystem, _deltaMatches);
 
@@ -8915,7 +8915,7 @@ function _cmpSetWindow(slot, mode) {
 // Tapping #summary-mode-badge opens a sheet with two sections: which SYSTEM
 // computes the rating (ASS / Glicko-2 / OpenSkill), and — only under ASS,
 // where it has a well-defined meaning — which season-carryover FORMAT to use
-// (Reset/Flip/Fair/Pulse). Format options with no valid reference season
+// (Reset/Flip/Fair). Format options with no valid reference season
 // (e.g. the very first season, or "ALL SEASONS") are shown disabled —
 // selecting one is a no-op in that case and renderCompact() silently falls
 // back to Reset regardless of the stored preference, so nothing breaks if a
@@ -8965,7 +8965,7 @@ function _renderScoringPickerSheet() {
     ${
       showFormats
         ? `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div>${_seasonScoringPickerRows()}`
-        : `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div><div style="font-size:10px;color:var(--muted);padding:4px 10px 2px">Season formats (Flip/Fair/Pulse) are ASS-only for now.</div>`
+        : `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div><div style="font-size:10px;color:var(--muted);padding:4px 10px 2px">Season formats (Flip/Fair) are ASS-only for now.</div>`
     }
   `;
   const note = document.getElementById("season-scoring-note");
