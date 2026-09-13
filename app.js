@@ -8939,10 +8939,7 @@ function _scoringSystemPickerRows() {
   return SCORING_SYSTEMS.map((sys) => {
     const selected = _scoringSystem === sys;
     return `<button class="live-sheet-item${selected ? " live-sheet-item-selected" : ""}" onclick="_setScoringSystem('${sys}')">
-      <div style="flex:1;text-align:left">
-        <div style="font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SCORING_SYSTEM_LABELS[sys]}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:normal">${SCORING_SYSTEM_BLURBS[sys]}</div>
-      </div>
+      <div style="flex:1;text-align:left;font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SCORING_SYSTEM_LABELS[sys]}</div>
     </button>`;
   }).join("");
 }
@@ -8954,10 +8951,7 @@ function _seasonScoringPickerRows() {
     const disabled = mode !== "reset" && !hasRef;
     const selected = _seasonScoringMode === mode;
     return `<button class="live-sheet-item${selected ? " live-sheet-item-selected" : ""}" ${disabled ? "disabled" : `onclick="_setSeasonScoringMode('${mode}')"`}>
-      <div style="flex:1;text-align:left">
-        <div style="font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SEASON_SCORING_LABELS[mode]}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:normal">${SEASON_SCORING_DESCRIPTIONS[mode]}</div>
-      </div>
+      <div style="flex:1;text-align:left;font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SEASON_SCORING_LABELS[mode]}</div>
     </button>`;
   }).join("");
 }
