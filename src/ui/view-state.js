@@ -57,4 +57,7 @@ export const viewState = {
   eloTLFilter: "all",
   eloTLOverlay: "",
   eloTLPts: [],
+  // Season Risers & Fallers — "" means auto-pick the two most recent seasons
+  riserFallerFrom: "",
+  riserFallerTo: "",
 };

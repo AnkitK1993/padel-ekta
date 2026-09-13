@@ -107,7 +107,11 @@ import {
   _inSeason,
   _seasonMatchCount,
 } from "./src/domain/selectors.js";
-import { seasonNeedsRollover } from "./src/domain/season-stats.js";
+import {
+  seasonNeedsRollover,
+  computeSeasonRiserFaller,
+  orderSeasonsByStart,
+} from "./src/domain/season-stats.js";
 import {
   initHistorySummaryDeps,
   buildHistorySummary,
@@ -12824,6 +12828,69 @@ function _buildHallOfFameHtml() {
   return `<div class="hof-strip">${cards}</div>`;
 }
 
+// Rank/ASS delta between two seasons for every player common to both.
+// Defaults to the two most recent seasons; with 3+ seasons defined, two
+// dropdowns let the user pick any pair. Cross-season (bypasses
+// activeMatches()), same withoutGuestMatches(state.matches) base
+// _buildSeasonComparisonHtml uses.
+function _buildSeasonRiserFallerHtml() {
+  if (state.seasons.length < 2)
+    return '<div class="sub" style="padding:8px">Define at least 2 Seasons (🗓️ in the menu) to see who rose and fell.</div>';
+  const ordered = orderSeasonsByStart(state.seasons);
+  const defaultB = ordered[ordered.length - 1];
+  const defaultA = ordered[ordered.length - 2];
+  const seasonA =
+    state.seasons.find((s) => s.id === viewState.riserFallerFrom) || defaultA;
+  const seasonB =
+    state.seasons.find((s) => s.id === viewState.riserFallerTo) || defaultB;
+  const selStyle =
+    "flex:1;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-weight:700";
+  const optsHtml = (selectedId) =>
+    ordered
+      .map(
+        (s) =>
+          `<option value="${jsArg(s.id)}"${s.id === selectedId ? " selected" : ""}>${escHtml(s.name)}</option>`,
+      )
+      .join("");
+  const picker =
+    ordered.length > 2
+      ? `<div style="display:flex;gap:8px;align-items:center;padding:4px 0 10px">
+          <select style="${selStyle}" onchange="setRiserFallerFrom(this.value)">${optsHtml(seasonA.id)}</select>
+          <span style="font-size:11px;color:var(--muted)">→</span>
+          <select style="${selStyle}" onchange="setRiserFallerTo(this.value)">${optsHtml(seasonB.id)}</select>
+        </div>`
+      : "";
+  const _allM = withoutGuestMatches(state.matches);
+  const movers = computeSeasonRiserFaller(_allM, seasonA, seasonB);
+  if (!movers.length)
+    return `${picker}<div class="sub" style="padding:8px">No players played both ${escHtml(seasonA.name)} and ${escHtml(seasonB.name)}.</div>`;
+  const rows = movers
+    .map((m) => {
+      const arrow = m.rankDelta > 0 ? "▲" : m.rankDelta < 0 ? "▼" : "•";
+      const arrowCol =
+        m.rankDelta > 0 ? "var(--green)" : m.rankDelta < 0 ? "var(--red)" : "var(--muted)";
+      const assStr = m.assDelta > 0 ? `+${m.assDelta}` : `${m.assDelta}`;
+      const assCol =
+        m.assDelta > 0 ? "var(--green)" : m.assDelta < 0 ? "var(--red)" : "var(--muted)";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <span style="width:14px;text-align:center;color:${arrowCol};font-weight:800">${arrow}</span>
+        <span style="flex:1;font-size:11px;font-weight:700">${escHtml(m.name)}</span>
+        <span style="font-size:10px;color:var(--muted)">#${m.rankA}→#${m.rankB}</span>
+        <span style="font-size:11px;font-weight:800;color:${assCol};min-width:44px;text-align:right">${assStr}</span>
+      </div>`;
+    })
+    .join("");
+  return `${picker}<div style="font-size:9px;color:var(--muted);margin-bottom:6px">${escHtml(seasonA.name)} → ${escHtml(seasonB.name)} · ASS change</div>${rows}`;
+}
+function setRiserFallerFrom(id) {
+  viewState.riserFallerFrom = id;
+  renderAnalyticsPage();
+}
+function setRiserFallerTo(id) {
+  viewState.riserFallerTo = id;
+  renderAnalyticsPage();
+}
+
 window._renderHiLoTable = function () {
   const el = document.getElementById("hi-lo-elo-body");
   if (!el || !window._hiLoData) return;
@@ -16722,6 +16789,12 @@ function renderAnalyticsPage() {
       title: "🏆 Hall of Fame",
       body: _buildHallOfFameHtml(),
     },
+    {
+      key: "seasonmovers",
+      cat: "records",
+      title: "📈 Season Risers & Fallers",
+      body: _buildSeasonRiserFallerHtml(),
+    },
     // ── NEW SECTIONS ───────────────────────────────────────────
     {
       key: "winratecalc",
@@ -17479,6 +17552,7 @@ function renderAnalyticsPage() {
     ]);
     const rightKeys = new Set([
       "powerrank",
+      "seasonmovers",
       "lbrace",
       "podium",
       "antipodium",
@@ -18534,6 +18608,8 @@ Object.assign(window, {
   archiveSeason,
   viewSeasonArchive,
   dismissSeasonRollover,
+  setRiserFallerFrom,
+  setRiserFallerTo,
   openSeasonAwardsReveal,
   seasonRevealNext,
   seasonRevealPrev,

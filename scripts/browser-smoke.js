@@ -726,6 +726,33 @@ async function main() {
       `Expected exactly 1 Season History row (Ankit only played in May 2026), got ${playerDetail.trajRows}`,
     );
 
+    // Season Risers & Fallers Analytics card: with "Empty Range" (2020, no
+    // matches) and "May 2026" (all seeded matches) as the two seasons, no
+    // player played both, so it should render the "no players in common"
+    // empty message rather than throw or show stale/incorrect movers.
+    // renderAnalyticsFeature() is a lazy dynamic import — switchMainTab returns
+    // before the async .then() actually (re-)renders the page, so the DOM must
+    // be polled rather than read immediately after switching tabs (the earlier
+    // failure here was reading stale DOM from the very first, pre-seasons
+    // Analytics render).
+    await evaluate(client, `switchMainTab("analytics", true);`);
+    await waitFor(
+      client,
+      // Wait for a render that actually knows about both seasons (not just
+      // any render — the section existed even before seasons did).
+      `document.querySelectorAll("#ana-season-row .ana-filter-pill").length >= 3`,
+      "Analytics re-rendered with both seasons known",
+    );
+    const riserFaller = await evaluate(client, `(() => {
+      const body = document.querySelector('.ana-sec[data-key="seasonmovers"] .ana-sec-body');
+      return { found: !!body, text: body ? body.textContent : "" };
+    })()`);
+    assert(riserFaller.found, "Expected the Season Risers & Fallers section to render");
+    assert(
+      /no players played both/i.test(riserFaller.text),
+      `Expected the empty-overlap message (no player played both seasons), got "${riserFaller.text}" (seasonCount=${riserFaller.seasonCount}, liveSeasonNames=${JSON.stringify(riserFaller.liveSeasonNames)})`,
+    );
+
     // #6 memo correctness: an exclusion toggle changes the active-match set
     // WITHOUT bumping _dataVersion, so the activeMatches() memo must invalidate
     // off its exclusion key. Puneet is in every seeded match → excluding him
