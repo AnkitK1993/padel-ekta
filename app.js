@@ -9,6 +9,17 @@ import {
   SEASON_SCORING_DESCRIPTIONS,
 } from "./src/domain/season-scoring.js";
 import {
+  computeGlicko2,
+  computeGlicko2Full,
+  computeMatchGlicko2Deltas,
+} from "./src/domain/glicko2.js";
+import {
+  computeOpenSkill,
+  computeOpenSkillFull,
+  computeMatchOpenSkillDeltas,
+  ordinal as _openSkillOrdinal,
+} from "./src/domain/openskill.js";
+import {
   ratingDistribution,
   competitivenessOverTime,
   ratingsByMonth,
@@ -786,6 +797,59 @@ try {
   const _stored = localStorage.getItem("padel_season_scoring_mode");
   if (_stored && SEASON_SCORING_MODES.includes(_stored)) _seasonScoringMode = _stored;
 } catch (e) {}
+
+// Summary-tab scoring SYSTEM — "ass" (default), "glicko2", or "openskill".
+// Independent of _seasonScoringMode: the Flip/Fair/Pulse season-carryover
+// variants are ASS-specific and only apply when this is "ass".
+const SCORING_SYSTEMS = ["ass", "glicko2", "openskill"];
+const SCORING_SYSTEM_LABELS = { ass: "ASS", glicko2: "GLICKO-2", openskill: "OPENSKILL" };
+let _scoringSystem = "ass";
+try {
+  const _storedSys = localStorage.getItem("padel_scoring_system");
+  if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) _scoringSystem = _storedSys;
+} catch (e) {}
+
+// Dispatchers so renderCompact() (and the FIRST/LAST window helper) don't
+// need a system-specific branch at every call site. `full` returns the raw
+// per-system detail object ({r,rd,vol} / {mu,sigma} / null for ASS, which has
+// no confidence concept) so the flat rating + the "±" confidence column can
+// both be derived from ONE engine walk instead of two.
+function _fullRatingForSystem(system, matches) {
+  if (system === "glicko2") return computeGlicko2Full(matches);
+  if (system === "openskill") return computeOpenSkillFull(matches);
+  return null;
+}
+function _flatRatingForSystem(system, matches, full) {
+  if (system === "glicko2") {
+    const out = {};
+    Object.keys(full).forEach((n) => (out[n] = full[n].r));
+    return out;
+  }
+  if (system === "openskill") {
+    const out = {};
+    Object.keys(full).forEach((n) => (out[n] = full[n].mu));
+    return out;
+  }
+  return computeASS(matches);
+}
+// "±" confidence band shown next to the rating for Glicko-2/OpenSkill — RD for
+// Glicko-2 (its own native uncertainty unit), ±3σ for OpenSkill (its own
+// recommended conservative-estimate offset). null for ASS (no such concept).
+function _confidenceForSystem(system, full) {
+  if (!full) return null;
+  const out = {};
+  if (system === "glicko2") {
+    Object.keys(full).forEach((n) => (out[n] = Math.round(full[n].rd)));
+  } else if (system === "openskill") {
+    Object.keys(full).forEach((n) => (out[n] = Math.round(3 * full[n].sigma)));
+  }
+  return out;
+}
+function _matchDeltasForSystem(system, matches) {
+  if (system === "glicko2") return computeMatchGlicko2Deltas(matches);
+  if (system === "openskill") return computeMatchOpenSkillDeltas(matches);
+  return computeMatchASSDeltas(matches);
+}
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
 let _anaRenderedFilter = "";
@@ -4708,6 +4772,21 @@ function _applyCmpColClasses() {
   _CMP_TOGGLE_COLS.forEach((c) =>
     table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)),
   );
+  // The "±" confidence column only has meaning for Glicko-2/OpenSkill — driven
+  // by the active scoring system, not a user-togglable column preference.
+  table.classList.toggle("hide-col-conf", _scoringSystem === "ass");
+  const confTh = document.getElementById("cmp-conf-th");
+  if (confTh) {
+    confTh.textContent =
+      _scoringSystem === "glicko2" ? "±RD" : _scoringSystem === "openskill" ? "±3σ" : "";
+  }
+  const assTh = document.getElementById("cmp-ass-th");
+  if (assTh) {
+    const prevArrow = assTh.querySelector(".sort-arrow");
+    const arrowText = prevArrow ? prevArrow.textContent : "";
+    const arrowActive = prevArrow ? prevArrow.classList.contains("active") : false;
+    assTh.innerHTML = `${SCORING_SYSTEM_LABELS[_scoringSystem]} <span class="sort-arrow${arrowActive ? " active" : ""}" id="sort-ass">${arrowText}</span>`;
+  }
 }
 
 function onCmpFilter() {
@@ -4932,7 +5011,7 @@ function renderHome() {
 // animateSrVal -> ./render-anim.js
 
 // ── LEADERBOARD GAME-WINDOW HELPERS ────────────────────────
-function _computeLbWindowStats(baseMatches) {
+function _computeLbWindowStats(baseMatches, system) {
   const playerNames = new Set();
   baseMatches.forEach((m) => {
     (m.teamA || []).forEach((p) => playerNames.add(p));
@@ -4940,18 +5019,24 @@ function _computeLbWindowStats(baseMatches) {
   });
   const statsList = [];
   const assMap = {};
+  const confMap = {};
   for (const playerName of playerNames) {
     const pm = _getPlayerWindowMatches(playerName, baseMatches, _lbWindow);
-    const pAssMap = computeASS(pm);
-    // SR derives from ASS over the windowed matches.
-    const pStats = computeStats(pm, pAssMap);
+    const pFull = _fullRatingForSystem(system, pm);
+    const pRatingMap = _flatRatingForSystem(system, pm, pFull);
+    // SR derives from the active system's rating over the windowed matches.
+    const pStats = computeStats(pm, pRatingMap);
     const ps = pStats.find((s) => s.name === playerName);
     if (ps) {
       statsList.push(ps);
-      assMap[playerName] = pAssMap[playerName];
+      assMap[playerName] = pRatingMap[playerName];
+      if (pFull) {
+        const pConf = _confidenceForSystem(system, pFull);
+        confMap[playerName] = pConf[playerName];
+      }
     }
   }
-  return { stats: statsList, assMap };
+  return { stats: statsList, assMap, confMap };
 }
 
 function _renderLbWindowBar() {
@@ -5023,7 +5108,7 @@ window.removeStatsCache = function removeStatsCache() {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}|${_seasonScoringMode}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}|${_seasonScoringMode}|${_scoringSystem}`;
   _updateExcludeBtn();
   _renderSeasonQuickSwitch();
   _updateSeasonScoringBadge();
@@ -5069,19 +5154,31 @@ function renderCompact() {
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const _isCmpAllFilter = cmpFilter === "all" && !cmpFrom && !cmpTo;
-  // Season-carryover scoring (Flip/Fair/Pulse) only makes sense on the full,
-  // undated ALL TIME view of a season with a real prior season to draw from —
-  // FIRST/LAST windows and narrower date filters always fall back to Reset.
+  // Season-carryover scoring (Flip/Fair/Pulse) is ASS-specific and only makes
+  // sense on the full, undated ALL TIME view of a season with a real prior
+  // season to draw from — FIRST/LAST windows, narrower date filters, and the
+  // other scoring systems always fall back to a plain per-season computation.
   const _cmpSeason = _activeSeason();
-  const _hasScoringRef = !_lbWindow && _isCmpAllFilter && hasSeasonScoringReference(state.seasons, _cmpSeason);
+  const _hasScoringRef =
+    _scoringSystem === "ass" &&
+    !_lbWindow &&
+    _isCmpAllFilter &&
+    hasSeasonScoringReference(state.seasons, _cmpSeason);
   const _effSeasonScoringMode = _hasScoringRef ? _seasonScoringMode : "reset";
-  let _cmpASSMap, stats;
+  let _cmpASSMap, _cmpConfMap, stats;
   if (_lbWindow) {
-    // FIRST/LAST window: recompute ASS and SR over each player's windowed
-    // matches so both reflect the chosen window (not the all-time set).
-    const r = _computeLbWindowStats(filtered);
+    // FIRST/LAST window: recompute the active system's rating and SR over
+    // each player's windowed matches so both reflect the chosen window (not
+    // the all-time set).
+    const r = _computeLbWindowStats(filtered, _scoringSystem);
     _cmpASSMap = r.assMap;
+    _cmpConfMap = r.confMap;
     stats = r.stats;
+  } else if (_scoringSystem !== "ass") {
+    const _full = _fullRatingForSystem(_scoringSystem, filtered);
+    _cmpASSMap = _flatRatingForSystem(_scoringSystem, filtered, _full);
+    _cmpConfMap = _confidenceForSystem(_scoringSystem, _full);
+    stats = computeStats(filtered, _cmpASSMap);
   } else if (_effSeasonScoringMode === "reset") {
     _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
     stats = computeStats(filtered, _cmpASSMap);
@@ -5173,17 +5270,21 @@ function renderCompact() {
 
   const splashDone = document.body.classList.contains("splash-done");
 
-  // All-time rank map — built with the same sort key as the current view,
-  // using competition ranking, so the delta is always like-for-like.
+  // All-time rank map — built with the same sort key and same scoring system
+  // as the current view, using competition ranking, so the delta is always
+  // like-for-like.
   const _allTimeRankMap = {};
   {
-    const _atAss = _memoASS();
+    const _atAss =
+      _scoringSystem === "ass"
+        ? _memoASS()
+        : _flatRatingForSystem(_scoringSystem, activeMatches(), _fullRatingForSystem(_scoringSystem, activeMatches()));
     // For the score column substitute the all-time map; other columns reuse sortFns.
     const _atSort =
       cmpSortKey === "ass"
         ? (a, b) => (_atAss[a.name] || 1000) - (_atAss[b.name] || 1000)
         : sortFns[cmpSortKey] || sortFns.sr;
-    const _atAll = [..._activeStats()].sort((a, b) => {
+    const _atAll = [...computeStats(activeMatches(), _atAss)].sort((a, b) => {
       const cmp = _atSort(a, b);
       if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
@@ -5197,14 +5298,17 @@ function renderCompact() {
   }
 
   // This-month rank map — used only in ALL TIME view to compute the ▲▼ delta.
-  // Built with the same sort key and competition ranking as the current
-  // leaderboard, so the delta exactly matches the rank gap if the user switches
-  // to the THIS MONTH filter.
+  // Built with the same sort key, scoring system and competition ranking as
+  // the current leaderboard, so the delta exactly matches the rank gap if the
+  // user switches to the THIS MONTH filter.
   const _recentRankMap = {};
   if (cmpFilter === "all") {
     const _mMonth = filterMatches("month");
     if (_mMonth.length > 0) {
-      const _mAss = computeASS(_mMonth);
+      const _mAss =
+        _scoringSystem === "ass"
+          ? computeASS(_mMonth)
+          : _flatRatingForSystem(_scoringSystem, _mMonth, _fullRatingForSystem(_scoringSystem, _mMonth));
       const _mStats = computeStats(_mMonth, _mAss);
       const _mSortFn =
         cmpSortKey === "ass"
@@ -5270,7 +5374,9 @@ function renderCompact() {
     const _scoreColor = (v) =>
       v > 1000 ? "var(--green)" : v < 1000 ? "var(--red)" : "var(--muted)";
     const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assVal)}">${assVal}</span>`;
-    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
+    const confVal = _cmpConfMap ? _cmpConfMap[p.name] : null;
+    const confColHtml = confVal != null ? `±${confVal}` : "";
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="conf">${confColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;
@@ -5287,13 +5393,13 @@ function renderCompact() {
       ? _allActive.filter((m) => m.date === todayISO())
       : _allActive;
   const matchEloDeltas =
-    _effSeasonScoringMode === "fair" || _effSeasonScoringMode === "pulse"
+    _scoringSystem === "ass" && (_effSeasonScoringMode === "fair" || _effSeasonScoringMode === "pulse")
       ? computeMatchASSDeltas(withoutGuestMatches(state.matches))
-      : computeMatchASSDeltas(_deltaMatches);
+      : _matchDeltasForSystem(_scoringSystem, _deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
-  if (_deltaLbl) _deltaLbl.textContent = "ASS";
+  if (_deltaLbl) _deltaLbl.textContent = SCORING_SYSTEM_LABELS[_scoringSystem];
   document
     .querySelectorAll(".mdw-btn")
     .forEach((b) =>
@@ -8805,12 +8911,33 @@ function _cmpSetWindow(slot, mode) {
   }
 }
 
-// ── SEASON SCORING MODE PICKER (Summary tab badge) ──────────
-// Tapping #summary-mode-badge opens a sheet listing Reset/Flip/Fair/Pulse.
-// Options with no valid reference season (e.g. the very first season, or
-// "ALL SEASONS") are shown disabled — selecting one is a no-op in that case
-// and renderCompact() silently falls back to Reset regardless of the stored
-// preference, so nothing breaks if a season boundary later changes.
+// ── SCORING PICKER (Summary tab badge) ──────────────────────
+// Tapping #summary-mode-badge opens a sheet with two sections: which SYSTEM
+// computes the rating (ASS / Glicko-2 / OpenSkill), and — only under ASS,
+// where it has a well-defined meaning — which season-carryover FORMAT to use
+// (Reset/Flip/Fair/Pulse). Format options with no valid reference season
+// (e.g. the very first season, or "ALL SEASONS") are shown disabled —
+// selecting one is a no-op in that case and renderCompact() silently falls
+// back to Reset regardless of the stored preference, so nothing breaks if a
+// season boundary later changes.
+const SCORING_SYSTEM_BLURBS = {
+  ass: "Match quality (margin + games) times an opponent-strength multiplier. This app's own system.",
+  glicko2: "Chess.com/Lichess's algorithm: a rating plus a confidence band that narrows the more you play.",
+  openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
+};
+
+function _scoringSystemPickerRows() {
+  return SCORING_SYSTEMS.map((sys) => {
+    const selected = _scoringSystem === sys;
+    return `<button class="live-sheet-item${selected ? " live-sheet-item-selected" : ""}" onclick="_setScoringSystem('${sys}')">
+      <div style="flex:1;text-align:left">
+        <div style="font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SCORING_SYSTEM_LABELS[sys]}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:normal">${SCORING_SYSTEM_BLURBS[sys]}</div>
+      </div>
+    </button>`;
+  }).join("");
+}
+
 function _seasonScoringPickerRows() {
   const season = _activeSeason();
   const hasRef = hasSeasonScoringReference(state.seasons, season);
@@ -8826,14 +8953,27 @@ function _seasonScoringPickerRows() {
   }).join("");
 }
 
-function openSeasonScoringPicker() {
+function _renderScoringPickerSheet() {
   const list = document.getElementById("season-scoring-list");
-  if (list) list.innerHTML = _seasonScoringPickerRows();
+  if (!list) return;
   const season = _activeSeason();
+  const showFormats = _scoringSystem === "ass";
+  const hasRef = hasSeasonScoringReference(state.seasons, season);
+  list.innerHTML = `
+    <div class="live-sheet-section-lbl">SCORING SYSTEM</div>
+    ${_scoringSystemPickerRows()}
+    ${
+      showFormats
+        ? `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div>${_seasonScoringPickerRows()}`
+        : `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div><div style="font-size:10px;color:var(--muted);padding:4px 10px 2px">Season formats (Flip/Fair/Pulse) are ASS-only for now.</div>`
+    }
+  `;
   const note = document.getElementById("season-scoring-note");
-  if (note) {
-    note.style.display = hasSeasonScoringReference(state.seasons, season) ? "none" : "block";
-  }
+  if (note) note.style.display = showFormats && !hasRef ? "block" : "none";
+}
+
+function openSeasonScoringPicker() {
+  _renderScoringPickerSheet();
   document.getElementById("season-scoring-overlay")?.classList.add("live-sheet-open");
   document.getElementById("season-scoring-sheet")?.classList.add("live-sheet-open");
 }
@@ -8841,6 +8981,21 @@ function openSeasonScoringPicker() {
 function closeSeasonScoringPicker() {
   document.getElementById("season-scoring-overlay")?.classList.remove("live-sheet-open");
   document.getElementById("season-scoring-sheet")?.classList.remove("live-sheet-open");
+}
+
+function _setScoringSystem(sys) {
+  if (!SCORING_SYSTEMS.includes(sys)) return;
+  _scoringSystem = sys;
+  try {
+    localStorage.setItem("padel_scoring_system", sys);
+  } catch (e) {}
+  _renderScoringPickerSheet();
+  _updateSeasonScoringBadge();
+  document.body.classList.add("no-cascade");
+  const tbody = document.getElementById("cmpBody");
+  if (tbody) tbody.innerHTML = "";
+  renderCompact();
+  document.body.classList.remove("no-cascade");
 }
 
 function _setSeasonScoringMode(mode) {
@@ -8858,19 +9013,59 @@ function _setSeasonScoringMode(mode) {
   document.body.classList.remove("no-cascade");
 }
 
+// ── SCORING INFO SHEET (ⓘ icon beside the badge) ────────────
+// Plain-language explainer for every system and season format — separate
+// from the picker sheet so tapping ⓘ never accidentally changes a selection.
+function _scoringInfoHtml() {
+  const sysRows = SCORING_SYSTEMS.map((sys) => `
+    <div class="scoring-info-row">
+      <div class="scoring-info-title">${SCORING_SYSTEM_LABELS[sys]}</div>
+      <div class="scoring-info-body">${SCORING_SYSTEM_BLURBS[sys]}</div>
+    </div>`).join("");
+  const fmtRows = SEASON_SCORING_MODES.map((mode) => `
+    <div class="scoring-info-row">
+      <div class="scoring-info-title">${SEASON_SCORING_LABELS[mode]}</div>
+      <div class="scoring-info-body">${SEASON_SCORING_DESCRIPTIONS[mode]}</div>
+    </div>`).join("");
+  return `
+    <div class="scoring-info-section-lbl">SCORING SYSTEMS</div>
+    ${sysRows}
+    <div class="scoring-info-section-lbl" style="margin-top:12px">SEASON FORMATS <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(ASS only)</span></div>
+    ${fmtRows}
+    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">Every system starts new players at 1000 (or a conservative low estimate for OpenSkill's own leaderboard-sort number). "±" columns show how confident the system is — a wide band means "not proven yet," and it narrows the more a player plays.</div>
+  `;
+}
+
+function openScoringInfoSheet() {
+  const body = document.getElementById("scoring-info-body");
+  if (body) body.innerHTML = _scoringInfoHtml();
+  document.getElementById("scoring-info-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("scoring-info-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeScoringInfoSheet() {
+  document.getElementById("scoring-info-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("scoring-info-sheet")?.classList.remove("live-sheet-open");
+}
+
 // Reflects the badge's text/subscript with the effective mode — falls back to
 // showing RESET when the active season has no valid reference, even if a
 // different mode is stored, so the badge never claims an inactive variant.
 function _updateSeasonScoringBadge() {
   const badge = document.getElementById("summary-mode-badge");
   if (!badge) return;
+  const sysLabel = SCORING_SYSTEM_LABELS[_scoringSystem];
+  if (_scoringSystem !== "ass") {
+    badge.innerHTML = sysLabel;
+    return;
+  }
   const season = _activeSeason();
   const hasRef = hasSeasonScoringReference(state.seasons, season);
   const effective = hasRef ? _seasonScoringMode : "reset";
   badge.innerHTML =
     effective === "reset"
-      ? "ASS"
-      : `ASS<span class="smt-mode-sub">${SEASON_SCORING_LABELS[effective]}</span>`;
+      ? sysLabel
+      : `${sysLabel}<span class="smt-mode-sub">${SEASON_SCORING_LABELS[effective]}</span>`;
 }
 
 function _cmpWindowCtrlHtml(slot) {
@@ -18842,6 +19037,9 @@ Object.assign(window, {
   openSeasonScoringPicker,
   closeSeasonScoringPicker,
   _setSeasonScoringMode,
+  _setScoringSystem,
+  openScoringInfoSheet,
+  closeScoringInfoSheet,
   _updateCmpSlots,
   toggleMngCard,
   toggleManageReorder,

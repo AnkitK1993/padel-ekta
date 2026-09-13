@@ -2535,6 +2535,12 @@ textarea:focus {
 }
 
 /* Summary tab mode badge (replaces per-tab toggle) */
+.smt-mode-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+}
 .smt-mode-badge {
   font-size: 10px;
   font-weight: 800;
@@ -2544,7 +2550,6 @@ textarea:focus {
   border: 1px solid rgba(var(--theme-rgb), 0.28);
   border-radius: 5px;
   padding: 3px 8px;
-  align-self: center;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -2563,6 +2568,59 @@ textarea:focus {
   background: rgba(var(--theme-rgb), 0.35);
   border-radius: 4px;
   padding: 1px 5px;
+}
+.smt-info-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--theme-rgb), 0.28);
+  background: rgba(var(--theme-rgb), 0.08);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.smt-info-btn:hover,
+.smt-info-btn:active {
+  background: rgba(var(--theme-rgb), 0.18);
+  color: var(--accent);
+}
+.live-sheet-section-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding: 2px 10px 6px;
+  text-transform: uppercase;
+}
+.scoring-info-section-lbl {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  padding: 2px 10px 6px;
+  text-transform: uppercase;
+}
+.scoring-info-row {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 4px;
+}
+.scoring-info-title {
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+.scoring-info-body {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 /* Text Size control (mirrors .anim-seg) — A− / readout / A+ */
@@ -7743,6 +7801,14 @@ body:not(.splash-done) #board .pc {
 .cmp.hide-col-gl [data-col="gl"],
 .cmp.hide-col-gamePct [data-col="gamePct"] { display: none; }
 .cmp.hide-col-ass [data-col="ass"] { display: none; }
+/* "±" confidence column only exists for Glicko-2/OpenSkill — driven by the
+   active scoring system, not the user-togglable column-chip preferences. */
+.cmp.hide-col-conf [data-col="conf"] { display: none; }
+[data-col="conf"] {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
 
 /* ── Column chip strip ── */
 .col-chip-wrap {

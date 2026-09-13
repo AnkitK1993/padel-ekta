@@ -333,7 +333,10 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
-          <div id="summary-mode-badge" class="smt-mode-badge" role="button" tabindex="0" title="Season scoring format" onclick="openSeasonScoringPicker()">ASS</div>
+          <div class="smt-mode-group">
+            <div id="summary-mode-badge" class="smt-mode-badge" role="button" tabindex="0" title="Scoring system & season format" onclick="openSeasonScoringPicker()">ASS</div>
+            <button class="smt-info-btn" type="button" title="How scoring works" onclick="openScoringInfoSheet()">ⓘ</button>
+          </div>
         </div>
         <!-- Filter bar — date FAB + action icons -->
         <div class="summary-filter-bar">
@@ -410,6 +413,7 @@
                   <th class="sortable" data-col="ass" onclick="setCmpSort('ass')" id="cmp-ass-th">
                     ASS <span class="sort-arrow" id="sort-ass"></span>
                   </th>
+                  <th data-col="conf" id="cmp-conf-th">±</th>
                   <th class="sortable" data-col="sr" onclick="setCmpSort('sr')" id="cmp-sr-th">
                     SR <span class="sort-arrow" id="sort-sr"></span>
                   </th>
@@ -1855,13 +1859,21 @@ Puneet - Pun, PK
       </div>
     </div>
 
-    <!-- Season scoring format picker sheet (Summary tab ASS badge) -->
+    <!-- Scoring system + season format picker sheet (Summary tab badge) -->
     <div class="live-sheet-overlay" id="season-scoring-overlay" onclick="closeSeasonScoringPicker()"></div>
     <div class="live-sheet" role="dialog" aria-modal="true" id="season-scoring-sheet">
       <div class="live-sheet-handle"></div>
-      <div class="live-sheet-title">SEASON SCORING FORMAT</div>
+      <div class="live-sheet-title">SCORING</div>
       <div id="season-scoring-note" style="display:none;font-size:10px;color:var(--muted);text-align:center;padding:0 16px 10px">Flip/Fair/Pulse need a prior season to compare against — showing RESET.</div>
       <div class="live-sheet-list" id="season-scoring-list"></div>
+    </div>
+
+    <!-- Scoring info sheet (ⓘ icon beside the Summary tab badge) -->
+    <div class="live-sheet-overlay" id="scoring-info-overlay" onclick="closeScoringInfoSheet()"></div>
+    <div class="live-sheet" role="dialog" aria-modal="true" id="scoring-info-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title">HOW SCORING WORKS</div>
+      <div class="live-sheet-list" id="scoring-info-body"></div>
     </div>
 
     <!-- History filter bottom sheet (player / pair) -->
