@@ -24,6 +24,7 @@ import {
   getPrestigeTier,
 } from "../src/domain/xp.js";
 import { lastWeekRange } from "../src/domain/dates.js";
+import { viewState } from "../src/ui/view-state.js";
 import {
   memoStats,
   memoASS,
@@ -479,6 +480,7 @@ function _pdBuildSeasonTrajectoryHtml(name) {
           <div class="pd-season-traj-rank" style="color:${_rankColor(t.rank, t.outOf)}">#${t.rank}/${t.outOf}</div>
           <div class="pd-season-traj-sr">${t.sr.toFixed(2)} SR</div>
           <div class="pd-season-traj-record">${t.mw}W–${t.ml}L</div>
+          <button class="pd-season-traj-recap-btn" title="Your recap for this season" onclick="event.stopPropagation();openPersonalSeasonRecap(${jsArg(t.season.id)},${jsArg(name)})">🎁</button>
         </div>`,
     )
     .join("");
@@ -1472,7 +1474,10 @@ function openPlayerDetail(name) {
             <div class="analytics-inner">
               <div class="analytics-header">
                 <div class="analytics-title" style="display:flex;align-items:center;gap:10px"><div class="pd-av-wrap">${_playerAvatar(name, 64)}</div><span>${escHtml(name)}</span></div>
-                <button class="analytics-close" aria-label="Close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <button class="pd-compare-btn" title="Compare with another player" onclick="openPlayerDetailCompare(${jsArg(name)})">⚖ COMPARE</button>
+                  <button class="analytics-close" aria-label="Close" onclick="document.getElementById('player-detail-modal').remove()">✕</button>
+                </div>
               </div>
               <div class="analytics-cards">
 
@@ -1694,5 +1699,23 @@ function openPlayerDetail(name) {
   }
 }
 
+// ── PLAYER COMPARE ───────────────────────────────────────────────────────────
+// The "⚖ COMPARE" button in the player-detail modal header launches the
+// app's existing Home-tab comparison card (renderCompareSelector/
+// openPlayerCompare, with its own independent-game-window and date-filter
+// controls) pre-filled with the player whose detail you're viewing, rather
+// than building a second, parallel comparison implementation.
+function openPlayerDetailCompare(name) {
+  document.getElementById("player-detail-modal")?.remove();
+  window.switchMainTab("home", true);
+  window.renderCompareSelector();
+  viewState.cmpPlayerA = name;
+  window._updateCmpSlots();
+  setTimeout(() => {
+    document.getElementById("compare-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.openCmpSheet("B");
+  }, 260);
+}
+
 // ── Exports for window re-exposure in app.js ─────────────────────────────────
-export { openPlayerDetail, streakCalDayClick, _dowDayRecord };
+export { openPlayerDetail, streakCalDayClick, _dowDayRecord, openPlayerDetailCompare };

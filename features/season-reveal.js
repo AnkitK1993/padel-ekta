@@ -5,7 +5,9 @@
 // numbers always match what viewSeasonArchive() shows. This is presentation
 // on top of that existing data, not a second archival mechanism.
 import { state } from "../src/domain/state.js";
-import { escHtml } from "../src/ui/format.js";
+import { activeMatches, _inSeason } from "../src/domain/selectors.js";
+import { computeSeasonRecap } from "../src/domain/season-recap.js";
+import { escHtml, fmtDate } from "../src/ui/format.js";
 import { fireConfetti } from "./confetti.js";
 
 // Pure — no DOM. Order: Champion → MVP → Top Pair → Iron Man → Most Improved
@@ -148,4 +150,96 @@ export function seasonRevealPrev() {
 }
 export function closeSeasonReveal() {
   document.getElementById("season-reveal-modal")?.remove();
+}
+
+// ── PERSONAL SEASON RECAP ("Wrapped" style) ─────────────────
+// A per-player counterpart to the team-wide awards reveal above, reusing the
+// exact same slide-show engine (_renderRevealSlide/seasonRevealNext/Prev/
+// closeSeasonReveal). Unlike the team reveal, this is computed LIVE from the
+// season's matches (computeSeasonRecap) rather than a frozen
+// archivedSnapshot — so it works for any season, including one still in
+// progress ("recap so far"), not only an already-archived one.
+function _fmtSign(n) {
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
+export function buildPersonalRecapSlides(recap, seasonName) {
+  if (!recap) return [];
+  const slides = [];
+  slides.push({
+    key: "recap-overview",
+    icon: recap.winPct >= 50 ? "🎾" : "💪",
+    title: `Your ${seasonName}`,
+    name: `${recap.mw}W – ${recap.ml}L`,
+    detail: `${recap.winPct}% win rate · ${recap.matchesPlayed} matches over ${recap.daysPlayed} day${recap.daysPlayed !== 1 ? "s" : ""}`,
+  });
+  slides.push({
+    key: "recap-rating",
+    icon: recap.ratingDelta > 0 ? "📈" : recap.ratingDelta < 0 ? "📉" : "➡️",
+    title: "Rating Journey",
+    name: `${recap.startRating} → ${recap.endRating}`,
+    detail: `${_fmtSign(recap.ratingDelta)} this season · Peak ${recap.peakRating}`,
+    celebrate: recap.ratingDelta > 0,
+  });
+  if (recap.bestWin) {
+    slides.push({
+      key: "recap-bestwin",
+      icon: "🔥",
+      title: "Best Win",
+      name: `vs ${recap.bestWin.opponent}`,
+      detail: `${recap.bestWin.scoreA}–${recap.bestWin.scoreB} on ${fmtDate(recap.bestWin.date)} · ${_fmtSign(recap.bestWin.gain)} pts`,
+    });
+  }
+  if (recap.nemesis) {
+    slides.push({
+      key: "recap-nemesis",
+      icon: "😤",
+      title: "Your Rival",
+      name: recap.nemesis.name,
+      detail: `${recap.nemesis.pct.toFixed(0)}% win rate against them · ${recap.nemesis.played} matches`,
+    });
+  }
+  if (recap.bestPartner) {
+    slides.push({
+      key: "recap-partner",
+      icon: "🤝",
+      title: "Best Partner",
+      name: recap.bestPartner.name,
+      detail: `${recap.bestPartner.pct.toFixed(0)}% win rate together · ${recap.bestPartner.played} matches`,
+    });
+  }
+  if (recap.bestWinStreak > 1) {
+    slides.push({
+      key: "recap-streak",
+      icon: "⚡",
+      title: "Best Win Streak",
+      name: `${recap.bestWinStreak} in a row`,
+      detail: "",
+    });
+  }
+  return slides;
+}
+
+export function openPersonalSeasonRecap(seasonId, playerName) {
+  const season = state.seasons.find((s) => s.id === seasonId);
+  if (!season) return;
+  const ms = activeMatches().filter((m) => _inSeason(season, m.date));
+  const recap = computeSeasonRecap(ms, playerName);
+  if (!recap) return;
+  _revealSlides = buildPersonalRecapSlides(recap, season.name);
+  _revealIdx = 0;
+  document.getElementById("season-reveal-modal")?.remove();
+  if (!_revealSlides.length) return;
+  const html = `<div id="season-reveal-modal" class="season-reveal-modal" role="dialog" aria-modal="true" aria-label="${escHtml(playerName)}'s ${escHtml(season.name)} recap" onclick="if(event.target.id==='season-reveal-modal')closeSeasonReveal()">
+    <button class="season-reveal-close" aria-label="Close" onclick="closeSeasonReveal()">✕</button>
+    <div class="season-reveal-header">${escHtml(playerName)}'s ${escHtml(season.name)}</div>
+    <div id="season-reveal-body" class="season-reveal-body"></div>
+    <div id="season-reveal-dots" class="season-reveal-dots"></div>
+    <div class="season-reveal-nav">
+      <button class="season-reveal-btn" id="season-reveal-prev" onclick="seasonRevealPrev()">‹ Back</button>
+      <button class="season-reveal-btn season-reveal-btn-primary" id="season-reveal-next" onclick="seasonRevealNext()">Next ›</button>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+  _renderRevealSlide();
 }

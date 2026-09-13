@@ -204,12 +204,14 @@ import {
   openPlayerDetail,
   streakCalDayClick,
   _dowDayRecord,
+  openPlayerDetailCompare,
 } from "./features/player-detail.js";
 import {
   openSeasonAwardsReveal,
   seasonRevealNext,
   seasonRevealPrev,
   closeSeasonReveal,
+  openPersonalSeasonRecap,
 } from "./features/season-reveal.js";
 import {
   openMatchIntro,
@@ -18945,6 +18947,7 @@ Object.assign(window, {
   seasonRevealNext,
   seasonRevealPrev,
   closeSeasonReveal,
+  openPersonalSeasonRecap,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -19008,6 +19011,7 @@ Object.assign(window, {
   undoLastAdd,
   computeBadges,
   openPlayerDetail,
+  openPlayerDetailCompare,
   openPairDetail,
   sortPairsBy,
   openH2HDetail,
@@ -21473,6 +21477,7 @@ function deletePlayerEntry() {
   const p = state.players[_editingPlayerId];
   if (!p) return;
   const canonical = p.name;
+  const editingId = _editingPlayerId;
   // A match belongs to this player if any team member resolves (via aliases)
   // to their canonical name. Computed while the alias maps are still intact.
   const involves = (m) =>
@@ -21482,7 +21487,7 @@ function deletePlayerEntry() {
   const affected = state.matches.filter(involves).length;
   if (
     !confirm(
-      `Delete player "${canonical}" and ALL their data?\n\nThis permanently removes ${affected} match${affected !== 1 ? "es" : ""} they played in, plus their name from every dropdown, as if they never existed. This cannot be undone.`,
+      `Delete player "${canonical}" and ALL their data?\n\nThis removes ${affected} match${affected !== 1 ? "es" : ""} they played in, plus their name from every dropdown, as if they never existed. You'll have a few seconds to undo.`,
     )
   )
     return;
@@ -21490,6 +21495,30 @@ function deletePlayerEntry() {
     "Delete Player",
     `${canonical} (+${affected} matches removed)`,
   );
+
+  // Snapshot everything this mutates, in enough detail to fully restore it —
+  // player deletion cascades across matches/trash/aliases/photo, so (unlike
+  // a single match) this needs its own restore logic rather than reusing
+  // deleteMatchByIndex's single-index undo.
+  const playerSnapshot = { ...p };
+  const aliasSnapshot = playerAliasMap[editingId]
+    ? [...playerAliasMap[editingId]]
+    : undefined;
+  const hadPhoto = Object.prototype.hasOwnProperty.call(photoMap, canonical);
+  const photoSnapshot = hadPhoto ? photoMap[canonical] : undefined;
+  // Removed matches, sorted ascending by original index — restoring them back
+  // in that same ascending order (via sequential splice-insert) reproduces
+  // the original array exactly, since each insert only shifts positions AT
+  // OR AFTER itself, which matches indices recorded for the not-yet-restored
+  // (higher) ones.
+  const removedMatches = [];
+  for (let i = 0; i < state.matches.length; i++) {
+    if (involves(state.matches[i])) removedMatches.push({ index: i, match: state.matches[i] });
+  }
+  const purgedFromTrash = Array.isArray(deletedMatches)
+    ? deletedMatches.filter(involves)
+    : [];
+
   // Hard-remove every match involving the player (reverse splice keeps indices valid).
   for (let i = state.matches.length - 1; i >= 0; i--) {
     if (involves(state.matches[i])) {
@@ -21498,14 +21527,13 @@ function deletePlayerEntry() {
     }
   }
   // Purge any of their matches lingering in the trash so nothing references them.
-  if (Array.isArray(deletedMatches)) {
-    const before = deletedMatches.length;
+  if (Array.isArray(deletedMatches) && purgedFromTrash.length) {
     deletedMatches = deletedMatches.filter((m) => !involves(m));
-    if (deletedMatches.length !== before) saveDeletedMatches();
+    saveDeletedMatches();
   }
-  delete state.players[_editingPlayerId];
-  delete playerAliasMap[_editingPlayerId];
-  if (typeof photoMap === "object" && photoMap[canonical]) {
+  delete state.players[editingId];
+  delete playerAliasMap[editingId];
+  if (hadPhoto) {
     delete photoMap[canonical];
     _savePhotosToCloud();
   }
@@ -21514,6 +21542,31 @@ function deletePlayerEntry() {
   commit();
   closePlayerEditSheet();
   renderNamesTable();
+
+  showUndoToast(
+    `Deleted ${escHtml(canonical)} (${affected} match${affected !== 1 ? "es" : ""})`,
+    () => {
+      state.players[editingId] = playerSnapshot;
+      if (aliasSnapshot) playerAliasMap[editingId] = aliasSnapshot;
+      removedMatches.forEach(({ index, match }) => {
+        state.matches.splice(index, 0, match);
+      });
+      if (purgedFromTrash.length) {
+        deletedMatches = [...purgedFromTrash, ...deletedMatches];
+        saveDeletedMatches();
+      }
+      if (hadPhoto) {
+        photoMap[canonical] = photoSnapshot;
+        _savePhotosToCloud();
+      }
+      rebuildNameMaps();
+      saveCloudData();
+      commit();
+      renderNamesTable();
+      logAdminAction("Undo Delete Player", canonical);
+    },
+    8000,
+  );
 }
 window.deletePlayerEntry = deletePlayerEntry;
 

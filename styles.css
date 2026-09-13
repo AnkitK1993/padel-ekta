@@ -5593,6 +5593,23 @@ select.input-modern option[value=""] {
   cursor: pointer;
   font-size: 14px;
 }
+.pd-compare-btn {
+  background: rgba(var(--theme-rgb), 0.1);
+  color: var(--theme);
+  border: 1px solid rgba(var(--theme-rgb), 0.3);
+  border-radius: 10px;
+  padding: 0 10px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.pd-compare-btn:hover,
+.pd-compare-btn:active {
+  background: rgba(var(--theme-rgb), 0.2);
+}
 .analytics-cards {
   display: flex;
   flex-direction: column;
@@ -17725,13 +17742,24 @@ body.zoomed *::after {
 }
 .pd-season-traj-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto auto auto;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
+}
+.pd-season-traj-recap-btn {
+  background: rgba(var(--theme-rgb), 0.12);
+  border: 1px solid rgba(var(--theme-rgb), 0.25);
+  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 .pd-season-traj-name {
   font-size: 11px;
