@@ -20,6 +20,10 @@ import {
   ordinal as _openSkillOrdinal,
 } from "./src/domain/openskill.js";
 import {
+  computeFairShare,
+  computeMatchFairShareDeltas,
+} from "./src/domain/fairshare.js";
+import {
   ratingDistribution,
   competitivenessOverTime,
   ratingsByMonth,
@@ -801,8 +805,10 @@ try {
 // Summary-tab scoring SYSTEM — "ass" (default), "glicko2", or "openskill".
 // Independent of _seasonScoringMode: the Flip/Fair season-carryover
 // variants are ASS-specific and only apply when this is "ass".
-const SCORING_SYSTEMS = ["ass", "glicko2", "openskill"];
-const SCORING_SYSTEM_LABELS = { ass: "ASS", glicko2: "GLICKO-2", openskill: "OPENSKILL" };
+const SCORING_SYSTEMS = ["ass", "glicko2", "openskill", "fairshare"];
+const SCORING_SYSTEM_LABELS = { ass: "ASS", glicko2: "GLICKO-2", openskill: "OPENSKILL", fairshare: "FAIR SHARE" };
+// Systems with a confidence/uncertainty concept worth a "±" column.
+const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill"];
 let _scoringSystem = "ass";
 try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
@@ -830,6 +836,7 @@ function _flatRatingForSystem(system, matches, full) {
     Object.keys(full).forEach((n) => (out[n] = full[n].mu));
     return out;
   }
+  if (system === "fairshare") return computeFairShare(matches);
   return computeASS(matches);
 }
 // "±" confidence band shown next to the rating for Glicko-2/OpenSkill — RD for
@@ -848,6 +855,7 @@ function _confidenceForSystem(system, full) {
 function _matchDeltasForSystem(system, matches) {
   if (system === "glicko2") return computeMatchGlicko2Deltas(matches);
   if (system === "openskill") return computeMatchOpenSkillDeltas(matches);
+  if (system === "fairshare") return computeMatchFairShareDeltas(matches);
   return computeMatchASSDeltas(matches);
 }
 let _addRenderedVersion = -1;
@@ -4774,7 +4782,7 @@ function _applyCmpColClasses() {
   );
   // The "±" confidence column only has meaning for Glicko-2/OpenSkill — driven
   // by the active scoring system, not a user-togglable column preference.
-  table.classList.toggle("hide-col-conf", _scoringSystem === "ass");
+  table.classList.toggle("hide-col-conf", !SCORING_SYSTEMS_WITH_CONFIDENCE.includes(_scoringSystem));
   const confTh = document.getElementById("cmp-conf-th");
   if (confTh) {
     confTh.textContent =
@@ -8924,6 +8932,7 @@ const SCORING_SYSTEM_BLURBS = {
   ass: "Match quality (margin + games) times an opponent-strength multiplier. This app's own system.",
   glicko2: "Chess.com/Lichess's algorithm: a rating plus a confidence band that narrows the more you play.",
   openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
+  fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
 };
 
 function _scoringSystemPickerRows() {

@@ -1,4 +1,4 @@
-const STATIC_CACHE = "ekta-padel-static-v19";
+const STATIC_CACHE = "ekta-padel-static-v20";
 const RUNTIME_CACHE = "ekta-padel-runtime-v2";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
@@ -32,6 +32,7 @@ const STATIC = [
   BASE + "src/domain/season-scoring.js",
   BASE + "src/domain/glicko2.js",
   BASE + "src/domain/openskill.js",
+  BASE + "src/domain/fairshare.js",
   BASE + "src/infra/ana-prefs.js",
   BASE + "src/infra/app-prefs.js",
   BASE + "src/infra/cloud/firebase.js",
