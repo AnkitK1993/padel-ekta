@@ -7,6 +7,13 @@
 
 import { computeASS } from "../src/domain/ass.js";
 import { computeStats } from "../src/domain/stats.js";
+import {
+  computeSeasonTrajectory,
+  computeSeasonRiserFaller,
+  computeHeadToHeadSeasonSplits,
+  seasonNeedsRollover,
+  orderSeasonsByStart,
+} from "../src/domain/season-stats.js";
 import { initPairsDeps, getPairStats, getPairKey } from "../src/domain/pairs.js";
 import { initXpDeps, xpThreshold, getPlayerLevel, getPrestigeTier } from "../src/domain/xp.js";
 import { computeBadges, initBadgesDeps } from "../src/domain/badges.js";
@@ -371,6 +378,107 @@ ok("prestige: level 5 → bronze", getPrestigeTier(5) === "bronze");
 ok("prestige: level 10 → silver", getPrestigeTier(10) === "silver");
 ok("prestige: level 15 → gold", getPrestigeTier(15) === "gold");
 ok("prestige: level 20 → diamond", getPrestigeTier(20) === "diamond");
+
+// ── season-stats golden (real src/domain/season-stats.js) ──────────────────
+console.log(
+  "\n\x1b[36m── Season stats golden (real season-stats.js) ───────────\x1b[0m",
+);
+const S1 = { id: "s1", name: "Season 1", start: "2024-01-01", end: "2024-01-31" };
+const S2 = { id: "s2", name: "Season 2", start: "2024-02-01", end: "2024-02-28" };
+const SEASON2 = [
+  M("2024-02-01", ["Bob", "Dave"], ["Alice", "Carol"], 4, 1),
+  M("2024-02-02", ["Bob", "Carol"], ["Alice", "Dave"], 4, 2),
+  M("2024-02-03", ["Bob", "Alice"], ["Carol", "Dave"], 1, 4),
+  M("2024-02-04", ["Carol", "Dave"], ["Bob", "Alice"], 4, 0),
+  M("2024-02-05", ["Alice", "Eve"], ["Bob", "Carol"], 4, 3),
+  M("2024-02-06", ["Alice", "Eve"], ["Bob", "Dave"], 4, 2),
+];
+// Dated after Season 2 ends — falls outside every defined season range.
+const OUT_OF_SEASON = M("2024-03-15", ["Alice", "Bob"], ["Carol", "Dave"], 4, 2);
+const ALL_SEASON_MATCHES = [...SEASON, ...SEASON2, OUT_OF_SEASON];
+const SEASONS_FIXTURE = [S2, S1]; // deliberately unsorted input
+
+ok(
+  "orderSeasonsByStart sorts oldest-first regardless of input order",
+  orderSeasonsByStart(SEASONS_FIXTURE).map((s) => s.id).join(",") === "s1,s2",
+);
+
+const daveTraj = computeSeasonTrajectory(ALL_SEASON_MATCHES, SEASONS_FIXTURE, "Dave");
+ok(
+  "trajectory: Dave played both seasons -> 2 rows, oldest first",
+  daveTraj.length === 2 && daveTraj[0].season.id === "s1" && daveTraj[1].season.id === "s2",
+  `got ${JSON.stringify(daveTraj.map((r) => r.season.id))}`,
+);
+ok(
+  "trajectory rows have finite ass and a rank within outOf",
+  daveTraj.every((r) => Number.isFinite(r.ass) && r.rank >= 1 && r.rank <= r.outOf),
+  `got ${JSON.stringify(daveTraj)}`,
+);
+
+const eveTraj = computeSeasonTrajectory(ALL_SEASON_MATCHES, SEASONS_FIXTURE, "Eve");
+ok(
+  "trajectory: Eve only played Season 2 -> 1 row, that season omitted for Season 1",
+  eveTraj.length === 1 && eveTraj[0].season.id === "s2",
+  `got ${JSON.stringify(eveTraj.map((r) => r.season.id))}`,
+);
+
+const riserFaller = computeSeasonRiserFaller(ALL_SEASON_MATCHES, S1, S2);
+ok(
+  "riser/faller: only players common to both seasons (Eve excluded, played S2 only)",
+  riserFaller.length === 4 && !riserFaller.some((r) => r.name === "Eve"),
+  `got ${JSON.stringify(riserFaller.map((r) => r.name))}`,
+);
+ok(
+  "riser/faller: assDelta/rankDelta are internally consistent",
+  riserFaller.every(
+    (r) => r.assDelta === r.assB - r.assA && r.rankDelta === r.rankA - r.rankB,
+  ),
+  `got ${JSON.stringify(riserFaller)}`,
+);
+ok(
+  "riser/faller: sorted by assDelta descending",
+  riserFaller.every((r, i) => i === 0 || riserFaller[i - 1].assDelta >= r.assDelta),
+  `got ${JSON.stringify(riserFaller.map((r) => r.assDelta))}`,
+);
+
+const aliceMatches = ALL_SEASON_MATCHES.filter((m) =>
+  [...m.teamA, ...m.teamB].includes("Alice"),
+);
+const splits = computeHeadToHeadSeasonSplits(aliceMatches, SEASONS_FIXTURE, "Alice");
+const carolSplits = splits.get("Carol") || [];
+ok(
+  "H2H split: Alice vs Carol split across exactly the 2 defined seasons",
+  carolSplits.length === 2 &&
+    carolSplits[0].season.id === "s1" &&
+    carolSplits[1].season.id === "s2",
+  `got ${JSON.stringify(carolSplits)}`,
+);
+ok(
+  "H2H split: out-of-season match excluded (sum stays 9, not 10)",
+  carolSplits.reduce((s, e) => s + e.p, 0) === 9,
+  `got ${carolSplits.reduce((s, e) => s + e.p, 0)}`,
+);
+ok(
+  "H2H split: empty matches -> empty map",
+  computeHeadToHeadSeasonSplits([], SEASONS_FIXTURE, "Nobody").size === 0,
+);
+
+ok("rollover: no ended season -> false", seasonNeedsRollover([], "2024-03-01") === false);
+const endedNoSuccessor = { id: "x1", start: "2024-01-01", end: "2024-02-01" };
+const coveringToday = { id: "x2", start: "2024-02-15", end: "2024-03-31" };
+const futureNotStarted = { id: "x3", start: "2024-04-01", end: "2024-04-30" };
+ok(
+  "rollover: ended season, no successor -> true",
+  seasonNeedsRollover([endedNoSuccessor], "2024-03-01") === true,
+);
+ok(
+  "rollover: ended season + a season covering today -> false",
+  seasonNeedsRollover([endedNoSuccessor, coveringToday], "2024-03-01") === false,
+);
+ok(
+  "rollover: ended season + a future season that hasn't started yet -> true",
+  seasonNeedsRollover([endedNoSuccessor, futureNotStarted], "2024-03-01") === true,
+);
 
 console.log(
   `\n\x1b[1mGolden: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`,
