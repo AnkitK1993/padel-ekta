@@ -180,6 +180,12 @@ import {
   _dowDayRecord,
 } from "./features/player-detail.js";
 import {
+  openSeasonAwardsReveal,
+  seasonRevealNext,
+  seasonRevealPrev,
+  closeSeasonReveal,
+} from "./features/season-reveal.js";
+import {
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,
@@ -12794,6 +12800,30 @@ function _buildSeasonComparisonHtml() {
   return `<div class="ana-card" style="padding:8px"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div><div style="font-size:9px;color:var(--muted);margin-top:6px">Season ASS per player (W–L below). — = didn't play that season.</div></div>`;
 }
 
+// A trophy strip of each archived season's Champion. Only reads
+// archivedSnapshot (frozen at archiveSeason() time) — nothing here
+// recomputes standings. Tapping a card reopens the same celebratory reveal
+// the 🎉 button in the Seasons sheet does.
+function _buildHallOfFameHtml() {
+  const champions = state.seasons
+    .filter((s) => s.archived && s.archivedSnapshot?.standings?.length)
+    .sort((a, b) => (b.start || "").localeCompare(a.start || ""));
+  if (!champions.length)
+    return '<div class="sub" style="padding:8px">No seasons archived yet — archive a finished season (📦 in 🗓️ Seasons) to start your Hall of Fame.</div>';
+  const cards = champions
+    .map((s) => {
+      const champ = s.archivedSnapshot.standings[0];
+      return `<div class="hof-card" onclick="openSeasonAwardsReveal(${jsArg(s.id)})">
+        <div class="hof-trophy">🏆</div>
+        <div class="hof-season-name">${escHtml(s.name)}</div>
+        <div class="hof-champ-name">${escHtml(champ.name)}</div>
+        <div class="hof-champ-meta">${champ.mw}W–${champ.ml}L · SR ${champ.sr.toFixed(2)}</div>
+      </div>`;
+    })
+    .join("");
+  return `<div class="hof-strip">${cards}</div>`;
+}
+
 window._renderHiLoTable = function () {
   const el = document.getElementById("hi-lo-elo-body");
   if (!el || !window._hiLoData) return;
@@ -16686,6 +16716,12 @@ function renderAnalyticsPage() {
       title: "🆚 Season Comparison",
       body: _buildSeasonComparisonHtml(),
     },
+    {
+      key: "hof",
+      cat: "records",
+      title: "🏆 Hall of Fame",
+      body: _buildHallOfFameHtml(),
+    },
     // ── NEW SECTIONS ───────────────────────────────────────────
     {
       key: "winratecalc",
@@ -17473,7 +17509,7 @@ function renderAnalyticsPage() {
       "chemlb",
       "pairedh2h",
     ]);
-    const fullKeys = new Set(["partnergrid"]);
+    const fullKeys = new Set(["partnergrid", "hof"]);
     const leftHtml = [];
     const rightHtml = [];
     const fullHtml = [];
@@ -18498,6 +18534,10 @@ Object.assign(window, {
   archiveSeason,
   viewSeasonArchive,
   dismissSeasonRollover,
+  openSeasonAwardsReveal,
+  seasonRevealNext,
+  seasonRevealPrev,
+  closeSeasonReveal,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -20346,6 +20386,7 @@ function _renderSeasonList() {
       ${admin ? `<button class="season-row-edit" title="Edit" onclick="event.stopPropagation();openSeasonEditor(${jsArg(s.id)})">✏️</button>` : ""}
       ${admin && s.end && !s.archived ? `<button class="season-row-edit" title="Archive this season" onclick="event.stopPropagation();archiveSeason(${jsArg(s.id)})">📦</button>` : ""}
       ${s.archived ? `<button class="season-row-edit" title="View frozen snapshot" onclick="event.stopPropagation();viewSeasonArchive(${jsArg(s.id)})">🔒</button>` : ""}
+      ${s.archived ? `<button class="season-row-edit" title="Celebrate this season" onclick="event.stopPropagation();openSeasonAwardsReveal(${jsArg(s.id)})">🎉</button>` : ""}
     </div>`;
     })
     .join("");

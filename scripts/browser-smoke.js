@@ -670,6 +670,43 @@ async function main() {
     assert(!!rollover.dismissedLs, "Expected dismissal to persist a season id to localStorage");
     assert(rollover.hiddenAfterDismiss, "Expected the banner hidden after dismissing that season");
 
+    // Season Awards Reveal: archive "May 2026" (all seeded matches live there),
+    // open the celebratory reveal, and assert the shown Champion is exactly
+    // archivedSnapshot.standings[0] — i.e. the reveal reads the frozen
+    // snapshot rather than recomputing anything itself.
+    const reveal = await evaluate(client, `(() => {
+      window.isAdmin = true;
+      const may = JSON.parse(localStorage.getItem("padel_seasons") || "[]")
+        .find(s => s.name === "May 2026");
+      archiveSeason(may.id);
+      const seasons = JSON.parse(localStorage.getItem("padel_seasons") || "[]");
+      const archived = seasons.find(s => s.id === may.id);
+      openSeasonAwardsReveal(may.id);
+      const modal = document.getElementById("season-reveal-modal");
+      const champName = document.querySelector("#season-reveal-body .reveal-name")?.textContent;
+      seasonRevealNext(); // MVP slide (or whatever comes next)
+      const dotsCount = document.querySelectorAll("#season-reveal-dots .reveal-dot").length;
+      closeSeasonReveal();
+      const closedOk = document.getElementById("season-reveal-modal") === null;
+      return {
+        archived: !!archived?.archived,
+        champFromSnapshot: archived?.archivedSnapshot?.standings?.[0]?.name,
+        modalOpened: !!modal,
+        champShown: champName,
+        dotsCount,
+        closedOk,
+      };
+    })()`);
+    assert(reveal.archived, "Expected archiveSeason() to mark the season archived");
+    assert(reveal.modalOpened, "Expected openSeasonAwardsReveal() to open the modal");
+    assert(
+      reveal.champShown === reveal.champFromSnapshot,
+      `Expected the reveal's Champion slide to match archivedSnapshot.standings[0], got "${reveal.champShown}" vs "${reveal.champFromSnapshot}"`,
+    );
+    assert(reveal.dotsCount > 1, "Expected multiple reveal slides (dots) for a season with awards");
+    assert(reveal.closedOk, "Expected closeSeasonReveal() to remove the modal");
+    await evaluate(client, `closeSeasonSheet();`);
+
     // #6 memo correctness: an exclusion toggle changes the active-match set
     // WITHOUT bumping _dataVersion, so the activeMatches() memo must invalidate
     // off its exclusion key. Puneet is in every seeded match → excluding him

@@ -17414,6 +17414,210 @@ body.zoomed *::after {
   border-color: var(--border);
   color: var(--text-muted);
 }
+
+/* ── Hall of Fame (Analytics card) ─────────────────────────── */
+.hof-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  scrollbar-width: none;
+}
+.hof-strip::-webkit-scrollbar {
+  display: none;
+}
+.hof-card {
+  flex: 0 0 auto;
+  min-width: 128px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--theme) 10%, var(--surface)),
+    var(--surface)
+  );
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.16s;
+}
+.hof-card:active {
+  transform: scale(0.97);
+}
+.hof-trophy {
+  font-size: 26px;
+  margin-bottom: 4px;
+}
+.hof-season-name {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.hof-champ-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hof-champ-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Season Awards Reveal (celebratory full-screen modal) ──── */
+.season-reveal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: radial-gradient(
+    circle at 50% 20%,
+    color-mix(in srgb, var(--theme) 22%, var(--bg)),
+    var(--bg) 70%
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.season-reveal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.season-reveal-header {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.season-reveal-body {
+  width: 100%;
+  max-width: 360px;
+}
+.reveal-slide {
+  text-align: center;
+  animation: reveal-pop 0.35s ease;
+}
+@keyframes reveal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.reveal-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+.reveal-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+.reveal-name {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--text);
+  margin-top: 6px;
+}
+.reveal-detail {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.reveal-top3 {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reveal-top3-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.reveal-top3-rank {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 24px;
+}
+.reveal-top3-name {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.reveal-top3-sr {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--theme);
+}
+.season-reveal-dots {
+  display: flex;
+  gap: 6px;
+  margin-top: 22px;
+}
+.reveal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+.reveal-dot.active {
+  background: var(--theme);
+}
+.season-reveal-nav {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+  width: 100%;
+  max-width: 360px;
+}
+.season-reveal-btn {
+  flex: 1;
+  padding: 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+.season-reveal-btn-primary {
+  background: var(--theme);
+  border-color: transparent;
+  color: #fff;
+}
 .season-field-label {
   display: block;
   font-size: 11px;

@@ -14,6 +14,7 @@ import {
   seasonNeedsRollover,
   orderSeasonsByStart,
 } from "../src/domain/season-stats.js";
+import { buildSeasonRevealSlides } from "../features/season-reveal.js";
 import { initPairsDeps, getPairStats, getPairKey } from "../src/domain/pairs.js";
 import { initXpDeps, xpThreshold, getPlayerLevel, getPrestigeTier } from "../src/domain/xp.js";
 import { computeBadges, initBadgesDeps } from "../src/domain/badges.js";
@@ -478,6 +479,73 @@ ok(
 ok(
   "rollover: ended season + a future season that hasn't started yet -> true",
   seasonNeedsRollover([endedNoSuccessor, futureNotStarted], "2024-03-01") === true,
+);
+
+// ── season-reveal golden (real features/season-reveal.js) ──────────────────
+console.log(
+  "\n\x1b[36m── Season reveal golden (real season-reveal.js) ─────────\x1b[0m",
+);
+const FULL_SNAPSHOT_SEASON = {
+  id: "s1",
+  name: "Season 1",
+  archivedSnapshot: {
+    matches: 12,
+    mvp: { name: "Alice", mp: 12, mw: 9 },
+    topPair: { players: ["Alice", "Bob"], winPct: 75 },
+    mostImproved: { name: "Carol" },
+    ironMan: { name: "Dave", mp: 12 },
+    standings: [
+      { name: "Alice", mp: 12, mw: 9, ml: 3, sr: 4.32 },
+      { name: "Bob", mp: 12, mw: 8, ml: 4, sr: 3.9 },
+      { name: "Carol", mp: 12, mw: 6, ml: 6, sr: 3.1 },
+      { name: "Dave", mp: 12, mw: 5, ml: 7, sr: 2.8 },
+    ],
+  },
+};
+const fullSlides = buildSeasonRevealSlides(FULL_SNAPSHOT_SEASON);
+ok(
+  "full snapshot -> 6 slides in the documented order",
+  fullSlides.map((s) => s.key).join(",") ===
+    "champion,mvp,toppair,ironman,mostimproved,top3",
+  `got ${JSON.stringify(fullSlides.map((s) => s.key))}`,
+);
+ok(
+  "champion slide reads standings[0] (rank-based), not the mvp field",
+  fullSlides[0].name === "Alice" && fullSlides[0].celebrate === true,
+  `got ${JSON.stringify(fullSlides[0])}`,
+);
+ok(
+  "top3 slide has 3 ranked entries",
+  fullSlides[5].top3.length === 3 && fullSlides[5].top3[0].rank === 1,
+  `got ${JSON.stringify(fullSlides[5])}`,
+);
+
+const partialSlides = buildSeasonRevealSlides({
+  id: "s2",
+  name: "Season 2",
+  archivedSnapshot: {
+    matches: 4,
+    mvp: null,
+    topPair: null,
+    mostImproved: null,
+    ironMan: null,
+    standings: [{ name: "Solo", mp: 4, mw: 4, ml: 0, sr: 5 }],
+  },
+});
+ok(
+  "missing awards are skipped -> only champion + top3",
+  partialSlides.map((s) => s.key).join(",") === "champion,top3",
+  `got ${JSON.stringify(partialSlides.map((s) => s.key))}`,
+);
+
+ok(
+  "no archivedSnapshot -> no slides",
+  buildSeasonRevealSlides({ id: "s3", name: "Unarchived" }).length === 0,
+);
+ok(
+  "buildSeasonRevealSlides is deterministic",
+  JSON.stringify(buildSeasonRevealSlides(FULL_SNAPSHOT_SEASON)) ===
+    JSON.stringify(fullSlides),
 );
 
 console.log(
