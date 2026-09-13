@@ -333,7 +333,7 @@
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
           <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
-          <div id="summary-mode-badge" class="smt-mode-badge">ASS</div>
+          <div id="summary-mode-badge" class="smt-mode-badge" role="button" tabindex="0" title="Season scoring format" onclick="openSeasonScoringPicker()">ASS</div>
         </div>
         <!-- Filter bar — date FAB + action icons -->
         <div class="summary-filter-bar">
@@ -1853,6 +1853,15 @@ Puneet - Pun, PK
         </div>
         <button class="cmp-count-apply" onclick="_cmpCountApply()">APPLY</button>
       </div>
+    </div>
+
+    <!-- Season scoring format picker sheet (Summary tab ASS badge) -->
+    <div class="live-sheet-overlay" id="season-scoring-overlay" onclick="closeSeasonScoringPicker()"></div>
+    <div class="live-sheet" role="dialog" aria-modal="true" id="season-scoring-sheet">
+      <div class="live-sheet-handle"></div>
+      <div class="live-sheet-title">SEASON SCORING FORMAT</div>
+      <div id="season-scoring-note" style="display:none;font-size:10px;color:var(--muted);text-align:center;padding:0 16px 10px">Flip/Fair/Pulse need a prior season to compare against — showing RESET.</div>
+      <div class="live-sheet-list" id="season-scoring-list"></div>
     </div>
 
     <!-- History filter bottom sheet (player / pair) -->

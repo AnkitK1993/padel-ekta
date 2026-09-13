@@ -2,6 +2,13 @@
 import { computeStats, _normScores, ratingToSr } from "./src/domain/stats.js";
 import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "./src/domain/ass.js";
 import {
+  hasSeasonScoringReference,
+  computeSeasonScoringASS,
+  SEASON_SCORING_MODES,
+  SEASON_SCORING_LABELS,
+  SEASON_SCORING_DESCRIPTIONS,
+} from "./src/domain/season-scoring.js";
+import {
   ratingDistribution,
   competitivenessOverTime,
   ratingsByMonth,
@@ -770,6 +777,15 @@ let _compactRenderedVersion = -1,
 // ASS is the sole scoring system — no more Summary-tab-local mode toggle.
 const _summaryMode = "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
+// Season-carryover scoring variant for the Summary tab leaderboard — "reset"
+// (default, unchanged behaviour), "flip", "fair", or "pulse". Only takes
+// effect on the ALL TIME view of a season that has a valid reference (prior)
+// season; every other surface keeps using the canonical per-season computeASS.
+let _seasonScoringMode = "reset";
+try {
+  const _stored = localStorage.getItem("padel_season_scoring_mode");
+  if (_stored && SEASON_SCORING_MODES.includes(_stored)) _seasonScoringMode = _stored;
+} catch (e) {}
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
 let _anaRenderedFilter = "";
@@ -5007,9 +5023,10 @@ window.removeStatsCache = function removeStatsCache() {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}|${_seasonScoringMode}`;
   _updateExcludeBtn();
   _renderSeasonQuickSwitch();
+  _updateSeasonScoringBadge();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
     const _LBL_MONTHS = [
@@ -5052,6 +5069,12 @@ function renderCompact() {
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   const _isCmpAllFilter = cmpFilter === "all" && !cmpFrom && !cmpTo;
+  // Season-carryover scoring (Flip/Fair/Pulse) only makes sense on the full,
+  // undated ALL TIME view of a season with a real prior season to draw from —
+  // FIRST/LAST windows and narrower date filters always fall back to Reset.
+  const _cmpSeason = _activeSeason();
+  const _hasScoringRef = !_lbWindow && _isCmpAllFilter && hasSeasonScoringReference(state.seasons, _cmpSeason);
+  const _effSeasonScoringMode = _hasScoringRef ? _seasonScoringMode : "reset";
   let _cmpASSMap, stats;
   if (_lbWindow) {
     // FIRST/LAST window: recompute ASS and SR over each player's windowed
@@ -5059,8 +5082,17 @@ function renderCompact() {
     const r = _computeLbWindowStats(filtered);
     _cmpASSMap = r.assMap;
     stats = r.stats;
-  } else {
+  } else if (_effSeasonScoringMode === "reset") {
     _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
+    stats = computeStats(filtered, _cmpASSMap);
+  } else {
+    _cmpASSMap = computeSeasonScoringASS(
+      _effSeasonScoringMode,
+      withoutGuestMatches(state.matches),
+      filtered,
+      state.seasons,
+      _cmpSeason,
+    );
     stats = computeStats(filtered, _cmpASSMap);
   }
   const sortFns = {
@@ -5246,13 +5278,18 @@ function renderCompact() {
 
   // Delta walk base: ALL TIME uses the full active-season trajectory so each
   // match's delta reflects its true historical ASS context. TODAY starts
-  // fresh and walks only today's matches (session-relative).
+  // fresh and walks only today's matches (session-relative). Fair/Pulse never
+  // reset — their whole premise is continuous, true-strength-weighted deltas —
+  // so they always walk the complete cross-season history regardless of window.
   const _allActive = activeMatches();
   const _deltaMatches =
     _matchDeltaWindow === "today"
       ? _allActive.filter((m) => m.date === todayISO())
       : _allActive;
-  const matchEloDeltas = computeMatchASSDeltas(_deltaMatches);
+  const matchEloDeltas =
+    _effSeasonScoringMode === "fair" || _effSeasonScoringMode === "pulse"
+      ? computeMatchASSDeltas(withoutGuestMatches(state.matches))
+      : computeMatchASSDeltas(_deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
@@ -8766,6 +8803,74 @@ function _cmpSetWindow(slot, mode) {
   } else {
     _cmpCountPickerOpen(slot, mode);
   }
+}
+
+// ── SEASON SCORING MODE PICKER (Summary tab badge) ──────────
+// Tapping #summary-mode-badge opens a sheet listing Reset/Flip/Fair/Pulse.
+// Options with no valid reference season (e.g. the very first season, or
+// "ALL SEASONS") are shown disabled — selecting one is a no-op in that case
+// and renderCompact() silently falls back to Reset regardless of the stored
+// preference, so nothing breaks if a season boundary later changes.
+function _seasonScoringPickerRows() {
+  const season = _activeSeason();
+  const hasRef = hasSeasonScoringReference(state.seasons, season);
+  return SEASON_SCORING_MODES.map((mode) => {
+    const disabled = mode !== "reset" && !hasRef;
+    const selected = _seasonScoringMode === mode;
+    return `<button class="live-sheet-item${selected ? " live-sheet-item-selected" : ""}" ${disabled ? "disabled" : `onclick="_setSeasonScoringMode('${mode}')"`}>
+      <div style="flex:1;text-align:left">
+        <div style="font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SEASON_SCORING_LABELS[mode]}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:normal">${SEASON_SCORING_DESCRIPTIONS[mode]}</div>
+      </div>
+    </button>`;
+  }).join("");
+}
+
+function openSeasonScoringPicker() {
+  const list = document.getElementById("season-scoring-list");
+  if (list) list.innerHTML = _seasonScoringPickerRows();
+  const season = _activeSeason();
+  const note = document.getElementById("season-scoring-note");
+  if (note) {
+    note.style.display = hasSeasonScoringReference(state.seasons, season) ? "none" : "block";
+  }
+  document.getElementById("season-scoring-overlay")?.classList.add("live-sheet-open");
+  document.getElementById("season-scoring-sheet")?.classList.add("live-sheet-open");
+}
+
+function closeSeasonScoringPicker() {
+  document.getElementById("season-scoring-overlay")?.classList.remove("live-sheet-open");
+  document.getElementById("season-scoring-sheet")?.classList.remove("live-sheet-open");
+}
+
+function _setSeasonScoringMode(mode) {
+  if (!SEASON_SCORING_MODES.includes(mode)) return;
+  _seasonScoringMode = mode;
+  try {
+    localStorage.setItem("padel_season_scoring_mode", mode);
+  } catch (e) {}
+  closeSeasonScoringPicker();
+  _updateSeasonScoringBadge();
+  document.body.classList.add("no-cascade");
+  const tbody = document.getElementById("cmpBody");
+  if (tbody) tbody.innerHTML = "";
+  renderCompact();
+  document.body.classList.remove("no-cascade");
+}
+
+// Reflects the badge's text/subscript with the effective mode — falls back to
+// showing RESET when the active season has no valid reference, even if a
+// different mode is stored, so the badge never claims an inactive variant.
+function _updateSeasonScoringBadge() {
+  const badge = document.getElementById("summary-mode-badge");
+  if (!badge) return;
+  const season = _activeSeason();
+  const hasRef = hasSeasonScoringReference(state.seasons, season);
+  const effective = hasRef ? _seasonScoringMode : "reset";
+  badge.innerHTML =
+    effective === "reset"
+      ? "ASS"
+      : `ASS<span class="smt-mode-sub">${SEASON_SCORING_LABELS[effective]}</span>`;
 }
 
 function _cmpWindowCtrlHtml(slot) {
@@ -18734,6 +18839,9 @@ Object.assign(window, {
   _cmpCountPickerClose,
   _cmpCountStep,
   _cmpCountApply,
+  openSeasonScoringPicker,
+  closeSeasonScoringPicker,
+  _setSeasonScoringMode,
   _updateCmpSlots,
   toggleMngCard,
   toggleManageReorder,

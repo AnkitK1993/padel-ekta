@@ -2545,6 +2545,24 @@ textarea:focus {
   border-radius: 5px;
   padding: 3px 8px;
   align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.smt-mode-badge:hover,
+.smt-mode-badge:active {
+  background: rgba(var(--theme-rgb), 0.24);
+}
+.smt-mode-sub {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  background: rgba(var(--theme-rgb), 0.35);
+  border-radius: 4px;
+  padding: 1px 5px;
 }
 
 /* Text Size control (mirrors .anim-seg) — A− / readout / A+ */
