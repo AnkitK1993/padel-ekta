@@ -604,6 +604,41 @@ async function main() {
 
     await evaluate(client, `setSeason("all"); closeSeasonSheet();`);
 
+    // Home's season quick-switch pill row must be a second, equivalent entry
+    // point to the same setSeason() global the hamburger sheet uses — tap the
+    // "May 2026" pill directly (no sheet involved) and assert parity: the
+    // leaderboard filters, the hamburger label updates, and the choice persists.
+    const homePillPick = await evaluate(client, `(() => {
+      switchMainTab("home"); // pill only re-renders on click when Home is the active page
+      const findPill = () => Array.from(document.querySelectorAll("#homeSeasonRow button"))
+        .find((b) => b.textContent.trim() === "May 2026");
+      const pill = findPill();
+      if (!pill) return { found: false };
+      pill.click(); // fires setSeason(id) -> commit() -> re-renders Home, replacing this row
+      const pillAfter = findPill(); // re-query: the click replaced the row's DOM
+      return {
+        found: true,
+        hamLabel: document.getElementById("season-hmenu-btn").textContent,
+        activeLs: localStorage.getItem("padel_active_season"),
+        pillActive: !!pillAfter && pillAfter.classList.contains("active"),
+      };
+    })()`);
+    assert(homePillPick.found, "Expected a Home season pill for 'May 2026'");
+    assert(
+      homePillPick.hamLabel.includes("May 2026"),
+      `Expected hamburger label to follow the Home pill tap, got "${homePillPick.hamLabel}"`,
+    );
+    assert(
+      !!homePillPick.activeLs && homePillPick.pillActive,
+      `Expected the tapped pill's season id persisted and the pill marked active, got ${JSON.stringify(homePillPick)}`,
+    );
+    await evaluate(client, `setSeason("all"); renderHome();`);
+    await waitFor(
+      client,
+      `document.querySelectorAll("#board .pc").length >= 4`,
+      "ALL SEASONS (via Home pill reset) restores the full leaderboard",
+    );
+
     // #6 memo correctness: an exclusion toggle changes the active-match set
     // WITHOUT bumping _dataVersion, so the activeMatches() memo must invalidate
     // off its exclusion key. Puneet is in every seeded match → excluding him

@@ -7914,6 +7914,13 @@ select.cmp-sel option {
     border-radius: 99px;
   }
 }
+/* Season quick-switch pill row on Home/Compact — same pills as Analytics'
+   .ana-season-row, but this container isn't the Analytics page so it needs
+   its own side padding (the Analytics one relies on that page's own
+   #analytics-page-content padding instead). */
+.home-season-row.ana-filter-row {
+  padding: 0 11px 8px;
+}
 .ana-date-toolbar {
   justify-content: flex-start !important;
   flex-wrap: wrap;

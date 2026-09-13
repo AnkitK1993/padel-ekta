@@ -4703,6 +4703,7 @@ let _renderHomeGen = 0;
 function renderHome() {
   _homeRenderedVersion = _dataVersion;
   _homeRenderedFilter = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
+  _renderSeasonQuickSwitch();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   // When filter is "all" (no date range), filtered === activeMatches() content —
   // use the memoised results to avoid redundant full-dataset walks.
@@ -4997,6 +4998,7 @@ function renderCompact() {
   _compactRenderedVersion = _dataVersion;
   _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}`;
   _updateExcludeBtn();
+  _renderSeasonQuickSwitch();
   const _cmpDateLbl = document.getElementById("cmpDateLabel");
   if (_cmpDateLbl) {
     const _LBL_MONTHS = [
@@ -13101,7 +13103,10 @@ function _analyticsMatches() {
   );
 }
 
-function _analyticsSeasonControlsHtml() {
+// Shared by the Analytics season-pill row and the Home/Compact quick-switch
+// row (_homeSeasonPillHtml) — one place builds the "ALL SEASONS" + one pill
+// per season option list, newest-start-first.
+function _seasonPillOptions() {
   const activeSeason = _activeSeason();
   const activeId = activeSeason ? activeSeason.id : "all";
   const seasons = [...state.seasons].sort((a, b) =>
@@ -13119,12 +13124,36 @@ function _analyticsSeasonControlsHtml() {
       title: _seasonRangeLabel(s),
     })),
   ];
-  return `<div class="ana-filter-row ana-season-row" id="ana-season-row">${opts
+  return { activeId, opts };
+}
+// `idAttr` is only given to the Analytics row (id="ana-season-row" is an
+// existing, possibly-referenced anchor) — Home/Compact mount two copies of
+// this markup into two different containers, so the pill row itself stays
+// id-less there to avoid a duplicate-DOM-id.
+function _seasonPillsHtml(rowClass, idAttr) {
+  const { activeId, opts } = _seasonPillOptions();
+  return `<div class="ana-filter-row ${rowClass}"${idAttr ? ` id="${idAttr}"` : ""}>${opts
     .map(
       (o) =>
         `<button class="ana-filter-pill${activeId === o.id ? " active" : ""}" onclick="setSeason(${jsArg(o.id)})" title="${escHtml(o.title)}">${escHtml(o.label)}</button>`,
     )
     .join("")}</div>`;
+}
+function _analyticsSeasonControlsHtml() {
+  return _seasonPillsHtml("ana-season-row", "ana-season-row");
+}
+// Season quick-switch pill row for Home/Compact — hidden entirely when the
+// group has no seasons defined (nothing to switch between).
+function _homeSeasonPillHtml() {
+  if (!state.seasons.length) return "";
+  return _seasonPillsHtml("home-season-row");
+}
+function _renderSeasonQuickSwitch() {
+  const html = _homeSeasonPillHtml();
+  const h = document.getElementById("homeSeasonRow");
+  if (h) h.innerHTML = html;
+  const c = document.getElementById("compactSeasonRow");
+  if (c) c.innerHTML = html;
 }
 
 function _analyticsDateControlsHtml() {
