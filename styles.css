@@ -17618,6 +17618,52 @@ body.zoomed *::after {
   border-color: transparent;
   color: #fff;
 }
+
+/* ── Player Detail: Season History (cross-season trajectory) ─ */
+.pd-season-traj-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.pd-season-traj-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+.pd-season-traj-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pd-season-traj-rank {
+  font-size: 11px;
+  font-weight: 800;
+}
+.pd-season-traj-sr {
+  font-size: 10px;
+  color: var(--theme);
+  font-weight: 700;
+}
+.pd-season-traj-record {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ── Player Detail: vs-opponent cross-season split chips ─────── */
+.pd-vs-season-split {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
 .season-field-label {
   display: block;
   font-size: 11px;

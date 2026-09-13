@@ -707,6 +707,25 @@ async function main() {
     assert(reveal.closedOk, "Expected closeSeasonReveal() to remove the modal");
     await evaluate(client, `closeSeasonSheet();`);
 
+    // Player Detail: Season History + cross-season "vs opponent" split chips.
+    // Two seasons now exist ("Empty Range" 2020, no matches; "May 2026", all
+    // seeded matches) — Ankit's trajectory should show exactly 1 row (the
+    // season he actually played), and the vs-opponents split should render
+    // without throwing even though no opponent has 2+ season buckets yet.
+    const playerDetail = await evaluate(client, `(() => {
+      setSeason("all");
+      openPlayerDetail("Ankit");
+      const trajRows = document.querySelectorAll("#player-detail-modal .pd-season-traj-row").length;
+      const opened = !!document.getElementById("player-detail-modal");
+      document.getElementById("player-detail-modal")?.remove();
+      return { trajRows, opened };
+    })()`);
+    assert(playerDetail.opened, "Expected openPlayerDetail() to open the modal");
+    assert(
+      playerDetail.trajRows === 1,
+      `Expected exactly 1 Season History row (Ankit only played in May 2026), got ${playerDetail.trajRows}`,
+    );
+
     // #6 memo correctness: an exclusion toggle changes the active-match set
     // WITHOUT bumping _dataVersion, so the activeMatches() memo must invalidate
     // off its exclusion key. Puneet is in every seeded match → excluding him

@@ -2,8 +2,12 @@
 // Extracted from app.js: getPlayerDetail, all _pd* builders, openPlayerDetail,
 // _buildStreakCalendarHtml, streakCalDayClick, _dowDayRecord.
 // Dependency injection via initPlayerDetailDeps for playerAvatar (uses photoMap).
-import { activeMatches } from "../src/domain/selectors.js";
+import { activeMatches, withoutGuestMatches, _activeSeason } from "../src/domain/selectors.js";
 import { normPlayer, getPlayerDateRange } from "../src/domain/players.js";
+import {
+  computeSeasonTrajectory,
+  computeHeadToHeadSeasonSplits,
+} from "../src/domain/season-stats.js";
 import { state } from "../src/domain/state.js";
 import { computeStats, ratingToSr } from "../src/domain/stats.js";
 import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "../src/domain/ass.js";
@@ -455,6 +459,30 @@ function _pdBuildASSTimelineHtml(name) {
       <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastVal) - 5).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="800" fill="${col}">${lastVal}</text>
     </svg></div>
   </div>`;
+}
+
+// Player's rank/ASS in every season they've played, oldest -> newest — the
+// arc across seasons, distinct from _pdBuildASSTimelineHtml's intra-season
+// rating curve. Live recompute (not the frozen archivedSnapshot) so the
+// current, unarchived season also shows up and always matches the numbers
+// the Season Comparison Analytics card shows for the same player/season.
+function _pdBuildSeasonTrajectoryHtml(name) {
+  if (!state.seasons.length) return "";
+  const allMs = withoutGuestMatches(state.matches);
+  const traj = computeSeasonTrajectory(allMs, state.seasons, name);
+  if (!traj.length) return "";
+  const rows = traj
+    .map(
+      (t) =>
+        `<div class="pd-season-traj-row" onclick="document.getElementById('player-detail-modal').remove();setSeason(${jsArg(t.season.id)})">
+          <div class="pd-season-traj-name">${escHtml(t.season.name)}</div>
+          <div class="pd-season-traj-rank" style="color:${_rankColor(t.rank, t.outOf)}">#${t.rank}/${t.outOf}</div>
+          <div class="pd-season-traj-sr">${t.sr.toFixed(2)} SR</div>
+          <div class="pd-season-traj-record">${t.mw}W–${t.ml}L</div>
+        </div>`,
+    )
+    .join("");
+  return `<div class="ana-card"><span class="badge">Season History</span><div class="pd-season-traj-list">${rows}</div></div>`;
 }
 
 function _pdBuildBestDayHtml(name, playerMs) {
@@ -957,6 +985,9 @@ function openPlayerDetail(name) {
   // ── SCORE TIMELINE CHART (ASS) ───────────────────────────
   const assTimelineHtml = _pdBuildASSTimelineHtml(name);
 
+  // ── SEASON HISTORY (cross-season trajectory) ─────────────
+  const seasonTrajectoryHtml = _pdBuildSeasonTrajectoryHtml(name);
+
   // ── RECENT MATCH CARDS (from match log with ASS delta) ───
   const recentMatchCards = (() => {
     const last8 = pdPlayerMs.slice(-10).reverse();
@@ -1005,6 +1036,17 @@ function openPlayerDetail(name) {
   })();
 
   // ── VS-ALL-OPPONENTS BREAKDOWN ───────────────────────────
+  // Cross-season split chips only make sense in the "All Seasons" view with
+  // 2+ seasons defined — in a single-season view the aggregate above is
+  // already season-scoped, so a split would be redundant. Known gap: matches
+  // dated outside every defined season range are excluded from the chips
+  // (computeHeadToHeadSeasonSplits) but still counted in the aggregate
+  // above, so a group that only started defining Seasons partway through
+  // its history can see the per-season chips sum to less than the aggregate.
+  const isAllSeasons = _activeSeason() === null && state.seasons.length > 1;
+  const seasonSplits = isAllSeasons
+    ? computeHeadToHeadSeasonSplits(pdPlayerMs, state.seasons, name)
+    : null;
   const vsOpponentsHtml = (() => {
     const vsData = {};
     pdPlayerMs.forEach((m) => {
@@ -1038,7 +1080,11 @@ function openPlayerDetail(name) {
             : d.margin < 0
               ? "var(--red)"
               : "var(--muted)";
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${escHtml(opp)}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p} MP</span><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>`;
+        const splits = seasonSplits?.get(opp);
+        const splitChips = splits && splits.length > 1
+          ? `<div class="pd-vs-season-split">${splits.map((e) => `<span>${escHtml(e.season.name)}: ${e.w}-${e.l}</span>`).join(" · ")}</div>`
+          : "";
+        return `<div style="display:flex;flex-direction:column;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700">${escHtml(opp)}</span><div style="display:flex;gap:10px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p} MP</span><span style="font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</span><span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span><span style="font-size:10px;color:${mc2}">${avgM2 > 0 ? "+" : ""}${avgM2}</span></div></div>${splitChips}</div>`;
       })
       .join("");
     if (!rows5) return "";
@@ -1539,6 +1585,8 @@ function openPlayerDetail(name) {
                 ${raceHtml}
 
                 ${assTimelineHtml}
+
+                ${seasonTrajectoryHtml}
 
                 ${connectionsHtml}
 
