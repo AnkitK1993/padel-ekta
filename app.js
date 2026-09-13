@@ -107,6 +107,7 @@ import {
   _inSeason,
   _seasonMatchCount,
 } from "./src/domain/selectors.js";
+import { seasonNeedsRollover } from "./src/domain/season-stats.js";
 import {
   initHistorySummaryDeps,
   buildHistorySummary,
@@ -18496,6 +18497,7 @@ Object.assign(window, {
   deleteSeasonFromEditor,
   archiveSeason,
   viewSeasonArchive,
+  dismissSeasonRollover,
   toggleOfflineMode,
   renderHome,
   renderCompact,
@@ -20260,10 +20262,51 @@ function updateSeasonHamburgerUI() {
 function openSeasonSheet() {
   _seasonShowList();
   _renderSeasonList();
+  _renderSeasonRolloverBanner();
   const autoT = document.getElementById("season-auto-toggle");
   if (autoT) autoT.checked = _isAutoSeasonEnabled();
   document.getElementById("season-overlay")?.classList.add("live-sheet-open");
   document.getElementById("season-sheet")?.classList.add("live-sheet-open");
+}
+// Admin-only nudge: a season ended and nothing (including a not-yet-started
+// one) covers today, so the group is currently "between seasons." Dismissal
+// is keyed by the specific ended-season id, not a blanket flag, so it
+// reappears the next time a DIFFERENT season ends without a follow-up.
+function _renderSeasonRolloverBanner() {
+  const el = document.getElementById("season-rollover-banner");
+  if (!el) return;
+  if (!window.isAdmin || !seasonNeedsRollover(state.seasons, todayISO())) {
+    el.style.display = "none";
+    return;
+  }
+  const lastEnded = [...state.seasons]
+    .filter((s) => s.end && s.end < todayISO())
+    .sort((a, b) => (b.end || "").localeCompare(a.end || ""))[0];
+  if (!lastEnded) {
+    el.style.display = "none";
+    return;
+  }
+  let dismissedFor = null;
+  try {
+    dismissedFor = localStorage.getItem("padel_rollover_dismissed");
+  } catch (e) {}
+  if (dismissedFor === lastEnded.id) {
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "";
+  el.innerHTML = `
+    <div class="season-rollover-text"><strong>${escHtml(lastEnded.name)}</strong> ended ${escHtml(fmtDate(lastEnded.end))} and no new season is defined yet.</div>
+    <div class="season-rollover-actions">
+      <button class="season-rollover-new" onclick="openSeasonEditor()">+ New Season</button>
+      <button class="season-rollover-dismiss" onclick="dismissSeasonRollover(${jsArg(lastEnded.id)})">Dismiss</button>
+    </div>`;
+}
+function dismissSeasonRollover(seasonId) {
+  try {
+    localStorage.setItem("padel_rollover_dismissed", seasonId);
+  } catch (e) {}
+  _renderSeasonRolloverBanner();
 }
 function closeSeasonSheet() {
   document

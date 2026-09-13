@@ -17376,6 +17376,44 @@ body.zoomed *::after {
 .season-row-edit:hover {
   background: rgba(255, 255, 255, 0.06);
 }
+.season-rollover-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 14px 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 180, 60, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 180, 60, 0.09);
+}
+.season-rollover-text {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.season-rollover-actions {
+  display: flex;
+  gap: 8px;
+}
+.season-rollover-new,
+.season-rollover-dismiss {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.season-rollover-new {
+  background: var(--theme);
+  color: #fff;
+}
+.season-rollover-dismiss {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
 .season-field-label {
   display: block;
   font-size: 11px;

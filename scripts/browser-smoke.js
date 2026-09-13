@@ -639,6 +639,37 @@ async function main() {
       "ALL SEASONS (via Home pill reset) restores the full leaderboard",
     );
 
+    // Season rollover banner: at this point "Empty Range" (ended 2020) and
+    // "May 2026" (ended 2026-05-31) both exist and nothing covers today, so
+    // an admin opening the Seasons sheet should see a nudge naming the most
+    // recently ended one. Non-admins must not see it at all.
+    const rollover = await evaluate(client, `(() => {
+      window.isAdmin = false;
+      openSeasonSheet();
+      const hiddenForNonAdmin = document.getElementById("season-rollover-banner").style.display === "none";
+      window.isAdmin = true;
+      openSeasonSheet();
+      const banner = document.getElementById("season-rollover-banner");
+      const visibleForAdmin = banner.style.display !== "none";
+      const text = banner.textContent;
+      const may = JSON.parse(localStorage.getItem("padel_seasons") || "[]")
+        .find(s => s.name === "May 2026");
+      dismissSeasonRollover(may.id);
+      const dismissedLs = localStorage.getItem("padel_rollover_dismissed");
+      openSeasonSheet(); // re-render with the dismissal applied
+      const hiddenAfterDismiss = document.getElementById("season-rollover-banner").style.display === "none";
+      try { localStorage.removeItem("padel_rollover_dismissed"); } catch (e) {}
+      closeSeasonSheet();
+      return { hiddenForNonAdmin, visibleForAdmin, text, dismissedLs, hiddenAfterDismiss };
+    })()`);
+    assert(rollover.hiddenForNonAdmin, "Expected the rollover banner hidden for non-admins");
+    assert(
+      rollover.visibleForAdmin && rollover.text.includes("May 2026"),
+      `Expected the rollover banner visible for admins, naming the last-ended season, got "${rollover.text}"`,
+    );
+    assert(!!rollover.dismissedLs, "Expected dismissal to persist a season id to localStorage");
+    assert(rollover.hiddenAfterDismiss, "Expected the banner hidden after dismissing that season");
+
     // #6 memo correctness: an exclusion toggle changes the active-match set
     // WITHOUT bumping _dataVersion, so the activeMatches() memo must invalidate
     // off its exclusion key. Puneet is in every seeded match → excluding him
