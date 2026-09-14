@@ -9237,6 +9237,13 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
       sl = 0;
     matches.forEach((m) => {
       const inA = (m.teamA || []).includes(name);
+      const inB = (m.teamB || []).includes(name);
+      // _getPlayerWindowMatches("all") returns the FULL date-range match set,
+      // not just this player's own matches (computeStats elsewhere handles
+      // that correctly by only touching players present in each match) — so
+      // this must skip any match the player wasn't actually in, or it
+      // misattributes other players' shutouts to them.
+      if (!inA && !inB) return;
       const myScore = inA ? m.scoreA : m.scoreB;
       const oppScore = inA ? m.scoreB : m.scoreA;
       if (myScore === 0) sl++;
