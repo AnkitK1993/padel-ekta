@@ -9222,6 +9222,24 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
 
   if (!sA || !sB) return;
 
+  // Shutout wins/losses over each player's own (independent) match window —
+  // a shutout is any match where the loser scored 0, same definition the
+  // Statistics → Scores → Shutouts leaderboard uses.
+  const _shutoutCounts = (name, matches) => {
+    let sw = 0,
+      sl = 0;
+    matches.forEach((m) => {
+      const inA = (m.teamA || []).includes(name);
+      const myScore = inA ? m.scoreA : m.scoreB;
+      const oppScore = inA ? m.scoreB : m.scoreA;
+      if (myScore === 0) sl++;
+      else if (oppScore === 0) sw++;
+    });
+    return { sw, sl };
+  };
+  const shutoutA = _shutoutCounts(nameA, matchesA);
+  const shutoutB = _shutoutCounts(nameB, matchesB);
+
   const row = (label, valA, valB, higherIsBetter = true) => {
     const a = parseFloat(valA);
     const b = parseFloat(valB);
@@ -9317,6 +9335,8 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
           ${row("Games Won", sA.gw, sB.gw)}
           ${row("Games Lost", sA.gl, sB.gl, false)}
           ${row("Game %", sA.gamePct.toFixed(0) + "%", sB.gamePct.toFixed(0) + "%")}
+          ${row("Shutout Wins", shutoutA.sw, shutoutB.sw)}
+          ${row("Shutout Losses", shutoutA.sl, shutoutB.sl, false)}
           ${row("Skill Rating", sA.sr.toFixed(2), sB.sr.toFixed(2))}
           ${row("ASS", eloMapA[nameA] || 1000, eloMapB[nameB] || 1000)}
           ${row("Best Streak", sA.bestWinStreak + "W", sB.bestWinStreak + "W")}
