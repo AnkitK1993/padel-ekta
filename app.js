@@ -3184,6 +3184,13 @@ function setSeason(id) {
   // Analytics isn't covered by renderActivePage(); refresh it if it's showing.
   if (document.querySelector(".page.active")?.id === "pg-analytics")
     renderAnalyticsFeature();
+  // renderHome() never touches #compare-card (it's populated on-demand, not
+  // part of the normal home render) — so an already-open comparison would
+  // otherwise keep showing the previous season's numbers after switching.
+  const _cmpCard = document.getElementById("compare-card");
+  if (_cmpCard && _cmpCard.dataset.mode === "result" && viewState.cmpPlayerA && viewState.cmpPlayerB) {
+    openPlayerCompare(viewState.cmpPlayerA, viewState.cmpPlayerB, viewState.cmpDateFilter);
+  }
   updateSeasonHamburgerUI();
   // If the picker is open, move the active highlight without closing it.
   if (
