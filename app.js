@@ -17895,7 +17895,6 @@ function renderAnalyticsPage() {
       filterPillsHtml +
       _analyticsSeasonControlsHtml() +
       _analyticsDateControlsHtml() +
-      _seasonBanner +
       _hideEmptyToggle +
       sectionsHtml.map((sec) => sec.html).join("");
   } else {
