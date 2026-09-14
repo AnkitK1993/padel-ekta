@@ -17870,10 +17870,6 @@ function renderAnalyticsPage() {
     cat: s.cat,
   }));
 
-  // Season context banner — the top of the page now also exposes season/date
-  // controls so the page can be scoped without leaving Statistics.
-  const _seasonForBanner = _activeSeason();
-  const _seasonBanner = `<div class="ana-season-banner">🗓️ <strong>${escHtml(_seasonForBanner ? _seasonForBanner.name : "ALL SEASONS")}</strong> <span style="opacity:.65">· ${escHtml(_seasonForBanner ? _seasonRangeLabel(_seasonForBanner) : "Across every season")} · ${escHtml(_analyticsDateFilterLabel(viewState.anaDateFilter || "all", viewState.anaDateFrom || "", viewState.anaDateTo || ""))}</span></div>`;
   const _hideEmptyOn = getAnaHideEmpty();
   const _hideEmptyToggle = `<div class="ana-toolbar"><button class="ana-hideempty-btn${_hideEmptyOn ? " active" : ""}" onclick="toggleAnaHideEmpty()">${_hideEmptyOn ? "☑" : "☐"} Hide empty</button></div>`;
   container.classList.toggle("ana-hide-empty", _hideEmptyOn);
@@ -17963,7 +17959,6 @@ function renderAnalyticsPage() {
       ${filterPillsHtml}
       ${_analyticsSeasonControlsHtml()}
       ${_analyticsDateControlsHtml()}
-      ${_seasonBanner}
       ${_hideEmptyToggle}
       <div class="ana-dashboard">
         <div class="ana-col ana-col-left">${leftHtml.join("")}</div>

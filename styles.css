@@ -8003,7 +8003,7 @@ select.cmp-sel option {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 10px 0 12px;
+  padding: 4px 0 6px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -8014,7 +8014,7 @@ select.cmp-sel option {
   .ana-filter-row {
     scrollbar-width: thin;
     scrollbar-color: rgba(var(--theme-rgb), 0.35) transparent;
-    padding-bottom: 6px;
+    padding-bottom: 3px;
   }
   .ana-filter-row::-webkit-scrollbar {
     display: block;
@@ -19115,5 +19115,35 @@ body.battery-saver .ui-toggle-thumb {
     font-size: 14px !important;
     padding: 6px 10px !important;
   }
+}
+
+/* ── Reduced-height top titles & bottom nav (all pages) ──
+   Appended last so it wins over the duplicated/!important rules for these
+   shared classes earlier in the file (incl. inside @media blocks), without
+   having to track down and edit every prior occurrence. */
+.tabbar {
+  height: calc(44px + env(safe-area-inset-bottom)) !important;
+}
+.tbb {
+  gap: 1px !important;
+}
+.tbb .ico {
+  font-size: 14px !important;
+}
+.nav {
+  height: calc(38px + env(safe-area-inset-top)) !important;
+  padding: env(safe-area-inset-top) 4px 0 !important;
+}
+.nav-title {
+  font-size: 17px !important;
+}
+.history-nav {
+  padding: calc(8px + env(safe-area-inset-top)) 16px 8px !important;
+}
+.history-nav-title {
+  font-size: 22px !important;
+}
+.summary-nav {
+  padding: calc(8px + env(safe-area-inset-top)) 16px 8px !important;
 }
 
