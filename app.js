@@ -164,6 +164,7 @@ import {
   computeAnalyticsPageData,
   computePartnerOpponentMatrix,
   computeOpponentBreakdown,
+  computePartnerBreakdownWhenOpposed,
 } from "./src/domain/player-analytics.js";
 import {
   morphList,
@@ -8875,14 +8876,15 @@ function _renderPairDetailSummary(a, b) {
         ${d.partnered ? '<span style="font-size:12px;color:var(--muted)">›</span>' : ""}
       </span>
     </button>
-    <div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(240,80,80,0.08);border:1px solid rgba(240,80,80,0.22);border-radius:12px">
+    <button data-pa="${escHtml(a)}" data-pb="${escHtml(b)}" onclick="_renderOpposedPartnerBreakdownEl(this)" ${d.opposed ? "" : "disabled"} style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(240,80,80,0.08);border:1px solid rgba(240,80,80,0.22);border-radius:12px;cursor:${d.opposed ? "pointer" : "default"};opacity:${d.opposed ? 1 : 0.5}">
       <span style="font-size:11px;font-weight:700;color:var(--text)">⚔️ Opposed</span>
       <span style="display:flex;align-items:center;gap:6px">
         <span style="font-size:16px;font-weight:900;color:#f04f4f">${100 - pct}%</span>
         <span style="font-size:10px;color:var(--muted)">(${d.opposed})</span>
+        ${d.opposed ? '<span style="font-size:12px;color:var(--muted)">›</span>' : ""}
       </span>
-    </div>
-    ${d.partnered ? `<div style="font-size:9px;color:var(--muted);margin-top:12px;text-align:center">Tap Partnered to see who they faced</div>` : ""}
+    </button>
+    ${d.partnered || d.opposed ? `<div style="font-size:9px;color:var(--muted);margin-top:12px;text-align:center">Tap a row to see the detail</div>` : ""}
   `);
 }
 
@@ -8924,6 +8926,49 @@ function _renderPairDetailBreakdownEl(el) {
 
 function _renderPairDetailSummaryEl(el) {
   _renderPairDetailSummary(el.dataset.pa, el.dataset.pb);
+}
+
+// Drill-down for the "Opposed" side: when A & B were on opposite teams, who
+// was A's partner, and how often.
+function _renderOpposedPartnerBreakdown(a, b) {
+  const wrap = document.getElementById("pair-detail-popup");
+  if (!wrap) return;
+  const matches = _pairDetailMatches();
+  const { total, breakdown } = computePartnerBreakdownWhenOpposed(
+    matches,
+    a,
+    b,
+    normPlayer,
+  );
+
+  const rows = breakdown
+    .map(
+      (o) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="flex:1;font-size:11px;font-weight:700;color:var(--text)">${escHtml(o.name)}</span>
+        <div style="flex:2;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden">
+          <div style="height:100%;width:${o.pct}%;background:var(--accent);border-radius:3px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:900;color:var(--accent);min-width:34px;text-align:right">${o.pct}%</span>
+        <span style="font-size:9px;color:var(--muted);min-width:16px;text-align:right">${o.count}</span>
+      </div>`,
+    )
+    .join("");
+
+  wrap.innerHTML = _pairDetailCard(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text)">${escHtml(a)}'s partner vs ${escHtml(b)}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px">${total} opposed match${total === 1 ? "" : "es"} this period</div>
+      </div>
+      <button onclick="_closePairDetail()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
+    </div>
+    ${rows || `<div style="font-size:11px;color:var(--muted);padding:10px 0">No partner data.</div>`}
+    <button data-pa="${escHtml(a)}" data-pb="${escHtml(b)}" onclick="_renderPairDetailSummaryEl(this)" style="width:100%;margin-top:14px;padding:10px;background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:10px;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">‹ Back</button>
+  `);
+}
+
+function _renderOpposedPartnerBreakdownEl(el) {
+  _renderOpposedPartnerBreakdown(el.dataset.pa, el.dataset.pb);
 }
 
 // ── PLAYER COMPARISON ─────────────────────────────────────
@@ -19331,6 +19376,7 @@ Object.assign(window, {
   _renderPairDetailBreakdown,
   _renderPairDetailBreakdownEl,
   _renderPairDetailSummaryEl,
+  _renderOpposedPartnerBreakdownEl,
 });
 
 function setHistoryDateFilter(value) {

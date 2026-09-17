@@ -28,6 +28,7 @@ import {
   computeMatchStories,
   computePartnerOpponentMatrix,
   computeOpponentBreakdown,
+  computePartnerBreakdownWhenOpposed,
 } from "../src/domain/player-analytics.js";
 import { toLocalISODate } from "../src/ui/format.js";
 import { state } from "../src/domain/state.js";
@@ -337,6 +338,59 @@ ok(
     const m = [M("2024-01-01", ["a", "B"], ["c", "d"], 6, 0)];
     const r = computeOpponentBreakdown(m, "a", "b", (n) => n.toUpperCase());
     return r.total === 1 && r.breakdown.length === 2;
+  })(),
+);
+
+// ── computePartnerBreakdownWhenOpposed (grid drill-down, opposed side) ──────
+// Alice & Carol opposed once (match 1: Alice+Bob vs Carol+Dave) — Alice's
+// partner that match was Bob.
+const opp1 = computePartnerBreakdownWhenOpposed(POM, "Alice", "Carol");
+ok("Alice vs Carol opposed-match total = 1", opp1.total === 1, `got ${opp1.total}`);
+ok(
+  "Alice's partner was Bob that match (1, 100%)",
+  opp1.breakdown.length === 1 &&
+    opp1.breakdown[0].name === "Bob" &&
+    opp1.breakdown[0].count === 1 &&
+    opp1.breakdown[0].pct === 100,
+  `got ${JSON.stringify(opp1.breakdown)}`,
+);
+// Alice & Dave opposed all 3 matches — match 1 & 2 (partner Bob), match 3
+// (partner Carol).
+const opp2 = computePartnerBreakdownWhenOpposed(POM, "Alice", "Dave");
+ok("Alice vs Dave opposed-match total = 3", opp2.total === 3, `got ${opp2.total}`);
+ok(
+  "Bob partnered Alice twice (2, 67%), Carol once (1, 33%) vs Dave",
+  opp2.breakdown.find((x) => x.name === "Bob")?.count === 2 &&
+    opp2.breakdown.find((x) => x.name === "Bob")?.pct === 67 &&
+    opp2.breakdown.find((x) => x.name === "Carol")?.count === 1 &&
+    opp2.breakdown.find((x) => x.name === "Carol")?.pct === 33,
+  `got ${JSON.stringify(opp2.breakdown)}`,
+);
+ok(
+  "sorted by count desc (Bob first, more matches vs Dave)",
+  opp2.breakdown[0].name === "Bob",
+);
+ok(
+  "pair that always partners, never opposes → total 0, empty breakdown",
+  (() => {
+    // Bob & Dave: match 1 (opposed), match 2 (opposed), match 3 (partnered) —
+    // pick a genuinely never-opposed pair instead: Carol & Eve never share
+    // a match at all in POM.
+    const r = computePartnerBreakdownWhenOpposed(POM, "Carol", "Eve");
+    return r.total === 0 && r.breakdown.length === 0;
+  })(),
+);
+ok(
+  "norm fn applied to opposed-breakdown lookup",
+  (() => {
+    const m = [M("2024-01-01", ["a", "B"], ["c", "d"], 6, 0)];
+    const r = computePartnerBreakdownWhenOpposed(m, "a", "c", (n) => n.toUpperCase());
+    return (
+      r.total === 1 &&
+      r.breakdown.length === 1 &&
+      r.breakdown[0].name === "B" &&
+      r.breakdown[0].count === 1
+    );
   })(),
 );
 
