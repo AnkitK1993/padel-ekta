@@ -852,3 +852,33 @@ export function computePartnerOpponentMatrix(matches, norm = (n) => n) {
   });
   return data;
 }
+
+// Given the matches where playerA and playerB were partners, breaks down
+// which opponents they faced and how often — for the Partner/Opponent Grid's
+// drill-down ("when A & B partnered, who did they play against, how often").
+export function computeOpponentBreakdown(matches, playerA, playerB, norm = (n) => n) {
+  const a = norm(playerA);
+  const b = norm(playerB);
+  const counts = {};
+  let total = 0;
+  (matches || []).forEach((m) => {
+    const A = (m.teamA || []).map(norm);
+    const B = (m.teamB || []).map(norm);
+    let opp;
+    if (A.includes(a) && A.includes(b)) opp = B;
+    else if (B.includes(a) && B.includes(b)) opp = A;
+    else return;
+    total++;
+    opp.forEach((o) => {
+      counts[o] = (counts[o] || 0) + 1;
+    });
+  });
+  const breakdown = Object.entries(counts)
+    .map(([name, count]) => ({
+      name,
+      count,
+      pct: total ? Math.round((count / total) * 100) : 0,
+    }))
+    .sort((x, y) => y.count - x.count || x.name.localeCompare(y.name));
+  return { total, breakdown };
+}

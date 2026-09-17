@@ -27,6 +27,7 @@ import {
   computeChemistryScores,
   computeMatchStories,
   computePartnerOpponentMatrix,
+  computeOpponentBreakdown,
 } from "../src/domain/player-analytics.js";
 import { toLocalISODate } from "../src/ui/format.js";
 import { state } from "../src/domain/state.js";
@@ -298,6 +299,46 @@ ok(
   })(),
 );
 ok("empty matches → {}", Object.keys(computePartnerOpponentMatrix([])).length === 0);
+
+// ── computeOpponentBreakdown (Partner/Opponent Grid drill-down) ─────────────
+// Alice & Bob partnered in matches 1 & 2 (POM above): faced Carol+Dave once,
+// Eve+Dave once. So opponent breakdown for Alice&Bob = Dave:2 (100%),
+// Carol:1 (50%), Eve:1 (50%), total 2 partnered matches.
+const brk = computeOpponentBreakdown(POM, "Alice", "Bob");
+ok("Alice&Bob partnered-match total = 2", brk.total === 2, `got ${brk.total}`);
+ok(
+  "Dave faced them both times (2, 100%)",
+  brk.breakdown.find((x) => x.name === "Dave")?.count === 2 &&
+    brk.breakdown.find((x) => x.name === "Dave")?.pct === 100,
+  `got ${JSON.stringify(brk.breakdown)}`,
+);
+ok(
+  "Carol faced them once (1, 50%)",
+  brk.breakdown.find((x) => x.name === "Carol")?.count === 1 &&
+    brk.breakdown.find((x) => x.name === "Carol")?.pct === 50,
+);
+ok(
+  "Eve faced them once (1, 50%)",
+  brk.breakdown.find((x) => x.name === "Eve")?.count === 1 &&
+    brk.breakdown.find((x) => x.name === "Eve")?.pct === 50,
+);
+ok(
+  "sorted by count desc (Dave first)",
+  brk.breakdown[0].name === "Dave",
+);
+ok(
+  "no shared matches between two players → total 0, empty breakdown",
+  computeOpponentBreakdown(POM, "Alice", "Eve").total === 0 &&
+    computeOpponentBreakdown(POM, "Alice", "Eve").breakdown.length === 0,
+);
+ok(
+  "norm fn applied to breakdown lookup",
+  (() => {
+    const m = [M("2024-01-01", ["a", "B"], ["c", "d"], 6, 0)];
+    const r = computeOpponentBreakdown(m, "a", "b", (n) => n.toUpperCase());
+    return r.total === 1 && r.breakdown.length === 2;
+  })(),
+);
 
 // ── selectors: guest handling (Statistics excludes, History includes) ───────
 console.log(

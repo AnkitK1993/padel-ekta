@@ -163,6 +163,7 @@ import {
   computeChemistryScores,
   computeAnalyticsPageData,
   computePartnerOpponentMatrix,
+  computeOpponentBreakdown,
 } from "./src/domain/player-analytics.js";
 import {
   morphList,
@@ -8764,8 +8765,9 @@ function _pairMatrixInner() {
           const d = (matrix[a] && matrix[a][b]) || { partnered: 0, opposed: 0 };
           const both = d.partnered + d.opposed;
           if (!both) return `<td class="pvp-td pvp-none">—</td>`;
+          const clickAttrs = `data-pa="${escHtml(a)}" data-pb="${escHtml(b)}" onclick="_openPairDetail(this)"`;
           if (mode === "count") {
-            return `<td class="pvp-td" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}, opposed ${d.opposed}`)}"><span style="color:var(--green);font-weight:800">${d.partnered}</span><span style="color:var(--muted);font-size:8px;margin:0 1px">/</span><span style="color:var(--red);font-weight:800">${d.opposed}</span></td>`;
+            return `<td class="pvp-td pog-td-click" ${clickAttrs} title="${escHtml(`${a} & ${b} · partnered ${d.partnered}, opposed ${d.opposed} — tap for details`)}"><span style="color:var(--green);font-weight:800">${d.partnered}</span><span style="color:var(--muted);font-size:8px;margin:0 1px">/</span><span style="color:var(--red);font-weight:800">${d.opposed}</span></td>`;
           }
           const pct = Math.round((d.partnered / both) * 100);
           const cls =
@@ -8774,7 +8776,7 @@ function _pairMatrixInner() {
               : pct > _pvpLow
                 ? "pvp-even"
                 : "pvp-loss";
-          return `<td class="pvp-td ${cls}" title="${escHtml(`${a} & ${b} · partnered ${d.partnered}/${both} (${pct}%), opposed ${d.opposed}/${both} (${100 - pct}%)`)}">${pct}%<sub class="pvp-total">${both}</sub></td>`;
+          return `<td class="pvp-td pog-td-click ${cls}" ${clickAttrs} title="${escHtml(`${a} & ${b} · partnered ${d.partnered}/${both} (${pct}%), opposed ${d.opposed}/${both} (${100 - pct}%) — tap for details`)}">${pct}%<sub class="pvp-total">${both}</sub></td>`;
         })
         .join("");
       return `<tr><td class="pvp-row-hdr pvp-row-hdr-click" title="${escHtml(a)}" onclick="_h2hHighlightRow(this.closest('tr'))">${escHtml(getMatrixAlias(state.aliasMap[a]))}</td>${cells}</tr>`;
@@ -8811,6 +8813,109 @@ function _pairMatrixInner() {
       </div>
       <div class="pvp-legend">${legend}</div>
     </div>`;
+}
+
+// ── Partner/Opponent Grid: cell drill-down popup ─────────────────────────
+// Tapping a grid cell shows how often A & B partnered/opposed; tapping the
+// partnered percentage inside that drills down into which opponents they
+// faced (and how often) across those partnered matches.
+function _openPairDetail(el) {
+  const a = el.dataset.pa;
+  const b = el.dataset.pb;
+  document.getElementById("pair-detail-popup")?.remove();
+  const wrap = document.createElement("div");
+  wrap.id = "pair-detail-popup";
+  wrap.setAttribute("role", "dialog");
+  wrap.style.cssText =
+    "position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
+  wrap.onclick = (e) => {
+    if (e.target === wrap) _closePairDetail();
+  };
+  document.body.appendChild(wrap);
+  _renderPairDetailSummary(a, b);
+}
+
+function _closePairDetail() {
+  document.getElementById("pair-detail-popup")?.remove();
+}
+
+function _pairDetailMatches() {
+  return filterMatches(viewState.pairMatrixPeriod);
+}
+
+function _pairDetailCard(inner) {
+  return `<div style="background:var(--bg-card,#12121c);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:18px;padding:20px;max-width:360px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.6);max-height:80vh;overflow-y:auto">${inner}</div>`;
+}
+
+function _renderPairDetailSummary(a, b) {
+  const wrap = document.getElementById("pair-detail-popup");
+  if (!wrap) return;
+  const matches = _pairDetailMatches();
+  const matrix = computePartnerOpponentMatrix(matches, normPlayer);
+  const d = (matrix[normPlayer(a)] && matrix[normPlayer(a)][normPlayer(b)]) || {
+    partnered: 0,
+    opposed: 0,
+  };
+  const both = d.partnered + d.opposed;
+  const pct = both ? Math.round((d.partnered / both) * 100) : 0;
+
+  wrap.innerHTML = _pairDetailCard(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text)">${escHtml(a)} &amp; ${escHtml(b)}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px">${both} match${both === 1 ? "" : "es"} together this period</div>
+      </div>
+      <button onclick="_closePairDetail()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
+    </div>
+    <button onclick="_renderPairDetailBreakdown('${escHtml(a).replace(/'/g, "\\'")}','${escHtml(b).replace(/'/g, "\\'")}')" ${d.partnered ? "" : "disabled"} style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(54,212,126,0.1);border:1px solid rgba(54,212,126,0.3);border-radius:12px;margin-bottom:8px;cursor:${d.partnered ? "pointer" : "default"};opacity:${d.partnered ? 1 : 0.5}">
+      <span style="font-size:11px;font-weight:700;color:var(--text)">🤝 Partnered</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:16px;font-weight:900;color:#36d47e">${pct}%</span>
+        <span style="font-size:10px;color:var(--muted)">(${d.partnered})</span>
+        ${d.partnered ? '<span style="font-size:12px;color:var(--muted)">›</span>' : ""}
+      </span>
+    </button>
+    <div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(240,80,80,0.08);border:1px solid rgba(240,80,80,0.22);border-radius:12px">
+      <span style="font-size:11px;font-weight:700;color:var(--text)">⚔️ Opposed</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:16px;font-weight:900;color:#f04f4f">${100 - pct}%</span>
+        <span style="font-size:10px;color:var(--muted)">(${d.opposed})</span>
+      </span>
+    </div>
+    ${d.partnered ? `<div style="font-size:9px;color:var(--muted);margin-top:12px;text-align:center">Tap Partnered to see who they faced</div>` : ""}
+  `);
+}
+
+function _renderPairDetailBreakdown(a, b) {
+  const wrap = document.getElementById("pair-detail-popup");
+  if (!wrap) return;
+  const matches = _pairDetailMatches();
+  const { total, breakdown } = computeOpponentBreakdown(matches, a, b, normPlayer);
+
+  const rows = breakdown
+    .map(
+      (o) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="flex:1;font-size:11px;font-weight:700;color:var(--text)">${escHtml(o.name)}</span>
+        <div style="flex:2;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden">
+          <div style="height:100%;width:${o.pct}%;background:var(--accent);border-radius:3px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:900;color:var(--accent);min-width:34px;text-align:right">${o.pct}%</span>
+        <span style="font-size:9px;color:var(--muted);min-width:16px;text-align:right">${o.count}</span>
+      </div>`,
+    )
+    .join("");
+
+  wrap.innerHTML = _pairDetailCard(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text)">Faced while ${escHtml(a)} &amp; ${escHtml(b)} partnered</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px">${total} partnered match${total === 1 ? "" : "es"} this period</div>
+      </div>
+      <button onclick="_closePairDetail()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
+    </div>
+    ${rows || `<div style="font-size:11px;color:var(--muted);padding:10px 0">No opponent data.</div>`}
+    <button onclick="_renderPairDetailSummary('${escHtml(a).replace(/'/g, "\\'")}','${escHtml(b).replace(/'/g, "\\'")}')" style="width:100%;margin-top:14px;padding:10px;background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:10px;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">‹ Back</button>
+  `);
 }
 
 // ── PLAYER COMPARISON ─────────────────────────────────────
@@ -19212,6 +19317,10 @@ Object.assign(window, {
   _podiumDrillGoTo,
   _closePodiumDrill,
   _openRankCalendar,
+  _openPairDetail,
+  _closePairDetail,
+  _renderPairDetailSummary,
+  _renderPairDetailBreakdown,
 });
 
 function setHistoryDateFilter(value) {

@@ -5172,6 +5172,12 @@ body.no-cascade .analytics-card {
   margin-left: 2px;
   vertical-align: baseline;
 }
+.pog-td-click {
+  cursor: pointer;
+}
+.pog-td-click:active {
+  opacity: 0.65;
+}
 .pvp-row-hdr-click {
   cursor: pointer;
   user-select: none;
