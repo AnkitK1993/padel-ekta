@@ -966,7 +966,8 @@ async function main() {
       "Expected awards (e.g. MOST FEARED) inside the season card",
     );
 
-    // Season banner: selecting a season shows its scope at the top of analytics.
+    // Season scoping: selecting a season is reflected by the active pill in
+    // the Statistics page's own season-switch row.
     await evaluate(client, `(() => {
       const may = JSON.parse(localStorage.getItem("padel_seasons") || "[]").find(s => s.name === "May 2026");
       setSeason(may.id);
@@ -975,8 +976,8 @@ async function main() {
     await evaluate(client, `switchMainTab("analytics", true);`);
     await waitFor(
       client,
-      `document.querySelector(".ana-season-banner") !== null`,
-      "season context banner shows in analytics",
+      `document.querySelector("#ana-season-row .ana-filter-pill.active")?.textContent === "May 2026"`,
+      "active season pill reflects the selected season in analytics",
     );
     await evaluate(client, `setSeason("all"); switchMainTab("home", true);`);
 
