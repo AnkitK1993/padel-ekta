@@ -8867,7 +8867,7 @@ function _renderPairDetailSummary(a, b) {
       </div>
       <button onclick="_closePairDetail()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
     </div>
-    <button onclick="_renderPairDetailBreakdown('${escHtml(a).replace(/'/g, "\\'")}','${escHtml(b).replace(/'/g, "\\'")}')" ${d.partnered ? "" : "disabled"} style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(54,212,126,0.1);border:1px solid rgba(54,212,126,0.3);border-radius:12px;margin-bottom:8px;cursor:${d.partnered ? "pointer" : "default"};opacity:${d.partnered ? 1 : 0.5}">
+    <button data-pa="${escHtml(a)}" data-pb="${escHtml(b)}" onclick="_renderPairDetailBreakdownEl(this)" ${d.partnered ? "" : "disabled"} style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(54,212,126,0.1);border:1px solid rgba(54,212,126,0.3);border-radius:12px;margin-bottom:8px;cursor:${d.partnered ? "pointer" : "default"};opacity:${d.partnered ? 1 : 0.5}">
       <span style="font-size:11px;font-weight:700;color:var(--text)">🤝 Partnered</span>
       <span style="display:flex;align-items:center;gap:6px">
         <span style="font-size:16px;font-weight:900;color:#36d47e">${pct}%</span>
@@ -8914,8 +8914,16 @@ function _renderPairDetailBreakdown(a, b) {
       <button onclick="_closePairDetail()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
     </div>
     ${rows || `<div style="font-size:11px;color:var(--muted);padding:10px 0">No opponent data.</div>`}
-    <button onclick="_renderPairDetailSummary('${escHtml(a).replace(/'/g, "\\'")}','${escHtml(b).replace(/'/g, "\\'")}')" style="width:100%;margin-top:14px;padding:10px;background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:10px;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">‹ Back</button>
+    <button data-pa="${escHtml(a)}" data-pb="${escHtml(b)}" onclick="_renderPairDetailSummaryEl(this)" style="width:100%;margin-top:14px;padding:10px;background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:10px;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">‹ Back</button>
   `);
+}
+
+function _renderPairDetailBreakdownEl(el) {
+  _renderPairDetailBreakdown(el.dataset.pa, el.dataset.pb);
+}
+
+function _renderPairDetailSummaryEl(el) {
+  _renderPairDetailSummary(el.dataset.pa, el.dataset.pb);
 }
 
 // ── PLAYER COMPARISON ─────────────────────────────────────
@@ -19321,6 +19329,8 @@ Object.assign(window, {
   _closePairDetail,
   _renderPairDetailSummary,
   _renderPairDetailBreakdown,
+  _renderPairDetailBreakdownEl,
+  _renderPairDetailSummaryEl,
 });
 
 function setHistoryDateFilter(value) {
