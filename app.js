@@ -18058,14 +18058,19 @@ function renderAnalyticsPage() {
   if (!hasAnaCollapsedPref()) saveAnaCollapsed(new Set(validKeys));
   const collapsed = getAnaCollapsed();
 
+  // ALL/FAVS stay pinned first and HIDDEN stays pinned last (they're
+  // meta-filters, not topics); the actual topic categories in between are
+  // kept alphabetically sorted by their label.
   const _catBase = [
     { id: "all", label: "ALL" },
     { id: "favs", label: "★ FAVS" },
-    { id: "elo", label: _scLabel },
-    { id: "players", label: "PLAYERS" },
-    { id: "pairs", label: "PAIRS" },
-    { id: "records", label: "RECORDS" },
-    { id: "activity", label: "ACTIVITY" },
+    ...[
+      { id: "elo", label: _scLabel },
+      { id: "players", label: "PLAYERS" },
+      { id: "pairs", label: "PAIRS" },
+      { id: "records", label: "RECORDS" },
+      { id: "activity", label: "ACTIVITY" },
+    ].sort((a, b) => a.label.localeCompare(b.label)),
     { id: "hidden", label: "HIDDEN" },
   ];
   const pillOrder = getAnaPillOrder();
