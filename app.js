@@ -9027,6 +9027,7 @@ function _eloGapInner() {
     <span style="width:18px;text-align:center">#</span>
     <span style="flex:1.2">Player</span>
     <span style="width:26px;text-align:center">Rank</span>
+    <span style="min-width:40px;text-align:right">ASS</span>
     <span style="flex:2;text-align:center">ASS Gap</span>
     <span style="min-width:46px;text-align:right">Avg</span>
     <span style="min-width:42px;text-align:right">In Favor</span>
@@ -9043,6 +9044,7 @@ function _eloGapInner() {
         <span style="width:18px;text-align:center;font-size:9px;color:var(--muted)">${i + 1}</span>
         <span style="flex:1.2;font-size:11px;font-weight:700;color:var(--text)">${escHtml(r.name)}</span>
         <span style="width:26px;text-align:center;font-size:10px;font-weight:800;color:var(--accent)">${rank ? "#" + rank : "—"}</span>
+        <span style="min-width:40px;text-align:right;font-size:10px;font-weight:700;color:var(--text)">${Math.round(assMap[r.name] ?? 1000)}</span>
         <div style="flex:2;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden">
           <div style="height:100%;width:${barPct}%;background:${color};border-radius:3px"></div>
         </div>
