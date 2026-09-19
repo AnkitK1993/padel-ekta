@@ -411,8 +411,18 @@ ok("P3 faced opponents 300 stronger (avgGap +300)", g1("P3")?.avgGap === 300);
 ok("P4 faced opponents 300 stronger (avgGap +300)", g1("P4")?.avgGap === 300);
 ok("each player has 1 match counted", gap1.every((x) => x.matches === 1));
 ok(
-  "sorted descending by avgGap (toughest schedule first)",
-  gap1[0].avgGap >= gap1[1].avgGap && gap1[1].avgGap >= gap1[2].avgGap,
+  "sorted ascending by avgGap (toughest schedule first, easiest last)",
+  gap1[0].avgGap <= gap1[1].avgGap &&
+    gap1[gap1.length - 2].avgGap <= gap1[gap1.length - 1].avgGap,
+);
+ok(
+  "P1/P2 (stronger team) had the odds in their favor 100% of the time",
+  g1("P1")?.favorablePct === 100 && g1("P2")?.favorablePct === 100,
+  `got ${JSON.stringify([g1("P1"), g1("P2")])}`,
+);
+ok(
+  "P3/P4 (weaker team) never had the odds in their favor (0%)",
+  g1("P3")?.favorablePct === 0 && g1("P4")?.favorablePct === 0,
 );
 
 // Averaging across multiple matches with different opponent strength.
@@ -440,6 +450,31 @@ ok(
   })(),
 );
 ok("empty matches → []", computeAvgOpponentEloGap([], EGM).length === 0);
+ok(
+  "a tied combined rating counts as favorable for neither side",
+  (() => {
+    const tiedMap = { X: 1000, Y: 1000, Z: 1000, W: 1000 };
+    const r = computeAvgOpponentEloGap(
+      [M("2024-01-01", ["X", "Y"], ["Z", "W"], 6, 3)],
+      tiedMap,
+    );
+    return r.every((x) => x.avgGap === 0 && x.favorablePct === 0);
+  })(),
+);
+ok(
+  "favorablePct averages across mixed favorable/unfavorable matches",
+  (() => {
+    // P1 combined with a weak partner (loses the ASS edge) then a strong one
+    // (wins the edge) — favorable in 1 of 2 matches = 50%.
+    const m2 = { P1: 1100, Weak: 700, Strong: 1400, P3: 900, P4: 1100 };
+    const ms = [
+      M("2024-01-01", ["P1", "Weak"], ["P3", "P4"], 6, 3), // 1800 vs 2000 -> unfavorable
+      M("2024-01-02", ["P1", "Strong"], ["P3", "P4"], 6, 3), // 2500 vs 2000 -> favorable
+    ];
+    const r = computeAvgOpponentEloGap(ms, m2);
+    return r.find((x) => x.name === "P1")?.favorablePct === 50;
+  })(),
+);
 ok(
   "malformed match with an empty team is skipped, not crashed on",
   computeAvgOpponentEloGap(

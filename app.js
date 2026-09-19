@@ -8972,7 +8972,7 @@ function _renderOpposedPartnerBreakdownEl(el) {
   _renderOpposedPartnerBreakdown(el.dataset.pa, el.dataset.pb);
 }
 
-// ── Avg Opponent ELO Gap leaderboard ──────────────────────────────────────
+// ── Avg Opponent ASS Gap leaderboard ──────────────────────────────────────
 function _eloGapSetPeriod(btn, period) {
   viewState.eloGapPeriod = period;
   _refreshEloGap();
@@ -9004,32 +9004,56 @@ function _eloGapInner() {
       .join("") +
     `</div>`;
 
-  const eloMap = _memoASS();
-  const rows = computeAvgOpponentEloGap(matches, eloMap);
+  // ASS ratings scoped to this filter's own matches (all-time filter reuses
+  // the memoized all-time map — same convention as the Home ASS map at
+  // _isAllFilter ? _memoASS() : computeASS(filtered)).
+  const assMap = period === "all" ? _memoASS() : computeASS(matches);
+  const rows = computeAvgOpponentEloGap(matches, assMap);
 
   if (!rows.length)
     return `${periodPills}<div style="color:var(--muted);font-size:12px;padding:10px 0">No matches in this period.</div>`;
 
+  // Rank on the ASS leaderboard for this same period.
+  const rankOrder = Object.entries(assMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
+  const rankOf = (name) => {
+    const i = rankOrder.indexOf(name);
+    return i === -1 ? null : i + 1;
+  };
+
   const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.avgGap)));
+  const header = `<div style="display:flex;align-items:center;gap:10px;padding:0 0 6px;font-size:8px;font-weight:800;letter-spacing:0.05em;color:var(--muted);text-transform:uppercase">
+    <span style="flex:1.2">Player</span>
+    <span style="width:26px;text-align:center">Rank</span>
+    <span style="flex:2;text-align:center">ASS Gap</span>
+    <span style="min-width:46px;text-align:right">Avg</span>
+    <span style="min-width:42px;text-align:right">In Favor</span>
+    <span style="min-width:16px;text-align:right">MP</span>
+  </div>`;
   const body = rows
     .map((r) => {
       const positive = r.avgGap >= 0;
       const barPct = Math.round((Math.abs(r.avgGap) / maxAbs) * 100);
       const color = positive ? "#f04f4f" : "#36d47e";
       const sign = positive ? "+" : "";
+      const rank = rankOf(r.name);
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
         <span style="flex:1.2;font-size:11px;font-weight:700;color:var(--text)">${escHtml(r.name)}</span>
+        <span style="width:26px;text-align:center;font-size:10px;font-weight:800;color:var(--accent)">${rank ? "#" + rank : "—"}</span>
         <div style="flex:2;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden">
           <div style="height:100%;width:${barPct}%;background:${color};border-radius:3px"></div>
         </div>
-        <span style="font-size:11px;font-weight:900;color:${color};min-width:52px;text-align:right">${sign}${Math.round(r.avgGap)}</span>
+        <span style="font-size:11px;font-weight:900;color:${color};min-width:46px;text-align:right">${sign}${Math.round(r.avgGap)}</span>
+        <span style="font-size:10px;font-weight:700;color:var(--text);min-width:42px;text-align:right">${r.favorablePct}%</span>
         <span style="font-size:9px;color:var(--muted);min-width:16px;text-align:right">${r.matches}</span>
       </div>`;
     })
     .join("");
 
   return `${periodPills}
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5"><strong style="color:#f04f4f">Positive</strong> = faced tougher opponents on average (combined ELO higher than their own team). <strong style="color:#36d47e">Negative</strong> = faced weaker opponents. Number = avg ELO points; last column = matches played.</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5"><strong style="color:#f04f4f">Positive</strong> = faced tougher opponents on average (combined ASS higher than their own team). <strong style="color:#36d47e">Negative</strong> = faced weaker opponents. Avg = avg ASS points. In Favor = % of matches where the player's own team had the higher combined ASS. Rank = ASS leaderboard position for this period.</div>
+    ${header}
     ${body}`;
 }
 
@@ -17234,7 +17258,7 @@ function renderAnalyticsPage() {
     {
       key: "elogap",
       cat: "players",
-      title: "⚖️ Avg Opponent ELO Gap",
+      title: "⚖️ Avg Opponent ASS Gap",
       body: _buildEloGapHtml(),
     },
     {

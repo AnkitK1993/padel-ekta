@@ -920,39 +920,47 @@ export function computePartnerBreakdownWhenOpposed(
   return { total, breakdown };
 }
 
-// Average Opponent ELO Gap: for each player, across their matches, how much
+// Average Opponent ASS Gap: for each player, across their matches, how much
 // stronger/weaker their opponents' combined rating was than their own team's
 // combined rating (e.g. P1+P2 = 2300 vs P3+P4 = 2000 → gap = +300 for P3/P4,
 // -300 for P1/P2 — positive means "faced tougher opposition on average").
-// eloMap is a static name -> rating snapshot (e.g. from computeASS) used for
-// every match, matching the convention computePowerRankings uses for its own
-// opponent-strength stat.
-export function computeAvgOpponentEloGap(matches, eloMap = {}) {
+// Also tracks favorablePct — the % of those matches where the player's own
+// team held the higher combined rating (odds nominally in their favor).
+// ratingMap is a static name -> rating snapshot (e.g. from computeASS) used
+// for every match, matching the convention computePowerRankings uses for its
+// own opponent-strength stat. Sorted ascending (toughest schedule/most
+// negative gap first, easiest/most positive gap last).
+export function computeAvgOpponentEloGap(matches, ratingMap = {}) {
   const rating = (name) =>
-    Object.prototype.hasOwnProperty.call(eloMap, name) ? eloMap[name] : 1000;
+    Object.prototype.hasOwnProperty.call(ratingMap, name)
+      ? ratingMap[name]
+      : 1000;
   const acc = {};
   (matches || []).forEach((m) => {
     const A = m.teamA || [];
     const B = m.teamB || [];
     if (!A.length || !B.length) return;
-    const eloA = A.reduce((s, p) => s + rating(p), 0);
-    const eloB = B.reduce((s, p) => s + rating(p), 0);
+    const ratingA = A.reduce((s, p) => s + rating(p), 0);
+    const ratingB = B.reduce((s, p) => s + rating(p), 0);
     A.forEach((p) => {
-      if (!acc[p]) acc[p] = { sum: 0, count: 0 };
-      acc[p].sum += eloB - eloA;
+      if (!acc[p]) acc[p] = { sum: 0, count: 0, favorable: 0 };
+      acc[p].sum += ratingB - ratingA;
       acc[p].count++;
+      if (ratingA > ratingB) acc[p].favorable++;
     });
     B.forEach((p) => {
-      if (!acc[p]) acc[p] = { sum: 0, count: 0 };
-      acc[p].sum += eloA - eloB;
+      if (!acc[p]) acc[p] = { sum: 0, count: 0, favorable: 0 };
+      acc[p].sum += ratingA - ratingB;
       acc[p].count++;
+      if (ratingB > ratingA) acc[p].favorable++;
     });
   });
   return Object.entries(acc)
-    .map(([name, { sum, count }]) => ({
+    .map(([name, { sum, count, favorable }]) => ({
       name,
       avgGap: count ? sum / count : 0,
       matches: count,
+      favorablePct: count ? Math.round((favorable / count) * 100) : 0,
     }))
-    .sort((a, b) => b.avgGap - a.avgGap || a.name.localeCompare(b.name));
+    .sort((a, b) => a.avgGap - b.avgGap || a.name.localeCompare(b.name));
 }
