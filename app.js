@@ -165,6 +165,7 @@ import {
   computePartnerOpponentMatrix,
   computeOpponentBreakdown,
   computePartnerBreakdownWhenOpposed,
+  computeAvgOpponentEloGap,
 } from "./src/domain/player-analytics.js";
 import {
   morphList,
@@ -8971,6 +8972,67 @@ function _renderOpposedPartnerBreakdownEl(el) {
   _renderOpposedPartnerBreakdown(el.dataset.pa, el.dataset.pb);
 }
 
+// ── Avg Opponent ELO Gap leaderboard ──────────────────────────────────────
+function _eloGapSetPeriod(btn, period) {
+  viewState.eloGapPeriod = period;
+  _refreshEloGap();
+}
+function _refreshEloGap() {
+  const box = document.getElementById("elo-gap-box");
+  if (box) box.innerHTML = _secBody(() => _eloGapInner());
+}
+function _buildEloGapHtml() {
+  return `<div class="ana-card" style="padding:10px 8px" id="elo-gap-box">${_eloGapInner()}</div>`;
+}
+function _eloGapInner() {
+  const period = viewState.eloGapPeriod || "all";
+  const matches = filterMatches(period);
+
+  const periodPills =
+    `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">` +
+    [
+      ["today", "DAILY"],
+      ["week", "WEEKLY"],
+      ["weekend", "WEEKEND"],
+      ["month", "MONTHLY"],
+      ["all", "ALL TIME"],
+    ]
+      .map(
+        ([v, l]) =>
+          `<button class="digest-filter-btn${period === v ? " active" : ""}" onclick="_eloGapSetPeriod(this,'${v}')">${l}</button>`,
+      )
+      .join("") +
+    `</div>`;
+
+  const eloMap = _memoASS();
+  const rows = computeAvgOpponentEloGap(matches, eloMap);
+
+  if (!rows.length)
+    return `${periodPills}<div style="color:var(--muted);font-size:12px;padding:10px 0">No matches in this period.</div>`;
+
+  const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.avgGap)));
+  const body = rows
+    .map((r) => {
+      const positive = r.avgGap >= 0;
+      const barPct = Math.round((Math.abs(r.avgGap) / maxAbs) * 100);
+      const color = positive ? "#f04f4f" : "#36d47e";
+      const sign = positive ? "+" : "";
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="flex:1.2;font-size:11px;font-weight:700;color:var(--text)">${escHtml(r.name)}</span>
+        <div style="flex:2;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden">
+          <div style="height:100%;width:${barPct}%;background:${color};border-radius:3px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:900;color:${color};min-width:52px;text-align:right">${sign}${Math.round(r.avgGap)}</span>
+        <span style="font-size:9px;color:var(--muted);min-width:16px;text-align:right">${r.matches}</span>
+      </div>`;
+    })
+    .join("");
+
+  return `${periodPills}
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5"><strong style="color:#f04f4f">Positive</strong> = faced tougher opponents on average (combined ELO higher than their own team). <strong style="color:#36d47e">Negative</strong> = faced weaker opponents. Number = avg ELO points; last column = matches played.</div>
+    ${body}`;
+}
+
 // ── PLAYER COMPARISON ─────────────────────────────────────
 const CMP_DATE_OPTS = [
   { v: "all", l: "ALL TIME" },
@@ -17170,6 +17232,12 @@ function renderAnalyticsPage() {
       body: _buildPairMatrixHtml(),
     },
     {
+      key: "elogap",
+      cat: "players",
+      title: "⚖️ Avg Opponent ELO Gap",
+      body: _buildEloGapHtml(),
+    },
+    {
       key: "dowvolume",
       cat: "activity",
       title: "📅 Day-of-Week Volume",
@@ -18103,7 +18171,7 @@ function renderAnalyticsPage() {
       "chemlb",
       "pairedh2h",
     ]);
-    const fullKeys = new Set(["partnergrid", "hof"]);
+    const fullKeys = new Set(["partnergrid", "elogap", "hof"]);
     const leftHtml = [];
     const rightHtml = [];
     const fullHtml = [];
@@ -19377,6 +19445,7 @@ Object.assign(window, {
   _renderPairDetailBreakdownEl,
   _renderPairDetailSummaryEl,
   _renderOpposedPartnerBreakdownEl,
+  _eloGapSetPeriod,
 });
 
 function setHistoryDateFilter(value) {

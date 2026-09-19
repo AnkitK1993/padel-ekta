@@ -919,3 +919,40 @@ export function computePartnerBreakdownWhenOpposed(
     .sort((x, y) => y.count - x.count || x.name.localeCompare(y.name));
   return { total, breakdown };
 }
+
+// Average Opponent ELO Gap: for each player, across their matches, how much
+// stronger/weaker their opponents' combined rating was than their own team's
+// combined rating (e.g. P1+P2 = 2300 vs P3+P4 = 2000 → gap = +300 for P3/P4,
+// -300 for P1/P2 — positive means "faced tougher opposition on average").
+// eloMap is a static name -> rating snapshot (e.g. from computeASS) used for
+// every match, matching the convention computePowerRankings uses for its own
+// opponent-strength stat.
+export function computeAvgOpponentEloGap(matches, eloMap = {}) {
+  const rating = (name) =>
+    Object.prototype.hasOwnProperty.call(eloMap, name) ? eloMap[name] : 1000;
+  const acc = {};
+  (matches || []).forEach((m) => {
+    const A = m.teamA || [];
+    const B = m.teamB || [];
+    if (!A.length || !B.length) return;
+    const eloA = A.reduce((s, p) => s + rating(p), 0);
+    const eloB = B.reduce((s, p) => s + rating(p), 0);
+    A.forEach((p) => {
+      if (!acc[p]) acc[p] = { sum: 0, count: 0 };
+      acc[p].sum += eloB - eloA;
+      acc[p].count++;
+    });
+    B.forEach((p) => {
+      if (!acc[p]) acc[p] = { sum: 0, count: 0 };
+      acc[p].sum += eloA - eloB;
+      acc[p].count++;
+    });
+  });
+  return Object.entries(acc)
+    .map(([name, { sum, count }]) => ({
+      name,
+      avgGap: count ? sum / count : 0,
+      matches: count,
+    }))
+    .sort((a, b) => b.avgGap - a.avgGap || a.name.localeCompare(b.name));
+}

@@ -29,6 +29,7 @@ import {
   computePartnerOpponentMatrix,
   computeOpponentBreakdown,
   computePartnerBreakdownWhenOpposed,
+  computeAvgOpponentEloGap,
 } from "../src/domain/player-analytics.js";
 import { toLocalISODate } from "../src/ui/format.js";
 import { state } from "../src/domain/state.js";
@@ -392,6 +393,59 @@ ok(
       r.breakdown[0].count === 1
     );
   })(),
+);
+
+// ── computeAvgOpponentEloGap ─────────────────────────────────────────────
+console.log(
+  "\n\x1b[36m── Avg Opponent ELO Gap golden ───────────────────────────\x1b[0m",
+);
+// Worked example from the spec: P1(1100)+P2(1200)=2300 vs P3(900)+P4(1100)=2000
+// → opponents were 300 weaker for P1/P2, 300 stronger for P3/P4.
+const EGM = { P1: 1100, P2: 1200, P3: 900, P4: 1100 };
+const EG1 = [M("2024-01-01", ["P1", "P2"], ["P3", "P4"], 6, 3)];
+const gap1 = computeAvgOpponentEloGap(EG1, EGM);
+const g1 = (n) => gap1.find((x) => x.name === n);
+ok("P1 faced opponents 300 weaker (avgGap -300)", g1("P1")?.avgGap === -300, `got ${JSON.stringify(g1("P1"))}`);
+ok("P2 faced opponents 300 weaker (avgGap -300)", g1("P2")?.avgGap === -300);
+ok("P3 faced opponents 300 stronger (avgGap +300)", g1("P3")?.avgGap === 300);
+ok("P4 faced opponents 300 stronger (avgGap +300)", g1("P4")?.avgGap === 300);
+ok("each player has 1 match counted", gap1.every((x) => x.matches === 1));
+ok(
+  "sorted descending by avgGap (toughest schedule first)",
+  gap1[0].avgGap >= gap1[1].avgGap && gap1[1].avgGap >= gap1[2].avgGap,
+);
+
+// Averaging across multiple matches with different opponent strength.
+const EG2 = [
+  M("2024-01-01", ["P1", "P2"], ["P3", "P4"], 6, 3), // gap for P1: -300
+  M("2024-01-02", ["P1", "P2"], ["P3", "P4"], 6, 3), // gap for P1: -300 again
+];
+const gap2 = computeAvgOpponentEloGap(EG2, EGM);
+ok(
+  "avgGap averages across matches (not summed)",
+  gap2.find((x) => x.name === "P1")?.avgGap === -300 &&
+    gap2.find((x) => x.name === "P1")?.matches === 2,
+  `got ${JSON.stringify(gap2.find((x) => x.name === "P1"))}`,
+);
+
+ok(
+  "missing player in eloMap defaults to 1000",
+  (() => {
+    const r = computeAvgOpponentEloGap(
+      [M("2024-01-01", ["Newbie", "P2"], ["P3", "P4"], 6, 3)],
+      EGM,
+    );
+    // Newbie(1000)+P2(1200)=2200 vs P3(900)+P4(1100)=2000 → gap -200 for Newbie/P2
+    return r.find((x) => x.name === "Newbie")?.avgGap === -200;
+  })(),
+);
+ok("empty matches → []", computeAvgOpponentEloGap([], EGM).length === 0);
+ok(
+  "malformed match with an empty team is skipped, not crashed on",
+  computeAvgOpponentEloGap(
+    [{ date: "2024-01-01", teamA: [], teamB: ["P3", "P4"], scoreA: 0, scoreB: 6 }],
+    EGM,
+  ).length === 0,
 );
 
 // ── selectors: guest handling (Statistics excludes, History includes) ───────
