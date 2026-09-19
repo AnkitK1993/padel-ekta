@@ -9024,6 +9024,7 @@ function _eloGapInner() {
 
   const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.avgGap)));
   const header = `<div style="display:flex;align-items:center;gap:10px;padding:0 0 6px;font-size:8px;font-weight:800;letter-spacing:0.05em;color:var(--muted);text-transform:uppercase">
+    <span style="width:18px;text-align:center">#</span>
     <span style="flex:1.2">Player</span>
     <span style="width:26px;text-align:center">Rank</span>
     <span style="flex:2;text-align:center">ASS Gap</span>
@@ -9032,13 +9033,14 @@ function _eloGapInner() {
     <span style="min-width:16px;text-align:right">MP</span>
   </div>`;
   const body = rows
-    .map((r) => {
+    .map((r, i) => {
       const positive = r.avgGap >= 0;
       const barPct = Math.round((Math.abs(r.avgGap) / maxAbs) * 100);
       const color = positive ? "#f04f4f" : "#36d47e";
       const sign = positive ? "+" : "";
       const rank = rankOf(r.name);
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="width:18px;text-align:center;font-size:9px;color:var(--muted)">${i + 1}</span>
         <span style="flex:1.2;font-size:11px;font-weight:700;color:var(--text)">${escHtml(r.name)}</span>
         <span style="width:26px;text-align:center;font-size:10px;font-weight:800;color:var(--accent)">${rank ? "#" + rank : "—"}</span>
         <div style="flex:2;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden">
