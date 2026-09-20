@@ -395,6 +395,37 @@ ok(
   })(),
 );
 
+// ── computeStats: per-system SR converter ────────────────────────────────
+console.log(
+  "\n\x1b[36m── computeStats SR converter golden ──────────────────────\x1b[0m",
+);
+const SRM = [M("2024-01-01", ["Sa", "Pa"], ["Ra", "Ni"], 4, 2)];
+ok(
+  "default converter keeps the 1000-centred mapping ((r-700)/60)",
+  computeStats(SRM, { Sa: 1000, Pa: 1000, Ra: 1000, Ni: 1000 }).find((p) => p.name === "Sa").sr === 5,
+);
+ok(
+  "a 0-based rating through the DEFAULT converter lands absurdly negative",
+  computeStats(SRM, { Sa: 44.4, Pa: 40, Ra: 30, Ni: 20 }).find((p) => p.name === "Sa").sr < -10,
+  "this is the bug the srFn parameter exists to prevent",
+);
+ok(
+  "an explicit converter maps a 0-based rating into the same 0-10 band",
+  (() => {
+    const srFn = (r) => parseFloat((r / 5).toFixed(2));
+    const s = computeStats(SRM, { Sa: 44.4, Pa: 40, Ra: 30, Ni: 20 }, srFn);
+    const sa = s.find((p) => p.name === "Sa").sr;
+    return sa > 8 && sa < 9;
+  })(),
+);
+ok(
+  "players missing from the rating map still fall back to the win-rate blend",
+  (() => {
+    const s = computeStats(SRM, { Sa: 1000 }, (r) => r / 5);
+    return s.find((p) => p.name === "Ra").sr > 0;
+  })(),
+);
+
 // ── computeAvgOpponentEloGap ─────────────────────────────────────────────
 console.log(
   "\n\x1b[36m── Avg Opponent ELO Gap golden ───────────────────────────\x1b[0m",

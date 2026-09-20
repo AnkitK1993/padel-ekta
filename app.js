@@ -830,6 +830,22 @@ const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep"];
 // 0-based systems: no 1000 baseline, and the headline number is small enough
 // that the decimal carries real ordering information.
 const SCORING_SYSTEMS_ZERO_BASED = ["ep"];
+// SR is a friendly ~0–10 band. The default converter (ratingToSr) subtracts a
+// 700 baseline, which only makes sense for the 1000-centred engines — a 0-based
+// rating put through it lands the entire field around −11. EP's scores already
+// sit in a 0–55 band, so a plain divide lands them in the same 0–10 shape.
+const EP_SR_DIVISOR = 5;
+function _srFnForSystem(system) {
+  return SCORING_SYSTEMS_ZERO_BASED.includes(system)
+    ? (rating) => parseFloat((rating / EP_SR_DIVISOR).toFixed(2))
+    : ratingToSr;
+}
+// Stand-in rating for a player missing from the active system's map — the
+// baseline for 1000-centred engines, zero for the 0-based ones (where 1000
+// would sort an unrated player straight to the top).
+function _ratingDefault(system = _scoringSystem) {
+  return SCORING_SYSTEMS_ZERO_BASED.includes(system) ? 0 : 1000;
+}
 let _scoringSystem = "ep";
 try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
@@ -5095,7 +5111,7 @@ function _computeLbWindowStats(baseMatches, system) {
     const pFull = _fullRatingForSystem(system, pm);
     const pRatingMap = _flatRatingForSystem(system, pm, pFull);
     // SR derives from the active system's rating over the windowed matches.
-    const pStats = computeStats(pm, pRatingMap);
+    const pStats = computeStats(pm, pRatingMap, _srFnForSystem(system));
     const ps = pStats.find((s) => s.name === playerName);
     if (ps) {
       statsList.push(ps);
@@ -5248,7 +5264,7 @@ function renderCompact() {
     const _full = _fullRatingForSystem(_scoringSystem, filtered);
     _cmpASSMap = _flatRatingForSystem(_scoringSystem, filtered, _full);
     _cmpConfMap = _confidenceForSystem(_scoringSystem, _full);
-    stats = computeStats(filtered, _cmpASSMap);
+    stats = computeStats(filtered, _cmpASSMap, _srFnForSystem(_scoringSystem));
   } else if (_effSeasonScoringMode === "reset") {
     _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
     stats = computeStats(filtered, _cmpASSMap);
@@ -5280,10 +5296,9 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    ass: (a, b) => {
-      const _dflt = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem) ? 0 : 1000;
-      return (_cmpASSMap[a.name] ?? _dflt) - (_cmpASSMap[b.name] ?? _dflt);
-    },
+    ass: (a, b) =>
+      (_cmpASSMap[a.name] ?? _ratingDefault()) -
+      (_cmpASSMap[b.name] ?? _ratingDefault()),
     sr: (a, b) => {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
       // look identical on screen resolve to a real tie instead of being
@@ -5355,9 +5370,13 @@ function renderCompact() {
     // For the score column substitute the all-time map; other columns reuse sortFns.
     const _atSort =
       cmpSortKey === "ass"
-        ? (a, b) => (_atAss[a.name] || 1000) - (_atAss[b.name] || 1000)
+        ? (a, b) =>
+            (_atAss[a.name] ?? _ratingDefault()) -
+            (_atAss[b.name] ?? _ratingDefault())
         : sortFns[cmpSortKey] || sortFns.sr;
-    const _atAll = [...computeStats(activeMatches(), _atAss)].sort((a, b) => {
+    const _atAll = [
+      ...computeStats(activeMatches(), _atAss, _srFnForSystem(_scoringSystem)),
+    ].sort((a, b) => {
       const cmp = _atSort(a, b);
       if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
@@ -5382,10 +5401,12 @@ function renderCompact() {
         _scoringSystem === "ass"
           ? computeASS(_mMonth)
           : _flatRatingForSystem(_scoringSystem, _mMonth, _fullRatingForSystem(_scoringSystem, _mMonth));
-      const _mStats = computeStats(_mMonth, _mAss);
+      const _mStats = computeStats(_mMonth, _mAss, _srFnForSystem(_scoringSystem));
       const _mSortFn =
         cmpSortKey === "ass"
-          ? (a, b) => (_mAss[a.name] || 1000) - (_mAss[b.name] || 1000)
+          ? (a, b) =>
+              (_mAss[a.name] ?? _ratingDefault()) -
+              (_mAss[b.name] ?? _ratingDefault())
           : cmpSortKey === "sr"
             ? (a, b) => a.sr - b.sr
             : sortFns[cmpSortKey] || ((a, b) => a.sr - b.sr);

@@ -19,10 +19,14 @@ export function ratingToSr(rating) {
 
 // ── COMPUTE STATS ──────────────────────────────────────────
 // Aggregates per-player stats from a list of matches. When ratingMap has an
-// entry for a player, their skill rating (sr) is derived from that rating
-// (ASS, baselined to the same 1000-centered scale); otherwise it falls back
-// to a win-rate/games/activity blend.
-export function computeStats(matches, ratingMap = {}) {
+// entry for a player, their skill rating (sr) is derived from that rating;
+// otherwise it falls back to a win-rate/games/activity blend.
+//
+// `srFn` converts a rating into the 0–10 SR band. It defaults to ratingToSr,
+// which assumes the 1000-centred scale every ELO-family engine here uses —
+// pass an explicit converter for engines on a different scale (a 0-based one
+// would otherwise map its whole field to about −11).
+export function computeStats(matches, ratingMap = {}, srFn = ratingToSr) {
   const P = {};
   const g = (n) => {
     if (!P[n])
@@ -99,7 +103,7 @@ export function computeStats(matches, ratingMap = {}) {
         act = p.mp / maxMP;
       const sr =
         p.name in ratingMap
-          ? ratingToSr(ratingMap[p.name])
+          ? srFn(ratingMap[p.name])
           : mwr * 5 + gwr * 3 + act * 2;
 
       // Feature 1: win streak
