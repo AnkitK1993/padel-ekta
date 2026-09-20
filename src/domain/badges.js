@@ -12,7 +12,24 @@ export function initBadgesDeps(deps) {
   _fmtDate = deps.fmtDate;
 }
 
-export function computeBadges(name, stats, eloMap, allMatchesArr, precomputedStats) {
+// `opts` lets the caller supply the rating engine the passed eloMap came
+// from. Without it the week-on-week "Climber" gain would subtract an
+// internally-computed ASS CLASSIC rating from whatever scale eloMap is on,
+// and `underdogGap` — a 1000-scale margin — would never be crossed on an
+// engine whose whole field spans ~50 points. Defaults reproduce the original
+// ASS CLASSIC behaviour exactly.
+export function computeBadges(
+  name,
+  stats,
+  eloMap,
+  allMatchesArr,
+  precomputedStats,
+  opts = {},
+) {
+  const _ratingFn = opts.ratingFn || _computeElo;
+  const _baseline = opts.baseline ?? 1000;
+  const _underdogGap = opts.underdogGap ?? 30;
+  const _ratingLabel = opts.ratingLabel || "ASS";
   const badges = [];
   const allStats = precomputedStats || _computeStats(allMatchesArr);
   const sr = allStats;
@@ -76,19 +93,19 @@ export function computeBadges(name, stats, eloMap, allMatchesArr, precomputedSta
 
   // 🧗 Climber: biggest positive ASS gain this week
   const { from: wkFrom } = _lastWeekRange();
-  const preWkElo = _computeElo(
+  const preWkElo = _ratingFn(
     allMatchesArr.filter((m) => (m.date || "") < wkFrom),
   );
   const eloGains = allStats.map((p) => ({
     name: p.name,
-    gain: (eloMap[p.name] || 1000) - (preWkElo[p.name] || 1000),
+    gain: (eloMap[p.name] ?? _baseline) - (preWkElo[p.name] ?? _baseline),
   }));
   const topGainer = eloGains.sort((a, b) => b.gain - a.gain)[0];
   if (topGainer && topGainer.name === name && topGainer.gain > 0)
     badges.push({
       icon: "🧗",
       label: "Climber",
-      desc: `+${topGainer.gain} ASS this week`,
+      desc: `+${Math.round(topGainer.gain)} ${_ratingLabel} this week`,
     });
 
   // 🦁 Clutch King: best win% in close matches (margin <= 1) with ≥3 close games
@@ -349,11 +366,12 @@ export function computeBadges(name, stats, eloMap, allMatchesArr, precomputedSta
       const myTeam = inA ? m.teamA : m.teamB;
       const oppTeam = inA ? m.teamB : m.teamA;
       const myAvg =
-        myTeam.reduce((s, p) => s + (eloMapCur[p] || 1000), 0) / myTeam.length;
+        myTeam.reduce((s, p) => s + (eloMapCur[p] ?? _baseline), 0) /
+        myTeam.length;
       const oppAvg =
-        oppTeam.reduce((s, p) => s + (eloMapCur[p] || 1000), 0) /
+        oppTeam.reduce((s, p) => s + (eloMapCur[p] ?? _baseline), 0) /
         oppTeam.length;
-      if (myAvg < oppAvg - 30) underdogWins++;
+      if (myAvg < oppAvg - _underdogGap) underdogWins++;
     });
     if (underdogWins >= 10)
       badges.push({

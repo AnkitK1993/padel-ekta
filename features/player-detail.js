@@ -57,8 +57,38 @@ let _playerAvatar = (name, size = 26) => {
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
 };
 
-export function initPlayerDetailDeps({ playerAvatar }) {
+// Rating accessors are injected so this module follows the Summary tab's
+// scoring picker instead of being hard-wired to ASS CLASSIC. Each falls back
+// to the original memo/engine, so nothing changes if they aren't supplied.
+let _ratingMap = (ms) => computeASS(ms);
+let _ratingHistory = () => memoASSHistory();
+let _ratingPeaks = () => memoASSPeaks();
+let _ratingLows = () => memoASSLows();
+let _srFn = () => ratingToSr;
+let _ratingDefault = () => 1000;
+let _ratingFmt = (v) => String(Math.round(v));
+let _ratingLabel = () => "ASS";
+
+export function initPlayerDetailDeps({
+  playerAvatar,
+  ratingMap,
+  ratingHistory,
+  ratingPeaks,
+  ratingLows,
+  srFn,
+  ratingDefault,
+  ratingFmt,
+  ratingLabel,
+}) {
   if (playerAvatar) _playerAvatar = playerAvatar;
+  if (ratingMap) _ratingMap = ratingMap;
+  if (ratingHistory) _ratingHistory = ratingHistory;
+  if (ratingPeaks) _ratingPeaks = ratingPeaks;
+  if (ratingLows) _ratingLows = ratingLows;
+  if (srFn) _srFn = srFn;
+  if (ratingDefault) _ratingDefault = ratingDefault;
+  if (ratingFmt) _ratingFmt = ratingFmt;
+  if (ratingLabel) _ratingLabel = ratingLabel;
 }
 
 function getPlayerDetail(name) {
@@ -295,13 +325,13 @@ function streakCalDayClick(date, playerName) {
 function _pdBuildRadarHtml(name, form) {
   // Rating axis follows ASS, the sole scoring system.
   const _ratingLbl = "ASS";
-  const eloMap = computeASS(activeMatches());
-  const allStats = computeStats(activeMatches(), eloMap);
+  const eloMap = _ratingMap(activeMatches());
+  const allStats = computeStats(activeMatches(), eloMap, _srFn());
   const ps = allStats.find((p) => p.name === name);
   if (!ps || ps.mp < 3) return "";
   const allElos = Object.values(eloMap);
   const maxElo = Math.max(...allElos), minElo = Math.min(...allElos);
-  const eloNorm = maxElo > minElo ? ((eloMap[name] || 1000) - minElo) / (maxElo - minElo) : 0.5;
+  const eloNorm = maxElo > minElo ? ((eloMap[name] ?? _ratingDefault()) - minElo) / (maxElo - minElo) : 0.5;
   const winRateNorm = ps.mp > 0 ? ps.mw / ps.mp : 0;
   const closeMs = activeMatches().filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].includes(name) && Math.abs(m.scoreA - m.scoreB) <= 2,
@@ -319,7 +349,7 @@ function _pdBuildRadarHtml(name, form) {
   const activePlayers = allStats.filter((p) => p.mp >= 3);
   const _avg = (fn) => activePlayers.reduce((s, p) => s + fn(p), 0) / Math.max(activePlayers.length, 1);
   const avgWinRate = _avg((p) => (p.mp > 0 ? p.mw / p.mp : 0));
-  const avgElo = _avg((p) => maxElo > minElo ? ((eloMap[p.name] || 1000) - minElo) / (maxElo - minElo) : 0.5);
+  const avgElo = _avg((p) => maxElo > minElo ? ((eloMap[p.name] ?? _ratingDefault()) - minElo) / (maxElo - minElo) : 0.5);
   const avgClutch = _avg((p) => {
     const cMs = activeMatches().filter((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name) && Math.abs(m.scoreA - m.scoreB) <= 2);
     return cMs.length >= 2 ? cMs.filter((m) => { const inA = (m.teamA || []).includes(p.name); return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA); }).length / cMs.length : 0.5;
@@ -410,7 +440,7 @@ function _pdBuildFormGraphHtml(name, graphMatches) {
 }
 
 function _pdBuildASSTimelineHtml(name) {
-  const pts = (memoASSHistory()[name] || []).map((h) => ({ elo: h.elo, date: h.date, won: h.won }));
+  const pts = (_ratingHistory()[name] || []).map((h) => ({ elo: h.elo, date: h.date, won: h.won }));
   if (pts.length < 3) return "";
   const W = 300, H = 90, pl = 36, pr = 8, pt = 8, pb = 18, cW = W - pl - pr, cH = H - pt - pb;
   const minE = Math.min(...pts.map((p) => p.elo)) - 20;
@@ -613,7 +643,7 @@ function openPlayerDetail(name) {
       <div class="form-pills-row">
         <div class="form-pill"><span style="font-size:9px;color:var(--muted)">MOMENTUM</span><span style="font-size:11px;font-weight:800;color:${form.momentumColor}">${form.momentumLabel}</span></div>
         <div class="form-pill"><span style="font-size:9px;color:var(--muted)">UNDER PRESSURE</span><span style="font-size:11px;font-weight:800;color:${form.pressureColor}">${form.pressureLabel} (${form.pressureScore}%)</span></div>
-        <div class="form-pill"><span style="font-size:9px;color:var(--muted)">WIN QUALITY</span><span style="font-size:11px;font-weight:800;color:var(--fg)">ASS ${form.winQuality}</span></div>
+        <div class="form-pill"><span style="font-size:9px;color:var(--muted)">WIN QUALITY</span><span style="font-size:11px;font-weight:800;color:var(--fg)">ASS CLASSIC ${form.winQuality}</span></div>
       </div>
     </div>`
     : "";
@@ -869,13 +899,13 @@ function openPlayerDetail(name) {
     </div>`;
 
   // ASS
-  const assMapPd = memoASS();
-  const playerASS = assMapPd[name] || 1000;
-  const assChange = playerASS - 1000;
+  const assMapPd = _ratingMap(activeMatches());
+  const playerASS = assMapPd[name] ?? _ratingDefault();
+  const assChange = playerASS - _ratingDefault();
   const assChangeCol = assChange > 0 ? "var(--green)" : assChange < 0 ? "var(--red)" : "var(--muted)";
   const assRank = Object.entries(assMapPd).sort((a, b) => b[1] - a[1]).findIndex(([n]) => n === name) + 1;
   // SR derived from ASS.
-  const srAss = ratingToSr(playerASS);
+  const srAss = _srFn()(playerASS);
 
   // Badges
   const badges = computeBadges(name, s, assMapPd, activeMatches());
@@ -916,10 +946,14 @@ function openPlayerDetail(name) {
   // Leaderboard Race stats for this player
   const { from: wkFrom, to: wkTo } = lastWeekRange();
   // Ranks follow ASS, the sole scoring system.
-  const _scoreOf = (ms) => computeASS(ms);
-  const allRanked = computeStats(activeMatches(), _scoreOf(activeMatches()));
+  const _scoreOf = (ms) => _ratingMap(ms);
+  const allRanked = computeStats(
+    activeMatches(),
+    _scoreOf(activeMatches()),
+    _srFn(),
+  );
   const preWkMatches = activeMatches().filter((m) => (m.date || "") < wkFrom);
-  const preWkRanked = computeStats(preWkMatches, _scoreOf(preWkMatches));
+  const preWkRanked = computeStats(preWkMatches, _scoreOf(preWkMatches), _srFn());
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
   // Best rank: find minimum rank position across all match-date snapshots
@@ -937,7 +971,7 @@ function openPlayerDetail(name) {
   _playerDates.forEach((date) => {
     const snap = _sortedAll.filter((m) => (m.date || "") <= date);
     const rank =
-      computeStats(snap, _scoreOf(snap)).findIndex((p) => p.name === name) +
+      computeStats(snap, _scoreOf(snap), _srFn()).findIndex((p) => p.name === name) +
       1;
     if (rank > 0 && rank < bestRank) bestRank = rank;
   });
@@ -1358,8 +1392,8 @@ function openPlayerDetail(name) {
     const bestDay2 = Object.entries(byDate2).sort(
       (a, b) => b[1].w - a[1].w || b[1].p - a[1].p,
     )[0];
-    const peakASSVal = memoASSPeaks()[name] || playerASS;
-    const lowASSVal  = memoASSLows()[name]  || playerASS;
+    const peakASSVal = _ratingPeaks()[name] ?? playerASS;
+    const lowASSVal  = _ratingLows()[name]  ?? playerASS;
     // Tap Best Win / Worst Loss to open that match in the UFC overlay.
     const bwIdx = biggestWinMatch ? state.matches.indexOf(biggestWinMatch) : -1;
     const wlIdx = worstLossMatch ? state.matches.indexOf(worstLossMatch) : -1;
@@ -1489,7 +1523,7 @@ function openPlayerDetail(name) {
                       <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;flex-direction:column;gap:2px">
                         <div style="display:flex;align-items:center;gap:6px">
                           <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ASS</span>
-                          <span id="pd-ass-val" data-final="${playerASS}" style="color:${assChangeCol};font-weight:800;font-size:13px">${playerASS}</span>
+                          <span id="pd-ass-val" data-final="${_ratingFmt(playerASS)}" style="color:${assChangeCol};font-weight:800;font-size:13px">${_ratingFmt(playerASS)}</span>
                           <span style="font-size:9px;color:var(--muted)">SR ${srAss.toFixed(2)}</span>
                           ${assRank > 0 ? `<span style="font-size:9px;color:var(--muted)">#${assRank} rank</span>` : ""}
                         </div>
@@ -1521,7 +1555,7 @@ function openPlayerDetail(name) {
                   ${form ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(var(--theme-rgb),0.07);border:1px solid rgba(var(--theme-rgb),0.15);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
                     <div>
                       <div style="font-size:8px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">WIN QUALITY</div>
-                      <div style="font-size:9px;color:var(--muted);margin-top:1px">avg ASS of opponents beaten</div>
+                      <div style="font-size:9px;color:var(--muted);margin-top:1px">avg ASS CLASSIC of opponents beaten</div>
                     </div>
                     <div style="font-size:22px;font-weight:900;color:var(--accent)">${form.winQuality}</div>
                   </div>` : ""}

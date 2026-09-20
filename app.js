@@ -972,6 +972,18 @@ function _statsDefault() {
 // Ratings display as whole numbers on the 1000-centred engines, but the
 // 0-based ones need a decimal — a 0.4 gap there is a real placing difference,
 // and unrounded floats would otherwise render as 44.36065573770492.
+// Badge thresholds are expressed on the 1000-centred scale. An engine whose
+// field spans ~50 points needs the underdog margin scaled to match, or the
+// upset badges can never fire.
+function _statsBadgeOpts() {
+  const zero = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem);
+  return {
+    ratingFn: _statsRatingMap,
+    baseline: _statsDefault(),
+    underdogGap: zero ? 2 : 30,
+    ratingLabel: _statsLabel(),
+  };
+}
 function _statsFmt(v) {
   if (v == null || !Number.isFinite(v)) return "—";
   return SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem)
@@ -1313,6 +1325,16 @@ initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 initPlayerDetailDeps({
   playerAvatar,
   getScoringMode: () => _scoringMode,
+  // Follow the Summary tab's scoring picker, so a player's card and their
+  // detail sheet never disagree about what their rating is.
+  ratingMap: (ms) => _statsRatingMap(ms),
+  ratingHistory: () => _activeHistory(),
+  ratingPeaks: () => _activePeaks(),
+  ratingLows: () => _activeLows(),
+  srFn: () => _statsSrFn(),
+  ratingDefault: () => _statsDefault(),
+  ratingFmt: (v) => _statsFmt(v),
+  ratingLabel: () => _statsLabel(),
 });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
@@ -5009,10 +5031,13 @@ function renderHome() {
   // When filter is "all" (no date range), filtered === activeMatches() content —
   // use the memoised results to avoid redundant full-dataset walks.
   const _isAllFilter = homeFilter === "all" && !homeFrom && !homeTo;
-  const homeASSMap = _isAllFilter ? _memoASS() : computeASS(filtered);
+  const homeASSMap =
+    _isAllFilter && _scoringSystem === "ass"
+      ? _memoASS()
+      : _statsRatingMap(filtered);
   // SR (the gauge/rating on every card) and the card ordering both follow ASS.
   // computeStats already sorts by SR desc, so this orders cards by ASS too.
-  const stats = computeStats(filtered, homeASSMap);
+  const stats = computeStats(filtered, homeASSMap, _statsSrFn());
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
   const uniqD = new Set(filtered.map((m) => m.date)).size;
   const board = document.getElementById("board");
@@ -5040,7 +5065,7 @@ function renderHome() {
   const maxSR = stats[0].sr || 1;
 
   // Score deltas (recent-5 and 30-day trend) for the card badges, from ASS.
-  const _histAll = _memoASSHistory();
+  const _histAll = _activeHistory();
   const _thirtyAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -5057,14 +5082,15 @@ function renderHome() {
     }
     const cur = hist[hist.length - 1].elo;
     // Last-5 trend: ASS now vs ASS just before this player's last 5 matches.
-    const base5 = hist.length > 5 ? hist[hist.length - 6].elo : 1000;
+    const base5 =
+      hist.length > 5 ? hist[hist.length - 6].elo : _statsDefault();
     assDeltaMap[p.name] = Math.round(cur - base5);
     // 30-day trend: ASS now vs ASS just before the first match in the window.
     const idx30 = hist.findIndex((h) => (h.date || "") >= _thirtyAgo);
     monthlyAssDeltaMap[p.name] =
       idx30 === -1
         ? null
-        : Math.round(cur - (idx30 > 0 ? hist[idx30 - 1].elo : 1000));
+        : Math.round(cur - (idx30 > 0 ? hist[idx30 - 1].elo : _statsDefault()));
   });
 
   const cardHtmls = stats.map((p, i) => {
@@ -5119,7 +5145,14 @@ function renderHome() {
       : streakChip
         ? `<div class="spark-row">${streakChip}</div>`
         : "";
-    const playerBadges = computeBadges(p.name, p, homeASSMap, filtered, stats);
+    const playerBadges = computeBadges(
+      p.name,
+      p,
+      homeASSMap,
+      filtered,
+      stats,
+      _statsBadgeOpts(),
+    );
     const badgePillsHtml =
       playerBadges.length
         ? `<div class="card-badge-row">${playerBadges.map((b) => `<span class="card-badge-pill" title="${b.desc}">${b.icon} ${b.label}</span>`).join("")}</div>`
@@ -5153,9 +5186,9 @@ function renderHome() {
 
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeASSMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_statsFmt(homeASSMap[p.name] ?? _statsDefault())}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${homeASSMap[p.name] || 1000}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_statsFmt(homeASSMap[p.name] ?? _statsDefault())}</span>${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${p.sr.toFixed(2)}">${p.sr.toFixed(2)}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
   });
 
   _renderSessionActiveCard();
@@ -9659,8 +9692,8 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     baseMatches,
     viewState.cmpWindowA,
   );
-  const eloMapA = computeASS(matchesA);
-  const statsA = computeStats(matchesA, eloMapA);
+  const eloMapA = _statsRatingMap(matchesA);
+  const statsA = computeStats(matchesA, eloMapA, _statsSrFn());
   const sA = statsA.find((s) => s.name === nameA);
 
   const matchesB = _getPlayerWindowMatches(
@@ -9668,8 +9701,8 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     baseMatches,
     viewState.cmpWindowB,
   );
-  const eloMapB = computeASS(matchesB);
-  const statsB = computeStats(matchesB, eloMapB);
+  const eloMapB = _statsRatingMap(matchesB);
+  const statsB = computeStats(matchesB, eloMapB, _statsSrFn());
   const sB = statsB.find((s) => s.name === nameB);
 
   if (!sA || !sB) return;
@@ -9797,7 +9830,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
           ${row("Shutout Wins", shutoutA.sw, shutoutB.sw)}
           ${row("Shutout Losses", shutoutA.sl, shutoutB.sl, false)}
           ${row("Skill Rating", sA.sr.toFixed(2), sB.sr.toFixed(2))}
-          ${row("ASS", eloMapA[nameA] || 1000, eloMapB[nameB] || 1000)}
+          ${row(_statsLabel(), _statsFmt(eloMapA[nameA] ?? _statsDefault()), _statsFmt(eloMapB[nameB] ?? _statsDefault()))}
           ${row("Best Streak", sA.bestWinStreak + "W", sB.bestWinStreak + "W")}
           ${row("Avg Margin", (sA.avgMargin >= 0 ? "+" : "") + sA.avgMargin.toFixed(1), (sB.avgMargin >= 0 ? "+" : "") + sB.avgMargin.toFixed(1))}
           ${sA.consistency !== null && sB.consistency !== null ? row("Consistency ±", sA.consistency, sB.consistency, false) : ""}
@@ -10417,11 +10450,11 @@ function mkLvlRow(displayName) {
 // to live in the separate "Monthly Awards" section (Most Consistent, Most Feared)
 // so the two are unified into one section.
 function _periodAwards(ms, priorMs) {
-  const eloMap = computeASS(ms);
+  const eloMap = _statsRatingMap(ms);
   // MVP ranks by ASS rating — same metric as the Monthly Recap Player of the
   // Month, so the two awards never disagree on who tops the period.
-  const assMap = computeASS(ms);
-  const stats = computeStats(ms, assMap).filter((p) => p.mp >= 2);
+  const assMap = _statsRatingMap(ms);
+  const stats = computeStats(ms, assMap, _statsSrFn()).filter((p) => p.mp >= 2);
   const pairs = getPairStats(ms).filter((p) => p.played >= 2);
   const mvp = stats[0] || null;
   const topPair = pairs[0] || null;
@@ -10429,7 +10462,9 @@ function _periodAwards(ms, priorMs) {
     ? [...stats].sort((a, b) => b.mp - a.mp)[0]
     : null;
   const priorEloMap =
-    priorMs && priorMs.length && stats.length > 1 ? computeASS(priorMs) : null;
+    priorMs && priorMs.length && stats.length > 1
+      ? _statsRatingMap(priorMs)
+      : null;
   const mostImproved = priorEloMap
     ? [...stats].sort(
         (a, b) =>
@@ -10913,7 +10948,7 @@ function openEloTLOverlaySheet() {
   if (el) el.textContent = "COMPARE WITH";
   const list = document.getElementById("filter-sheet-list");
   if (!list) return;
-  const history = _memoASSHistory();
+  const history = _activeHistory();
   const players = sortPlayersGuestsLast(
     Object.keys(history).filter((p) => p !== viewState.eloTLPlayer),
   );
@@ -11387,8 +11422,8 @@ function _computeRankPeriods(periodType) {
           totalPlayers: 0,
           idx,
         };
-      const eloMap = computeASS(b.matches);
-      const statsArr = computeStats(b.matches, eloMap);
+      const eloMap = _statsRatingMap(b.matches);
+      const statsArr = computeStats(b.matches, eloMap, _statsSrFn());
       if (statsArr.length < _MIN_RANK_PLAYERS)
         return {
           key: b.key,
@@ -17167,7 +17202,7 @@ function renderAnalyticsPage() {
     {
       key: "matchsim",
       cat: "elo",
-      title: "🕹️ Match Simulator",
+      title: `🕹️ Match Simulator (${SCORING_SYSTEM_LABELS.ass})`,
       body: simulatorHtml,
     },
     {
@@ -18190,7 +18225,14 @@ function renderAnalyticsPage() {
         const eloMapAll = _statsRatingMap(activeMatches());
         const holders = {};
         playersByMatches.forEach((name) => {
-          const badges = computeBadges(name, null, eloMapAll, am, compList);
+          const badges = computeBadges(
+            name,
+            null,
+            eloMapAll,
+            am,
+            compList,
+            _statsBadgeOpts(),
+          );
           badges.forEach((b) => {
             if (!holders[b.label])
               holders[b.label] = { icon: b.icon, desc: b.desc, players: [] };
