@@ -162,3 +162,65 @@ export function computeEP(matches, careerMatches = null) {
   Object.keys(full).forEach((p) => (out[p] = full[p].score));
   return out;
 }
+
+// { history, peaks, lows } in the same shape as computeASSTimeline, so the
+// analytics renderers can swap between engines transparently.
+//
+// `elo` here tracks the running LEADERBOARD score — cumulative EP over
+// (games so far + SHRINKAGE) — not the cumulative total. The total only ever
+// climbs, which would make "peak" always the last match and "low" always the
+// first; the score is the number actually shown on the board and genuinely
+// moves both ways, so its peak and low mean something. The trade-off is that
+// the first handful of matches read low by construction (the shrinkage term
+// dominates a small denominator) and climb as the sample fills out.
+//
+// `delta` stays the raw EP earned for that match — "what did this match pay"
+// is the useful per-row number, and it's what the match-delta column shows.
+export function computeEPTimeline(matches, careerMatches = null) {
+  const history = {};
+  const peaks = {};
+  const lows = {};
+  const totals = {};
+  const played = {};
+
+  const ordered = [...(matches || [])].sort(byDate);
+  const deltas = computeMatchEPDeltas(matches, careerMatches);
+
+  ordered.forEach((m) => {
+    const entry = deltas.get(m);
+    if (!entry) return;
+    const teamA = m.teamA || [];
+    const teamB = m.teamB || [];
+    const aWon = m.scoreA > m.scoreB;
+
+    const record = (p, won, opponent, mine, theirs) => {
+      if (!(p in totals)) {
+        totals[p] = 0;
+        played[p] = 0;
+        history[p] = [];
+        peaks[p] = -Infinity;
+        lows[p] = Infinity;
+      }
+      const d = entry.playerDeltas[p];
+      totals[p] += d;
+      played[p]++;
+      const score = totals[p] / (played[p] + EP_SHRINKAGE);
+      history[p].push({
+        date: m.date,
+        elo: score,
+        delta: d,
+        won,
+        opponent,
+        scoreA: mine,
+        scoreB: theirs,
+      });
+      if (score > peaks[p]) peaks[p] = score;
+      if (score < lows[p]) lows[p] = score;
+    };
+
+    teamA.forEach((p) => record(p, aWon, teamB.join(" & "), m.scoreA, m.scoreB));
+    teamB.forEach((p) => record(p, !aWon, teamA.join(" & "), m.scoreB, m.scoreA));
+  });
+
+  return { history, peaks, lows };
+}

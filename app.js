@@ -25,6 +25,7 @@ import {
 } from "./src/domain/fairshare.js";
 import {
   computeEPFull,
+  computeEPTimeline,
   computeMatchEPDeltas,
 } from "./src/domain/ep.js";
 import {
@@ -349,16 +350,33 @@ function _memoASSLows() {
 const _scoringMode = "ass";
 
 function _activeScoreMap() {
-  return _memoASS();
+  return _statsRatingMap(activeMatches());
+}
+// Statistics-page timeline, following the scoring picker. activeMatches() is
+// itself memoised and returns a stable reference until invalidated, so using
+// it as part of the cache key recomputes exactly once per data or system
+// change rather than once per section that asks for it.
+let _statsTimelineCache = null;
+function _activeTimeline() {
+  const ms = activeMatches();
+  if (
+    _statsTimelineCache &&
+    _statsTimelineCache.system === _scoringSystem &&
+    _statsTimelineCache.matches === ms
+  )
+    return _statsTimelineCache.tl;
+  const tl = _statsTimeline(ms);
+  _statsTimelineCache = { system: _scoringSystem, matches: ms, tl };
+  return tl;
 }
 function _activeHistory() {
-  return _memoASSHistory();
+  return _activeTimeline().history;
 }
 function _activePeaks() {
-  return _memoASSPeaks();
+  return _activeTimeline().peaks;
 }
 function _activeLows() {
-  return _memoASSLows();
+  return _activeTimeline().lows;
 }
 function _activeStats() {
   const assMap = _memoASS();
@@ -367,7 +385,9 @@ function _activeStats() {
     .sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
 }
 function _scoringLabel() {
-  return "ASS";
+  // Statistics section titles follow the Summary tab's picker, so "ASS
+  // Rankings" and the ASS leaderboard always mean the same engine.
+  return SCORING_SYSTEM_LABELS[_scoringSystem] || "ASS";
 }
 function saveCloudData(opts) {
   return _cloudRepoSave(opts);
@@ -922,6 +942,95 @@ function _matchDeltasForSystem(system, matches) {
   if (system === "fairshare") return computeMatchFairShareDeltas(matches);
   if (system === "ep") return computeMatchEPDeltas(matches, _epCareerMatches());
   return computeMatchASSDeltas(matches);
+}
+
+// ── STATISTICS PAGE RATING SOURCE ───────────────────────────
+// The Statistics page follows whichever engine the Summary tab's picker has
+// selected, so a section titled "<system> Rankings" always means the same
+// number as the leaderboard. Two sections are deliberately excluded and stay
+// pinned to ASS CLASSIC — Rating Projection and the What-If Simulator have
+// ASS's 1000 baseline and quality×multiplier shape built into their maths, so
+// they would need redesigning rather than rewiring; they say so in their own
+// titles. The internal ELO walk behind Prediction Accuracy is also left alone:
+// that models match outcomes, not the displayed rating.
+function _statsLabel() {
+  return SCORING_SYSTEM_LABELS[_scoringSystem];
+}
+function _statsRatingMap(matches) {
+  return _flatRatingForSystem(
+    _scoringSystem,
+    matches,
+    _fullRatingForSystem(_scoringSystem, matches),
+  );
+}
+function _statsSrFn() {
+  return _srFnForSystem(_scoringSystem);
+}
+function _statsDefault() {
+  return _ratingDefault(_scoringSystem);
+}
+// Ratings display as whole numbers on the 1000-centred engines, but the
+// 0-based ones need a decimal — a 0.4 gap there is a real placing difference,
+// and unrounded floats would otherwise render as 44.36065573770492.
+function _statsFmt(v) {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem)
+    ? v.toFixed(1)
+    : String(Math.round(v));
+}
+// Generic running-total timeline for the engines that don't ship one. Every
+// delta map exposes the same { playerDeltas } shape, so accumulating them from
+// the system's baseline reproduces what a bespoke timeline would walk.
+function _timelineFromDeltas(matches, deltaMap, base) {
+  const running = {};
+  const history = {};
+  const peaks = {};
+  const lows = {};
+  [...matches]
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((m) => {
+      const entry = deltaMap.get(m);
+      if (!entry) return;
+      const aWon = m.scoreA > m.scoreB;
+      const record = (p, won, opponent, mine, theirs) => {
+        if (!(p in running)) {
+          running[p] = base;
+          history[p] = [];
+          peaks[p] = base;
+          lows[p] = base;
+        }
+        const d = entry.playerDeltas[p] || 0;
+        running[p] += d;
+        history[p].push({
+          date: m.date,
+          elo: running[p],
+          delta: d,
+          won,
+          opponent,
+          scoreA: mine,
+          scoreB: theirs,
+        });
+        if (running[p] > peaks[p]) peaks[p] = running[p];
+        if (running[p] < lows[p]) lows[p] = running[p];
+      };
+      (m.teamA || []).forEach((p) =>
+        record(p, aWon, (m.teamB || []).join(" & "), m.scoreA, m.scoreB),
+      );
+      (m.teamB || []).forEach((p) =>
+        record(p, !aWon, (m.teamA || []).join(" & "), m.scoreB, m.scoreA),
+      );
+    });
+  return { history, peaks, lows };
+}
+function _statsTimeline(matches) {
+  if (_scoringSystem === "ass") return computeASSTimeline(matches);
+  if (_scoringSystem === "ep")
+    return computeEPTimeline(matches, _epCareerMatches());
+  return _timelineFromDeltas(
+    matches,
+    _matchDeltasForSystem(_scoringSystem, matches),
+    1000,
+  );
 }
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
@@ -10549,13 +10658,16 @@ function runMatchSimulator() {
 function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || viewState.eloTLFilter || "all";
   viewState.eloTLFilter = filterKey;
-  const history = _memoASSHistory();
-  const eloNow = _memoASS();
+  const history = _activeHistory();
+  const eloNow = _statsRatingMap(activeMatches());
   const players = Object.keys(history)
     .filter((p) => (history[p] || []).length >= 2)
-    .sort((a, b) => (eloNow[b] || 1000) - (eloNow[a] || 1000));
+    .sort(
+      (a, b) =>
+        (eloNow[b] ?? _statsDefault()) - (eloNow[a] ?? _statsDefault()),
+    );
   if (!players.length)
-    return '<div class="sub" style="padding:8px">No ASS data yet.</div>';
+    return `<div class="sub" style="padding:8px">No ${escHtml(_statsLabel())} data yet.</div>`;
   if (!viewState.eloTLPlayer || !history[viewState.eloTLPlayer])
     viewState.eloTLPlayer = players[0];
   const name = viewState.eloTLPlayer;
@@ -10707,7 +10819,12 @@ function buildEloTimelineHtml(filterKey) {
     const lastElo = pts[pts.length - 1].elo;
     const startElo = pts[0].elo - pts[0].delta;
     const netChange = lastElo - startElo;
-    const netStr = netChange > 0 ? `+${netChange}` : String(netChange);
+    const netStr =
+      netChange > 0
+        ? `+${_statsFmt(netChange)}`
+        : netChange < 0
+          ? `-${_statsFmt(Math.abs(netChange))}`
+          : _statsFmt(0);
     const netCol =
       netChange > 0
         ? "var(--green)"
@@ -10728,7 +10845,7 @@ function buildEloTimelineHtml(filterKey) {
       const ly = above ? y + 18 : y - 12;
       return `<g>
         <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="none" stroke="${fill}" stroke-width="1.5"/>
-        <text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="8" font-weight="900" fill="${fill}">${label} ${pts[i].elo}</text>
+        <text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="8" font-weight="900" fill="${fill}">${label} ${_statsFmt(pts[i].elo)}</text>
       </g>`;
     };
     const peakTroughAnnotations =
@@ -10753,7 +10870,7 @@ function buildEloTimelineHtml(filterKey) {
 
     chartHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px">
         <div style="font-size:9px;color:var(--muted)">● W &nbsp;● L &nbsp;· ${pts.length} matches</div>
-        <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ASS</div>
+        <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ${escHtml(_statsLabel())}</div>
       </div>
       <div style="overflow-x:auto">
         <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
@@ -10767,7 +10884,7 @@ function buildEloTimelineHtml(filterKey) {
           ${overlayHtml}
           ${circles}
           ${peakTroughAnnotations}
-          <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastElo) - 7).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="900" fill="${col}">${lastElo}</text>
+          <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastElo) - 7).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="900" fill="${col}">${_statsFmt(lastElo)}</text>
         </svg>
       </div>
       <div id="elo-tl-detail"></div>`;
@@ -12271,7 +12388,7 @@ function _buildPowerRankingsHtml() {
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:14px;font-weight:900;color:${col}">${p.score}</div>
-        <div style="font-size:8px;color:var(--muted);font-weight:700">${p.formEmoji} ${p.winPct}%W · ${_scoringLabel()} ${p.elo}</div>
+        <div style="font-size:8px;color:var(--muted);font-weight:700">${p.formEmoji} ${p.winPct}%W · ${_scoringLabel()} ${_statsFmt(p.elo)}</div>
       </div>
     </div>`;
     })
@@ -13611,11 +13728,11 @@ window._renderHiLoTable = function () {
       const fpStr =
         r.fromPeak === 0
           ? `<span style="color:var(--green);font-size:9px;font-weight:800">PEAK</span>`
-          : `<span style="color:var(--red)">${r.fromPeak}</span>`;
+          : `<span style="color:var(--red)">-${_statsFmt(Math.abs(r.fromPeak))}</span>`;
       const flStr =
         r.fromLow === 0
           ? `<span style="color:var(--muted);font-size:9px">LOW</span>`
-          : `<span style="color:var(--green)">+${r.fromLow}</span>`;
+          : `<span style="color:var(--green)">+${_statsFmt(r.fromLow)}</span>`;
       const dots = (r.pts5 || [])
         .map(
           (pt) =>
@@ -13631,10 +13748,10 @@ window._renderHiLoTable = function () {
       return `<div class="lrace-row" style="${pg3};padding:6px 4px">
       <div class="lrace-rank" style="font-size:10px">#${i + 1}</div>
       <div class="lrace-name" style="font-size:10px">${r.name}</div>
-      <div style="text-align:center;font-size:11px;font-weight:800">${r.current}</div>
-      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--gold)">${r.peak}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800">${_statsFmt(r.current)}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--gold)">${_statsFmt(r.peak)}</div>
       <div style="text-align:center;font-size:9px">${fpStr}</div>
-      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--red)">${r.low}</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--red)">${_statsFmt(r.low)}</div>
       <div style="text-align:center;font-size:9px">${flStr}</div>
       <div style="text-align:center"><div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${dots}</div>${momStr}</div>
     </div>`;
@@ -13699,7 +13816,9 @@ window._renderEloProjTable = function () {
   const tableEl = document.getElementById("eloproj-table");
   if (!tableEl) return;
   const { formN, futureM, sortCol, sortAsc } = window._eloProj;
-  const ratingLbl = "ASS";
+  // Pinned to ASS CLASSIC: the projection maths assumes the 1000 baseline
+  // and ASS's quality x multiplier shape, so it does not follow the picker.
+  const ratingLbl = SCORING_SYSTEM_LABELS.ass;
   const eloMap = _memoASS();
   const histAll = _memoASSHistory();
   if (!histAll || !eloMap) return;
@@ -14082,8 +14201,10 @@ function renderAnalyticsPage() {
     losses: _shutoutLossMatchesByPlayer,
   };
 
-  // ── ELO ────────────────────────────────────────────────
-  const eloMap = _scoringMode === "ass" ? computeASS(am) : computeASS(am);
+  // ── RATING ─────────────────────────────────────────────
+  // Follows the Summary tab's scoring picker, so every section fed by this
+  // map reports the same numbers the leaderboard does.
+  const eloMap = _statsRatingMap(am);
   // One getPairStats(am) pass, reused by every section below that needs it
   // (pair leaderboard, pair form, pair chemistry matrix) instead of each
   // recomputing pair stats over the full match history separately.
@@ -14114,7 +14235,7 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = computeStats(am, eloMap);
+  const compList = computeStats(am, eloMap, _statsSrFn());
   if (_scoringMode === "ass") {
     compList.sort((a, b) => (eloMap[b.name] || 0) - (eloMap[a.name] || 0));
   }
@@ -14212,7 +14333,7 @@ function renderAnalyticsPage() {
   const _qwScoreMap = eloMap;
   // Both ELO and ASS are anchored at 1000, so an unmapped player falls back to
   // the 1000 baseline (previously ASS wrongly used 0, deflating the average).
-  const _qwFallback = 1000;
+  const _qwFallback = _statsDefault();
   const qualityWins = {};
   am.forEach((m) => {
     const winners = m.scoreA > m.scoreB ? m.teamA : m.teamB;
@@ -14269,8 +14390,16 @@ function renderAnalyticsPage() {
   const _qwMed = _qwScores.length
     ? _qwScores[Math.floor(_qwScores.length / 2)]
     : _qwFallback;
-  const _qwHigh = _scoringMode === "ass" ? _qwMed + 30 : 1050;
-  const _qwLow = _scoringMode === "ass" ? _qwMed - 30 : 980;
+  // Percentile bands rather than a fixed ±30 around the median: the cutoffs
+  // have to mean the same thing whether the active engine spans ~600–1350 or
+  // ~0–55, and ±30 on a 0-based scale would swallow the entire field.
+  const _qwSorted = [..._qwScores].sort((a, b) => a - b);
+  const _qwPct = (q) =>
+    _qwSorted.length
+      ? _qwSorted[Math.min(_qwSorted.length - 1, Math.floor(_qwSorted.length * q))]
+      : _qwFallback;
+  const _qwHigh = _qwPct(0.75);
+  const _qwLow = _qwPct(0.25);
 
   // grid: Rank | Player | Wins | Avg Opp score
   const qualGrid = "grid-template-columns:40px 1fr 44px 72px";
@@ -15061,7 +15190,8 @@ function renderAnalyticsPage() {
   const pairAvgEloArr = [...Object.entries(partnerships)].map(([key, p]) => ({
     key,
     avgElo:
-      p.players.reduce((s, n) => s + (eloMap[n] || 1000), 0) / p.players.length,
+      p.players.reduce((s, n) => s + (eloMap[n] ?? _statsDefault()), 0) /
+      p.players.length,
   }));
   pairAvgEloArr
     .slice()
@@ -15251,17 +15381,18 @@ function renderAnalyticsPage() {
   // eloMap (above) is already computeASS(am) — reuse it instead of a second
   // full pass over the same dataset.
   const _scMapNow = eloMap;
-  const _scFallback = 1000; // both ELO and ASS baseline at 1000
+  const _scFallback = _statsDefault();
   const _preWkArrElo = am.filter((m) => (m.date || "") < wkFromElo);
-  const _scMapPre =
-    _scoringMode === "ass"
-      ? computeASS(_preWkArrElo)
-      : computeASS(_preWkArrElo);
+  const _scMapPre = _statsRatingMap(_preWkArrElo);
   const eloRanked = Object.entries(_scMapNow).sort((a, b) => b[1] - a[1]);
   const preWkRanked = Object.entries(_scMapPre).sort((a, b) => b[1] - a[1]);
   const maxEloVal = eloRanked[0]?.[1] ?? _scFallback;
   const minEloVal = eloRanked[eloRanked.length - 1]?.[1] ?? _scFallback;
   const eloRange = Math.max(1, maxEloVal - minEloVal);
+  const _scSortedVals = eloRanked.map(([, v]) => v).sort((a, b) => a - b);
+  const _scMid = _scSortedVals.length
+    ? _scSortedVals[Math.floor(_scSortedVals.length / 2)]
+    : _scFallback;
   const eloPeaks = _activePeaks();
   const eloHistoryAll = _activeHistory();
   const eloHtml = eloRanked.length
@@ -15270,9 +15401,9 @@ function renderAnalyticsPage() {
           const change = ev - (_scMapPre[pname] ?? _scFallback);
           const changeStr =
             change > 0
-              ? `<span style="color:var(--green)">+${change}</span>`
+              ? `<span style="color:var(--green)">+${_statsFmt(change)}</span>`
               : change < 0
-                ? `<span style="color:var(--red)">${change}</span>`
+                ? `<span style="color:var(--red)">-${_statsFmt(Math.abs(change))}</span>`
                 : `<span style="color:var(--muted)">—</span>`;
           const preWkRankIdx = preWkRanked.findIndex(([n]) => n === pname);
           const rankChange =
@@ -15288,11 +15419,13 @@ function renderAnalyticsPage() {
           const barW = Math.max(5, ((ev - minEloVal) / eloRange) * 100).toFixed(
             0,
           );
-          const _midVal = _scFallback;
+          // Colour against the middle of the field: there is no 1000 line to
+          // sit above or below on a 0-based engine.
+          const _midVal = _scMid;
           const col =
-            ev > 1000
+            ev > _scMid
               ? "var(--green)"
-              : ev < 1000
+              : ev < _scMid
                 ? "var(--red)"
                 : "var(--theme)";
           const peak = eloPeaks[pname] ?? ev;
@@ -15300,7 +15433,7 @@ function renderAnalyticsPage() {
           const fromPeakStr =
             fromPeak === 0
               ? `<span style="color:var(--green);font-size:8px">▲ PEAK</span>`
-              : `<span style="color:var(--red);font-size:8px">${fromPeak}</span>`;
+              : `<span style="color:var(--red);font-size:8px">-${_statsFmt(Math.abs(fromPeak))}</span>`;
           const pts5 = (eloHistoryAll[pname] || []).slice(-5);
           const dots5 = pts5
             .map(
@@ -15327,12 +15460,12 @@ function renderAnalyticsPage() {
               <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col};animation-delay:${(i * 0.07).toFixed(2)}s"></div></div>
             </div>
             <div style="flex-shrink:0;width:38px;text-align:right">
-              <div class="elo-val">${ev}</div>
+              <div class="elo-val">${_statsFmt(ev)}</div>
               <div class="elo-change" style="margin-top:2px">${changeStr}</div>
             </div>
             <div style="flex-shrink:0;width:50px;text-align:right;border-left:1px solid rgba(255,255,255,0.06);padding-left:5px">
               <div style="font-size:7px;color:var(--muted);letter-spacing:0.08em">PEAK</div>
-              <div style="font-size:11px;font-weight:800">${peak}</div>
+              <div style="font-size:11px;font-weight:800">${_statsFmt(peak)}</div>
               <div style="margin-top:1px">${fromPeakStr}</div>
             </div>
             <div style="flex-shrink:0;width:44px;text-align:right;border-left:1px solid rgba(255,255,255,0.06);padding-left:5px">
@@ -15690,7 +15823,7 @@ function renderAnalyticsPage() {
 
   // ── CARRY FACTOR ───────────────────────────────────────
   const carryHtml = (() => {
-    const eloMapFull = _memoASS();
+    const eloMapFull = _statsRatingMap(activeMatches());
     const playerList = _statPlayerNames();
     if (playerList.length < 2)
       return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
@@ -15991,8 +16124,10 @@ function renderAnalyticsPage() {
 
           if (opps.length)
             oppSRSum +=
-              opps.reduce((s, op) => s + ratingToSr(eloMap[op] || 1000), 0) /
-              opps.length;
+              opps.reduce(
+                (s, op) => s + _statsSrFn()(eloMap[op] ?? _statsDefault()),
+                0,
+              ) / opps.length;
 
           if (opps.some((op) => _topHalfSet.has(op))) {
             thPlayed++;
@@ -16137,7 +16272,8 @@ function renderAnalyticsPage() {
         const opp = ti === 0 ? m.teamB : m.teamA;
         if (!pairAQ[tk]) pairAQ[tk] = { t: 0, c: 0 };
         pairAQ[tk].t +=
-          opp.reduce((s, p) => s + (eloMap[p] || 1000), 0) / opp.length;
+          opp.reduce((s, p) => s + (eloMap[p] ?? _statsDefault()), 0) /
+          opp.length;
         pairAQ[tk].c++;
       });
     });
@@ -16223,15 +16359,17 @@ function renderAnalyticsPage() {
       // Player of the Month = top of the leaderboard for that month
       const moMatches = sortedM.filter((m) => (m.date || "").startsWith(mo));
       if (!moMatches.length) return;
-      // _scoringMode is always "ass" — one computeASS pass per month instead
-      // of two identical ones.
-      const moScores = computeASS(moMatches);
+      const moScores = _statsRatingMap(moMatches);
       const moPlayers = Object.entries(moScores)
         .filter(([p]) => monthlyStats[mo]?.[p]?.m > 0)
-        .sort((a, b) => (moScores[b[0]] || 1000) - (moScores[a[0]] || 1000));
+        .sort(
+          (a, b) =>
+            (moScores[b[0]] ?? _statsDefault()) -
+            (moScores[a[0]] ?? _statsDefault()),
+        );
       if (moPlayers.length) {
         const topPlayer = moPlayers[0][0];
-        const topScore = Math.round(moScores[topPlayer] || 1000);
+        const topScore = Math.round(moScores[topPlayer] ?? _statsDefault());
         const moStats = monthlyStats[mo][topPlayer];
         potmMap[mo] = {
           name: topPlayer,
@@ -16722,7 +16860,7 @@ function renderAnalyticsPage() {
   // Avg ELO gained per win, by weekday — extracted so the Day-of-Week section
   // can fold Volume / Win% / ELO Gain into one tabbed card.
   const _eloDowHtml = (() => {
-    const hist = _memoASSHistory();
+    const hist = _statsTimeline(am).history;
     const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const byDay = Array.from({ length: 7 }, () => ({
       wSum: 0,
@@ -16763,7 +16901,7 @@ function renderAnalyticsPage() {
 
   // ── DOW × PLAYER GAIN MATRIX (active scoring mode) ─────────
   const _dowPlayerMatrixHtml = (() => {
-    const hist = _activeHistory(); // ASS or ELO based on hamburger toggle
+    const hist = _activeHistory();
     const scLbl = _scoringLabel();
     const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     // Players ranked by active score (compList is already sorted this way)
@@ -17035,13 +17173,13 @@ function renderAnalyticsPage() {
     {
       key: "whatif",
       cat: "elo",
-      title: "🔀 What-If Simulator",
+      title: `🔀 What-If Simulator (${SCORING_SYSTEM_LABELS.ass})`,
       body: whatIfHtml,
     },
     {
       key: "ratingproj",
       cat: "elo",
-      title: "📈 Rating Projection",
+      title: `📈 Rating Projection (${SCORING_SYSTEM_LABELS.ass})`,
       body: (() => {
         const formN = window._eloProj?.formN || 10;
         const futureM = window._eloProj?.futureM || 20;
@@ -17422,7 +17560,7 @@ function renderAnalyticsPage() {
     {
       key: "winprob",
       cat: "elo",
-      title: "🎲 Win Probability",
+      title: `🎲 Win Probability (${SCORING_SYSTEM_LABELS.ass})`,
       body: eloWinProbHtml,
     },
     {
@@ -17514,7 +17652,7 @@ function renderAnalyticsPage() {
     {
       key: "biggestupsets",
       cat: "records",
-      title: "💥 Biggest Upsets",
+      title: `💥 Biggest Upsets (${SCORING_SYSTEM_LABELS.ass})`,
       body: _buildBiggestUpsetsHtml(am),
     },
     {
@@ -17523,7 +17661,17 @@ function renderAnalyticsPage() {
       title: "📊 Rating Distribution",
       body: (() => {
         const scoreMap = eloMap;
-        const { entries, buckets } = ratingDistribution(scoreMap, 50);
+        const _distVals = Object.values(scoreMap);
+        const _distSpread = _distVals.length
+          ? Math.max(..._distVals) - Math.min(..._distVals)
+          : 0;
+        // ~10 bars across whatever range the active engine actually spans,
+        // rounded to a readable step.
+        const _distBucket = Math.max(
+          1,
+          Math.round(Math.max(_distSpread, 1) / 10) || 1,
+        );
+        const { entries, buckets } = ratingDistribution(scoreMap, _distBucket);
         if (!entries.length)
           return '<div class="sub" style="padding:8px">No data.</div>';
         const rows = buckets
@@ -17548,7 +17696,7 @@ function renderAnalyticsPage() {
       cat: "elo",
       title: "📉 League Competitiveness",
       body: (() => {
-        const scoreFn = computeASS;
+        const scoreFn = _statsRatingMap;
         const series = competitivenessOverTime(sortedM, scoreFn).filter(
           (s) => s.n >= 2,
         );
@@ -17778,7 +17926,7 @@ function renderAnalyticsPage() {
     {
       key: "underdogboard",
       cat: "records",
-      title: "🐺 Underdog Leaderboard",
+      title: `🐺 Underdog Leaderboard (${SCORING_SYSTEM_LABELS.ass})`,
       body: (() => {
         // Reuse the walk _buildBiggestUpsetsHtml() already did this render pass
         // (it runs earlier in this same allSecs literal, so _cachedUpsets is
@@ -17848,7 +17996,7 @@ function renderAnalyticsPage() {
       cat: "records",
       title: "🏛️ Hall of Fame",
       body: (() => {
-        const hof = hallOfFameRecords(am, players, _memoASSHistory());
+        const hof = hallOfFameRecords(am, players, _statsTimeline(am).history);
         if (!hof)
           return '<div class="sub" style="padding:8px">No data yet.</div>';
         const item = (
@@ -17987,7 +18135,7 @@ function renderAnalyticsPage() {
         });
         const input = compList.map((p) => ({
           name: p.name,
-          ratingGain: (scoreMap[p.name] || 1000) - 1000,
+          ratingGain: (scoreMap[p.name] ?? _statsDefault()) - _statsDefault(),
           winPct: p.winPct,
           attendance: attendance[p.name] ? attendance[p.name].size : 0,
           upsets: upsetCounts[p.name] || 0,
@@ -18039,7 +18187,7 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "🎖️ Badge Gallery",
       body: (() => {
-        const eloMapAll = _memoASS();
+        const eloMapAll = _statsRatingMap(activeMatches());
         const holders = {};
         playersByMatches.forEach((name) => {
           const badges = computeBadges(name, null, eloMapAll, am, compList);
@@ -18078,7 +18226,7 @@ function renderAnalyticsPage() {
         const months = uniqueMonths.slice(-12);
         if (months.length < 3)
           return '<div class="sub" style="padding:8px">Need more months of history.</div>';
-        const scoreFn = computeASS;
+        const scoreFn = _statsRatingMap;
         const frames = ratingsByMonth(sortedM, scoreFn, months);
         const finalScores = frames[frames.length - 1].scores;
         const topNames = Object.entries(finalScores)
@@ -18087,13 +18235,18 @@ function renderAnalyticsPage() {
           .map(([n]) => n);
         if (!topNames.length)
           return '<div class="sub" style="padding:8px">No data.</div>';
+        const _raceFloor = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem)
+          ? 0
+          : 1200;
         const maxScore = Math.max(
-          ...frames.flatMap((f) => topNames.map((n) => f.scores[n] || 1000)),
-          1200,
+          ...frames.flatMap((f) =>
+            topNames.map((n) => f.scores[n] ?? _statsDefault()),
+          ),
+          _raceFloor,
         );
         const bars = topNames
           .map((n, i) => {
-            const val = Math.round(frames[0].scores[n] || 1000);
+            const val = Math.round(frames[0].scores[n] ?? _statsDefault());
             const pct = Math.min(100, (val / maxScore) * 100);
             return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
               <div style="width:52px;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(n.split(" ")[0])}</div>
@@ -18107,7 +18260,9 @@ function renderAnalyticsPage() {
             names: topNames,
             frames: frames.map((f) => ({
               month: f.month,
-              scores: topNames.map((n) => Math.round(f.scores[n] || 1000)),
+              scores: topNames.map((n) =>
+                Math.round(f.scores[n] ?? _statsDefault()),
+              ),
             })),
             maxScore,
           }),

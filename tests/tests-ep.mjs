@@ -4,6 +4,7 @@
 import {
   computeEP,
   computeEPFull,
+  computeEPTimeline,
   computeMatchEPDeltas,
   EP_SHRINKAGE,
 } from "../src/domain/ep.js";
@@ -233,6 +234,92 @@ ok(
 ok(
   "result is independent of input array order (engine sorts by date internally)",
   JSON.stringify(computeEP(lopsided)) === JSON.stringify(computeEP([...lopsided].reverse())),
+);
+
+console.log("\n\x1b[36m── EP: timeline / peaks / lows ──────────────────────\x1b[0m");
+
+const tlMatches = [
+  M("2024-05-01", ["A", "B"], ["C", "D"], 4, 1),
+  M("2024-05-02", ["A", "C"], ["B", "D"], 4, 2),
+  M("2024-05-03", ["A", "D"], ["B", "C"], 1, 4),
+  M("2024-05-04", ["A", "B"], ["C", "D"], 4, 0),
+];
+const tl = computeEPTimeline(tlMatches);
+ok(
+  "history has one entry per match played",
+  tl.history.A.length === 4 && tl.history.B.length === 4,
+  `A=${tl.history.A.length}, B=${tl.history.B.length}`,
+);
+ok(
+  "entries carry the same fields the ASS timeline exposes",
+  ["date", "elo", "delta", "won", "opponent", "scoreA", "scoreB"].every(
+    (k) => k in tl.history.A[0],
+  ),
+  JSON.stringify(tl.history.A[0]),
+);
+ok(
+  "elo tracks the running leaderboard score, not the cumulative total",
+  (() => {
+    const last = tl.history.A[3];
+    const total = tl.history.A.reduce((s, h) => s + h.delta, 0);
+    return Math.abs(last.elo - total / (4 + EP_SHRINKAGE)) < 1e-9;
+  })(),
+);
+ok(
+  "the final timeline value matches computeEPFull's score",
+  Math.abs(tl.history.A[3].elo - computeEPFull(tlMatches).A.score) < 1e-9,
+);
+ok(
+  "delta stays the raw EP earned that match",
+  tl.history.A[0].delta === computeMatchEPDeltas(tlMatches).get(tlMatches[0]).playerDeltas.A,
+);
+ok(
+  "won/opponent/scores are recorded from the player's own side",
+  tl.history.A[2].won === false &&
+    tl.history.A[2].scoreA === 1 &&
+    tl.history.A[2].scoreB === 4 &&
+    tl.history.A[2].opponent === "B & C",
+  JSON.stringify(tl.history.A[2]),
+);
+ok(
+  "peak is the highest running score reached, low the lowest",
+  (() => {
+    const vals = tl.history.A.map((h) => h.elo);
+    return (
+      Math.abs(tl.peaks.A - Math.max(...vals)) < 1e-9 &&
+      Math.abs(tl.lows.A - Math.min(...vals)) < 1e-9
+    );
+  })(),
+);
+ok(
+  "peak and low genuinely differ — the score moves both ways",
+  tl.peaks.A > tl.lows.A,
+  `peak=${tl.peaks.A.toFixed(2)}, low=${tl.lows.A.toFixed(2)}`,
+);
+ok(
+  "career context reaches the timeline — a veteran's losing run trends lower",
+  (() => {
+    const losses = [
+      M("2024-06-01", ["Vet", "P1"], ["Q1", "Q2"], 1, 4),
+      M("2024-06-02", ["Vet", "P1"], ["Q1", "Q2"], 1, 4),
+    ];
+    const green = computeEPTimeline(losses, losses);
+    const grey = computeEPTimeline(losses, [...ageing("Vet", 60), ...losses]);
+    return grey.history.Vet[1].elo < green.history.Vet[1].elo;
+  })(),
+);
+ok(
+  "only the scored window appears, even with career history behind it",
+  (() => {
+    const t = computeEPTimeline(season2, [...season1, ...season2]);
+    return t.history.A.length === 1;
+  })(),
+);
+ok("empty matches → empty timeline", Object.keys(computeEPTimeline([]).history).length === 0);
+ok(
+  "computeEPTimeline is deterministic and order-independent",
+  JSON.stringify(computeEPTimeline(tlMatches)) ===
+    JSON.stringify(computeEPTimeline([...tlMatches].reverse())),
 );
 
 console.log(`\n\x1b[1mEP: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`);
