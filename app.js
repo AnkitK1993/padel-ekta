@@ -24,6 +24,10 @@ import {
   computeMatchFairShareDeltas,
 } from "./src/domain/fairshare.js";
 import {
+  computeEPFull,
+  computeMatchEPDeltas,
+} from "./src/domain/ep.js";
+import {
   ratingDistribution,
   competitivenessOverTime,
   ratingsByMonth,
@@ -807,13 +811,18 @@ try {
   if (_stored && SEASON_SCORING_MODES.includes(_stored)) _seasonScoringMode = _stored;
 } catch (e) {}
 
-// Summary-tab scoring SYSTEM — "ass" (default), "glicko2", or "openskill".
-// Independent of _seasonScoringMode: the Flip/Fair season-carryover
-// variants are ASS-specific and only apply when this is "ass".
-const SCORING_SYSTEMS = ["ass", "glicko2", "openskill", "fairshare"];
-const SCORING_SYSTEM_LABELS = { ass: "ASS", glicko2: "GLICKO-2", openskill: "OPENSKILL", fairshare: "FAIR SHARE" };
-// Systems with a confidence/uncertainty concept worth a "±" column.
-const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill"];
+// Summary-tab scoring SYSTEM — "ass" (default), "glicko2", "openskill",
+// "fairshare" or "ep". Independent of _seasonScoringMode: the Flip/Fair
+// season-carryover variants are ASS-specific and only apply when this is "ass".
+const SCORING_SYSTEMS = ["ass", "glicko2", "openskill", "fairshare", "ep"];
+const SCORING_SYSTEM_LABELS = { ass: "ASS", glicko2: "GLICKO-2", openskill: "OPENSKILL", fairshare: "FAIR SHARE", ep: "EP" };
+// Systems that fill the extra numeric column beside the rating — a "±"
+// confidence band for Glicko-2/OpenSkill, total points earned for EP (whose
+// headline number is a per-match average, so the total is worth surfacing).
+const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep"];
+// 0-based systems: no 1000 baseline, and the headline number is small enough
+// that the decimal carries real ordering information.
+const SCORING_SYSTEMS_ZERO_BASED = ["ep"];
 let _scoringSystem = "ass";
 try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
@@ -825,9 +834,17 @@ try {
 // per-system detail object ({r,rd,vol} / {mu,sigma} / null for ASS, which has
 // no confidence concept) so the flat rating + the "±" confidence column can
 // both be derived from ONE engine walk instead of two.
+// EP needs the full cross-season history alongside whatever window is being
+// scored: points restart at 0 every season/filter, but loss accountability is
+// driven by CAREER games, so a veteran must not read as a rookie just because
+// the leaderboard is scoped to this month.
+function _epCareerMatches() {
+  return withoutGuestMatches(state.matches);
+}
 function _fullRatingForSystem(system, matches) {
   if (system === "glicko2") return computeGlicko2Full(matches);
   if (system === "openskill") return computeOpenSkillFull(matches);
+  if (system === "ep") return computeEPFull(matches, _epCareerMatches());
   return null;
 }
 function _flatRatingForSystem(system, matches, full) {
@@ -839,6 +856,11 @@ function _flatRatingForSystem(system, matches, full) {
   if (system === "openskill") {
     const out = {};
     Object.keys(full).forEach((n) => (out[n] = full[n].mu));
+    return out;
+  }
+  if (system === "ep") {
+    const out = {};
+    Object.keys(full).forEach((n) => (out[n] = full[n].score));
     return out;
   }
   if (system === "fairshare") return computeFairShare(matches);
@@ -854,6 +876,8 @@ function _confidenceForSystem(system, full) {
     Object.keys(full).forEach((n) => (out[n] = Math.round(full[n].rd)));
   } else if (system === "openskill") {
     Object.keys(full).forEach((n) => (out[n] = Math.round(3 * full[n].sigma)));
+  } else if (system === "ep") {
+    Object.keys(full).forEach((n) => (out[n] = full[n].ep));
   }
   return out;
 }
@@ -861,6 +885,7 @@ function _matchDeltasForSystem(system, matches) {
   if (system === "glicko2") return computeMatchGlicko2Deltas(matches);
   if (system === "openskill") return computeMatchOpenSkillDeltas(matches);
   if (system === "fairshare") return computeMatchFairShareDeltas(matches);
+  if (system === "ep") return computeMatchEPDeltas(matches, _epCareerMatches());
   return computeMatchASSDeltas(matches);
 }
 let _addRenderedVersion = -1;
@@ -4798,7 +4823,13 @@ function _applyCmpColClasses() {
   const confTh = document.getElementById("cmp-conf-th");
   if (confTh) {
     confTh.textContent =
-      _scoringSystem === "glicko2" ? "±RD" : _scoringSystem === "openskill" ? "±3σ" : "";
+      _scoringSystem === "glicko2"
+        ? "±RD"
+        : _scoringSystem === "openskill"
+          ? "±3σ"
+          : _scoringSystem === "ep"
+            ? "TOTAL"
+            : "";
   }
   const assTh = document.getElementById("cmp-ass-th");
   if (assTh) {
@@ -5230,7 +5261,10 @@ function renderCompact() {
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
-    ass: (a, b) => (_cmpASSMap[a.name] || 1000) - (_cmpASSMap[b.name] || 1000),
+    ass: (a, b) => {
+      const _dflt = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem) ? 0 : 1000;
+      return (_cmpASSMap[a.name] ?? _dflt) - (_cmpASSMap[b.name] ?? _dflt);
+    },
     sr: (a, b) => {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
       // look identical on screen resolve to a real tie instead of being
@@ -5354,6 +5388,14 @@ function renderCompact() {
   srSorted.forEach((p, j) => {
     srRankMap[p.name] = j + 1;
   });
+  // 0-based systems have no 1000 line to colour against, so the field's own
+  // median is the reference — above it is green, below it is red.
+  const _zeroBased = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem);
+  const _ratingMid = (() => {
+    if (!_zeroBased) return 1000;
+    const vals = sorted.map((p) => _cmpASSMap[p.name] || 0).sort((a, b) => a - b);
+    return vals.length ? vals[Math.floor(vals.length / 2)] : 0;
+  })();
   const leaderRowHtmls = sorted.map((p, i) => {
     const rank = _cmpRankByName[p.name];
     const rc = rank === 1 ? "rg" : rank === 2 ? "rs" : rank === 3 ? "rb2" : "";
@@ -5390,12 +5432,16 @@ function renderCompact() {
       else if (diff < 0)
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
     }
-    const assVal = Math.round(_cmpASSMap[p.name] || 1000);
+    const assRaw = _cmpASSMap[p.name] ?? (_zeroBased ? 0 : 1000);
+    const assVal = _zeroBased ? assRaw.toFixed(1) : Math.round(assRaw);
     const _scoreColor = (v) =>
-      v > 1000 ? "var(--green)" : v < 1000 ? "var(--red)" : "var(--muted)";
-    const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assVal)}">${assVal}</span>`;
+      v > _ratingMid ? "var(--green)" : v < _ratingMid ? "var(--red)" : "var(--muted)";
+    const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assRaw)}">${assVal}</span>`;
     const confVal = _cmpConfMap ? _cmpConfMap[p.name] : null;
-    const confColHtml = confVal != null ? `±${confVal}` : "";
+    // "±" only makes sense for the uncertainty-band systems; EP puts its
+    // running points total in this column, which is a plain number.
+    const confColHtml =
+      confVal != null ? (_zeroBased ? `${confVal}` : `±${confVal}`) : "";
     return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="conf">${confColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
   });
 
@@ -9190,6 +9236,7 @@ const SCORING_SYSTEM_BLURBS = {
   glicko2: "Chess.com/Lichess's algorithm: a rating plus a confidence band that narrows the more you play.",
   openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
+  ep: "Earned Points: no free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
 };
 
 function _scoringSystemPickerRows() {
@@ -9282,6 +9329,7 @@ const SCORING_SYSTEM_EXAMPLES = {
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
   fairshare: `<b>Example:</b> a 1300-rated player and a 700-rated player team up and beat two 1000-rated players; the win is worth 18 points to the team. Because Puneet (700) is the weaker partner, he gets the bigger share: <b>Puneet +26, Ankit +10</b> (average 18 — the team total either way). Had they LOST instead, Puneet would drop more too — <b>Puneet −35, Ankit −13</b> — the split always favours whichever partner the match rode on more, win or lose.`,
+  ep: `<b>Example:</b> a 60-game veteran partners a 10-game newcomer against two solid regulars. Win it 4–1 and <b>both bank about +110</b> — pairing with a weaker player makes the team an underdog, so the win is worth more, not less. Lose it 2–4 and the two part ways: the veteran takes <b>−10</b> (50 games in, losses count), while the newcomer still earns <b>+14</b> (still in their first 50). Same team, same match — the difference is how long each has been playing. A 4–0 pays about 40% more than a 4–3.`,
 };
 
 const SEASON_SCORING_EXAMPLES = {
