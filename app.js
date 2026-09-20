@@ -814,8 +814,13 @@ try {
 // Summary-tab scoring SYSTEM — "ass" (default), "glicko2", "openskill",
 // "fairshare" or "ep". Independent of _seasonScoringMode: the Flip/Fair
 // season-carryover variants are ASS-specific and only apply when this is "ass".
-const SCORING_SYSTEMS = ["ass", "glicko2", "openskill", "fairshare", "ep"];
-const SCORING_SYSTEM_LABELS = { ass: "ASS", glicko2: "GLICKO-2", openskill: "OPENSKILL", fairshare: "FAIR SHARE", ep: "EP" };
+// The stored keys are deliberately left alone: "ass" still means the original
+// margin×opponent-strength engine (the archived Season 1 snapshot records
+// scoringMode "ass", and the Flip/Fair season formats are built on its maths),
+// while "ep" is the 0-based Earned Points engine. Only the DISPLAY names swap —
+// Earned Points now carries the house name and the original becomes CLASSIC.
+const SCORING_SYSTEMS = ["ep", "ass", "glicko2", "openskill", "fairshare"];
+const SCORING_SYSTEM_LABELS = { ass: "ASS CLASSIC", glicko2: "GLICKO-2", openskill: "OPENSKILL", fairshare: "FAIR SHARE", ep: "ASS" };
 // Systems that fill the extra numeric column beside the rating — a "±"
 // confidence band for Glicko-2/OpenSkill, total points earned for EP (whose
 // headline number is a per-match average, so the total is worth surfacing).
@@ -9232,11 +9237,11 @@ function _cmpSetWindow(slot, mode) {
 // back to Reset regardless of the stored preference, so nothing breaks if a
 // season boundary later changes.
 const SCORING_SYSTEM_BLURBS = {
-  ass: "Match quality (margin + games) times an opponent-strength multiplier. This app's own system.",
+  ass: "The original: match quality (margin + games) times an opponent-strength multiplier, starting everyone at 1000. Kept for the Flip/Fair season formats and for comparison.",
   glicko2: "Chess.com/Lichess's algorithm: a rating plus a confidence band that narrows the more you play.",
   openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
-  ep: "Earned Points: no free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
+  ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
 };
 
 function _scoringSystemPickerRows() {
