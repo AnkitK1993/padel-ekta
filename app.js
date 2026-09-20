@@ -811,9 +811,11 @@ try {
   if (_stored && SEASON_SCORING_MODES.includes(_stored)) _seasonScoringMode = _stored;
 } catch (e) {}
 
-// Summary-tab scoring SYSTEM — "ass" (default), "glicko2", "openskill",
-// "fairshare" or "ep". Independent of _seasonScoringMode: the Flip/Fair
-// season-carryover variants are ASS-specific and only apply when this is "ass".
+// Summary-tab scoring SYSTEM — "ep" (default), "ass", "glicko2", "openskill"
+// or "fairshare". Independent of _seasonScoringMode: the Flip/Fair
+// season-carryover variants are ASS-CLASSIC-specific and only apply when this
+// is "ass" (the picker hides them otherwise, and a stored format preference is
+// preserved and simply re-applies if ASS CLASSIC is selected again).
 // The stored keys are deliberately left alone: "ass" still means the original
 // margin×opponent-strength engine (the archived Season 1 snapshot records
 // scoringMode "ass", and the Flip/Fair season formats are built on its maths),
@@ -828,10 +830,22 @@ const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep"];
 // 0-based systems: no 1000 baseline, and the headline number is small enough
 // that the decimal carries real ordering information.
 const SCORING_SYSTEMS_ZERO_BASED = ["ep"];
-let _scoringSystem = "ass";
+let _scoringSystem = "ep";
 try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
-  if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) _scoringSystem = _storedSys;
+  // A device still carrying the OLD default ("ass") predates the rename, when
+  // picking "ASS" meant "the house system" rather than this specific engine.
+  // The house name now belongs to Earned Points, so move those devices across
+  // once — otherwise the new default would never reach anyone who has ever
+  // opened the picker. Runs at most once; deliberately choosing ASS CLASSIC
+  // afterwards writes "ass" again and sticks, and every other system is left
+  // untouched.
+  if (_storedSys === "ass" && !localStorage.getItem("padel_scoring_renamed_v1")) {
+    localStorage.setItem("padel_scoring_renamed_v1", "1");
+    localStorage.setItem("padel_scoring_system", "ep");
+  } else if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) {
+    _scoringSystem = _storedSys;
+  }
 } catch (e) {}
 
 // Dispatchers so renderCompact() (and the FIRST/LAST window helper) don't
