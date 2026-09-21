@@ -1235,16 +1235,27 @@ function openPlayerDetail(name) {
   // ── BEST DAY TO PLAY ─────────────────────────────────────
   const bestDayHtml = _pdBuildBestDayHtml(name, pdPlayerMs);
 
-  // ── ASS PROJECTION CHART ──────────────────────────────────
+  // ── RATING PROJECTION CHART ────────────────────────────────
   const eloProjectionHtml = (() => {
     if (pdPlayerMs.length < 5) return "";
-    const eloHist = computeASSTimeline(pdSortedAll14).history;
+    const eloHist = _ratingHistory();
     const pts = eloHist[name] || [];
     if (pts.length < 5) return "";
 
-    const FORM_WIN = Math.min(pts.length, 10);
-    const formPts = pts.slice(-FORM_WIN);
-    const avgDelta = formPts.reduce((s, p) => s + p.delta, 0) / FORM_WIN;
+    // Average how much the displayed rating itself moved per recent match,
+    // not the raw `.delta` field — for a shrinkage-based engine (EP) that
+    // field is the un-shrunk per-match point gain, a different scale than
+    // `elo` (the shrunk score), so summing it directly would blow up the
+    // projection. Consecutive elo differences are correct on every engine.
+    const FORM_WIN = Math.min(pts.length - 1, 10);
+    const startIdx = pts.length - FORM_WIN;
+    const scoreDeltas = [];
+    for (let i = startIdx; i < pts.length; i++) {
+      scoreDeltas.push(pts[i].elo - pts[i - 1].elo);
+    }
+    const avgDelta = scoreDeltas.length
+      ? scoreDeltas.reduce((s, d) => s + d, 0) / scoreDeltas.length
+      : 0;
     const currentElo = pts[pts.length - 1].elo;
 
     const HIST_SHOW = Math.min(pts.length, 15);
@@ -1255,7 +1266,7 @@ function openPlayerDetail(name) {
       ...histPts.map((p, i) => ({ i, elo: p.elo, proj: false })),
       ...Array.from({ length: PROJ }, (_, k) => ({
         i: HIST_SHOW + k,
-        elo: Math.round(currentElo + avgDelta * (k + 1)),
+        elo: currentElo + avgDelta * (k + 1),
         proj: true,
       })),
     ];
@@ -1286,13 +1297,13 @@ function openPlayerDetail(name) {
     const trendLbl = trendUp ? "↑ CLIMBING" : "↓ DECLINING";
 
     const mkChip = (n) => {
-      const proj = Math.round(currentElo + avgDelta * n);
+      const proj = currentElo + avgDelta * n;
       const d = proj - currentElo;
       const col = d >= 0 ? "var(--green)" : "var(--red)";
       return `<div class="elop-chip">
         <div class="elop-chip-n">+${n}</div>
-        <div class="elop-chip-elo">${proj}</div>
-        <div class="elop-chip-d" style="color:${col}">${d >= 0 ? "+" : ""}${d}</div>
+        <div class="elop-chip-elo">${_ratingFmt(proj)}</div>
+        <div class="elop-chip-d" style="color:${col}">${d >= 0 ? "+" : ""}${_ratingFmt(d)}</div>
       </div>`;
     };
 
@@ -1305,7 +1316,7 @@ function openPlayerDetail(name) {
       .join("");
 
     return `<div class="ana-card">
-      <span class="badge">ASS Projection</span>
+      <span class="badge">${escHtml(_ratingLabel())} Projection</span>
       <div class="elop-header">
         <span class="elop-trend" style="color:${trendCol}">${trendLbl}</span>
         <span class="elop-rate">${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} / match · last ${FORM_WIN}</span>
