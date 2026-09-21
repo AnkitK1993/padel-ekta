@@ -27,6 +27,9 @@ import {
   computeEPFull,
   computeEPTimeline,
   computeMatchEPDeltas,
+  computeEPUpsets,
+  computeEPProjection,
+  EP_SHRINKAGE,
 } from "./src/domain/ep.js";
 import {
   ratingDistribution,
@@ -13335,6 +13338,109 @@ window._hiLoSortBy = function (col) {
   window._renderHiLoTable();
 };
 
+// ── ASS RATING PROJECTION ───────────────────────────────────
+// Rebuilt on the new ASS (EP) engine's own logic — see computeEPProjection
+// in src/domain/ep.js. Always computed from EP data regardless of which
+// system is active in the Summary tab picker (same convention the removed
+// ASS-CLASSIC-only sections used): the title says which engine, so the
+// numbers never disagree with it.
+window._assProj = {
+  formN: 10,
+  futureM: 20,
+  sortCol: "currentRank",
+  sortAsc: true,
+};
+
+window._assProjAdj = function (type, delta) {
+  const state = window._assProj;
+  if (!state) return;
+  if (type === "form") {
+    state.formN = Math.max(1, state.formN + delta);
+    const el = document.getElementById("assproj-form-n");
+    if (el) el.textContent = state.formN;
+  } else {
+    state.futureM = Math.max(1, state.futureM + delta);
+    const el = document.getElementById("assproj-future-n");
+    if (el) el.textContent = state.futureM;
+  }
+  window._renderAssProjTable();
+};
+
+window._assProjSort = function (col) {
+  const state = window._assProj;
+  if (!state) return;
+  if (state.sortCol === col) {
+    state.sortAsc = !state.sortAsc;
+  } else {
+    state.sortCol = col;
+    state.sortAsc = col === "name";
+  }
+  window._renderAssProjTable();
+};
+
+window._renderAssProjTable = function () {
+  const tableEl = document.getElementById("assproj-table");
+  if (!tableEl) return;
+  const { formN, futureM, sortCol, sortAsc } = window._assProj;
+  const ratingLbl = SCORING_SYSTEM_LABELS.ep;
+  const am2 = activeMatches();
+  const rows = computeEPProjection(am2, _epCareerMatches(), formN, futureM).filter(
+    (r) => r.games >= 3,
+  );
+  if (!rows.length) {
+    tableEl.innerHTML =
+      '<div class="sub" style="padding:8px">Not enough data (need 3+ matches).</div>';
+    return;
+  }
+  const sorted = [...rows].sort((a, b) => {
+    if (sortCol === "name") {
+      return sortAsc
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    }
+    const va = a[sortCol],
+      vb = b[sortCol];
+    return sortAsc ? va - vb : vb - va;
+  });
+  const arrow = (c) => (sortCol === c ? (sortAsc ? " ↑" : " ↓") : "");
+  const pg = "grid-template-columns:32px 1fr 52px 52px 60px 40px 50px";
+  const rowsHtml = sorted
+    .map((r) => {
+      const deltaCol =
+        r.avgDelta > 0
+          ? "var(--green)"
+          : r.avgDelta < 0
+            ? "var(--red)"
+            : "var(--muted)";
+      const rankArrow =
+        r.rankDiff > 0
+          ? `<span style="color:var(--green)">▲${r.rankDiff}</span>`
+          : r.rankDiff < 0
+            ? `<span style="color:var(--red)">▼${Math.abs(r.rankDiff)}</span>`
+            : `<span style="color:var(--muted)">—</span>`;
+      return `<div class="lrace-row" style="${pg}">
+        <div class="lrace-rank">#${r.currentRank}</div>
+        <div class="lrace-name">${escHtml(r.name)}</div>
+        <div style="text-align:center;font-weight:700">${r.currentScore.toFixed(2)}</div>
+        <div style="text-align:center;font-weight:700;color:${deltaCol}">${r.avgDelta > 0 ? "+" : ""}${r.avgDelta.toFixed(1)}</div>
+        <div style="text-align:center;font-weight:800">${r.projScore.toFixed(2)}</div>
+        <div style="text-align:center">#${r.projRank}</div>
+        <div style="text-align:center">${rankArrow}</div>
+      </div>`;
+    })
+    .join("");
+  const hdr = `<div class="lrace-header" style="${pg}">
+    <span></span>
+    <span style="cursor:pointer" onclick="window._assProjSort('name')">Player${arrow("name")}</span>
+    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('currentScore')">${escHtml(ratingLbl)}${arrow("currentScore")}</span>
+    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('avgDelta')">Avg Δ${arrow("avgDelta")}</span>
+    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('projScore')">After ${futureM}${arrow("projScore")}</span>
+    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('projRank')">#New${arrow("projRank")}</span>
+    <span style="text-align:center">Δ Rank</span>
+  </div>`;
+  tableEl.innerHTML = hdr + rowsHtml;
+};
+
 function _showShutoutMatches(name, type) {
   document.getElementById("shutout-drill-modal")?.remove();
   const data = window._shutoutMatchData || {};
@@ -16502,6 +16608,40 @@ function renderAnalyticsPage() {
       body: predAccHtml,
     },
     {
+      key: "ratingproj",
+      cat: "elo",
+      title: `📈 Rating Projection (${SCORING_SYSTEM_LABELS.ep})`,
+      body: (() => {
+        const formN = window._assProj?.formN || 10;
+        const futureM = window._assProj?.futureM || 20;
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div class="ep-controls">
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">FORM WINDOW</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._assProjAdj('form',-5)" aria-label="Decrease form window" title="Decrease form window">−</button>
+                <span class="ep-step-val" id="assproj-form-n">${formN}</span>
+                <span class="ep-step-unit">games</span>
+                <button class="ep-step-btn" onclick="window._assProjAdj('form',5)" aria-label="Increase form window" title="Increase form window">+</button>
+              </div>
+            </div>
+            <div class="ep-ctrl-divider"></div>
+            <div class="ep-ctrl-group">
+              <div class="ep-ctrl-label">PROJECT AHEAD</div>
+              <div class="ep-stepper">
+                <button class="ep-step-btn" onclick="window._assProjAdj('future',-10)" aria-label="Decrease matches to project ahead" title="Decrease matches to project ahead">−</button>
+                <span class="ep-step-val" id="assproj-future-n">${futureM}</span>
+                <span class="ep-step-unit">matches</span>
+                <button class="ep-step-btn" onclick="window._assProjAdj('future',10)" aria-label="Increase matches to project ahead" title="Increase matches to project ahead">+</button>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--muted);margin:8px 0">Projects each player's leaderboard score forward from their average points earned over their last FORM WINDOW matches. A simple rate projection — it doesn't re-simulate future opponents or maturity.</div>
+          <div id="assproj-table"></div>
+        </div>`;
+      })(),
+    },
+    {
       key: "awards",
       cat: "records",
       title: "🏅 Awards Board",
@@ -17204,6 +17344,40 @@ function renderAnalyticsPage() {
       })(),
     },
     {
+      key: "underdogboard",
+      cat: "records",
+      title: `🐺 Underdog Leaderboard (${SCORING_SYSTEM_LABELS.ep})`,
+      body: (() => {
+        const upsets = computeEPUpsets(am, _epCareerMatches());
+        const agg = {};
+        upsets.forEach((u) => {
+          if (u.gap <= 0) return;
+          u.winners.forEach((p) => {
+            if (!agg[p]) agg[p] = { count: 0, maxGap: 0 };
+            agg[p].count++;
+            agg[p].maxGap = Math.max(agg[p].maxGap, u.gap);
+          });
+        });
+        const ranked = Object.entries(agg).sort(
+          (a, b) => b[1].count - a[1].count || b[1].maxGap - a[1].maxGap,
+        );
+        if (!ranked.length)
+          return '<div class="sub" style="padding:8px">No upset wins yet.</div>';
+        const rows = ranked
+          .slice(0, 12)
+          .map(
+            ([name, d], i) =>
+              `<div class="lrace-row" style="grid-template-columns:34px 1fr 60px 70px"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(name)}</div><div class="lrace-1mo">${d.count}</div><div class="lrace-delta" style="color:var(--green)">+${d.maxGap}</div></div>`,
+          )
+          .join("");
+        return `<div class="ana-card" style="padding:10px 12px">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Wins where the internal strength walk (the same one that prices every ${escHtml(SCORING_SYSTEM_LABELS.ep)} match) had you as the underdog.</div>
+          <div class="lrace-header" style="grid-template-columns:34px 1fr 60px 70px"><span>Rank</span><span>Player</span><span>Upsets</span><span>Best Gap</span></div>
+          ${rows}
+        </div>`;
+      })(),
+    },
+    {
       key: "partnerloyalty",
       cat: "pairs",
       title: "💞 Partner Loyalty",
@@ -17728,6 +17902,7 @@ function renderAnalyticsPage() {
     requestAnimationFrame(() => renderMatchCalendar());
 
   requestAnimationFrame(() => window._renderHiLoTable?.());
+  requestAnimationFrame(() => window._renderAssProjTable?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {

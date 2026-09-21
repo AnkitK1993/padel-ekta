@@ -6,6 +6,8 @@ import {
   computeEPFull,
   computeEPTimeline,
   computeMatchEPDeltas,
+  computeEPUpsets,
+  computeEPProjection,
   EP_SHRINKAGE,
 } from "../src/domain/ep.js";
 
@@ -321,6 +323,94 @@ ok(
   JSON.stringify(computeEPTimeline(tlMatches)) ===
     JSON.stringify(computeEPTimeline([...tlMatches].reverse())),
 );
+
+console.log("\n\x1b[36m── EP: upsets (Underdog Leaderboard) ────────────────[0m");
+
+// Build a real strength gap: Strong beats everyone, Weak loses to everyone,
+// each 12 times, before the match under test.
+const strengthHistory = Array.from({ length: 12 }, (_, i) =>
+  M("2023-06-01", ["Strong", `X${i}`], ["Weak", `Y${i}`], 4, 1),
+);
+const upsetMatch = [M("2024-02-01", ["Weak", "W2"], ["Strong", "S2"], 4, 1)];
+const noUpsetMatch = [M("2024-02-01", ["Strong", "S2"], ["Weak", "W2"], 4, 1)];
+
+const upsets = computeEPUpsets(upsetMatch, [...strengthHistory, ...upsetMatch]);
+ok("the weaker team winning is recorded as an upset", upsets.length === 1, JSON.stringify(upsets));
+ok(
+  "winners/losers/score are recorded correctly",
+  upsets[0].winners.includes("Weak") &&
+    upsets[0].losers.includes("Strong") &&
+    upsets[0].sw === 4 &&
+    upsets[0].sl === 1,
+  JSON.stringify(upsets[0]),
+);
+ok("gap is positive (the winner was the underdog)", upsets[0].gap > 0, `got ${upsets[0].gap}`);
+
+const noUpsets = computeEPUpsets(noUpsetMatch, [...strengthHistory, ...noUpsetMatch]);
+ok(
+  "the stronger team winning is NOT an upset",
+  noUpsets.length === 0,
+  JSON.stringify(noUpsets),
+);
+ok(
+  "only the scored window is scanned for upsets, even with career history behind it",
+  computeEPUpsets(upsetMatch, [...strengthHistory, ...upsetMatch, ...ageing("Strong", 5, "2023-08-01")])
+    .length === 1,
+);
+ok("empty matches → []", computeEPUpsets([]).length === 0);
+ok(
+  "computeEPUpsets is deterministic",
+  JSON.stringify(computeEPUpsets(upsetMatch, strengthHistory)) ===
+    JSON.stringify(computeEPUpsets(upsetMatch, strengthHistory)),
+);
+
+console.log("\n\x1b[36m── EP: rating projection ────────────────────────────[0m");
+
+// Player A wins every one of their last 5 matches (+ve recent form); Player B
+// loses every one of theirs AND is a 60-game veteran, so those losses are
+// fully accountable (a new player's losses still pay positive — see the
+// maturity tests above — so a losing streak alone isn't enough here).
+const bCareer = ageing("B", 60, "2023-01-01");
+const projMatches = [
+  ...Array.from({ length: 5 }, (_, i) => M(`2024-03-0${i + 1}`, ["A", "P1"], ["Q1", "Q2"], 4, 1)),
+  ...Array.from({ length: 5 }, (_, i) => M(`2024-03-0${i + 1}`, ["Q3", "Q4"], ["B", "P2"], 4, 1)),
+];
+const proj = computeEPProjection(projMatches, [...bCareer, ...projMatches], 5, 20);
+const rowA = proj.find((r) => r.name === "A");
+const rowB = proj.find((r) => r.name === "B");
+ok("avgDelta is positive for a player on a run of wins", rowA.avgDelta > 0, `got ${rowA.avgDelta}`);
+ok("avgDelta is negative for a player on a run of losses", rowB.avgDelta < 0, `got ${rowB.avgDelta}`);
+ok(
+  "projected score moves in the direction of recent form",
+  rowA.projScore > rowA.currentScore && rowB.projScore < rowB.currentScore,
+  `A: ${rowA.currentScore.toFixed(1)} -> ${rowA.projScore.toFixed(1)}, B: ${rowB.currentScore.toFixed(1)} -> ${rowB.projScore.toFixed(1)}`,
+);
+ok(
+  "projection denominator grows by futureM (games + futureM + shrinkage)",
+  (() => {
+    const full = computeEPFull(projMatches, [...bCareer, ...projMatches]).A;
+    const expected = (full.ep + rowA.avgDelta * 20) / (full.games + 20 + EP_SHRINKAGE);
+    return Math.abs(rowA.projScore - expected) < 1e-9;
+  })(),
+);
+ok(
+  "currentRank/projRank/rankDiff are self-consistent",
+  proj.every((r) => r.rankDiff === r.currentRank - r.projRank),
+);
+ok(
+  "a wider form window pulls in more history and can change the average",
+  (() => {
+    const mixed = [
+      M("2024-04-01", ["G", "P1"], ["Q1", "Q2"], 1, 4), // loss
+      M("2024-04-02", ["G", "P1"], ["Q1", "Q2"], 4, 1), // win
+      M("2024-04-03", ["G", "P1"], ["Q1", "Q2"], 4, 1), // win
+    ];
+    const narrow = computeEPProjection(mixed, mixed, 2, 10).find((r) => r.name === "G");
+    const wide = computeEPProjection(mixed, mixed, 3, 10).find((r) => r.name === "G");
+    return narrow.avgDelta !== wide.avgDelta;
+  })(),
+);
+ok("empty matches → []", computeEPProjection([], null, 10, 20).length === 0);
 
 console.log(`\n\x1b[1mEP: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`);
 process.exit(fail ? 1 : 0);
