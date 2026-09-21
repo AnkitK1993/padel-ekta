@@ -1065,6 +1065,45 @@ function _statsTimeline(matches) {
     1000,
   );
 }
+// Upsets (weaker team won), following the picker where a bespoke temporal
+// walk exists for the active engine. `ep` gets its own (computeEPUpsets,
+// same career-aware internal walk that prices every match). Every other
+// system falls back to the classic ASS walk (_computeUpsets) — there's no
+// equivalent per-match temporal model for Glicko-2/OpenSkill/Fair Share in
+// this codebase, so that's a known limitation, not a picker bug: the
+// important case (the new default, "ep") is fully accurate.
+function _statsUpsets(matches) {
+  if (_scoringSystem === "ep") return computeEPUpsets(matches, _epCareerMatches());
+  return _computeUpsets(matches).map((u) => ({ ...u, gap: u.assGap }));
+}
+
+// System-agnostic win probability, used by anything that needs to compare
+// two teams live (Live Win Probability Meter, Auto-Rotation team suggester).
+// Rather than a fixed 400-point ELO-logistic divisor — calibrated to a
+// 1000-centred scale and nearly flat on a 0-based engine's small score
+// range — this works off each player's SR, which is ALREADY on a common
+// ~0-10 band for every engine (computeStats' srFn: the 1000-centred
+// engines' fixed (rating-700)/60, or the 0-based engines' per-field
+// min-max). 400 ELO points is the classic ~91%-favourite benchmark; on the
+// SR scale that's 400/60 ≈ 6.67 SR points, so the divisor here reproduces
+// the same "feel" regardless of which engine is active.
+const _SR_LOGISTIC_DIVISOR = 400 / 60;
+function _statsTeamSr(players, ratingMap, srFn) {
+  if (!players.length) return 0;
+  const vals = players.map((p) => srFn(ratingMap[p] ?? _statsDefault()));
+  return vals.reduce((s, v) => s + v, 0) / vals.length;
+}
+// Returns team A's win probability (0-1) given two rosters, scoped to the
+// full active player pool so a 0-based engine's min-max SR is computed
+// against everyone, not just these 4 — otherwise two closely-matched
+// players would always land at opposite ends of a synthetic 1-10 range.
+function _statsWinProb(teamA, teamB) {
+  const ratingMap = _statsRatingMap(activeMatches());
+  const srFn = _statsSrFn(ratingMap);
+  const srA = _statsTeamSr(teamA, ratingMap, srFn);
+  const srB = _statsTeamSr(teamB, ratingMap, srFn);
+  return 1 / (1 + Math.pow(10, (srB - srA) / _SR_LOGISTIC_DIVISOR));
+}
 let _addRenderedVersion = -1;
 let _anaRenderedVersion = -1;
 let _anaRenderedFilter = "";
@@ -5882,33 +5921,6 @@ function setCmpSort(key) {
 
 // buildCompactMatchRows → ./render-match-rows.js
 
-function _computeMatchEloDeltas(matches, startElo = {}) {
-  const elo = { ...startElo };
-  const map = new Map();
-  [...matches]
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-    .forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        if (!(p in elo)) elo[p] = 1000;
-      });
-      const aWon = m.scoreA > m.scoreB;
-      const avgA =
-        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-      const avgB =
-        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      map.set(m, { dA, dB });
-      m.teamA.forEach((p) => {
-        elo[p] = (elo[p] || 1000) + dA;
-      });
-      m.teamB.forEach((p) => {
-        elo[p] = (elo[p] || 1000) + dB;
-      });
-    });
-  return map;
-}
 // buildSummaryMatchRow → ./render-match-rows.js
 // buildSummaryMatchRows → ./render-match-rows.js
 
@@ -5928,16 +5940,20 @@ function _matchCardPrecompute() {
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
   const ass = {};
+  const _mcDefault = _statsDefault();
   const allPairsList = _memoPairStats(); // all pairs ever formed
   const sortedForPrecompute = [...state.matches].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
-  const assDeltasAll = computeMatchASSDeltas(sortedForPrecompute);
+  // Follows the active scoring picker — was hardcoded to classic ASS, so
+  // every History card's rating pill and pre-match pair rank stayed on the
+  // 1000-baseline engine regardless of which system was selected.
+  const assDeltasAll = _matchDeltasForSystem(_scoringSystem, sortedForPrecompute);
   sortedForPrecompute.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      if (!(p in ass)) ass[p] = 1000;
+      if (!(p in ass)) ass[p] = _mcDefault;
     });
-    // Rank all pairs by their avg ASS right now (before this match)
+    // Rank all pairs by their avg rating right now (before this match)
     matchPairRankMap.set(
       m,
       new Map(
@@ -5945,7 +5961,7 @@ function _matchCardPrecompute() {
           .map((p) => ({
             key: p.key,
             avgElo:
-              p.players.reduce((s, n) => s + (ass[n] || 1000), 0) /
+              p.players.reduce((s, n) => s + (ass[n] ?? _mcDefault), 0) /
               p.players.length,
           }))
           .sort((a, b) => b.avgElo - a.avgElo)
@@ -5956,7 +5972,7 @@ function _matchCardPrecompute() {
     const mData = {};
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
       const delta = info?.playerDeltas?.[p] ?? 0;
-      const after = (ass[p] || 1000) + delta;
+      const after = (ass[p] ?? _mcDefault) + delta;
       mData[p] = { delta, after };
       ass[p] = after;
     });
@@ -6004,7 +6020,7 @@ function buildMatchCards(matches, showAdmin) {
       ) || display.slice(0, 3).toUpperCase();
     const cls = d.delta >= 0 ? "elo-gain" : "elo-loss";
     const arrow = d.delta >= 0 ? "↑" : "↓";
-    return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${escHtml(short)}</span><span class="elo-pval">${d.after}</span><span class="elo-parrow">${arrow}${Math.abs(d.delta)}</span></span>`;
+    return `<span class="elo-delta-pill ${cls}"><span class="elo-pname">${escHtml(short)}</span><span class="elo-pval">${_statsFmt(d.after)}</span><span class="elo-parrow">${arrow}${_statsFmt(Math.abs(d.delta))}</span></span>`;
   };
 
   const mkTeamBlock = (players, won, score, hasZeroEmoji, preMatchRankMap) => {
@@ -6013,7 +6029,7 @@ function buildMatchCards(matches, showAdmin) {
     const crown = won ? "👑 " : "";
     const rank = preMatchRankMap?.get(getPairKey(players));
     const rankHtml = rank
-      ? `<div class="team-pair-rank">ASS #${rank}</div>`
+      ? `<div class="team-pair-rank">${escHtml(_statsLabel())} #${rank}</div>`
       : "";
     if (players.length >= 2) {
       const p2Suffix = hasZeroEmoji ? " 😭" : "";
@@ -8131,8 +8147,9 @@ function openShareCard(name) {
   const detail = getPlayerDetail(name);
   if (!detail.stats) return;
   const s = detail.stats;
-  const eloMap = _memoASS();
-  const elo = Math.round(eloMap[name] || 1000);
+  const eloMap = _statsRatingMap(activeMatches());
+  const elo = _statsFmt(eloMap[name] ?? _statsDefault());
+  const eloLbl = _statsLabel();
   const col = playerColor(name);
 
   const streakIcon = s.curStreak > 0 ? (s.curType === "W" ? "🔥" : "❄️") : "";
@@ -8151,7 +8168,7 @@ function openShareCard(name) {
     )
     .join("");
 
-  const allRanked = computeStats(activeMatches(), eloMap);
+  const allRanked = computeStats(activeMatches(), eloMap, _statsSrFn(eloMap));
   const rank = allRanked.findIndex((p) => p.name === name) + 1;
 
   const bigStat = (val, lbl, color = "#eeeae4") =>
@@ -8182,7 +8199,7 @@ function openShareCard(name) {
           <div style="font-size:22px;font-weight:900;color:#f0ecff;letter-spacing:-0.01em;line-height:1.1">${name}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
             <span style="background:${col}22;color:${col};font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;border:1px solid ${col}44;letter-spacing:0.04em">#${rank} RANK</span>
-            <span style="color:#4a4a6a;font-size:10px;font-weight:600">${elo} ASS</span>
+            <span style="color:#4a4a6a;font-size:10px;font-weight:600">${elo} ${escHtml(eloLbl)}</span>
           </div>
         </div>
       </div>
@@ -12702,45 +12719,45 @@ function wrcOnSlider() {
   const newL = newMp - newW;
   const newWR = Math.round((newW / newMp) * 100);
 
-  // ASS gain estimate: K=32-style win-probability heuristic, vs match-frequency-weighted average opponent ASS.
-  // Players who appear in more matches are more likely to be faced, so their
-  // ASS carries proportionally more weight in the average.
-  const eloMap = _memoASS();
-  const myElo = eloMap[name] || 1000;
-  // Use only non-guest matches for the opponent ELO average
-  const guestSet = new Set(
-    Object.values(state.players)
-      .filter((p) => p.isGuest)
-      .map((p) => p.name),
-  );
-  const nonGuestMs = activeMatches().filter(
-    (m) =>
-      ![...(m.teamA || []), ...(m.teamB || [])].some((p) => guestSet.has(p)),
-  );
-  // Count how many matches each non-guest opponent played (weighted average)
-  const oppCount = {};
-  nonGuestMs.forEach((m) => {
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      const cn = normPlayer(p);
-      if (cn !== name && !guestSet.has(p))
-        oppCount[cn] = (oppCount[cn] || 0) + 1;
-    });
-  });
-  const oppEntries = Object.entries(oppCount);
-  const totalOppMatches = oppEntries.reduce((s, [, c]) => s + c, 0);
-  const avgOpp =
-    oppEntries.length && totalOppMatches > 0
-      ? oppEntries.reduce((s, [p, c]) => s + (eloMap[p] || 1000) * c, 0) /
-        totalOppMatches
-      : 1000;
-  const expected = 1 / (1 + Math.pow(10, (avgOpp - myElo) / 400));
-  const eloGain = Math.round(
-    futureWins * 32 * (1 - expected) + futureLosses * 32 * (0 - expected),
-  );
-  const finalElo = myElo + eloGain;
-  const eloSign = eloGain >= 0 ? "+" : "";
-  const eloCol =
-    eloGain > 0 ? "var(--green)" : eloGain < 0 ? "var(--red)" : "var(--muted)";
+  // Rating gain estimate — follows the active scoring picker. Rather than a
+  // fixed ELO-logistic formula (K=32, /400 — calibrated to a 1000-centred
+  // scale), this uses the active engine's OWN historical average delta for
+  // this player: their average points earned on a win vs. a loss, from the
+  // same per-match timeline every "follows the picker" section already uses.
+  // Zero-based engines (whose displayed number is an average, not a running
+  // total) fold the projected total back through the same games+SHRINKAGE
+  // denominator; 1000-centred engines just add the projected change.
+  const ratingMap = _statsRatingMap(activeMatches());
+  const myRating = ratingMap[name] ?? _statsDefault();
+  const hist = _statsTimeline(activeMatches()).history[name] || [];
+  const avgOf = (rows) =>
+    rows.length ? rows.reduce((s, h) => s + h.delta, 0) / rows.length : 0;
+  const avgWinDelta = avgOf(hist.filter((h) => h.won));
+  const avgLossDelta = avgOf(hist.filter((h) => !h.won));
+  const projectedChange = futureWins * avgWinDelta + futureLosses * avgLossDelta;
+  const zeroBased = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem);
+  let finalRating, ratingGain;
+  if (zeroBased) {
+    const full = computeEPFull(activeMatches(), _epCareerMatches())[name] || {
+      ep: 0,
+      games: 0,
+    };
+    const projTotal = full.ep + projectedChange;
+    const projGames = full.games + n;
+    finalRating = projTotal / (projGames + EP_SHRINKAGE);
+    ratingGain = finalRating - myRating;
+  } else {
+    finalRating = myRating + projectedChange;
+    ratingGain = projectedChange;
+  }
+  const ratingLbl = _statsLabel();
+  const ratingSign = ratingGain >= 0 ? "+" : "";
+  const ratingCol =
+    ratingGain > 0
+      ? "var(--green)"
+      : ratingGain < 0
+        ? "var(--red)"
+        : "var(--muted)";
 
   resEl.innerHTML = `
     <div class="wrc-result-hero">
@@ -12753,8 +12770,8 @@ function wrcOnSlider() {
       <div class="wrc-rg-cell wrc-rg-lose"><div class="wrc-rg-label">NEW LOSSES</div><div class="wrc-rg-val">${newL}</div></div>
       <div class="wrc-rg-cell wrc-rg-hl"><div class="wrc-rg-label">FINAL W%</div><div class="wrc-rg-val">${newWR}%</div></div>
       <div class="wrc-rg-cell" style="grid-column:span 2">
-        <div class="wrc-rg-label">ASS GAIN</div>
-        <div class="wrc-rg-val" style="color:${eloCol}">${eloSign}${eloGain} → ${finalElo}</div>
+        <div class="wrc-rg-label">${escHtml(ratingLbl)} GAIN</div>
+        <div class="wrc-rg-val" style="color:${ratingCol}">${ratingSign}${_statsFmt(ratingGain)} → ${_statsFmt(finalRating)}</div>
       </div>
     </div>`;
 }
@@ -17534,11 +17551,10 @@ function renderAnalyticsPage() {
       title: "🏅 Weighted MVP Formula",
       body: (() => {
         const scoreMap = eloMap;
-        const upsets = _computeUpsets(am);
+        const upsets = _statsUpsets(am);
         const upsetCounts = {};
         upsets.forEach((u) => {
-          const gap = _scoringMode === "ass" ? u.assGap : u.gap;
-          if (gap > 0)
+          if (u.gap > 0)
             u.winners.forEach((p) => {
               upsetCounts[p] = (upsetCounts[p] || 0) + 1;
             });
@@ -17565,13 +17581,13 @@ function renderAnalyticsPage() {
         const rows = ranked
           .slice(0, 10)
           .map((p, i) => {
-            const rg = Math.round(p.ratingGain);
+            const rg = p.ratingGain;
             const rgCol =
               rg > 0 ? "var(--green)" : rg < 0 ? "var(--red)" : "var(--muted)";
             return `<div class="lrace-row" style="${_mvpPg}">
           <div style="text-align:center;font-size:10px;color:var(--muted)">#${i + 1}</div>
           <div class="lrace-name">${escHtml(p.name)}</div>
-          <div style="text-align:center;font-weight:700;color:${rgCol}">${rg > 0 ? "+" : ""}${rg}</div>
+          <div style="text-align:center;font-weight:700;color:${rgCol}">${rg > 0 ? "+" : ""}${_statsFmt(rg)}</div>
           <div style="text-align:center;font-weight:600">${Math.round(p.winPct)}%</div>
           <div style="text-align:center;font-weight:600">${p.attendance}</div>
           <div style="text-align:center;font-weight:600;color:var(--gold)">${p.upsets}</div>
@@ -18533,9 +18549,12 @@ window._showMonthReport = function (mo) {
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (!allMs.length) return;
 
-  // ASS computed over just this month's matches — POTM and the
-  // standings leaderboard rank by ASS rating, not win%.
-  const _moAss = computeASS(allMs);
+  // Rating computed over just this month's matches, following the active
+  // scoring picker — POTM and the standings leaderboard rank by rating,
+  // not win%.
+  const _moAss = _statsRatingMap(allMs);
+  const _moDefault = _statsDefault();
+  const _moLbl = _statsLabel();
 
   // ── Per-player accumulation ──────────────────────────────
   const P = {};
@@ -18625,7 +18644,7 @@ window._showMonthReport = function (mo) {
       name,
       ...ps,
       winPct: Math.round((ps.mw / ps.mp) * 100),
-      ass: Math.round(_moAss[name] || 1000),
+      ass: _moAss[name] ?? _moDefault,
     }))
     .sort((a, b) => b.ass - a.ass || b.mp - a.mp);
 
@@ -18650,14 +18669,14 @@ window._showMonthReport = function (mo) {
   if (potm) {
     lines.push(`🏆 *PLAYER OF THE MONTH*`);
     lines.push(
-      `${potm.name} — ${potm.ass} ASS (${potm.mw}W-${potm.mp - potm.mw}L)`,
+      `${potm.name} — ${_statsFmt(potm.ass)} ${_moLbl} (${potm.mw}W-${potm.mp - potm.mw}L)`,
     );
     lines.push("");
   }
   lines.push(`📊 *STANDINGS*`);
   standings.forEach((p, i) => {
     lines.push(
-      `${medals[i] || `${i + 1}.`} ${p.name} — ${p.ass} ASS (${p.mw}W-${p.mp - p.mw}L)`,
+      `${medals[i] || `${i + 1}.`} ${p.name} — ${_statsFmt(p.ass)} ${_moLbl} (${p.mw}W-${p.mp - p.mw}L)`,
     );
   });
   lines.push("");
@@ -18742,7 +18761,7 @@ window._showMonthReport = function (mo) {
       <div style="width:24px;text-align:center;flex-shrink:0">${rankHtml}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:800;letter-spacing:0.01em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name.toUpperCase())}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">⚡ ${p.ass} ASS&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:${wlColor}">${p.mw}W–${p.mp - p.mw}L</span>&nbsp;&nbsp;·&nbsp;&nbsp;${p.winPct}%</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">⚡ ${_statsFmt(p.ass)} ${escHtml(_moLbl)}&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:${wlColor}">${p.mw}W–${p.mp - p.mw}L</span>&nbsp;&nbsp;·&nbsp;&nbsp;${p.winPct}%</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:16px;font-weight:900;color:var(--theme)">${p.ass}</div>
@@ -18757,7 +18776,7 @@ window._showMonthReport = function (mo) {
   const highRows = [];
   if (potm)
     highRows.push(
-      `<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${potm.ass} ASS · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`,
+      `<div class="chem-row"><span style="font-size:16px">🏆</span><div><div style="font-size:11px;font-weight:700">${escHtml(potm.name)} — POTM</div><div style="font-size:9px;color:var(--muted)">${_statsFmt(potm.ass)} ${escHtml(_moLbl)} · ${potm.mw}W-${potm.mp - potm.mw}L in ${potm.mp} games</div></div></div>`,
     );
   if (bigWinM) {
     const bw = bigWinM.scoreA > bigWinM.scoreB;
@@ -19182,8 +19201,8 @@ function _renderLiveSlot(slot) {
     slotEl?.classList.add("live-slot-filled");
     const eloEl = document.getElementById(`live-elo-${slot}`);
     if (eloEl) {
-      const score = Math.round(_memoASS()[p] || 1000);
-      eloEl.textContent = `ASS ${score}`;
+      const score = _statsFmt(_statsRatingMap(activeMatches())[p] ?? _statsDefault());
+      eloEl.textContent = `${_statsLabel()} ${score}`;
       eloEl.style.display = "block";
     }
   } else {
@@ -19356,10 +19375,7 @@ function _updateLiveWinProb() {
     return;
   }
   wrap.style.display = "";
-  const eloMap = _memoASS();
-  const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
-  const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
-  const baseProb = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+  const baseProb = _statsWinProb([a1, a2], [b1, b2]);
   // Tilt probability toward leading team based on score gap
   const total = _liveScoreA + _liveScoreB;
   const scoreTilt =
@@ -19399,24 +19415,34 @@ function _updateLiveEloPreview() {
     el.style.display = "none";
     return;
   }
-  const eloMap = _memoASS();
-  const avgA = ((eloMap[a1] || 1000) + (eloMap[a2] || 1000)) / 2;
-  const avgB = ((eloMap[b1] || 1000) + (eloMap[b2] || 1000)) / 2;
-  const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-  const expB = 1 - expA;
-  const dAwin = Math.round(32 * (1 - expA));
-  const dAlose = Math.round(32 * (0 - expA));
-  const dBwin = Math.round(32 * (1 - expB));
-  const dBlose = Math.round(32 * (0 - expB));
+  // Runs a hypothetical 4-2 match through the ACTUAL active engine (not a
+  // generic K=32 heuristic), appended onto real history so maturity/partner
+  // effects are correctly in play. Mirrored 2-4 gives the "if you lose"
+  // side. This is what genuinely happens when the match is saved, for
+  // whichever system is selected — not an approximation of it.
+  const base = activeMatches();
+  const previewDeltas = (scoreA, scoreB) => {
+    const synth = { date: todayISO(), teamA: [a1, a2], teamB: [b1, b2], scoreA, scoreB };
+    const withSynth = [...base, synth];
+    const d = _matchDeltasForSystem(_scoringSystem, withSynth).get(synth);
+    return d ? d.playerDeltas : {};
+  };
+  const winDeltas = previewDeltas(4, 2);
+  const loseDeltas = previewDeltas(2, 4);
+  const teamAvg = (deltas, players) => {
+    const vals = players.map((p) => deltas[p]).filter((v) => v != null);
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  };
   el.style.display = "";
   const set = (id, val) => {
     const e = document.getElementById(id);
     if (e) e.textContent = val;
   };
-  set("lep-win-a", `+${dAwin}`);
-  set("lep-lose-a", `${dAlose}`);
-  set("lep-win-b", `+${dBwin}`);
-  set("lep-lose-b", `${dBlose}`);
+  const fmt = (v) => (v == null ? "—" : `${v > 0 ? "+" : ""}${_statsFmt(v)}`);
+  set("lep-win-a", fmt(teamAvg(winDeltas, [a1, a2])));
+  set("lep-lose-a", fmt(teamAvg(loseDeltas, [a1, a2])));
+  set("lep-win-b", fmt(teamAvg(winDeltas, [b1, b2])));
+  set("lep-lose-b", fmt(teamAvg(loseDeltas, [b1, b2])));
 }
 
 function endLiveMatch() {
@@ -19851,13 +19877,14 @@ window._sessSortBy = function (col) {
 
 // ── AUTO-ROTATION — SUGGEST NEXT MATCH ──────────────────────
 function _mkEloTeams(pick4, eloMap, alt) {
+  const def = _statsDefault();
   const s = [...pick4].sort(
-    (a, b) => (eloMap[b] || 1000) - (eloMap[a] || 1000),
+    (a, b) => (eloMap[b] ?? def) - (eloMap[a] ?? def),
   );
   const teamA = alt ? [s[0], s[2]] : [s[0], s[3]];
   const teamB = alt ? [s[1], s[3]] : [s[1], s[2]];
-  const avgA = ((eloMap[teamA[0]] || 1000) + (eloMap[teamA[1]] || 1000)) / 2;
-  const avgB = ((eloMap[teamB[0]] || 1000) + (eloMap[teamB[1]] || 1000)) / 2;
+  const avgA = ((eloMap[teamA[0]] ?? def) + (eloMap[teamA[1]] ?? def)) / 2;
+  const avgB = ((eloMap[teamB[0]] ?? def) + (eloMap[teamB[1]] ?? def)) / 2;
   return { teamA, teamB, avgA, avgB };
 }
 
@@ -19867,7 +19894,7 @@ function suggestNextMatch() {
     showToast("Need 4+ players in session", "❌");
     return;
   }
-  const scoreMap = _scoringMode === "ass" ? _memoASS() : _memoASS();
+  const scoreMap = _statsRatingMap(activeMatches());
   const counts = {};
   sessionPlayers.forEach((p) => (counts[p] = 0));
   _sessionMatchHistory.forEach((m) => {
@@ -19893,15 +19920,44 @@ function _showSuggestSheet(suggestions) {
   const body = document.getElementById("suggest-sheet-body");
   if (!sheet || !body) return;
   const scoreLbl = _scoringLabel(); // "ELO" or "ASS"
+  const baseMatches = activeMatches();
   body.innerHTML = suggestions
     .map((s, i) => {
-      const expA = 1 / (1 + Math.pow(10, (s.avgB - s.avgA) / 400));
+      const expA = _statsWinProb(s.teamA, s.teamB);
       const probA = Math.round(expA * 100);
       const probB = 100 - probA;
-      const dAwin = Math.round(32 * (1 - expA));
-      const dAlose = Math.round(32 * (0 - expA));
-      const dBwin = Math.round(32 * expA);
-      const dBlose = Math.round(32 * (expA - 1));
+      const synthWin = {
+        date: todayISO(),
+        teamA: s.teamA,
+        teamB: s.teamB,
+        scoreA: 4,
+        scoreB: 2,
+      };
+      const synthLose = {
+        date: todayISO(),
+        teamA: s.teamA,
+        teamB: s.teamB,
+        scoreA: 2,
+        scoreB: 4,
+      };
+      const winDeltas =
+        _matchDeltasForSystem(_scoringSystem, [...baseMatches, synthWin]).get(
+          synthWin,
+        )?.playerDeltas || {};
+      const loseDeltas =
+        _matchDeltasForSystem(_scoringSystem, [...baseMatches, synthLose]).get(
+          synthLose,
+        )?.playerDeltas || {};
+      const teamAvg = (deltas, players) => {
+        const vals = players
+          .map((p) => deltas[p])
+          .filter((v) => Number.isFinite(v));
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      };
+      const dAwin = teamAvg(winDeltas, s.teamA);
+      const dAlose = teamAvg(loseDeltas, s.teamA);
+      const dBwin = teamAvg(loseDeltas, s.teamB);
+      const dBlose = teamAvg(winDeltas, s.teamB);
       const favA = probA >= probB;
       return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-bottom:10px">
       <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--muted);margin-bottom:8px">GAME ${i + 1}</div>
@@ -19909,13 +19965,13 @@ function _showSuggestSheet(suggestions) {
         <div style="flex:1;text-align:center">
           <div style="font-size:13px;font-weight:800">${escHtml(s.teamA[0])}</div>
           <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamA[1])}</div>
-          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgA)} ${scoreLbl} avg</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${_statsFmt(s.avgA)} ${scoreLbl} avg</div>
         </div>
         <div style="font-size:13px;font-weight:900;color:var(--muted)">VS</div>
         <div style="flex:1;text-align:center">
           <div style="font-size:13px;font-weight:800">${escHtml(s.teamB[0])}</div>
           <div style="font-size:11px;color:var(--muted)">${escHtml(s.teamB[1])}</div>
-          <div style="font-size:8px;color:var(--accent);margin-top:3px">${Math.round(s.avgB)} ${scoreLbl} avg</div>
+          <div style="font-size:8px;color:var(--accent);margin-top:3px">${_statsFmt(s.avgB)} ${scoreLbl} avg</div>
         </div>
       </div>
       <div style="margin-bottom:8px">
@@ -19931,18 +19987,18 @@ function _showSuggestSheet(suggestions) {
         <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:6px 8px">
           <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">${scoreLbl} IF WIN / LOSE</div>
           <div style="font-size:11px;font-weight:800">
-            <span style="color:var(--green)">+${dAwin}</span>
+            <span style="color:var(--green)">+${_statsFmt(dAwin)}</span>
             <span style="color:var(--muted);font-weight:400"> / </span>
-            <span style="color:var(--red)">${dAlose}</span>
+            <span style="color:var(--red)">${dAlose < 0 ? "-" : ""}${_statsFmt(Math.abs(dAlose))}</span>
           </div>
           <div style="font-size:7px;color:var(--muted);margin-top:2px">${escHtml(normPlayer(s.teamA[0]))} & ${escHtml(normPlayer(s.teamA[1]))}</div>
         </div>
         <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:6px 8px">
           <div style="font-size:7px;font-weight:800;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px">${scoreLbl} IF WIN / LOSE</div>
           <div style="font-size:11px;font-weight:800">
-            <span style="color:var(--green)">+${dBwin}</span>
+            <span style="color:var(--green)">+${_statsFmt(dBwin)}</span>
             <span style="color:var(--muted);font-weight:400"> / </span>
-            <span style="color:var(--red)">${dBlose}</span>
+            <span style="color:var(--red)">${dBlose < 0 ? "-" : ""}${_statsFmt(Math.abs(dBlose))}</span>
           </div>
           <div style="font-size:7px;color:var(--muted);margin-top:2px">${escHtml(normPlayer(s.teamB[0]))} & ${escHtml(normPlayer(s.teamB[1]))}</div>
         </div>
@@ -20401,9 +20457,12 @@ function _renderLiveSessionDashboard() {
           (m) => ![...m.teamA, ...m.teamB].some((p) => guestSet.has(p)),
         );
 
-  // Session ASS: everyone starts at 1000, computed from today's session matches only
-  const sessionASSMap = computeASS(history);
-  const rawStats = computeStats(history, sessionASSMap);
+  // Session score: everyone starts at the active system's baseline, computed
+  // from today's session matches only (resets fresh each session).
+  const sessionASSMap = _statsRatingMap(history);
+  const _sessDefault = _statsDefault();
+  const _sessSrFn = _statsSrFn(sessionASSMap);
+  const rawStats = computeStats(history, sessionASSMap, _sessSrFn);
   const effectiveSortCol = _sessSortCol === "elo" ? "ass" : _sessSortCol;
   const getSortVal = (p) => {
     switch (effectiveSortCol) {
@@ -20422,10 +20481,10 @@ function _renderLiveSessionDashboard() {
       case "gpct":
         return p.gw + p.gl > 0 ? p.gw / (p.gw + p.gl) : 0;
       case "ass":
-        return sessionASSMap[p.name] || 1000;
+        return sessionASSMap[p.name] ?? _sessDefault;
       case "sr":
       default:
-        return ratingToSr(sessionASSMap[p.name] || 1000);
+        return _sessSrFn(sessionASSMap[p.name] ?? _sessDefault);
     }
   };
   const stats = [...rawStats].sort((a, b) => {
@@ -20445,17 +20504,22 @@ function _renderLiveSessionDashboard() {
         : i === 2
           ? "#cd7f32"
           : "var(--muted)";
-  const thASS = `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">ASS</th>`;
+  const thASS = `<th onclick="window._sessSortBy('ass')" style="cursor:pointer">${escHtml(_statsLabel())}</th>`;
   const tableRows = stats
     .map((p, i) => {
       const ml = p.mp - p.mw;
       const winPct = p.mp > 0 ? Math.round((p.mw / p.mp) * 100) : 0;
       const total = p.gw + p.gl;
       const gamePct = total > 0 ? Math.round((p.gw / total) * 100) : 0;
-      const ass = Math.round(sessionASSMap[p.name] || 1000);
-      const sr = ratingToSr(sessionASSMap[p.name] || 1000).toFixed(2);
+      const assRaw = sessionASSMap[p.name] ?? _sessDefault;
+      const ass = _statsFmt(assRaw);
+      const sr = _sessSrFn(assRaw).toFixed(2);
       const assCol =
-        ass > 1000 ? "var(--green)" : ass < 1000 ? "var(--red)" : "var(--text)";
+        assRaw > _sessDefault
+          ? "var(--green)"
+          : assRaw < _sessDefault
+            ? "var(--red)"
+            : "var(--text)";
       return `<tr class="live-sdash-tr">
       <td style="color:${rankColor(i)};font-weight:900">${i + 1}</td>
       <td class="live-sdash-td-name">${sheetAvSm(p.name)}<span>${escHtml(normPlayer(p.name))}</span></td>
@@ -20473,18 +20537,28 @@ function _renderLiveSessionDashboard() {
   // Build all-time ELO delta map keyed by match id (session objs ≠ state.matches refs).
   // Use state.matches (not activeMatches) so guest-involving matches are included.
   const _atDeltaMap = new Map();
-  _computeMatchEloDeltas(state.matches).forEach((d, m) =>
-    _atDeltaMap.set(m.id, d),
-  );
+  const _avgTeamDelta = (deltas, team) => {
+    const vals = (team || [])
+      .map((p) => deltas?.[p])
+      .filter((v) => Number.isFinite(v));
+    return vals.length
+      ? vals.reduce((a, b) => a + b, 0) / vals.length
+      : undefined;
+  };
+  _matchDeltasForSystem(_scoringSystem, state.matches).forEach((d, m) => {
+    const dA = _avgTeamDelta(d.playerDeltas, m.teamA);
+    const dB = _avgTeamDelta(d.playerDeltas, m.teamB);
+    _atDeltaMap.set(m.id, { dA, dB });
+  });
   const matchesHtml = history
     .map((mt, i) => {
       const aWon = mt.scoreA > mt.scoreB;
       const histIdx = _sessionMatchHistory.indexOf(mt);
       const delta = _atDeltaMap.get(mt.id);
       const fmtD = (d) =>
-        d == null
+        d == null || !Number.isFinite(d)
           ? ""
-          : `<span class="ssm-elo" style="color:${d >= 0 ? "var(--green)" : "var(--red)"}">${d >= 0 ? "+" : ""}${d}</span>`;
+          : `<span class="ssm-elo" style="color:${d >= 0 ? "var(--green)" : "var(--red)"}">${d >= 0 ? "+" : ""}${_statsFmt(d)}</span>`;
       const teamAStr = escHtml(mt.teamA.map(normPlayer).join(" & "));
       const teamBStr = escHtml(mt.teamB.map(normPlayer).join(" & "));
       return `<div class="smr-wrap">
@@ -20576,11 +20650,12 @@ function openSessionSetup() {
   _sessionSetupSelected = new Set();
   const list = document.getElementById("session-setup-list");
   if (!list) return;
-  const eloMap = _memoASS();
+  const eloMap = _statsRatingMap(activeMatches());
+  const eloDefault = _statsDefault();
   list.innerHTML = players
     .map((p) => {
       const isGuest = guestNames.has(p);
-      const elo = Math.round(eloMap[p] || 1000);
+      const elo = _statsFmt(eloMap[p] ?? eloDefault);
       const photo = photoMap[p];
       const av = photo
         ? `<img src="${photo}" class="ssp-av" style="object-fit:cover" alt="">`
