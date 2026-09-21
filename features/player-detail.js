@@ -651,7 +651,6 @@ function openPlayerDetail(name) {
       <div class="form-pills-row">
         <div class="form-pill"><span style="font-size:9px;color:var(--muted)">MOMENTUM</span><span style="font-size:11px;font-weight:800;color:${form.momentumColor}">${form.momentumLabel}</span></div>
         <div class="form-pill"><span style="font-size:9px;color:var(--muted)">UNDER PRESSURE</span><span style="font-size:11px;font-weight:800;color:${form.pressureColor}">${form.pressureLabel} (${form.pressureScore}%)</span></div>
-        <div class="form-pill"><span style="font-size:9px;color:var(--muted)">WIN QUALITY</span><span style="font-size:11px;font-weight:800;color:var(--fg)">ASS CLASSIC ${form.winQuality}</span></div>
       </div>
     </div>`
     : "";
@@ -1560,13 +1559,6 @@ function openPlayerDetail(name) {
                       <div class="ov-lbl">Game %</div>
                     </div>
                   </div>
-                  ${form ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(var(--theme-rgb),0.07);border:1px solid rgba(var(--theme-rgb),0.15);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
-                    <div>
-                      <div style="font-size:8px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">WIN QUALITY</div>
-                      <div style="font-size:9px;color:var(--muted);margin-top:1px">avg ASS CLASSIC of opponents beaten</div>
-                    </div>
-                    <div style="font-size:22px;font-weight:900;color:var(--accent)">${form.winQuality}</div>
-                  </div>` : ""}
                 </div>
 
                 ${xpCard}

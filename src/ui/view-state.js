@@ -35,23 +35,11 @@ export const viewState = {
   anaDateFilter: "all",
   anaDateFrom: "",
   anaDateTo: "",
-  // ELO win-probability calculator
-  eloProbP1: "",
-  eloProbP2: "",
-  // What-if simulator
-  whatIfToggles: {}, // matchIdx -> bool (false = excluded)
-  whatIfFlips: {}, // matchIdx -> bool (true = flip outcome)
-  whatIfPlayer: "",
   // Match predictor
   predictPlayerA: "",
   predictPlayerB: "",
   predictPartnerA: "",
   predictPartnerB: "",
-  // 2v2 outcome simulator
-  simA1: "",
-  simA2: "",
-  simB1: "",
-  simB2: "",
   // ELO timeline overlay
   eloTLPlayer: "",
   eloTLFilter: "all",

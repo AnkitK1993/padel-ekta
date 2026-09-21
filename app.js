@@ -964,12 +964,13 @@ function _matchDeltasForSystem(system, matches) {
 // ── STATISTICS PAGE RATING SOURCE ───────────────────────────
 // The Statistics page follows whichever engine the Summary tab's picker has
 // selected, so a section titled "<system> Rankings" always means the same
-// number as the leaderboard. Two sections are deliberately excluded and stay
-// pinned to ASS CLASSIC — Rating Projection and the What-If Simulator have
-// ASS's 1000 baseline and quality×multiplier shape built into their maths, so
-// they would need redesigning rather than rewiring; they say so in their own
-// titles. The internal ELO walk behind Prediction Accuracy is also left alone:
-// that models match outcomes, not the displayed rating.
+// number as the leaderboard. The sections whose maths was ASS CLASSIC's
+// specifically (Win Probability, Biggest Upsets, Underdog Leaderboard, Match
+// Simulator, Rating Projection, What-If Simulator) were removed entirely
+// rather than pinned — see docs/ass-classic-scoring.md for what they did and
+// why they didn't just rewire onto the new engine. The internal ELO walk
+// behind Prediction Accuracy is left alone: that models match outcomes, not
+// the displayed rating.
 function _statsLabel() {
   return SCORING_SYSTEM_LABELS[_scoringSystem];
 }
@@ -1208,7 +1209,6 @@ let _sessionTimerInterval = null;
 let _sdashShowGuests = true; // scoreboard guest-filter toggle
 let _sessSortCol = "sr"; // active sort column key
 let _sessSortDir = "desc"; // "asc" | "desc"
-let _cachedUpsets = null; // filled by _buildBiggestUpsetsHtml, reused by toggle
 
 let _analyticsFeaturePromise = null;
 let _liveFeaturePromise = null;
@@ -7109,35 +7109,14 @@ function selectFilterItem(value) {
   if (mode === "player") setHistPlayerFilter(value);
   else if (mode === "pair") setHistPairFilter(value);
   else if (mode === "digestplayer") renderDigestCard(undefined, value);
-  else if (mode === "whatifplayer") {
-    renderWhatIfSection(value);
-    const btn = document.getElementById("whatif-player-fab");
-    if (btn) {
-      btn.querySelector(".whatif-fab-label").textContent =
-        value || "SELECT PLAYER";
-      btn.classList.toggle("filter-fab-active", !!value);
-    }
-  } else if (mode === "eloTLOverlay") {
+  else if (mode === "eloTLOverlay") {
     _eloTLSetOverlay(value);
-  } else if (mode === "eloprobp1") {
-    viewState.eloProbP1 = value;
-    _updateEloProbSlots();
-  } else if (mode === "eloprobp2") {
-    viewState.eloProbP2 = value;
-    _updateEloProbSlots();
   } else if (mode === "cmpplayerA") {
     viewState.cmpPlayerA = value;
     _updateCmpSlots();
   } else if (mode === "cmpplayerB") {
     viewState.cmpPlayerB = value;
     _updateCmpSlots();
-  } else if (mode && mode.startsWith("sim_")) {
-    const slot = mode.split("_")[1];
-    if (slot === "a1") viewState.simA1 = value;
-    else if (slot === "a2") viewState.simA2 = value;
-    else if (slot === "b1") viewState.simB1 = value;
-    else if (slot === "b2") viewState.simB2 = value;
-    _simUpdateSlots();
   } else if (mode && mode.startsWith("predict_")) {
     const slot = mode.split("_")[1];
     if (slot === "a1") viewState.predictPlayerA = value;
@@ -10620,105 +10599,6 @@ function _secIsEmpty(body) {
     text,
   );
 }
-function _simUpdateSlots() {
-  const slots = {
-    a1: viewState.simA1,
-    a2: viewState.simA2,
-    b1: viewState.simB1,
-    b2: viewState.simB2,
-  };
-  Object.entries(slots).forEach(([k, v]) => {
-    const lbl = document.getElementById(`sim-label-${k}`);
-    const btn = document.getElementById(`sim-slot-${k}`);
-    if (lbl) lbl.textContent = v || "—";
-    if (btn) btn.classList.toggle("h2h-slot-filled", !!v);
-  });
-}
-
-function runMatchSimulator() {
-  const a1 = viewState.simA1;
-  const a2 = viewState.simA2;
-  const b1 = viewState.simB1;
-  const b2 = viewState.simB2;
-  const result = document.getElementById("sim-result");
-  if (!result) return;
-
-  if (!a1 || !a2 || !b1 || !b2) {
-    result.innerHTML =
-      '<div class="sub" style="color:var(--red);padding:8px 0">Select all 4 players.</div>';
-    return;
-  }
-  if (new Set([a1, a2, b1, b2]).size < 4) {
-    result.innerHTML =
-      '<div class="sub" style="color:var(--red);padding:8px 0">All 4 players must be different.</div>';
-    return;
-  }
-
-  const eloMap = _memoASS();
-  const e = (p) => eloMap[p] || 1000;
-  const avgA = (e(a1) + e(a2)) / 2;
-  const avgB = (e(b1) + e(b2)) / 2;
-  const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-  const expB = 1 - expA;
-  const winPctA = Math.round(expA * 100);
-  const winPctB = 100 - winPctA;
-
-  const dAwin = Math.round(32 * (1 - expA));
-  const dBlose = Math.round(32 * (0 - expB));
-  const dAlose = Math.round(32 * (0 - expA));
-  const dBwin = Math.round(32 * (1 - expB));
-
-  const fmt = (n) => (n > 0 ? `+${n}` : `${n}`);
-  const col = (n) =>
-    n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
-
-  // Expected scoreline: the favourite is projected to reach the target (6);
-  // the underdog's games scale with how close the two teams are.
-  const TARGET = 6;
-  const pWin = Math.max(expA, expB);
-  const pLose = Math.min(expA, expB);
-  const loserGames = Math.max(
-    0,
-    Math.min(5, Math.round(TARGET * (pLose / pWin))),
-  );
-  const aFav = expA >= expB;
-  const expScoreA = aFav ? TARGET : loserGames;
-  const expScoreB = aFav ? loserGames : TARGET;
-
-  result.innerHTML = `
-    <div class="sim-result-inner">
-      <div class="sim-prob-row">
-        <span class="sim-prob-val" style="color:var(--green)">${winPctA}%</span>
-        <div class="sim-prob-track">
-          <div class="sim-prob-fill-a" style="width:${winPctA}%"></div>
-          <div class="sim-prob-fill-b" style="width:${winPctB}%"></div>
-        </div>
-        <span class="sim-prob-val" style="color:var(--red)">${winPctB}%</span>
-      </div>
-      <div class="sim-exp-score">
-        <span class="sim-exp-lbl">EXPECTED SCORE</span>
-        <span class="sim-exp-val"><span style="color:var(--green)">${expScoreA}</span> – <span style="color:var(--red)">${expScoreB}</span></span>
-      </div>
-      <div class="sim-outcomes">
-        <div class="sim-outcome">
-          <div class="sim-outcome-title" style="color:var(--green)">If A wins</div>
-          <div class="sim-p-row"><span>${a1}</span><span style="color:${col(dAwin)};font-weight:800">${fmt(dAwin)}</span></div>
-          <div class="sim-p-row"><span>${a2}</span><span style="color:${col(dAwin)};font-weight:800">${fmt(dAwin)}</span></div>
-          <div class="sim-p-row"><span>${b1}</span><span style="color:${col(dBlose)};font-weight:800">${fmt(dBlose)}</span></div>
-          <div class="sim-p-row"><span>${b2}</span><span style="color:${col(dBlose)};font-weight:800">${fmt(dBlose)}</span></div>
-        </div>
-        <div class="sim-outcome-div"></div>
-        <div class="sim-outcome">
-          <div class="sim-outcome-title" style="color:var(--red)">If B wins</div>
-          <div class="sim-p-row"><span>${a1}</span><span style="color:${col(dAlose)};font-weight:800">${fmt(dAlose)}</span></div>
-          <div class="sim-p-row"><span>${a2}</span><span style="color:${col(dAlose)};font-weight:800">${fmt(dAlose)}</span></div>
-          <div class="sim-p-row"><span>${b1}</span><span style="color:${col(dBwin)};font-weight:800">${fmt(dBwin)}</span></div>
-          <div class="sim-p-row"><span>${b2}</span><span style="color:${col(dBwin)};font-weight:800">${fmt(dBwin)}</span></div>
-        </div>
-      </div>
-    </div>`;
-}
-
 function buildEloTimelineHtml(filterKey) {
   filterKey = filterKey || viewState.eloTLFilter || "all";
   viewState.eloTLFilter = filterKey;
@@ -11029,313 +10909,6 @@ function showEloMatchDetail(idx) {
       <span style="color:var(--muted)">Score: <strong style="color:var(--fg)">${p.scoreA}–${p.scoreB}</strong></span>
       <span style="color:var(--muted)">ASS: <strong style="color:var(--fg)">${p.elo}</strong></span>
       <span style="font-weight:700;color:${dCol}">${dStr}</span>
-    </div>
-  </div>`;
-}
-
-function _updateEloProbSlots() {
-  const aBtn = document.getElementById("eloProb-slot-p1");
-  const bBtn = document.getElementById("eloProb-slot-p2");
-  if (aBtn) {
-    document.getElementById("eloProb-label-p1").textContent =
-      viewState.eloProbP1 || "P1";
-    aBtn.classList.toggle("h2h-slot-filled", !!viewState.eloProbP1);
-  }
-  if (bBtn) {
-    document.getElementById("eloProb-label-p2").textContent =
-      viewState.eloProbP2 || "P2";
-    bBtn.classList.toggle("h2h-slot-filled", !!viewState.eloProbP2);
-  }
-  if (
-    viewState.eloProbP1 &&
-    viewState.eloProbP2 &&
-    viewState.eloProbP1 !== viewState.eloProbP2
-  )
-    calcEloWinProb();
-  else {
-    const r = document.getElementById("elo-prob-result");
-    if (r) r.innerHTML = "";
-  }
-}
-
-function openEloProbSheet(slot) {
-  _filterSheetMode = slot === "p1" ? "eloprobp1" : "eloprobp2";
-  const el = document.getElementById("filter-sheet-title");
-  if (el) el.textContent = slot === "p1" ? "SELECT P1" : "SELECT P2";
-  const list = document.getElementById("filter-sheet-list");
-  if (!list) return;
-  const taken = slot === "p1" ? viewState.eloProbP2 : viewState.eloProbP1;
-  const selected = slot === "p1" ? viewState.eloProbP1 : viewState.eloProbP2;
-  const players = sortPlayersGuestsLast(_statPlayerNames());
-  list.innerHTML = players
-    .map((p) => {
-      const disabled =
-        p === taken ? ' style="opacity:0.3;pointer-events:none"' : "";
-      const sel = p === selected ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}"${disabled} onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
-    })
-    .join("");
-  const overlay = document.getElementById("filter-sheet-overlay");
-  const sheet = document.getElementById("filter-sheet");
-  if (overlay) overlay.classList.add("live-sheet-open");
-  if (sheet) sheet.classList.add("live-sheet-open");
-}
-
-function openWhatIfPlayerSheet() {
-  _filterSheetMode = "whatifplayer";
-  const el = document.getElementById("filter-sheet-title");
-  if (el) el.textContent = "SELECT PLAYER";
-  const list = document.getElementById("filter-sheet-list");
-  if (!list) return;
-  const players = sortPlayersGuestsLast(_statPlayerNames());
-  list.innerHTML = players
-    .map((p) => {
-      const sel =
-        p === viewState.whatIfPlayer ? " live-sheet-item-selected" : "";
-      return `<div class="live-sheet-item${sel}" onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
-    })
-    .join("");
-  const overlay = document.getElementById("filter-sheet-overlay");
-  const sheet = document.getElementById("filter-sheet");
-  if (overlay) overlay.classList.add("live-sheet-open");
-  if (sheet) sheet.classList.add("live-sheet-open");
-}
-
-function calcEloWinProb() {
-  const p1 = viewState.eloProbP1;
-  const p2 = viewState.eloProbP2;
-  const result = document.getElementById("elo-prob-result");
-  if (!result) return;
-  if (!p1 || !p2 || p1 === p2) {
-    result.innerHTML =
-      '<div class="sub" style="color:var(--red);padding:4px">Select two different players.</div>';
-    return;
-  }
-  const em = _memoASS();
-  const e1 = em[p1] || 1000;
-  const e2 = em[p2] || 1000;
-  const prob = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
-  const pct1 = Math.round(prob * 100);
-  const pct2 = 100 - pct1;
-  const col1 = playerColor(p1);
-  const col2 = playerColor(p2);
-  result.innerHTML = `<div style="margin-top:8px">
-    <div style="display:flex;align-items:center;gap:0;margin-bottom:10px;border-radius:6px;overflow:hidden;height:10px">
-      <div style="flex:${pct1};background:${col1};height:100%;min-width:4px"></div>
-      <div style="flex:${pct2};background:${col2};height:100%;min-width:4px"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <div>
-        <div style="font-size:22px;font-weight:900;color:${col1}">${pct1}%</div>
-        <div style="font-size:10px;color:var(--muted)">${p1.toUpperCase()}</div>
-        <div style="font-size:9px;color:var(--muted)">ASS ${e1}</div>
-      </div>
-      <div style="font-size:10px;color:var(--muted);padding-top:6px">WIN CHANCE</div>
-      <div style="text-align:right">
-        <div style="font-size:22px;font-weight:900;color:${col2}">${pct2}%</div>
-        <div style="font-size:10px;color:var(--muted)">${p2.toUpperCase()}</div>
-        <div style="font-size:9px;color:var(--muted)">ASS ${e2}</div>
-      </div>
-    </div>
-  </div>`;
-}
-
-// ── ASS WIN PROBABILITY STATE ──────────────────────────────
-
-// ── WHAT-IF SIMULATOR STATE ────────────────────────────────
-const _WHATIF_PAGE = 20;
-let _whatIfVisible = _WHATIF_PAGE;
-
-function renderWhatIfSection(playerName) {
-  viewState.whatIfPlayer = playerName;
-  viewState.whatIfToggles = {};
-  _whatIfVisible = _WHATIF_PAGE;
-  viewState.whatIfFlips = {};
-  const matchesEl = document.getElementById("whatif-matches");
-  const resultEl = document.getElementById("whatif-result");
-  const ctrlEl = document.getElementById("whatif-controls");
-  if (!matchesEl || !resultEl) return;
-  if (!playerName) {
-    matchesEl.innerHTML = "";
-    resultEl.innerHTML = "";
-    if (ctrlEl) ctrlEl.style.display = "none";
-    return;
-  }
-  const playerMatches = state.matches
-    .map((m, i) => ({ m, i }))
-    .filter(({ m }) =>
-      [...(m.teamA || []), ...(m.teamB || [])].includes(playerName),
-    );
-  playerMatches.forEach(({ i }) => {
-    viewState.whatIfToggles[i] = true;
-    viewState.whatIfFlips[i] = false;
-  });
-  if (ctrlEl) ctrlEl.style.display = "flex";
-  _renderWhatIfRows(playerName, playerMatches);
-  resultEl.innerHTML = "";
-}
-
-function _renderWhatIfRows(playerName, playerMatches) {
-  const matchesEl = document.getElementById("whatif-matches");
-  if (!matchesEl) return;
-  const visible = playerMatches.slice(-_whatIfVisible);
-  const remaining = playerMatches.length - _whatIfVisible;
-  const moreBtn =
-    remaining > 0
-      ? `<button class="whatif-action-btn" style="margin-top:6px;width:100%" onclick="toggleWhatIfShowAll()">
-        ▼ Show ${Math.min(remaining, _WHATIF_PAGE)} more (${remaining} remaining)
-      </button>`
-      : "";
-  matchesEl.innerHTML =
-    `<div class="whatif-list">` +
-    visible
-      .slice()
-      .reverse()
-      .map(({ m, i }) => {
-        const inA = (m.teamA || []).includes(playerName);
-        const baseWon =
-          (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-        const flipped = !!viewState.whatIfFlips[i];
-        const effectiveWon = flipped ? !baseWon : baseWon;
-        const excluded = viewState.whatIfToggles[i] === false;
-        const partner = (inA ? m.teamA : m.teamB)
-          .filter((p) => p !== playerName)
-          .join(" & ");
-        const opp = (inA ? m.teamB : m.teamA).join(" & ");
-        return `<div class="whatif-row${excluded ? " wi-excluded" : ""}${flipped ? " wi-flipped" : ""}">
-        <div class="wi-outcome-dot" style="background:${effectiveWon ? "var(--green)" : "var(--red)"}"></div>
-        <div class="wi-match-info">
-          <span class="wi-date">${fmtDate(m.date)}</span>
-          <span class="wi-vs">w/ ${escHtml(partner || "—")} vs ${escHtml(opp)}</span>
-          <span class="wi-score${flipped ? " wi-score-flipped" : ""}">${m.scoreA}–${m.scoreB}${flipped ? " →FLIPPED" : ""}</span>
-        </div>
-        <div class="wi-actions">
-          <button class="wi-btn wi-flip${flipped ? " active" : ""}" title="${flipped ? "Restore outcome" : "Flip to " + (baseWon ? "Loss" : "Win")}" onclick="toggleWhatIfFlip(${i})"
-            ${excluded ? "disabled" : ""}>⇄</button>
-          <button class="wi-btn wi-excl${excluded ? " active" : ""}" title="${excluded ? "Re-include" : "Exclude match"}" onclick="toggleWhatIfMatch(${i})">✕</button>
-        </div>
-      </div>`;
-      })
-      .join("") +
-    `</div>
-    ${moreBtn}
-    <button class="btn-go" style="width:100%;font-size:11px;margin-top:8px" onclick="recomputeWhatIfElo()">SIMULATE ▶</button>`;
-}
-
-function toggleWhatIfShowAll() {
-  _whatIfVisible += _WHATIF_PAGE;
-  const playerMatches = state.matches
-    .map((m, i) => ({ m, i }))
-    .filter(({ m }) =>
-      [...(m.teamA || []), ...(m.teamB || [])].includes(viewState.whatIfPlayer),
-    );
-  _renderWhatIfRows(viewState.whatIfPlayer, playerMatches);
-}
-
-function toggleWhatIfMatch(idx) {
-  viewState.whatIfToggles[idx] =
-    viewState.whatIfToggles[idx] === false ? true : false;
-  if (viewState.whatIfToggles[idx] === false)
-    viewState.whatIfFlips[idx] = false; // can't flip excluded
-  _refreshWhatIfRows();
-}
-
-function toggleWhatIfFlip(idx) {
-  viewState.whatIfFlips[idx] = !viewState.whatIfFlips[idx];
-  _refreshWhatIfRows();
-}
-
-function whatIfFlipAllLosses() {
-  const eloMap = _memoASS();
-  state.matches.forEach((m, i) => {
-    if (!viewState.whatIfToggles.hasOwnProperty(i)) return;
-    const inA = (m.teamA || []).includes(viewState.whatIfPlayer);
-    const won = (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
-    if (!won && viewState.whatIfToggles[i] !== false)
-      viewState.whatIfFlips[i] = true;
-  });
-  _refreshWhatIfRows();
-}
-
-function whatIfReset() {
-  Object.keys(viewState.whatIfToggles).forEach((i) => {
-    viewState.whatIfToggles[i] = true;
-    viewState.whatIfFlips[i] = false;
-  });
-  _refreshWhatIfRows();
-  document.getElementById("whatif-result").innerHTML = "";
-}
-
-function _refreshWhatIfRows() {
-  if (!viewState.whatIfPlayer) return;
-  const playerMatches = state.matches
-    .map((m, i) => ({ m, i }))
-    .filter(({ m }) =>
-      [...(m.teamA || []), ...(m.teamB || [])].includes(viewState.whatIfPlayer),
-    );
-  _renderWhatIfRows(viewState.whatIfPlayer, playerMatches);
-}
-
-function recomputeWhatIfElo() {
-  const resultEl = document.getElementById("whatif-result");
-  if (!resultEl || !viewState.whatIfPlayer) return;
-  // Build the modified match list
-  const whatIfMatches = state.matches
-    .filter((m, i) => viewState.whatIfToggles[i] !== false)
-    .map((m) => {
-      const i = state.matches.indexOf(m);
-      if (viewState.whatIfFlips[i]) {
-        // Flip: swap scores so the outcome reverses
-        return { ...m, scoreA: m.scoreB, scoreB: m.scoreA };
-      }
-      return m;
-    });
-  const actualAss = Math.round(_memoASS()[viewState.whatIfPlayer] || 1000);
-  const whatIfAssMap = computeASS(whatIfMatches);
-  const whatIfAss = Math.round(whatIfAssMap[viewState.whatIfPlayer] || 1000);
-  const assDiff = whatIfAss - actualAss;
-  const assSign = assDiff > 0 ? "+" : "";
-  const assPillCls =
-    assDiff > 0 ? "positive" : assDiff < 0 ? "negative" : "neutral";
-  // Rank change
-  const actualRanked = Object.entries(_memoASS()).sort((a, b) => b[1] - a[1]);
-  const whatIfRanked = Object.entries(whatIfAssMap).sort((a, b) => b[1] - a[1]);
-  const actualRank =
-    actualRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
-  const whatIfRank =
-    whatIfRanked.findIndex(([n]) => n === viewState.whatIfPlayer) + 1;
-  const rankDiff = actualRank - whatIfRank;
-  const rankStr =
-    rankDiff > 0
-      ? `▲${rankDiff}`
-      : rankDiff < 0
-        ? `▼${Math.abs(rankDiff)}`
-        : "—";
-  const excluded = Object.values(viewState.whatIfToggles).filter(
-    (v) => !v,
-  ).length;
-  const flipped = Object.values(viewState.whatIfFlips).filter((v) => v).length;
-  const rankPillCls =
-    rankDiff > 0 ? "positive" : rankDiff < 0 ? "negative" : "neutral";
-  resultEl.innerHTML = `<div class="whatif-result-card">
-    <div class="wi-res-row">
-      <div class="wi-res-cell">
-        <div class="wi-res-label">ACTUAL ASS</div>
-        <div class="wi-res-val">${actualAss}</div>
-        <div class="wi-res-sub">Rank #${actualRank}</div>
-      </div>
-      <div class="wi-res-arrow">→</div>
-      <div class="wi-res-cell">
-        <div class="wi-res-label">WHAT-IF ASS</div>
-        <div class="wi-res-val">${whatIfAss}</div>
-        <div class="wi-res-sub">Rank #${whatIfRank}</div>
-      </div>
-    </div>
-    <div class="wi-res-deltas">
-      <span class="wi-delta-pill ${assPillCls}">${assSign}${assDiff} ASS</span>
-      <span class="wi-delta-pill ${rankPillCls}">${rankStr} rank</span>
-      ${flipped ? `<span class="wi-delta-pill neutral">${flipped} flipped</span>` : ""}
-      ${excluded ? `<span class="wi-delta-pill neutral">${excluded} excluded</span>` : ""}
     </div>
   </div>`;
 }
@@ -12611,41 +12184,6 @@ function openPredictSheet(slot) {
   if (sheet) sheet.classList.add("live-sheet-open");
 }
 
-function openSimSheet(slot) {
-  _filterSheetMode = "sim_" + slot;
-  const el = document.getElementById("filter-sheet-title");
-  if (el) el.textContent = "SELECT PLAYER";
-  const list = document.getElementById("filter-sheet-list");
-  if (!list) return;
-  const taken = {
-    a1: viewState.simA1,
-    a2: viewState.simA2,
-    b1: viewState.simB1,
-    b2: viewState.simB2,
-  };
-  const current = taken[slot];
-  const others = Object.entries(taken)
-    .filter(([k]) => k !== slot)
-    .map(([, v]) => v)
-    .filter(Boolean);
-  const players = sortPlayersGuestsLast(_statPlayerNames());
-  list.innerHTML =
-    `<div class="live-sheet-item" onclick="selectFilterItem('')"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted)">—</div><span>None</span></div>` +
-    players
-      .map((p) => {
-        const dis = others.includes(p)
-          ? ' style="opacity:0.3;pointer-events:none"'
-          : "";
-        const sel = p === current ? " live-sheet-item-selected" : "";
-        return `<div class="live-sheet-item${sel}"${dis} onclick="selectFilterItem(${jsArg(p)})">${sheetAvSm(p)}<span>${escHtml(p)}</span></div>`;
-      })
-      .join("");
-  const overlay = document.getElementById("filter-sheet-overlay");
-  const sheet = document.getElementById("filter-sheet");
-  if (overlay) overlay.classList.add("live-sheet-open");
-  if (sheet) sheet.classList.add("live-sheet-open");
-}
-
 function runMatchPrediction() {
   const teamA = [viewState.predictPlayerA, viewState.predictPartnerA].filter(
     Boolean,
@@ -13307,39 +12845,6 @@ function _computeUpsets(matches = activeMatches()) {
   return upsets;
 }
 
-function _upsetCard(u) {
-  const fmt = (g) => (g >= 0 ? "+" : "") + g;
-  const teamLine = (team) =>
-    team
-      .map(
-        (p) =>
-          `${escHtml(normPlayer(p))} <span style="color:var(--muted);font-weight:600">${Math.round(u.preAss[p] ?? 1000)}</span>`,
-      )
-      .join(" <span style='color:var(--muted)'>&</span> ");
-  return `<div class="ana-card" style="padding:10px 12px;margin-bottom:6px">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-      <div style="flex:1;min-width:0;font-size:11px;font-weight:800;color:var(--green)">${teamLine(u.winners)}</div>
-      <div style="font-size:13px;font-weight:800;flex-shrink:0">${u.sw}–${u.sl}</div>
-      <div style="flex:1;min-width:0;font-size:11px;font-weight:800;color:var(--muted);text-align:right">${teamLine(u.losers)}</div>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
-      <span>ASS <span style="color:var(--green)">${fmt(u.assGap)}</span> underdog gap</span>
-      <span>${fmtDate(u.date)}</span>
-    </div>
-  </div>`;
-}
-
-function _renderBiggestUpsetsCards() {
-  const el = document.getElementById("biggest-upsets-body");
-  if (!el || !_cachedUpsets) return;
-  const eligible = _cachedUpsets.filter((u) => u.assGap > 0);
-  eligible.sort((a, b) => b.assGap - a.assGap);
-  const top = eligible.slice(0, 10);
-  el.innerHTML = top.length
-    ? top.map((u) => _upsetCard(u)).join("")
-    : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
-}
-
 window._streakSort = function (col) {
   if (!window._streakState)
     window._streakState = { col: "curSigned", dir: "desc" };
@@ -13624,17 +13129,6 @@ window._playRatingsRace = function (btn) {
   step();
 };
 
-function _buildBiggestUpsetsHtml(matches = activeMatches()) {
-  _cachedUpsets = _computeUpsets(matches);
-  const eligible = _cachedUpsets.filter((u) => u.assGap > 0);
-  eligible.sort((a, b) => b.assGap - a.assGap);
-  const top = eligible.slice(0, 10);
-  const cards = top.length
-    ? top.map((u) => _upsetCard(u)).join("")
-    : '<div class="sub" style="padding:8px">No upsets yet — the favourites have held.</div>';
-  return `<div id="biggest-upsets-body">${cards}</div>`;
-}
-
 // Compare every player's ELO across the user-defined Seasons (cross-season).
 function _buildSeasonComparisonHtml() {
   if (!state.seasons.length)
@@ -13839,155 +13333,6 @@ window._hiLoSortBy = function (col) {
     window._hiLoSort = { col, asc: col === "name" };
   }
   window._renderHiLoTable();
-};
-
-// ── ELO PROJECTION ─────────────────────────────────────────────
-window._eloProj = {
-  formN: 10,
-  futureM: 20,
-  sortCol: "currentRank",
-  sortAsc: true,
-};
-
-window._eloprojAdj = function (type, delta) {
-  const state = window._eloProj;
-  if (!state) return;
-  if (type === "form") {
-    state.formN = Math.max(10, state.formN + delta);
-    const el = document.getElementById("eloproj-form-n");
-    if (el) el.textContent = state.formN;
-  } else {
-    state.futureM = Math.max(10, state.futureM + delta);
-    const el = document.getElementById("eloproj-future-n");
-    if (el) el.textContent = state.futureM;
-  }
-  window._renderEloProjTable();
-};
-
-window._eloprojSort = function (col) {
-  const state = window._eloProj;
-  if (!state) return;
-  if (state.sortCol === col) {
-    state.sortAsc = !state.sortAsc;
-  } else {
-    state.sortCol = col;
-    state.sortAsc = col === "name";
-  }
-  window._renderEloProjTable();
-};
-
-window._renderEloProjTable = function () {
-  const tableEl = document.getElementById("eloproj-table");
-  if (!tableEl) return;
-  const { formN, futureM, sortCol, sortAsc } = window._eloProj;
-  // Pinned to ASS CLASSIC: the projection maths assumes the 1000 baseline
-  // and ASS's quality x multiplier shape, so it does not follow the picker.
-  const ratingLbl = SCORING_SYSTEM_LABELS.ass;
-  const eloMap = _memoASS();
-  const histAll = _memoASSHistory();
-  if (!histAll || !eloMap) return;
-
-  const ranked = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
-  if (!ranked.length) {
-    tableEl.innerHTML = `<div class="sub" style="padding:8px">No ${ratingLbl} data.</div>`;
-    return;
-  }
-
-  const currentRankMap = {};
-  ranked.forEach(([name], i) => {
-    currentRankMap[name] = i + 1;
-  });
-
-  const projData = ranked.map(([name, currentElo]) => {
-    const hist = histAll[name] || [];
-    const slice = hist.slice(-formN);
-    const avgDelta = slice.length
-      ? slice.reduce((s, p) => s + p.delta, 0) / slice.length
-      : 0;
-    const projElo = Math.round(currentElo + avgDelta * futureM);
-    return {
-      name,
-      currentElo,
-      avgDelta,
-      projElo,
-      currentRank: currentRankMap[name],
-    };
-  });
-
-  const projSorted = [...projData].sort((a, b) => b.projElo - a.projElo);
-  const projRankMap = {};
-  projSorted.forEach((p, i) => {
-    projRankMap[p.name] = i + 1;
-  });
-
-  // Attach projRank and rankDiff then sort display order
-  projData.forEach((p) => {
-    p.projRank = projRankMap[p.name];
-    p.rankDiff = p.currentRank - p.projRank;
-  });
-
-  const sortFn = {
-    currentRank: (a, b) => a.currentRank - b.currentRank,
-    name: (a, b) => a.name.localeCompare(b.name),
-    currentElo: (a, b) => b.currentElo - a.currentElo,
-    avgDelta: (a, b) => b.avgDelta - a.avgDelta,
-    projElo: (a, b) => b.projElo - a.projElo,
-    projRank: (a, b) => a.projRank - b.projRank,
-    rankDiff: (a, b) => b.rankDiff - a.rankDiff,
-  };
-  const cmp = sortFn[sortCol] || sortFn.currentRank;
-  projData.sort(sortAsc ? cmp : (a, b) => cmp(b, a));
-
-  const pg = "grid-template-columns:28px 1fr 50px 52px 70px 36px 40px";
-  const arrow = (col) => (sortCol === col ? (sortAsc ? " ▲" : " ▼") : "");
-
-  const rows = projData
-    .map((p) => {
-      const rankEl =
-        p.rankDiff > 0
-          ? `<span class="ep-rank-up">▲${p.rankDiff}</span>`
-          : p.rankDiff < 0
-            ? `<span class="ep-rank-dn">▼${Math.abs(p.rankDiff)}</span>`
-            : `<span class="ep-rank-eq">—</span>`;
-      const avgSign = p.avgDelta >= 0 ? "+" : "";
-      const avgCol =
-        p.avgDelta > 0
-          ? "var(--green)"
-          : p.avgDelta < 0
-            ? "var(--red)"
-            : "var(--muted)";
-      const projDiff = p.projElo - p.currentElo;
-      const projSign = projDiff >= 0 ? "+" : "";
-      const projDiffCol =
-        projDiff > 0
-          ? "var(--green)"
-          : projDiff < 0
-            ? "var(--red)"
-            : "var(--muted)";
-      const rankColor = _rankColor(p.currentRank, projData.length);
-      const newRankColor = _rankColor(p.projRank, projData.length);
-      return `<div class="lrace-row ep-row" style="${pg}">
-      <div class="lrace-rank" style="color:${rankColor}">#${p.currentRank}</div>
-      <div class="lrace-name">${escHtml(p.name)}</div>
-      <div class="ep-cell">${p.currentElo}</div>
-      <div class="ep-cell" style="color:${avgCol}">${avgSign}${p.avgDelta.toFixed(1)}</div>
-      <div class="ep-cell">${p.projElo}<span class="ep-diff" style="color:${projDiffCol}">${projSign}${projDiff}</span></div>
-      <div class="ep-cell" style="color:${newRankColor};font-weight:800">#${p.projRank}</div>
-      <div class="ep-cell">${rankEl}</div>
-    </div>`;
-    })
-    .join("");
-
-  const hdr = `<div class="lrace-header ep-hdr" style="${pg}">
-    <span class="hilo-hdr" onclick="window._eloprojSort('currentRank')">#NOW${arrow("currentRank")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('name')">Player${arrow("name")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('currentElo')">${ratingLbl}${arrow("currentElo")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('avgDelta')">Avg Δ${arrow("avgDelta")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('projElo')">After ${futureM}${arrow("projElo")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('projRank')">#New${arrow("projRank")}</span>
-    <span class="hilo-hdr" onclick="window._eloprojSort('rankDiff')">Δ Rank${arrow("rankDiff")}</span>
-  </div>`;
-  tableEl.innerHTML = hdr + rows;
 };
 
 function _showShutoutMatches(name, type) {
@@ -15542,26 +14887,6 @@ function renderAnalyticsPage() {
         .join("")}</div>`
     : '<div class="sub" style="padding:8px">No data yet.</div>';
 
-  // ── ELO WIN PROBABILITY ────────────────────────────────
-  const eloWinProbHtml =
-    playersByMatches.length >= 2
-      ? `<div class="ana-card" style="padding:10px 12px">
-        <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Pick two players to see win probability based on current ASS ratings.</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <button class="h2h-slot-btn" id="eloProb-slot-p1" onclick="openEloProbSheet('p1')" style="flex:1">
-            <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 1</span>
-            <span id="eloProb-label-p1" style="font-size:12px;font-weight:800">P1</span>
-          </button>
-          <span style="color:var(--muted);font-weight:700;font-size:12px;flex-shrink:0">VS</span>
-          <button class="h2h-slot-btn" id="eloProb-slot-p2" onclick="openEloProbSheet('p2')" style="flex:1">
-            <span style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">PLAYER 2</span>
-            <span id="eloProb-label-p2" style="font-size:12px;font-weight:800">P2</span>
-          </button>
-        </div>
-        <div id="elo-prob-result" style="margin-top:4px"></div>
-      </div>`
-      : '<div class="sub" style="padding:8px">Need at least 2 players.</div>';
-
   // ── ELO VOLATILITY ─────────────────────────────────────
   const eloVolatilityHtml = (() => {
     const players = Object.keys(eloHistoryAll).filter(
@@ -15812,38 +15137,6 @@ function renderAnalyticsPage() {
       ${moHtml}
     </div>`;
   })();
-
-  // ── MATCH SIMULATOR ────────────────────────────────────
-  const simulatorHtml = `
-    <div class="ana-card sim-card">
-      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
-        <div>
-          <div class="sim-team-label" style="color:var(--green);font-size:9px;font-weight:700;margin-bottom:4px">TEAM A</div>
-          <button class="h2h-slot-btn${viewState.simA1 ? " h2h-slot-filled" : ""}" id="sim-slot-a1" onclick="openSimSheet('a1')" style="width:100%;margin-bottom:6px">
-            <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-            <span id="sim-label-a1" style="font-size:11px;font-weight:800">${viewState.simA1 || "—"}</span>
-          </button>
-          <button class="h2h-slot-btn${viewState.simA2 ? " h2h-slot-filled" : ""}" id="sim-slot-a2" onclick="openSimSheet('a2')" style="width:100%">
-            <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-            <span id="sim-label-a2" style="font-size:11px;font-weight:800">${viewState.simA2 || "—"}</span>
-          </button>
-        </div>
-        <div class="sim-vs">VS</div>
-        <div>
-          <div class="sim-team-label" style="color:var(--red);font-size:9px;font-weight:700;margin-bottom:4px">TEAM B</div>
-          <button class="h2h-slot-btn${viewState.simB1 ? " h2h-slot-filled" : ""}" id="sim-slot-b1" onclick="openSimSheet('b1')" style="width:100%;margin-bottom:6px">
-            <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-            <span id="sim-label-b1" style="font-size:11px;font-weight:800">${viewState.simB1 || "—"}</span>
-          </button>
-          <button class="h2h-slot-btn${viewState.simB2 ? " h2h-slot-filled" : ""}" id="sim-slot-b2" onclick="openSimSheet('b2')" style="width:100%">
-            <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-            <span id="sim-label-b2" style="font-size:11px;font-weight:800">${viewState.simB2 || "—"}</span>
-          </button>
-        </div>
-      </div>
-      <button class="sim-btn" onclick="runMatchSimulator()">SIMULATE</button>
-      <div id="sim-result"></div>
-    </div>`;
 
   // ── DAY-OF-WEEK ANALYSIS ───────────────────────────────
   const dowHtml = (() => {
@@ -16109,25 +15402,9 @@ function renderAnalyticsPage() {
     );
   })();
 
-  // ── WHAT-IF SIMULATOR ──────────────────────────────────
-  const whatIfHtml = (() => {
-    return `<div class="ana-card" style="padding:12px">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Select a player — flip individual losses to wins, exclude matches, and see the counterfactual ASS</div>
-      <button class="filter-fab-btn" id="whatif-player-fab" onclick="openWhatIfPlayerSheet()" style="margin-bottom:10px"><span class="whatif-fab-label">SELECT PLAYER</span></button>
-      <div id="whatif-controls" style="display:none;margin-bottom:8px;gap:6px;flex-wrap:wrap">
-        <button class="whatif-action-btn" onclick="whatIfFlipAllLosses()">↩ Flip All Losses</button>
-        <button class="whatif-action-btn" onclick="whatIfReset()">↺ Reset All</button>
-      </div>
-      <div id="whatif-matches"></div>
-      <div id="whatif-result"></div>
-    </div>`;
-  })();
-
   // ── DIGEST CARD ────────────────────────────────────────
   viewState.digestFilter = "week";
   viewState.digestPlayer = "";
-  viewState.eloProbP1 = "";
-  viewState.eloProbP2 = "";
   const digestHtml = `<div style="background:linear-gradient(160deg,rgba(13,13,26,0.95),rgba(17,17,31,0.95));border-radius:16px;border:1px solid rgba(255,255,255,0.07);padding:14px 14px 10px;position:relative;overflow:hidden">
     <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--theme),transparent)"></div>
     <div style="font-size:10px;font-weight:800;color:var(--theme);letter-spacing:0.14em;margin-bottom:8px">DIGEST</div>
@@ -17138,14 +16415,13 @@ function renderAnalyticsPage() {
         avgMargin10: f.avgMargin10,
         momentumDelta: f.momentumDelta,
         pressureScore: f.pressureScore,
-        winQuality: f.winQuality,
       };
     })
     .filter(Boolean);
   window._playerFormSortCol = window._playerFormSortCol || "score";
   window._playerFormSortAsc = window._playerFormSortAsc ?? false;
   const _formPg =
-    "grid-template-columns:minmax(72px,1fr) 56px 48px 52px 52px 52px 52px";
+    "grid-template-columns:minmax(72px,1fr) 56px 48px 52px 52px 52px";
   const _formRowHtml = (r) => `
       <div class="lrace-row" style="${_formPg}">
         <div class="lrace-name">${escHtml(r.name)}</div>
@@ -17154,7 +16430,6 @@ function renderAnalyticsPage() {
         <div style="text-align:center;font-weight:600;color:${r.avgMargin10 >= 0 ? "var(--green)" : "var(--red)"}">${r.avgMargin10 > 0 ? "+" : ""}${r.avgMargin10}</div>
         <div style="text-align:center;font-weight:600;color:${r.momentumDelta > 0 ? "var(--green)" : r.momentumDelta < 0 ? "var(--red)" : "var(--muted)"}">${r.momentumDelta > 0 ? "+" : ""}${r.momentumDelta}</div>
         <div style="text-align:center;font-weight:600;color:${r.pressureScore >= 70 ? "var(--green)" : r.pressureScore >= 50 ? "var(--gold)" : "var(--red)"}">${r.pressureScore}%</div>
-        <div style="text-align:center;font-weight:600">${r.winQuality}</div>
       </div>`;
   const _formSortRows = (col, asc) =>
     [..._formRows].sort((a, b) => {
@@ -17182,7 +16457,6 @@ function renderAnalyticsPage() {
       "avgMargin10",
       "momentumDelta",
       "pressureScore",
-      "winQuality",
     ].forEach((c) => {
       const el = document.getElementById(`pform-hdr-${c}`);
       if (el)
@@ -17200,7 +16474,7 @@ function renderAnalyticsPage() {
       `<span style="text-align:center;cursor:pointer" onclick="_playerFormSort('${c}')">${label}<span id="pform-hdr-${c}" style="font-size:8px">${arrow(c)}</span></span>`;
     return (
       `<div class="ana-card" style="padding:8px 12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Form over recent matches. W%10 = last-10 win rate · Marg = avg margin last 10 · Mom = momentum (last 5 vs prev 5) · Pres = close-match win % · WinQ = avg ASS of opponents beaten. Tap column to sort.</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Form over recent matches. W%10 = last-10 win rate · Marg = avg margin last 10 · Mom = momentum (last 5 vs prev 5) · Pres = close-match win %. Tap column to sort.</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <div style="min-width:384px">
           <div class="lrace-header" style="${_formPg}">
@@ -17210,7 +16484,6 @@ function renderAnalyticsPage() {
             ${hdr("avgMargin10", "Marg")}
             ${hdr("momentumDelta", "Mom")}
             ${hdr("pressureScore", "Pres")}
-            ${hdr("winQuality", "WinQ")}
           </div>
           <div id="player-form-body">` +
       _formSortRows(sc, asc).map(_formRowHtml).join("") +
@@ -17227,51 +16500,6 @@ function renderAnalyticsPage() {
       cat: "elo",
       title: "🎯 Prediction Accuracy",
       body: predAccHtml,
-    },
-    {
-      key: "matchsim",
-      cat: "elo",
-      title: `🕹️ Match Simulator (${SCORING_SYSTEM_LABELS.ass})`,
-      body: simulatorHtml,
-    },
-    {
-      key: "whatif",
-      cat: "elo",
-      title: `🔀 What-If Simulator (${SCORING_SYSTEM_LABELS.ass})`,
-      body: whatIfHtml,
-    },
-    {
-      key: "ratingproj",
-      cat: "elo",
-      title: `📈 Rating Projection (${SCORING_SYSTEM_LABELS.ass})`,
-      body: (() => {
-        const formN = window._eloProj?.formN || 10;
-        const futureM = window._eloProj?.futureM || 20;
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div class="ep-controls">
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">FORM WINDOW</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',-10)" aria-label="Decrease form window" title="Decrease form window">−</button>
-                <span class="ep-step-val" id="eloproj-form-n">${formN}</span>
-                <span class="ep-step-unit">games</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('form',10)" aria-label="Increase form window" title="Increase form window">+</button>
-              </div>
-            </div>
-            <div class="ep-ctrl-divider"></div>
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">PROJECT AHEAD</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',-10)" aria-label="Decrease matches to project ahead" title="Decrease matches to project ahead">−</button>
-                <span class="ep-step-val" id="eloproj-future-n">${futureM}</span>
-                <span class="ep-step-unit">matches</span>
-                <button class="ep-step-btn" onclick="window._eloprojAdj('future',10)" aria-label="Increase matches to project ahead" title="Increase matches to project ahead">+</button>
-              </div>
-            </div>
-          </div>
-          <div id="eloproj-table"></div>
-        </div>`;
-      })(),
     },
     {
       key: "awards",
@@ -17622,12 +16850,6 @@ function renderAnalyticsPage() {
       body: _peakEloHtml,
     },
     {
-      key: "winprob",
-      cat: "elo",
-      title: `🎲 Win Probability (${SCORING_SYSTEM_LABELS.ass})`,
-      body: eloWinProbHtml,
-    },
-    {
       key: "chemmatrix",
       cat: "pairs",
       title: "🧪 Chemistry Matrix",
@@ -17712,12 +16934,6 @@ function renderAnalyticsPage() {
       cat: "players",
       title: "🎯 Win Rate Calculator",
       body: _buildWinRateCalcHtml(),
-    },
-    {
-      key: "biggestupsets",
-      cat: "records",
-      title: `💥 Biggest Upsets (${SCORING_SYSTEM_LABELS.ass})`,
-      body: _buildBiggestUpsetsHtml(am),
     },
     {
       key: "ratingdist",
@@ -17983,44 +17199,6 @@ function renderAnalyticsPage() {
           return '<div class="sub" style="padding:8px">Need 3+ meetings between players.</div>';
         return `<div class="ana-card" style="padding:10px 12px">
           <div style="display:flex;font-size:8px;color:var(--muted);font-weight:700;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06)"><div style="flex:1">PLAYER</div><div style="width:96px;text-align:right">NEMESIS</div><div style="width:96px;text-align:right">BUNNY</div></div>
-          ${rows}
-        </div>`;
-      })(),
-    },
-    {
-      key: "underdogboard",
-      cat: "records",
-      title: `🐺 Underdog Leaderboard (${SCORING_SYSTEM_LABELS.ass})`,
-      body: (() => {
-        // Reuse the walk _buildBiggestUpsetsHtml() already did this render pass
-        // (it runs earlier in this same allSecs literal, so _cachedUpsets is
-        // populated by now) instead of re-running the full ELO+ASS walk.
-        // Falls back to a fresh computation if that assumption ever breaks.
-        const upsets = _cachedUpsets || _computeUpsets(am);
-        const agg = {};
-        upsets.forEach((u) => {
-          const gap = _scoringMode === "ass" ? u.assGap : u.gap;
-          if (gap <= 0) return;
-          u.winners.forEach((p) => {
-            if (!agg[p]) agg[p] = { count: 0, maxGap: 0 };
-            agg[p].count++;
-            agg[p].maxGap = Math.max(agg[p].maxGap, gap);
-          });
-        });
-        const ranked = Object.entries(agg).sort(
-          (a, b) => b[1].count - a[1].count || b[1].maxGap - a[1].maxGap,
-        );
-        if (!ranked.length)
-          return '<div class="sub" style="padding:8px">No upset wins yet.</div>';
-        const rows = ranked
-          .slice(0, 12)
-          .map(
-            ([name, d], i) =>
-              `<div class="lrace-row" style="grid-template-columns:34px 1fr 60px 70px"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(name)}</div><div class="lrace-1mo">${d.count}</div><div class="lrace-delta" style="color:var(--green)">+${d.maxGap}</div></div>`,
-          )
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div class="lrace-header" style="grid-template-columns:34px 1fr 60px 70px"><span>Rank</span><span>Player</span><span>Upsets</span><span>Best Gap</span></div>
           ${rows}
         </div>`;
       })(),
@@ -18550,15 +17728,6 @@ function renderAnalyticsPage() {
     requestAnimationFrame(() => renderMatchCalendar());
 
   requestAnimationFrame(() => window._renderHiLoTable?.());
-
-  // Seed ASS Projection state (preserve existing formN/futureM across re-renders)
-  window._eloProj = {
-    formN: window._eloProj?.formN || 10,
-    futureM: window._eloProj?.futureM || 20,
-    sortCol: window._eloProj?.sortCol || "currentRank",
-    sortAsc: window._eloProj?.sortAsc ?? true,
-  };
-  requestAnimationFrame(() => window._renderEloProjTable?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {
@@ -19622,7 +18791,6 @@ Object.assign(window, {
   selectEloTLPlayer,
   filterEloTimeline,
   showEloMatchDetail,
-  calcEloWinProb,
   _togglePairForm,
   openAnaSearch,
   closeAnaSearch,
@@ -19654,15 +18822,10 @@ Object.assign(window, {
   closeSnapshot,
   shareSnapshot,
   quickRematch,
-  runMatchSimulator,
-  openSimSheet,
   _showAllPairs,
   openSessionHighlights,
   renderDigestCard,
   openDigestPlayerSheet,
-  openWhatIfPlayerSheet,
-  openEloProbSheet,
-  _updateEloProbSlots,
   openCmpSheet,
   _cmpSetDate,
   _cmpSetWindow,
@@ -19715,13 +18878,6 @@ Object.assign(window, {
   closeMatchIntro,
   mioSkipAnimation,
   showUndoToast,
-  renderWhatIfSection,
-  toggleWhatIfMatch,
-  toggleWhatIfFlip,
-  toggleWhatIfShowAll,
-  whatIfFlipAllLosses,
-  whatIfReset,
-  recomputeWhatIfElo,
   computeH2HStreak,
   openLiveMode,
   openLivePlayerSheet,
