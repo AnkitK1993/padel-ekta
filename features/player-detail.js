@@ -65,6 +65,9 @@ let _ratingHistory = () => memoASSHistory();
 let _ratingPeaks = () => memoASSPeaks();
 let _ratingLows = () => memoASSLows();
 let _srFn = () => ratingToSr;
+// srFn accessors below are called as _srFn(ratingMap) — the default ignores
+// the argument since ratingToSr is a fixed formula, but the injected one
+// (min-max for 0-based systems) needs the current field to scale against.
 let _ratingDefault = () => 1000;
 let _ratingFmt = (v) => String(Math.round(v));
 let _ratingLabel = () => "ASS";
@@ -326,7 +329,7 @@ function _pdBuildRadarHtml(name, form) {
   // Rating axis follows ASS, the sole scoring system.
   const _ratingLbl = "ASS";
   const eloMap = _ratingMap(activeMatches());
-  const allStats = computeStats(activeMatches(), eloMap, _srFn());
+  const allStats = computeStats(activeMatches(), eloMap, _srFn(eloMap));
   const ps = allStats.find((p) => p.name === name);
   if (!ps || ps.mp < 3) return "";
   const allElos = Object.values(eloMap);
@@ -910,7 +913,7 @@ function openPlayerDetail(name) {
   const assChangeCol = assChange > 0 ? "var(--green)" : assChange < 0 ? "var(--red)" : "var(--muted)";
   const assRank = Object.entries(assMapPd).sort((a, b) => b[1] - a[1]).findIndex(([n]) => n === name) + 1;
   // SR derived from ASS.
-  const srAss = _srFn()(playerASS);
+  const srAss = _srFn(assMapPd)(playerASS);
 
   // Badges
   const badges = computeBadges(name, s, assMapPd, activeMatches());
@@ -952,13 +955,11 @@ function openPlayerDetail(name) {
   const { from: wkFrom, to: wkTo } = lastWeekRange();
   // Ranks follow ASS, the sole scoring system.
   const _scoreOf = (ms) => _ratingMap(ms);
-  const allRanked = computeStats(
-    activeMatches(),
-    _scoreOf(activeMatches()),
-    _srFn(),
-  );
+  const _allRatingMap = _scoreOf(activeMatches());
+  const allRanked = computeStats(activeMatches(), _allRatingMap, _srFn(_allRatingMap));
   const preWkMatches = activeMatches().filter((m) => (m.date || "") < wkFrom);
-  const preWkRanked = computeStats(preWkMatches, _scoreOf(preWkMatches), _srFn());
+  const _preWkRatingMap = _scoreOf(preWkMatches);
+  const preWkRanked = computeStats(preWkMatches, _preWkRatingMap, _srFn(_preWkRatingMap));
   const rAll = allRanked.findIndex((p) => p.name === name) + 1 || null;
   const rPre = preWkRanked.findIndex((p) => p.name === name) + 1 || null;
   // Best rank: find minimum rank position across all match-date snapshots
@@ -975,9 +976,11 @@ function openPlayerDetail(name) {
   let bestRank = rAll || Infinity;
   _playerDates.forEach((date) => {
     const snap = _sortedAll.filter((m) => (m.date || "") <= date);
+    const _snapRatingMap = _scoreOf(snap);
     const rank =
-      computeStats(snap, _scoreOf(snap), _srFn()).findIndex((p) => p.name === name) +
-      1;
+      computeStats(snap, _snapRatingMap, _srFn(_snapRatingMap)).findIndex(
+        (p) => p.name === name,
+      ) + 1;
     if (rank > 0 && rank < bestRank) bestRank = rank;
   });
   bestRank = bestRank === Infinity ? null : bestRank;

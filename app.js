@@ -850,14 +850,31 @@ const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep"];
 // 0-based systems: no 1000 baseline, and the headline number is small enough
 // that the decimal carries real ordering information.
 const SCORING_SYSTEMS_ZERO_BASED = ["ep"];
-// SR is a friendly ~0–10 band. The default converter (ratingToSr) subtracts a
-// 700 baseline, which only makes sense for the 1000-centred engines — a 0-based
-// rating put through it lands the entire field around −11. EP's scores already
-// sit in a 0–55 band, so a plain divide lands them in the same 0–10 shape.
-const EP_SR_DIVISOR = 5;
-function _srFnForSystem(system) {
+// SR is a friendly band. The default converter (ratingToSr) subtracts a
+// fixed 700 baseline, which only makes sense for the 1000-centred engines —
+// a 0-based rating put through it lands the entire field around −11.
+//
+// For 0-based systems, SR is instead a MIN-MAX scale over the current field:
+// whoever has the lowest rating in `ratingMap` reads 1.0, the highest reads
+// 10.0, everyone else spaced proportionally between. This mirrors ratings
+// (green above the middle, red below) rather than a fixed absolute scale —
+// a top scorer's 10.0 reflects being best in THIS field right now, not a
+// fixed skill benchmark, so it isn't meant to compare across seasons/filters.
+function _minMaxSrFn(ratingMap) {
+  const vals = Object.values(ratingMap || {}).filter(Number.isFinite);
+  if (!vals.length) return () => 0;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = max - min;
+  return (rating) => {
+    if (!Number.isFinite(rating)) return 0;
+    if (range <= 0) return 10;
+    return parseFloat((1 + (9 * (rating - min)) / range).toFixed(2));
+  };
+}
+function _srFnForSystem(system, ratingMap) {
   return SCORING_SYSTEMS_ZERO_BASED.includes(system)
-    ? (rating) => parseFloat((rating / EP_SR_DIVISOR).toFixed(2))
+    ? _minMaxSrFn(ratingMap)
     : ratingToSr;
 }
 // Stand-in rating for a player missing from the active system's map — the
@@ -963,8 +980,8 @@ function _statsRatingMap(matches) {
     _fullRatingForSystem(_scoringSystem, matches),
   );
 }
-function _statsSrFn() {
-  return _srFnForSystem(_scoringSystem);
+function _statsSrFn(ratingMap) {
+  return _srFnForSystem(_scoringSystem, ratingMap);
 }
 function _statsDefault() {
   return _ratingDefault(_scoringSystem);
@@ -1331,7 +1348,7 @@ initPlayerDetailDeps({
   ratingHistory: () => _activeHistory(),
   ratingPeaks: () => _activePeaks(),
   ratingLows: () => _activeLows(),
-  srFn: () => _statsSrFn(),
+  srFn: (ratingMap) => _statsSrFn(ratingMap),
   ratingDefault: () => _statsDefault(),
   ratingFmt: (v) => _statsFmt(v),
   ratingLabel: () => _statsLabel(),
@@ -5037,7 +5054,7 @@ function renderHome() {
       : _statsRatingMap(filtered);
   // SR (the gauge/rating on every card) and the card ordering both follow ASS.
   // computeStats already sorts by SR desc, so this orders cards by ASS too.
-  const stats = computeStats(filtered, homeASSMap, _statsSrFn());
+  const stats = computeStats(filtered, homeASSMap, _statsSrFn(homeASSMap));
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
   const uniqD = new Set(filtered.map((m) => m.date)).size;
   const board = document.getElementById("board");
@@ -5253,7 +5270,7 @@ function _computeLbWindowStats(baseMatches, system) {
     const pFull = _fullRatingForSystem(system, pm);
     const pRatingMap = _flatRatingForSystem(system, pm, pFull);
     // SR derives from the active system's rating over the windowed matches.
-    const pStats = computeStats(pm, pRatingMap, _srFnForSystem(system));
+    const pStats = computeStats(pm, pRatingMap, _srFnForSystem(system, pRatingMap));
     const ps = pStats.find((s) => s.name === playerName);
     if (ps) {
       statsList.push(ps);
@@ -5406,7 +5423,11 @@ function renderCompact() {
     const _full = _fullRatingForSystem(_scoringSystem, filtered);
     _cmpASSMap = _flatRatingForSystem(_scoringSystem, filtered, _full);
     _cmpConfMap = _confidenceForSystem(_scoringSystem, _full);
-    stats = computeStats(filtered, _cmpASSMap, _srFnForSystem(_scoringSystem));
+    stats = computeStats(
+      filtered,
+      _cmpASSMap,
+      _srFnForSystem(_scoringSystem, _cmpASSMap),
+    );
   } else if (_effSeasonScoringMode === "reset") {
     _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
     stats = computeStats(filtered, _cmpASSMap);
@@ -5517,7 +5538,11 @@ function renderCompact() {
             (_atAss[b.name] ?? _ratingDefault())
         : sortFns[cmpSortKey] || sortFns.sr;
     const _atAll = [
-      ...computeStats(activeMatches(), _atAss, _srFnForSystem(_scoringSystem)),
+      ...computeStats(
+        activeMatches(),
+        _atAss,
+        _srFnForSystem(_scoringSystem, _atAss),
+      ),
     ].sort((a, b) => {
       const cmp = _atSort(a, b);
       if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
@@ -5543,7 +5568,11 @@ function renderCompact() {
         _scoringSystem === "ass"
           ? computeASS(_mMonth)
           : _flatRatingForSystem(_scoringSystem, _mMonth, _fullRatingForSystem(_scoringSystem, _mMonth));
-      const _mStats = computeStats(_mMonth, _mAss, _srFnForSystem(_scoringSystem));
+      const _mStats = computeStats(
+        _mMonth,
+        _mAss,
+        _srFnForSystem(_scoringSystem, _mAss),
+      );
       const _mSortFn =
         cmpSortKey === "ass"
           ? (a, b) =>
@@ -9693,7 +9722,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     viewState.cmpWindowA,
   );
   const eloMapA = _statsRatingMap(matchesA);
-  const statsA = computeStats(matchesA, eloMapA, _statsSrFn());
+  const statsA = computeStats(matchesA, eloMapA, _statsSrFn(eloMapA));
   const sA = statsA.find((s) => s.name === nameA);
 
   const matchesB = _getPlayerWindowMatches(
@@ -9702,7 +9731,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     viewState.cmpWindowB,
   );
   const eloMapB = _statsRatingMap(matchesB);
-  const statsB = computeStats(matchesB, eloMapB, _statsSrFn());
+  const statsB = computeStats(matchesB, eloMapB, _statsSrFn(eloMapB));
   const sB = statsB.find((s) => s.name === nameB);
 
   if (!sA || !sB) return;
@@ -10454,7 +10483,7 @@ function _periodAwards(ms, priorMs) {
   // MVP ranks by ASS rating — same metric as the Monthly Recap Player of the
   // Month, so the two awards never disagree on who tops the period.
   const assMap = _statsRatingMap(ms);
-  const stats = computeStats(ms, assMap, _statsSrFn()).filter((p) => p.mp >= 2);
+  const stats = computeStats(ms, assMap, _statsSrFn(assMap)).filter((p) => p.mp >= 2);
   const pairs = getPairStats(ms).filter((p) => p.played >= 2);
   const mvp = stats[0] || null;
   const topPair = pairs[0] || null;
@@ -11423,7 +11452,7 @@ function _computeRankPeriods(periodType) {
           idx,
         };
       const eloMap = _statsRatingMap(b.matches);
-      const statsArr = computeStats(b.matches, eloMap, _statsSrFn());
+      const statsArr = computeStats(b.matches, eloMap, _statsSrFn(eloMap));
       if (statsArr.length < _MIN_RANK_PLAYERS)
         return {
           key: b.key,
@@ -14270,7 +14299,7 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = computeStats(am, eloMap, _statsSrFn());
+  const compList = computeStats(am, eloMap, _statsSrFn(eloMap));
   if (_scoringMode === "ass") {
     compList.sort((a, b) => (eloMap[b.name] || 0) - (eloMap[a.name] || 0));
   }
@@ -16160,7 +16189,7 @@ function renderAnalyticsPage() {
           if (opps.length)
             oppSRSum +=
               opps.reduce(
-                (s, op) => s + _statsSrFn()(eloMap[op] ?? _statsDefault()),
+                (s, op) => s + _statsSrFn(eloMap)(eloMap[op] ?? _statsDefault()),
                 0,
               ) / opps.length;
 
