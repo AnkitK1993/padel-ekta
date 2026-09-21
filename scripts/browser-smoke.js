@@ -887,7 +887,6 @@ async function main() {
         subtabCount: document.querySelectorAll(".ana-subtab").length,
         hasAntiPodium: html.includes("Anti-Podium Tracker"),
         hasDayOfWeek: html.includes("Day-of-Week"),
-        hasUpsets: html.includes("Biggest Upsets"),
         // Statistics page split: every former sub-tab now renders as its own
         // top-level section (no more bundling several topics into one card).
         hasSeasonCompare: hasSec("seasoncompare"),
@@ -897,9 +896,12 @@ async function main() {
         hasPowerRank: hasSec("powerrank"),
         hasLbReplay: hasSec("lbreplay"),
         hasCarry: hasSec("carry"),
-        hasMatchSim: hasSec("matchsim"),
-        hasWhatIf: hasSec("whatif"),
+        // Match Simulator, What-If Simulator, Biggest Upsets were removed
+        // along with the rest of the ASS-CLASSIC-only sections (see
+        // docs/ass-classic-scoring.md); Rating Projection and Underdog
+        // Leaderboard were rebuilt on the new ASS engine's own logic.
         hasRatingProj: hasSec("ratingproj"),
+        hasUnderdogBoard: hasSec("underdogboard"),
         hasPairSynergy: hasSec("pairsynergy"),
         hasPairedH2H: hasSec("pairedh2h"),
         hasSessions: hasSec("sessions"),
@@ -922,7 +924,6 @@ async function main() {
       "Expected some sections flagged empty with sparse seed data",
     );
     for (const k of [
-      "hasUpsets",
       "hasSeasonCompare",
       "hasAssPeakLow",
       "hasRivalMatrix",
@@ -930,9 +931,8 @@ async function main() {
       "hasPowerRank",
       "hasLbReplay",
       "hasCarry",
-      "hasMatchSim",
-      "hasWhatIf",
       "hasRatingProj",
+      "hasUnderdogBoard",
       "hasPairSynergy",
       "hasPairedH2H",
       "hasSessions",
