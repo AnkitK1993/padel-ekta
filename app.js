@@ -987,7 +987,7 @@ function _statsBadgeOpts() {
 function _statsFmt(v) {
   if (v == null || !Number.isFinite(v)) return "—";
   return SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem)
-    ? v.toFixed(1)
+    ? v.toFixed(2)
     : String(Math.round(v));
 }
 // Generic running-total timeline for the engines that don't ship one. Every

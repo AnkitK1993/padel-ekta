@@ -450,15 +450,20 @@ function _pdBuildASSTimelineHtml(name) {
   const toY = (e) => pt + (1 - (e - minE) / eRange) * cH;
   const yLines = [minE + eRange * 0.25, minE + eRange * 0.5, minE + eRange * 0.75].map((ev) => {
     const y = toY(ev);
-    return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${Math.round(ev)}</text>`;
+    return `<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W - pr}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/><text x="${pl - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="7" fill="rgba(255,255,255,0.3)">${_ratingFmt(ev)}</text>`;
   }).join("");
   const polyline = pts.map((p, i) => `${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ");
   const area = `M${toX(0).toFixed(1)},${(H - pb).toFixed(1)} ` + pts.map((p, i) => `L${toX(i).toFixed(1)},${toY(p.elo).toFixed(1)}`).join(" ") + ` L${toX(pts.length - 1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
   const col = playerColor(name);
-  const circles = pts.map((p, i) => `<circle cx="${toX(i).toFixed(1)}" cy="${toY(p.elo).toFixed(1)}" r="2.5" fill="${p.won ? "var(--green)" : "var(--red)"}" stroke="rgba(0,0,0,0.4)" stroke-width="0.5"><title>${p.date}: ASS ${p.elo} (${p.won ? "W" : "L"})</title></circle>`).join("");
+  const circles = pts.map((p, i) => `<circle cx="${toX(i).toFixed(1)}" cy="${toY(p.elo).toFixed(1)}" r="2.5" fill="${p.won ? "var(--green)" : "var(--red)"}" stroke="rgba(0,0,0,0.4)" stroke-width="0.5"><title>${p.date}: ${_ratingLabel()} ${_ratingFmt(p.elo)} (${p.won ? "W" : "L"})</title></circle>`).join("");
   const lastVal = pts[pts.length - 1].elo, firstVal = pts[0].elo;
   const netChange = lastVal - firstVal;
-  const netStr = netChange > 0 ? `+${netChange}` : `${netChange}`;
+  const netStr =
+    netChange > 0
+      ? `+${_ratingFmt(netChange)}`
+      : netChange < 0
+        ? `-${_ratingFmt(Math.abs(netChange))}`
+        : _ratingFmt(0);
   const netCol = netChange > 0 ? "var(--green)" : netChange < 0 ? "var(--red)" : "var(--muted)";
   const peakVal = Math.max(...pts.map((p) => p.elo));
   const peakPt  = pts.find((p) => p.elo === peakVal);
@@ -467,19 +472,19 @@ function _pdBuildASSTimelineHtml(name) {
   const fromPeak  = lastVal - peakVal;
   const fromPeakLabel = fromPeak === 0
     ? `<span style="color:var(--green);font-weight:700">▲ Currently at peak</span>`
-    : `<span style="color:var(--red);font-weight:700">${fromPeak} from peak</span>`;
-  return `<div class="ana-card"><span class="badge">ASS Timeline</span>
+    : `<span style="color:var(--red);font-weight:700">-${_ratingFmt(Math.abs(fromPeak))} from peak</span>`;
+  return `<div class="ana-card"><span class="badge">${_ratingLabel()} Timeline</span>
     <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px">
       <div style="font-size:9px;color:var(--muted)">● W &nbsp; ● L &nbsp; · ${pts.length} matches</div>
-      <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ASS total</div>
+      <div style="font-size:12px;font-weight:800;color:${netCol}">${netStr} ${_ratingLabel()} total</div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <div style="font-size:9px;color:var(--muted)">▲ Peak: <span style="color:var(--green);font-weight:800;font-size:11px">${peakVal}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
+      <div style="font-size:9px;color:var(--muted)">▲ Peak: <span style="color:var(--green);font-weight:800;font-size:11px">${_ratingFmt(peakVal)}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(peakPt?.date)})</span></div>
       <div style="font-size:9px">${fromPeakLabel}</div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:9px;color:var(--muted)">▼ Low: <span style="color:var(--red);font-weight:800;font-size:11px">${valleyVal}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(valleyPt?.date)})</span></div>
-      <div style="font-size:9px;color:var(--muted)">Range: <span style="font-weight:700;color:var(--fg)">${peakVal - valleyVal}</span></div>
+      <div style="font-size:9px;color:var(--muted)">▼ Low: <span style="color:var(--red);font-weight:800;font-size:11px">${_ratingFmt(valleyVal)}</span><span style="color:var(--muted);margin-left:4px">(${fmtDate(valleyPt?.date)})</span></div>
+      <div style="font-size:9px;color:var(--muted)">Range: <span style="font-weight:700;color:var(--fg)">${_ratingFmt(peakVal - valleyVal)}</span></div>
     </div>
     <div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible">
       ${yLines}
@@ -487,7 +492,7 @@ function _pdBuildASSTimelineHtml(name) {
       <path d="${area}" fill="url(#atg_${name.replace(/\s/g, "")})" />
       <polyline points="${polyline}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       ${circles}
-      <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastVal) - 5).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="800" fill="${col}">${lastVal}</text>
+      <text x="${toX(pts.length - 1).toFixed(1)}" y="${(toY(lastVal) - 5).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="800" fill="${col}">${_ratingFmt(lastVal)}</text>
     </svg></div>
   </div>`;
 }
