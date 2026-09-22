@@ -5939,7 +5939,7 @@ function _matchCardPrecompute() {
     return _mcPrecompMemo;
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  const ass = {};
+  const cur = {}; // each player's rating right before the match being walked
   const _mcDefault = _statsDefault();
   const allPairsList = _memoPairStats(); // all pairs ever formed
   const sortedForPrecompute = [...state.matches].sort((a, b) =>
@@ -5947,11 +5947,17 @@ function _matchCardPrecompute() {
   );
   // Follows the active scoring picker — was hardcoded to classic ASS, so
   // every History card's rating pill and pre-match pair rank stayed on the
-  // 1000-baseline engine regardless of which system was selected.
-  const assDeltasAll = _matchDeltasForSystem(_scoringSystem, sortedForPrecompute);
+  // 1000-baseline engine regardless of which system was selected. Reads off
+  // the same per-system timeline Statistics/Player Detail use (not a naive
+  // running sum of raw match deltas) because for a shrinkage-based engine
+  // (EP) the raw per-match delta is on a different scale than the displayed
+  // score — summing it directly would blow the pill's numbers up into the
+  // thousands instead of showing the real, bounded leaderboard score.
+  const timeline = _statsTimeline(sortedForPrecompute).history;
+  const idxByPlayer = {};
   sortedForPrecompute.forEach((m) => {
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      if (!(p in ass)) ass[p] = _mcDefault;
+      if (!(p in cur)) cur[p] = _mcDefault;
     });
     // Rank all pairs by their avg rating right now (before this match)
     matchPairRankMap.set(
@@ -5961,20 +5967,23 @@ function _matchCardPrecompute() {
           .map((p) => ({
             key: p.key,
             avgElo:
-              p.players.reduce((s, n) => s + (ass[n] ?? _mcDefault), 0) /
+              p.players.reduce((s, n) => s + (cur[n] ?? _mcDefault), 0) /
               p.players.length,
           }))
           .sort((a, b) => b.avgElo - a.avgElo)
           .map(({ key }, i) => [key, i + 1]),
       ),
     );
-    const info = assDeltasAll.get(m);
     const mData = {};
     [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      const delta = info?.playerDeltas?.[p] ?? 0;
-      const after = (ass[p] ?? _mcDefault) + delta;
-      mData[p] = { delta, after };
-      ass[p] = after;
+      const hist = timeline[p] || [];
+      const idx = idxByPlayer[p] ?? 0;
+      const entry = hist[idx];
+      const before = cur[p] ?? _mcDefault;
+      const after = entry ? entry.elo : before;
+      mData[p] = { delta: after - before, after };
+      cur[p] = after;
+      idxByPlayer[p] = idx + 1;
     });
     eloMatchMap.set(m, mData);
   });
