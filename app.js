@@ -228,6 +228,7 @@ import {
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,
+  initMatchIntroDeps,
 } from "./features/match-intro.js";
 import { openPairDetail } from "./features/pair-detail.js";
 import {
@@ -1397,6 +1398,15 @@ initPlayerDetailDeps({
 });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
+// Match Intro overlay — same "follow the Summary tab's picker" contract as
+// Player Detail's rating accessors above.
+initMatchIntroDeps({
+  ratingMap: (ms) => _statsRatingMap(ms),
+  ratingDefault: () => _statsDefault(),
+  ratingFmt: (v) => _statsFmt(v),
+  ratingLabel: () => _statsLabel(),
+  isZeroBased: () => SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem),
+});
 
 // ── One-time module initialisations ────────────────────────
 // memo-store needs the app-level data-version counter and ELO config.

@@ -23,6 +23,29 @@ import {
   isZeroMatch,
 } from "../src/ui/render-match-rows.js";
 
+// Rating accessors are injected so this module follows the Summary tab's
+// scoring picker instead of being hard-wired to ASS CLASSIC. Each falls back
+// to the original engine/format, so nothing changes if they aren't supplied.
+let _ratingMap = (ms) => computeASS(ms);
+let _ratingDefault = () => 1000;
+let _ratingFmt = (v) => String(Math.round(v));
+let _ratingLabel = () => "ASS";
+let _isZeroBased = () => false;
+
+export function initMatchIntroDeps({
+  ratingMap,
+  ratingDefault,
+  ratingFmt,
+  ratingLabel,
+  isZeroBased,
+}) {
+  if (ratingMap) _ratingMap = ratingMap;
+  if (ratingDefault) _ratingDefault = ratingDefault;
+  if (ratingFmt) _ratingFmt = ratingFmt;
+  if (ratingLabel) _ratingLabel = ratingLabel;
+  if (isZeroBased) _isZeroBased = isZeroBased;
+}
+
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
 let _mioTimers = [];
 let _mioFinalize = null;
@@ -60,17 +83,23 @@ function openMatchIntro(idx) {
   // undefined on the memo-hit path and a ReferenceError elsewhere (which
   // silently aborts the whole overlay).
   const _upToBeforeE = new Set(state.matches.slice(0, idx));
+  const _mcDefault = _ratingDefault();
   let priorAss, afterAss;
-  if (_mioAssMemo && _mioAssMemo.idx === idx && _mioAssMemo.amRef === _amE) {
+  if (
+    _mioAssMemo &&
+    _mioAssMemo.idx === idx &&
+    _mioAssMemo.amRef === _amE &&
+    _mioAssMemo.label === _ratingLabel()
+  ) {
     priorAss = _mioAssMemo.priorAss;
     afterAss = _mioAssMemo.afterAss;
   } else {
     const _upToInclE = new Set(state.matches.slice(0, idx + 1));
     const _before = _amE.filter((mm) => _upToBeforeE.has(mm));
     const _incl = _amE.filter((mm) => _upToInclE.has(mm));
-    priorAss = computeASS(_before);
-    afterAss = computeASS(_incl);
-    _mioAssMemo = { idx, amRef: _amE, priorAss, afterAss };
+    priorAss = _ratingMap(_before);
+    afterAss = _ratingMap(_incl);
+    _mioAssMemo = { idx, amRef: _amE, label: _ratingLabel(), priorAss, afterAss };
   }
   const aWon = m.scoreA > m.scoreB;
 
@@ -81,7 +110,7 @@ function openMatchIntro(idx) {
     .map((p) => ({
       key: p.key,
       avg:
-        p.players.reduce((s, n) => s + (priorAss[n] || 1000), 0) /
+        p.players.reduce((s, n) => s + (priorAss[n] ?? _mcDefault), 0) /
         p.players.length,
     }))
     .sort((a, b) => b.avg - a.avg);
@@ -97,8 +126,8 @@ function openMatchIntro(idx) {
   };
 
   const avgAss = (players) =>
-    Math.round(
-      players.reduce((s, p) => s + (priorAss[p] || 1000), 0) /
+    _ratingFmt(
+      players.reduce((s, p) => s + (priorAss[p] ?? _mcDefault), 0) /
         Math.max(players.length, 1),
     );
 
@@ -147,10 +176,11 @@ function openMatchIntro(idx) {
     );
     return Math.round(levels.reduce((s, l) => s + l, 0) / levels.length);
   };
+  const _mioLbl = _ratingLabel();
   document.getElementById("mio-elo-a").textContent =
-    `ASS ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
+    `${_mioLbl} ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
   document.getElementById("mio-elo-b").textContent =
-    `ASS ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
+    `${_mioLbl} ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
 
   const scoreAEl = document.getElementById("mio-score-a");
   const scoreBEl = document.getElementById("mio-score-b");
@@ -163,13 +193,14 @@ function openMatchIntro(idx) {
   document.getElementById("mio-result-line").textContent =
     `${winner.toUpperCase()} WIN`;
 
-  // ASS delta pills — each player shows their ASS change for the match.
+  // Rating delta pills — each player shows their rating change for the match,
+  // following the active scoring picker.
   const deltaPills = [...m.teamA, ...m.teamB]
     .map((p) => {
-      const aDelta = Math.round((afterAss[p] || 1000) - (priorAss[p] || 1000));
+      const aDelta = (afterAss[p] ?? _mcDefault) - (priorAss[p] ?? _mcDefault);
       const aSign = aDelta >= 0 ? "+" : "";
       const aCls = aDelta >= 0 ? "gain" : "loss";
-      return `<span class="mio-delta-pill"><span class="mio-delta-name">${normPlayer(p)}</span><span class="mio-delta-sub ${aCls}">ASS ${aSign}${aDelta}</span></span>`;
+      return `<span class="mio-delta-pill"><span class="mio-delta-name">${normPlayer(p)}</span><span class="mio-delta-sub ${aCls}">${_mioLbl} ${aSign}${_ratingFmt(aDelta)}</span></span>`;
     })
     .join("");
   document.getElementById("mio-elo-deltas").innerHTML = deltaPills;
@@ -359,23 +390,28 @@ function openMatchIntro(idx) {
       }
     });
 
-    // ASS tier cross: check if any player crossed a tier boundary
-    const ASS_TIERS = [
-      { t: 900, n: "BRONZE" },
-      { t: 1000, n: "SILVER" },
-      { t: 1100, n: "GOLD" },
-      { t: 1200, n: "PLATINUM" },
-    ];
-    [...m.teamA, ...m.teamB].forEach((p) => {
-      const pre = priorAss[p] || 1000;
-      const post = afterAss[p] || 1000;
-      ASS_TIERS.forEach(({ t, n }) => {
-        if (pre < t && post >= t)
-          ctxParts.push(`⭐ ${normPlayer(p)} reached ${n}`);
-        else if (pre >= t && post < t)
-          ctxParts.push(`📉 ${normPlayer(p)} dropped below ${n}`);
+    // Rating tier cross: check if any player crossed a tier boundary. The
+    // tier thresholds are 1000-centred (ASS CLASSIC's own scale), so they
+    // only mean anything for engines on that scale — skip this callout for
+    // a 0-based engine (EP) rather than showing tiers no one will ever hit.
+    if (!_isZeroBased()) {
+      const ASS_TIERS = [
+        { t: 900, n: "BRONZE" },
+        { t: 1000, n: "SILVER" },
+        { t: 1100, n: "GOLD" },
+        { t: 1200, n: "PLATINUM" },
+      ];
+      [...m.teamA, ...m.teamB].forEach((p) => {
+        const pre = priorAss[p] ?? _mcDefault;
+        const post = afterAss[p] ?? _mcDefault;
+        ASS_TIERS.forEach(({ t, n }) => {
+          if (pre < t && post >= t)
+            ctxParts.push(`⭐ ${normPlayer(p)} reached ${n}`);
+          else if (pre >= t && post < t)
+            ctxParts.push(`📉 ${normPlayer(p)} dropped below ${n}`);
+        });
       });
-    });
+    }
 
     // Last meeting reminder
     const tkA2 = [...m.teamA].sort().join("|");
