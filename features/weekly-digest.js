@@ -8,6 +8,21 @@ import { computeStats } from "../src/domain/stats.js";
 import { getPairStats } from "../src/domain/pairs.js";
 import { todayISO, weekISO, lastWeekRange } from "../src/domain/dates.js";
 
+// Rating accessors follow the Summary tab's scoring picker instead of being
+// hard-wired to ASS CLASSIC. Each falls back to the original engine/format,
+// so nothing changes if they aren't supplied.
+let _ratingMap = (ms) => computeASS(ms);
+let _ratingDefault = () => 1000;
+let _ratingFmt = (v) => String(Math.round(v));
+let _ratingLabel = () => "ASS";
+
+export function initWeeklyDigestDeps({ ratingMap, ratingDefault, ratingFmt, ratingLabel }) {
+  if (ratingMap) _ratingMap = ratingMap;
+  if (ratingDefault) _ratingDefault = ratingDefault;
+  if (ratingFmt) _ratingFmt = ratingFmt;
+  if (ratingLabel) _ratingLabel = ratingLabel;
+}
+
 export function openWeeklyDigest() {
   document.getElementById("share-card-overlay")?.remove();
   const { from: wkFrom, to: wkTo } = lastWeekRange();
@@ -25,19 +40,23 @@ export function openWeeklyDigest() {
     return;
   }
 
-  const eloNow = computeASS(_amWk);
-  const eloPre = computeASS(
+  const _ratingDef = _ratingDefault();
+  const eloNow = _ratingMap(_amWk);
+  const eloPre = _ratingMap(
     _amWk.filter(
       (m) => (m.date || "") < (thisWkMatches.length >= 3 ? weekISO() : wkFrom),
     ),
   );
-  const stats = computeStats(useMatches, computeASS(useMatches));
+  const stats = computeStats(useMatches, _ratingMap(useMatches));
 
   // Most wins
   const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
-  // Biggest ASS mover
+  // Biggest rating mover — follows the active scoring picker.
   const mover = Object.keys(eloNow)
-    .map((p) => ({ name: p, gain: (eloNow[p] || 1000) - (eloPre[p] || 1000) }))
+    .map((p) => ({
+      name: p,
+      gain: (eloNow[p] ?? _ratingDef) - (eloPre[p] ?? _ratingDef),
+    }))
     .filter((p) =>
       useMatches.some((m) =>
         [...(m.teamA || []), ...(m.teamB || [])].includes(p.name),
@@ -112,10 +131,10 @@ export function openWeeklyDigest() {
       </div>
       <div style="margin:0 16px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px 12px">
         ${topWinner ? statRow("🏆", "Top Winner", topWinner.name, `${topWinner.mw}W–${topWinner.ml}L`) : ""}
-        ${mover && mover.gain > 0 ? statRow("📈", "Biggest Mover", mover.name, `+${mover.gain} ASS`) : ""}
+        ${mover && mover.gain > 0 ? statRow("📈", "Biggest Mover", mover.name, `+${_ratingFmt(mover.gain)} ${_ratingLabel()}`) : ""}
         ${hotPlayer ? statRow("🔥", "On Fire", hotPlayer.name, `${hotPlayer.curStreak}-match win streak`) : ""}
         ${wkPairs ? statRow("🤝", "Best Duo", wkPairs.key, `${wkPairs.winPct}% · ${wkPairs.played}g`) : ""}
-        ${biggestUpset ? statRow("⚡", "Biggest Upset", biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ") + " won", `+${biggestUpset.gap} ASS gap`) : ""}
+        ${biggestUpset ? statRow("⚡", "Biggest Upset", biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ") + " won", `+${biggestUpset.gap} pt gap`) : ""}
       </div>
       <div style="margin:0 16px 20px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)"></div>
       <div style="padding:0 22px 20px;display:flex;justify-content:space-between;align-items:center">
@@ -134,14 +153,14 @@ export function openWeeklyDigest() {
       ? `🏆 Top Winner: ${topWinner.name} (${topWinner.mw}W–${topWinner.ml}L)`
       : "",
     mover && mover.gain > 0
-      ? `📈 Biggest Mover: ${mover.name} (+${mover.gain} ASS)`
+      ? `📈 Biggest Mover: ${mover.name} (+${_ratingFmt(mover.gain)} ${_ratingLabel()})`
       : "",
     hotPlayer
       ? `🔥 On Fire: ${hotPlayer.name} (${hotPlayer.curStreak}-match streak)`
       : "",
     wkPairs ? `🤝 Best Duo: ${wkPairs.key} (${wkPairs.winPct}%)` : "",
     biggestUpset
-      ? `⚡ Biggest Upset: ${biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ")} (+${biggestUpset.gap} ASS gap)`
+      ? `⚡ Biggest Upset: ${biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ")} (+${biggestUpset.gap} pt gap)`
       : "",
   ]
     .filter(Boolean)

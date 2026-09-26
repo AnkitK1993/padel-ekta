@@ -238,8 +238,8 @@ import {
   openRivalryScreen,
   renderH2HDeepDive,
 } from "./features/h2h.js";
-import { openShareMatchPoster } from "./features/share-poster.js";
-import { openWeeklyDigest } from "./features/weekly-digest.js";
+import { openShareMatchPoster, initSharePosterDeps } from "./features/share-poster.js";
+import { openWeeklyDigest, initWeeklyDigestDeps } from "./features/weekly-digest.js";
 import {
   openThemePicker,
   closeThemePicker,
@@ -1007,10 +1007,19 @@ function _statsBadgeOpts() {
     ratingLabel: _statsLabel(),
   };
 }
+// Every "ASS" (EP) number shown anywhere in the app funnels through this
+// one function — the display is doubled here (e.g. a 46.7 rating prints as
+// 93.4) so the doubled figure is what the user sees consistently everywhere:
+// leaderboard, Player Detail, History, Match Intro, Session Dashboard, etc.
+// Doubling is a pure linear scale-up, so every value BUILT from ratings via
+// addition/subtraction/averaging (deltas, peaks/lows, projections, "vs
+// average" coloring, min-max SR) stays internally consistent whether it's
+// doubled once here at print time or if each input were doubled beforehand.
+const _ASS_DISPLAY_MULT = 2;
 function _statsFmt(v) {
   if (v == null || !Number.isFinite(v)) return "—";
   return SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem)
-    ? v.toFixed(2)
+    ? (v * _ASS_DISPLAY_MULT).toFixed(2)
     : String(Math.round(v));
 }
 // Generic running-total timeline for the engines that don't ship one. Every
@@ -1373,6 +1382,18 @@ initHistorySummaryDeps({
       ? _flatRatingForSystem("ep", ms, computeEPFull(ms, ms))
       : _statsRatingMap(ms),
   topGainersWindow: () => _topGainersWindow,
+});
+// Share match poster — same rating-picker contract as everywhere else.
+initSharePosterDeps({
+  ratingMap: (ms) => _statsRatingMap(ms),
+  ratingDefault: () => _statsDefault(),
+  ratingFmt: (v) => _statsFmt(v),
+});
+initWeeklyDigestDeps({
+  ratingMap: (ms) => _statsRatingMap(ms),
+  ratingDefault: () => _statsDefault(),
+  ratingFmt: (v) => _statsFmt(v),
+  ratingLabel: () => _statsLabel(),
 });
 // Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
@@ -5711,11 +5732,10 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
     }
     const assRaw = _cmpASSMap[p.name] ?? (_zeroBased ? 0 : 1000);
-    // Display-only doubling for this leaderboard's ASS column (e.g. 46.7 ->
-    // 93.4) — sorting/coloring below still key off the real, undoubled
-    // assRaw so rank order and above/below-average coloring stay correct.
-    const assDisplay = assRaw * 2;
-    const assVal = _zeroBased ? assDisplay.toFixed(1) : Math.round(assDisplay);
+    // _statsFmt doubles the display for the ASS (EP) system — sorting/
+    // coloring below still key off the real, undoubled assRaw so rank order
+    // and above/below-average coloring stay correct.
+    const assVal = _statsFmt(assRaw);
     const _scoreColor = (v) =>
       v > _ratingMid ? "var(--green)" : v < _ratingMid ? "var(--red)" : "var(--muted)";
     const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assRaw)}">${assVal}</span>`;

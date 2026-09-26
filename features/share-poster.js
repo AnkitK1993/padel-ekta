@@ -6,6 +6,19 @@ import { activeMatches } from "../src/domain/selectors.js";
 import { computeASS } from "../src/domain/ass.js";
 import { fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
+// Rating accessors follow the Summary tab's scoring picker instead of being
+// hard-wired to ASS CLASSIC. Each falls back to the original engine/format,
+// so nothing changes if they aren't supplied.
+let _ratingMap = (ms) => computeASS(ms);
+let _ratingDefault = () => 1000;
+let _ratingFmt = (v) => String(Math.round(v));
+
+export function initSharePosterDeps({ ratingMap, ratingDefault, ratingFmt }) {
+  if (ratingMap) _ratingMap = ratingMap;
+  if (ratingDefault) _ratingDefault = ratingDefault;
+  if (ratingFmt) _ratingFmt = ratingFmt;
+}
+
 export function openShareMatchPoster(matchIdx) {
   document.getElementById("share-card-overlay")?.remove();
   const m = state.matches[matchIdx];
@@ -13,8 +26,8 @@ export function openShareMatchPoster(matchIdx) {
   const _amSlice = activeMatches();
   const _upToIncl = new Set(state.matches.slice(0, matchIdx + 1));
   const _upToBefore = new Set(state.matches.slice(0, matchIdx));
-  const eloMap = computeASS(_amSlice.filter((m) => _upToIncl.has(m)));
-  const eloMapBefore = computeASS(_amSlice.filter((m) => _upToBefore.has(m)));
+  const eloMap = _ratingMap(_amSlice.filter((m) => _upToIncl.has(m)));
+  const eloMapBefore = _ratingMap(_amSlice.filter((m) => _upToBefore.has(m)));
   const aWon = m.scoreA > m.scoreB;
   const winTeam = aWon ? m.teamA : m.teamB;
   const losTeam = aWon ? m.teamB : m.teamA;
@@ -29,11 +42,12 @@ export function openShareMatchPoster(matchIdx) {
     return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c}33;border:2px solid ${c}66;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.35)}px;font-weight:900;color:${c}">${playerInitials(name)}</div>`;
   };
   const mkEloDelta = (name) => {
-    const before = eloMapBefore[name] || 1000;
-    const after = eloMap[name] || 1000;
-    const d = Math.round(after - before);
+    const _def = _ratingDefault();
+    const before = eloMapBefore[name] ?? _def;
+    const after = eloMap[name] ?? _def;
+    const d = after - before;
     const col = d > 0 ? "#4ade80" : d < 0 ? "#f87171" : "rgba(255,255,255,0.4)";
-    return `<span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? "+" : ""}${d}</span>`;
+    return `<span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? "+" : ""}${_ratingFmt(d)}</span>`;
   };
   const mkTeamRow = (team) =>
     team
@@ -74,7 +88,7 @@ export function openShareMatchPoster(matchIdx) {
           <div style="width:16px;height:16px;border-radius:4px;background:${winCol};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000">P</div>
           <div style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:${winCol}">PADEL EKTA</div>
         </div>
-        <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:600">ASS changes shown</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:600">rating changes shown</div>
       </div>
     </div>`;
 
