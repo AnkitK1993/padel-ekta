@@ -5585,7 +5585,7 @@ function renderCompact() {
   if (!sorted.length) {
     _cmpLeaderHtmls = [];
     _cmpFiltered = filtered;
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">No data for this period</td></tr>`;
     document.getElementById("cmpMatches").innerHTML =
       buildSummaryMatchRows(filtered);
     updateSortArrows(sorted);
@@ -5669,11 +5669,6 @@ function renderCompact() {
       });
     }
   }
-  const srSorted = [...sorted].sort((a, b) => b.sr - a.sr);
-  const srRankMap = {};
-  srSorted.forEach((p, j) => {
-    srRankMap[p.name] = j + 1;
-  });
   // 0-based systems have no 1000 line to colour against, so the field's own
   // median is the reference — above it is green, below it is red.
   const _zeroBased = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem);
@@ -5695,9 +5690,6 @@ function renderCompact() {
             : `<span class="rn">${rank}</span>`;
     const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
     const gc = p.gamePct >= 50 ? "tp" : "tn";
-    const displaySR = p.sr;
-    const normalizedSR = Math.max(0, Math.min(10, displaySR));
-    const ratingClass = getSRRatingClass(normalizedSR);
     const momentumBadge = getMomentumBadge(p.name);
     const animClass = "";
     const allTimeRank = _allTimeRankMap[p.name];
@@ -5719,7 +5711,11 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
     }
     const assRaw = _cmpASSMap[p.name] ?? (_zeroBased ? 0 : 1000);
-    const assVal = _zeroBased ? assRaw.toFixed(1) : Math.round(assRaw);
+    // Display-only doubling for this leaderboard's ASS column (e.g. 46.7 ->
+    // 93.4) — sorting/coloring below still key off the real, undoubled
+    // assRaw so rank order and above/below-average coloring stay correct.
+    const assDisplay = assRaw * 2;
+    const assVal = _zeroBased ? assDisplay.toFixed(1) : Math.round(assDisplay);
     const _scoreColor = (v) =>
       v > _ratingMid ? "var(--green)" : v < _ratingMid ? "var(--red)" : "var(--muted)";
     const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assRaw)}">${assVal}</span>`;
@@ -5728,7 +5724,7 @@ function renderCompact() {
     // running points total in this column, which is a plain number.
     const confColHtml =
       confVal != null ? (_zeroBased ? `${confVal}` : `±${confVal}`) : "";
-    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td><td data-col="conf">${confColHtml}</td><td data-col="sr"><span class="sr-pill-val ${ratingClass}" data-final="${displaySR.toFixed(2)}" style="color:${_rankColor(srRankMap[p.name], sorted.length)};font-weight:800;font-size:12px">${displaySR.toFixed(2)}</span></td></tr>`;
+    return `<tr class="${rc}${animClass}" data-key="${escHtml(p.name)}" style="cursor:pointer" onclick="openPlayerDetail(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${rankDelta}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${p.winPct.toFixed(0)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gc}">${p.gamePct.toFixed(0)}%</td><td data-col="conf">${confColHtml}</td><td data-col="ass" class="cmp-ass-cell">${assColHtml}</td></tr>`;
   });
 
   _cmpLeaderHtmls = leaderRowHtmls;

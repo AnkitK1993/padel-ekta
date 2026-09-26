@@ -1901,10 +1901,6 @@ table.cmp th:nth-child(9), table.cmp td:nth-child(9) {
   width: 40px !important;
   padding-left: 3px !important; padding-right: 3px !important;
 }
-table.cmp th[data-col="sr"], table.cmp td[data-col="sr"] {
-  width: 58px !important;
-  padding-left: 3px !important; padding-right: 1px !important;
-}
 table.cmp tbody .rec-cell {
   font-size: 11px;
   font-weight: 700;
@@ -18993,19 +18989,12 @@ body.battery-saver .ui-toggle-thumb {
   #pg-compact table.cmp td:nth-child(9) {
     width: 76px !important;
   }
-  #pg-compact table.cmp th[data-col="sr"],
-  #pg-compact table.cmp td[data-col="sr"] {
-    width: 110px !important;
-  }
   #pg-compact #cmp-ass-th {
     width: 86px !important;
   }
   #pg-compact .cmp-ass-cell,
   #pg-compact table.cmp tbody .rec-cell {
     font-size: 18px !important;
-  }
-  #pg-compact .sr-pill-val {
-    font-size: 20px !important;
   }
   #pg-compact .sort-arrow {
     font-size: 13px;
