@@ -5725,7 +5725,15 @@ function renderCompact() {
   const matchEloDeltas =
     _scoringSystem === "ass" && _effSeasonScoringMode === "fair"
       ? computeMatchASSDeltas(withoutGuestMatches(state.matches))
-      : _matchDeltasForSystem(_scoringSystem, _deltaMatches);
+      : // EP always warms its internal ELO/maturity walk from the FULL career
+        // (that's the point of the engine — see _epCareerMatches), so passing
+        // it the "today" window alone left every match's delta identical to
+        // ALL TIME: only which matches got a pill at all changed, never their
+        // value. TODAY needs its own fresh, career-blind walk (mirroring
+        // every other engine's reset) to actually show something different.
+        _scoringSystem === "ep" && _matchDeltaWindow === "today"
+        ? computeMatchEPDeltas(_deltaMatches, _deltaMatches)
+        : _matchDeltasForSystem(_scoringSystem, _deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
