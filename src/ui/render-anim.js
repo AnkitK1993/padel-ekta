@@ -81,13 +81,18 @@ export function animateXpRow(el, delay = 300) {
 
 // Count an SR value up from 0 to its data-final.
 export function animateSrVal(el, delay = 200) {
-  const target = parseFloat(el.dataset.final);
+  const finalText = el.dataset.final;
+  const target = parseFloat(finalText);
   if (isNaN(target)) return;
+  // Match the target string's own decimal precision (0 for classic/integer
+  // systems, 2 for the 0-based ones) instead of always forcing .toFixed(2) —
+  // this gauge now shows the ASS rating, not a fixed-precision SR score.
+  const decimals = (finalText.split(".")[1] || "").length;
   let cur = 0;
   const step = target / 15;
   const tick = () => {
     cur = Math.min(cur + step, target);
-    el.textContent = cur.toFixed(2);
+    el.textContent = cur === target ? finalText : cur.toFixed(decimals);
     if (cur < target) setTimeout(tick, 33);
   };
   setTimeout(tick, delay);
