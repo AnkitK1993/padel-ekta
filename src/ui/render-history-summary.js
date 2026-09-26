@@ -19,9 +19,15 @@ let _deps = {
   ratingDefault: () => 1000,
   ratingFmt: (v) => String(Math.round(v)),
   ratingLabel: () => "ASS",
-  matchDeltasFn: (ms) => null,
+  // freshRatingMapFn scores `ms` as its own whole, zero-baseline universe
+  // (career-blind for a shrinkage-based engine like EP, where a rating isn't
+  // just a sum of its deltas — see the History-page pill fix for why summing
+  // raw per-match deltas across many matches is unsafe there). ratingMap
+  // (above) is used for the real, full-career/season score. Same TODAY vs
+  // ALL TIME distinction as the MATCHES PLAYED section, just expressed as a
+  // score snapshot instead of a per-match delta walk.
+  freshRatingMapFn: (ms) => null,
   topGainersWindow: () => "today",
-  todayISO: () => "",
 };
 export function initHistorySummaryDeps(d) {
   _deps = { ..._deps, ...d };
@@ -61,48 +67,48 @@ export function buildHistorySummary(matches, filter = "all") {
   };
 
   // ── TOP POINTS GAINERS — replaces the old static leaderboard-rank podium.
-  // "TODAY" is a fresh, career-blind walk of just today's real-clock matches
-  // (mirrors the MATCHES PLAYED section's own TODAY reset); "ALL TIME" is
-  // each player's total career gain since their baseline. Independent of the
-  // `filter` param (whatever date range the rest of this card is scoped to).
+  // Scope is always `matches` — whatever the date filter above (which already
+  // folds in the active season) is currently showing — same as every other
+  // number on this card. The toggle only changes HOW each player's rating is
+  // priced, exactly like the MATCHES PLAYED section right above it — TODAY
+  // reprices the whole shown window as its own fresh, zero-baseline session;
+  // ALL TIME prices with the real, full active-season trajectory. Both are
+  // expressed as a rating SNAPSHOT diff (before vs after), never a summed
+  // per-match delta — for a shrinkage-based engine like EP, summing raw
+  // per-match deltas across more than a couple of matches wildly overstates
+  // the real, bounded score (the same bug the History-page pill had).
   const _tgWindow = _deps.topGainersWindow();
   const _ratingDef = _ratingDefault();
   const _allActiveForGains = activeMatches();
   const _lbl = _ratingLabel();
   const gainers = (() => {
-    if (_tgWindow === "today") {
-      const todayMs = _allActiveForGains.filter(
-        (m) => (m.date || "") === _deps.todayISO(),
-      );
-      const deltasMap = _deps.matchDeltasFn(todayMs);
-      const totals = {};
-      const counts = {};
-      todayMs.forEach((m) => {
-        const info = deltasMap?.get ? deltasMap.get(m) : null;
-        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-          const dv = info?.playerDeltas?.[p];
-          if (dv === undefined) return;
-          totals[p] = (totals[p] || 0) + dv;
-          counts[p] = (counts[p] || 0) + 1;
-        });
-      });
-      return Object.entries(totals)
-        .map(([p, delta]) => ({ name: normPlayer(p), delta, mp: counts[p] }))
-        .sort((a, b) => b.delta - a.delta);
-    }
-    const allMap = _ratingMap(_allActiveForGains);
-    const seen = new Set();
+    const periodPlayers = new Set();
     const mpByPlayer = {};
-    _allActiveForGains.forEach((m) =>
+    matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        seen.add(p);
+        periodPlayers.add(p);
         mpByPlayer[p] = (mpByPlayer[p] || 0) + 1;
       }),
     );
-    return [...seen]
+    let preScore, postScore;
+    if (_tgWindow === "today") {
+      preScore = {};
+      postScore = _deps.freshRatingMapFn(matches);
+    } else {
+      const periodDatesG = matches.map((m) => m.date || "").filter(Boolean);
+      const firstDateG = periodDatesG.length
+        ? periodDatesG.reduce((a, b) => (a < b ? a : b))
+        : null;
+      const beforeMsG = firstDateG
+        ? _allActiveForGains.filter((m) => (m.date || "") < firstDateG)
+        : [];
+      preScore = _ratingMap(beforeMsG);
+      postScore = _ratingMap(_allActiveForGains);
+    }
+    return [...periodPlayers]
       .map((p) => ({
         name: normPlayer(p),
-        delta: (allMap[p] ?? _ratingDef) - _ratingDef,
+        delta: (postScore[p] ?? _ratingDef) - (preScore[p] ?? _ratingDef),
         mp: mpByPlayer[p],
       }))
       .sort((a, b) => b.delta - a.delta);

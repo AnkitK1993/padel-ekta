@@ -1363,16 +1363,16 @@ initHistorySummaryDeps({
   ratingDefault: () => _statsDefault(),
   ratingFmt: (v) => _statsFmt(v),
   ratingLabel: () => _statsLabel(),
-  // TODAY needs its own fresh, career-blind walk for EP (mirrors the
-  // MATCHES PLAYED section's fix) since EP's own delta math otherwise
-  // always warms from the full career regardless of which matches it's
-  // handed — every other engine already resets cleanly on its own.
-  matchDeltasFn: (ms) =>
+  // TODAY needs a genuinely blind score for EP — computeEPFull always warms
+  // from the full career (_epCareerMatches()) regardless of the matches it's
+  // handed, so a "fresh session" has to explicitly hand itself as its own
+  // career too. Every other engine's own ratingMap is already blind-by
+  // -construction when given only `ms`, so it's reused as-is.
+  freshRatingMapFn: (ms) =>
     _scoringSystem === "ep"
-      ? computeMatchEPDeltas(ms, ms)
-      : _matchDeltasForSystem(_scoringSystem, ms),
+      ? _flatRatingForSystem("ep", ms, computeEPFull(ms, ms))
+      : _statsRatingMap(ms),
   topGainersWindow: () => _topGainersWindow,
-  todayISO: () => todayISO(),
 });
 // Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
