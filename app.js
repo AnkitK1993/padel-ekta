@@ -825,6 +825,7 @@ let _compactRenderedVersion = -1,
 // ASS is the sole scoring system — no more Summary-tab-local mode toggle.
 const _summaryMode = "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
+let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
 // Season-carryover scoring variant for the Summary tab leaderboard — "reset"
 // (default, unchanged behaviour), "flip", or "fair". Only takes
 // effect on the ALL TIME view of a season that has a valid reference (prior)
@@ -1358,6 +1359,20 @@ initHistorySummaryDeps({
   normPlayer,
   getPairStats,
   memoAss: _memoASS,
+  ratingMap: (ms) => _statsRatingMap(ms),
+  ratingDefault: () => _statsDefault(),
+  ratingFmt: (v) => _statsFmt(v),
+  ratingLabel: () => _statsLabel(),
+  // TODAY needs its own fresh, career-blind walk for EP (mirrors the
+  // MATCHES PLAYED section's fix) since EP's own delta math otherwise
+  // always warms from the full career regardless of which matches it's
+  // handed — every other engine already resets cleanly on its own.
+  matchDeltasFn: (ms) =>
+    _scoringSystem === "ep"
+      ? computeMatchEPDeltas(ms, ms)
+      : _matchDeltasForSystem(_scoringSystem, ms),
+  topGainersWindow: () => _topGainersWindow,
+  todayISO: () => todayISO(),
 });
 // Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
@@ -5374,6 +5389,13 @@ function toggleMatchDeltaWindow(win) {
   document
     .querySelectorAll(".mdw-btn")
     .forEach((b) => b.classList.toggle("active", b.dataset.window === win));
+  document.body.classList.add("no-cascade");
+  renderCompact();
+  document.body.classList.remove("no-cascade");
+}
+
+function toggleTopGainersWindow(win) {
+  _topGainersWindow = win;
   document.body.classList.add("no-cascade");
   renderCompact();
   document.body.classList.remove("no-cascade");
@@ -18951,6 +18973,7 @@ Object.assign(window, {
   renderHome,
   renderCompact,
   toggleMatchDeltaWindow,
+  toggleTopGainersWindow,
   setCmpSort,
   _anaSetDateFilter,
   _anaSetDateRange,

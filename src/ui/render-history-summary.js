@@ -5,13 +5,23 @@
 // initHistorySummaryDeps so the body stays close to the original.
 import { computeStats } from "../domain/stats.js";
 import { computeASS } from "../domain/ass.js";
-import { _rankColor } from "./format.js";
+import { _rankColor, escHtml } from "./format.js";
 import { activeMatches } from "../domain/selectors.js";
 
 let _deps = {
   normPlayer: (n) => n,
   getPairStats: () => [],
   memoAss: () => ({}),
+  // Rating accessors follow the Summary tab's scoring picker instead of
+  // being hard-wired to ASS CLASSIC. Each falls back to the original
+  // engine/format, so nothing changes if they aren't supplied.
+  ratingMap: (ms) => computeASS(ms),
+  ratingDefault: () => 1000,
+  ratingFmt: (v) => String(Math.round(v)),
+  ratingLabel: () => "ASS",
+  matchDeltasFn: (ms) => null,
+  topGainersWindow: () => "today",
+  todayISO: () => "",
 };
 export function initHistorySummaryDeps(d) {
   _deps = { ..._deps, ...d };
@@ -20,10 +30,14 @@ export function initHistorySummaryDeps(d) {
 const normPlayer = (n) => _deps.normPlayer(n);
 const getPairStats = (m) => _deps.getPairStats(m);
 const _memoASS = () => _deps.memoAss();
+const _ratingMap = (ms) => _deps.ratingMap(ms);
+const _ratingDefault = () => _deps.ratingDefault();
+const _ratingFmt = (v) => _deps.ratingFmt(v);
+const _ratingLabel = () => _deps.ratingLabel();
 
 export function buildHistorySummary(matches, filter = "all") {
   if (matches.length < 3) return "";
-  const stats = computeStats(matches, computeASS(matches));
+  const stats = computeStats(matches, _ratingMap(matches));
   const playerSet = new Set();
   let totalGames = 0,
     totalMargin = 0;
@@ -38,7 +52,6 @@ export function buildHistorySummary(matches, filter = "all") {
     scoreDist[k] = (scoreDist[k] || 0) + 1;
   });
   const avgMargin = (totalMargin / matches.length).toFixed(1);
-  const top3 = stats.slice(0, Math.min(3, stats.length));
   const medals = ["🥇", "🥈", "🥉"];
   let delay = 60;
   const d = () => {
@@ -46,18 +59,71 @@ export function buildHistorySummary(matches, filter = "all") {
     delay += 65;
     return v;
   };
-  const podiumHtml = top3
-    .map(
-      (p, i) =>
-        `<div class="hsum-row hsum-cascade" style="animation-delay:${d()}ms">
+
+  // ── TOP POINTS GAINERS — replaces the old static leaderboard-rank podium.
+  // "TODAY" is a fresh, career-blind walk of just today's real-clock matches
+  // (mirrors the MATCHES PLAYED section's own TODAY reset); "ALL TIME" is
+  // each player's total career gain since their baseline. Independent of the
+  // `filter` param (whatever date range the rest of this card is scoped to).
+  const _tgWindow = _deps.topGainersWindow();
+  const _ratingDef = _ratingDefault();
+  const _allActiveForGains = activeMatches();
+  const _lbl = _ratingLabel();
+  const gainers = (() => {
+    if (_tgWindow === "today") {
+      const todayMs = _allActiveForGains.filter(
+        (m) => (m.date || "") === _deps.todayISO(),
+      );
+      const deltasMap = _deps.matchDeltasFn(todayMs);
+      const totals = {};
+      const counts = {};
+      todayMs.forEach((m) => {
+        const info = deltasMap?.get ? deltasMap.get(m) : null;
+        [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+          const dv = info?.playerDeltas?.[p];
+          if (dv === undefined) return;
+          totals[p] = (totals[p] || 0) + dv;
+          counts[p] = (counts[p] || 0) + 1;
+        });
+      });
+      return Object.entries(totals)
+        .map(([p, delta]) => ({ name: normPlayer(p), delta, mp: counts[p] }))
+        .sort((a, b) => b.delta - a.delta);
+    }
+    const allMap = _ratingMap(_allActiveForGains);
+    const seen = new Set();
+    const mpByPlayer = {};
+    _allActiveForGains.forEach((m) =>
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        seen.add(p);
+        mpByPlayer[p] = (mpByPlayer[p] || 0) + 1;
+      }),
+    );
+    return [...seen]
+      .map((p) => ({
+        name: normPlayer(p),
+        delta: (allMap[p] ?? _ratingDef) - _ratingDef,
+        mp: mpByPlayer[p],
+      }))
+      .sort((a, b) => b.delta - a.delta);
+  })();
+  const topGainers = gainers.slice(0, Math.min(3, gainers.length));
+  const podiumHtml = topGainers
+    .map((p, i) => {
+      const col = p.delta > 0 ? "var(--green)" : p.delta < 0 ? "var(--red)" : "var(--muted)";
+      const sign = p.delta > 0 ? "+" : "";
+      return `<div class="hsum-row hsum-cascade" style="animation-delay:${d()}ms">
             <span class="hsum-medal">${medals[i]}</span>
-            <span class="hsum-pname">${p.name}</span>
-            <span class="hsum-rec">${p.mw}W–${p.ml}L</span>
-            <span class="hsum-pct" style="color:${_rankColor(i + 1, top3.length)}">${p.winPct.toFixed(0)}%</span>
-            <span class="hsum-sr" style="color:${_rankColor(i + 1, top3.length)}">${p.sr.toFixed(2)} SR</span>
-          </div>`,
-    )
+            <span class="hsum-pname">${escHtml(p.name)}</span>
+            <span class="hsum-rec">${p.mp} mp</span>
+            <span class="hsum-pct" style="color:${col}">${sign}${_ratingFmt(p.delta)} ${escHtml(_lbl)}</span>
+          </div>`;
+    })
     .join("");
+  const gainersToggleHtml = `<div class="mdw-wrap" style="display:inline-flex;margin-left:8px;vertical-align:middle">
+    <button class="mdw-btn${_tgWindow === "alltime" ? " active" : ""}" onclick="event.stopPropagation();window.toggleTopGainersWindow('alltime')">ALL TIME</button>
+    <button class="mdw-btn${_tgWindow === "today" ? " active" : ""}" onclick="event.stopPropagation();window.toggleTopGainersWindow('today')">TODAY</button>
+  </div>`;
   const highlights = [];
   const pairs = getPairStats(matches).filter((p) => p.played >= 2);
   if (pairs.length) {
@@ -126,12 +192,12 @@ export function buildHistorySummary(matches, filter = "all") {
   const potwLabel = potwLabels[filter] || potwLabels.all;
   let potwHtml = "";
   if (matches.length >= 2) {
-    const _scoringLbl = "ASS";
+    const _scoringLbl = _lbl;
     const periodDates = matches.map((m) => m.date || "").filter(Boolean);
     const firstDate = periodDates.reduce((a, b) => (a < b ? a : b));
     const beforeMatches = activeMatches().filter((m) => (m.date || "") < firstDate);
-    const preScore = computeASS(beforeMatches);
-    const fullScore = _memoASS();
+    const preScore = _ratingMap(beforeMatches);
+    const fullScore = _ratingMap(activeMatches());
     const periodPlayers = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -141,7 +207,7 @@ export function buildHistorySummary(matches, filter = "all") {
     const potwDeltas = [...periodPlayers]
       .map((p) => ({
         name: normPlayer(p),
-        delta: Math.round((fullScore[p] || 1000) - (preScore[p] || 1000)),
+        delta: (fullScore[p] ?? _ratingDef) - (preScore[p] ?? _ratingDef),
         mp: matches.filter((m) =>
           [...(m.teamA || []), ...(m.teamB || [])].includes(p),
         ).length,
@@ -154,21 +220,22 @@ export function buildHistorySummary(matches, filter = "all") {
         <div class="potw-crown">⭐</div>
         <div class="potw-body">
           <div class="potw-label">${potwLabel.title}</div>
-          <div class="potw-name">${potw.name}</div>
-          <div class="potw-meta"><span style="color:var(--green);font-weight:800">+${potw.delta} ${_scoringLbl}</span> · ${potw.mp} ${potwLabel.sub}</div>
+          <div class="potw-name">${escHtml(potw.name)}</div>
+          <div class="potw-meta"><span style="color:var(--green);font-weight:800">+${_ratingFmt(potw.delta)} ${escHtml(_scoringLbl)}</span> · ${potw.mp} ${potwLabel.sub}</div>
         </div>
       </div>`;
     }
   }
 
-  // ASS changes table for the filtered period
+  // Rating changes table for the filtered period — follows the active
+  // scoring picker (was hardcoded to computeASS/1000).
   let sessionRecapHtml = "";
   if (matches.length) {
     const periodDates2 = matches.map((m) => m.date || "1970-01-01");
     const firstDate2 = periodDates2.reduce((a, b) => (a < b ? a : b));
     const beforeMs2 = activeMatches().filter((m) => (m.date || "1970-01-01") < firstDate2);
-    const assAfter  = computeASS(activeMatches());
-    const assBefore = computeASS(beforeMs2);
+    const assAfter  = _ratingMap(activeMatches());
+    const assBefore = _ratingMap(beforeMs2);
     const periodPlayers2 = new Set();
     matches.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) =>
@@ -180,8 +247,8 @@ export function buildHistorySummary(matches, filter = "all") {
     const rows = [...periodPlayers2]
       .map((p) => {
         const name = normPlayer(p);
-        const assStart = Math.round(assBefore[p] || 1000);
-        const assEnd   = Math.round(assAfter[p]  || 1000);
+        const assStart = assBefore[p] ?? _ratingDef;
+        const assEnd   = assAfter[p]  ?? _ratingDef;
         const assDelta = assEnd - assStart;
         return { name, assStart, assEnd, assDelta };
       })
@@ -190,23 +257,23 @@ export function buildHistorySummary(matches, filter = "all") {
     const deltaCell = (d) => {
       const sign = _sign(d);
       const col  = _scoreColor(d);
-      return `<td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:800;color:${col}">${sign}${d}</td>`;
+      return `<td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:800;color:${col}">${sign}${_ratingFmt(d)}</td>`;
     };
-    const numCell = (v) => `<td style="padding:3px 4px;text-align:center;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums">${v}</td>`;
+    const numCell = (v) => `<td style="padding:3px 4px;text-align:center;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums">${_ratingFmt(v)}</td>`;
     const tableRows = rows.map((r, i) => `
       <tr class="hsum-cascade" style="animation-delay:${d()}ms;border-bottom:1px solid rgba(255,255,255,0.04)">
-        <td style="padding:4px 5px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap">${r.name}</td>
+        <td style="padding:4px 5px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap">${escHtml(r.name)}</td>
         ${numCell(r.assStart)}
         ${numCell(r.assEnd)}
         ${deltaCell(r.assDelta)}
       </tr>`).join("");
     sessionRecapHtml = `
-      <div class="hsum-section-lbl">ASS CHANGES</div>
+      <div class="hsum-section-lbl">${escHtml(_lbl)} CHANGES</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table style="width:100%;border-collapse:collapse;table-layout:auto">
           <thead><tr>
             ${th("PLAYER")}
-            ${th("ASS START")}${th("ASS NOW")}${th("ASS Δ")}
+            ${th(`${escHtml(_lbl)} START`)}${th(`${escHtml(_lbl)} NOW`)}${th(`${escHtml(_lbl)} Δ`)}
           </tr></thead>
           <tbody>${tableRows}</tbody>
         </table>
@@ -225,7 +292,7 @@ export function buildHistorySummary(matches, filter = "all") {
             <div class="hsum-stat hsum-cascade" style="animation-delay:195ms"><div class="hsum-val">±${avgMargin}</div><div class="hsum-lbl">Avg Margin</div></div>
           </div>
           ${potwHtml}
-          ${top3.length ? `<div class="hsum-section-lbl">Top Performers</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
+          ${topGainers.length ? `<div class="hsum-section-lbl" style="display:flex;align-items:center;justify-content:space-between">Top Points Gainers${gainersToggleHtml}</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
           ${highlights.length ? `<div class="hsum-section-lbl">AWARDS</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
           ${hotColdHtml}
           ${sessionRecapHtml}
