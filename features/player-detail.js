@@ -1044,12 +1044,14 @@ function openPlayerDetail(name) {
   // ── SEASON HISTORY (cross-season trajectory) ─────────────
   const seasonTrajectoryHtml = _pdBuildSeasonTrajectoryHtml(name);
 
-  // ── RECENT MATCH CARDS (from match log with ASS delta) ───
+  // ── RECENT MATCH CARDS (from match log with rating delta) ─
   const recentMatchCards = (() => {
     const last8 = pdPlayerMs.slice(-10).reverse();
     if (!last8.length) return "";
-    // ASS deltas per match for this player
-    const assDeltas = computeMatchASSDeltas(pdSortedAll14);
+    // Rating deltas per match for this player — follows the active scoring
+    // picker (was hardcoded to computeMatchASSDeltas).
+    const assDeltas = _matchDeltasFn(pdSortedAll14);
+    const _rmcLbl = _ratingLabel();
     const assAfterEach = {};
     pdSortedAll14.forEach((m, mi) => {
       const info = assDeltas.get(m);
@@ -1077,7 +1079,7 @@ function openPlayerDetail(name) {
         const scoreColor = won4 ? "var(--green)" : "var(--red)";
         const _miIdx = state.matches.indexOf(m);
         const deltaHtml = assDelta !== undefined ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
-          <div style="font-size:10px;font-weight:700;color:${assCol}">ASS ${assSign}${assDelta}</div>
+          <div style="font-size:10px;font-weight:700;color:${assCol}">${escHtml(_rmcLbl)} ${assSign}${_ratingFmt(assDelta)}</div>
         </div>` : "";
         return `<div class="ana-card det-match-card"${_miIdx >= 0 ? ` onclick="document.getElementById('player-detail-modal')?.remove();openMatchIntro(${_miIdx})" style="cursor:pointer"` : ""}>
         <div class="det-match-result" style="color:${scoreColor}">${won4 ? "W" : "L"}</div>
