@@ -5311,15 +5311,17 @@ function renderHome() {
     // SR is otherwise invisible to the user now (it's only ever shown here).
     const gaugeAssVal = _statsFmt(homeASSMap[p.name] ?? _statsDefault());
     const homeTotalVal = homeConfMap ? homeConfMap[p.name] : null;
-    const totalHtml =
+    // Name row shows the total-points figure instead of the ASS rating —
+    // the rating itself is still visible in the gauge below.
+    const nameEloHtml =
       homeConfLabel && homeTotalVal != null
-        ? `<span class="pname-total" style="font-size:10px;font-weight:700;color:var(--muted);margin-left:4px">${homeTotalVal} ${homeConfLabel}</span>`
+        ? `<span class="pname-elo">${homeTotalVal} ${homeConfLabel}</span>`
         : "";
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_statsFmt(homeASSMap[p.name] ?? _statsDefault())}</span>${totalHtml}${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span>${nameEloHtml}${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span><span class="pname-elo">${_statsFmt(homeASSMap[p.name] ?? _statsDefault())}</span>${totalHtml}${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span>${nameEloHtml}${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
   });
 
   _renderSessionActiveCard();
