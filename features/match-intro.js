@@ -5,7 +5,6 @@
 import { normPlayer } from "../src/domain/players.js";
 import { state } from "../src/domain/state.js";
 import { computeASS } from "../src/domain/ass.js";
-import { _normScores } from "../src/domain/stats.js";
 import {
   computePlayerXP,
   getPlayerLevel,
@@ -425,65 +424,23 @@ function openMatchIntro(idx) {
       });
     }
 
-    // Last meeting reminder
-    const tkA2 = [...m.teamA].sort().join("|");
-    const tkB2 = [...m.teamB].sort().join("|");
-    const lastMeeting = [..._amE.filter((m) => _upToBeforeE.has(m))]
-      .reverse()
-      .find((pm) => {
-        const pmA2 = [...(pm.teamA || [])].sort().join("|");
-        const pmB2 = [...(pm.teamB || [])].sort().join("|");
-        return (
-          (pmA2 === tkA2 && pmB2 === tkB2) || (pmA2 === tkB2 && pmB2 === tkA2)
-        );
-      });
-    if (lastMeeting) {
-      const lmAWon = lastMeeting.scoreA > lastMeeting.scoreB;
-      const lmA = [...lastMeeting.teamA].sort().join("|");
-      const lastWinnerName = lmA === tkA2 ? nameA : nameB;
-      ctxParts.push(
-        `📅 Last meeting: ${fmtDate(lastMeeting.date)} · ${lastMeeting.scoreA}–${lastMeeting.scoreB} (${lastWinnerName.split("<br>").join(" ")} won)`,
+    // Team rating gained/lost — net of the two teammates' individual deltas
+    // (already shown per-player above; this is the team-level swing).
+    const teamDelta = (players) =>
+      players.reduce(
+        (s, p) => s + ((afterAss[p] ?? _mcDefault) - (priorAss[p] ?? _mcDefault)),
+        0,
       );
-    }
-
-    // Relative performance vs team averages
-    const teamAvgScore = (players) => {
-      const ms = _amE
-        .filter((m) => _upToBeforeE.has(m))
-        .filter(
-          (pm) =>
-            players.every((p) => (pm.teamA || []).includes(p)) ||
-            players.every((p) => (pm.teamB || []).includes(p)),
-        );
-      if (!ms.length) return null;
-      const totals = ms.map((pm) => {
-        const tk = [...players].sort().join("|");
-        const pmA3 = [...(pm.teamA || [])].sort().join("|");
-        const ownScore = pmA3 === tk ? pm.scoreA : pm.scoreB;
-        const oppScore = pmA3 === tk ? pm.scoreB : pm.scoreA;
-        const [normOwn] = _normScores(ownScore, oppScore);
-        return normOwn;
-      });
-      return totals.reduce((s, v) => s + v, 0) / totals.length;
-    };
-    const avgA2 = teamAvgScore(m.teamA);
-    const avgB2 = teamAvgScore(m.teamB);
-    if (avgA2 !== null && m.scoreA > avgA2 + 0.4)
-      ctxParts.push(
-        `📈 ${nameA.split("<br>").join(" ")} above avg (${avgA2.toFixed(1)})`,
-      );
-    else if (avgA2 !== null && m.scoreA < avgA2 - 0.4)
-      ctxParts.push(
-        `📉 ${nameA.split("<br>").join(" ")} below avg (${avgA2.toFixed(1)})`,
-      );
-    if (avgB2 !== null && m.scoreB > avgB2 + 0.4)
-      ctxParts.push(
-        `📈 ${nameB.split("<br>").join(" ")} above avg (${avgB2.toFixed(1)})`,
-      );
-    else if (avgB2 !== null && m.scoreB < avgB2 - 0.4)
-      ctxParts.push(
-        `📉 ${nameB.split("<br>").join(" ")} below avg (${avgB2.toFixed(1)})`,
-      );
+    const teamADelta = teamDelta(m.teamA);
+    const teamBDelta = teamDelta(m.teamB);
+    const fmtTeamDelta = (d) =>
+      `${d >= 0 ? "+" : ""}${_ratingFmt(d)} ${_mioLbl}`;
+    ctxParts.push(
+      `${teamADelta >= 0 ? "📈" : "📉"} ${nameA.split("<br>").join(" ")} ${fmtTeamDelta(teamADelta)}`,
+    );
+    ctxParts.push(
+      `${teamBDelta >= 0 ? "📈" : "📉"} ${nameB.split("<br>").join(" ")} ${fmtTeamDelta(teamBDelta)}`,
+    );
 
     ctxEl.innerHTML = ctxParts.length
       ? ctxParts.map((t) => `<div class="mio-ctx-line">${t}</div>`).join("")
