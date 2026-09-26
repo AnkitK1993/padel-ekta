@@ -2,7 +2,6 @@
 // Extracted from app.js: all match-intro state, animation helpers, openMatchIntro,
 // closeMatchIntro, and the match-card click listener.
 // openEditMatch is called via window.openEditMatch since it lives in app.js.
-import { activeMatches } from "../src/domain/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
 import { state } from "../src/domain/state.js";
 import { computeASS } from "../src/domain/ass.js";
@@ -72,23 +71,30 @@ function openMatchIntro(idx) {
   _mioTimers = [];
   _mioFinalize = null;
 
-  const _amE = activeMatches();
-  // Pre/post-match ASS over the active set. One O(n) computeASS pass each side;
-  // cached on (idx, activeMatches identity) so re-opening the same banner — or
-  // any re-trigger — skips the recompute. activeMatches() returns a memoized
-  // array, so a season/exclusion/data change yields a new ref and invalidates
-  // this. _upToBeforeE (matches strictly before this one) is used throughout
-  // the rest of this function (H2H, last-meeting, context lines), so it must
-  // live at the function scope — NOT inside the memo else-branch, or it's
-  // undefined on the memo-hit path and a ReferenceError elsewhere (which
-  // silently aborts the whole overlay).
+  // Use the SAME raw, all-season, guest-inclusive match universe the History
+  // page itself uses (state.matches) — not activeMatches() (season + guest
+  // filtered). This overlay opens FROM that raw log, so its rank/ASS/H2H
+  // numbers must agree with what the card that opened it just showed. Using
+  // activeMatches() here used to silently exclude any match involving a
+  // guest (or outside the active season) from BOTH the "before" and "after"
+  // snapshots, making every delta pill read +0 for a guest match and the
+  // team ASS badges disagree with the History card underneath.
+  const _amE = state.matches;
+  // Pre/post-match ASS over that set. One O(n) rating-map pass each side;
+  // cached on (idx, match count, active label) so re-opening the same banner
+  // — or any re-trigger — skips the recompute. _upToBeforeE (matches
+  // strictly before this one) is used throughout the rest of this function
+  // (H2H, last-meeting, context lines), so it must live at the function
+  // scope — NOT inside the memo else-branch, or it's undefined on the
+  // memo-hit path and a ReferenceError elsewhere (which silently aborts the
+  // whole overlay).
   const _upToBeforeE = new Set(state.matches.slice(0, idx));
   const _mcDefault = _ratingDefault();
   let priorAss, afterAss;
   if (
     _mioAssMemo &&
     _mioAssMemo.idx === idx &&
-    _mioAssMemo.amRef === _amE &&
+    _mioAssMemo.amLen === _amE.length &&
     _mioAssMemo.label === _ratingLabel()
   ) {
     priorAss = _mioAssMemo.priorAss;
@@ -99,7 +105,13 @@ function openMatchIntro(idx) {
     const _incl = _amE.filter((mm) => _upToInclE.has(mm));
     priorAss = _ratingMap(_before);
     afterAss = _ratingMap(_incl);
-    _mioAssMemo = { idx, amRef: _amE, label: _ratingLabel(), priorAss, afterAss };
+    _mioAssMemo = {
+      idx,
+      amLen: _amE.length,
+      label: _ratingLabel(),
+      priorAss,
+      afterAss,
+    };
   }
   const aWon = m.scoreA > m.scoreB;
 
