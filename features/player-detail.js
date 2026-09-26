@@ -508,7 +508,17 @@ function _pdBuildASSTimelineHtml(name) {
 function _pdBuildSeasonTrajectoryHtml(name) {
   if (!state.seasons.length) return "";
   const allMs = withoutGuestMatches(state.matches);
-  const traj = computeSeasonTrajectory(allMs, state.seasons, name);
+  // Follows the active scoring picker — was hardcoded to classic ASS, so
+  // every season's rank/rating here disagreed with the rest of the sheet
+  // once a different system was selected.
+  const traj = computeSeasonTrajectory(
+    allMs,
+    state.seasons,
+    name,
+    (ms) => _ratingMap(ms),
+    (ratingMap) => _srFn(ratingMap),
+    _ratingDefault(),
+  );
   if (!traj.length) return "";
   const rows = traj
     .map(

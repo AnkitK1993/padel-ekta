@@ -13278,7 +13278,14 @@ function _buildSeasonRiserFallerHtml() {
         </div>`
       : "";
   const _allM = withoutGuestMatches(state.matches);
-  const movers = computeSeasonRiserFaller(_allM, seasonA, seasonB);
+  // Follows the active scoring picker — was hardcoded to classic ASS.
+  const movers = computeSeasonRiserFaller(
+    _allM,
+    seasonA,
+    seasonB,
+    (ms) => _statsRatingMap(ms),
+    _statsDefault(),
+  );
   if (!movers.length)
     return `${picker}<div class="sub" style="padding:8px">No players played both ${escHtml(seasonA.name)} and ${escHtml(seasonB.name)}.</div>`;
   const rows = movers
@@ -13286,7 +13293,7 @@ function _buildSeasonRiserFallerHtml() {
       const arrow = m.rankDelta > 0 ? "▲" : m.rankDelta < 0 ? "▼" : "•";
       const arrowCol =
         m.rankDelta > 0 ? "var(--green)" : m.rankDelta < 0 ? "var(--red)" : "var(--muted)";
-      const assStr = m.assDelta > 0 ? `+${m.assDelta}` : `${m.assDelta}`;
+      const assStr = m.assDelta > 0 ? `+${_statsFmt(m.assDelta)}` : _statsFmt(m.assDelta);
       const assCol =
         m.assDelta > 0 ? "var(--green)" : m.assDelta < 0 ? "var(--red)" : "var(--muted)";
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
@@ -13297,7 +13304,7 @@ function _buildSeasonRiserFallerHtml() {
       </div>`;
     })
     .join("");
-  return `${picker}<div style="font-size:9px;color:var(--muted);margin-bottom:6px">${escHtml(seasonA.name)} → ${escHtml(seasonB.name)} · ASS change</div>${rows}`;
+  return `${picker}<div style="font-size:9px;color:var(--muted);margin-bottom:6px">${escHtml(seasonA.name)} → ${escHtml(seasonB.name)} · ${escHtml(_statsLabel())} change</div>${rows}`;
 }
 function setRiserFallerFrom(id) {
   viewState.riserFallerFrom = id;

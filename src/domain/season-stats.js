@@ -16,13 +16,24 @@ export function orderSeasonsByStart(seasons) {
 
 // One row per season the player has matches in, oldest → newest.
 // [{ season, rank, outOf, ass, sr, mp, mw, ml }]
-export function computeSeasonTrajectory(matches, seasons, playerName) {
+// ratingMapFn/srFn/ratingDefault let a caller follow the Summary tab's active
+// scoring system instead of always ranking seasons by ASS CLASSIC; all three
+// default to the original ASS CLASSIC behaviour so existing callers/tests
+// are unaffected.
+export function computeSeasonTrajectory(
+  matches,
+  seasons,
+  playerName,
+  ratingMapFn = computeASS,
+  srFn = null,
+  ratingDefault = 1000,
+) {
   const rows = [];
   orderSeasonsByStart(seasons).forEach((season) => {
     const ms = matches.filter((m) => _inSeason(season, m.date));
     if (!ms.length) return;
-    const ass = computeASS(ms);
-    const standings = computeStats(ms, ass);
+    const ass = ratingMapFn(ms);
+    const standings = computeStats(ms, ass, srFn ? srFn(ass) : undefined);
     const idx = standings.findIndex((p) => p.name === playerName);
     if (idx === -1) return;
     const p = standings[idx];
@@ -30,7 +41,7 @@ export function computeSeasonTrajectory(matches, seasons, playerName) {
       season,
       rank: idx + 1,
       outOf: standings.length,
-      ass: Math.round(ass[playerName] ?? 1000),
+      ass: ass[playerName] ?? ratingDefault,
       sr: p.sr,
       mp: p.mp,
       mw: p.mw,
@@ -43,12 +54,20 @@ export function computeSeasonTrajectory(matches, seasons, playerName) {
 // Rank/ASS delta for every player present in both seasons, sorted by
 // assDelta descending (biggest risers first).
 // [{ name, assA, assB, assDelta, rankA, rankB, rankDelta }]
-export function computeSeasonRiserFaller(matches, seasonA, seasonB) {
+// ratingMapFn/ratingDefault default to ASS CLASSIC for existing callers/tests;
+// pass the active system's accessors to follow the Summary tab's picker.
+export function computeSeasonRiserFaller(
+  matches,
+  seasonA,
+  seasonB,
+  ratingMapFn = computeASS,
+  ratingDefault = 1000,
+) {
   const msA = matches.filter((m) => _inSeason(seasonA, m.date));
   const msB = matches.filter((m) => _inSeason(seasonB, m.date));
   if (!msA.length || !msB.length) return [];
-  const assA = computeASS(msA);
-  const assB = computeASS(msB);
+  const assA = ratingMapFn(msA);
+  const assB = ratingMapFn(msB);
   const standingsA = computeStats(msA, assA);
   const standingsB = computeStats(msB, assB);
   const rankA = new Map(standingsA.map((p, i) => [p.name, i + 1]));
@@ -56,8 +75,8 @@ export function computeSeasonRiserFaller(matches, seasonA, seasonB) {
   const rows = [];
   standingsB.forEach((p) => {
     if (!rankA.has(p.name)) return;
-    const a = Math.round(assA[p.name] ?? 1000);
-    const b = Math.round(assB[p.name] ?? 1000);
+    const a = assA[p.name] ?? ratingDefault;
+    const b = assB[p.name] ?? ratingDefault;
     rows.push({
       name: p.name,
       assA: a,
