@@ -1395,6 +1395,7 @@ initPlayerDetailDeps({
   ratingDefault: () => _statsDefault(),
   ratingFmt: (v) => _statsFmt(v),
   ratingLabel: () => _statsLabel(),
+  matchDeltasFn: (ms) => _matchDeltasForSystem(_scoringSystem, ms),
 });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });

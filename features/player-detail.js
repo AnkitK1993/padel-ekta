@@ -71,6 +71,7 @@ let _srFn = () => ratingToSr;
 let _ratingDefault = () => 1000;
 let _ratingFmt = (v) => String(Math.round(v));
 let _ratingLabel = () => "ASS";
+let _matchDeltasFn = (ms) => computeMatchASSDeltas(ms);
 
 export function initPlayerDetailDeps({
   playerAvatar,
@@ -82,6 +83,7 @@ export function initPlayerDetailDeps({
   ratingDefault,
   ratingFmt,
   ratingLabel,
+  matchDeltasFn,
 }) {
   if (playerAvatar) _playerAvatar = playerAvatar;
   if (ratingMap) _ratingMap = ratingMap;
@@ -92,6 +94,7 @@ export function initPlayerDetailDeps({
   if (ratingDefault) _ratingDefault = ratingDefault;
   if (ratingFmt) _ratingFmt = ratingFmt;
   if (ratingLabel) _ratingLabel = ratingLabel;
+  if (matchDeltasFn) _matchDeltasFn = matchDeltasFn;
 }
 
 function getPlayerDetail(name) {
@@ -1141,7 +1144,7 @@ function openPlayerDetail(name) {
       })
       .join("");
     if (!rows5) return "";
-    return `<div class="ana-card"><span class="badge">vs All Opponents</span><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows5}</div></div>`;
+    return `<div class="ana-card"><div onclick="const b=this.nextElementSibling,h=b.style.display==='none';b.style.display=h?'block':'none';this.querySelector('.cc-chev').textContent=h?'▴':'▾'" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between"><span class="badge">vs All Opponents</span><span class="cc-chev" style="font-size:11px;color:var(--muted)">▾</span></div><div style="display:none">${rows5}</div></div>`;
   })();
 
   // ── ALL-PARTNERS RANKED (ASS gain per partner) ──
@@ -1159,12 +1162,13 @@ function openPlayerDetail(name) {
           if (won6) pData[p].w++;
         });
     });
-    // Cumulative ASS delta when paired with each partner
+    // Cumulative rating delta when paired with each partner — follows the
+    // active scoring picker (was hardcoded to computeMatchASSDeltas).
     const partnerAssDelta = {};
     const sortedForAss15 = [...activeMatches()].sort((a, b) =>
       (a.date || "").localeCompare(b.date || ""),
     );
-    const assDeltas15 = computeMatchASSDeltas(sortedForAss15);
+    const assDeltas15 = _matchDeltasFn(sortedForAss15);
     sortedForAss15.forEach((m) => {
       const inA15 = (m.teamA || []).includes(name);
       const inB15 = (m.teamB || []).includes(name);
@@ -1195,13 +1199,13 @@ function openPlayerDetail(name) {
         const assDelta = partnerAssDelta[partner];
         const assStr =
           assDelta !== undefined
-            ? `<span style="font-size:10px;font-weight:700;color:${assDelta >= 0 ? "var(--green)" : "var(--red)"}">${assDelta >= 0 ? "+" : ""}${assDelta}</span>`
+            ? `<span style="font-size:10px;font-weight:700;color:${assDelta >= 0 ? "var(--green)" : "var(--red)"}">${assDelta >= 0 ? "+" : ""}${_ratingFmt(assDelta)}</span>`
             : "";
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:11px;font-weight:700">${escHtml(partner)}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${d.p}g</span>${assStr}<span style="font-size:11px;font-weight:800;color:${col}">${pct}%</span></div></div>`;
       })
       .join("");
     if (!rows6) return "";
-    return `<div class="ana-card"><span class="badge">All Partners Ranked</span><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ASS gained together</div><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;padding:8px 0 4px;font-size:10px;color:var(--muted)">Tap to expand ▾</div><div style="display:none">${rows6}</div></div>`;
+    return `<div class="ana-card"><div onclick="const b=this.nextElementSibling.nextElementSibling,h=b.style.display==='none';b.style.display=h?'block':'none';this.querySelector('.cc-chev').textContent=h?'▴':'▾'" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between"><span class="badge">All Partners Ranked</span><span class="cc-chev" style="font-size:11px;color:var(--muted)">▾</span></div><div style="font-size:9px;color:var(--muted);padding:4px 0 2px">Win% · ${escHtml(_ratingLabel())} gained together</div><div style="display:none">${rows6}</div></div>`;
   })();
 
   // ── PARTNER COMPATIBILITY SCORE ──────────────────────────
