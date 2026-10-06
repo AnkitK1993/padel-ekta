@@ -16,11 +16,29 @@
     <meta name="theme-color" content="#09090f" />
     <script>
       (function () {
+        // Tallest viewport seen for the current orientation — the "keyboard
+        // closed" height to compare against (iOS only shrinks visualViewport,
+        // Android also shrinks innerHeight, so neither alone is reliable).
+        let baseHeight = 0;
+        let baseOrientation = null;
+        const isTextField = (el) =>
+          !!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
         const setAppHeight = () => {
           const vv = window.visualViewport;
           const height = Math.round((vv && vv.height) || window.innerHeight);
           document.documentElement.style.setProperty("--app-height", `${height}px`);
+          const orient = window.innerWidth > window.innerHeight ? "l" : "p";
+          if (orient !== baseOrientation) {
+            baseOrientation = orient;
+            baseHeight = 0;
+          }
+          baseHeight = Math.max(baseHeight, height, window.innerHeight);
+          const kbOpen =
+            isTextField(document.activeElement) && baseHeight - height > 120;
+          document.body && document.body.classList.toggle("kb-open", kbOpen);
         };
+        document.addEventListener("focusin", () => setTimeout(setAppHeight, 50));
+        document.addEventListener("focusout", () => setTimeout(setAppHeight, 50));
         setAppHeight();
         window.addEventListener("resize", setAppHeight, { passive: true });
         window.addEventListener("orientationchange", setAppHeight, { passive: true });

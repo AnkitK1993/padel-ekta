@@ -19142,3 +19142,35 @@ body.battery-saver .ui-toggle-thumb {
   padding: calc(8px + env(safe-area-inset-top)) 16px 8px !important;
 }
 
+
+/* ── Keyboard open: reclaim the space ───────────────────────────────────
+   index.html toggles body.kb-open while a text field is focused and the
+   visual viewport has shrunk (on-screen keyboard). The bottom nav is
+   hidden — it would otherwise float above the keyboard, and its
+   safe-area padding left a dead gap — and the Add Matches textarea grows
+   to fill everything that's left. */
+body.kb-open .tabbar {
+  display: none !important;
+}
+#pg-add .add-scroll {
+  display: flex;
+  flex-direction: column;
+}
+#pg-add #ip-matches.show {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#pg-add #matchTA {
+  flex: 1 1 auto;
+  min-height: 170px;
+  resize: none;
+}
+body.kb-open #pg-add .add-scroll {
+  padding-bottom: 8px;
+}
+body.kb-open #pg-add #ip-matches .hint,
+body.kb-open #pg-add #ip-matches .match-preview:empty {
+  display: none;
+}
