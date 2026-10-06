@@ -21933,3 +21933,45 @@ window.confirmSaveMatch = confirmSaveMatch;
 window.keepPlayingMatch = keepPlayingMatch;
 window.showLiveBanner = showLiveBanner;
 window.closeLiveBanner = closeLiveBanner;
+
+// ── Add Matches full-screen composer ───────────────────────────────────
+// Tapping the Add Matches textarea opens an overlay holding just the text
+// box, sized to the viewport above the keyboard (--app-height tracks the
+// visual viewport). Edits sync live into #matchTA so the normal preview /
+// Add Matches flow is untouched; Done closes it and shows the preview.
+(function initMatchComposer() {
+  const src = document.getElementById("matchTA");
+  if (!src) return;
+  let ov = null;
+  const close = () => {
+    if (!ov) return;
+    ov.remove();
+    ov = null;
+    src.blur();
+  };
+  const open = () => {
+    if (ov) return;
+    ov = document.createElement("div");
+    ov.id = "matchComposer";
+    ov.innerHTML = `<div class="mc-bar"><button type="button" class="mc-clear">Clear</button><div class="mc-title">ADD MATCHES</div><button type="button" class="mc-done">Done</button></div><textarea class="mc-ta" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>`;
+    document.body.appendChild(ov);
+    const ta = ov.querySelector(".mc-ta");
+    ta.placeholder = src.placeholder;
+    ta.value = src.value;
+    ta.addEventListener("input", () => {
+      src.value = ta.value;
+      if (typeof previewMatchImport === "function") previewMatchImport();
+    });
+    ov.querySelector(".mc-done").addEventListener("click", close);
+    ov.querySelector(".mc-clear").addEventListener("click", () => {
+      ta.value = "";
+      src.value = "";
+      if (typeof previewMatchImport === "function") previewMatchImport();
+      ta.focus();
+    });
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  };
+  src.addEventListener("focus", open);
+  src.addEventListener("click", open);
+})();

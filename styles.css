@@ -19174,3 +19174,49 @@ body.kb-open #pg-add #ip-matches .hint,
 body.kb-open #pg-add #ip-matches .match-preview:empty {
   display: none;
 }
+
+/* Add Matches composer overlay — fills the visible area above the keyboard. */
+#matchComposer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--app-height, 100dvh);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg, #09090f);
+}
+#matchComposer .mc-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+#matchComposer .mc-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+#matchComposer .mc-bar button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+#matchComposer .mc-ta {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  resize: none;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  background: transparent;
+}
