@@ -18,6 +18,7 @@ import {
   SCORING_SYSTEMS_WITH_CONFIDENCE,
   SCORING_SYSTEMS_ZERO_BASED,
 } from "./src/domain/rating-service.js";
+import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import {
   ratingDistribution,
   competitivenessOverTime,
@@ -2854,62 +2855,73 @@ function renderStorageBreakdownCard() {
 }
 
 // ── DATA HEALTH CHECK ────────────────────────────────────────
+// Matches reference players by NAME, so a typo or stray space silently creates
+// a "new player" that every screen then ranks. The checks live in
+// src/domain/data-health.js (pure, unit-tested); this renders them. Fixes stay
+// manual on purpose — Edit/Delete per match, Merge Players for renames — since
+// a wrong automatic rewrite of league history is worse than the typo.
+const _DH_ICON = { error: "⛔", warn: "⚠️", info: "💡" };
+const _DH_DELETABLE = new Set(["duplicate-match", "score-invalid", "score-tie"]);
 window.runDataHealthCheck = function () {
   const el = document.getElementById("data-health-body");
   if (!el) return;
-  const issues = [];
-  const seen = new Map();
-  state.matches.forEach((m, i) => {
-    const key = _mkMatchKey(m);
-    if (seen.has(key)) {
-      issues.push({
-        type: "dup",
-        msg: `Duplicate: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`,
-        idx: i,
-      });
-    } else seen.set(key, i);
+  const result = checkDataHealth({
+    matches: state.matches,
+    players: state.players,
+    aliasMap: playerAliasMap,
+    seasons: state.seasons,
+    today: todayISO(),
   });
-  state.matches.forEach((m, i) => {
-    const a = Number(m.scoreA),
-      b = Number(m.scoreB);
-    if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) {
-      issues.push({
-        type: "score",
-        msg: `Bad score ${m.scoreA}-${m.scoreB}: ${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`,
-        idx: i,
-      });
-    }
-  });
-  const playedNames = new Set();
-  state.matches.forEach((m) =>
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => playedNames.add(p)),
-  );
-  Object.values(state.players).forEach((p) => {
-    if (!p.isGuest && !playedNames.has(p.name)) {
-      issues.push({
-        type: "orphan",
-        msg: `${p.name} is in the roster but has 0 matches`,
-        idx: null,
-      });
-    }
-  });
-  if (!issues.length) {
+  window._dataHealthReport = formatHealthReport(result);
+  if (!result.issues.length) {
     el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--green);font-size:12px;font-weight:700">✅ No issues found</div>`;
     return;
   }
-  const rows = issues
-    .slice(0, 20)
-    .map(
-      (
-        iss,
-      ) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <span style="font-size:14px;flex-shrink:0">${iss.type === "dup" ? "🧬" : iss.type === "score" ? "⚠️" : "👻"}</span>
-        <span style="flex:1;font-size:10px">${escHtml(iss.msg)}</span>
-        ${iss.idx != null ? `<button onclick="deleteMatchByIndex(${iss.idx});runDataHealthCheck()" style="font-size:9px;padding:3px 7px;border-radius:6px;border:1px solid rgba(240,80,80,0.4);background:rgba(240,80,80,0.1);color:var(--red);cursor:pointer;flex-shrink:0">Delete</button>` : ""}
-      </div>`,
-    )
+  const PER_KIND = 6;
+  const shown = {};
+  const hidden = {};
+  const rows = result.issues
+    .filter((iss) => {
+      shown[iss.kind] = (shown[iss.kind] || 0) + 1;
+      if (shown[iss.kind] > PER_KIND) {
+        hidden[iss.kind] = (hidden[iss.kind] || 0) + 1;
+        return false;
+      }
+      return true;
+    })
+    .map((iss) => {
+      const idx = iss.matchIdx;
+      const btn = (label, onclick, danger) =>
+        `<button onclick="${onclick}" style="font-size:9px;padding:3px 7px;border-radius:6px;border:1px solid ${danger ? "rgba(240,80,80,0.4)" : "rgba(var(--theme-rgb),0.4)"};background:${danger ? "rgba(240,80,80,0.1)" : "rgba(var(--theme-rgb),0.1)"};color:${danger ? "var(--red)" : "var(--theme)"};cursor:pointer;flex-shrink:0">${label}</button>`;
+      const actions =
+        idx != null
+          ? (window.isAdmin ? btn("Edit", `openEditMatch(${idx})`, false) : "") +
+            (_DH_DELETABLE.has(iss.kind) && window.isAdmin
+              ? btn("Delete", `deleteMatchByIndex(${idx});runDataHealthCheck()`, true)
+              : "")
+          : "";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:14px;flex-shrink:0">${_DH_ICON[iss.severity]}</span>
+        <span style="flex:1;font-size:10px">${escHtml(iss.message)}</span>
+        ${actions}
+      </div>`;
+    })
     .join("");
-  el.innerHTML = `<div style="font-size:10px;color:var(--muted);margin-bottom:6px">${issues.length} issue(s) found</div>${rows}`;
+  const more = Object.entries(hidden)
+    .map(([k, n]) => `<div style="font-size:9px;color:var(--muted);padding:4px 0">…and ${n} more “${escHtml(k)}” — use Copy report for the full list</div>`)
+    .join("");
+  el.innerHTML = `<div style="font-size:10px;color:var(--muted);margin-bottom:6px">${result.errors} error(s), ${result.warnings} warning(s), ${result.infos} note(s)</div>${rows}${more}
+    <button class="btn-s" onclick="copyDataHealthReport()" style="width:100%;margin-top:8px">📋 Copy report</button>`;
+};
+window.copyDataHealthReport = function () {
+  const text = window._dataHealthReport || "";
+  if (!text) return;
+  (navigator.clipboard
+    ? navigator.clipboard.writeText(text)
+    : Promise.reject(new Error("no clipboard"))
+  )
+    .then(() => showToast("Report copied", "📋"))
+    .catch(() => showToast("Couldn't copy — select the text instead", "⚠️"));
 };
 
 // ── PLAYER MERGE TOOL ─────────────────────────────────────────

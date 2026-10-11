@@ -83,7 +83,16 @@ function openMatchIntro(idx) {
   // scope — NOT inside the memo else-branch, or it's undefined on the
   // memo-hit path and a ReferenceError elsewhere (which silently aborts the
   // whole overlay).
-  const _upToBeforeE = new Set(state.matches.slice(0, idx));
+  // "Before this match" follows the same order the rating engines use — by
+  // date, entry order breaking ties — not raw array position, which disagrees
+  // when a match was entered out of date order.
+  const _upToBeforeE = new Set(
+    state.matches.filter(
+      (x, i) =>
+        (x.date || "") < (m.date || "") ||
+        ((x.date || "") === (m.date || "") && i < idx),
+    ),
+  );
   const _mcDefault = rating.def();
   let priorAss, afterAss;
   if (

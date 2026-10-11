@@ -29,6 +29,7 @@
     "src/app/session-state.js",
     "src/domain/ass.js",
     "src/domain/badges.js",
+    "src/domain/data-health.js",
     "src/domain/dates.js",
     "src/domain/ep.js",
     "src/domain/fairshare.js",
