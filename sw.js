@@ -1,67 +1,80 @@
-const STATIC_CACHE = "ekta-padel-static-v22";
+const STATIC_CACHE = "ekta-padel-static-v23";
 const RUNTIME_CACHE = "ekta-padel-runtime-v2";
 const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
-const STATIC = [
-  BASE,
-  BASE + "index.html",
-  BASE + "styles.css",
-  BASE + "app.js",
-  BASE + "src/domain/state.js",
-  BASE + "features/analytics.js",
-  BASE + "features/live-session.js",
-  BASE + "utils.js",
-  BASE + "src/domain/ass.js",
-  BASE + "src/domain/fingerprint.js",
-  BASE + "src/domain/stats.js",
-  BASE + "src/domain/parser.js",
-  BASE + "src/ui/format.js",
-  BASE + "src/ui/charts.js",
-  BASE + "src/ui/render-match-rows.js",
-  BASE + "src/ui/render-history-summary.js",
-  BASE + "src/ui/render-anim.js",
-  BASE + "src/ui/view-state.js",
-  BASE + "src/ui/components.js",
-  BASE + "src/domain/selectors.js",
-  BASE + "src/domain/pairs.js",
-  BASE + "src/domain/xp.js",
-  BASE + "src/domain/badges.js",
-  BASE + "src/domain/player-analytics.js",
-  BASE + "src/domain/dates.js",
-  BASE + "src/domain/season-stats.js",
-  BASE + "src/domain/season-scoring.js",
-  BASE + "src/domain/season-recap.js",
-  BASE + "src/domain/glicko2.js",
-  BASE + "src/domain/openskill.js",
-  BASE + "src/domain/fairshare.js",
-  BASE + "src/domain/ep.js",
-  BASE + "src/infra/ana-prefs.js",
-  BASE + "src/infra/app-prefs.js",
-  BASE + "src/infra/cloud/firebase.js",
-  BASE + "features/replay.js",
-  BASE + "manifest.json",
-  BASE + "icons/icon.svg",
-  BASE + "icons/icon-180.png",
-  BASE + "icons/icon-192.png",
-  BASE + "icons/icon-512.png",
-];
 const RUNTIME_MAX_ENTRIES = 40;
 
-async function cacheStaticAssets(buildVersion) {
+// What must be cached for the app to start with no network. The list is
+// GENERATED from the real import graph (scripts/gen-precache.js -> precache.json,
+// kept fresh by a test), so a new module can never be forgotten. If the file
+// can't be fetched we still precache the bare shell below rather than fail the
+// install; every other module is then picked up lazily by the fetch handler.
+const FALLBACK_FILES = [
+  "",
+  "index.html",
+  "styles.css",
+  "app.js",
+  "utils.js",
+  "manifest.json",
+  "icons/icon.svg",
+];
+
+async function loadPrecacheList() {
+  try {
+    const res = await fetch(BASE + "precache.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(String(res.status));
+    const { files } = await res.json();
+    if (!Array.isArray(files) || !files.length) throw new Error("empty");
+    return files.map((f) => BASE + f);
+  } catch {
+    return FALLBACK_FILES.map((f) => BASE + f);
+  }
+}
+
+// The build stamp the deploy wrote to buildinfo.json (always from the network).
+async function fetchBuildVersion() {
+  try {
+    const res = await fetch(BASE + "buildinfo.json", { cache: "no-store" });
+    if (!res.ok) return null;
+    const { v } = await res.json();
+    return v === undefined ? null : String(v);
+  } catch {
+    return null;
+  }
+}
+
+// Fetch every URL fresh (cache:"reload" so a new deploy can't re-store STALE
+// bytes from the browser's own HTTP cache — GitHub Pages serves max-age=600)
+// into `cache`. Resolves true only if EVERY file was stored.
+async function fetchAllInto(cache, urls) {
+  const results = await Promise.all(
+    urls.map((u) =>
+      fetch(new Request(u, { cache: "reload" }))
+        .then((r) => {
+          if (!r || !r.ok) throw new Error(`${r && r.status} ${u}`);
+          return cache.put(u, r).then(() => true);
+        })
+        .catch(() => false),
+    ),
+  );
+  return results.every(Boolean);
+}
+
+async function cacheStaticAssets() {
   const cache = await caches.open(STATIC_CACHE);
-  // Fetch with cache:"reload" so a fresh deploy can't re-store STALE files from
-  // the browser's own HTTP cache (GitHub Pages serves assets with max-age=600).
-  // Each asset is guarded so one failure can't abort the whole precache.
+  const [urls, version] = await Promise.all([loadPrecacheList(), fetchBuildVersion()]);
+  // Best effort at install: one failed file must not abort the whole install
+  // (the activate-time heal and the update check fill any gap).
   await Promise.all(
-    STATIC.map((u) =>
+    urls.map((u) =>
       fetch(new Request(u, { cache: "reload" }))
         .then((res) => (res && res.ok ? cache.put(u, res) : null))
         .catch(() => null),
     ),
   );
-  if (buildVersion !== undefined) {
-    await cache.put(BUILD_KEY, new Response(String(buildVersion)));
-  }
+  // Record which build this cache holds, so the first update check doesn't
+  // mistake "no stamp" for "a new build" and re-download everything.
+  if (version !== null) await cache.put(BUILD_KEY, new Response(version));
 }
 
 async function notifyClientsNewBuild() {
@@ -73,14 +86,15 @@ self.addEventListener("install", (e) => {
   e.waitUntil(cacheStaticAssets().then(() => self.skipWaiting()));
 });
 
-// On activate: delete old caches, then verify every STATIC entry is actually
-// present (install's catch(() => null) can silently drop files on CDN blips).
+// On activate: delete old caches, then verify every precache entry is actually
+// present (install's best-effort fetch can silently drop files on CDN blips).
 // Any gap is refetched before we claim clients, so the first load never hits
 // a missing-module import error.
 async function _healCache() {
   const cache = await caches.open(STATIC_CACHE);
+  const urls = await loadPrecacheList();
   await Promise.all(
-    STATIC.map(async (u) => {
+    urls.map(async (u) => {
       const hit = await cache.match(u);
       if (hit) return;
       return fetch(new Request(u, { cache: "reload" }))
@@ -122,54 +136,49 @@ async function putRuntime(request, response) {
   await trimRuntimeCache();
 }
 
-// Fetch buildinfo.json from network, compare to stored version.
-// If changed: atomically swap to a freshly-populated cache so a partial
-// download (network blip, CDN propagation lag) never leaves the app broken.
+// Fetch buildinfo.json from network, compare to the stored version. If changed,
+// download the WHOLE new file set into a staging cache first — if any file
+// fails we abort and keep the current cache untouched, so a partial download
+// (network blip, CDN propagation lag) can never leave the app half-updated.
+// Only then is it swapped into the live cache: new files are written over the
+// old ones and obsolete ones pruned, so the live cache is never empty.
+// Resolves { updated, error } — error is true when we couldn't tell.
 async function checkForUpdates() {
   try {
-    const res = await fetch(BASE + "buildinfo.json", { cache: "no-store" });
-    const { v } = await res.json();
-    const existing = await caches.open(STATIC_CACHE);
-    const stored = await existing.match(BUILD_KEY);
-    const storedV = stored ? await stored.text() : null;
-    if (storedV === String(v)) return false;
+    const version = await fetchBuildVersion();
+    if (version === null) return { updated: false, error: true };
+    const live = await caches.open(STATIC_CACHE);
+    const stored = await live.match(BUILD_KEY);
+    if (stored && (await stored.text()) === version) return { updated: false, error: false };
 
-    // Build into a staging cache first — if any fetch fails we abort and
-    // keep the existing cache intact so the app stays usable.
+    const urls = await loadPrecacheList();
     const STAGING = STATIC_CACHE + "-staging";
     await caches.delete(STAGING);
     const staging = await caches.open(STAGING);
-    const ok = await Promise.all(
-      STATIC.map((u) =>
-        fetch(new Request(u, { cache: "reload" }))
-          .then((r) => {
-            if (!r || !r.ok) throw new Error(`${r?.status} ${u}`);
-            return staging.put(u, r);
-          })
-          .catch(() => false),
-      ),
-    );
-    // If every file was fetched successfully, atomic swap.
-    if (ok.every(Boolean)) {
-      await staging.put(BUILD_KEY, new Response(String(v)));
-      await caches.delete(STATIC_CACHE);
-      const live = await caches.open(STATIC_CACHE);
-      const keys = await staging.keys();
-      await Promise.all(
-        keys.map(async (req) => {
-          const resp = await staging.match(req);
-          return live.put(req, resp);
-        }),
-      );
+    if (!(await fetchAllInto(staging, urls))) {
       await caches.delete(STAGING);
-      return true;
-    } else {
-      // Partial download — clean up staging and try again next check.
-      await caches.delete(STAGING);
-      return false;
+      return { updated: false, error: true }; // partial download — retry next check
     }
+    await staging.put(BUILD_KEY, new Response(version));
+
+    const wanted = new Set([...urls, new URL(BUILD_KEY, BASE).href]);
+    const staged = await staging.keys();
+    await Promise.all(
+      staged.map(async (req) => live.put(req, await staging.match(req))),
+    );
+    // Prune what the new build no longer ships (keep the runtime SWR copies of
+    // anything still wanted, drop files that left the precache list).
+    const liveKeys = await live.keys();
+    await Promise.all(
+      liveKeys
+        .filter((req) => !wanted.has(req.url) && !staged.some((s) => s.url === req.url))
+        .filter((req) => /\.(?:js|css|html|json)$/.test(new URL(req.url).pathname))
+        .map((req) => live.delete(req)),
+    );
+    await caches.delete(STAGING);
+    return { updated: true, error: false };
   } catch {
-    return false;
+    return { updated: false, error: true };
   }
 }
 
@@ -178,10 +187,13 @@ async function checkForUpdates() {
 // stays open for a long time and rarely triggers a navigate.
 self.addEventListener("message", (e) => {
   if (e.data && e.data.type === "CHECK_UPDATE") {
+    const reply = e.ports && e.ports[0];
     e.waitUntil(
-      checkForUpdates().then((updated) =>
-        updated ? notifyClientsNewBuild() : undefined,
-      ),
+      checkForUpdates().then(async (result) => {
+        if (result.updated) await notifyClientsNewBuild();
+        // A manual "check for updates" passes a port and gets the verdict back.
+        if (reply) reply.postMessage(result);
+      }),
     );
   }
   if (e.data && e.data.type === "SHOW_NOTIFICATION") {

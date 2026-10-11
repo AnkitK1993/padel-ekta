@@ -39,6 +39,7 @@ const EXCLUDE_TOP = new Set([
   ".vscode",
   "package.json",
   "package-lock.json",
+  "eslint.config.mjs",
   ".gitignore",
   "css-coverage-report.json",
 ]);

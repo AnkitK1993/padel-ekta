@@ -37,10 +37,17 @@ jobs:
       - run: npm run build
 
       # Stamp a fresh millisecond timestamp so sw.js detects the new build.
-      # Written into dist/ directly, after the build, so it reflects this
+      # The SAME stamp goes into buildinfo.json (what the service worker
+      # compares) and into index.html's <meta name="app-build"> (what the app
+      # shows as "Build …" in the menu), so the running build is always
+      # identifiable. Written into dist/ after the build, so it reflects this
       # actual deploy rather than being overwritten by the copy step.
       - name: Stamp build version
-        run: echo "{\"v\":$(date +%s%3N)}" > dist/buildinfo.json
+        run: |
+          V=$(date +%s%3N)
+          echo "{\"v\":$V}" > dist/buildinfo.json
+          sed -i "s/__BUILD__/$V/" dist/index.html
+          grep -q "content=\"$V\"" dist/index.html
 
       - uses: actions/configure-pages@v5
 

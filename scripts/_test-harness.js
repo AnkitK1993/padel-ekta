@@ -294,4 +294,12 @@ module.exports = {
   ROOT,
   SEED_PLAYERS,
   SEED_MATCHES,
+  // Lower-level pieces, for scripts that need a browser of their own (e.g. one
+  // that serves a different build from a temp dir to test service-worker updates).
+  findBrowser,
+  connectCdp,
+  getJson,
+  listen,
+  FIREBASE_STUB,
+  CONTENT_TYPES,
 };

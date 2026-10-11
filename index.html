@@ -14,6 +14,10 @@
     />
     <meta name="apple-mobile-web-app-title" content="Ekta Padel" />
     <meta name="theme-color" content="#09090f" />
+    <!-- The content below is replaced with the deploy time by
+         .github/workflows/deploy.yml; in a source checkout it stays as the
+         literal placeholder and the menu shows "dev". -->
+    <meta name="app-build" content="__BUILD__" />
     <script>
       (function () {
         // Tallest viewport seen for the current orientation — the "keyboard
@@ -201,6 +205,17 @@
               class="hmenu-action-btn hmenu-action-btn--full"
             >
               🗓️ SEASON: All
+            </button>
+          </div>
+          <div class="hmenu-divider"></div>
+          <div class="hmenu-item hmenu-item--full">
+            <button
+              id="build-check-btn"
+              onclick="checkForAppUpdate()"
+              title="Check for a newer version of the app"
+              class="hmenu-action-btn hmenu-action-btn--full"
+            >
+              <span id="build-label">Build · check for update</span>
             </button>
           </div>
         </div>
@@ -1789,6 +1804,48 @@ Puneet - Pun, PK
         navigator.serviceWorker.addEventListener("message", function (e) {
           if (e.data && e.data.type === "NEW_BUILD") _applyUpdateWhenSafe();
         });
+
+        // ── Which build is this, and is there a newer one? ──────────
+        // The deploy stamps the same millisecond timestamp into this page
+        // (<meta name="app-build">) and into buildinfo.json, so "the build I'm
+        // running" is simply what this very HTML says — no round trip needed.
+        window.appBuildLabel = function () {
+          var m = document.querySelector('meta[name="app-build"]');
+          var v = m && m.content;
+          if (!v || !/^\d{10,}$/.test(v)) return "dev";
+          var d = new Date(Number(v));
+          var mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()];
+          var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+          return d.getDate() + " " + mon + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+        };
+        function _paintBuildLabel() {
+          var el = document.getElementById("build-label");
+          if (el) el.textContent = "Build " + window.appBuildLabel() + " · check for update";
+        }
+        document.addEventListener("DOMContentLoaded", _paintBuildLabel);
+        window.checkForAppUpdate = function () {
+          var say = function (msg, icon) {
+            if (typeof window.showToast === "function") window.showToast(msg, icon);
+          };
+          var sw = navigator.serviceWorker.controller;
+          if (!sw) {
+            say("Updates are checked once the app is installed and online", "ℹ️");
+            return;
+          }
+          var ch = new MessageChannel();
+          var timer = setTimeout(function () {
+            say("Couldn't reach the server — try again", "⚠️");
+          }, 20000);
+          ch.port1.onmessage = function (e) {
+            clearTimeout(timer);
+            var r = e.data || {};
+            if (r.updated) say("New version ready — tap the banner to refresh", "🔄");
+            else if (r.error) say("Couldn't check for updates (offline?)", "⚠️");
+            else say("You're on the latest version", "✅");
+          };
+          say("Checking for updates…", "🔄");
+          sw.postMessage({ type: "CHECK_UPDATE" }, [ch.port2]);
+        };
         // A queued update applies the moment the user switches away
         document.addEventListener("visibilitychange", function () {
           if (_updateReady && document.visibilityState === "hidden") {
