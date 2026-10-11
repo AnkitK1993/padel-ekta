@@ -30,6 +30,11 @@
 //      so margin is real signal but noisy, and over-weighting it would just
 //      reward running up the score.
 //
+// 4. TEAMMATE SPLIT — once both partners have 50+ scored games, the team's
+//    points are re-split toward whoever has the lower public ASS right now
+//    (see TEAM_SPLIT_*). Before that, partners earn identically and the board
+//    handles the difference through the shrinkage term below.
+//
 // The leaderboard key is EP / (games + SHRINKAGE), not raw total EP. Raw
 // total rewards mileage over quality — on real history it put a 49% player
 // above a 67% player purely on volume. The SHRINKAGE term is a block of
@@ -45,6 +50,15 @@ const MATURITY_GAMES = 50; // career games until losses are fully accountable
 const MARGIN_W = 0.4; // margin swing: 4-0 pays 1.20x, 4-3 pays 0.90x
 const SHUTOUT_BONUS = 1.05; // extra for conceding nothing (~11% of matches)
 export const EP_SHRINKAGE = 10; // phantom zero-point games in the rank key
+// Teammate split. Once BOTH partners have played this many scored games their
+// public ASS ratings are trustworthy, so the team's points are re-split in
+// favour of whoever is currently the weaker player (lower ASS). The team's
+// total is unchanged — only who gets how much of it. The shift is a fraction
+// of the award, growing with the rating gap and capped, so a hair's-breadth
+// difference barely moves anything.
+export const TEAM_SPLIT_MIN_GAMES = 50;
+export const TEAM_SPLIT_GAP_SCALE = 20; // rating gap (raw ASS) that reaches the cap...
+export const TEAM_SPLIT_MAX_SHIFT = 0.5; // ...of this fraction of the award
 
 const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
 
@@ -62,7 +76,12 @@ export function computeMatchEPDeltas(matches, careerMatches = null) {
 
   const elo = {};
   const careerGames = {};
+  // Running public score inputs, accumulated over the SCORED window only (so a
+  // new season starts everyone at 0, exactly like the leaderboard).
+  const epTot = {};
+  const epGames = {};
   const map = new Map();
+  const rating = (p) => (epTot[p] || 0) / ((epGames[p] || 0) + EP_SHRINKAGE);
 
   walk.forEach((m) => {
     const teamA = m.teamA || [];
@@ -98,17 +117,35 @@ export function computeMatchEPDeltas(matches, careerMatches = null) {
       };
 
       const playerDeltas = {};
-      let sumA = 0;
-      let sumB = 0;
-      teamA.forEach((p) => {
-        const d = award(p, expA, aWon);
-        playerDeltas[p] = d;
-        sumA += d;
+      teamA.forEach((p) => (playerDeltas[p] = award(p, expA, aWon)));
+      teamB.forEach((p) => (playerDeltas[p] = award(p, 1 - expA, !aWon)));
+
+      // Re-split each pair's points toward the weaker (lower-ASS) partner.
+      [teamA, teamB].forEach((team) => {
+        if (team.length !== 2) return;
+        const [x, y] = team;
+        if (
+          (epGames[x] || 0) < TEAM_SPLIT_MIN_GAMES ||
+          (epGames[y] || 0) < TEAM_SPLIT_MIN_GAMES
+        )
+          return;
+        const gap = Math.abs(rating(x) - rating(y));
+        const f = Math.min(TEAM_SPLIT_MAX_SHIFT, (gap / TEAM_SPLIT_GAP_SCALE) * TEAM_SPLIT_MAX_SHIFT);
+        const shift = Math.round(
+          f * Math.abs((playerDeltas[x] + playerDeltas[y]) / 2),
+        );
+        if (!shift) return;
+        const [weak, strong] = rating(x) < rating(y) ? [x, y] : [y, x];
+        playerDeltas[weak] += shift;
+        playerDeltas[strong] -= shift;
       });
-      teamB.forEach((p) => {
-        const d = award(p, 1 - expA, !aWon);
-        playerDeltas[p] = d;
-        sumB += d;
+
+      const sum = (t) => t.reduce((acc, p) => acc + playerDeltas[p], 0);
+      const sumA = sum(teamA);
+      const sumB = sum(teamB);
+      [...teamA, ...teamB].forEach((p) => {
+        epTot[p] = (epTot[p] || 0) + playerDeltas[p];
+        epGames[p] = (epGames[p] || 0) + 1;
       });
 
       map.set(m, {

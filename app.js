@@ -1435,6 +1435,16 @@ initPlayerDetailDeps({
 });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
+// Matches scored together with `m`: everything in the season it was played in
+// (or, for a match outside every season, the other un-seasoned matches).
+function _seasonScopeFor(m) {
+  const sn = state.seasons.find((x) => _inSeason(x, m.date));
+  if (!sn)
+    return state.matches.filter(
+      (x) => !state.seasons.some((y) => _inSeason(y, x.date)),
+    );
+  return state.matches.filter((x) => _inSeason(sn, x.date));
+}
 // Match Intro overlay — same "follow the Summary tab's picker" contract as
 // Player Detail's rating accessors above.
 initMatchIntroDeps({
@@ -1445,16 +1455,14 @@ initMatchIntroDeps({
   isZeroBased: () => SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem),
   // Rating snapshots are scoped to the season the match was played in, the
   // same way that season's leaderboard is scored.
-  ratingScope: (m) => {
-    const sn = state.seasons.find((x) => _inSeason(x, m.date));
-    if (!sn) return state.matches.filter((x) => !state.seasons.some((y) => _inSeason(y, x.date)));
-    return state.matches.filter((x) => _inSeason(sn, x.date));
-  },
+  ratingScope: (m) => _seasonScopeFor(m),
   // Raw EP points earned in a match (EP only — for the other engines the
-  // rating change already is the points).
+  // rating change already is the points). Scored over the same season window
+  // as the rating change shown beside it, so the two always agree.
   matchPoints: (m) =>
     _scoringSystem === "ep"
-      ? (_matchDeltasForSystem("ep", state.matches).get(m)?.playerDeltas ?? null)
+      ? (computeMatchEPDeltas(_seasonScopeFor(m), _epCareerMatches()).get(m)
+          ?.playerDeltas ?? null)
       : null,
 });
 

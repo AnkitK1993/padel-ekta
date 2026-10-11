@@ -9,6 +9,7 @@ import {
   computeEPUpsets,
   computeEPProjection,
   EP_SHRINKAGE,
+  TEAM_SPLIT_MIN_GAMES,
 } from "../src/domain/ep.js";
 
 let pass = 0,
@@ -411,6 +412,45 @@ ok(
   })(),
 );
 ok("empty matches → []", computeEPProjection([], null, 10, 20).length === 0);
+
+console.log("\n\x1b[36m── EP: teammates split points toward the weaker ASS ─\x1b[0m");
+
+// Strong has won all of his first 55 games, Weak lost nearly all of hers — both
+// are past the split threshold, with a clear rating gap. Then they team up.
+const strongRun = Array.from({ length: TEAM_SPLIT_MIN_GAMES + 5 }, (_, i) =>
+  M("2024-05-01", ["Strong", `S${i}`], [`T${i}`, `U${i}`], 4, 1),
+);
+const weakRun = Array.from({ length: TEAM_SPLIT_MIN_GAMES + 5 }, (_, i) =>
+  M("2024-05-02", ["Weak", `V${i}`], [`W${i}`, `X${i}`], 1, 4),
+);
+const pairWin = M("2024-06-01", ["Strong", "Weak"], ["Opp1", "Opp2"], 4, 2);
+const splitWin = [...strongRun, ...weakRun, pairWin];
+const sd = d(splitWin, pairWin, splitWin);
+ok(
+  "past 50 games each, the lower-ASS partner earns MORE for the same win",
+  sd.Weak > sd.Strong,
+  `Weak ${sd.Weak} vs Strong ${sd.Strong}`,
+);
+const lossPair = M("2024-06-02", ["Strong", "Weak"], ["Opp1", "Opp2"], 1, 4);
+const sl = d([...splitWin, lossPair], lossPair, [...splitWin, lossPair]);
+ok(
+  "on a loss the weaker partner is penalised LESS",
+  sl.Weak > sl.Strong,
+  `Weak ${sl.Weak} vs Strong ${sl.Strong}`,
+);
+const youngWeak = [
+  ...strongRun,
+  ...Array.from({ length: 10 }, (_, i) =>
+    M("2024-05-02", ["Weak", `V${i}`], [`W${i}`, `X${i}`], 1, 4),
+  ),
+  pairWin,
+];
+const yd = d(youngWeak, pairWin, youngWeak);
+ok(
+  "if either partner is under 50 games there is no ASS-based split",
+  yd.Strong === yd.Weak,
+  `Strong ${yd.Strong} vs Weak ${yd.Weak}`,
+);
 
 console.log(`\n\x1b[1mEP: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`);
 process.exit(fail ? 1 : 0);
