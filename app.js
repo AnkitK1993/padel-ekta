@@ -5092,9 +5092,9 @@ function _applyCmpColClasses() {
   // The "±" confidence column only has meaning for Glicko-2/OpenSkill — driven
   // by the active scoring system, not a user-togglable column preference.
   table.classList.toggle("hide-col-conf", !SCORING_SYSTEMS_WITH_CONFIDENCE.includes(_scoringSystem));
-  const confTh = document.getElementById("cmp-conf-th");
-  if (confTh) {
-    confTh.textContent =
+  const confLbl = document.getElementById("cmp-conf-lbl");
+  if (confLbl) {
+    confLbl.textContent =
       _scoringSystem === "glicko2"
         ? "±RD"
         : _scoringSystem === "openskill"
@@ -5585,6 +5585,8 @@ function renderCompact() {
     ass: (a, b) =>
       (_cmpASSMap[a.name] ?? _ratingDefault()) -
       (_cmpASSMap[b.name] ?? _ratingDefault()),
+    conf: (a, b) =>
+      (_cmpConfMap?.[a.name] ?? 0) - (_cmpConfMap?.[b.name] ?? 0),
     sr: (a, b) => {
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
       // look identical on screen resolve to a real tie instead of being
@@ -5596,6 +5598,12 @@ function renderCompact() {
       );
     },
   };
+  // The TOTAL/± column only exists for the confidence systems; if the user
+  // had sorted by it and then switched to one without it, fall back to ASS.
+  if (cmpSortKey === "conf" && !_cmpConfMap) {
+    cmpSortKey = "ass";
+    cmpSortAsc = false;
+  }
   const sorted = [...stats].sort((a, b) => {
     const cmp = sortFns[cmpSortKey](a, b);
     if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
@@ -5654,12 +5662,21 @@ function renderCompact() {
         ? _memoASS()
         : _flatRatingForSystem(_scoringSystem, activeMatches(), _fullRatingForSystem(_scoringSystem, activeMatches()));
     // For the score column substitute the all-time map; other columns reuse sortFns.
+    const _atConf =
+      cmpSortKey === "conf"
+        ? _confidenceForSystem(
+            _scoringSystem,
+            _fullRatingForSystem(_scoringSystem, activeMatches()),
+          )
+        : null;
     const _atSort =
       cmpSortKey === "ass"
         ? (a, b) =>
             (_atAss[a.name] ?? _ratingDefault()) -
             (_atAss[b.name] ?? _ratingDefault())
-        : sortFns[cmpSortKey] || sortFns.sr;
+        : cmpSortKey === "conf"
+          ? (a, b) => (_atConf?.[a.name] ?? 0) - (_atConf?.[b.name] ?? 0)
+          : sortFns[cmpSortKey] || sortFns.sr;
     const _atAll = [
       ...computeStats(
         activeMatches(),
@@ -5696,12 +5713,21 @@ function renderCompact() {
         _mAss,
         _srFnForSystem(_scoringSystem, _mAss),
       );
+      const _mConf =
+        cmpSortKey === "conf"
+          ? _confidenceForSystem(
+              _scoringSystem,
+              _fullRatingForSystem(_scoringSystem, _mMonth),
+            )
+          : null;
       const _mSortFn =
         cmpSortKey === "ass"
           ? (a, b) =>
               (_mAss[a.name] ?? _ratingDefault()) -
               (_mAss[b.name] ?? _ratingDefault())
-          : cmpSortKey === "sr"
+          : cmpSortKey === "conf"
+            ? (a, b) => (_mConf?.[a.name] ?? 0) - (_mConf?.[b.name] ?? 0)
+            : cmpSortKey === "sr"
             ? (a, b) => a.sr - b.sr
             : sortFns[cmpSortKey] || ((a, b) => a.sr - b.sr);
       const _mSorted = [..._mStats].sort((a, b) => {
@@ -5946,6 +5972,7 @@ function updateSortArrows() {
     gamePct: ["sort-gamePct"],
     elo: ["sort-elo"],
     ass: ["sort-ass"],
+    conf: ["sort-conf"],
     sr: ["sort-sr", "sort-rank"],
   };
   Object.entries(keyMap).forEach(([key, ids]) => {
