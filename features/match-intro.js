@@ -32,6 +32,9 @@ let _isZeroBased = () => false;
 // Raw points each player earned for a match ({ name: points }), or null when
 // the active system has no separate points notion (rating change == points).
 let _matchPoints = () => null;
+// Matches that count toward the rating snapshots for a given match — the
+// season it was played in (so the numbers agree with that season's leaderboard).
+let _ratingScope = () => state.matches;
 
 export function initMatchIntroDeps({
   ratingMap,
@@ -40,6 +43,7 @@ export function initMatchIntroDeps({
   ratingLabel,
   isZeroBased,
   matchPoints,
+  ratingScope,
 }) {
   if (ratingMap) _ratingMap = ratingMap;
   if (ratingDefault) _ratingDefault = ratingDefault;
@@ -47,6 +51,7 @@ export function initMatchIntroDeps({
   if (ratingLabel) _ratingLabel = ratingLabel;
   if (isZeroBased) _isZeroBased = isZeroBased;
   if (matchPoints) _matchPoints = matchPoints;
+  if (ratingScope) _ratingScope = ratingScope;
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -84,6 +89,9 @@ function openMatchIntro(idx) {
   // snapshots, making every delta pill read +0 for a guest match and the
   // team ASS badges disagree with the History card underneath.
   const _amE = state.matches;
+  // H2H / streak context above stays lifetime; only the rating snapshots are
+  // scoped to the match's own season.
+  const _scopeE = _ratingScope(m);
   // Pre/post-match ASS over that set. One O(n) rating-map pass each side;
   // cached on (idx, match count, active label) so re-opening the same banner
   // — or any re-trigger — skips the recompute. _upToBeforeE (matches
@@ -98,20 +106,20 @@ function openMatchIntro(idx) {
   if (
     _mioAssMemo &&
     _mioAssMemo.idx === idx &&
-    _mioAssMemo.amLen === _amE.length &&
+    _mioAssMemo.amLen === _scopeE.length &&
     _mioAssMemo.label === _ratingLabel()
   ) {
     priorAss = _mioAssMemo.priorAss;
     afterAss = _mioAssMemo.afterAss;
   } else {
     const _upToInclE = new Set(state.matches.slice(0, idx + 1));
-    const _before = _amE.filter((mm) => _upToBeforeE.has(mm));
-    const _incl = _amE.filter((mm) => _upToInclE.has(mm));
+    const _before = _scopeE.filter((mm) => _upToBeforeE.has(mm));
+    const _incl = _scopeE.filter((mm) => _upToInclE.has(mm));
     priorAss = _ratingMap(_before);
     afterAss = _ratingMap(_incl);
     _mioAssMemo = {
       idx,
-      amLen: _amE.length,
+      amLen: _scopeE.length,
       label: _ratingLabel(),
       priorAss,
       afterAss,

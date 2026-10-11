@@ -1443,6 +1443,13 @@ initMatchIntroDeps({
   ratingFmt: (v) => _statsFmt(v),
   ratingLabel: () => _statsLabel(),
   isZeroBased: () => SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem),
+  // Rating snapshots are scoped to the season the match was played in, the
+  // same way that season's leaderboard is scored.
+  ratingScope: (m) => {
+    const sn = state.seasons.find((x) => _inSeason(x, m.date));
+    if (!sn) return state.matches.filter((x) => !state.seasons.some((y) => _inSeason(y, x.date)));
+    return state.matches.filter((x) => _inSeason(sn, x.date));
+  },
   // Raw EP points earned in a match (EP only — for the other engines the
   // rating change already is the points).
   matchPoints: (m) =>
@@ -6056,7 +6063,6 @@ function _matchCardPrecompute() {
     return _mcPrecompMemo;
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  const cur = {}; // each player's rating right before the match being walked
   const _mcDefault = _statsDefault();
   const allPairsList = _memoPairStats(); // all pairs ever formed
   const sortedForPrecompute = [...state.matches].sort((a, b) =>
@@ -6070,39 +6076,57 @@ function _matchCardPrecompute() {
   // (EP) the raw per-match delta is on a different scale than the displayed
   // score — summing it directly would blow the pill's numbers up into the
   // thousands instead of showing the real, bounded leaderboard score.
-  const timeline = _statsTimeline(sortedForPrecompute).history;
-  const idxByPlayer = {};
+  // Each season is scored on its own, exactly like the Summary leaderboard:
+  // ratings restart at the baseline and only that season's matches feed the
+  // score (EP still reads the full career for its internal expectation and
+  // maturity). Walking every season as one continuous history made a
+  // veteran's per-match change tiny — a 320-game player's shrinkage
+  // denominator dwarfed a 70-game player's — which is not what either
+  // player's season score does.
+  const seasonKey = (m) =>
+    state.seasons.find((sn) => _inSeason(sn, m.date))?.id ?? "__none__";
+  const groups = new Map();
   sortedForPrecompute.forEach((m) => {
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      if (!(p in cur)) cur[p] = _mcDefault;
+    const k = seasonKey(m);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(m);
+  });
+  groups.forEach((groupMatches) => {
+    const timeline = _statsTimeline(groupMatches).history;
+    const cur = {};
+    const idxByPlayer = {};
+    groupMatches.forEach((m) => {
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        if (!(p in cur)) cur[p] = _mcDefault;
+      });
+      // Rank all pairs by their avg rating right now (before this match)
+      matchPairRankMap.set(
+        m,
+        new Map(
+          allPairsList
+            .map((p) => ({
+              key: p.key,
+              avgElo:
+                p.players.reduce((sum, n) => sum + (cur[n] ?? _mcDefault), 0) /
+                p.players.length,
+            }))
+            .sort((a, b) => b.avgElo - a.avgElo)
+            .map(({ key }, i) => [key, i + 1]),
+        ),
+      );
+      const mData = {};
+      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
+        const hist = timeline[p] || [];
+        const idx = idxByPlayer[p] ?? 0;
+        const entry = hist[idx];
+        const before = cur[p] ?? _mcDefault;
+        const after = entry ? entry.elo : before;
+        mData[p] = { delta: after - before, after };
+        cur[p] = after;
+        idxByPlayer[p] = idx + 1;
+      });
+      eloMatchMap.set(m, mData);
     });
-    // Rank all pairs by their avg rating right now (before this match)
-    matchPairRankMap.set(
-      m,
-      new Map(
-        allPairsList
-          .map((p) => ({
-            key: p.key,
-            avgElo:
-              p.players.reduce((s, n) => s + (cur[n] ?? _mcDefault), 0) /
-              p.players.length,
-          }))
-          .sort((a, b) => b.avgElo - a.avgElo)
-          .map(({ key }, i) => [key, i + 1]),
-      ),
-    );
-    const mData = {};
-    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-      const hist = timeline[p] || [];
-      const idx = idxByPlayer[p] ?? 0;
-      const entry = hist[idx];
-      const before = cur[p] ?? _mcDefault;
-      const after = entry ? entry.elo : before;
-      mData[p] = { delta: after - before, after };
-      cur[p] = after;
-      idxByPlayer[p] = idx + 1;
-    });
-    eloMatchMap.set(m, mData);
   });
   // Enhancement 8: pre-compute pair-vs-pair H2H records
   const pvpMap = {};
