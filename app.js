@@ -1438,6 +1438,21 @@ initPlayerDetailDeps({
 });
 // H2H modals — same playerAvatar dependency.
 initH2HDeps({ playerAvatar });
+// One EP walk per (match, data, system) — the overlay asks for it several ways.
+let _epEntryMemo = null;
+function _epEntryFor(m) {
+  if (_scoringSystem !== "ep") return null;
+  if (
+    _epEntryMemo &&
+    _epEntryMemo.m === m &&
+    _epEntryMemo.version === _dataVersion
+  )
+    return _epEntryMemo.entry;
+  const entry =
+    computeMatchEPDeltas(_seasonScopeFor(m), _epCareerMatches()).get(m) || null;
+  _epEntryMemo = { m, version: _dataVersion, entry };
+  return entry;
+}
 // Matches scored together with `m`: everything in the season it was played in
 // (or, for a match outside every season, the other un-seasoned matches).
 function _seasonScopeFor(m) {
@@ -1465,11 +1480,37 @@ initMatchIntroDeps({
   // Raw EP points earned in a match (EP only — for the other engines the
   // rating change already is the points). Scored over the same season window
   // as the rating change shown beside it, so the two always agree.
-  matchPoints: (m) =>
-    _scoringSystem === "ep"
-      ? (computeMatchEPDeltas(_seasonScopeFor(m), _epCareerMatches()).get(m)
-          ?.playerDeltas ?? null)
-      : null,
+  matchPoints: (m) => _epEntryFor(m)?.playerDeltas ?? null,
+  // Win chance + how each award was built (EP only).
+  matchDetail: (m) => {
+    const e = _epEntryFor(m);
+    return e ? { expA: e.expA, breakdown: e.breakdown } : null;
+  },
+  // Running total points per player over a set of matches (EP only).
+  totalPoints: (ms) => {
+    if (_scoringSystem !== "ep") return null;
+    const full = computeEPFull(ms, _epCareerMatches());
+    const out = {};
+    Object.keys(full).forEach((n) => (out[n] = full[n].ep));
+    return out;
+  },
+  // Career games (all seasons, guest matches excluded like the engine) each
+  // player had played before this match.
+  careerGamesBefore: (m) => {
+    const career = new Set(_epCareerMatches());
+    const ordered = [...state.matches].sort((a, b) =>
+      (a.date || "").localeCompare(b.date || ""),
+    );
+    const k = ordered.indexOf(m);
+    const counts = {};
+    (k >= 0 ? ordered.slice(0, k) : ordered).forEach((x) => {
+      if (!career.has(x)) return;
+      [...(x.teamA || []), ...(x.teamB || [])].forEach(
+        (q) => (counts[q] = (counts[q] || 0) + 1),
+      );
+    });
+    return counts;
+  },
 });
 
 // ── One-time module initialisations ────────────────────────

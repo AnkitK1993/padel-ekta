@@ -110,14 +110,31 @@ export function computeMatchEPDeltas(matches, careerMatches = null, opts = {}) {
       const winQ = (1 - MARGIN_W / 2 + MARGIN_W * normMargin) * shutout;
       const lossQ = (1 + MARGIN_W / 2 - MARGIN_W * normMargin) / shutout;
 
+      // Each award also records how it was built, for display: the pre-split
+      // amount and the factors behind it.
+      const breakdown = {};
       const award = (p, teamP, won) => {
-        if (won) return Math.round(WIN_BASE * (1 + OPP_W * (0.5 - teamP)) * winQ);
-        // Newcomers (under 50 career games) are in a growth phase: a loss still
-        // pays a little. Veterans have no such cushion — a loss costs, more so
-        // when the team was favoured and when it was lopsided.
-        if (careerGames[p] < MATURITY_GAMES)
-          return Math.round(LOSS_BASE * (1 - teamP) * lossQ);
-        return Math.round(-VET_LOSS * teamP * (2 - lossQ));
+        const vet = careerGames[p] >= MATURITY_GAMES;
+        let raw;
+        let oppF = null;
+        let qualityF;
+        if (won) {
+          oppF = 1 + OPP_W * (0.5 - teamP);
+          qualityF = winQ;
+          raw = Math.round(WIN_BASE * oppF * winQ);
+        } else if (!vet) {
+          // Newcomers (under 50 career games) are in a growth phase: a loss
+          // still pays a little.
+          qualityF = lossQ;
+          raw = Math.round(LOSS_BASE * (1 - teamP) * lossQ);
+        } else {
+          // Veterans have no such cushion — a loss costs, more so when the
+          // team was favoured and when it was lopsided.
+          qualityF = 2 - lossQ;
+          raw = Math.round(-VET_LOSS * teamP * (2 - lossQ));
+        }
+        breakdown[p] = { won, vet, teamP, oppF, qualityF, raw, shift: 0 };
+        return raw;
       };
 
       const playerDeltas = {};
@@ -137,6 +154,8 @@ export function computeMatchEPDeltas(matches, careerMatches = null, opts = {}) {
         const [weak, strong] = rating(x) < rating(y) ? [x, y] : [y, x];
         playerDeltas[weak] += shift;
         playerDeltas[strong] -= shift;
+        breakdown[weak].shift = shift;
+        breakdown[strong].shift = -shift;
       });
 
       const sum = (t) => t.reduce((acc, p) => acc + playerDeltas[p], 0);
@@ -151,6 +170,8 @@ export function computeMatchEPDeltas(matches, careerMatches = null, opts = {}) {
         dA: Math.round(sumA / teamA.length),
         dB: Math.round(sumB / teamB.length),
         playerDeltas,
+        expA,
+        breakdown,
       });
     }
 

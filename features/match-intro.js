@@ -37,6 +37,11 @@ let _matchPoints = () => null;
 let _ratingScope = () => state.matches;
 // The History card's per-player { delta, after } for a match, when available.
 let _matchRating = () => null;
+// EP-only extras: win chance + award breakdown, running total points, and
+// career games before a match.
+let _matchDetail = () => null;
+let _totalPoints = () => null;
+let _careerBefore = () => ({});
 
 export function initMatchIntroDeps({
   ratingMap,
@@ -47,6 +52,9 @@ export function initMatchIntroDeps({
   matchPoints,
   ratingScope,
   matchRating,
+  matchDetail,
+  totalPoints,
+  careerGamesBefore,
 }) {
   if (ratingMap) _ratingMap = ratingMap;
   if (ratingDefault) _ratingDefault = ratingDefault;
@@ -56,6 +64,9 @@ export function initMatchIntroDeps({
   if (matchPoints) _matchPoints = matchPoints;
   if (ratingScope) _ratingScope = ratingScope;
   if (matchRating) _matchRating = matchRating;
+  if (matchDetail) _matchDetail = matchDetail;
+  if (totalPoints) _totalPoints = totalPoints;
+  if (careerGamesBefore) _careerBefore = careerGamesBefore;
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -262,6 +273,9 @@ function openMatchIntro(idx) {
     })
     .join("");
   document.getElementById("mio-elo-deltas").innerHTML = deltaPills;
+
+  // ── Extra detail: win chance, pair records, per-player cards ─────────
+  renderMatchDetail(m, priorAss, afterAss, _pts, aWon, nameA, nameB);
 
   // H2H data between the two teams (all prior matches)
   const tkA = [...m.teamA].sort().join("|");
@@ -541,6 +555,148 @@ function openMatchIntro(idx) {
       .querySelectorAll(".mio-count-flash")
       .forEach((el) => el.classList.remove("mio-count-flash"));
   };
+}
+
+
+// Win-chance bar, pair records and a card per player (rank, win %, total
+// points, game number / newcomer flag, recent form and how the points were
+// built). Everything beyond rank/win%/form/pair record is EP-only and simply
+// omitted for the other scoring systems.
+function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB) {
+  const wcEl = document.getElementById("mio-winchance");
+  const dEl = document.getElementById("mio-detail");
+  if (!wcEl || !dEl) return;
+  const lbl = _ratingLabel();
+  const def = _ratingDefault();
+  const guests = new Set(
+    Object.values(state.players || {})
+      .filter((p) => p.isGuest)
+      .map((p) => p.name),
+  );
+  const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
+  const scopeSorted = [..._ratingScope(m)].sort(byDate);
+  const k = scopeSorted.indexOf(m);
+  const beforeScope = k >= 0 ? scopeSorted.slice(0, k) : scopeSorted;
+  const inclScope = k >= 0 ? scopeSorted.slice(0, k + 1) : scopeSorted;
+  const allSorted = [...state.matches].sort(byDate);
+  const ka = allSorted.indexOf(m);
+  const lifetimeBefore = ka >= 0 ? allSorted.slice(0, ka) : allSorted;
+  const detail = _matchDetail(m);
+  const careerN = _careerBefore(m) || {};
+
+  const involves = (x, p) => (x.teamA || []).includes(p) || (x.teamB || []).includes(p);
+  const wonBy = (x, p) =>
+    (x.teamA || []).includes(p) ? x.scoreA > x.scoreB : x.scoreB > x.scoreA;
+  const record = (ms, p) => {
+    let w = 0;
+    let g = 0;
+    ms.forEach((x) => {
+      if (!involves(x, p)) return;
+      g++;
+      if (wonBy(x, p)) w++;
+    });
+    return { w, g };
+  };
+  const pct = (r) => (r.g ? Math.round((100 * r.w) / r.g) : 0);
+  const rankIn = (map, p) => {
+    if (!(p in map)) return null;
+    let r = 1;
+    Object.keys(map).forEach((q) => {
+      if (q !== p && !guests.has(q) && map[q] > map[p]) r++;
+    });
+    return r;
+  };
+  const totBefore = _totalPoints(beforeScope);
+
+  // 2 — win chance
+  if (detail) {
+    const pA = Math.round(detail.expA * 100);
+    const pB = 100 - pA;
+    const winnerP = aWon ? pA : pB;
+    const upset = winnerP < 40 ? `<span class="mio-wc-upset">⚡ UPSET</span>` : "";
+    wcEl.innerHTML = `<div class="mio-wc-lbl">WIN CHANCE BEFORE THE MATCH ${upset}</div>
+      <div class="mio-wc-bar"><div class="mio-wc-a" style="flex:${pA}">${pA}%</div><div class="mio-wc-b" style="flex:${pB}">${pB}%</div></div>
+      <div class="mio-wc-names"><span>${escHtml(nameA)}</span><span>${escHtml(nameB)}</span></div>`;
+    wcEl.style.display = "";
+  } else {
+    wcEl.innerHTML = "";
+    wcEl.style.display = "none";
+  }
+
+  // 6 — pair records
+  const pairLine = (team) => {
+    const [x, y] = team;
+    if (!y) return "";
+    let w = 0;
+    let l = 0;
+    lifetimeBefore.forEach((z) => {
+      const together =
+        ((z.teamA || []).includes(x) && (z.teamA || []).includes(y)) ||
+        ((z.teamB || []).includes(x) && (z.teamB || []).includes(y));
+      if (!together) return;
+      if (wonBy(z, x)) w++;
+      else l++;
+    });
+    const nm = `${escHtml(normPlayer(x))} &amp; ${escHtml(normPlayer(y))}`;
+    return w + l
+      ? `<div class="mio-pair-line"><b>${nm}</b> together: ${w}–${l} (${Math.round((100 * w) / (w + l))}%)</div>`
+      : `<div class="mio-pair-line"><b>${nm}</b> — first time as a pair</div>`;
+  };
+
+  const card = (p) => {
+    const ra = rankIn(priorAss, p);
+    const rb = rankIn(afterAss, p);
+    const wb = record(beforeScope, p);
+    const wa = record(inclScope, p);
+    const parts = [];
+    parts.push(
+      `<div class="mio-dc-row"><span>Rank</span><b>${ra ? `#${ra}` : "—"} → ${rb ? `#${rb}` : "—"}</b></div>`,
+    );
+    parts.push(
+      `<div class="mio-dc-row"><span>Win %</span><b>${pct(wb)}% → ${pct(wa)}%</b></div>`,
+    );
+    if (totBefore && pts && pts[p] !== undefined) {
+      const tb = totBefore[p] ?? 0;
+      parts.push(
+        `<div class="mio-dc-row"><span>Total pts</span><b>${tb} → ${tb + pts[p]}</b></div>`,
+      );
+    }
+    const gamesBefore = wb.g;
+    const car = careerN[p] ?? 0;
+    const bd = detail && detail.breakdown ? detail.breakdown[p] : null;
+    const vet = bd ? bd.vet : car >= 50;
+    parts.push(
+      `<div class="mio-dc-row"><span>Game</span><b>#${gamesBefore + 1} · ${car} career · <em class="${vet ? "vet" : "new"}">${vet ? "veteran" : "newcomer"}</em></b></div>`,
+    );
+    const form = lifetimeBefore
+      .filter((x) => involves(x, p))
+      .slice(-5)
+      .map((x) => `<i class="${wonBy(x, p) ? "w" : "l"}"></i>`)
+      .join("");
+    parts.push(
+      `<div class="mio-dc-row"><span>Form</span><b class="mio-form">${form || "—"}</b></div>`,
+    );
+    if (bd) {
+      const sign = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v)}`;
+      const fin = pts && pts[p] !== undefined ? pts[p] : bd.raw + bd.shift;
+      const split = bd.shift ? `, partner split ${sign(bd.shift)}` : "";
+      const txt = bd.won
+        ? `Win: 100 × ${bd.oppF.toFixed(2)} opposition × ${bd.qualityF.toFixed(2)} margin = ${bd.raw}${split} → <b>${sign(fin)}</b>`
+        : bd.vet
+          ? `Veteran loss (team ${Math.round(bd.teamP * 100)}% favoured): ${sign(bd.raw)}${split} → <b>${sign(fin)}</b>`
+          : `Newcomer loss credit: ${sign(bd.raw)}${split} → <b>${sign(fin)}</b>`;
+      parts.push(`<div class="mio-dc-why">${txt}</div>`);
+    }
+    return `<div class="mio-dcard"><div class="mio-dc-name">${escHtml(normPlayer(p))}</div>${parts.join("")}</div>`;
+  };
+
+  dEl.innerHTML = `<div class="mio-detail-lbl">PAIR RECORD (BEFORE THIS MATCH)</div>
+    ${pairLine(m.teamA)}${pairLine(m.teamB)}
+    <div class="mio-detail-lbl">PLAYER BREAKDOWN · ${escHtml(lbl)}</div>
+    <div class="mio-detail-grid">
+      <div class="mio-detail-col">${m.teamA.map(card).join("")}</div>
+      <div class="mio-detail-col">${m.teamB.map(card).join("")}</div>
+    </div>`;
 }
 
 function closeMatchIntro() {
