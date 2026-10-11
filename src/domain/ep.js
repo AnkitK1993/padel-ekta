@@ -30,10 +30,9 @@
 //      so margin is real signal but noisy, and over-weighting it would just
 //      reward running up the score.
 //
-// 4. TEAMMATE SPLIT — once both partners have 50+ scored games, the team's
-//    points are re-split toward whoever has the lower public ASS right now
-//    (see TEAM_SPLIT_*). Before that, partners earn identically and the board
-//    handles the difference through the shrinkage term below.
+// 4. TEAMMATE SPLIT — the team's points are re-split toward whichever partner
+//    has the lower public ASS right now (see TEAM_SPLIT_*), regardless of how
+//    many games either has played.
 //
 // The leaderboard key is EP / (games + SHRINKAGE), not raw total EP. Raw
 // total rewards mileage over quality — on real history it put a 49% player
@@ -50,13 +49,13 @@ const MATURITY_GAMES = 50; // career games until losses are fully accountable
 const MARGIN_W = 0.4; // margin swing: 4-0 pays 1.20x, 4-3 pays 0.90x
 const SHUTOUT_BONUS = 1.05; // extra for conceding nothing (~11% of matches)
 export const EP_SHRINKAGE = 10; // phantom zero-point games in the rank key
-// Teammate split. Once BOTH partners have played this many scored games their
-// public ASS ratings are trustworthy, so the team's points are re-split in
-// favour of whoever is currently the weaker player (lower ASS). The team's
-// total is unchanged — only who gets how much of it. The shift is a fraction
-// of the award, growing with the rating gap and capped, so a hair's-breadth
-// difference barely moves anything.
-export const TEAM_SPLIT_MIN_GAMES = 50;
+// Teammate split. Whichever partner currently has the lower public ASS is the
+// weaker player, and the team's points are re-split in their favour — no
+// matter how many games either has played (a 30-game player on 80 ASS counts
+// as better than a 90-game player on 75). The team's total is unchanged, only
+// who gets how much of it. The shift is a fraction of the award, growing with
+// the rating gap and capped, so a hair's-breadth difference barely moves
+// anything.
 export const TEAM_SPLIT_GAP_SCALE = 20; // rating gap (raw ASS) that reaches the cap...
 export const TEAM_SPLIT_MAX_SHIFT = 0.5; // ...of this fraction of the award
 
@@ -124,11 +123,6 @@ export function computeMatchEPDeltas(matches, careerMatches = null) {
       [teamA, teamB].forEach((team) => {
         if (team.length !== 2) return;
         const [x, y] = team;
-        if (
-          (epGames[x] || 0) < TEAM_SPLIT_MIN_GAMES ||
-          (epGames[y] || 0) < TEAM_SPLIT_MIN_GAMES
-        )
-          return;
         const gap = Math.abs(rating(x) - rating(y));
         const f = Math.min(TEAM_SPLIT_MAX_SHIFT, (gap / TEAM_SPLIT_GAP_SCALE) * TEAM_SPLIT_MAX_SHIFT);
         const shift = Math.round(

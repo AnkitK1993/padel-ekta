@@ -9,7 +9,6 @@ import {
   computeEPUpsets,
   computeEPProjection,
   EP_SHRINKAGE,
-  TEAM_SPLIT_MIN_GAMES,
 } from "../src/domain/ep.js";
 
 let pass = 0,
@@ -417,17 +416,17 @@ console.log("\n\x1b[36m── EP: teammates split points toward the weaker ASS �
 
 // Strong has won all of his first 55 games, Weak lost nearly all of hers — both
 // are past the split threshold, with a clear rating gap. Then they team up.
-const strongRun = Array.from({ length: TEAM_SPLIT_MIN_GAMES + 5 }, (_, i) =>
+const strongRun = Array.from({ length: 55 }, (_, i) =>
   M("2024-05-01", ["Strong", `S${i}`], [`T${i}`, `U${i}`], 4, 1),
 );
-const weakRun = Array.from({ length: TEAM_SPLIT_MIN_GAMES + 5 }, (_, i) =>
+const weakRun = Array.from({ length: 55 }, (_, i) =>
   M("2024-05-02", ["Weak", `V${i}`], [`W${i}`, `X${i}`], 1, 4),
 );
 const pairWin = M("2024-06-01", ["Strong", "Weak"], ["Opp1", "Opp2"], 4, 2);
 const splitWin = [...strongRun, ...weakRun, pairWin];
 const sd = d(splitWin, pairWin, splitWin);
 ok(
-  "past 50 games each, the lower-ASS partner earns MORE for the same win",
+  "the lower-ASS partner earns MORE for the same win",
   sd.Weak > sd.Strong,
   `Weak ${sd.Weak} vs Strong ${sd.Strong}`,
 );
@@ -438,18 +437,30 @@ ok(
   sl.Weak > sl.Strong,
   `Weak ${sl.Weak} vs Strong ${sl.Strong}`,
 );
-const youngWeak = [
-  ...strongRun,
-  ...Array.from({ length: 10 }, (_, i) =>
-    M("2024-05-02", ["Weak", `V${i}`], [`W${i}`, `X${i}`], 1, 4),
-  ),
-  pairWin,
-];
-const yd = d(youngWeak, pairWin, youngWeak);
+// Games played don't matter: a 30-game player who is rated higher counts as the
+// better player over a 90-game partner who is rated lower.
+const fewGamesHigh = Array.from({ length: 30 }, (_, i) =>
+  M("2024-05-01", ["Young", `S${i}`], [`T${i}`, `U${i}`], 4, 1),
+);
+const manyGamesLow = Array.from({ length: 90 }, (_, i) =>
+  M("2024-05-02", ["Vet", `V${i}`], [`W${i}`, `X${i}`], 1, 4),
+);
+const mixedPair = M("2024-06-01", ["Young", "Vet"], ["Opp1", "Opp2"], 4, 2);
+const mixedAll = [...fewGamesHigh, ...manyGamesLow, mixedPair];
+const mf = computeEPFull(
+  mixedAll.filter((m) => m !== mixedPair),
+  mixedAll,
+);
+const md = d(mixedAll, mixedPair, mixedAll);
 ok(
-  "if either partner is under 50 games there is no ASS-based split",
-  yd.Strong === yd.Weak,
-  `Strong ${yd.Strong} vs Weak ${yd.Weak}`,
+  "setup: the 30-game player really is rated higher than the 90-game one",
+  mf.Young.score > mf.Vet.score,
+  `Young ${mf.Young.score} vs Vet ${mf.Vet.score}`,
+);
+ok(
+  "a higher-ASS player with FEWER games is still treated as the better player",
+  md.Vet > md.Young,
+  `Vet ${md.Vet} vs Young ${md.Young}`,
 );
 
 console.log(`\n\x1b[1mEP: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`);
