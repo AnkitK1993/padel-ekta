@@ -29,6 +29,9 @@ let _ratingDefault = () => 1000;
 let _ratingFmt = (v) => String(Math.round(v));
 let _ratingLabel = () => "ASS";
 let _isZeroBased = () => false;
+// Raw points each player earned for a match ({ name: points }), or null when
+// the active system has no separate points notion (rating change == points).
+let _matchPoints = () => null;
 
 export function initMatchIntroDeps({
   ratingMap,
@@ -36,12 +39,14 @@ export function initMatchIntroDeps({
   ratingFmt,
   ratingLabel,
   isZeroBased,
+  matchPoints,
 }) {
   if (ratingMap) _ratingMap = ratingMap;
   if (ratingDefault) _ratingDefault = ratingDefault;
   if (ratingFmt) _ratingFmt = ratingFmt;
   if (ratingLabel) _ratingLabel = ratingLabel;
   if (isZeroBased) _isZeroBased = isZeroBased;
+  if (matchPoints) _matchPoints = matchPoints;
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -441,6 +446,19 @@ function openMatchIntro(idx) {
     ctxParts.push(
       `${teamBDelta >= 0 ? "📈" : "📉"} ${nameB.split("<br>").join(" ")} ${fmtTeamDelta(teamBDelta)}`,
     );
+
+    // Raw points each player earned this match (EP) — distinct from the
+    // rating change above, which is how far their displayed score moved.
+    const pts = _matchPoints(m);
+    if (pts) {
+      const fmtPts = (v) => `${v >= 0 ? "+" : ""}${v}`;
+      [m.teamA, m.teamB].forEach((team) => {
+        const parts = team
+          .filter((p) => pts[p] !== undefined)
+          .map((p) => `${escHtml(normPlayer(p))} ${fmtPts(pts[p])}`);
+        if (parts.length) ctxParts.push(`🏅 ${parts.join(" · ")} pts`);
+      });
+    }
 
     ctxEl.innerHTML = ctxParts.length
       ? ctxParts.map((t) => `<div class="mio-ctx-line">${t}</div>`).join("")

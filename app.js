@@ -1443,6 +1443,12 @@ initMatchIntroDeps({
   ratingFmt: (v) => _statsFmt(v),
   ratingLabel: () => _statsLabel(),
   isZeroBased: () => SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem),
+  // Raw EP points earned in a match (EP only — for the other engines the
+  // rating change already is the points).
+  matchPoints: (m) =>
+    _scoringSystem === "ep"
+      ? (_matchDeltasForSystem("ep", state.matches).get(m)?.playerDeltas ?? null)
+      : null,
 });
 
 // ── One-time module initialisations ────────────────────────
