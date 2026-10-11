@@ -1346,7 +1346,6 @@ function _buildCloudPayload() {
 // invalidation + version bump they expect.
 {
   const _repoSave = _cloudRepoSave;
-  // eslint-disable-next-line no-func-assign — intentional bridge
   saveCloudData = function saveCloudData(opts) {
     _lastLocalSaveTime = Date.now(); // arm conflict-suppression window for ALL mutation paths
     _invalidateStatsMemo();
@@ -8916,7 +8915,8 @@ function _pairMatrixInner() {
   const _allTimeElo = _memoRating();
   const players = Object.keys(played).sort(
     (a, b) =>
-      (_allTimeElo[b] || 1000) - (_allTimeElo[a] || 1000) || a.localeCompare(b),
+      (_allTimeElo[b] ?? rating.def()) - (_allTimeElo[a] ?? rating.def()) ||
+      a.localeCompare(b),
   );
 
   const caption =
@@ -10419,9 +10419,10 @@ function _periodAwards(ms, priorMs) {
   const mostImproved = priorEloMap
     ? [...stats].sort(
         (a, b) =>
-          (eloMap[b.name] || 1000) -
-          (priorEloMap[b.name] || 1000) -
-          ((eloMap[a.name] || 1000) - (priorEloMap[a.name] || 1000)),
+          (eloMap[b.name] ?? rating.def()) -
+          (priorEloMap[b.name] ?? rating.def()) -
+          ((eloMap[a.name] ?? rating.def()) -
+            (priorEloMap[a.name] ?? rating.def())),
       )[0]
     : null;
   // Most Consistent (≥3 matches): lowest std-dev of per-match game share.
@@ -12141,11 +12142,9 @@ function runMatchPrediction() {
     return;
   }
   const eloMap = _memoRating();
-  const avgA =
-    teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
-  const avgB =
-    teamB.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamB.length;
-  const probA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+  // Win chance off the SR band (same for every scoring system) — a fixed
+  // 400-point logistic on raw ratings is flat on a 0-based system.
+  const probA = _statsWinProb(teamA, teamB);
   const pctA = Math.round(probA * 100),
     pctB = 100 - pctA;
   const colA = playerColor(teamA[0]),
@@ -12197,9 +12196,10 @@ function runMatchPrediction() {
             relevantMs.length,
         )
       : 4;
+  const _strength = rating.strength(eloMap);
   const upsetFlag =
     (pctA < 40 || pctA > 60) &&
-    (eloMap[teamA[0]] || 1000) < (eloMap[teamB[0]] || 1000) - 80;
+    _strength(teamA[0]) < _strength(teamB[0]) - 80 / 60; // 80 classic points
 
   res.innerHTML = `
     <div style="border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);padding:12px;margin-top:4px">
@@ -13093,7 +13093,7 @@ function _buildSeasonComparisonHtml() {
         ? vals.length
           ? vals[Math.floor(vals.length / 2)]
           : 0
-        : 1000,
+        : rating.def(),
     };
   });
   const totals = {};
@@ -14631,10 +14631,10 @@ function renderAnalyticsPage() {
   // Pair chemistry score = 60% win% + 40% ELO-normalized
   const _minPairElo = pairAvgEloArr.length
     ? Math.min(...pairAvgEloArr.map((x) => x.avgElo))
-    : 1000;
+    : rating.def();
   const _maxPairElo = pairAvgEloArr.length
     ? Math.max(...pairAvgEloArr.map((x) => x.avgElo))
-    : 1000;
+    : rating.def();
   const _pairEloRange = Math.max(1, _maxPairElo - _minPairElo);
   const pairChemMap = new Map();
   pairAvgEloArr.forEach(({ key, avgElo }) => {
@@ -18811,7 +18811,6 @@ Object.assign(window, {
   closeSeasonReveal,
   openPersonalSeasonRecap,
   toggleOfflineMode,
-  renderHome,
   renderCompact,
   toggleMatchDeltaWindow,
   toggleTopGainersWindow,

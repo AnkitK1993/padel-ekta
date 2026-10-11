@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-components.mjs && node tests/tests-season-scoring.mjs && node tests/tests-glicko2.mjs && node tests/tests-openskill.mjs && node tests/tests-fairshare.mjs && node tests/tests-ep.mjs && node tests/tests-season-recap.mjs && node scripts/handler-audit.mjs",
+    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-components.mjs && node tests/tests-season-scoring.mjs && node tests/tests-glicko2.mjs && node tests/tests-openskill.mjs && node tests/tests-fairshare.mjs && node tests/tests-ep.mjs && node tests/tests-season-recap.mjs && node tests/tests-consistency.mjs && node scripts/handler-audit.mjs",
     "test:golden": "node tests/tests-golden.mjs",
     "test:components": "node tests/tests-components.mjs",
     "test:season-scoring": "node tests/tests-season-scoring.mjs",
@@ -16,11 +16,16 @@
     "test:visual": "node scripts/visual-regression.js",
     "test:visual:update": "node scripts/visual-regression.js --update-baselines",
     "css:coverage": "node scripts/css-coverage.js",
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "lint": "eslint app.js utils.js sw.js features src",
+    "test:consistency": "node tests/tests-consistency.mjs",
+    "test:consistency:browser": "node scripts/consistency-check.js"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",
     "esbuild": "^0.28.1",
+    "eslint": "^10.12.0",
+    "globals": "^16.5.0",
     "pixelmatch": "^7.2.0",
     "pngjs": "^7.0.0"
   }

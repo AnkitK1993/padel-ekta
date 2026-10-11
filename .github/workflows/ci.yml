@@ -32,6 +32,11 @@ jobs:
 
       - run: npm ci
 
+      # Catches names that were never defined or imported — the kind of bug a
+      # browser only finds when that code path first runs.
+      - name: Lint (undefined names, duplicate keys)
+        run: npm run lint
+
       - name: Unit + golden + americano tests
         run: npm test
 
@@ -41,16 +46,27 @@ jobs:
       - name: Production build
         run: npm run build
 
-      # The two headless-Chrome steps occasionally flake on the runner (Chrome
-      # launch/connect race or a transient external fetch). They are
-      # deterministic on re-run, so retry once before failing the build — a real
-      # regression fails twice, transient flake passes on the retry.
+      # Hermetic (Firebase is stubbed, no network): a failure here is a real
+      # regression, so there is deliberately NO retry. Checks that a rating is
+      # the same number on every screen, for the three main scoring systems.
+      - name: Cross-screen consistency (headless Chrome)
+        run: npm run test:consistency:browser
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+
+      # These two load the real Firebase SDK from gstatic (that import graph is
+      # part of what they verify), so a transient network blip can fail them.
+      # They are deterministic on re-run: retry once, but make the flake loud —
+      # a warning annotation plus a line in the job summary — so a step that
+      # keeps flaking is noticed instead of silently absorbed.
       - name: CSS coverage report
-        run: npm run css:coverage || { echo "::warning::css:coverage flaked; retrying once"; npm run css:coverage; }
+        run: |
+          npm run css:coverage || { echo "::warning::css:coverage flaked; retrying once"; echo "- css:coverage flaked on this run (retried)" >> "$GITHUB_STEP_SUMMARY"; npm run css:coverage; }
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
 
       - name: Browser smoke (headless Chrome)
-        run: npm run test:browser || { echo "::warning::browser smoke flaked; retrying once"; npm run test:browser; }
+        run: |
+          npm run test:browser || { echo "::warning::browser smoke flaked; retrying once"; echo "- browser smoke flaked on this run (retried)" >> "$GITHUB_STEP_SUMMARY"; npm run test:browser; }
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
