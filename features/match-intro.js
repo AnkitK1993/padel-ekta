@@ -246,14 +246,19 @@ function openMatchIntro(idx) {
   document.getElementById("mio-result-line").textContent =
     `${winner.toUpperCase()} WIN`;
 
-  // Rating delta pills — each player shows their rating change for the match,
-  // following the active scoring picker.
+  // Per-player pill: name, rating before -> after, and (EP) the raw points
+  // earned. Rating goes straight through the active picker's formatter.
+  const _pts = _matchPoints(m);
   const deltaPills = [...m.teamA, ...m.teamB]
     .map((p) => {
-      const aDelta = (afterAss[p] ?? _mcDefault) - (priorAss[p] ?? _mcDefault);
-      const aSign = aDelta >= 0 ? "+" : "";
-      const aCls = aDelta >= 0 ? "gain" : "loss";
-      return `<span class="mio-delta-pill"><span class="mio-delta-name">${normPlayer(p)}</span><span class="mio-delta-sub ${aCls}">${_mioLbl} ${aSign}${_ratingFmt(aDelta)}</span></span>`;
+      const oldR = priorAss[p] ?? _mcDefault;
+      const newR = afterAss[p] ?? _mcDefault;
+      const aCls = newR - oldR >= 0 ? "gain" : "loss";
+      const ptsHtml =
+        _pts && _pts[p] !== undefined
+          ? `<span class="mio-delta-pts">${_pts[p] >= 0 ? "+" : ""}${_pts[p]} pts</span>`
+          : "";
+      return `<span class="mio-delta-pill"><span class="mio-delta-name">${escHtml(normPlayer(p))}</span><span class="mio-delta-sub mio-delta-range ${aCls}">${_ratingFmt(oldR)} → ${_ratingFmt(newR)}</span>${ptsHtml}</span>`;
     })
     .join("");
   document.getElementById("mio-elo-deltas").innerHTML = deltaPills;
@@ -483,19 +488,6 @@ function openMatchIntro(idx) {
     ctxParts.push(
       `${teamBDelta >= 0 ? "📈" : "📉"} ${nameB.split("<br>").join(" ")} ${fmtTeamDelta(teamBDelta)}`,
     );
-
-    // Raw points each player earned this match (EP) — distinct from the
-    // rating change above, which is how far their displayed score moved.
-    const pts = _matchPoints(m);
-    if (pts) {
-      const fmtPts = (v) => `${v >= 0 ? "+" : ""}${v}`;
-      [m.teamA, m.teamB].forEach((team) => {
-        const parts = team
-          .filter((p) => pts[p] !== undefined)
-          .map((p) => `${escHtml(normPlayer(p))} ${fmtPts(pts[p])}`);
-        if (parts.length) ctxParts.push(`🏅 ${parts.join(" · ")} pts`);
-      });
-    }
 
     ctxEl.innerHTML = ctxParts.length
       ? ctxParts.map((t) => `<div class="mio-ctx-line">${t}</div>`).join("")

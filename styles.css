@@ -9947,6 +9947,16 @@ select.cmp-sel option {
   font-size: 8px;
   font-weight: 800;
 }
+.mio-delta-range {
+  font-size: 10px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.mio-delta-pts {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+}
 .mio-delta-sub.gain {
   color: var(--green);
 }
