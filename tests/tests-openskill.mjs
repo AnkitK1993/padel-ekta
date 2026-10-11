@@ -124,6 +124,24 @@ ok(
   JSON.stringify(computeOpenSkill(mixedMatch)) === JSON.stringify(computeOpenSkill(shuffled)),
 );
 
+console.log("\n\x1b[36m── playerAfter (exact post-match rating) ──────────────\x1b[0m");
+
+// Rounded per-match deltas drift from the real rating when summed, so each
+// entry also carries the exact post-match mu (what timelines/History read).
+const afterMap = computeMatchOpenSkillDeltas(mixedMatch);
+const lastAfter = afterMap.get(mixedMatch[mixedMatch.length - 1]);
+const finalFull = computeOpenSkillFull(mixedMatch);
+ok(
+  "playerAfter on the last match is the engine's exact final mu",
+  Object.keys(lastAfter.playerAfter).every((p) => lastAfter.playerAfter[p] === finalFull[p].mu),
+);
+ok(
+  "playerAfter is present for every player in every match",
+  mixedMatch.every((m) =>
+    [...m.teamA, ...m.teamB].every((p) => Number.isFinite(afterMap.get(m).playerAfter[p])),
+  ),
+);
+
 console.log(
   `\n\x1b[1mOpenSkill: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`,
 );

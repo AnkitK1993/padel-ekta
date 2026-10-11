@@ -170,7 +170,11 @@ export function computeGlicko2(matches) {
 
 // Per-match rating deltas, in the same Map<match, {dA, dB, playerDeltas}>
 // shape as computeMatchASSDeltas — dA/dB are the team-average delta (rounded)
-// for the summary match-row pills; playerDeltas is per-player.
+// for the summary match-row pills; playerDeltas is per-player (rounded).
+// playerAfter is each player's exact rating AFTER the match: the deltas are
+// rounded for display, so summing them drifts from the real rating — anything
+// that needs "the rating at this match" (timelines, History pills) reads
+// playerAfter instead, which keeps it identical to the leaderboard number.
 export function computeMatchGlicko2Deltas(matches) {
   const state = {};
   const ensure = (p) => {
@@ -198,6 +202,7 @@ export function computeMatchGlicko2Deltas(matches) {
       const oppOfA = { ...avgOf(teamB), s: aWon ? 1 : 0 };
       const oppOfB = { ...avgOf(teamA), s: aWon ? 0 : 1 };
       const playerDeltas = {};
+      const playerAfter = {};
       let sumA = 0,
         sumB = 0;
       teamA.forEach((p) => {
@@ -205,6 +210,7 @@ export function computeMatchGlicko2Deltas(matches) {
         const next = _updatePlayer(cur.r, cur.rd, cur.vol, [oppOfA]);
         const d = Math.round(next.r - cur.r);
         playerDeltas[p] = d;
+        playerAfter[p] = next.r;
         sumA += d;
         state[p] = next;
       });
@@ -213,6 +219,7 @@ export function computeMatchGlicko2Deltas(matches) {
         const next = _updatePlayer(cur.r, cur.rd, cur.vol, [oppOfB]);
         const d = Math.round(next.r - cur.r);
         playerDeltas[p] = d;
+        playerAfter[p] = next.r;
         sumB += d;
         state[p] = next;
       });
@@ -220,6 +227,7 @@ export function computeMatchGlicko2Deltas(matches) {
         dA: teamA.length ? Math.round(sumA / teamA.length) : 0,
         dB: teamB.length ? Math.round(sumB / teamB.length) : 0,
         playerDeltas,
+        playerAfter,
       });
     });
   return map;

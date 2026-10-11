@@ -9,6 +9,7 @@ import {
   computeEPUpsets,
   computeEPProjection,
   EP_SHRINKAGE,
+  EP_SCALE,
 } from "../src/domain/ep.js";
 
 let pass = 0,
@@ -169,8 +170,8 @@ const lopsided = [
 ];
 const full = computeEPFull(lopsided);
 ok(
-  "score = total EP / (games + shrinkage)",
-  Math.abs(full.Grinder.score - full.Grinder.ep / (full.Grinder.games + EP_SHRINKAGE)) < 1e-9,
+  "score = EP_SCALE × total EP / (games + shrinkage)",
+  Math.abs(full.Grinder.score - (EP_SCALE * full.Grinder.ep) / (full.Grinder.games + EP_SHRINKAGE)) < 1e-9,
 );
 ok(
   "a 1-match cameo cannot outrank a 6-match player on the same win rate",
@@ -263,7 +264,7 @@ ok(
   (() => {
     const last = tl.history.A[3];
     const total = tl.history.A.reduce((s, h) => s + h.delta, 0);
-    return Math.abs(last.elo - total / (4 + EP_SHRINKAGE)) < 1e-9;
+    return Math.abs(last.elo - (EP_SCALE * total) / (4 + EP_SHRINKAGE)) < 1e-9;
   })(),
 );
 ok(
@@ -388,7 +389,7 @@ ok(
   "projection denominator grows by futureM (games + futureM + shrinkage)",
   (() => {
     const full = computeEPFull(projMatches, [...bCareer, ...projMatches]).A;
-    const expected = (full.ep + rowA.avgDelta * 20) / (full.games + 20 + EP_SHRINKAGE);
+    const expected = (EP_SCALE * (full.ep + rowA.avgDelta * 20)) / (full.games + 20 + EP_SHRINKAGE);
     return Math.abs(rowA.projScore - expected) < 1e-9;
   })(),
 );

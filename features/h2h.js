@@ -3,10 +3,11 @@
 // renderH2HDeepDive. playerAvatar injected via initH2HDeps (uses photoMap).
 import { activeMatches } from "../src/domain/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
-import { state } from "../src/domain/state.js";
 import { getHeadToHeadStats } from "../src/domain/pairs.js";
-import { computeMatchASSDeltas } from "../src/domain/ass.js";
+import { rating } from "../src/domain/rating-service.js";
+import { emptyState } from "../src/ui/components.js";
 import {
+  escHtml,
   fmtDate,
   playerColor,
   playerInitials,
@@ -19,8 +20,14 @@ let _playerAvatar = (name, size = 26) => {
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
 };
 
-export function initH2HDeps({ playerAvatar }) {
+// The History feed's own per-player { delta, after } for a match, so a rating
+// change shown here is the very number on that match's History card and
+// overlay. Not wired -> null -> no pills (never a different engine's number).
+let _matchRating = () => null;
+
+export function initH2HDeps({ playerAvatar, matchRating }) {
   if (playerAvatar) _playerAvatar = playerAvatar;
+  if (matchRating) _matchRating = matchRating;
 }
 
 // ── RIVALRY STREAKS ─────────────────────────────────────────
@@ -96,36 +103,31 @@ function openH2HDetail(a, b) {
   });
   const aGPct = Math.round((aGW / (aGW + bGW || 1)) * 100);
 
-  // ASS walk for per-match deltas
-  const h2hDeltaMap = new Map();
-  const _sortedForAss = [...state.matches].sort((x, y) =>
-    (x.date || "").localeCompare(y.date || ""),
-  );
-  const _assDeltasAll = computeMatchASSDeltas(_sortedForAss);
-  _sortedForAss.forEach((m) => {
-    const info = _assDeltasAll.get(m);
-    if (!info) return;
-    const aInA = (m.teamA || []).some((p) => normPlayer(p) === a);
-    const aInB = (m.teamB || []).some((p) => normPlayer(p) === a);
-    const bInA = (m.teamA || []).some((p) => normPlayer(p) === b);
-    const bInB = (m.teamB || []).some((p) => normPlayer(p) === b);
-    if ((aInA && bInB) || (aInB && bInA)) {
-      const aRaw = (m.teamA || []).find((p) => normPlayer(p) === a) ?? (m.teamB || []).find((p) => normPlayer(p) === a);
-      const bRaw = (m.teamA || []).find((p) => normPlayer(p) === b) ?? (m.teamB || []).find((p) => normPlayer(p) === b);
-      h2hDeltaMap.set(m, {
-        ad: info.playerDeltas?.[aRaw] ?? 0,
-        bd: info.playerDeltas?.[bRaw] ?? 0,
-      });
-    }
-  });
+  // Each player's rating change in a match, straight from the History feed.
+  const matchDeltas = (m) => {
+    const info = _matchRating(m);
+    if (!info) return null;
+    const pick = (who) => {
+      const raw = [...(m.teamA || []), ...(m.teamB || [])].find(
+        (p) => normPlayer(p) === who,
+      );
+      return raw != null && info[raw] ? info[raw].delta : null;
+    };
+    return { ad: pick(a), bd: pick(b) };
+  };
+
+  // Total rating movement across exactly the meetings counted above.
   let aEloTotal = 0,
     bEloTotal = 0;
-  h2hDeltaMap.forEach((v) => {
-    aEloTotal += v.ad;
-    bEloTotal += v.bd;
+  h2h.matches.forEach((m) => {
+    const d = matchDeltas(m);
+    if (d) {
+      aEloTotal += d.ad ?? 0;
+      bEloTotal += d.bd ?? 0;
+    }
   });
 
-  const fmtD = (n) => (n > 0 ? `+${n}` : String(n));
+  const fmtD = (n) => (n > 0 ? `+${rating.fmt(n)}` : rating.fmt(n));
   const dCol = (n) =>
     n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
   const eloBg = (n) =>
@@ -152,23 +154,27 @@ function openH2HDetail(a, b) {
       const aWon = aInA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
       const sa = aInA ? m.scoreA : m.scoreB;
       const sb = aInA ? m.scoreB : m.scoreA;
-      const deltas = h2hDeltaMap.get(m);
-      const ad = deltas?.ad ?? 0;
-      const bd = deltas?.bd ?? 0;
+      const deltas = matchDeltas(m);
+      const ad = deltas?.ad ?? null;
+      const bd = deltas?.bd ?? null;
       const winnerCol = aWon ? col1 : col2;
       return `
         <div class="h2h-match-card">
           <div class="h2h-match-accent" style="background:${winnerCol}"></div>
           <div class="h2h-match-body">
             <div class="h2h-match-row1">
-              <span class="h2h-match-winner-name" style="color:${winnerCol}">${aWon ? aN : bN} won</span>
+              <span class="h2h-match-winner-name" style="color:${winnerCol}">${escHtml(aWon ? aN : bN)} won</span>
               <span class="h2h-match-score">${sa}–${sb}</span>
               <span class="h2h-match-date">${fmtDate(m.date)}</span>
             </div>
-            <div class="h2h-match-row2">
-              <span class="h2h-elo-pill" style="background:${eloBg(ad)};color:${dCol(ad)}">${aN} ${fmtD(ad)}</span>
-              <span class="h2h-elo-pill" style="background:${eloBg(bd)};color:${dCol(bd)}">${bN} ${fmtD(bd)}</span>
-            </div>
+            ${
+              ad == null || bd == null
+                ? ""
+                : `<div class="h2h-match-row2">
+              <span class="h2h-elo-pill" style="background:${eloBg(ad)};color:${dCol(ad)}">${escHtml(aN)} ${fmtD(ad)}</span>
+              <span class="h2h-elo-pill" style="background:${eloBg(bd)};color:${dCol(bd)}">${escHtml(bN)} ${fmtD(bd)}</span>
+            </div>`
+            }
           </div>
         </div>`;
     })
@@ -247,13 +253,13 @@ function openH2HDetail(a, b) {
 
           <div class="h2h-elo-row">
             <div class="h2h-elo-card" style="border-top-color:${borderCol(aEloTotal)}">
-              <div class="h2h-elo-label">ASS IMPACT</div>
+              <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
               <div class="h2h-elo-player" style="color:${col1}">${a}</div>
               <div class="h2h-elo-delta" style="color:${dCol(aEloTotal)}">${fmtD(aEloTotal)}</div>
               <div class="h2h-elo-sub">from ${total} meetings</div>
             </div>
             <div class="h2h-elo-card" style="border-top-color:${borderCol(bEloTotal)}">
-              <div class="h2h-elo-label">ASS IMPACT</div>
+              <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
               <div class="h2h-elo-player" style="color:${col2}">${b}</div>
               <div class="h2h-elo-delta" style="color:${dCol(bEloTotal)}">${fmtD(bEloTotal)}</div>
               <div class="h2h-elo-sub">from ${total} meetings</div>
@@ -430,33 +436,16 @@ function renderH2HDeepDive() {
       '<div class="sub" style="padding:8px">These players have never faced each other.</div>';
     return;
   }
-  // Walk full ASS to capture per-match deltas for this H2H pair
-  const h2hDeltaMap = new Map();
-  const _sortedForAss2 = [...state.matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  const _assDeltasAll2 = computeMatchASSDeltas(_sortedForAss2);
-  _sortedForAss2.forEach((m) => {
-    const info = _assDeltasAll2.get(m);
-    if (!info) return;
-    const p1InA = (m.teamA || []).includes(p1);
-    const p1InB = (m.teamB || []).includes(p1);
-    const p2InA = (m.teamA || []).includes(p2);
-    const p2InB = (m.teamB || []).includes(p2);
-    if ((p1InA && p2InB) || (p1InB && p2InA)) {
-      h2hDeltaMap.set(m, {
-        p1d: info.playerDeltas?.[p1] ?? 0,
-        p2d: info.playerDeltas?.[p2] ?? 0,
-      });
-    }
-  });
+  // Rating movement across these meetings, from the History feed's own numbers.
   let p1Total = 0,
     p2Total = 0;
-  h2hDeltaMap.forEach((v) => {
-    p1Total += v.p1d;
-    p2Total += v.p2d;
+  h2h.matches.forEach((m) => {
+    const info = _matchRating(m);
+    if (!info) return;
+    p1Total += info[p1]?.delta ?? 0;
+    p2Total += info[p2]?.delta ?? 0;
   });
-  const fmtD = (n) => (n > 0 ? `+${n}` : String(n));
+  const fmtD = (n) => (n > 0 ? `+${rating.fmt(n)}` : rating.fmt(n));
   const dCol = (n) =>
     n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : "var(--muted)";
 
@@ -517,13 +506,13 @@ function renderH2HDeepDive() {
 
       <div class="h2h-elo-row">
         <div class="h2h-elo-card" style="border-top-color:${borderCol(p1Total)}">
-          <div class="h2h-elo-label">ASS IMPACT</div>
+          <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
           <div class="h2h-elo-player" style="color:${col1}">${p1}</div>
           <div class="h2h-elo-delta" style="color:${dCol(p1Total)}">${fmtD(p1Total)}</div>
           <div class="h2h-elo-sub">from ${total} meetings</div>
         </div>
         <div class="h2h-elo-card" style="border-top-color:${borderCol(p2Total)}">
-          <div class="h2h-elo-label">ASS IMPACT</div>
+          <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
           <div class="h2h-elo-player" style="color:${col2}">${p2}</div>
           <div class="h2h-elo-delta" style="color:${dCol(p2Total)}">${fmtD(p2Total)}</div>
           <div class="h2h-elo-sub">from ${total} meetings</div>
@@ -543,9 +532,9 @@ function renderH2HDeepDive() {
           .map((m) => {
             const p1InA = m.teamA.includes(p1);
             const p1Won = p1InA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-            const deltas = h2hDeltaMap.get(m);
-            const p1d = deltas?.p1d ?? 0;
-            const p2d = deltas?.p2d ?? 0;
+            const info = _matchRating(m);
+            const p1d = info?.[p1]?.delta ?? null;
+            const p2d = info?.[p2]?.delta ?? null;
             const winnerCol = p1Won ? col1 : col2;
             const winnerName = p1Won ? p1 : p2;
             const scoreP1 = p1InA ? m.scoreA : m.scoreB;
@@ -555,14 +544,18 @@ function renderH2HDeepDive() {
                 <div class="h2h-match-accent" style="background:${winnerCol}"></div>
                 <div class="h2h-match-body">
                   <div class="h2h-match-row1">
-                    <span class="h2h-match-winner-name" style="color:${winnerCol}">${winnerName} won</span>
+                    <span class="h2h-match-winner-name" style="color:${winnerCol}">${escHtml(winnerName)} won</span>
                     <span class="h2h-match-score">${scoreP1}–${scoreP2}</span>
                     <span class="h2h-match-date">${fmtDate(m.date)}</span>
                   </div>
-                  <div class="h2h-match-row2">
-                    <span class="h2h-elo-pill" style="background:${eloBg(p1d)};color:${dCol(p1d)}">${p1} ${fmtD(p1d)}</span>
-                    <span class="h2h-elo-pill" style="background:${eloBg(p2d)};color:${dCol(p2d)}">${p2} ${fmtD(p2d)}</span>
-                  </div>
+                  ${
+                    p1d == null || p2d == null
+                      ? ""
+                      : `<div class="h2h-match-row2">
+                    <span class="h2h-elo-pill" style="background:${eloBg(p1d)};color:${dCol(p1d)}">${escHtml(p1)} ${fmtD(p1d)}</span>
+                    <span class="h2h-elo-pill" style="background:${eloBg(p2d)};color:${dCol(p2d)}">${escHtml(p2)} ${fmtD(p2d)}</span>
+                  </div>`
+                  }
                 </div>
               </div>`;
           })

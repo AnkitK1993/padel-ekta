@@ -1,8 +1,5 @@
 // ── CHART / SVG BUILDERS ───────────────────────────────────
 // Pure SVG string builders — no DOM, no app state.
-import { state } from "../domain/state.js";
-import { computeStats } from "../domain/stats.js";
-import { computeASS } from "../domain/ass.js";
 
 let _hudGaugeId = 0;
 
@@ -82,21 +79,11 @@ export function buildHudGaugeSvg(sr, ratingClass) {
   </svg>`;
 }
 
-export function getFormSparkline(playerName, width = 80, height = 28) {
-  const pMatches = state.matches
-    .filter((m) => m.teamA.includes(playerName) || m.teamB.includes(playerName))
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  if (pMatches.length < 2) return "";
-
-  const last10 = pMatches.slice(-10);
-
-  const srPoints = last10.map((_, i) => {
-    const window = pMatches.slice(0, pMatches.indexOf(last10[i]) + 1);
-    const s = computeStats(window, computeASS(window)).find(
-      (p) => p.name === playerName,
-    );
-    return s ? s.sr : 0;
-  });
+// `srPoints` is the player's recent skill-rating series (oldest -> newest, on
+// the 0-10 SR band), taken by the caller from the active rating timeline so the
+// sparkline can't disagree with the card it sits on. No series -> no sparkline.
+export function getFormSparkline(playerName, width = 80, height = 28, srPoints = null) {
+  if (!srPoints || srPoints.length < 2) return "";
 
   const min = Math.min(...srPoints);
   const max = Math.max(...srPoints);
@@ -130,12 +117,12 @@ export function getFormSparkline(playerName, width = 80, height = 28) {
 
   return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
               <defs>
-                <linearGradient id="sg_${playerName.replace(/\s/g, "_")}" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="sg_${playerName.replace(/[^A-Za-z0-9_-]/g, "_")}" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
                   <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
                 </linearGradient>
               </defs>
-              <path d="${areaPath}" fill="url(#sg_${playerName.replace(/\s/g, "_")})" />
+              <path d="${areaPath}" fill="url(#sg_${playerName.replace(/[^A-Za-z0-9_-]/g, "_")})" />
               <polyline points="${pts.join(" ")}" fill="none" stroke="${lineColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
               <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="2.5" fill="${lineColor}"/>
             </svg>`;

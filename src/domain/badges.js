@@ -3,21 +3,20 @@
 // Inputs arrive as args; the few cross-cutting helpers (stats/elo/pairs +
 // date helpers) are injected via initBadgesDeps so this module stays free of
 // app/DOM coupling (same injector pattern as elo.js / selectors.js).
-let _computeStats, _computeElo, _getPairStats, _lastWeekRange, _fmtDate;
+import { rating } from "./rating-service.js";
+
+let _computeStats, _getPairStats, _lastWeekRange, _fmtDate;
 export function initBadgesDeps(deps) {
   _computeStats = deps.computeStats;
-  _computeElo = deps.computeElo;
   _getPairStats = deps.getPairStats;
   _lastWeekRange = deps.lastWeekRange;
   _fmtDate = deps.fmtDate;
 }
 
-// `opts` lets the caller supply the rating engine the passed eloMap came
-// from. Without it the week-on-week "Climber" gain would subtract an
-// internally-computed ASS CLASSIC rating from whatever scale eloMap is on,
-// and `underdogGap` — a 1000-scale margin — would never be crossed on an
-// engine whose whole field spans ~50 points. Defaults reproduce the original
-// ASS CLASSIC behaviour exactly.
+// Ratings, baseline, underdog margin and label all default to the ACTIVE
+// scoring system (the rating service), so the passed eloMap and the numbers
+// derived from it are always on the same scale. `opts` is an override for
+// tests and special cases only.
 export function computeBadges(
   name,
   stats,
@@ -26,10 +25,10 @@ export function computeBadges(
   precomputedStats,
   opts = {},
 ) {
-  const _ratingFn = opts.ratingFn || _computeElo;
-  const _baseline = opts.baseline ?? 1000;
-  const _underdogGap = opts.underdogGap ?? 30;
-  const _ratingLabel = opts.ratingLabel || "ASS";
+  const _ratingFn = opts.ratingFn || ((ms) => rating.map(ms));
+  const _baseline = opts.baseline ?? rating.def();
+  const _underdogGap = opts.underdogGap ?? rating.underdogGap();
+  const _ratingLabel = opts.ratingLabel || rating.label();
   const badges = [];
   const allStats = precomputedStats || _computeStats(allMatchesArr);
   const sr = allStats;

@@ -146,6 +146,23 @@ ok(
   Math.abs(d0.playerDeltas.A1 - d0.dA) <= 1 && Math.abs(d0.playerDeltas.A2 - d0.dA) <= 1,
 );
 
+// Rounded per-match deltas drift from the real rating when summed, so each
+// entry also carries the exact post-match rating (what timelines/History read).
+const afterMap = computeMatchGlicko2Deltas(doublesMatches);
+const lastEntry = afterMap.get(doublesMatches[doublesMatches.length - 1]);
+ok(
+  "playerAfter on the last match is the engine's exact final rating",
+  Object.keys(lastEntry.playerAfter).every(
+    (p) => lastEntry.playerAfter[p] === computeGlicko2Full(doublesMatches)[p].r,
+  ),
+);
+ok(
+  "playerAfter is present for every player in every match",
+  doublesMatches.every((m) =>
+    [...m.teamA, ...m.teamB].every((p) => Number.isFinite(afterMap.get(m).playerAfter[p])),
+  ),
+);
+
 console.log("\n\x1b[36m── computeGlicko2 (flat map) ─────────────────────────\x1b[0m");
 
 const flat = computeGlicko2(doublesMatches);

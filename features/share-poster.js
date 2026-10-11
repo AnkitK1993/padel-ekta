@@ -2,32 +2,24 @@
 // Self-contained overlay that generates a visual match result card.
 // Pure src/ deps only — no app.js closure state needed.
 import { state } from "../src/domain/state.js";
-import { activeMatches } from "../src/domain/selectors.js";
-import { computeASS } from "../src/domain/ass.js";
-import { fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
+import { rating } from "../src/domain/rating-service.js";
+import { escHtml, fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
-// Rating accessors follow the Summary tab's scoring picker instead of being
-// hard-wired to ASS CLASSIC. Each falls back to the original engine/format,
-// so nothing changes if they aren't supplied.
-let _ratingMap = (ms) => computeASS(ms);
-let _ratingDefault = () => 1000;
-let _ratingFmt = (v) => String(Math.round(v));
+// The History card's own per-player { delta, after } for a match (app.js owns
+// that memoised walk), so the poster shows exactly the number on the card it
+// was shared from. Not wired -> null -> no rating chips (never another
+// engine's number).
+let _matchRating = () => null;
 
-export function initSharePosterDeps({ ratingMap, ratingDefault, ratingFmt }) {
-  if (ratingMap) _ratingMap = ratingMap;
-  if (ratingDefault) _ratingDefault = ratingDefault;
-  if (ratingFmt) _ratingFmt = ratingFmt;
+export function initSharePosterDeps({ matchRating }) {
+  if (matchRating) _matchRating = matchRating;
 }
 
 export function openShareMatchPoster(matchIdx) {
   document.getElementById("share-card-overlay")?.remove();
   const m = state.matches[matchIdx];
   if (!m) return;
-  const _amSlice = activeMatches();
-  const _upToIncl = new Set(state.matches.slice(0, matchIdx + 1));
-  const _upToBefore = new Set(state.matches.slice(0, matchIdx));
-  const eloMap = _ratingMap(_amSlice.filter((m) => _upToIncl.has(m)));
-  const eloMapBefore = _ratingMap(_amSlice.filter((m) => _upToBefore.has(m)));
+  const _cardRating = _matchRating(m);
   const aWon = m.scoreA > m.scoreB;
   const winTeam = aWon ? m.teamA : m.teamB;
   const losTeam = aWon ? m.teamB : m.teamA;
@@ -42,12 +34,10 @@ export function openShareMatchPoster(matchIdx) {
     return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c}33;border:2px solid ${c}66;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.35)}px;font-weight:900;color:${c}">${playerInitials(name)}</div>`;
   };
   const mkEloDelta = (name) => {
-    const _def = _ratingDefault();
-    const before = eloMapBefore[name] ?? _def;
-    const after = eloMap[name] ?? _def;
-    const d = after - before;
+    const d = _cardRating?.[name]?.delta;
+    if (d == null) return "";
     const col = d > 0 ? "#4ade80" : d < 0 ? "#f87171" : "rgba(255,255,255,0.4)";
-    return `<span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? "+" : ""}${_ratingFmt(d)}</span>`;
+    return `<span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? "+" : ""}${rating.fmt(d)}</span>`;
   };
   const mkTeamRow = (team) =>
     team
@@ -55,7 +45,7 @@ export function openShareMatchPoster(matchIdx) {
         (p) =>
           `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       ${mkAvatar(p, 32)}
-      <span style="font-size:13px;font-weight:800;color:#f0ecff">${p}</span>
+      <span style="font-size:13px;font-weight:800;color:#f0ecff">${escHtml(p)}</span>
       <span style="margin-left:auto">${mkEloDelta(p)}</span>
     </div>`,
       )

@@ -109,6 +109,8 @@ export function ordinal(mu, sigma) {
 
 // Per-match rating deltas (change in mu), same Map<match, {dA, dB,
 // playerDeltas}> shape as computeMatchASSDeltas/computeMatchGlicko2Deltas.
+// playerAfter is each player's exact mu AFTER the match (see the note on
+// computeMatchGlicko2Deltas: rounded deltas drift from the real rating).
 export function computeMatchOpenSkillDeltas(matches) {
   const state = {};
   const ensure = (p) => {
@@ -125,16 +127,19 @@ export function computeMatchOpenSkillDeltas(matches) {
       const before = { ...state };
       const updated = _matchUpdate(teamA, teamB, aWon, state);
       const playerDeltas = {};
+      const playerAfter = {};
       let sumA = 0,
         sumB = 0;
       teamA.forEach((p) => {
         const d = Math.round(updated[p].mu - before[p].mu);
         playerDeltas[p] = d;
+        playerAfter[p] = updated[p].mu;
         sumA += d;
       });
       teamB.forEach((p) => {
         const d = Math.round(updated[p].mu - before[p].mu);
         playerDeltas[p] = d;
+        playerAfter[p] = updated[p].mu;
         sumB += d;
       });
       Object.assign(state, updated);
@@ -142,6 +147,7 @@ export function computeMatchOpenSkillDeltas(matches) {
         dA: teamA.length ? Math.round(sumA / teamA.length) : 0,
         dB: teamB.length ? Math.round(sumB / teamB.length) : 0,
         playerDeltas,
+        playerAfter,
       });
     });
   return map;

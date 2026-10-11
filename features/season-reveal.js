@@ -7,6 +7,7 @@
 import { state } from "../src/domain/state.js";
 import { activeMatches, _inSeason } from "../src/domain/selectors.js";
 import { computeSeasonRecap } from "../src/domain/season-recap.js";
+import { rating } from "../src/domain/rating-service.js";
 import { escHtml, fmtDate } from "../src/ui/format.js";
 import { fireConfetti } from "./confetti.js";
 
@@ -160,7 +161,7 @@ export function closeSeasonReveal() {
 // archivedSnapshot — so it works for any season, including one still in
 // progress ("recap so far"), not only an already-archived one.
 function _fmtSign(n) {
-  return n > 0 ? `+${n}` : `${n}`;
+  return n > 0 ? `+${rating.fmt(n)}` : rating.fmt(n);
 }
 
 export function buildPersonalRecapSlides(recap, seasonName) {
@@ -177,8 +178,8 @@ export function buildPersonalRecapSlides(recap, seasonName) {
     key: "recap-rating",
     icon: recap.ratingDelta > 0 ? "📈" : recap.ratingDelta < 0 ? "📉" : "➡️",
     title: "Rating Journey",
-    name: `${recap.startRating} → ${recap.endRating}`,
-    detail: `${_fmtSign(recap.ratingDelta)} this season · Peak ${recap.peakRating}`,
+    name: `${rating.fmt(recap.startRating)} → ${rating.fmt(recap.endRating)}`,
+    detail: `${_fmtSign(recap.ratingDelta)} this season · Peak ${rating.fmt(recap.peakRating)}`,
     celebrate: recap.ratingDelta > 0,
   });
   if (recap.bestWin) {

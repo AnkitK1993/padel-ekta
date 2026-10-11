@@ -52,6 +52,11 @@ const MATURITY_GAMES = 50;
 const MARGIN_W = 0.4; // margin swing: 4-0 pays 1.20x, 4-3 pays 0.90x
 const SHUTOUT_BONUS = 1.05; // extra for conceding nothing (~11% of matches)
 export const EP_SHRINKAGE = 10; // phantom zero-point games in the rank key
+// The headline "ASS" number is DOUBLED at the source (total / (games + 10) * 2)
+// so every consumer — leaderboard, timelines, projections, deltas — sees the
+// same scale without a print-time patch. Raw point totals (TOTAL column, the
+// per-match "pts") are NOT scaled; they are points, not ratings.
+export const EP_SCALE = 2;
 // Teammate split. Whichever partner currently has the lower public ASS is the
 // weaker player, and the team's points are re-split in their favour — no
 // matter how many games either has played (a 30-game player on 80 ASS counts
@@ -210,7 +215,7 @@ export function computeEPFull(matches, careerMatches = null, opts = {}) {
     out[p] = {
       ep: ep[p],
       games: games[p],
-      score: ep[p] / (games[p] + EP_SHRINKAGE),
+      score: (EP_SCALE * ep[p]) / (games[p] + EP_SHRINKAGE),
     };
   });
   return out;
@@ -265,7 +270,7 @@ export function computeEPTimeline(matches, careerMatches = null) {
       const d = entry.playerDeltas[p];
       totals[p] += d;
       played[p]++;
-      const score = totals[p] / (played[p] + EP_SHRINKAGE);
+      const score = (EP_SCALE * totals[p]) / (played[p] + EP_SHRINKAGE);
       history[p].push({
         date: m.date,
         elo: score,
@@ -365,7 +370,7 @@ export function computeEPProjection(matches, careerMatches, formN, futureM) {
       : 0;
     const projEp = ep + avgDelta * futureM;
     const projGames = games + futureM;
-    const projScore = projEp / (projGames + EP_SHRINKAGE);
+    const projScore = (EP_SCALE * projEp) / (projGames + EP_SHRINKAGE);
     return { name, games, avgDelta, currentScore: score, projScore };
   });
 

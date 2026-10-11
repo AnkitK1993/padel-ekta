@@ -9,8 +9,8 @@ import {
   computeHeadToHeadSeasonSplits,
 } from "../src/domain/season-stats.js";
 import { state } from "../src/domain/state.js";
-import { computeStats, ratingToSr } from "../src/domain/stats.js";
-import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "../src/domain/ass.js";
+import { computeStats } from "../src/domain/stats.js";
+import { rating } from "../src/domain/rating-service.js";
 import {
   computeAchievements,
   computeArchetype,
@@ -27,10 +27,9 @@ import { lastWeekRange } from "../src/domain/dates.js";
 import { viewState } from "../src/ui/view-state.js";
 import {
   memoStats,
-  memoASS,
-  memoASSHistory,
-  memoASSPeaks,
-  memoASSLows,
+  memoRatingHistory,
+  memoRatingPeaks,
+  memoRatingLows,
   memoPairStats,
 } from "../src/app/memo-store.js";
 import {
@@ -57,47 +56,30 @@ let _playerAvatar = (name, size = 26) => {
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
 };
 
-// Rating accessors are injected so this module follows the Summary tab's
-// scoring picker instead of being hard-wired to ASS CLASSIC. Each falls back
-// to the original memo/engine, so nothing changes if they aren't supplied.
-let _ratingMap = (ms) => computeASS(ms);
-let _ratingHistory = () => memoASSHistory();
-let _ratingPeaks = () => memoASSPeaks();
-let _ratingLows = () => memoASSLows();
-let _srFn = () => ratingToSr;
-// srFn accessors below are called as _srFn(ratingMap) — the default ignores
-// the argument since ratingToSr is a fixed formula, but the injected one
-// (min-max for 0-based systems) needs the current field to scale against.
-let _ratingDefault = () => 1000;
-let _ratingFmt = (v) => String(Math.round(v));
-let _ratingLabel = () => "ASS";
-let _matchDeltasFn = (ms) => computeMatchASSDeltas(ms);
+// Every rating, SR, label and printed number comes from the rating service, so
+// this sheet follows the Summary tab's scoring picker by construction. The one
+// injected piece is the History card's own per-player { delta, after } for a
+// match (app.js owns that memoised walk): per-match rating changes shown here
+// are then exactly the numbers on the History cards. Not wired -> null -> the
+// change is simply omitted (never another engine's number).
+let _matchRating = () => null;
 
-export function initPlayerDetailDeps({
-  playerAvatar,
-  ratingMap,
-  ratingHistory,
-  ratingPeaks,
-  ratingLows,
-  srFn,
-  ratingDefault,
-  ratingFmt,
-  ratingLabel,
-  matchDeltasFn,
-}) {
+export function initPlayerDetailDeps({ playerAvatar, matchRating }) {
   if (playerAvatar) _playerAvatar = playerAvatar;
-  if (ratingMap) _ratingMap = ratingMap;
-  if (ratingHistory) _ratingHistory = ratingHistory;
-  if (ratingPeaks) _ratingPeaks = ratingPeaks;
-  if (ratingLows) _ratingLows = ratingLows;
-  if (srFn) _srFn = srFn;
-  if (ratingDefault) _ratingDefault = ratingDefault;
-  if (ratingFmt) _ratingFmt = ratingFmt;
-  if (ratingLabel) _ratingLabel = ratingLabel;
-  if (matchDeltasFn) _matchDeltasFn = matchDeltasFn;
+  if (matchRating) _matchRating = matchRating;
 }
 
-function getPlayerDetail(name) {
+// Short local names for the service calls this file makes everywhere.
+const _ratingMap = (ms) => rating.map(ms);
+const _ratingHistory = () => memoRatingHistory();
+const _ratingPeaks = () => memoRatingPeaks();
+const _ratingLows = () => memoRatingLows();
+const _srFn = (ratingMap) => rating.srFn(ratingMap);
+const _ratingDefault = () => rating.def();
+const _ratingFmt = (v) => rating.fmt(v);
+const _ratingLabel = () => rating.label();
+
+export function getPlayerDetail(name) {
   const matches = activeMatches().filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].some(
       (p) => normPlayer(p) === name,
@@ -329,8 +311,8 @@ function streakCalDayClick(date, playerName) {
 // so no additional imports are needed.
 
 function _pdBuildRadarHtml(name, form) {
-  // Rating axis follows ASS, the sole scoring system.
-  const _ratingLbl = "ASS";
+  // Rating axis follows the active scoring system.
+  const _ratingLbl = rating.label();
   const eloMap = _ratingMap(activeMatches());
   const allStats = computeStats(activeMatches(), eloMap, _srFn(eloMap));
   const ps = allStats.find((p) => p.name === name);
@@ -1048,17 +1030,10 @@ function openPlayerDetail(name) {
   const recentMatchCards = (() => {
     const last8 = pdPlayerMs.slice(-10).reverse();
     if (!last8.length) return "";
-    // Rating deltas per match for this player — follows the active scoring
-    // picker (was hardcoded to computeMatchASSDeltas).
-    const assDeltas = _matchDeltasFn(pdSortedAll14);
+    // Rating change per match for this player: the History card's own number
+    // (and, for EP, the raw points it earned), so this list can never disagree
+    // with the card or overlay for the same match.
     const _rmcLbl = _ratingLabel();
-    const assAfterEach = {};
-    pdSortedAll14.forEach((m, mi) => {
-      const info = assDeltas.get(m);
-      if (info && info.playerDeltas && (name in info.playerDeltas)) {
-        assAfterEach[mi] = info.playerDeltas[name];
-      }
-    });
     return last8
       .map((m) => {
         const inA4 = (m.teamA || []).includes(name);
@@ -1072,8 +1047,7 @@ function openPlayerDetail(name) {
         const score = inA4
           ? `${m.scoreA}–${m.scoreB}`
           : `${m.scoreB}–${m.scoreA}`;
-        const mi = pdSortedAll14.indexOf(m);
-        const assDelta = assAfterEach[mi];
+        const assDelta = _matchRating(m)?.[name]?.delta;
         const assSign = assDelta !== undefined ? (assDelta >= 0 ? "+" : "") : "";
         const assCol = assDelta !== undefined ? (assDelta >= 0 ? "var(--green)" : "var(--red)") : "var(--muted)";
         const scoreColor = won4 ? "var(--green)" : "var(--red)";
@@ -1164,20 +1138,15 @@ function openPlayerDetail(name) {
           if (won6) pData[p].w++;
         });
     });
-    // Cumulative rating delta when paired with each partner — follows the
-    // active scoring picker (was hardcoded to computeMatchASSDeltas).
+    // Cumulative rating change when paired with each partner, from the same
+    // per-match numbers the History cards show.
     const partnerAssDelta = {};
-    const sortedForAss15 = [...activeMatches()].sort((a, b) =>
-      (a.date || "").localeCompare(b.date || ""),
-    );
-    const assDeltas15 = _matchDeltasFn(sortedForAss15);
-    sortedForAss15.forEach((m) => {
+    activeMatches().forEach((m) => {
       const inA15 = (m.teamA || []).includes(name);
       const inB15 = (m.teamB || []).includes(name);
       if (inA15 || inB15) {
-        const info15 = assDeltas15.get(m);
-        const myDelta15 = info15?.playerDeltas?.[name];
-        if (myDelta15 === undefined) return;
+        const myDelta15 = _matchRating(m)?.[name]?.delta;
+        if (myDelta15 === undefined || myDelta15 === null) return;
         const myTeam15 = inA15 ? m.teamA : m.teamB;
         myTeam15
           .filter((p) => p !== name)
@@ -1553,10 +1522,10 @@ function openPlayerDetail(name) {
                   <div class="ov-header">
                     <div class="ov-sr-block">
                       <div class="ov-sr-val" id="pd-sr-val" data-final="${srAss.toFixed(2)}">${srAss.toFixed(2)}</div>
-                      <div class="ov-sr-lbl">Skill Rating · ASS</div>
+                      <div class="ov-sr-lbl">Skill Rating · ${escHtml(_ratingLabel())}</div>
                       <div class="ov-sr-elo" style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;flex-direction:column;gap:2px">
                         <div style="display:flex;align-items:center;gap:6px">
-                          <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">ASS</span>
+                          <span style="font-size:9px;font-weight:800;letter-spacing:0.06em">${escHtml(_ratingLabel())}</span>
                           <span id="pd-ass-val" data-final="${_ratingFmt(playerASS)}" style="color:${assChangeCol};font-weight:800;font-size:13px">${_ratingFmt(playerASS)}</span>
                           <span style="font-size:9px;color:var(--muted)">SR ${srAss.toFixed(2)}</span>
                           ${assRank > 0 ? `<span style="font-size:9px;color:var(--muted)">#${assRank} rank</span>` : ""}

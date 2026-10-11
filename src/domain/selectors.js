@@ -27,9 +27,12 @@ let _amMemo = null,
   _amMemoKey = "";
 let _hmMemo = null,
   _hmMemoKey = "";
+let _rmMemo = null,
+  _rmMemoKey = "";
 export function invalidateAmMemo() {
   _amMemo = null;
   _hmMemo = null;
+  _rmMemo = null;
 }
 
 // ── SEASON HELPERS ─────────────────────────────────────────
@@ -74,6 +77,36 @@ export function withoutGuestMatches(matches) {
   return matches.filter(
     (m) => ![...(m.teamA || []), ...(m.teamB || [])].some((p) => g.has(p)),
   );
+}
+
+// ── RATED MATCHES (every season; guests + manually excluded players out) ──
+// The universe that ratings are computed over, whichever season is selected:
+// activeMatches() is exactly this list narrowed to the selected season. A match
+// outside it (a guest played, or an excluded player did) is a plain result in
+// the History log with NO rating change, so no screen can show a number the
+// leaderboard doesn't count.
+function _excludedSet() {
+  return new Set([...guestNames(), ...deps.getExcludedPlayers()]);
+}
+export function ratedMatches() {
+  const excludedArr = [..._excludedSet()];
+  const key = `${deps.getDataVersion()}|${excludedArr.sort().join(",")}|${state.matches.length}`;
+  if (_rmMemoKey === key && _rmMemo) return _rmMemo;
+  const excluded = new Set(excludedArr);
+  const result = excluded.size
+    ? state.matches.filter(
+        (m) =>
+          ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p)),
+      )
+    : state.matches;
+  _rmMemoKey = key;
+  _rmMemo = result;
+  return result;
+}
+export function isRatedMatch(m) {
+  const excluded = _excludedSet();
+  if (!excluded.size) return true;
+  return ![...(m.teamA || []), ...(m.teamB || [])].some((p) => excluded.has(p));
 }
 
 // ── ACTIVE MATCHES (season-scoped + guest/excluded filtered, memoised) ──

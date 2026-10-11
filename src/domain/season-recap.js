@@ -2,11 +2,10 @@
 // A "Wrapped"-style personal recap for one player over one season's matches.
 // Pure function — no DOM, no season-archival dependency — so it works for
 // any season (archived or still in progress, as a "recap so far") the same
-// way computeStats()/computeASS() already do elsewhere. `seasonMatches`
+// way computeStats()/the rating service already do elsewhere. `seasonMatches`
 // should already be scoped to the season and guest-filtered (activeMatches()
 // filtered by _inSeason(), exactly like archiveSeason() does).
-import { computeStats } from "./stats.js";
-import { computeASS, computeASSTimeline } from "./ass.js";
+import { rating } from "./rating-service.js";
 
 export function computeSeasonRecap(seasonMatches, playerName) {
   const playerMs = seasonMatches.filter((m) =>
@@ -14,21 +13,21 @@ export function computeSeasonRecap(seasonMatches, playerName) {
   );
   if (!playerMs.length) return null;
 
-  const ratingMap = computeASS(seasonMatches);
-  const stats = computeStats(seasonMatches, ratingMap).find(
-    (p) => p.name === playerName,
-  );
+  const stats = rating
+    .stats(seasonMatches, rating.map(seasonMatches))
+    .find((p) => p.name === playerName);
   if (!stats) return null;
 
-  // Rating trajectory across the season, reset to 1000 at season start (the
-  // same baseline every other season-scoped view uses) — walked via the
-  // player's own history entries so "peak"/"low" reflect their actual path,
-  // not just the start/end snapshot.
-  const timeline = (computeASSTimeline(seasonMatches).history || {})[playerName] || [];
-  const startRating = 1000;
-  const endRating = timeline.length ? Math.round(timeline[timeline.length - 1].elo) : 1000;
-  const peakRating = timeline.length ? Math.round(Math.max(...timeline.map((t) => t.elo))) : 1000;
-  const lowRating = timeline.length ? Math.round(Math.min(...timeline.map((t) => t.elo))) : 1000;
+  // Rating trajectory across the season for whichever scoring system is
+  // active, from that system's own starting level (the same baseline every
+  // other season-scoped view uses) — walked via the player's own history
+  // entries so "peak"/"low" reflect their actual path, not just the start/end
+  // snapshot.
+  const timeline = (rating.timeline(seasonMatches).history || {})[playerName] || [];
+  const startRating = rating.def();
+  const endRating = timeline.length ? rating.round(timeline[timeline.length - 1].elo) : startRating;
+  const peakRating = timeline.length ? rating.round(Math.max(...timeline.map((t) => t.elo))) : startRating;
+  const lowRating = timeline.length ? rating.round(Math.min(...timeline.map((t) => t.elo))) : startRating;
 
   // Best win: the single win with the biggest ASS gain (accounts for both
   // margin and opponent strength, same signal the rest of the app uses).
@@ -48,7 +47,7 @@ export function computeSeasonRecap(seasonMatches, playerName) {
     winPct: Math.round(stats.winPct),
     startRating,
     endRating,
-    ratingDelta: endRating - startRating,
+    ratingDelta: rating.round(endRating - startRating),
     peakRating,
     lowRating,
     bestWin: bestWinEntry

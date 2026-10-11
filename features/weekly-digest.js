@@ -3,25 +3,9 @@
 // (already on window from app.js) for the single toast notification.
 import { state } from "../src/domain/state.js";
 import { activeMatches } from "../src/domain/selectors.js";
-import { computeASS } from "../src/domain/ass.js";
-import { computeStats } from "../src/domain/stats.js";
+import { rating } from "../src/domain/rating-service.js";
 import { getPairStats } from "../src/domain/pairs.js";
 import { todayISO, weekISO, lastWeekRange } from "../src/domain/dates.js";
-
-// Rating accessors follow the Summary tab's scoring picker instead of being
-// hard-wired to ASS CLASSIC. Each falls back to the original engine/format,
-// so nothing changes if they aren't supplied.
-let _ratingMap = (ms) => computeASS(ms);
-let _ratingDefault = () => 1000;
-let _ratingFmt = (v) => String(Math.round(v));
-let _ratingLabel = () => "ASS";
-
-export function initWeeklyDigestDeps({ ratingMap, ratingDefault, ratingFmt, ratingLabel }) {
-  if (ratingMap) _ratingMap = ratingMap;
-  if (ratingDefault) _ratingDefault = ratingDefault;
-  if (ratingFmt) _ratingFmt = ratingFmt;
-  if (ratingLabel) _ratingLabel = ratingLabel;
-}
 
 export function openWeeklyDigest() {
   document.getElementById("share-card-overlay")?.remove();
@@ -40,14 +24,14 @@ export function openWeeklyDigest() {
     return;
   }
 
-  const _ratingDef = _ratingDefault();
-  const eloNow = _ratingMap(_amWk);
-  const eloPre = _ratingMap(
+  const _ratingDef = rating.def();
+  const eloNow = rating.map(_amWk);
+  const eloPre = rating.map(
     _amWk.filter(
       (m) => (m.date || "") < (thisWkMatches.length >= 3 ? weekISO() : wkFrom),
     ),
   );
-  const stats = computeStats(useMatches, _ratingMap(useMatches));
+  const stats = rating.stats(useMatches);
 
   // Most wins
   const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
@@ -131,7 +115,7 @@ export function openWeeklyDigest() {
       </div>
       <div style="margin:0 16px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px 12px">
         ${topWinner ? statRow("🏆", "Top Winner", topWinner.name, `${topWinner.mw}W–${topWinner.ml}L`) : ""}
-        ${mover && mover.gain > 0 ? statRow("📈", "Biggest Mover", mover.name, `+${_ratingFmt(mover.gain)} ${_ratingLabel()}`) : ""}
+        ${mover && mover.gain > 0 ? statRow("📈", "Biggest Mover", mover.name, `+${rating.fmt(mover.gain)} ${rating.label()}`) : ""}
         ${hotPlayer ? statRow("🔥", "On Fire", hotPlayer.name, `${hotPlayer.curStreak}-match win streak`) : ""}
         ${wkPairs ? statRow("🤝", "Best Duo", wkPairs.key, `${wkPairs.winPct}% · ${wkPairs.played}g`) : ""}
         ${biggestUpset ? statRow("⚡", "Biggest Upset", biggestUpset.winner.map((p) => p.split(" ")[0]).join(" & ") + " won", `+${biggestUpset.gap} pt gap`) : ""}
@@ -153,7 +137,7 @@ export function openWeeklyDigest() {
       ? `🏆 Top Winner: ${topWinner.name} (${topWinner.mw}W–${topWinner.ml}L)`
       : "",
     mover && mover.gain > 0
-      ? `📈 Biggest Mover: ${mover.name} (+${_ratingFmt(mover.gain)} ${_ratingLabel()})`
+      ? `📈 Biggest Mover: ${mover.name} (+${rating.fmt(mover.gain)} ${rating.label()})`
       : "",
     hotPlayer
       ? `🔥 On Fire: ${hotPlayer.name} (${hotPlayer.curStreak}-match streak)`

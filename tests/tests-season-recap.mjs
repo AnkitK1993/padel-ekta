@@ -3,6 +3,11 @@
 
 import { computeSeasonRecap } from "../src/domain/season-recap.js";
 import { computeASS } from "../src/domain/ass.js";
+import { rating, setActiveSystem } from "../src/domain/rating-service.js";
+
+// The numbers below are ASS CLASSIC's; the EP section at the end re-runs the
+// recap with the 0-based system active.
+setActiveSystem("ass");
 
 let pass = 0,
   fail = 0;
@@ -84,6 +89,24 @@ ok(
   JSON.stringify(computeSeasonRecap(matches, "Ankit")) ===
     JSON.stringify(computeSeasonRecap(shuffled, "Ankit")),
 );
+
+console.log("\n\x1b[36m── follows the active scoring system (EP) ──────────────\x1b[0m");
+
+setActiveSystem("ep");
+const epRecap = computeSeasonRecap(matches, "Ankit");
+const epMap = rating.map(matches);
+ok("EP recap starts from the system's own baseline (0, not 1000)", epRecap.startRating === 0);
+ok(
+  "EP endRating is the EP leaderboard score for this window, to 2 decimals",
+  epRecap.endRating === rating.round(epMap.Ankit),
+  `${epRecap.endRating} vs ${rating.round(epMap.Ankit)}`,
+);
+ok("EP ratingDelta = endRating - startRating", epRecap.ratingDelta === epRecap.endRating);
+ok(
+  "EP peak/low bracket the journey",
+  epRecap.lowRating <= epRecap.endRating && epRecap.endRating <= epRecap.peakRating,
+);
+setActiveSystem("ass");
 
 console.log(
   `\n\x1b[1mSeason Recap: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`,

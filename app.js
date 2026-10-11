@@ -1,6 +1,5 @@
 ﻿import { _lightFingerprint } from "./src/domain/fingerprint.js";
-import { computeStats, _normScores, ratingToSr } from "./src/domain/stats.js";
-import { computeMatchASSDeltas, computeASS, computeASSTimeline } from "./src/domain/ass.js";
+import { computeStats, _normScores } from "./src/domain/stats.js";
 import {
   hasSeasonScoringReference,
   computeSeasonScoringASS,
@@ -9,28 +8,16 @@ import {
   SEASON_SCORING_DESCRIPTIONS,
 } from "./src/domain/season-scoring.js";
 import {
-  computeGlicko2,
-  computeGlicko2Full,
-  computeMatchGlicko2Deltas,
-} from "./src/domain/glicko2.js";
-import {
-  computeOpenSkill,
-  computeOpenSkillFull,
-  computeMatchOpenSkillDeltas,
-  ordinal as _openSkillOrdinal,
-} from "./src/domain/openskill.js";
-import {
-  computeFairShare,
-  computeMatchFairShareDeltas,
-} from "./src/domain/fairshare.js";
-import {
-  computeEPFull,
-  computeEPTimeline,
-  computeMatchEPDeltas,
-  computeEPUpsets,
-  computeEPProjection,
-  EP_SHRINKAGE,
-} from "./src/domain/ep.js";
+  rating,
+  setActiveSystem,
+  scopeFor,
+  scopeKey,
+  careerMatches as _ratingCareerMatches,
+  SCORING_SYSTEMS,
+  SCORING_SYSTEM_LABELS,
+  SCORING_SYSTEMS_WITH_CONFIDENCE,
+  SCORING_SYSTEMS_ZERO_BASED,
+} from "./src/domain/rating-service.js";
 import {
   ratingDistribution,
   competitivenessOverTime,
@@ -130,6 +117,7 @@ import {
   initSelectorsDeps,
   activeMatches,
   historyMatches,
+  ratedMatches,
   withoutGuestMatches,
   filterMatches,
   filterHistoryMatches,
@@ -216,6 +204,7 @@ import {
   streakCalDayClick,
   _dowDayRecord,
   openPlayerDetailCompare,
+  getPlayerDetail,
 } from "./features/player-detail.js";
 import {
   openSeasonAwardsReveal,
@@ -239,7 +228,7 @@ import {
   renderH2HDeepDive,
 } from "./features/h2h.js";
 import { openShareMatchPoster, initSharePosterDeps } from "./features/share-poster.js";
-import { openWeeklyDigest, initWeeklyDigestDeps } from "./features/weekly-digest.js";
+import { openWeeklyDigest } from "./features/weekly-digest.js";
 import {
   openThemePicker,
   closeThemePicker,
@@ -285,10 +274,10 @@ import {
   memoStats,
   memoStatPlayerNames,
   memoPairStats,
-  memoASS,
-  memoASSHistory,
-  memoASSPeaks,
-  memoASSLows,
+  memoRating,
+  memoRatingHistory,
+  memoRatingPeaks,
+  memoRatingLows,
   invalidateAll as _invalidateAllMemos,
   clearAnalyticsCache as _clearAnalyticsCache,
   reignCache as _reignCache,
@@ -334,24 +323,23 @@ function _statPlayerNames() {
 function _memoPairStats() {
   return memoPairStats();
 }
-function _memoASS() {
-  return memoASS();
+function _memoRating() {
+  return memoRating();
 }
-function _memoASSHistory() {
-  return memoASSHistory();
+function _memoRatingHistory() {
+  return memoRatingHistory();
 }
-function _memoASSPeaks() {
-  return memoASSPeaks();
+function _memoRatingPeaks() {
+  return memoRatingPeaks();
 }
-function _memoASSLows() {
-  return memoASSLows();
+function _memoRatingLows() {
+  return memoRatingLows();
 }
 
-// ── MASTER SCORING MODE ─────────────────────────────────────
-// ASS (Ankit Scoring System) is the sole scoring system. These wrappers are
-// kept so the ~200 existing call sites app-wide (home cards, summary
-// leaderboard, analytics, history deltas) don't need touching individually.
-const _scoringMode = "ass";
+// ── ACTIVE RATING ───────────────────────────────────────────
+// Which scoring system is active, and every rating/delta/timeline/label/print
+// derived from it, lives in src/domain/rating-service.js (`rating`). The
+// helpers below are thin app-level views over that service.
 
 function _activeScoreMap() {
   return _statsRatingMap(activeMatches());
@@ -365,12 +353,12 @@ function _activeTimeline() {
   const ms = activeMatches();
   if (
     _statsTimelineCache &&
-    _statsTimelineCache.system === _scoringSystem &&
+    _statsTimelineCache.system === rating.system() &&
     _statsTimelineCache.matches === ms
   )
     return _statsTimelineCache.tl;
   const tl = _statsTimeline(ms);
-  _statsTimelineCache = { system: _scoringSystem, matches: ms, tl };
+  _statsTimelineCache = { system: rating.system(), matches: ms, tl };
   return tl;
 }
 function _activeHistory() {
@@ -383,15 +371,15 @@ function _activeLows() {
   return _activeTimeline().lows;
 }
 function _activeStats() {
-  const assMap = _memoASS();
+  const assMap = _memoRating();
   return _memoStats()
     .slice()
     .sort((a, b) => (assMap[b.name] || 0) - (assMap[a.name] || 0));
 }
 function _scoringLabel() {
   // Statistics section titles follow the Summary tab's picker, so "ASS
-  // Rankings" and the ASS leaderboard always mean the same engine.
-  return SCORING_SYSTEM_LABELS[_scoringSystem] || "ASS";
+  // Rankings" and the leaderboard always mean the same engine.
+  return rating.label();
 }
 function saveCloudData(opts) {
   return _cloudRepoSave(opts);
@@ -846,49 +834,10 @@ try {
 // scoringMode "ass", and the Flip/Fair season formats are built on its maths),
 // while "ep" is the 0-based Earned Points engine. Only the DISPLAY names swap —
 // Earned Points now carries the house name and the original becomes CLASSIC.
-const SCORING_SYSTEMS = ["ep", "ass", "glicko2", "openskill", "fairshare"];
-const SCORING_SYSTEM_LABELS = { ass: "ASS CLASSIC", glicko2: "GLICKO-2", openskill: "OPENSKILL", fairshare: "FAIR SHARE", ep: "ASS" };
-// Systems that fill the extra numeric column beside the rating — a "±"
-// confidence band for Glicko-2/OpenSkill, total points earned for EP (whose
-// headline number is a per-match average, so the total is worth surfacing).
-const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep"];
-// 0-based systems: no 1000 baseline, and the headline number is small enough
-// that the decimal carries real ordering information.
-const SCORING_SYSTEMS_ZERO_BASED = ["ep"];
-// SR is a friendly band. The default converter (ratingToSr) subtracts a
-// fixed 700 baseline, which only makes sense for the 1000-centred engines —
-// a 0-based rating put through it lands the entire field around −11.
-//
-// For 0-based systems, SR is instead a MIN-MAX scale over the current field:
-// whoever has the lowest rating in `ratingMap` reads 1.0, the highest reads
-// 10.0, everyone else spaced proportionally between. This mirrors ratings
-// (green above the middle, red below) rather than a fixed absolute scale —
-// a top scorer's 10.0 reflects being best in THIS field right now, not a
-// fixed skill benchmark, so it isn't meant to compare across seasons/filters.
-function _minMaxSrFn(ratingMap) {
-  const vals = Object.values(ratingMap || {}).filter(Number.isFinite);
-  if (!vals.length) return () => 0;
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const range = max - min;
-  return (rating) => {
-    if (!Number.isFinite(rating)) return 0;
-    if (range <= 0) return 10;
-    return parseFloat((1 + (9 * (rating - min)) / range).toFixed(2));
-  };
-}
-function _srFnForSystem(system, ratingMap) {
-  return SCORING_SYSTEMS_ZERO_BASED.includes(system)
-    ? _minMaxSrFn(ratingMap)
-    : ratingToSr;
-}
-// Stand-in rating for a player missing from the active system's map — the
-// baseline for 1000-centred engines, zero for the 0-based ones (where 1000
-// would sort an unrated player straight to the top).
-function _ratingDefault(system = _scoringSystem) {
-  return SCORING_SYSTEMS_ZERO_BASED.includes(system) ? 0 : 1000;
-}
-let _scoringSystem = "ep";
+// SR bands, defaults and printed forms all live in src/domain/rating-service.js.
+const _srFnForSystem = (system, ratingMap) => rating.srFn(ratingMap, system);
+// The active system lives in the rating service (one copy, so no screen can
+// hold a different one); this block only restores the saved choice.
 try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
   // A device still carrying the OLD default ("ass") predates the rename, when
@@ -902,69 +851,21 @@ try {
     localStorage.setItem("padel_scoring_renamed_v1", "1");
     localStorage.setItem("padel_scoring_system", "ep");
   } else if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) {
-    _scoringSystem = _storedSys;
+    setActiveSystem(_storedSys);
   }
 } catch (e) {}
 
-// Dispatchers so renderCompact() (and the FIRST/LAST window helper) don't
-// need a system-specific branch at every call site. `full` returns the raw
-// per-system detail object ({r,rd,vol} / {mu,sigma} / null for ASS, which has
-// no confidence concept) so the flat rating + the "±" confidence column can
-// both be derived from ONE engine walk instead of two.
-// EP needs the full cross-season history alongside whatever window is being
-// scored: points restart at 0 every season/filter, but loss accountability is
-// driven by CAREER games, so a veteran must not read as a rookie just because
-// the leaderboard is scoped to this month.
-function _epCareerMatches() {
-  return withoutGuestMatches(state.matches);
-}
-function _fullRatingForSystem(system, matches) {
-  if (system === "glicko2") return computeGlicko2Full(matches);
-  if (system === "openskill") return computeOpenSkillFull(matches);
-  if (system === "ep") return computeEPFull(matches, _epCareerMatches());
-  return null;
-}
-function _flatRatingForSystem(system, matches, full) {
-  if (system === "glicko2") {
-    const out = {};
-    Object.keys(full).forEach((n) => (out[n] = full[n].r));
-    return out;
-  }
-  if (system === "openskill") {
-    const out = {};
-    Object.keys(full).forEach((n) => (out[n] = full[n].mu));
-    return out;
-  }
-  if (system === "ep") {
-    const out = {};
-    Object.keys(full).forEach((n) => (out[n] = full[n].score));
-    return out;
-  }
-  if (system === "fairshare") return computeFairShare(matches);
-  return computeASS(matches);
-}
-// "±" confidence band shown next to the rating for Glicko-2/OpenSkill — RD for
-// Glicko-2 (its own native uncertainty unit), ±3σ for OpenSkill (its own
-// recommended conservative-estimate offset). null for ASS (no such concept).
-function _confidenceForSystem(system, full) {
-  if (!full) return null;
-  const out = {};
-  if (system === "glicko2") {
-    Object.keys(full).forEach((n) => (out[n] = Math.round(full[n].rd)));
-  } else if (system === "openskill") {
-    Object.keys(full).forEach((n) => (out[n] = Math.round(3 * full[n].sigma)));
-  } else if (system === "ep") {
-    Object.keys(full).forEach((n) => (out[n] = full[n].ep));
-  }
-  return out;
-}
-function _matchDeltasForSystem(system, matches) {
-  if (system === "glicko2") return computeMatchGlicko2Deltas(matches);
-  if (system === "openskill") return computeMatchOpenSkillDeltas(matches);
-  if (system === "fairshare") return computeMatchFairShareDeltas(matches);
-  if (system === "ep") return computeMatchEPDeltas(matches, _epCareerMatches());
-  return computeMatchASSDeltas(matches);
-}
+// Thin aliases over the rating service (kept so existing call sites read the
+// same). The service owns the engine dispatch; nothing here picks an engine.
+// EP needs the full cross-season history alongside the scored window: points
+// restart each season/filter but the 50-game newcomer flag is career-wide.
+const _epCareerMatches = () => _ratingCareerMatches();
+const _fullRatingForSystem = (system, matches) => rating.full(matches, system);
+const _flatRatingForSystem = (system, matches, full) =>
+  rating.flat(matches, full, system);
+const _confidenceForSystem = (system, full) => rating.conf(full, system);
+const _matchDeltasForSystem = (system, matches, opts) =>
+  rating.deltas(matches, system, opts);
 
 // ── STATISTICS PAGE RATING SOURCE ───────────────────────────
 // The Statistics page follows whichever engine the Summary tab's picker has
@@ -976,22 +877,10 @@ function _matchDeltasForSystem(system, matches) {
 // why they didn't just rewire onto the new engine. The internal ELO walk
 // behind Prediction Accuracy is left alone: that models match outcomes, not
 // the displayed rating.
-function _statsLabel() {
-  return SCORING_SYSTEM_LABELS[_scoringSystem];
-}
-function _statsRatingMap(matches) {
-  return _flatRatingForSystem(
-    _scoringSystem,
-    matches,
-    _fullRatingForSystem(_scoringSystem, matches),
-  );
-}
-function _statsSrFn(ratingMap) {
-  return _srFnForSystem(_scoringSystem, ratingMap);
-}
-function _statsDefault() {
-  return _ratingDefault(_scoringSystem);
-}
+const _statsLabel = () => rating.label();
+const _statsRatingMap = (matches) => rating.map(matches);
+const _statsSrFn = (ratingMap) => rating.srFn(ratingMap);
+const _statsDefault = () => rating.def();
 // Ratings display as whole numbers on the 1000-centred engines, but the
 // 0-based ones need a decimal — a 0.4 gap there is a real placing difference,
 // and unrounded floats would otherwise render as 44.36065573770492.
@@ -999,83 +888,18 @@ function _statsDefault() {
 // field spans ~50 points needs the underdog margin scaled to match, or the
 // upset badges can never fire.
 function _statsBadgeOpts() {
-  const zero = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem);
   return {
     ratingFn: _statsRatingMap,
     baseline: _statsDefault(),
-    underdogGap: zero ? 2 : 30,
+    underdogGap: rating.underdogGap(),
     ratingLabel: _statsLabel(),
   };
 }
-// Every "ASS" (EP) number shown anywhere in the app funnels through this
-// one function — the display is doubled here (e.g. a 46.7 rating prints as
-// 93.4) so the doubled figure is what the user sees consistently everywhere:
-// leaderboard, Player Detail, History, Match Intro, Session Dashboard, etc.
-// Doubling is a pure linear scale-up, so every value BUILT from ratings via
-// addition/subtraction/averaging (deltas, peaks/lows, projections, "vs
-// average" coloring, min-max SR) stays internally consistent whether it's
-// doubled once here at print time or if each input were doubled beforehand.
-const _ASS_DISPLAY_MULT = 2;
-function _statsFmt(v) {
-  if (v == null || !Number.isFinite(v)) return "—";
-  return SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem)
-    ? (v * _ASS_DISPLAY_MULT).toFixed(2)
-    : String(Math.round(v));
-}
-// Generic running-total timeline for the engines that don't ship one. Every
-// delta map exposes the same { playerDeltas } shape, so accumulating them from
-// the system's baseline reproduces what a bespoke timeline would walk.
-function _timelineFromDeltas(matches, deltaMap, base) {
-  const running = {};
-  const history = {};
-  const peaks = {};
-  const lows = {};
-  [...matches]
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-    .forEach((m) => {
-      const entry = deltaMap.get(m);
-      if (!entry) return;
-      const aWon = m.scoreA > m.scoreB;
-      const record = (p, won, opponent, mine, theirs) => {
-        if (!(p in running)) {
-          running[p] = base;
-          history[p] = [];
-          peaks[p] = base;
-          lows[p] = base;
-        }
-        const d = entry.playerDeltas[p] || 0;
-        running[p] += d;
-        history[p].push({
-          date: m.date,
-          elo: running[p],
-          delta: d,
-          won,
-          opponent,
-          scoreA: mine,
-          scoreB: theirs,
-        });
-        if (running[p] > peaks[p]) peaks[p] = running[p];
-        if (running[p] < lows[p]) lows[p] = running[p];
-      };
-      (m.teamA || []).forEach((p) =>
-        record(p, aWon, (m.teamB || []).join(" & "), m.scoreA, m.scoreB),
-      );
-      (m.teamB || []).forEach((p) =>
-        record(p, !aWon, (m.teamA || []).join(" & "), m.scoreB, m.scoreA),
-      );
-    });
-  return { history, peaks, lows };
-}
-function _statsTimeline(matches) {
-  if (_scoringSystem === "ass") return computeASSTimeline(matches);
-  if (_scoringSystem === "ep")
-    return computeEPTimeline(matches, _epCareerMatches());
-  return _timelineFromDeltas(
-    matches,
-    _matchDeltasForSystem(_scoringSystem, matches),
-    1000,
-  );
-}
+// Every printed rating or rating change goes through here. The EP engine
+// already returns its headline score doubled at the source (EP_SCALE), so this
+// only formats — no print-time multiplier.
+const _statsFmt = (v) => rating.fmt(v);
+const _statsTimeline = (matches) => rating.timeline(matches);
 // Upsets (weaker team won), following the picker where a bespoke temporal
 // walk exists for the active engine. `ep` gets its own (computeEPUpsets,
 // same career-aware internal walk that prices every match). Every other
@@ -1084,7 +908,8 @@ function _statsTimeline(matches) {
 // this codebase, so that's a known limitation, not a picker bug: the
 // important case (the new default, "ep") is fully accurate.
 function _statsUpsets(matches) {
-  if (_scoringSystem === "ep") return computeEPUpsets(matches, _epCareerMatches());
+  const epUpsets = rating.upsets(matches);
+  if (epUpsets) return epUpsets;
   return _computeUpsets(matches).map((u) => ({ ...u, gap: u.assGap }));
 }
 
@@ -1363,40 +1188,16 @@ initSelectorsDeps({
   weekendRange,
   lastWeekRange,
 });
-// History summary card needs three still-in-app helpers (hoisted decls).
+// History summary card needs two still-in-app helpers (hoisted decls) plus the
+// TODAY/ALL-TIME toggle; every rating number comes from the rating service.
 initHistorySummaryDeps({
   normPlayer,
   getPairStats,
-  memoAss: _memoASS,
-  ratingMap: (ms) => _statsRatingMap(ms),
-  ratingDefault: () => _statsDefault(),
-  ratingFmt: (v) => _statsFmt(v),
-  ratingLabel: () => _statsLabel(),
-  // TODAY needs a fresh-session score for EP: expectation restarts level
-  // (blindElo) but the career game counts still come from the full history,
-  // so the 50-game newcomer flag survives. Every other engine's own
-  // ratingMap is already blind-by-construction when given only `ms`.
-  freshRatingMapFn: (ms) =>
-    _scoringSystem === "ep"
-      ? _flatRatingForSystem(
-          "ep",
-          ms,
-          computeEPFull(ms, _epCareerMatches(), { blindElo: true }),
-        )
-      : _statsRatingMap(ms),
   topGainersWindow: () => _topGainersWindow,
 });
-// Share match poster — same rating-picker contract as everywhere else.
+// Share match poster — shows the History card's own per-match rating change.
 initSharePosterDeps({
-  ratingMap: (ms) => _statsRatingMap(ms),
-  ratingDefault: () => _statsDefault(),
-  ratingFmt: (v) => _statsFmt(v),
-});
-initWeeklyDigestDeps({
-  ratingMap: (ms) => _statsRatingMap(ms),
-  ratingDefault: () => _statsDefault(),
-  ratingFmt: (v) => _statsFmt(v),
-  ratingLabel: () => _statsLabel(),
+  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
 });
 // Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
@@ -1413,104 +1214,29 @@ initXpDeps({
 // Analytics section builders — HTML generators for the Statistics page.
 initBadgesDeps({
   computeStats,
-  computeElo: computeASS,
   getPairStats,
   lastWeekRange,
   fmtDate,
 });
 // Player analytics (form/archetype/power/chemistry/stories/achievements).
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
-// Player detail modal — needs playerAvatar which accesses the photoMap in app.js.
+// Player detail modal — needs playerAvatar (photoMap lives in app.js) and the
+// History card's per-match rating change; ratings come from the service.
 initPlayerDetailDeps({
   playerAvatar,
-  getScoringMode: () => _scoringMode,
-  // Follow the Summary tab's scoring picker, so a player's card and their
-  // detail sheet never disagree about what their rating is.
-  ratingMap: (ms) => _statsRatingMap(ms),
-  ratingHistory: () => _activeHistory(),
-  ratingPeaks: () => _activePeaks(),
-  ratingLows: () => _activeLows(),
-  srFn: (ratingMap) => _statsSrFn(ratingMap),
-  ratingDefault: () => _statsDefault(),
-  ratingFmt: (v) => _statsFmt(v),
-  ratingLabel: () => _statsLabel(),
-  matchDeltasFn: (ms) => _matchDeltasForSystem(_scoringSystem, ms),
+  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
 });
 // H2H modals — same playerAvatar dependency.
-initH2HDeps({ playerAvatar });
-// One EP walk per (match, data, system) — the overlay asks for it several ways.
-let _epEntryMemo = null;
-function _epEntryFor(m) {
-  if (_scoringSystem !== "ep") return null;
-  if (
-    _epEntryMemo &&
-    _epEntryMemo.m === m &&
-    _epEntryMemo.version === _dataVersion
-  )
-    return _epEntryMemo.entry;
-  const entry =
-    computeMatchEPDeltas(_seasonScopeFor(m), _epCareerMatches()).get(m) || null;
-  _epEntryMemo = { m, version: _dataVersion, entry };
-  return entry;
-}
-// Matches scored together with `m`: everything in the season it was played in
-// (or, for a match outside every season, the other un-seasoned matches).
-function _seasonScopeFor(m) {
-  const sn = state.seasons.find((x) => _inSeason(x, m.date));
-  if (!sn)
-    return state.matches.filter(
-      (x) => !state.seasons.some((y) => _inSeason(y, x.date)),
-    );
-  return state.matches.filter((x) => _inSeason(sn, x.date));
-}
-// Match Intro overlay — same "follow the Summary tab's picker" contract as
-// Player Detail's rating accessors above.
-initMatchIntroDeps({
-  ratingMap: (ms) => _statsRatingMap(ms),
-  ratingDefault: () => _statsDefault(),
-  ratingFmt: (v) => _statsFmt(v),
-  ratingLabel: () => _statsLabel(),
-  isZeroBased: () => SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem),
-  // Rating snapshots are scoped to the season the match was played in, the
-  // same way that season's leaderboard is scored.
-  ratingScope: (m) => _seasonScopeFor(m),
-  // The History card's own per-player { delta, after } for this match, so the
-  // overlay's numbers are exactly the card's (one source of truth).
+initH2HDeps({
+  playerAvatar,
   matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
-  // Raw EP points earned in a match (EP only — for the other engines the
-  // rating change already is the points). Scored over the same season window
-  // as the rating change shown beside it, so the two always agree.
-  matchPoints: (m) => _epEntryFor(m)?.playerDeltas ?? null,
-  // Win chance + how each award was built (EP only).
-  matchDetail: (m) => {
-    const e = _epEntryFor(m);
-    return e ? { expA: e.expA, breakdown: e.breakdown } : null;
-  },
-  // Running total points per player over a set of matches (EP only).
-  totalPoints: (ms) => {
-    if (_scoringSystem !== "ep") return null;
-    const full = computeEPFull(ms, _epCareerMatches());
-    const out = {};
-    Object.keys(full).forEach((n) => (out[n] = full[n].ep));
-    return out;
-  },
-  // Career games (all seasons, guest matches excluded like the engine) each
-  // player had played before this match.
-  careerGamesBefore: (m) => {
-    const career = new Set(_epCareerMatches());
-    const ordered = [...state.matches].sort((a, b) =>
-      (a.date || "").localeCompare(b.date || ""),
-    );
-    const k = ordered.indexOf(m);
-    const counts = {};
-    (k >= 0 ? ordered.slice(0, k) : ordered).forEach((x) => {
-      if (!career.has(x)) return;
-      [...(x.teamA || []), ...(x.teamB || [])].forEach(
-        (q) => (counts[q] = (counts[q] || 0) + 1),
-      );
-    });
-    return counts;
-  },
+});
+// Match Intro overlay — ratings, scope, points and win chance come from the
+// rating service; the one injected piece is the History card's own per-player
+// { delta, after } for the match, so the overlay's numbers are exactly the
+// card's (one source of truth).
+initMatchIntroDeps({
+  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
 });
 
 // ── One-time module initialisations ────────────────────────
@@ -1535,8 +1261,8 @@ initCloudRepo({
 });
 
 // All memo functions now live in src/app/memo-store.js.
-// _memoASS / _memoStats / _memoPairStats / _memoASSHistory / _memoASSPeaks /
-// _memoASSLows — backward-compat bridges at top of file delegate to them.
+// _memoRating / _memoStats / _memoPairStats / _memoRatingHistory / _memoRatingPeaks /
+// _memoRatingLows — backward-compat bridges at top of file delegate to them.
 
 function _invalidateStatsMemo() {
   _invalidateAllMemos();
@@ -2261,7 +1987,7 @@ function goTo(id) {
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
   if (id === "home") {
-    const fk = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
+    const fk = _homeViewKey();
     if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk)
       renderHome();
   }
@@ -2372,7 +2098,7 @@ function switchMainTab(id, skipAnim = false) {
   // Render content for the new page — skip if data + filter haven't changed.
   // Compact gets fullMode re-render so its cascade plays while the page is visible.
   if (id === "home") {
-    const fk = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
+    const fk = _homeViewKey();
     if (_homeRenderedVersion !== _dataVersion || _homeRenderedFilter !== fk)
       renderHome();
   }
@@ -3353,7 +3079,7 @@ function renderASSFormulaCard() {
   const el = document.getElementById("ass-formula-config");
   if (!el) return;
   el.innerHTML = `
-    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Sandbox only — adjust weights to preview how the leaderboard would reorder. Doesn't change the live ASS system.</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Sandbox only — adjust weights to preview how the ASS CLASSIC leaderboard would reorder. Doesn't change the live scoring system.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       ${_assCfgRow("assf-margin", "MARGIN WEIGHT", 4, 0, 10, 0.5)}
       ${_assCfgRow("assf-base", "GAME-COUNT WEIGHT", 1, 0, 3, 0.1)}
@@ -3377,7 +3103,8 @@ window.previewASSFormula = function () {
     partnerTaxWeight: 0.5,
   };
   const am2 = activeMatches();
-  const currentAss = computeASS(am2);
+  // The sandbox tunes the CLASSIC formula, so it compares against classic.
+  const currentAss = rating.map(am2, "ass");
   const previewAss = _previewASS(am2, params);
   const currentRank = Object.entries(currentAss)
     .sort((a, b) => b[1] - a[1])
@@ -3403,7 +3130,7 @@ window.previewASSFormula = function () {
       </div>`;
     })
     .join("");
-  el.innerHTML = `<div style="font-size:9px;color:var(--muted);margin-bottom:6px">Preview vs current ASS ranking</div>${rows}`;
+  el.innerHTML = `<div style="font-size:9px;color:var(--muted);margin-bottom:6px">Preview vs current ASS CLASSIC ranking</div>${rows}`;
 };
 
 // ── DATE HELPERS ───────────────────────────────────────────
@@ -5159,15 +4886,15 @@ function _applyCmpColClasses() {
   );
   // The "±" confidence column only has meaning for Glicko-2/OpenSkill — driven
   // by the active scoring system, not a user-togglable column preference.
-  table.classList.toggle("hide-col-conf", !SCORING_SYSTEMS_WITH_CONFIDENCE.includes(_scoringSystem));
+  table.classList.toggle("hide-col-conf", !SCORING_SYSTEMS_WITH_CONFIDENCE.includes(rating.system()));
   const confLbl = document.getElementById("cmp-conf-lbl");
   if (confLbl) {
     confLbl.textContent =
-      _scoringSystem === "glicko2"
+      rating.system() === "glicko2"
         ? "±RD"
-        : _scoringSystem === "openskill"
+        : rating.system() === "openskill"
           ? "±3σ"
-          : _scoringSystem === "ep"
+          : rating.system() === "ep"
             ? "TOTAL"
             : "";
   }
@@ -5176,7 +4903,7 @@ function _applyCmpColClasses() {
     const prevArrow = assTh.querySelector(".sort-arrow");
     const arrowText = prevArrow ? prevArrow.textContent : "";
     const arrowActive = prevArrow ? prevArrow.classList.contains("active") : false;
-    assTh.innerHTML = `${SCORING_SYSTEM_LABELS[_scoringSystem]} <span class="sort-arrow${arrowActive ? " active" : ""}" id="sort-ass">${arrowText}</span>`;
+    assTh.innerHTML = `${SCORING_SYSTEM_LABELS[rating.system()]} <span class="sort-arrow${arrowActive ? " active" : ""}" id="sort-ass">${arrowText}</span>`;
   }
 }
 
@@ -5197,34 +4924,34 @@ function onCmpFilter() {
 // _hudGaugeId + buildHudGaugeSvg now live in ./charts.js.
 
 let _renderHomeGen = 0;
+// Identity of what the Home tab is showing. The scoring system is part of it:
+// switching systems on the Summary tab must repaint Home with the new numbers,
+// not leave the previous system's ratings on screen.
+function _homeViewKey() {
+  return `${homeFilter}|${homeFrom || ""}|${homeTo || ""}|${rating.system()}`;
+}
 function renderHome() {
   _homeRenderedVersion = _dataVersion;
-  _homeRenderedFilter = `${homeFilter}|${homeFrom || ""}|${homeTo || ""}`;
+  _homeRenderedFilter = _homeViewKey();
   _renderSeasonQuickSwitch();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
-  // When filter is "all" (no date range), filtered === activeMatches() content —
-  // use the memoised results to avoid redundant full-dataset walks.
-  const _isAllFilter = homeFilter === "all" && !homeFrom && !homeTo;
-  const homeASSMap =
-    _isAllFilter && _scoringSystem === "ass"
-      ? _memoASS()
-      : _statsRatingMap(filtered);
-  // SR (the gauge/rating on every card) and the card ordering both follow ASS.
-  // computeStats already sorts by SR desc, so this orders cards by ASS too.
-  const stats = computeStats(filtered, homeASSMap, _statsSrFn(homeASSMap));
+  // One engine pass yields both the rating and the secondary figure.
+  const homeFull = rating.full(filtered);
+  const homeASSMap = rating.flat(filtered, homeFull);
+  // SR (the gauge/rating on every card) and the card ordering both follow the
+  // active system. computeStats already sorts by SR desc, so this orders cards
+  // by rating too.
+  const stats = rating.stats(filtered, homeASSMap);
   // Raw total points (EP) / confidence band (Glicko-2, OpenSkill) shown next
   // to the name, same secondary figure the Summary tab's TOTAL/± column
   // shows — blank for ASS CLASSIC/Fair Share, which have no such total.
-  const homeConfMap = _confidenceForSystem(
-    _scoringSystem,
-    _fullRatingForSystem(_scoringSystem, filtered),
-  );
+  const homeConfMap = rating.conf(homeFull);
   const homeConfLabel =
-    _scoringSystem === "ep"
+    rating.system() === "ep"
       ? "pts"
-      : _scoringSystem === "glicko2"
+      : rating.system() === "glicko2"
         ? "±RD"
-        : _scoringSystem === "openskill"
+        : rating.system() === "openskill"
           ? "±3σ"
           : "";
   const totalG = filtered.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
@@ -5451,16 +5178,16 @@ function _computeLbWindowStats(baseMatches, system) {
   const confMap = {};
   for (const playerName of playerNames) {
     const pm = _getPlayerWindowMatches(playerName, baseMatches, _lbWindow);
-    const pFull = _fullRatingForSystem(system, pm);
-    const pRatingMap = _flatRatingForSystem(system, pm, pFull);
+    const pFull = rating.full(pm, system);
+    const pRatingMap = rating.flat(pm, pFull, system);
     // SR derives from the active system's rating over the windowed matches.
-    const pStats = computeStats(pm, pRatingMap, _srFnForSystem(system, pRatingMap));
+    const pStats = rating.stats(pm, pRatingMap, system);
     const ps = pStats.find((s) => s.name === playerName);
     if (ps) {
       statsList.push(ps);
       assMap[playerName] = pRatingMap[playerName];
       if (pFull) {
-        const pConf = _confidenceForSystem(system, pFull);
+        const pConf = rating.conf(pFull, system);
         confMap[playerName] = pConf[playerName];
       }
     }
@@ -5544,7 +5271,7 @@ window.removeStatsCache = function removeStatsCache() {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}|${_seasonScoringMode}|${_scoringSystem}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}|${_seasonScoringMode}|${rating.system()}`;
   _updateExcludeBtn();
   _renderSeasonQuickSwitch();
   _updateSeasonScoringBadge();
@@ -5596,7 +5323,7 @@ function renderCompact() {
   // other scoring systems always fall back to a plain per-season computation.
   const _cmpSeason = _activeSeason();
   const _hasScoringRef =
-    _scoringSystem === "ass" &&
+    rating.system() === "ass" &&
     !_lbWindow &&
     _isCmpAllFilter &&
     hasSeasonScoringReference(state.seasons, _cmpSeason);
@@ -5606,23 +5333,13 @@ function renderCompact() {
     // FIRST/LAST window: recompute the active system's rating and SR over
     // each player's windowed matches so both reflect the chosen window (not
     // the all-time set).
-    const r = _computeLbWindowStats(filtered, _scoringSystem);
+    const r = _computeLbWindowStats(filtered, rating.system());
     _cmpASSMap = r.assMap;
     _cmpConfMap = r.confMap;
     stats = r.stats;
-  } else if (_scoringSystem !== "ass") {
-    const _full = _fullRatingForSystem(_scoringSystem, filtered);
-    _cmpASSMap = _flatRatingForSystem(_scoringSystem, filtered, _full);
-    _cmpConfMap = _confidenceForSystem(_scoringSystem, _full);
-    stats = computeStats(
-      filtered,
-      _cmpASSMap,
-      _srFnForSystem(_scoringSystem, _cmpASSMap),
-    );
-  } else if (_effSeasonScoringMode === "reset") {
-    _cmpASSMap = _isCmpAllFilter ? _memoASS() : computeASS(filtered);
-    stats = computeStats(filtered, _cmpASSMap);
-  } else {
+  } else if (_hasScoringRef && _effSeasonScoringMode !== "reset") {
+    // Season-carryover (Flip/Fair) is ASS CLASSIC's own format, so this branch
+    // is only reachable with the classic engine selected.
     _cmpASSMap = computeSeasonScoringASS(
       _effSeasonScoringMode,
       withoutGuestMatches(state.matches),
@@ -5630,7 +5347,14 @@ function renderCompact() {
       state.seasons,
       _cmpSeason,
     );
-    stats = computeStats(filtered, _cmpASSMap);
+    stats = rating.stats(filtered, _cmpASSMap);
+  } else {
+    // Every other case: the active system over the filtered window, one
+    // engine pass for both the rating and the secondary column.
+    const _full = rating.full(filtered);
+    _cmpASSMap = rating.flat(filtered, _full);
+    _cmpConfMap = rating.conf(_full);
+    stats = rating.stats(filtered, _cmpASSMap);
   }
   const sortFns = {
     name: (a, b) =>
@@ -5651,8 +5375,8 @@ function renderCompact() {
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
     ass: (a, b) =>
-      (_cmpASSMap[a.name] ?? _ratingDefault()) -
-      (_cmpASSMap[b.name] ?? _ratingDefault()),
+      (_cmpASSMap[a.name] ?? rating.def()) -
+      (_cmpASSMap[b.name] ?? rating.def()),
     conf: (a, b) =>
       (_cmpConfMap?.[a.name] ?? 0) - (_cmpConfMap?.[b.name] ?? 0),
     sr: (a, b) => {
@@ -5725,33 +5449,20 @@ function renderCompact() {
   // like-for-like.
   const _allTimeRankMap = {};
   {
-    const _atAss =
-      _scoringSystem === "ass"
-        ? _memoASS()
-        : _flatRatingForSystem(_scoringSystem, activeMatches(), _fullRatingForSystem(_scoringSystem, activeMatches()));
+    const _atMs = activeMatches();
+    const _atAss = _memoRating();
     // For the score column substitute the all-time map; other columns reuse sortFns.
     const _atConf =
-      cmpSortKey === "conf"
-        ? _confidenceForSystem(
-            _scoringSystem,
-            _fullRatingForSystem(_scoringSystem, activeMatches()),
-          )
-        : null;
+      cmpSortKey === "conf" ? rating.conf(rating.full(_atMs)) : null;
     const _atSort =
       cmpSortKey === "ass"
         ? (a, b) =>
-            (_atAss[a.name] ?? _ratingDefault()) -
-            (_atAss[b.name] ?? _ratingDefault())
+            (_atAss[a.name] ?? rating.def()) -
+            (_atAss[b.name] ?? rating.def())
         : cmpSortKey === "conf"
           ? (a, b) => (_atConf?.[a.name] ?? 0) - (_atConf?.[b.name] ?? 0)
           : sortFns[cmpSortKey] || sortFns.sr;
-    const _atAll = [
-      ...computeStats(
-        activeMatches(),
-        _atAss,
-        _srFnForSystem(_scoringSystem, _atAss),
-      ),
-    ].sort((a, b) => {
+    const _atAll = [...rating.stats(_atMs, _atAss)].sort((a, b) => {
       const cmp = _atSort(a, b);
       if (cmp !== 0) return cmpSortAsc ? cmp : -cmp;
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
@@ -5772,27 +5483,15 @@ function renderCompact() {
   if (cmpFilter === "all") {
     const _mMonth = filterMatches("month");
     if (_mMonth.length > 0) {
-      const _mAss =
-        _scoringSystem === "ass"
-          ? computeASS(_mMonth)
-          : _flatRatingForSystem(_scoringSystem, _mMonth, _fullRatingForSystem(_scoringSystem, _mMonth));
-      const _mStats = computeStats(
-        _mMonth,
-        _mAss,
-        _srFnForSystem(_scoringSystem, _mAss),
-      );
-      const _mConf =
-        cmpSortKey === "conf"
-          ? _confidenceForSystem(
-              _scoringSystem,
-              _fullRatingForSystem(_scoringSystem, _mMonth),
-            )
-          : null;
+      const _mFull = rating.full(_mMonth);
+      const _mAss = rating.flat(_mMonth, _mFull);
+      const _mStats = rating.stats(_mMonth, _mAss);
+      const _mConf = cmpSortKey === "conf" ? rating.conf(_mFull) : null;
       const _mSortFn =
         cmpSortKey === "ass"
           ? (a, b) =>
-              (_mAss[a.name] ?? _ratingDefault()) -
-              (_mAss[b.name] ?? _ratingDefault())
+              (_mAss[a.name] ?? rating.def()) -
+              (_mAss[b.name] ?? rating.def())
           : cmpSortKey === "conf"
             ? (a, b) => (_mConf?.[a.name] ?? 0) - (_mConf?.[b.name] ?? 0)
             : cmpSortKey === "sr"
@@ -5813,7 +5512,7 @@ function renderCompact() {
   }
   // 0-based systems have no 1000 line to colour against, so the field's own
   // median is the reference — above it is green, below it is red.
-  const _zeroBased = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem);
+  const _zeroBased = SCORING_SYSTEMS_ZERO_BASED.includes(rating.system());
   const _ratingMid = (() => {
     if (!_zeroBased) return 1000;
     const vals = sorted.map((p) => _cmpASSMap[p.name] || 0).sort((a, b) => a - b);
@@ -5853,10 +5552,9 @@ function renderCompact() {
         rankDelta = `<span class="wk-rank-delta wk-down">▼${Math.abs(diff)}</span>`;
     }
     const assRaw = _cmpASSMap[p.name] ?? (_zeroBased ? 0 : 1000);
-    // _statsFmt doubles the display for the ASS (EP) system — sorting/
-    // coloring below still key off the real, undoubled assRaw so rank order
-    // and above/below-average coloring stay correct.
-    const assVal = _statsFmt(assRaw);
+    // Sorting and above/below-average colouring key off the raw value; the
+    // printed form always goes through the formatter.
+    const assVal = rating.fmt(assRaw);
     const _scoreColor = (v) =>
       v > _ratingMid ? "var(--green)" : v < _ratingMid ? "var(--red)" : "var(--muted)";
     const assColHtml = `<span style="font-weight:700;color:${_scoreColor(assRaw)}">${assVal}</span>`;
@@ -5882,20 +5580,22 @@ function renderCompact() {
       ? _allActive.filter((m) => m.date === todayISO())
       : _allActive;
   const matchEloDeltas =
-    _scoringSystem === "ass" && _effSeasonScoringMode === "fair"
-      ? computeMatchASSDeltas(withoutGuestMatches(state.matches))
+    rating.system() === "ass" && _effSeasonScoringMode === "fair"
+      ? rating.deltas(withoutGuestMatches(state.matches), "ass")
       : // EP's expectation warms from the full career, so TODAY needs a fresh
         // start to differ from ALL TIME: blindElo restarts expectation level
         // while the career game counts (50-game newcomer flag) stay intact.
-        _scoringSystem === "ep" && _matchDeltaWindow === "today"
-        ? computeMatchEPDeltas(_deltaMatches, _epCareerMatches(), {
-            blindElo: true,
-          })
-        : _matchDeltasForSystem(_scoringSystem, _deltaMatches);
+        rating.deltas(
+          _deltaMatches,
+          rating.system(),
+          rating.system() === "ep" && _matchDeltaWindow === "today"
+            ? { blindElo: true }
+            : {},
+        );
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
-  if (_deltaLbl) _deltaLbl.textContent = SCORING_SYSTEM_LABELS[_scoringSystem];
+  if (_deltaLbl) _deltaLbl.textContent = SCORING_SYSTEM_LABELS[rating.system()];
   document
     .querySelectorAll(".mdw-btn")
     .forEach((b) =>
@@ -6109,13 +5809,16 @@ function setCmpSort(key) {
 // is O(matches × pairs) — recomputing it each time was a mobile hot spot.
 let _mcPrecompMemo = null;
 function _matchCardPrecompute() {
+  const ratedRef = ratedMatches();
   if (
     _mcPrecompMemo &&
     _mcPrecompMemo.version === _dataVersion &&
-    _mcPrecompMemo.system === _scoringSystem &&
-    _mcPrecompMemo.matchesRef === state.matches
+    _mcPrecompMemo.system === rating.system() &&
+    _mcPrecompMemo.matchesRef === state.matches &&
+    _mcPrecompMemo.ratedRef === ratedRef
   )
     return _mcPrecompMemo;
+  const rated = new Set(ratedRef);
   const eloMatchMap = new Map();
   const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
   const _mcDefault = _statsDefault();
@@ -6147,7 +5850,13 @@ function _matchCardPrecompute() {
     groups.get(k).push(m);
   });
   groups.forEach((groupMatches) => {
-    const timeline = _statsTimeline(groupMatches).history;
+    // Ratings are walked over RATED matches only (no guests, no excluded
+    // players) — the very list the leaderboard scores — so a card's "after"
+    // for a player is that player's leaderboard number at that point. An
+    // unrated match stays in the log as a plain result: no rating change.
+    const timeline = _statsTimeline(
+      groupMatches.filter((m) => rated.has(m)),
+    ).history;
     const cur = {};
     const idxByPlayer = {};
     groupMatches.forEach((m) => {
@@ -6169,6 +5878,7 @@ function _matchCardPrecompute() {
             .map(({ key }, i) => [key, i + 1]),
         ),
       );
+      if (!rated.has(m)) return; // plain result: no rating change
       const mData = {};
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
         const hist = timeline[p] || [];
@@ -6198,8 +5908,9 @@ function _matchCardPrecompute() {
   });
   _mcPrecompMemo = {
     version: _dataVersion,
-    system: _scoringSystem,
+    system: rating.system(),
     matchesRef: state.matches,
+    ratedRef,
     eloMatchMap,
     matchPairRankMap,
     pvpMap,
@@ -6608,7 +6319,7 @@ function renderModernMatches() {
           ? "var(--red)"
           : "var(--text)";
     const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
-    const h2hEloHist = _memoASSHistory();
+    const h2hEloHist = _memoRatingHistory();
     const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) =>
       pt.opponent.split(" & ").includes(h2hFilterB),
     );
@@ -6861,6 +6572,7 @@ function renderModernMatches() {
 // skip a re-render when neither the data nor the filters changed.
 function _histFilterKey() {
   return [
+    rating.system(),
     matchTabFilter,
     histPlayerFilter || "",
     histOutcomeFilter,
@@ -8505,8 +8217,8 @@ function _buildDigestContent(filter, player) {
   const accentCol = "var(--theme)";
   if (ms.length < 2)
     return `<div class="sub" style="padding:16px;text-align:center">Not enough matches for selected filter.</div>`;
-  const eloNow = _memoASS();
-  const eloAt = computeASS(
+  const eloNow = _memoRating();
+  const eloAt = rating.map(
     activeMatches().filter((m) => {
       const base =
         filter === "week"
@@ -8523,10 +8235,13 @@ function _buildDigestContent(filter, player) {
       return (m.date || "") < base;
     }),
   );
-  const stats = computeStats(ms, computeASS(ms));
+  const stats = rating.stats(ms);
   const topWinner = [...stats].sort((a, b) => b.mw - a.mw)[0];
   const mover = Object.keys(eloNow)
-    .map((p) => ({ name: p, gain: (eloNow[p] || 1000) - (eloAt[p] || 1000) }))
+    .map((p) => ({
+      name: p,
+      gain: (eloNow[p] ?? rating.def()) - (eloAt[p] ?? rating.def()),
+    }))
     .filter((p) =>
       ms.some((m) => [...(m.teamA || []), ...(m.teamB || [])].includes(p.name)),
     )
@@ -8553,7 +8268,7 @@ function _buildDigestContent(filter, player) {
   return `<div style="padding:0">
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${ms.length} matches · ${players.length} players${player ? ` · ${player}` : ""}</div>
     ${topWinner ? statRow("🏆", "Most Wins", topWinner.name, `${topWinner.mw}W–${topWinner.ml}L`) : ""}
-    ${mover ? statRow("⚡", `Biggest ${_scoringLabel()} Gain`, mover.name, `+${mover.gain > 0 ? mover.gain : 0}`) : ""}
+    ${mover ? statRow("⚡", `Biggest ${_scoringLabel()} Gain`, mover.name, `+${rating.fmt(Math.max(0, mover.gain))}`) : ""}
     ${hotPlayer ? statRow("🔥", "Hot Streak", hotPlayer.name, `${hotPlayer.curStreak} in a row`) : ""}
     ${wkPairs ? statRow("🤝", "Best Pair", wkPairs.players.join(" & "), `${wkPairs.wins}W ${wkPairs.winPct}%`) : ""}
     ${stats[0] ? statRow("📊", "Top Performer", stats[0].name, `SR ${stats[0].sr.toFixed(2)}`) : ""}
@@ -8711,12 +8426,12 @@ function openSessionHighlights(date) {
     ),
   ];
   const _amD = activeMatches();
-  const eloAfter = computeASS(_amD.filter((m) => (m.date || "") <= date));
-  const eloBefore = computeASS(_amD.filter((m) => (m.date || "") < date));
+  const eloAfter = rating.map(_amD.filter((m) => (m.date || "") <= date));
+  const eloBefore = rating.map(_amD.filter((m) => (m.date || "") < date));
   const gains = players
     .map((p) => ({
       name: p,
-      delta: (eloAfter[p] || 1000) - (eloBefore[p] || 1000),
+      delta: (eloAfter[p] ?? rating.def()) - (eloBefore[p] ?? rating.def()),
     }))
     .sort((a, b) => b.delta - a.delta);
   const winsMap = {};
@@ -8761,7 +8476,7 @@ function openSessionHighlights(date) {
       const sign = g.delta > 0 ? "+" : "";
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
       <span style="font-size:11px;font-weight:700">${g.name}</span>
-      <span style="font-size:12px;font-weight:800;color:${col}">${sign}${g.delta}</span>
+      <span style="font-size:12px;font-weight:800;color:${col}">${sign}${rating.fmt(g.delta)}</span>
     </div>`;
     })
     .join("");
@@ -8785,7 +8500,7 @@ function openSessionHighlights(date) {
     ${closest ? `<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">🔥 CLOSEST GAME</div><div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700">${closest.teamA.map((p) => p.split(" ")[0]).join("&")} ${closest.scoreA}–${closest.scoreB} ${closest.teamB.map((p) => p.split(" ")[0]).join("&")}</div>` : ""}
     <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">ALL MATCHES</div>
     <div style="margin-bottom:12px">${matchRows}</div>
-    <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">⚡ ASS CHANGES</div>
+    <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">⚡ ${escHtml(rating.label())} CHANGES</div>
     <div>${gainRows}</div>
   </div>`;
   document.body.appendChild(overlay);
@@ -8823,7 +8538,7 @@ function getMatrixAlias(name) {
 
 function _h2hSortPlayers(players) {
   if (!Array.isArray(players)) return [];
-  const eloMap = _memoASS();
+  const eloMap = _memoRating();
   // One O(matches) pass for everyone's played/won counts — the old per-player
   // scan was O(players × matches) and ran on every analytics render AND every
   // sort-pill click.
@@ -9198,7 +8913,7 @@ function _pairMatrixInner() {
       played[n] = (played[n] || 0) + 1;
     }),
   );
-  const _allTimeElo = _memoASS();
+  const _allTimeElo = _memoRating();
   const players = Object.keys(played).sort(
     (a, b) =>
       (_allTimeElo[b] || 1000) - (_allTimeElo[a] || 1000) || a.localeCompare(b),
@@ -9434,7 +9149,7 @@ function _renderOpposedPartnerBreakdownEl(el) {
   _renderOpposedPartnerBreakdown(el.dataset.pa, el.dataset.pb);
 }
 
-// ── Avg Opponent ASS Gap leaderboard ──────────────────────────────────────
+// ── Avg Opponent Rating Gap leaderboard ──────────────────────────────────────
 function _eloGapSetPeriod(btn, period) {
   viewState.eloGapPeriod = period;
   _refreshEloGap();
@@ -9466,11 +9181,11 @@ function _eloGapInner() {
       .join("") +
     `</div>`;
 
-  // ASS ratings scoped to this filter's own matches (all-time filter reuses
-  // the memoized all-time map — same convention as the Home ASS map at
-  // _isAllFilter ? _memoASS() : computeASS(filtered)).
-  const assMap = period === "all" ? _memoASS() : computeASS(matches);
+  // Active-system ratings scoped to this filter's own matches (the all-time
+  // filter reuses the memoized all-time map).
+  const assMap = period === "all" ? _memoRating() : rating.map(matches);
   const rows = computeAvgOpponentEloGap(matches, assMap);
+  const lbl = escHtml(rating.label());
 
   if (!rows.length)
     return `${periodPills}<div style="color:var(--muted);font-size:12px;padding:10px 0">No matches in this period.</div>`;
@@ -9489,8 +9204,8 @@ function _eloGapInner() {
     <span style="width:18px;text-align:center">#</span>
     <span style="flex:1.2">Player</span>
     <span style="width:26px;text-align:center">Rank</span>
-    <span style="min-width:40px;text-align:right">ASS</span>
-    <span style="flex:2;text-align:center">ASS Gap</span>
+    <span style="min-width:40px;text-align:right">${lbl}</span>
+    <span style="flex:2;text-align:center">${lbl} Gap</span>
     <span style="min-width:46px;text-align:right">Avg</span>
     <span style="min-width:42px;text-align:right">In Favor</span>
     <span style="min-width:16px;text-align:right">MP</span>
@@ -9506,11 +9221,11 @@ function _eloGapInner() {
         <span style="width:18px;text-align:center;font-size:9px;color:var(--muted)">${i + 1}</span>
         <span style="flex:1.2;font-size:11px;font-weight:700;color:var(--text)">${escHtml(r.name)}</span>
         <span style="width:26px;text-align:center;font-size:10px;font-weight:800;color:var(--accent)">${rank ? "#" + rank : "—"}</span>
-        <span style="min-width:40px;text-align:right;font-size:10px;font-weight:700;color:var(--text)">${Math.round(assMap[r.name] ?? 1000)}</span>
+        <span style="min-width:40px;text-align:right;font-size:10px;font-weight:700;color:var(--text)">${rating.fmt(assMap[r.name] ?? rating.def())}</span>
         <div style="flex:2;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden">
           <div style="height:100%;width:${barPct}%;background:${color};border-radius:3px"></div>
         </div>
-        <span style="font-size:11px;font-weight:900;color:${color};min-width:46px;text-align:right">${sign}${Math.round(r.avgGap)}</span>
+        <span style="font-size:11px;font-weight:900;color:${color};min-width:46px;text-align:right">${sign}${rating.fmt(r.avgGap)}</span>
         <span style="font-size:10px;font-weight:700;color:var(--text);min-width:42px;text-align:right">${r.favorablePct}%</span>
         <span style="font-size:9px;color:var(--muted);min-width:16px;text-align:right">${r.matches}</span>
       </div>`;
@@ -9518,7 +9233,7 @@ function _eloGapInner() {
     .join("");
 
   return `${periodPills}
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5"><strong style="color:#f04f4f">Positive</strong> = faced tougher opponents on average (combined ASS higher than their own team). <strong style="color:#36d47e">Negative</strong> = faced weaker opponents. Avg = avg ASS points. In Favor = % of matches where the player's own team had the higher combined ASS. Rank = ASS leaderboard position for this period.</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5"><strong style="color:#f04f4f">Positive</strong> = faced tougher opponents on average (combined ${lbl} higher than their own team). <strong style="color:#36d47e">Negative</strong> = faced weaker opponents. Avg = avg ${lbl} points. In Favor = % of matches where the player's own team had the higher combined ${lbl}. Rank = ${lbl} leaderboard position for this period.</div>
     ${header}
     ${body}`;
 }
@@ -9657,7 +9372,7 @@ const SCORING_SYSTEM_BLURBS = {
 
 function _scoringSystemPickerRows() {
   return SCORING_SYSTEMS.map((sys) => {
-    const selected = _scoringSystem === sys;
+    const selected = rating.system() === sys;
     return `<button class="live-sheet-item${selected ? " live-sheet-item-selected" : ""}" onclick="_setScoringSystem('${sys}')">
       <div style="flex:1;text-align:left;font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SCORING_SYSTEM_LABELS[sys]}</div>
     </button>`;
@@ -9680,7 +9395,7 @@ function _renderScoringPickerSheet() {
   const list = document.getElementById("season-scoring-list");
   if (!list) return;
   const season = _activeSeason();
-  const showFormats = _scoringSystem === "ass";
+  const showFormats = rating.system() === "ass";
   const hasRef = hasSeasonScoringReference(state.seasons, season);
   list.innerHTML = `
     <div class="live-sheet-section-lbl">SCORING SYSTEM</div>
@@ -9708,7 +9423,9 @@ function closeSeasonScoringPicker() {
 
 function _setScoringSystem(sys) {
   if (!SCORING_SYSTEMS.includes(sys)) return;
-  _scoringSystem = sys;
+  setActiveSystem(sys);
+  // Period/reign caches are keyed on the data, not the system.
+  _clearAnalyticsCache();
   try {
     localStorage.setItem("padel_scoring_system", sys);
   } catch (e) {}
@@ -9806,8 +9523,8 @@ function closeScoringInfoSheet() {
 function _updateSeasonScoringBadge() {
   const badge = document.getElementById("summary-mode-badge");
   if (!badge) return;
-  const sysLabel = SCORING_SYSTEM_LABELS[_scoringSystem];
-  if (_scoringSystem !== "ass") {
+  const sysLabel = SCORING_SYSTEM_LABELS[rating.system()];
+  if (rating.system() !== "ass") {
     badge.innerHTML = sysLabel;
     return;
   }
@@ -11447,9 +11164,8 @@ function _buildAntiPodiumTrackerHtml(periodType) {
 
 function _buildRankReignHtml() {
   const allM = activeMatches();
-  // Reign follows the active scoring system (ELO or ASS). Cache per mode.
-  const isAss = _scoringMode === "ass";
-  const fp = _lightFingerprint(allM) + "|" + (isAss ? "ass" : "elo");
+  // Reign follows the active scoring system. Cache per system.
+  const fp = _lightFingerprint(allM) + "|" + rating.system();
   if (_reignCache[fp]) return _reignCache[fp];
 
   // All distinct match days sorted chronologically
@@ -11458,7 +11174,7 @@ function _buildRankReignHtml() {
     return '<div style="color:var(--muted);font-size:12px;padding:8px 0">Need at least 2 match days with 3+ players.</div>';
 
   // Current ALL TIME rank (latest snapshot = full history) in the active system.
-  const eloMap = isAss ? _memoASS() : _memoASS();
+  const eloMap = _memoRating();
   const eloRanking = Object.entries(eloMap).sort((a, b) => b[1] - a[1]);
   const eloRankOf = {};
   eloRanking.forEach(([name], i) => {
@@ -11472,7 +11188,7 @@ function _buildRankReignHtml() {
   const sorted = [...allM].sort((a, b) =>
     (a.date || "").localeCompare(b.date || ""),
   );
-  const histAll = isAss ? _memoASSHistory() : _memoASSHistory();
+  const histAll = _memoRatingHistory();
   const histNames = Object.keys(histAll);
   const runElo = {}; // running rating per player, as of the current date
   const ptr = {};
@@ -11595,7 +11311,7 @@ function _buildRankTimelineHtml(periodType, maxPeriods = 10) {
   });
 
   // Current ALL TIME ELO rank
-  const eloMapTl = computeASS(activeMatches());
+  const eloMapTl = _memoRating();
   const eloRankOfTl = {};
   Object.entries(eloMapTl)
     .sort((a, b) => b[1] - a[1])
@@ -12424,7 +12140,7 @@ function runMatchPrediction() {
       '<div style="color:var(--red);font-size:11px;padding:4px">Select at least one player per team.</div>';
     return;
   }
-  const eloMap = _memoASS();
+  const eloMap = _memoRating();
   const avgA =
     teamA.reduce((s, p) => s + (eloMap[p] || 1000), 0) / teamA.length;
   const avgB =
@@ -12941,16 +12657,13 @@ function wrcOnSlider() {
   const avgWinDelta = avgOf(hist.filter((h) => h.won));
   const avgLossDelta = avgOf(hist.filter((h) => !h.won));
   const projectedChange = futureWins * avgWinDelta + futureLosses * avgLossDelta;
-  const zeroBased = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem);
+  const zeroBased = SCORING_SYSTEMS_ZERO_BASED.includes(rating.system());
   let finalRating, ratingGain;
   if (zeroBased) {
-    const full = computeEPFull(activeMatches(), _epCareerMatches())[name] || {
-      ep: 0,
-      games: 0,
-    };
+    const full = rating.full(activeMatches())?.[name] || { ep: 0, games: 0 };
     const projTotal = full.ep + projectedChange;
     const projGames = full.games + n;
-    finalRating = projTotal / (projGames + EP_SHRINKAGE);
+    finalRating = rating.scoreFor(projTotal, projGames);
     ratingGain = finalRating - myRating;
   } else {
     finalRating = myRating + projectedChange;
@@ -13199,7 +12912,7 @@ window._renderSynTable = function () {
           <div style="text-align:center">${r.played}</div>
           <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
           <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
-          <div style="text-align:center;color:${scCol}">${scSign}${sc}</div>
+          <div style="text-align:center;color:${scCol}">${scSign}${rating.fmt(sc)}</div>
         </div>`;
         })
         .join("")
@@ -13366,7 +13079,22 @@ function _buildSeasonComparisonHtml() {
   const _allM = withoutGuestMatches(state.matches);
   const perSeason = ordered.map((s) => {
     const sm = _allM.filter((m) => _inSeason(s, m.date));
-    return { s, elo: computeASS(sm), stats: computeStats(sm) };
+    // Each season is scored on its own by the active system (the same way the
+    // Summary tab scores it).
+    const elo = rating.map(sm);
+    const vals = Object.values(elo).sort((a, b) => a - b);
+    return {
+      s,
+      elo,
+      stats: computeStats(sm),
+      // Reference line for colouring: the 1000 baseline, or — on a 0-based
+      // system that has none — the season's own median.
+      mid: rating.isZeroBased()
+        ? vals.length
+          ? vals[Math.floor(vals.length / 2)]
+          : 0
+        : 1000,
+    };
   });
   const totals = {};
   _allM.forEach((m) =>
@@ -13392,14 +13120,12 @@ function _buildSeasonComparisonHtml() {
           const st = ps.stats.find((x) => x.name === name);
           if (!st)
             return `<td style="text-align:center;padding:4px 6px;color:var(--muted)">—</td>`;
-          const e = Math.round(ps.elo[name] || 1000);
-          const col =
-            e >= 1030
-              ? "var(--green)"
-              : e <= 970
-                ? "var(--red)"
-                : "var(--text)";
-          return `<td style="text-align:center;padding:4px 6px"><div style="font-size:12px;font-weight:800;color:${col}">${e}</div><div style="font-size:8px;color:var(--muted)">${st.mw}-${st.ml}</div></td>`;
+          const e = ps.elo[name] ?? rating.def();
+          const band = rating.isZeroBased() ? 0 : 30;
+          const up = band ? e >= ps.mid + band : e > ps.mid;
+          const down = band ? e <= ps.mid - band : e < ps.mid;
+          const col = up ? "var(--green)" : down ? "var(--red)" : "var(--text)";
+          return `<td style="text-align:center;padding:4px 6px"><div style="font-size:12px;font-weight:800;color:${col}">${rating.fmt(e)}</div><div style="font-size:8px;color:var(--muted)">${st.mw}-${st.ml}</div></td>`;
         })
         .join("");
       return `<tr><td style="text-align:left;padding:4px 6px;font-size:11px;font-weight:700;position:sticky;left:0;background:var(--surface);white-space:nowrap">${escHtml(name)}</td>${cells}</tr>`;
@@ -13614,7 +13340,7 @@ window._renderAssProjTable = function () {
   const { formN, futureM, sortCol, sortAsc } = window._assProj;
   const ratingLbl = SCORING_SYSTEM_LABELS.ep;
   const am2 = activeMatches();
-  const rows = computeEPProjection(am2, _epCareerMatches(), formN, futureM).filter(
+  const rows = rating.projection(am2, formN, futureM, "ep").filter(
     (r) => r.games >= 3,
   );
   if (!rows.length) {
@@ -13980,10 +13706,11 @@ function renderAnalyticsPage() {
     <div id="h2h-matrix-inner">${buildH2HMatrixCompact(playersByMatches)}</div>
   </div>`;
 
-  const compList = computeStats(am, eloMap, _statsSrFn(eloMap));
-  if (_scoringMode === "ass") {
-    compList.sort((a, b) => (eloMap[b.name] || 0) - (eloMap[a.name] || 0));
-  }
+  const compList = rating.stats(am, eloMap);
+  compList.sort(
+    (a, b) =>
+      (eloMap[b.name] ?? rating.def()) - (eloMap[a.name] ?? rating.def()),
+  );
   const clutchP = Object.keys(closePlayed)
     .filter((p) => closePlayed[p] >= 3)
     .sort(
@@ -14222,16 +13949,10 @@ function renderAnalyticsPage() {
   const _preWkArr = am.filter((m) => (m.date || "") < wkFrom);
   // Rank 1wk-ago using the same scoring mode as current
   const rank1wk = (() => {
-    if (_scoringMode === "ass") {
-      const assMap1wk = computeASS(_preWkArr);
-      return Object.entries(assMap1wk)
-        .sort((a, b) => b[1] - a[1])
-        .reduce((o, [name], i) => ({ ...o, [name]: i + 1 }), {});
-    }
-    return computeStats(_preWkArr, computeASS(_preWkArr)).reduce(
-      (o, p, i) => ({ ...o, [p.name]: i + 1 }),
-      {},
-    );
+    const map1wk = rating.map(_preWkArr);
+    return Object.entries(map1wk)
+      .sort((a, b) => b[1] - a[1])
+      .reduce((o, [name], i) => ({ ...o, [name]: i + 1 }), {});
   })();
   const rankRace = compList.map((p) => ({
     name: p.name,
@@ -14702,58 +14423,22 @@ function renderAnalyticsPage() {
   compList.forEach((p) => {
     overallWinRate[p.name] = p.winPct;
   });
-  // Net ASS/ELO delta per (player, partner) — accumulated across all 2v2 matches
+  // Net rating change per (player, partner) — accumulated across all 2v2
+  // matches from the History cards' own per-match numbers, so the column agrees
+  // with every card and overlay (and follows the active scoring system).
   const pairNetDelta = {};
-  if (_scoringMode === "ass") {
-    const _assMatchDeltas = computeMatchASSDeltas(sortedM);
+  {
+    const _cardRatings = _matchCardPrecompute().eloMatchMap;
     sortedM.forEach((m) => {
-      const info = _assMatchDeltas.get(m);
+      const info = _cardRatings.get(m);
       if (!info) return;
       [m.teamA, m.teamB].forEach((team) => {
         if (team.length !== 2) return;
         team.forEach((p) => {
           const partner = team.find((pp) => pp !== p);
           pairNetDelta[`${p}|||${partner}`] =
-            (pairNetDelta[`${p}|||${partner}`] || 0) +
-            (info.playerDeltas[p] || 0);
+            (pairNetDelta[`${p}|||${partner}`] || 0) + (info[p]?.delta || 0);
         });
-      });
-    });
-  } else {
-    const _runElo = {};
-    sortedM.forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        if (!(p in _runElo)) _runElo[p] = 1000;
-      });
-      const aWon = m.scoreA > m.scoreB;
-      const avgA =
-        m.teamA.reduce((s, p) => s + _runElo[p], 0) /
-        Math.max(m.teamA.length, 1);
-      const avgB =
-        m.teamB.reduce((s, p) => s + _runElo[p], 0) /
-        Math.max(m.teamB.length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
-      const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-      const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      if (m.teamA.length === 2) {
-        m.teamA.forEach((p) => {
-          const partner = m.teamA.find((pp) => pp !== p);
-          pairNetDelta[`${p}|||${partner}`] =
-            (pairNetDelta[`${p}|||${partner}`] || 0) + dA;
-        });
-      }
-      if (m.teamB.length === 2) {
-        m.teamB.forEach((p) => {
-          const partner = m.teamB.find((pp) => pp !== p);
-          pairNetDelta[`${p}|||${partner}`] =
-            (pairNetDelta[`${p}|||${partner}`] || 0) + dB;
-        });
-      }
-      m.teamA.forEach((p) => {
-        _runElo[p] += dA;
-      });
-      m.teamB.forEach((p) => {
-        _runElo[p] += dB;
       });
     });
   }
@@ -14770,7 +14455,7 @@ function renderAnalyticsPage() {
         pairPct,
         delta: pairPct - overallWinRate[pA],
         played: pd.played,
-        scoreDelta: Math.round(pairNetDelta[`${pA}|||${pB}`] || 0),
+        scoreDelta: pairNetDelta[`${pA}|||${pB}`] || 0,
       });
     }
     if (overallWinRate[pB] !== undefined) {
@@ -14780,7 +14465,7 @@ function renderAnalyticsPage() {
         pairPct,
         delta: pairPct - overallWinRate[pB],
         played: pd.played,
-        scoreDelta: Math.round(pairNetDelta[`${pB}|||${pA}`] || 0),
+        scoreDelta: pairNetDelta[`${pB}|||${pA}`] || 0,
       });
     }
   });
@@ -14848,7 +14533,7 @@ function renderAnalyticsPage() {
         <div style="text-align:center">${r.played}</div>
         <div style="text-align:center">${r.pairPct.toFixed(0)}%</div>
         <div style="text-align:center;color:${col2}">${sign}${r.delta.toFixed(0)}%</div>
-        <div style="text-align:center;color:${scCol}">${scSign}${sc}</div>
+        <div style="text-align:center;color:${scCol}">${scSign}${rating.fmt(sc)}</div>
       </div>`;
       })
       .join("");
@@ -17578,7 +17263,7 @@ function renderAnalyticsPage() {
       cat: "records",
       title: `🐺 Underdog Leaderboard (${SCORING_SYSTEM_LABELS.ep})`,
       body: (() => {
-        const upsets = computeEPUpsets(am, _epCareerMatches());
+        const upsets = rating.upsets(am, "ep");
         const agg = {};
         upsets.forEach((u) => {
           if (u.gap <= 0) return;
@@ -17887,7 +17572,7 @@ function renderAnalyticsPage() {
           .map(([n]) => n);
         if (!topNames.length)
           return '<div class="sub" style="padding:8px">No data.</div>';
-        const _raceFloor = SCORING_SYSTEMS_ZERO_BASED.includes(_scoringSystem)
+        const _raceFloor = SCORING_SYSTEMS_ZERO_BASED.includes(rating.system())
           ? 0
           : 1200;
         const maxScore = Math.max(
@@ -19638,7 +19323,7 @@ function _updateLiveEloPreview() {
   const previewDeltas = (scoreA, scoreB) => {
     const synth = { date: todayISO(), teamA: [a1, a2], teamB: [b1, b2], scoreA, scoreB };
     const withSynth = [...base, synth];
-    const d = _matchDeltasForSystem(_scoringSystem, withSynth).get(synth);
+    const d = _matchDeltasForSystem(rating.system(), withSynth).get(synth);
     return d ? d.playerDeltas : {};
   };
   const winDeltas = previewDeltas(4, 2);
@@ -19990,11 +19675,11 @@ function _buildSessionLeaderboard() {
       }
     });
   });
-  // Session standings follow ASS, computed over just this session's matches
-  // so the points start fresh at 1000.
-  const _sessScoreMap = computeASS(_sessionMatchHistory);
-  const _sessScoreLbl = "ASS";
-  const _sessScore = (n) => Math.round(_sessScoreMap[n] ?? 1000);
+  // Session standings follow the active scoring system, computed over just
+  // this session's matches so the scores start fresh from the baseline.
+  const _sessScoreMap = rating.fresh(_sessionMatchHistory);
+  const _sessScoreLbl = escHtml(rating.label());
+  const _sessScore = (n) => rating.round(_sessScoreMap[n] ?? rating.def());
   const sorted = Object.entries(stats).sort((a, b) => {
     const sd = _sessScore(b[0]) - _sessScore(a[0]);
     if (sd !== 0) return sd;
@@ -20017,12 +19702,16 @@ function _buildSessionLeaderboard() {
       const pct = s.m ? Math.round((s.w / s.m) * 100) : 0;
       const sc = _sessScore(name);
       const scCol =
-        sc > 1000 ? "var(--green)" : sc < 1000 ? "var(--red)" : "var(--muted)";
+        sc > rating.def()
+          ? "var(--green)"
+          : sc < rating.def()
+            ? "var(--red)"
+            : "var(--muted)";
       return `<div class="sess-ldr-row">
       <div class="sess-ldr-name">${escHtml(normPlayer(name))}</div>
       <div class="sess-ldr-stats">${s.w}W ${s.l}L</div>
       <div class="sess-ldr-barwrap"><div class="sess-ldr-bar" style="width:${pct}%"></div></div>
-      <div class="sess-ldr-score" style="color:${scCol}">${sc}<span class="sess-ldr-score-lbl">${_sessScoreLbl}</span></div>
+      <div class="sess-ldr-score" style="color:${scCol}">${rating.fmt(sc)}<span class="sess-ldr-score-lbl">${_sessScoreLbl}</span></div>
       <div class="sess-ldr-count">×${s.m}</div>
     </div>`;
     })
@@ -20155,11 +19844,11 @@ function _showSuggestSheet(suggestions) {
         scoreB: 4,
       };
       const winDeltas =
-        _matchDeltasForSystem(_scoringSystem, [...baseMatches, synthWin]).get(
+        _matchDeltasForSystem(rating.system(), [...baseMatches, synthWin]).get(
           synthWin,
         )?.playerDeltas || {};
       const loseDeltas =
-        _matchDeltasForSystem(_scoringSystem, [...baseMatches, synthLose]).get(
+        _matchDeltasForSystem(rating.system(), [...baseMatches, synthLose]).get(
           synthLose,
         )?.playerDeltas || {};
       const teamAvg = (deltas, players) => {
@@ -20759,7 +20448,7 @@ function _renderLiveSessionDashboard() {
       ? vals.reduce((a, b) => a + b, 0) / vals.length
       : undefined;
   };
-  _matchDeltasForSystem(_scoringSystem, state.matches).forEach((d, m) => {
+  _matchDeltasForSystem(rating.system(), state.matches).forEach((d, m) => {
     const dA = _avgTeamDelta(d.playerDeltas, m.teamA);
     const dB = _avgTeamDelta(d.playerDeltas, m.teamB);
     _atDeltaMap.set(m.id, { dA, dB });
@@ -21065,8 +20754,9 @@ function archiveSeason(id) {
     ? activeMatches().filter((m) => (m.date || "") < s.start)
     : [];
   const awards = _periodAwards(ms, priorMs);
-  const scoreMap = _scoringMode === "ass" ? computeASS(ms) : computeASS(ms);
-  const standings = computeStats(ms, scoreMap);
+  // Frozen with whichever system is active, and tagged with it (below) so the
+  // snapshot always says what produced its numbers.
+  const standings = rating.stats(ms);
   s.archived = true;
   s.archivedAt = todayISO();
   s.archivedSnapshot = {
@@ -21086,7 +20776,8 @@ function archiveSeason(id) {
     standings: standings
       .slice(0, 20)
       .map((p) => ({ name: p.name, mp: p.mp, mw: p.mw, ml: p.ml, sr: p.sr })),
-    scoringMode: _scoringMode,
+    scoringMode: "ass", // legacy field, kept for older snapshot readers
+    scoringSystem: rating.system(),
   };
   _persistSeasons();
   saveCloudData();
@@ -21118,7 +20809,7 @@ function viewSeasonArchive(id) {
         <button onclick="document.getElementById('season-archive-modal').remove()" aria-label="Back" title="Back" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer">←</button>
         <div>
           <div style="font-size:16px;font-weight:900">📦 ${escHtml(s.name)}</div>
-          <div style="font-size:10px;color:var(--muted)">Archived ${fmtDate(s.archivedAt)} · frozen snapshot, ${snap.matches} matches</div>
+          <div style="font-size:10px;color:var(--muted)">Archived ${fmtDate(s.archivedAt)} · frozen snapshot, ${snap.matches} matches · scored with ${escHtml(SCORING_SYSTEM_LABELS[snap.scoringSystem] || SCORING_SYSTEM_LABELS.ass)}</div>
         </div>
       </div>
       <div class="ana-card" style="padding:10px 12px;margin-bottom:8px">

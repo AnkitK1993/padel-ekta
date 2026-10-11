@@ -7,6 +7,7 @@
 
 import { computeASS } from "../src/domain/ass.js";
 import { computeStats } from "../src/domain/stats.js";
+import { setActiveSystem } from "../src/domain/rating-service.js";
 import {
   computeSeasonTrajectory,
   computeSeasonRiserFaller,
@@ -41,6 +42,13 @@ import {
   filterMatches,
   invalidateAmMemo,
 } from "../src/domain/selectors.js";
+
+// Every golden number below was recorded on the ASS CLASSIC engine. Modules
+// that follow the app's active scoring system (badges, analytics, season
+// stats, the recap) read it from the rating service, so pin classic here —
+// these tests keep asserting the same maths whichever system the app defaults
+// to. (tests-consistency.mjs and tests-ep.mjs cover the other systems.)
+setActiveSystem("ass");
 
 let pass = 0,
   fail = 0;
@@ -112,7 +120,6 @@ initPairsDeps({ normPlayer: (n) => n });
 // Inject real compute helpers; date helpers are deterministic stubs.
 initBadgesDeps({
   computeStats,
-  computeElo: computeASS,
   getPairStats, // real module now — enables Best Duo badge when pairs qualify
   lastWeekRange: () => ({ from: "2000-01-01" }), // everything counts as "this week"
   fmtDate: (d) => d,

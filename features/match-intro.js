@@ -4,7 +4,12 @@
 // openEditMatch is called via window.openEditMatch since it lives in app.js.
 import { normPlayer } from "../src/domain/players.js";
 import { state } from "../src/domain/state.js";
-import { computeASS } from "../src/domain/ass.js";
+import {
+  rating,
+  scopeFor,
+  careerGamesBefore,
+} from "../src/domain/rating-service.js";
+import { isRatedMatch } from "../src/domain/selectors.js";
 import {
   computePlayerXP,
   getPlayerLevel,
@@ -21,52 +26,16 @@ import {
   isZeroMatch,
 } from "../src/ui/render-match-rows.js";
 
-// Rating accessors are injected so this module follows the Summary tab's
-// scoring picker instead of being hard-wired to ASS CLASSIC. Each falls back
-// to the original engine/format, so nothing changes if they aren't supplied.
-let _ratingMap = (ms) => computeASS(ms);
-let _ratingDefault = () => 1000;
-let _ratingFmt = (v) => String(Math.round(v));
-let _ratingLabel = () => "ASS";
-let _isZeroBased = () => false;
-// Raw points each player earned for a match ({ name: points }), or null when
-// the active system has no separate points notion (rating change == points).
-let _matchPoints = () => null;
-// Matches that count toward the rating snapshots for a given match — the
-// season it was played in (so the numbers agree with that season's leaderboard).
-let _ratingScope = () => state.matches;
-// The History card's per-player { delta, after } for a match, when available.
+// Everything rating-related comes straight from the rating service, so this
+// overlay follows the Summary tab's scoring picker by construction. The one
+// injected piece is the History card's own per-player { delta, after } for a
+// match (app.js owns that memoised walk): using it keeps the overlay's numbers
+// identical to the card that opened it. Not wired -> null -> the overlay falls
+// back to its own season-scoped snapshots.
 let _matchRating = () => null;
-// EP-only extras: win chance + award breakdown, running total points, and
-// career games before a match.
-let _matchDetail = () => null;
-let _totalPoints = () => null;
-let _careerBefore = () => ({});
 
-export function initMatchIntroDeps({
-  ratingMap,
-  ratingDefault,
-  ratingFmt,
-  ratingLabel,
-  isZeroBased,
-  matchPoints,
-  ratingScope,
-  matchRating,
-  matchDetail,
-  totalPoints,
-  careerGamesBefore,
-}) {
-  if (ratingMap) _ratingMap = ratingMap;
-  if (ratingDefault) _ratingDefault = ratingDefault;
-  if (ratingFmt) _ratingFmt = ratingFmt;
-  if (ratingLabel) _ratingLabel = ratingLabel;
-  if (isZeroBased) _isZeroBased = isZeroBased;
-  if (matchPoints) _matchPoints = matchPoints;
-  if (ratingScope) _ratingScope = ratingScope;
+export function initMatchIntroDeps({ matchRating }) {
   if (matchRating) _matchRating = matchRating;
-  if (matchDetail) _matchDetail = matchDetail;
-  if (totalPoints) _totalPoints = totalPoints;
-  if (careerGamesBefore) _careerBefore = careerGamesBefore;
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -95,18 +64,17 @@ function openMatchIntro(idx) {
   _mioTimers = [];
   _mioFinalize = null;
 
-  // Use the SAME raw, all-season, guest-inclusive match universe the History
-  // page itself uses (state.matches) — not activeMatches() (season + guest
-  // filtered). This overlay opens FROM that raw log, so its rank/ASS/H2H
-  // numbers must agree with what the card that opened it just showed. Using
-  // activeMatches() here used to silently exclude any match involving a
-  // guest (or outside the active season) from BOTH the "before" and "after"
-  // snapshots, making every delta pill read +0 for a guest match and the
-  // team ASS badges disagree with the History card underneath.
+  // H2H / streak context uses the raw match log (state.matches) — it opens
+  // FROM that log, so results and records must agree with the card that
+  // opened it. RATINGS are different: they only ever count RATED matches (no
+  // guests, no excluded players), scoped to the season the match was played
+  // in — the very list the leaderboard scores — so the numbers here can't
+  // disagree with the leaderboard or the History card.
   const _amE = state.matches;
-  // H2H / streak context above stays lifetime; only the rating snapshots are
-  // scoped to the match's own season.
-  const _scopeE = _ratingScope(m);
+  // A guest / excluded-player match is a plain result: it changes nobody's
+  // rating, so no rating numbers are shown for it.
+  const _rated = isRatedMatch(m);
+  const _scopeE = scopeFor(m);
   // Pre/post-match ASS over that set. One O(n) rating-map pass each side;
   // cached on (idx, match count, active label) so re-opening the same banner
   // — or any re-trigger — skips the recompute. _upToBeforeE (matches
@@ -116,18 +84,17 @@ function openMatchIntro(idx) {
   // memo-hit path and a ReferenceError elsewhere (which silently aborts the
   // whole overlay).
   const _upToBeforeE = new Set(state.matches.slice(0, idx));
-  const _mcDefault = _ratingDefault();
+  const _mcDefault = rating.def();
   let priorAss, afterAss;
   if (
     _mioAssMemo &&
     _mioAssMemo.idx === idx &&
     _mioAssMemo.amLen === _scopeE.length &&
-    _mioAssMemo.label === _ratingLabel()
+    _mioAssMemo.label === rating.label()
   ) {
     priorAss = _mioAssMemo.priorAss;
     afterAss = _mioAssMemo.afterAss;
   } else {
-    const _upToInclE = new Set(state.matches.slice(0, idx + 1));
     // Cut by DATE order (ties keep entry order), the same order the rating
     // engines and the History card walk — array position alone disagrees when
     // a match was entered out of date order.
@@ -135,20 +102,23 @@ function openMatchIntro(idx) {
       (a.date || "").localeCompare(b.date || ""),
     );
     const _k = _scopeSorted.indexOf(m);
+    // An unrated match isn't in the scope: it sits in the season by date
+    // (entry order breaks ties) and changes nobody's rating.
     const _before =
       _k >= 0
         ? _scopeSorted.slice(0, _k)
-        : _scopeE.filter((mm) => _upToBeforeE.has(mm));
-    const _incl =
-      _k >= 0
-        ? _scopeSorted.slice(0, _k + 1)
-        : _scopeE.filter((mm) => _upToInclE.has(mm));
-    priorAss = _ratingMap(_before);
-    afterAss = _ratingMap(_incl);
+        : _scopeSorted.filter(
+            (x) =>
+              (x.date || "") < (m.date || "") ||
+              ((x.date || "") === (m.date || "") && _upToBeforeE.has(x)),
+          );
+    const _incl = _k >= 0 ? _scopeSorted.slice(0, _k + 1) : _before;
+    priorAss = rating.map(_before);
+    afterAss = rating.map(_incl);
     _mioAssMemo = {
       idx,
       amLen: _scopeE.length,
-      label: _ratingLabel(),
+      label: rating.label(),
       priorAss,
       afterAss,
     };
@@ -190,7 +160,7 @@ function openMatchIntro(idx) {
   };
 
   const avgAss = (players) =>
-    _ratingFmt(
+    rating.fmt(
       players.reduce((s, p) => s + (priorAss[p] ?? _mcDefault), 0) /
         Math.max(players.length, 1),
     );
@@ -240,11 +210,13 @@ function openMatchIntro(idx) {
     );
     return Math.round(levels.reduce((s, l) => s + l, 0) / levels.length);
   };
-  const _mioLbl = _ratingLabel();
-  document.getElementById("mio-elo-a").textContent =
-    `${_mioLbl} ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`;
-  document.getElementById("mio-elo-b").textContent =
-    `${_mioLbl} ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`;
+  const _mioLbl = rating.label();
+  document.getElementById("mio-elo-a").textContent = _rated
+    ? `${_mioLbl} ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`
+    : `LVL ${teamAvgLvl(m.teamA)}`;
+  document.getElementById("mio-elo-b").textContent = _rated
+    ? `${_mioLbl} ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`
+    : `LVL ${teamAvgLvl(m.teamB)}`;
 
   const scoreAEl = document.getElementById("mio-score-a");
   const scoreBEl = document.getElementById("mio-score-b");
@@ -259,7 +231,7 @@ function openMatchIntro(idx) {
 
   // Per-player pill: name, rating before -> after, and (EP) the raw points
   // earned. Rating goes straight through the active picker's formatter.
-  const _pts = _matchPoints(m);
+  const _pts = rating.entry(m)?.playerDeltas ?? null;
   const deltaPills = [...m.teamA, ...m.teamB]
     .map((p) => {
       const oldR = priorAss[p] ?? _mcDefault;
@@ -269,13 +241,15 @@ function openMatchIntro(idx) {
         _pts && _pts[p] !== undefined
           ? `<span class="mio-delta-pts">${_pts[p] >= 0 ? "+" : ""}${_pts[p]} pts</span>`
           : "";
-      return `<span class="mio-delta-pill"><span class="mio-delta-name">${escHtml(normPlayer(p))}</span><span class="mio-delta-sub mio-delta-range ${aCls}">${_ratingFmt(oldR)} → ${_ratingFmt(newR)}</span>${ptsHtml}</span>`;
+      return `<span class="mio-delta-pill"><span class="mio-delta-name">${escHtml(normPlayer(p))}</span><span class="mio-delta-sub mio-delta-range ${aCls}">${rating.fmt(oldR)} → ${rating.fmt(newR)}</span>${ptsHtml}</span>`;
     })
     .join("");
-  document.getElementById("mio-elo-deltas").innerHTML = deltaPills;
+  document.getElementById("mio-elo-deltas").innerHTML = _rated
+    ? deltaPills
+    : `<span class="mio-unrated" style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:0.04em">GUEST MATCH · NOT COUNTED IN RATINGS</span>`;
 
   // ── Extra detail: win chance, pair records, per-player cards ─────────
-  renderMatchDetail(m, priorAss, afterAss, _pts, aWon, nameA, nameB);
+  renderMatchDetail(m, priorAss, afterAss, _pts, aWon, nameA, nameB, _rated);
 
   // H2H data between the two teams (all prior matches)
   const tkA = [...m.teamA].sort().join("|");
@@ -466,7 +440,7 @@ function openMatchIntro(idx) {
     // tier thresholds are 1000-centred (ASS CLASSIC's own scale), so they
     // only mean anything for engines on that scale — skip this callout for
     // a 0-based engine (EP) rather than showing tiers no one will ever hit.
-    if (!_isZeroBased()) {
+    if (_rated && !rating.isZeroBased()) {
       const ASS_TIERS = [
         { t: 900, n: "BRONZE" },
         { t: 1000, n: "SILVER" },
@@ -495,13 +469,15 @@ function openMatchIntro(idx) {
     const teamADelta = teamDelta(m.teamA);
     const teamBDelta = teamDelta(m.teamB);
     const fmtTeamDelta = (d) =>
-      `${d >= 0 ? "+" : ""}${_ratingFmt(d)} ${_mioLbl}`;
-    ctxParts.push(
-      `${teamADelta >= 0 ? "📈" : "📉"} ${nameA.split("<br>").join(" ")} ${fmtTeamDelta(teamADelta)}`,
-    );
-    ctxParts.push(
-      `${teamBDelta >= 0 ? "📈" : "📉"} ${nameB.split("<br>").join(" ")} ${fmtTeamDelta(teamBDelta)}`,
-    );
+      `${d >= 0 ? "+" : ""}${rating.fmt(d)} ${_mioLbl}`;
+    if (_rated) {
+      ctxParts.push(
+        `${teamADelta >= 0 ? "📈" : "📉"} ${nameA.split("<br>").join(" ")} ${fmtTeamDelta(teamADelta)}`,
+      );
+      ctxParts.push(
+        `${teamBDelta >= 0 ? "📈" : "📉"} ${nameB.split("<br>").join(" ")} ${fmtTeamDelta(teamBDelta)}`,
+      );
+    }
 
     ctxEl.innerHTML = ctxParts.length
       ? ctxParts.map((t) => `<div class="mio-ctx-line">${t}</div>`).join("")
@@ -562,27 +538,36 @@ function openMatchIntro(idx) {
 // points, game number / newcomer flag, recent form and how the points were
 // built). Everything beyond rank/win%/form/pair record is EP-only and simply
 // omitted for the other scoring systems.
-function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB) {
+function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB, rated = true) {
   const wcEl = document.getElementById("mio-winchance");
   const dEl = document.getElementById("mio-detail");
   if (!wcEl || !dEl) return;
-  const lbl = _ratingLabel();
-  const def = _ratingDefault();
+  if (!rated) {
+    // A plain result: nothing to explain about ratings.
+    wcEl.innerHTML = "";
+    wcEl.style.display = "none";
+    dEl.innerHTML = "";
+    dEl.style.display = "none";
+    return;
+  }
+  const lbl = rating.label();
+  const def = rating.def();
   const guests = new Set(
     Object.values(state.players || {})
       .filter((p) => p.isGuest)
       .map((p) => p.name),
   );
   const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
-  const scopeSorted = [..._ratingScope(m)].sort(byDate);
+  const scopeSorted = [...scopeFor(m)].sort(byDate);
   const k = scopeSorted.indexOf(m);
   const beforeScope = k >= 0 ? scopeSorted.slice(0, k) : scopeSorted;
   const inclScope = k >= 0 ? scopeSorted.slice(0, k + 1) : scopeSorted;
   const allSorted = [...state.matches].sort(byDate);
   const ka = allSorted.indexOf(m);
   const lifetimeBefore = ka >= 0 ? allSorted.slice(0, ka) : allSorted;
-  const detail = _matchDetail(m);
-  const careerN = _careerBefore(m) || {};
+  const entry = rating.entry(m);
+  const detail = entry ? { expA: entry.expA, breakdown: entry.breakdown } : null;
+  const careerN = careerGamesBefore(m);
 
   const involves = (x, p) => (x.teamA || []).includes(p) || (x.teamB || []).includes(p);
   const wonBy = (x, p) =>
@@ -606,7 +591,7 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB) {
     });
     return r;
   };
-  const totBefore = _totalPoints(beforeScope);
+  const totBefore = rating.totals(beforeScope);
 
   // 2 — win chance
   if (detail) {
@@ -690,6 +675,7 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB) {
     return `<div class="mio-dcard"><div class="mio-dc-name">${escHtml(normPlayer(p))}</div>${parts.join("")}</div>`;
   };
 
+  dEl.style.display = "";
   dEl.innerHTML = `<div class="mio-detail-lbl">PAIR RECORD (BEFORE THIS MATCH)</div>
     ${pairLine(m.teamA)}${pairLine(m.teamB)}
     <div class="mio-detail-lbl">PLAYER BREAKDOWN · ${escHtml(lbl)}</div>

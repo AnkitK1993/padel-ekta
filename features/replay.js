@@ -6,8 +6,7 @@
 // are re-exposed on window by app.js for the inline onclick handlers.
 import { state } from "../src/domain/state.js";
 import { withoutGuestMatches } from "../src/domain/selectors.js";
-import { computeASS } from "../src/domain/ass.js";
-import { computeStats } from "../src/domain/stats.js";
+import { rating } from "../src/domain/rating-service.js";
 import { escHtml, fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
 const _REPLAY_MIN = 5;
@@ -20,6 +19,15 @@ let _replayIdx = 0,
   _replaySpotlight = "",
   _replayPrevElos = {},
   _replayPrevRanks = {};
+
+// Ratings for "the first N matches", memoised for the life of one replay: the
+// caption needs N and N-1, and stepping forward re-asks for last tick's N.
+let _replayMaps = new Map();
+function _replayMapAt(sorted, n) {
+  const key = `${rating.system()}|${n}`;
+  if (!_replayMaps.has(key)) _replayMaps.set(key, rating.map(sorted.slice(0, n)));
+  return _replayMaps.get(key);
+}
 
 function _replaySorted() {
   // Leaderboard replay is all-time (cross-season) but still skips guests.
@@ -49,6 +57,7 @@ export function _buildLeaderboardReplayHtml() {
   _replayIdx = sorted.length;
   _replayPrevElos = {};
   _replayPrevRanks = {};
+  _replayMaps = new Map();
   const milestones = _replayComputeMilestones(sorted);
   const range = sorted.length - _REPLAY_MIN || 1;
   const milestoneDots = milestones
@@ -67,7 +76,7 @@ export function _buildLeaderboardReplayHtml() {
         (d) => `<option value="${escHtml(d)}">${escHtml(fmtDate(d))}</option>`,
       )
       .join("");
-  const topPlayers = computeStats(sorted, computeASS(sorted));
+  const topPlayers = rating.stats(sorted);
   const spotlightOpts =
     '<option value="">👁 Spotlight: All</option>' +
     topPlayers
@@ -118,10 +127,11 @@ export function _replayUpdate(idx) {
     Math.min(parseInt(idx, 10) || _REPLAY_MIN, sorted.length),
   );
   const slice = sorted.slice(0, _replayIdx);
-  const scoreMap = computeASS(slice);
-  const scoreLabel = "ASS";
-  const stats = computeStats(slice, scoreMap).slice(0, 8);
-  const maxScore = Math.max(...stats.map((s) => scoreMap[s.name] || 1000), 1000);
+  const scoreMap = _replayMapAt(sorted, _replayIdx);
+  const scoreLabel = rating.label();
+  const def = rating.def();
+  const stats = rating.stats(slice, scoreMap).slice(0, 8);
+  const maxScore = Math.max(...stats.map((s) => scoreMap[s.name] ?? def), def);
   const board = document.getElementById("replay-board");
   const slider = document.getElementById("replay-slider");
   const caption = document.getElementById("replay-caption");
@@ -133,22 +143,21 @@ export function _replayUpdate(idx) {
     const losers = aWon ? m.teamB : m.teamA;
     const ws = Math.max(m.scoreA, m.scoreB);
     const ls = Math.min(m.scoreA, m.scoreB);
-    const prevSlice = sorted.slice(0, _replayIdx - 1);
-    const prevScoreMap = computeASS(prevSlice);
+    const prevScoreMap = _replayMapAt(sorted, _replayIdx - 1);
     const winnerName = winners[0];
     const scoreDelta =
-      (scoreMap[winnerName] || 1000) - (prevScoreMap[winnerName] || 1000);
+      (scoreMap[winnerName] ?? def) - (prevScoreMap[winnerName] ?? def);
     const sign = scoreDelta >= 0 ? "+" : "";
     caption.innerHTML = `<span class="lr-cap-num">Match ${_replayIdx}/${sorted.length}</span>
-      <span class="lr-cap-date">${m.date || ""}</span>
-      <span class="lr-cap-result">${winners.join(" & ")} <span class="lr-cap-def">def.</span> ${losers.join(" & ")} <b>${ws}-${ls}</b></span>
-      <span class="lr-cap-elo" style="color:${scoreDelta >= 0 ? "var(--green)" : "var(--red)"}">${winnerName} ${sign}${scoreDelta} ${scoreLabel}</span>`;
+      <span class="lr-cap-date">${escHtml(m.date || "")}</span>
+      <span class="lr-cap-result">${escHtml(winners.join(" & "))} <span class="lr-cap-def">def.</span> ${escHtml(losers.join(" & "))} <b>${ws}-${ls}</b></span>
+      <span class="lr-cap-elo" style="color:${scoreDelta >= 0 ? "var(--green)" : "var(--red)"}">${escHtml(winnerName)} ${sign}${rating.fmt(scoreDelta)} ${escHtml(scoreLabel)}</span>`;
   }
   if (!board) return;
   board.innerHTML = stats
     .map((p, i) => {
-      const score = scoreMap[p.name] || 1000;
-      const barW = Math.round((score / maxScore) * 100);
+      const score = scoreMap[p.name] ?? def;
+      const barW = maxScore > 0 ? Math.round((Math.max(0, score) / maxScore) * 100) : 0;
       const isSpot = _replaySpotlight && p.name === _replaySpotlight;
       const dim = _replaySpotlight && !isSpot ? " lr-dim" : "";
       const fat = isSpot ? " lr-fat" : "";
@@ -173,9 +182,9 @@ export function _replayUpdate(idx) {
       let eloChip = '<span class="lr-elo-d-blank"></span>';
       if (typeof prevScore === "number") {
         const d = score - prevScore;
-        if (d !== 0) {
+        if (rating.round(d) !== 0) {
           const s = d > 0 ? "+" : "";
-          eloChip = `<span class="lr-elo-d" style="color:${d > 0 ? "var(--green)" : "var(--red)"}">${s}${d}</span>`;
+          eloChip = `<span class="lr-elo-d" style="color:${d > 0 ? "var(--green)" : "var(--red)"}">${s}${rating.fmt(d)}</span>`;
         }
       }
       return `<div class="lr-row${dim}${fat}">
@@ -183,10 +192,10 @@ export function _replayUpdate(idx) {
         ${rankChip}
         <div class="lr-av" style="background:${playerColor(p.name)}">${playerInitials(p.name)}</div>
         <div class="lr-name-wrap">
-          <div class="lr-name">${p.name}</div>
+          <div class="lr-name">${escHtml(p.name)}</div>
           <div class="lr-bar"><div class="lr-bar-fill" style="width:${barW}%;background:${col}"></div></div>
         </div>
-        <div class="lr-elo" style="color:${col}">${score}</div>
+        <div class="lr-elo" style="color:${col}">${rating.fmt(score)}</div>
         ${eloChip}
       </div>`;
     })
@@ -194,7 +203,7 @@ export function _replayUpdate(idx) {
   _replayPrevElos = {};
   _replayPrevRanks = {};
   stats.forEach((p, i) => {
-    _replayPrevElos[p.name] = scoreMap[p.name] || 1000;
+    _replayPrevElos[p.name] = scoreMap[p.name] ?? def;
     _replayPrevRanks[p.name] = i;
   });
 }

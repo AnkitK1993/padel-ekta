@@ -15,7 +15,7 @@ import { _lightFingerprint } from "../domain/fingerprint.js";
 import { computeStats } from "../domain/stats.js";
 import { getPairStats } from "../domain/pairs.js";
 import { activeMatches, invalidateAmMemo } from "../domain/selectors.js";
-import { computeASS, computeASSTimeline } from "../domain/ass.js";
+import { rating, invalidate as invalidateRatingCaches } from "../domain/rating-service.js";
 
 // Per-section caches that grow one entry per distinct dataset and would
 // otherwise leak unbounded across a session. Cleared on every invalidation.
@@ -33,15 +33,17 @@ export function initMemoStoreDeps({ getDataVersion }) {
 
 let _getDataVersion = () => 0;
 
+// The active scoring system is part of every key: stats carry SR and a rank
+// order derived from the rating, so a picker change must never reuse them.
 function _statKey() {
-  return `${_getDataVersion()}|${_lightFingerprint(activeMatches())}`;
+  return `${_getDataVersion()}|${rating.system()}|${_lightFingerprint(activeMatches())}`;
 }
 
 export function memoStats() {
   const key = _statKey();
   if (_statsMemoKey !== key || !_statsMemo) {
     _statsMemoKey = key;
-    _statsMemo = computeStats(activeMatches(), memoASS());
+    _statsMemo = rating.stats(activeMatches(), memoRating());
   }
   return _statsMemo.slice(); // safe copy for callers that sort
 }
@@ -67,37 +69,37 @@ export function memoPairStats() {
   return _pairStatsMemo.slice();
 }
 
-// ── ASS score map ─────────────────────────────────────────────
-// Memoises computeASS(activeMatches()) — the most frequently called
-// un-cached computation in the codebase (hit by home, compact, analytics,
-// power rankings, scatter plot, rank divergence per render).
-let _assMemo = null, _assMemoKey = "";
+// ── Rating map ────────────────────────────────────────────────
+// Memoises rating.map(activeMatches()) for whichever scoring system is active —
+// the most frequently called un-cached computation in the codebase (hit by
+// home, compact, analytics, power rankings, scatter plot, rank divergence per
+// render). Keyed on the system too, so switching the picker can't serve the
+// previous engine's numbers.
+let _ratingMemo = null, _ratingMemoKey = "";
 
-export function memoASS() {
-  const am = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_assMemoKey === key && _assMemo) return _assMemo;
-  _assMemoKey = key;
-  _assMemo = computeASS(am);
-  return _assMemo;
+export function memoRating() {
+  const key = _statKey();
+  if (_ratingMemoKey === key && _ratingMemo) return _ratingMemo;
+  _ratingMemoKey = key;
+  _ratingMemo = rating.map(activeMatches());
+  return _ratingMemo;
 }
 
-// ── ASS timeline (history / peaks / lows) ─────────────────────
+// ── Rating timeline (history / peaks / lows) ──────────────────
 // Computes all three in a single chronological walk and shares the result.
-let _assTimelineMemo = null, _assTimelineKey = "";
+let _timelineMemo = null, _timelineKey = "";
 
-function _getASSTimeline() {
-  const am  = activeMatches();
-  const key = _lightFingerprint(am);
-  if (_assTimelineKey === key && _assTimelineMemo) return _assTimelineMemo;
-  _assTimelineKey  = key;
-  _assTimelineMemo = computeASSTimeline(am);
-  return _assTimelineMemo;
+function _getTimeline() {
+  const key = _statKey();
+  if (_timelineKey === key && _timelineMemo) return _timelineMemo;
+  _timelineKey = key;
+  _timelineMemo = rating.timeline(activeMatches());
+  return _timelineMemo;
 }
 
-export function memoASSHistory() { return _getASSTimeline().history; }
-export function memoASSPeaks()   { return _getASSTimeline().peaks; }
-export function memoASSLows()    { return _getASSTimeline().lows; }
+export function memoRatingHistory() { return _getTimeline().history; }
+export function memoRatingPeaks()   { return _getTimeline().peaks; }
+export function memoRatingLows()    { return _getTimeline().lows; }
 
 // ── Invalidation ───────────────────────────────────────────────
 // Single entry point called by commit() — resets every cache key so that the
@@ -105,11 +107,12 @@ export function memoASSLows()    { return _getASSTimeline().lows; }
 // activeMatches selector cache.
 export function invalidateAll() {
   invalidateAmMemo();
+  invalidateRatingCaches();
   _statNamesKey = "";    _statNamesMemo = null;
   _statsMemoKey = "";    _statsMemo = null;
   _pairStatsKey = "";    _pairStatsMemo = null;
-  _assMemoKey = "";      _assMemo = null;
-  _assTimelineKey = ""; _assTimelineMemo = null;
+  _ratingMemoKey = "";   _ratingMemo = null;
+  _timelineKey = "";     _timelineMemo = null;
   for (const k in reignCache) delete reignCache[k];
   for (const k in rankPeriodCache) delete rankPeriodCache[k];
 }
@@ -118,11 +121,12 @@ export function invalidateAll() {
 // pair stats, reign + rank-period lookups) — the Statistics page is meant to
 // always recompute on demand rather than reuse a stale in-memory result.
 export function clearAnalyticsCache() {
+  invalidateRatingCaches();
   _statNamesKey = "";    _statNamesMemo = null;
   _statsMemoKey = "";    _statsMemo = null;
   _pairStatsKey = "";    _pairStatsMemo = null;
-  _assMemoKey = "";      _assMemo = null;
-  _assTimelineKey = ""; _assTimelineMemo = null;
+  _ratingMemoKey = "";   _ratingMemo = null;
+  _timelineKey = "";     _timelineMemo = null;
   for (const k in reignCache) delete reignCache[k];
   for (const k in rankPeriodCache) delete rankPeriodCache[k];
 }

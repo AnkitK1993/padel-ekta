@@ -4,7 +4,7 @@
 // Calls window.showToast / window.fireConfetti (already on window).
 import { state } from "../src/domain/state.js";
 import { computeStats } from "../src/domain/stats.js";
-import { computeASS, computeASSTimeline } from "../src/domain/ass.js";
+import { rating, scopeKey } from "../src/domain/rating-service.js";
 import { normPlayer } from "../src/domain/players.js";
 import { todayISO } from "../src/domain/dates.js";
 
@@ -98,51 +98,68 @@ export function checkMilestones(prevMatches, newMatches) {
       window.fireConfetti({ count: 80, duration: 2200 });
     }
   });
-  // ASS threshold milestones
-  const assThresholds = [1050, 1100, 1150, 1200, 1250, 1300];
-  if (prevMatches.length > 0) {
-    const prevAssMap = computeASS(prevMatches);
-    const newAssMap = computeASS(newMatches);
+  // Rating milestones are judged on the active scoring system, inside the
+  // season the new match belongs to (ratings restart every season, so a
+  // cross-season window would be a number no leaderboard ever shows).
+  const label = rating.label();
+  const latest = [...newMatches].sort((a, b) =>
+    (b.date || "").localeCompare(a.date || ""),
+  )[0];
+  const scope = latest ? scopeKey(latest) : null;
+  const prevScope = latest ? prevMatches.filter((m) => scopeKey(m) === scope) : [];
+  const newScope = latest ? newMatches.filter((m) => scopeKey(m) === scope) : [];
+  if (prevScope.length > 0) {
+    const prevMap = rating.map(prevScope);
+    const newMap = rating.map(newScope);
     allPlayers.forEach((player) => {
-      const prev = prevAssMap[player] || 1000;
-      const curr = newAssMap[player] || 1000;
-      assThresholds.forEach((t) => {
+      const prev = prevMap[player] ?? rating.def();
+      const curr = newMap[player] ?? rating.def();
+      rating.ladder().steps.forEach((t) => {
         if (prev < t && curr >= t) {
           const display = normPlayer(player);
-          window.showToast(`${display} hit ASS ${t}!`, "⚡");
-          saveMilestoneEntry(`${display} hit ASS ${t}!`, "⚡");
+          window.showToast(`${display} hit ${label} ${t}!`, "⚡");
+          saveMilestoneEntry(`${display} hit ${label} ${t}!`, "⚡");
           window.fireConfetti({ count: 90, duration: 2400 });
         }
       });
     });
   }
-  // Record-break celebrations: new all-time ASS peak (at any level — not just
-  // the fixed thresholds above) and new personal-best win streak, both
-  // compared against the player's own history before this match.
+  // Record-break celebrations: new season-high rating (at any level — not just
+  // the fixed rungs above) and new personal-best win streak, both compared
+  // against the player's own history before this match.
   // Gated to players with an established history (10+ prior matches) — early
   // on, every win is trivially a "new peak", which would fire on nearly every
-  // match and cheapen the celebration.
+  // match and cheapen the celebration. The rating record needs those 10
+  // matches inside the current season, since the season-high resets with it.
   const MIN_MATCHES_FOR_RECORD = 10;
-  if (prevMatches.length >= MIN_MATCHES_FOR_RECORD) {
-    const prevMatchCounts = {};
-    prevMatches.forEach((m) =>
+  const countMatches = (arr) => {
+    const counts = {};
+    arr.forEach((m) =>
       [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        prevMatchCounts[p] = (prevMatchCounts[p] || 0) + 1;
+        counts[p] = (counts[p] || 0) + 1;
       }),
     );
-    const prevAssPeaks = computeASSTimeline(prevMatches).peaks;
-    const newAssNow = computeASS(newMatches);
+    return counts;
+  };
+  if (prevMatches.length >= MIN_MATCHES_FOR_RECORD) {
+    const prevMatchCounts = countMatches(prevMatches);
+    const prevScopeCounts = countMatches(prevScope);
+    const prevPeaks = prevScope.length ? rating.timeline(prevScope).peaks : {};
+    const nowMap = rating.map(newScope);
     const prevBestStreak = _bestStreakMap(prevMatches);
     const newBestStreak = _bestStreakMap(newMatches);
     allPlayers.forEach((player) => {
       if ((prevMatchCounts[player] || 0) < MIN_MATCHES_FOR_RECORD) return;
       const display = normPlayer(player);
-      const prevPeakAss = prevAssPeaks[player] || 1000;
-      const curAss = newAssNow[player] || 1000;
-      if (curAss > prevPeakAss) {
-        window.showToast(`${display} hit a new all-time ASS peak: ${Math.round(curAss)}!`, "🏆");
-        saveMilestoneEntry(`${display} hit a new all-time ASS peak: ${Math.round(curAss)}!`, "🏆");
-        window.fireConfetti({ count: 90, duration: 2200 });
+      if ((prevScopeCounts[player] || 0) >= MIN_MATCHES_FOR_RECORD) {
+        const prevPeak = prevPeaks[player] ?? rating.def();
+        const cur = nowMap[player] ?? rating.def();
+        if (cur > prevPeak) {
+          const msg = `${display} hit a new season-high ${label}: ${rating.fmt(cur)}!`;
+          window.showToast(msg, "🏆");
+          saveMilestoneEntry(msg, "🏆");
+          window.fireConfetti({ count: 90, duration: 2200 });
+        }
       }
       const pb = prevBestStreak[player] || 0;
       const nb = newBestStreak[player] || 0;

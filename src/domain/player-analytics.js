@@ -5,7 +5,17 @@
 // toLocalISODate) are injected via initPlayerAnalyticsDeps to keep this module
 // free of app/DOM coupling (same pattern as badges.js).
 import { computeStats } from "./stats.js";
-import { computeASS, computeASSTimeline } from "./ass.js";
+import { rating } from "./rating-service.js";
+
+// Opponent-strength heuristics below (form, archetype, power rankings,
+// chemistry) were tuned on the 1000-centred classic scale, where
+// rating = 700 + 60 x SR. They are written in SR units so the same thresholds
+// mean the same thing on every scoring system, including the 0-based one.
+const SR_NEUTRAL = (1000 - 700) / 60; // an average opponent
+const SR_WINQ_FLOOR = (900 - 700) / 60; // winQuality scale: 0 at this SR ...
+const SR_WINQ_SPAN = 300 / 60; // ... 1 at this many SR above the floor
+const SR_GIANT = (1050 - 700) / 60; // "Giant Slayer": beats opposition above this
+const SR_UPSET_MARGIN = 20 / 60; // "higher-rated" opponent: this much stronger
 
 let _getPairStats, _toLocalISODate;
 export function initPlayerAnalyticsDeps(deps) {
@@ -22,7 +32,7 @@ export function computePlayerForm(name, matches) {
   );
   if (playerMs.length < 3) return null;
 
-  const eloMap = computeASS(matches);
+  const strength = rating.strength(rating.map(matches));
   const last10 = playerMs.slice(-10);
   const prev10 = playerMs.slice(-20, -10);
 
@@ -51,11 +61,11 @@ export function computePlayerForm(name, matches) {
     if (!won) return;
     const opps = inA ? m.teamB || [] : m.teamA || [];
     opps.forEach((opp) => {
-      qualSum += eloMap[opp] || 1000;
+      qualSum += strength(opp);
       qualCount++;
     });
   });
-  const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
+  const winQuality = qualCount > 0 ? qualSum / qualCount : SR_NEUTRAL;
 
   // Pressure (close match win %, diff ≤ 2)
   const closeMs = playerMs.filter((m) => Math.abs(m.scoreA - m.scoreB) <= 2);
@@ -88,7 +98,7 @@ export function computePlayerForm(name, matches) {
       0,
       winPct10 * 4 +
         Math.min(1, Math.max(0, (avgMargin10 + 5) / 10)) * 2.5 +
-        Math.min(1, (winQuality - 900) / 300) * 2 +
+        Math.min(1, (winQuality - SR_WINQ_FLOOR) / SR_WINQ_SPAN) * 2 +
         pressureScore * 1.5,
     ),
   );
@@ -136,7 +146,7 @@ export function computePlayerForm(name, matches) {
     pressureColor,
     closeMatches: closeMs.length,
     last10count: last10.length,
-    winQuality: Math.round(winQuality),
+    winQuality: Math.round(winQuality * 10) / 10, // SR band
   };
 }
 
@@ -149,7 +159,7 @@ export function computeArchetype(name, matches) {
   );
   if (playerMs.length < 5) return null;
 
-  const eloMap = computeASS(matches);
+  const strength = rating.strength(rating.map(matches));
   const wins = playerMs.filter((m) => {
     const inA = (m.teamA || []).includes(name);
     return (inA && m.scoreA > m.scoreB) || (!inA && m.scoreB > m.scoreA);
@@ -194,11 +204,11 @@ export function computeArchetype(name, matches) {
   wins.forEach((m) => {
     const opps = (m.teamA || []).includes(name) ? m.teamB || [] : m.teamA || [];
     opps.forEach((opp) => {
-      qualSum += eloMap[opp] || 1000;
+      qualSum += strength(opp);
       qualCount++;
     });
   });
-  const winQuality = qualCount > 0 ? qualSum / qualCount : 1000;
+  const winQuality = qualCount > 0 ? qualSum / qualCount : SR_NEUTRAL;
 
   // Classify
   if (closeWinPct >= 0.65 && close.length >= 4)
@@ -215,7 +225,7 @@ export function computeArchetype(name, matches) {
       desc: "Wins decisively, rarely drops close sets",
       color: "#00ff9d",
     };
-  if (winQuality >= 1050 && wins.length >= 5)
+  if (winQuality >= SR_GIANT && wins.length >= 5)
     return {
       label: "Giant Slayer",
       icon: "⚔️",
@@ -252,8 +262,9 @@ export function computeArchetype(name, matches) {
 }
 
 export function computePowerRankings(matches, externalScoreMap = null) {
-  const eloMap = computeASS(matches);
-  const stats = computeStats(matches, eloMap);
+  const eloMap = rating.map(matches);
+  const strength = rating.strength(eloMap);
+  const stats = rating.stats(matches, eloMap);
   if (!stats.length) return [];
 
   const scoreMap = externalScoreMap || eloMap;
@@ -269,7 +280,7 @@ export function computePowerRankings(matches, externalScoreMap = null) {
   return stats
     .map((p) => {
       const form = computePlayerForm(p.name, matches);
-      const eloNorm = ((scoreMap[p.name] || 1000) - minScore) / scoreRange;
+      const eloNorm = ((scoreMap[p.name] ?? rating.def()) - minScore) / scoreRange;
       const formNorm = form ? form.score / 10 : p.mw / Math.max(p.mp, 1);
       const activityNorm = p.mp / maxMp;
 
@@ -287,12 +298,14 @@ export function computePowerRankings(matches, externalScoreMap = null) {
           if (!won) return;
           const opps = inA ? m.teamB || [] : m.teamA || [];
           opps.forEach((opp) => {
-            qualSum += eloMap[opp] || 1000;
+            qualSum += strength(opp);
             qualCount++;
           });
         });
       const winQualNorm =
-        qualCount > 0 ? Math.min(1, (qualSum / qualCount - 900) / 400) : 0;
+        qualCount > 0
+          ? Math.min(1, (qualSum / qualCount - SR_WINQ_FLOOR) / (400 / 60))
+          : 0;
 
       const score =
         eloNorm * 0.4 + formNorm * 0.3 + winQualNorm * 0.2 + activityNorm * 0.1;
@@ -300,7 +313,7 @@ export function computePowerRankings(matches, externalScoreMap = null) {
       return {
         name: p.name,
         score: Math.round(score * 1000) / 10,
-        elo: scoreMap[p.name] || 1000,
+        elo: scoreMap[p.name] ?? rating.def(),
         winPct: Math.round((p.mw / Math.max(p.mp, 1)) * 100),
         mp: p.mp,
         form: form ? form.score : null,
@@ -311,14 +324,15 @@ export function computePowerRankings(matches, externalScoreMap = null) {
 }
 
 export function computeChemistryScores(matches) {
-  const eloMap = computeASS(matches);
+  const eloMap = rating.map(matches);
+  const strength = rating.strength(eloMap);
   const pairs = _getPairStats(matches).filter((p) => p.played >= 3);
   if (!pairs.length) return [];
 
   const maxPlayed = Math.max(...pairs.map((p) => p.played), 1);
-  const allElos = Object.values(eloMap);
+  const allStrengths = Object.keys(eloMap).map(strength);
   const avgElo =
-    allElos.reduce((s, v) => s + v, 0) / Math.max(allElos.length, 1);
+    allStrengths.reduce((s, v) => s + v, 0) / Math.max(allStrengths.length, 1);
 
   return pairs
     .map((p) => {
@@ -342,7 +356,7 @@ export function computeChemistryScores(matches) {
         if (!inA && !inB) return;
         const opps = inA ? m.teamB || [] : m.teamA || [];
         const oppAvgElo =
-          opps.reduce((s, op) => s + (eloMap[op] || 1000), 0) /
+          opps.reduce((s, op) => s + strength(op), 0) /
           Math.max(opps.length, 1);
         if (oppAvgElo < avgElo) return;
         strongPlayed++;
@@ -389,8 +403,9 @@ export function computeAchievements(name, matches) {
   const playerMs = sorted.filter((m) =>
     [...(m.teamA || []), ...(m.teamB || [])].includes(name),
   );
-  const eloMap = computeASS(matches);
-  const allStats = computeStats(matches, eloMap);
+  const eloMap = rating.map(matches);
+  const strength = rating.strength(eloMap);
+  const allStats = rating.stats(matches, eloMap);
   const ps = allStats.find((p) => p.name === name);
   if (!ps) return [];
 
@@ -519,11 +534,9 @@ export function computeAchievements(name, matches) {
     }
     const myTeam = inA ? m.teamA : m.teamB;
     const oppTeam = inA ? m.teamB : m.teamA;
-    const myAvg =
-      myTeam.reduce((s, p) => s + (eloMap[p] || 1000), 0) / myTeam.length;
-    const oppAvg =
-      oppTeam.reduce((s, p) => s + (eloMap[p] || 1000), 0) / oppTeam.length;
-    if (oppAvg > myAvg + 20) {
+    const myAvg = myTeam.reduce((s, p) => s + strength(p), 0) / myTeam.length;
+    const oppAvg = oppTeam.reduce((s, p) => s + strength(p), 0) / oppTeam.length;
+    if (oppAvg > myAvg + SR_UPSET_MARGIN) {
       consecUpsets++;
       maxConsecUpsets = Math.max(maxConsecUpsets, consecUpsets);
     } else consecUpsets = 0;
@@ -568,26 +581,33 @@ export function computeAchievements(name, matches) {
   });
   add("🥇", "Season MVP", "Finish #1 in any month", isMVP);
 
-  // ASS Elite — peak ASS ≥ 1200
-  const assTimeline = computeASSTimeline(sorted);
-  const assPts = assTimeline.history[name] || [];
-  const peakASS = assPts.length > 0 ? Math.max(...assPts.map((p) => p.elo)) : 1000;
+  // Rating Elite / Dominant Force — absolute bars on the active system's own
+  // scale (rating.ladder). "Gain" is the change in the DISPLAYED rating from
+  // one match to the next; the timeline's own `delta` is raw points for EP.
+  const ladder = rating.ladder();
+  const label = rating.label();
+  const ratingPts = rating.timeline(sorted).history[name] || [];
+  let prevRating = rating.def();
+  let peakRating = rating.def();
+  let bestGain = 0;
+  ratingPts.forEach((pt) => {
+    bestGain = Math.max(bestGain, pt.elo - prevRating);
+    peakRating = Math.max(peakRating, pt.elo);
+    prevRating = pt.elo;
+  });
   add(
     "🌟",
-    "ASS Elite",
-    "Reach ASS 1200",
-    peakASS >= 1200,
-    `Peak ASS: ${Math.round(peakASS)}`,
+    `${label} Elite`,
+    `Reach ${label} ${ladder.elite}`,
+    peakRating >= ladder.elite,
+    `Peak ${label}: ${rating.fmt(peakRating)}`,
   );
-
-  // Dominant Force — single match ASS delta ≥ 50
-  const maxAssDelta = assPts.length > 0 ? Math.max(...assPts.map((p) => p.delta)) : 0;
   add(
     "💥",
     "Dominant Force",
-    "Gain 50+ ASS in a single match",
-    maxAssDelta >= 50,
-    `Best delta: +${Math.round(maxAssDelta)}`,
+    `Gain ${ladder.bigGain}+ ${label} in a single match`,
+    bestGain >= ladder.bigGain,
+    `Best gain: +${rating.fmt(bestGain)}`,
   );
 
   return ach;
@@ -727,43 +747,29 @@ export function computeMatchStories(matches) {
     (a.date || "").localeCompare(b.date || ""),
   );
   const stories = [];
-  const assHistory = {};
   const internalElo = {};
   const streaks = {};
+  // Rating milestones come from the real rating timeline (the same numbers the
+  // leaderboard shows), not a private re-implementation of the maths.
+  const history = rating.timeline(sorted).history;
+  const nextEntry = {}; // player -> index of their next timeline entry
+  const ladder = rating.ladder();
+  const label = rating.label();
 
   sorted.forEach((m, idx) => {
     const allP = [...(m.teamA || []), ...(m.teamB || [])];
     allP.forEach((p) => {
-      if (!(p in assHistory)) assHistory[p] = 1000;
       if (!(p in internalElo)) internalElo[p] = 1000;
       if (!(p in streaks)) streaks[p] = { type: null, count: 0 };
     });
 
     const aWon = m.scoreA > m.scoreB;
-    const prevAss  = { ...assHistory };
 
-    const margin  = Math.abs(m.scoreA - m.scoreB);
-    const total   = m.scoreA + m.scoreB;
-    const quality = 4 * margin + total;
     const avgIEloA = m.teamA.reduce((s, p) => s + internalElo[p], 0) / Math.max(m.teamA.length, 1);
     const avgIEloB = m.teamB.reduce((s, p) => s + internalElo[p], 0) / Math.max(m.teamB.length, 1);
     const iExpA  = 1 / (1 + Math.pow(10, (avgIEloB - avgIEloA) / 400));
     const iDeltaA = Math.round(32 * ((aWon ? 1 : 0) - iExpA));
     const iDeltaB = Math.round(32 * ((aWon ? 0 : 1) - (1 - iExpA)));
-    m.teamA.forEach((p) => {
-      const partner = m.teamA.find((pp) => pp !== p);
-      const partnerElo = partner ? internalElo[partner] : internalElo[p];
-      const mult = Math.max(0.5, Math.min(2.0,
-        1 + (avgIEloB - internalElo[p]) / 400 - 0.5 * (partnerElo - internalElo[p]) / 400));
-      assHistory[p] = (assHistory[p] || 1000) + (aWon ? Math.round(quality * mult) : -Math.round(quality / mult));
-    });
-    m.teamB.forEach((p) => {
-      const partner = m.teamB.find((pp) => pp !== p);
-      const partnerElo = partner ? internalElo[partner] : internalElo[p];
-      const mult = Math.max(0.5, Math.min(2.0,
-        1 + (avgIEloA - internalElo[p]) / 400 - 0.5 * (partnerElo - internalElo[p]) / 400));
-      assHistory[p] = (assHistory[p] || 1000) + (!aWon ? Math.round(quality * mult) : -Math.round(quality / mult));
-    });
     m.teamA.forEach((p) => { internalElo[p] += iDeltaA; });
     m.teamB.forEach((p) => { internalElo[p] += iDeltaB; });
 
@@ -783,18 +789,24 @@ export function computeMatchStories(matches) {
       const favoriteTeam = upsetTeam === m.teamA ? m.teamB : m.teamA;
       if (upsetTeam) {
         stories.push({ icon: "😱", type: "upset",
-          text: `${upsetTeam.join(" & ")} upset ${favoriteTeam.join(" & ")} (+${Math.round(strengthDiff)} rating gap)`,
+          text: `${upsetTeam.join(" & ")} upset ${favoriteTeam.join(" & ")} (+${Math.round(strengthDiff)} strength gap)`,
           date, score: `${m.scoreA}–${m.scoreB}`, matchIdx: idx });
       }
     }
 
-    // ASS milestones
+    // Rating milestones: first time a player's rating crosses a ladder rung
     allP.forEach((p) => {
-      [1050, 1100, 1150, 1200, 1250].forEach((milestone) => {
-        if (prevAss[p] < milestone && assHistory[p] >= milestone)
+      const h = history[p];
+      const k = nextEntry[p] || 0;
+      nextEntry[p] = k + 1;
+      if (!h || !h[k]) return;
+      const before = k > 0 ? h[k - 1].elo : rating.def();
+      const after = h[k].elo;
+      ladder.steps.forEach((milestone) => {
+        if (before < milestone && after >= milestone)
           stories.push({ icon: "⭐", type: "ass-milestone",
-            text: `${p} crossed ASS ${milestone} for the first time!`,
-            date, score: `ASS ${Math.round(assHistory[p])}`, matchIdx: idx });
+            text: `${p} crossed ${label} ${milestone} for the first time!`,
+            date, score: `${label} ${rating.fmt(after)}`, matchIdx: idx });
       });
     });
 
@@ -926,22 +938,22 @@ export function computePartnerBreakdownWhenOpposed(
 // -300 for P1/P2 — positive means "faced tougher opposition on average").
 // Also tracks favorablePct — the % of those matches where the player's own
 // team held the higher combined rating (odds nominally in their favor).
-// ratingMap is a static name -> rating snapshot (e.g. from computeASS) used
+// ratingMap is a static name -> rating snapshot (e.g. from rating.map) used
 // for every match, matching the convention computePowerRankings uses for its
 // own opponent-strength stat. Sorted ascending (toughest schedule/most
 // negative gap first, easiest/most positive gap last).
 export function computeAvgOpponentEloGap(matches, ratingMap = {}) {
-  const rating = (name) =>
+  const ratingOf = (name) =>
     Object.prototype.hasOwnProperty.call(ratingMap, name)
       ? ratingMap[name]
-      : 1000;
+      : rating.def();
   const acc = {};
   (matches || []).forEach((m) => {
     const A = m.teamA || [];
     const B = m.teamB || [];
     if (!A.length || !B.length) return;
-    const ratingA = A.reduce((s, p) => s + rating(p), 0);
-    const ratingB = B.reduce((s, p) => s + rating(p), 0);
+    const ratingA = A.reduce((s, p) => s + ratingOf(p), 0);
+    const ratingB = B.reduce((s, p) => s + ratingOf(p), 0);
     A.forEach((p) => {
       if (!acc[p]) acc[p] = { sum: 0, count: 0, favorable: 0 };
       acc[p].sum += ratingB - ratingA;

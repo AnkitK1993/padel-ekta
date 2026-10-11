@@ -3,30 +3,16 @@
 // ASS changes) as an HTML string. Pure string output. Imports what's already
 // modular; the app-coupled helpers (normPlayer, getPairStats) are injected via
 // initHistorySummaryDeps so the body stays close to the original.
-import { computeStats } from "../domain/stats.js";
-import { computeASS } from "../domain/ass.js";
+import { rating } from "../domain/rating-service.js";
 import { _rankColor, escHtml } from "./format.js";
 import { activeMatches } from "../domain/selectors.js";
 
+// Ratings, deltas and labels come straight from the rating service (so this
+// card follows the Summary tab's scoring picker by construction). Only the two
+// app-coupled helpers and the TODAY/ALL-TIME toggle are injected.
 let _deps = {
   normPlayer: (n) => n,
   getPairStats: () => [],
-  memoAss: () => ({}),
-  // Rating accessors follow the Summary tab's scoring picker instead of
-  // being hard-wired to ASS CLASSIC. Each falls back to the original
-  // engine/format, so nothing changes if they aren't supplied.
-  ratingMap: (ms) => computeASS(ms),
-  ratingDefault: () => 1000,
-  ratingFmt: (v) => String(Math.round(v)),
-  ratingLabel: () => "ASS",
-  // freshRatingMapFn scores `ms` as its own whole, zero-baseline universe
-  // (career-blind for a shrinkage-based engine like EP, where a rating isn't
-  // just a sum of its deltas — see the History-page pill fix for why summing
-  // raw per-match deltas across many matches is unsafe there). ratingMap
-  // (above) is used for the real, full-career/season score. Same TODAY vs
-  // ALL TIME distinction as the MATCHES PLAYED section, just expressed as a
-  // score snapshot instead of a per-match delta walk.
-  freshRatingMapFn: (ms) => null,
   topGainersWindow: () => "today",
 };
 export function initHistorySummaryDeps(d) {
@@ -35,15 +21,14 @@ export function initHistorySummaryDeps(d) {
 // Thin aliases so the function body below is an unmodified copy of the original.
 const normPlayer = (n) => _deps.normPlayer(n);
 const getPairStats = (m) => _deps.getPairStats(m);
-const _memoASS = () => _deps.memoAss();
-const _ratingMap = (ms) => _deps.ratingMap(ms);
-const _ratingDefault = () => _deps.ratingDefault();
-const _ratingFmt = (v) => _deps.ratingFmt(v);
-const _ratingLabel = () => _deps.ratingLabel();
+const _ratingMap = (ms) => rating.map(ms);
+const _ratingDefault = () => rating.def();
+const _ratingFmt = (v) => rating.fmt(v);
+const _ratingLabel = () => rating.label();
 
 export function buildHistorySummary(matches, filter = "all") {
   if (matches.length < 3) return "";
-  const stats = computeStats(matches, _ratingMap(matches));
+  const stats = rating.stats(matches);
   const playerSet = new Set();
   let totalGames = 0,
     totalMargin = 0;
@@ -93,7 +78,9 @@ export function buildHistorySummary(matches, filter = "all") {
     let preScore, postScore;
     if (_tgWindow === "today") {
       preScore = {};
-      postScore = _deps.freshRatingMapFn(matches);
+      // TODAY: score the session as its own whole (expectation restarts level
+      // for a shrinkage engine like EP; career game counts stay intact).
+      postScore = rating.fresh(matches);
     } else {
       const periodDatesG = matches.map((m) => m.date || "").filter(Boolean);
       const firstDateG = periodDatesG.length

@@ -1,12 +1,12 @@
 // ── SEASON STATS ────────────────────────────────────────────
-// Cross-season helpers built on top of the existing per-match engines
-// (computeASS, computeStats) and the season-membership helper (_inSeason).
+// Cross-season helpers built on top of the rating service (whichever scoring
+// system is active), computeStats and the season-membership helper (_inSeason).
 // These are inherently cross-season (like Season Comparison in app.js), so
 // callers pass a guest-filtered, ALL-seasons match list — typically
 // withoutGuestMatches(state.matches) — rather than the season-scoped
 // activeMatches().
 import { _inSeason } from "./selectors.js";
-import { computeASS } from "./ass.js";
+import { rating } from "./rating-service.js";
 import { computeStats } from "./stats.js";
 
 // Seasons ordered oldest-first by start date.
@@ -16,24 +16,25 @@ export function orderSeasonsByStart(seasons) {
 
 // One row per season the player has matches in, oldest → newest.
 // [{ season, rank, outOf, ass, sr, mp, mw, ml }]
-// ratingMapFn/srFn/ratingDefault let a caller follow the Summary tab's active
-// scoring system instead of always ranking seasons by ASS CLASSIC; all three
-// default to the original ASS CLASSIC behaviour so existing callers/tests
-// are unaffected.
+// Ranks seasons by the ACTIVE scoring system (the rating service). The three
+// accessors are optional overrides for tests and special cases; left out, each
+// resolves to the active system at call time.
 export function computeSeasonTrajectory(
   matches,
   seasons,
   playerName,
-  ratingMapFn = computeASS,
+  ratingMapFn = (ms) => rating.map(ms),
   srFn = null,
-  ratingDefault = 1000,
+  ratingDefault = rating.def(),
 ) {
   const rows = [];
   orderSeasonsByStart(seasons).forEach((season) => {
     const ms = matches.filter((m) => _inSeason(season, m.date));
     if (!ms.length) return;
     const ass = ratingMapFn(ms);
-    const standings = computeStats(ms, ass, srFn ? srFn(ass) : undefined);
+    const standings = srFn
+      ? computeStats(ms, ass, srFn(ass))
+      : rating.stats(ms, ass);
     const idx = standings.findIndex((p) => p.name === playerName);
     if (idx === -1) return;
     const p = standings[idx];
@@ -54,22 +55,21 @@ export function computeSeasonTrajectory(
 // Rank/ASS delta for every player present in both seasons, sorted by
 // assDelta descending (biggest risers first).
 // [{ name, assA, assB, assDelta, rankA, rankB, rankDelta }]
-// ratingMapFn/ratingDefault default to ASS CLASSIC for existing callers/tests;
-// pass the active system's accessors to follow the Summary tab's picker.
+// Defaults to the ACTIVE scoring system, same as computeSeasonTrajectory.
 export function computeSeasonRiserFaller(
   matches,
   seasonA,
   seasonB,
-  ratingMapFn = computeASS,
-  ratingDefault = 1000,
+  ratingMapFn = (ms) => rating.map(ms),
+  ratingDefault = rating.def(),
 ) {
   const msA = matches.filter((m) => _inSeason(seasonA, m.date));
   const msB = matches.filter((m) => _inSeason(seasonB, m.date));
   if (!msA.length || !msB.length) return [];
   const assA = ratingMapFn(msA);
   const assB = ratingMapFn(msB);
-  const standingsA = computeStats(msA, assA);
-  const standingsB = computeStats(msB, assB);
+  const standingsA = rating.stats(msA, assA);
+  const standingsB = rating.stats(msB, assB);
   const rankA = new Map(standingsA.map((p, i) => [p.name, i + 1]));
   const rankB = new Map(standingsB.map((p, i) => [p.name, i + 1]));
   const rows = [];
