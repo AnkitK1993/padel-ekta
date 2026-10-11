@@ -5,34 +5,31 @@
 // on real history a player with 2 matches and 0 wins sat 7th of 14 while a
 // player with 12 wins from 30 matches sat 13th.
 //
-// EP removes the anchor. Everyone starts at 0 and EARNS from every match:
-//   • a win always pays, scaled by how unlikely it was
-//   • a loss also pays while you're new, so showing up is never punished
-//   • once you're established, a loss you were expected to win starts costing
+// EP removes the anchor. Everyone starts at 0 and EARNS from every match, and
+// WIN RATE IS THE BASELINE: a win is worth about the same whoever you beat
+// (~100), so a player's score is essentially "how often do you win", nudged
+// by who you played and with. An earlier version let a win swing between
+// 0.5x and 1.5x on the opposition, and a 43% player who kept beating strong
+// sides out-ranked 62% and 64% players; win rate only explained the order at
+// rho 0.46. Now it is ~0.9 on real Season 2 / Season 1 data.
+//   • a win pays ~100, +/-20% for how strong the opposition was (OPP_W)
+//   • a veteran's loss COSTS, more when the team was favoured (VET_LOSS)
+//   • a NEWCOMER's loss pays a small credit (LOSS_BASE) so showing up is never
+//     punished while you are learning
 //
-// Three inputs decide what a match is worth:
-//   1. EXPECTATION (p) — team win probability from an internal ELO walk, the
-//      same mechanism ASS already uses for its strength multiplier. Beating a
-//      stronger team pays more; losing to one costs less. This is also what
-//      handles partner quality: pairing with a weaker player lowers p, which
-//      raises the win award and softens the loss, so carrying someone is not
-//      punished. Per-match expected value works out near-identical whoever
-//      you partner (~46 vs ~45 on real ratings), so the board can't be farmed
-//      by cherry-picking partners.
-//   2. MATURITY — career games / MATURITY_GAMES, clamped to 1. Scales ONLY
-//      the loss penalty, so newcomers earn on every match while veterans are
-//      accountable. Deliberately CAREER games, not games in the window being
-//      scored: a veteran must not get rookie protection again each time a new
-//      season starts or a date filter changes.
-//   3. MARGIN — a 4-0 is not a 4-3. Weight is deliberately modest: on real
-//      history the correlation between a team's rating edge and its margin is
-//      only 0.166 (a 100+ point edge buys well under half a point of margin),
-//      so margin is real signal but noisy, and over-weighting it would just
-//      reward running up the score.
-//
-// 4. TEAMMATE SPLIT — the team's points are re-split toward whichever partner
-//    has the lower public ASS right now (see TEAM_SPLIT_*), regardless of how
-//    many games either has played.
+// Inputs that decide what a match is worth:
+//   1. EXPECTATION (p) — team win probability from an internal ELO walk. It
+//      only moves a win by a modest amount (see OPP_W) and sizes a veteran's
+//      loss; partner quality is inside it (a weaker partner lowers p).
+//   2. NEWCOMER FLAG — career games (ALL seasons) under MATURITY_GAMES (50).
+//      Binary, and career-wide on purpose: a veteran does not become a rookie
+//      again when a new season starts or a date filter changes.
+//   3. MARGIN — a 4-0 is not a 4-3, modestly (MARGIN_W).
+//   4. TEAMMATE SPLIT — the team's points are re-split toward whichever
+//      partner has the lower public ASS right now (see TEAM_SPLIT_*), capped
+//      at 12% of the award. The cap is deliberately small: the split always
+//      flows from the stronger partner to the weaker one, so at full strength
+//      it flattens the board and pulls the order away from win rate.
 //
 // The leaderboard key is EP / (games + SHRINKAGE), not raw total EP. Raw
 // total rewards mileage over quality — on real history it put a 49% player
@@ -42,10 +39,16 @@
 // cutoff. Totals are still worth surfacing as a secondary "how much have I
 // put in" number — they just shouldn't decide the order.
 
-const WIN_BASE = 100; // a neutral win, before expectation and margin
-const LOSS_BASE = 40; // the "you turned up" component of a loss
-const PENALTY = 60; // maximum loss penalty, reached at full maturity
-const MATURITY_GAMES = 50; // career games until losses are fully accountable
+const WIN_BASE = 100; // a neutral win, before opposition and margin
+// Opposition swing on a win: 1 + OPP_W * (0.5 - p). Deliberately mild — a win
+// over a stronger side is worth a little more and over a weaker side a little
+// less, but it must never let a losing record out-earn a winning one.
+const OPP_W = 0.4;
+const VET_LOSS = 40; // veteran loss costs up to this (when the team was a heavy favourite)
+const LOSS_BASE = 10; // newcomer loss CREDIT, "you turned up" (scaled by how big the underdog)
+// Career games (ALL seasons) before a player stops being a newcomer. A binary
+// flag, not a ramp, and career-wide so it never resets with a new season.
+const MATURITY_GAMES = 50;
 const MARGIN_W = 0.4; // margin swing: 4-0 pays 1.20x, 4-3 pays 0.90x
 const SHUTOUT_BONUS = 1.05; // extra for conceding nothing (~11% of matches)
 export const EP_SHRINKAGE = 10; // phantom zero-point games in the rank key
@@ -57,7 +60,7 @@ export const EP_SHRINKAGE = 10; // phantom zero-point games in the rank key
 // the rating gap and capped, so a hair's-breadth difference barely moves
 // anything.
 export const TEAM_SPLIT_GAP_SCALE = 20; // rating gap (raw ASS) that reaches the cap...
-export const TEAM_SPLIT_MAX_SHIFT = 0.5; // ...of this fraction of the award
+export const TEAM_SPLIT_MAX_SHIFT = 0.12; // ...of this fraction of the award
 
 const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
 
@@ -65,7 +68,7 @@ const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
 // game counts warm, but only awards — and returns — EP for matches in
 // `matches`. That split is what lets a Season 2 or TODAY leaderboard start
 // its points at 0 while still knowing that a player has 200 games behind them.
-export function computeMatchEPDeltas(matches, careerMatches = null) {
+export function computeMatchEPDeltas(matches, careerMatches = null, opts = {}) {
   const scoring = new Set(matches || []);
   // Union so a scoring match is never skipped just because the caller passed
   // a career list that doesn't contain it.
@@ -108,11 +111,13 @@ export function computeMatchEPDeltas(matches, careerMatches = null) {
       const lossQ = (1 + MARGIN_W / 2 - MARGIN_W * normMargin) / shutout;
 
       const award = (p, teamP, won) => {
-        if (won) return Math.round(WIN_BASE * (0.5 + (1 - teamP)) * winQ);
-        const maturity = Math.min(1, careerGames[p] / MATURITY_GAMES);
-        return Math.round(
-          LOSS_BASE * (1 - teamP) * lossQ - PENALTY * teamP * maturity,
-        );
+        if (won) return Math.round(WIN_BASE * (1 + OPP_W * (0.5 - teamP)) * winQ);
+        // Newcomers (under 50 career games) are in a growth phase: a loss still
+        // pays a little. Veterans have no such cushion — a loss costs, more so
+        // when the team was favoured and when it was lopsided.
+        if (careerGames[p] < MATURITY_GAMES)
+          return Math.round(LOSS_BASE * (1 - teamP) * lossQ);
+        return Math.round(-VET_LOSS * teamP * (2 - lossQ));
       };
 
       const playerDeltas = {};
@@ -149,8 +154,12 @@ export function computeMatchEPDeltas(matches, careerMatches = null) {
       });
     }
 
-    const eloDA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const eloDB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
+    // blindElo: a "fresh session" view — expectation only learns from the
+    // matches being scored (everyone starts level), while career game counts
+    // (the newcomer flag) still come from the full history.
+    const learnElo = !opts.blindElo || scoring.has(m);
+    const eloDA = learnElo ? Math.round(32 * ((aWon ? 1 : 0) - expA)) : 0;
+    const eloDB = learnElo ? Math.round(32 * ((aWon ? 0 : 1) - (1 - expA))) : 0;
     teamA.forEach((p) => {
       elo[p] += eloDA;
       careerGames[p]++;
@@ -166,10 +175,10 @@ export function computeMatchEPDeltas(matches, careerMatches = null) {
 
 // { name: { ep, games, score } } — `games` counts only the scored window (it
 // is the leaderboard denominator), while maturity above used career games.
-export function computeEPFull(matches, careerMatches = null) {
+export function computeEPFull(matches, careerMatches = null, opts = {}) {
   const ep = {};
   const games = {};
-  computeMatchEPDeltas(matches, careerMatches).forEach(({ playerDeltas }) => {
+  computeMatchEPDeltas(matches, careerMatches, opts).forEach(({ playerDeltas }) => {
     Object.entries(playerDeltas).forEach(([p, d]) => {
       ep[p] = (ep[p] || 0) + d;
       games[p] = (games[p] || 0) + 1;

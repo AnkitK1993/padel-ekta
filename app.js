@@ -1372,14 +1372,17 @@ initHistorySummaryDeps({
   ratingDefault: () => _statsDefault(),
   ratingFmt: (v) => _statsFmt(v),
   ratingLabel: () => _statsLabel(),
-  // TODAY needs a genuinely blind score for EP — computeEPFull always warms
-  // from the full career (_epCareerMatches()) regardless of the matches it's
-  // handed, so a "fresh session" has to explicitly hand itself as its own
-  // career too. Every other engine's own ratingMap is already blind-by
-  // -construction when given only `ms`, so it's reused as-is.
+  // TODAY needs a fresh-session score for EP: expectation restarts level
+  // (blindElo) but the career game counts still come from the full history,
+  // so the 50-game newcomer flag survives. Every other engine's own
+  // ratingMap is already blind-by-construction when given only `ms`.
   freshRatingMapFn: (ms) =>
     _scoringSystem === "ep"
-      ? _flatRatingForSystem("ep", ms, computeEPFull(ms, ms))
+      ? _flatRatingForSystem(
+          "ep",
+          ms,
+          computeEPFull(ms, _epCareerMatches(), { blindElo: true }),
+        )
       : _statsRatingMap(ms),
   topGainersWindow: () => _topGainersWindow,
 });
@@ -1456,6 +1459,9 @@ initMatchIntroDeps({
   // Rating snapshots are scoped to the season the match was played in, the
   // same way that season's leaderboard is scored.
   ratingScope: (m) => _seasonScopeFor(m),
+  // The History card's own per-player { delta, after } for this match, so the
+  // overlay's numbers are exactly the card's (one source of truth).
+  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
   // Raw EP points earned in a match (EP only — for the other engines the
   // rating change already is the points). Scored over the same season window
   // as the rating change shown beside it, so the two always agree.
@@ -5837,14 +5843,13 @@ function renderCompact() {
   const matchEloDeltas =
     _scoringSystem === "ass" && _effSeasonScoringMode === "fair"
       ? computeMatchASSDeltas(withoutGuestMatches(state.matches))
-      : // EP always warms its internal ELO/maturity walk from the FULL career
-        // (that's the point of the engine — see _epCareerMatches), so passing
-        // it the "today" window alone left every match's delta identical to
-        // ALL TIME: only which matches got a pill at all changed, never their
-        // value. TODAY needs its own fresh, career-blind walk (mirroring
-        // every other engine's reset) to actually show something different.
+      : // EP's expectation warms from the full career, so TODAY needs a fresh
+        // start to differ from ALL TIME: blindElo restarts expectation level
+        // while the career game counts (50-game newcomer flag) stay intact.
         _scoringSystem === "ep" && _matchDeltaWindow === "today"
-        ? computeMatchEPDeltas(_deltaMatches, _deltaMatches)
+        ? computeMatchEPDeltas(_deltaMatches, _epCareerMatches(), {
+            blindElo: true,
+          })
         : _matchDeltasForSystem(_scoringSystem, _deltaMatches);
 
   // Sync MATCHES PLAYED header controls
@@ -6066,6 +6071,7 @@ function _matchCardPrecompute() {
   if (
     _mcPrecompMemo &&
     _mcPrecompMemo.version === _dataVersion &&
+    _mcPrecompMemo.system === _scoringSystem &&
     _mcPrecompMemo.matchesRef === state.matches
   )
     return _mcPrecompMemo;
@@ -6151,6 +6157,7 @@ function _matchCardPrecompute() {
   });
   _mcPrecompMemo = {
     version: _dataVersion,
+    system: _scoringSystem,
     matchesRef: state.matches,
     eloMatchMap,
     matchPairRankMap,

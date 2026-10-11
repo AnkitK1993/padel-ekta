@@ -178,17 +178,16 @@ ok(
   `Grinder=${full.Grinder.score.toFixed(2)} (${full.Grinder.games}g), Cameo=${full.Cameo.score.toFixed(2)} (${full.Cameo.games}g)`,
 );
 ok(
-  "raw totals would say the same here, but the divisor is what blocks loss-farming",
+  "loss-farming does not pay: 20 newcomer losses cannot out-earn 3 wins",
   (() => {
-    // 20 losses vs 3 wins: the farmer wins on raw total, loses on score.
     const farm = [
       ...Array.from({ length: 20 }, (_, i) => M(`2024-03-01`, ["Farmer", `F${i}`], [`W${i}`, `W${i}b`], 1, 4)),
       ...Array.from({ length: 3 }, (_, i) => M(`2024-03-02`, ["Sharp", `S${i}`], [`V${i}`, `V${i}b`], 4, 1)),
     ];
     const f = computeEPFull(farm);
-    return f.Farmer.ep > f.Sharp.ep && f.Farmer.score < f.Sharp.score;
+    return f.Farmer.ep < f.Sharp.ep && f.Farmer.score < f.Sharp.score;
   })(),
-  "farmer should lead on total EP but trail on the rank key",
+  "farmer should trail on both total and the rank key",
 );
 ok(
   "computeEP exposes the flat rank key",
@@ -461,6 +460,50 @@ ok(
   "a higher-ASS player with FEWER games is still treated as the better player",
   md.Vet > md.Young,
   `Vet ${md.Vet} vs Young ${md.Young}`,
+);
+
+console.log("\n\x1b[36m── EP: win rate is the baseline ─────────────────────\x1b[0m");
+
+// Two veterans (60 career games each) against identical-strength opposition;
+// Good wins 7 of 10, Bad wins 4 of 10. Good must rank above Bad.
+const vetBase = [...ageing("Good", 60), ...ageing("Bad", 60)];
+const rate = (who, wins) =>
+  Array.from({ length: 10 }, (_, i) =>
+    i < wins
+      ? M("2024-07-01", [who, `P${who}${i}`], [`O${who}${i}`, `Q${who}${i}`], 4, 2)
+      : M("2024-07-01", [who, `P${who}${i}`], [`O${who}${i}`, `Q${who}${i}`], 2, 4),
+  );
+const rateWin = [...rate("Good", 7), ...rate("Bad", 4)];
+const rf = computeEPFull(rateWin, [...vetBase, ...rateWin]);
+ok(
+  "a 70% player outranks a 40% player with the same career history",
+  rf.Good.score > rf.Bad.score,
+  `Good ${rf.Good.score.toFixed(2)} vs Bad ${rf.Bad.score.toFixed(2)}`,
+);
+ok(
+  "a 60% veteran outranks a 40% veteran",
+  (() => {
+    const lowP = [...ageing("Under", 60), ...ageing("Fav", 60)];
+    const g = [
+      ...Array.from({ length: 10 }, (_, i) =>
+        M("2024-08-01", ["Under", `Pu${i}`], [`Ou${i}`, `Qu${i}`], i < 4 ? 4 : 2, i < 4 ? 2 : 4),
+      ),
+      ...Array.from({ length: 10 }, (_, i) =>
+        M("2024-08-01", ["Fav", `Pf${i}`], [`Of${i}`, `Qf${i}`], i < 6 ? 4 : 2, i < 6 ? 2 : 4),
+      ),
+    ];
+    const r = computeEPFull(g, [...lowP, ...g]);
+    return r.Fav.score > r.Under.score;
+  })(),
+);
+ok(
+  "the veteran flag is career-wide: 60 prior games make a player a veteran in a fresh window",
+  (() => {
+    const w = [M("2025-01-01", ["Vet2", "X"], ["Y", "Z"], 2, 4)];
+    const vet = d(w, w[0], [...ageing("Vet2", 60), ...w]);
+    const rookie = d(w, w[0], [...ageing("Vet2", 10), ...w]);
+    return vet.Vet2 < 0 && rookie.Vet2 > 0;
+  })(),
 );
 
 console.log(`\n\x1b[1mEP: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`);

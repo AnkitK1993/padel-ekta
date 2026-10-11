@@ -35,6 +35,8 @@ let _matchPoints = () => null;
 // Matches that count toward the rating snapshots for a given match — the
 // season it was played in (so the numbers agree with that season's leaderboard).
 let _ratingScope = () => state.matches;
+// The History card's per-player { delta, after } for a match, when available.
+let _matchRating = () => null;
 
 export function initMatchIntroDeps({
   ratingMap,
@@ -44,6 +46,7 @@ export function initMatchIntroDeps({
   isZeroBased,
   matchPoints,
   ratingScope,
+  matchRating,
 }) {
   if (ratingMap) _ratingMap = ratingMap;
   if (ratingDefault) _ratingDefault = ratingDefault;
@@ -52,6 +55,7 @@ export function initMatchIntroDeps({
   if (isZeroBased) _isZeroBased = isZeroBased;
   if (matchPoints) _matchPoints = matchPoints;
   if (ratingScope) _ratingScope = ratingScope;
+  if (matchRating) _matchRating = matchRating;
 }
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
@@ -113,8 +117,21 @@ function openMatchIntro(idx) {
     afterAss = _mioAssMemo.afterAss;
   } else {
     const _upToInclE = new Set(state.matches.slice(0, idx + 1));
-    const _before = _scopeE.filter((mm) => _upToBeforeE.has(mm));
-    const _incl = _scopeE.filter((mm) => _upToInclE.has(mm));
+    // Cut by DATE order (ties keep entry order), the same order the rating
+    // engines and the History card walk — array position alone disagrees when
+    // a match was entered out of date order.
+    const _scopeSorted = [..._scopeE].sort((a, b) =>
+      (a.date || "").localeCompare(b.date || ""),
+    );
+    const _k = _scopeSorted.indexOf(m);
+    const _before =
+      _k >= 0
+        ? _scopeSorted.slice(0, _k)
+        : _scopeE.filter((mm) => _upToBeforeE.has(mm));
+    const _incl =
+      _k >= 0
+        ? _scopeSorted.slice(0, _k + 1)
+        : _scopeE.filter((mm) => _upToInclE.has(mm));
     priorAss = _ratingMap(_before);
     afterAss = _ratingMap(_incl);
     _mioAssMemo = {
@@ -126,6 +143,18 @@ function openMatchIntro(idx) {
     };
   }
   const aWon = m.scoreA > m.scoreB;
+
+  // For the four players in this match use the History card's own numbers, so
+  // the overlay can never disagree with the card that opened it.
+  const _mr = _matchRating(m);
+  if (_mr) {
+    priorAss = { ...priorAss };
+    afterAss = { ...afterAss };
+    Object.entries(_mr).forEach(([p, v]) => {
+      priorAss[p] = v.after - v.delta;
+      afterAss[p] = v.after;
+    });
+  }
 
   // Pre-match individual and pair ranks
   const indivRanked = Object.entries(priorAss).sort((a, b) => b[1] - a[1]);
