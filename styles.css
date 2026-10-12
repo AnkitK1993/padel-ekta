@@ -1062,7 +1062,11 @@ body {
   display: flex;
   align-items: center;
   gap: 0;
-  flex-wrap: nowrap;
+  /* Wrap the level row onto its own line when the name + points total leave
+     no room for it — centred in a too-narrow slot it spilled left over the
+     points label on phones. */
+  flex-wrap: wrap;
+  row-gap: 2px;
   min-width: 0;
 }
 .pname-elo-row .pname {
@@ -1076,11 +1080,12 @@ body {
   color: var(--accent);
   opacity: 0.75;
   flex-shrink: 0;
+  white-space: nowrap;
   margin-right: 8px;
 }
 .pname-elo-row .xp-row {
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 auto;
+  justify-content: flex-start;
   margin: 0;
 }
 .rb {
