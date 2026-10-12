@@ -14,7 +14,6 @@ import {
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
-import { goalBannerHtml } from "./features/goals.js";
 import {
   SUPERADMIN_EMAIL,
   normEmail,
@@ -851,6 +850,7 @@ try {
   if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) setActiveSystem(_storedSys);
   else if (_storedSys) localStorage.removeItem("padel_scoring_system");
   localStorage.removeItem("padel_season_scoring_mode");
+  localStorage.removeItem("padel_goals"); // the retired Goals feature
   localStorage.removeItem("padel_scoring_renamed_v1");
 } catch (e) {
   noteError("app:restoreScoringSystem", e);
@@ -5128,14 +5128,6 @@ let _renderHomeGen = 0;
 function _homeViewKey() {
   return `${homeFilter}|${homeFrom || ""}|${homeTo || ""}|${rating.system()}`;
 }
-// Home's 🎯 goal banner (features/goals.js); hidden when no goal is set.
-window.renderGoalBanner = function () {
-  const slot = document.getElementById("home-goal-slot");
-  if (!slot) return;
-  const html = goalBannerHtml();
-  slot.innerHTML = html;
-  slot.style.display = html ? "" : "none";
-};
 // Fair Teams (menu) — loaded on first use.
 window.openFairTeams = function () {
   return import("./features/fair-teams.js")
@@ -5147,7 +5139,6 @@ function renderHome() {
   _homeRenderedVersion = _dataVersion;
   _homeRenderedFilter = _homeViewKey();
   _renderSeasonQuickSwitch();
-  window.renderGoalBanner();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   // One engine pass yields both the rating and the secondary figure.
   const homeFull = rating.full(filtered);

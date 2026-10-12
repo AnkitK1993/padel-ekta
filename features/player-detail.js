@@ -37,7 +37,6 @@ import {
   toLocalISODate,
 } from "../src/ui/format.js";
 import { emptyState } from "../src/ui/components.js";
-import { goalCardHtml } from "./goals.js";
 
 // ── Injected deps ─────────────────────────────────────────────────────────────
 // playerAvatar uses photoMap from app.js, so it must be injected.
@@ -1486,8 +1485,6 @@ function openPlayerDetail(name) {
                     </div>
                   </div>
                 </div>
-
-                ${goalCardHtml(name)}
 
                 <div class="ana-card">
                   <span class="badge">Streak & Form</span>
