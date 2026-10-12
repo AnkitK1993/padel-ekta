@@ -136,6 +136,8 @@ const aliceBadges = computeBadges("Alice", null, bElo, BADGE_SEASON, bStats);
 const carolBadges = computeBadges("Carol", null, bElo, BADGE_SEASON, bStats);
 
 ok("King badge → SR #1 player (Alice)", hasBadge(aliceBadges, "King"));
+ok("Regular gold → played the last 10 sessions in a row", tierOf(aliceBadges, "Regular") === "gold", `tier=${tierOf(aliceBadges, "Regular")}`);
+ok("Committed gold → played every session", tierOf(aliceBadges, "Committed") === "gold");
 ok("King badge NOT given to a loser (Carol)", !hasBadge(carolBadges, "King"));
 ok("On Fire badge → 5+ win streak (Alice 10-0)", hasBadge(aliceBadges, "On Fire"));
 ok("Ironman badge → most matches played", hasBadge(aliceBadges, "Ironman"));

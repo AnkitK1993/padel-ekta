@@ -13,6 +13,8 @@ import {
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
+import { applyUndo, mergeLogs, newLogId, LOG_CAP } from "./src/domain/audit.js";
+import { goalBannerHtml } from "./features/goals.js";
 import { initKeyboardAccess, syncPageLandmarks } from "./src/ui/a11y.js";
 import { matchCardPrecompute as _matchCardPrecompute } from "./src/app/match-ratings.js";
 import {
@@ -209,6 +211,7 @@ import {
   seasonRevealPrev,
   closeSeasonReveal,
   openPersonalSeasonRecap,
+  shareSeasonRecap,
 } from "./features/season-reveal.js";
 import {
   openMatchIntro,
@@ -1273,6 +1276,7 @@ initCloudRepo({
   isForcedOffline: () => _forcedOffline,
   isSessionBuffering: () => !!_liveSessionData?.sessionActive,
   isCloudLoaded: () => _cloudSnapshotSeen,
+  getAuditLog: () => _readAuditLog().slice(0, LOG_CAP),
   showToast,
   appCache: window.appCache || null,
   mkMatchKey: _mkMatchKey,
@@ -1404,6 +1408,7 @@ function _resubscribeFirestore() {
         if (!snap.exists()) return;
         const d = snap.data();
         _ingestSeasons(d.seasons);
+        _ingestAuditLog(d.auditLog);
         let pls, pam, npid;
         if (
           d.players &&
@@ -1883,6 +1888,7 @@ function loadCloudData() {
         }
         const d = snap.data();
         _ingestSeasons(d.seasons);
+        _ingestAuditLog(d.auditLog);
         const { pls, pam, npid } = extractPlayerData(d);
         onData(d.matches || [], pls, pam, npid);
       },
@@ -1949,6 +1955,8 @@ onAuthStateChanged(auth, (user) => {
   updateAdminUI(user);
   if (window.isAdmin) scheduleAutoEmail();
   if (window.isAdmin) _scheduleDriveBackup();
+  // After the daily snapshot (6 s after sign-in) has had its chance to run.
+  if (window.isAdmin) setTimeout(_remindBackupIfOverdue, 12000);
   if (window.isAdmin)
     setTimeout(_maybeBackup, 6000); // once data has loaded
   else {
@@ -2779,30 +2787,68 @@ function refreshManage() {
 // Lightweight local log of admin mutations — not a full undo history, just
 // a "what happened and when" trail for the Manage tab.
 const ADMIN_LOG_KEY = "padel_admin_audit_log";
-function logAdminAction(action, detail) {
-  let log = [];
+function _readAuditLog() {
   try {
-    log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || [];
+    const log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || [];
+    return Array.isArray(log) ? log : [];
   } catch (e) {
-    noteError("app:logAdminAction", e);
-  }
-  log.unshift({ action, detail, at: new Date().toISOString() });
-  if (log.length > 100) log.length = 100;
-  try {
-    localStorage.setItem(ADMIN_LOG_KEY, JSON.stringify(log));
-  } catch (e) {
-    noteError("app:logAdminAction", e);
+    noteError("app:_readAuditLog", e);
+    return [];
   }
 }
+function _writeAuditLog(log) {
+  try {
+    localStorage.setItem(ADMIN_LOG_KEY, JSON.stringify(log.slice(0, 100)));
+  } catch (e) {
+    noteError("app:_writeAuditLog", e);
+  }
+}
+// `undo` (optional) is a recipe that reverses the change — see src/domain/audit.js.
+// Call BEFORE saveCloudData() so the entry travels with that save.
+function logAdminAction(action, detail, undo) {
+  const log = _readAuditLog();
+  log.unshift({ id: newLogId(), action, detail, at: new Date().toISOString(), ...(undo ? { undo } : {}) });
+  _writeAuditLog(log);
+}
+// The cloud copy of the log (another admin device's actions) merged in.
+function _ingestAuditLog(cloudLog) {
+  if (!Array.isArray(cloudLog) || !cloudLog.length) return;
+  _writeAuditLog(mergeLogs(_readAuditLog(), cloudLog));
+  if (document.querySelector(".page.active")?.id === "pg-add") renderAuditLogCard();
+}
+window._auditUndo = function (id) {
+  if (!window.isAdmin) return;
+  const log = _readAuditLog();
+  const entry = log.find((e) => e.id === id);
+  if (!entry || entry.undone || !entry.undo) return;
+  if (!confirm(`Undo "${entry.action}: ${entry.detail || ""}"?`)) return;
+  const r = applyUndo(state.matches, entry.undo);
+  if (!r.ok) {
+    showToast(`Can't undo — ${r.reason}`, "ℹ️");
+    return;
+  }
+  state.matches = r.matches;
+  if (entry.undo.kind === "restore") {
+    // Out of the trash too, so it can't be "restored" a second time.
+    const k = deletedMatches.findIndex((d) => d.id === entry.undo.match.id);
+    if (k >= 0) {
+      deletedMatches.splice(k, 1);
+      saveDeletedMatches();
+    }
+  }
+  entry.undone = true;
+  _writeAuditLog(log);
+  logAdminAction("Undo", `${entry.action}: ${entry.detail || ""}`);
+  saveCloudData();
+  commit();
+  renderTrash();
+  renderAuditLogCard();
+  showToast("Undone", "↩️");
+};
 function renderAuditLogCard() {
   const el = document.getElementById("audit-log-body");
   if (!el) return;
-  let log = [];
-  try {
-    log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || [];
-  } catch (e) {
-    noteError("app:renderAuditLogCard", e);
-  }
+  const log = _readAuditLog();
   if (!log.length) {
     el.innerHTML =
       '<div class="sub" style="padding:8px">No admin actions logged yet.</div>';
@@ -2820,9 +2866,16 @@ function renderAuditLogCard() {
             hour: "2-digit",
             minute: "2-digit",
           });
-      return `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      const undoBtn =
+        e.undo && window.isAdmin
+          ? e.undone
+            ? `<span style="font-size:9px;color:var(--muted);flex-shrink:0">undone</span>`
+            : `<button onclick="_auditUndo(${jsArg(e.id)})" aria-label="Undo ${escHtml(e.action)}" style="font-size:9px;padding:2px 7px;border-radius:6px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.1);color:var(--theme);cursor:pointer;flex-shrink:0">↶ Undo</button>`
+          : "";
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
         <div style="font-size:10px;flex:1"><b>${escHtml(e.action)}</b> ${escHtml(e.detail || "")}</div>
         <div style="font-size:9px;color:var(--muted);flex-shrink:0">${when}</div>
+        ${undoBtn}
       </div>`;
     })
     .join("");
@@ -2859,10 +2912,39 @@ function renderBackupHealthCard() {
     <span style="width:8px;height:8px;border-radius:50%;background:${stat.col};flex-shrink:0"></span>
     <span style="font-size:10px;font-weight:800;color:${stat.col};width:52px;text-align:right">${stat.label}</span>
   </div>`;
+  const overdue = _backupOverdueDays();
   el.innerHTML =
+    (overdue != null
+      ? `<div style="font-size:10px;font-weight:700;color:var(--red);padding:4px 0 6px">⚠️ ${overdue === Infinity ? "No backup on record" : `Newest backup is ${overdue} days old`} — run a Drive or email backup.</div>`
+      : "") +
     row("📧", "Email Backup", eStat) +
     row("☁️", "Drive Backup", dStat) +
+    row("🗄️", "Daily cloud snapshot", statusOf(daysSince(localStorage.getItem("padel_last_backup")))) +
     `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:10px;color:var(--muted)"><span>Cloud doc size</span><span>${kb} KB</span></div>`;
+}
+
+// Days since the newest backup of any kind, when that's more than a week
+// (Infinity = none ever); null when backups are up to date.
+function _backupOverdueDays() {
+  const dates = [
+    localStorage.getItem("padel_last_email"),
+    localStorage.getItem(_DRIVE_BACKUP_KEY),
+    localStorage.getItem("padel_last_backup"),
+  ].filter(Boolean);
+  if (!dates.length) return Infinity;
+  const newest = dates.sort().at(-1);
+  const days = Math.round((new Date(todayISO()) - new Date(newest)) / 86400000);
+  return days > 7 ? days : null;
+}
+// Admin reminder at sign-in, at most once a day.
+function _remindBackupIfOverdue() {
+  if (!window.isAdmin) return;
+  const d = _backupOverdueDays();
+  if (d == null) return;
+  const key = "padel_backup_reminded";
+  if (localStorage.getItem(key) === todayISO()) return;
+  localStorage.setItem(key, todayISO());
+  showToast(d === Infinity ? "No backup on record — open Manage → Backup Health" : `Last backup was ${d} days ago — open Manage → Backup Health`, "⚠️", 5000);
 }
 
 // ── STORAGE BREAKDOWN DONUT ──────────────────────────────────
@@ -3657,6 +3739,7 @@ function addMatches() {
     // Undo removes exactly these matches (not a whole-list snapshot, which
     // also threw away anything saved after the import).
     lastMatchSnapshot = list.map((m) => m.id);
+    logAdminAction("Add Matches", `${list.length} match(es) added`, { kind: "remove", ids: lastMatchSnapshot });
     // One milestone check for the whole import (per-match checks recomputed
     // every player's stats for each pasted match).
     checkMilestones(prevSnapshot, [...prevSnapshot, ...list]);
@@ -4948,10 +5031,26 @@ let _renderHomeGen = 0;
 function _homeViewKey() {
   return `${homeFilter}|${homeFrom || ""}|${homeTo || ""}|${rating.system()}`;
 }
+// Home's 🎯 goal banner (features/goals.js); hidden when no goal is set.
+window.renderGoalBanner = function () {
+  const slot = document.getElementById("home-goal-slot");
+  if (!slot) return;
+  const html = goalBannerHtml();
+  slot.innerHTML = html;
+  slot.style.display = html ? "" : "none";
+};
+// Fair Teams (menu) — loaded on first use.
+window.openFairTeams = function () {
+  return import("./features/fair-teams.js")
+    .then((m) => m.openFairTeams())
+    .catch((err) => _handleFeatureLoadError("Fair Teams", err));
+};
+
 function renderHome() {
   _homeRenderedVersion = _dataVersion;
   _homeRenderedFilter = _homeViewKey();
   _renderSeasonQuickSwitch();
+  window.renderGoalBanner();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   // One engine pass yields both the rating and the secondary figure.
   const homeFull = rating.full(filtered);
@@ -7100,6 +7199,7 @@ function deleteMatchByIndex(i) {
   logAdminAction(
     "Delete Match",
     `${(removed.teamA || []).join("/")} vs ${(removed.teamB || []).join("/")} on ${fmtDate(removed.date)}`,
+    { kind: "restore", match: { ...removed } },
   );
   removed.deletedAt = todayISO();
   deletedMatches.unshift(removed);
@@ -7353,6 +7453,7 @@ function saveMatchEdit(i) {
     return show("Both teams must have the same size.");
   if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
     return show("All players in a match must be different.");
+  const before = JSON.parse(JSON.stringify(m));
   m.date = date || m.date;
   m.teamA = teamA;
   m.teamB = teamB;
@@ -7360,6 +7461,11 @@ function saveMatchEdit(i) {
   m.scoreB = sb;
   if (note) m.note = note;
   else delete m.note;
+  logAdminAction(
+    "Edit Match",
+    `${before.teamA.join("/")} ${before.scoreA}–${before.scoreB} ${before.teamB.join("/")} → ${teamA.join("/")} ${sa}–${sb} ${teamB.join("/")} (${fmtDate(m.date)})`,
+    m.id ? { kind: "replace", before } : undefined,
+  );
   saveCloudData();
   closeMatchEdit();
   commit();
@@ -7595,6 +7701,11 @@ function saveModernMatch() {
   function _doSave() {
     const prevSnapshot = [...state.matches];
     lastMatchSnapshot = [candidate.id];
+    logAdminAction(
+      "Add Match",
+      `${teamA.join("/")} ${sA}–${sB} ${teamB.join("/")} (${fmtDate(date)})`,
+      { kind: "remove", ids: [candidate.id] },
+    );
     if (note) candidate.note = note;
     state.matches.push(candidate);
     checkMilestones(prevSnapshot, state.matches);
@@ -18645,6 +18756,7 @@ Object.assign(window, {
   seasonRevealPrev,
   closeSeasonReveal,
   openPersonalSeasonRecap,
+  shareSeasonRecap,
   toggleOfflineMode,
   renderCompact,
   toggleMatchDeltaWindow,
@@ -19216,6 +19328,7 @@ function _commitSaveMatch() {
   state.matches.push(match);
   mirrorMatchToEditor(match);
   const eventMsg = `${a1} & ${a2} ${_liveScoreA}–${_liveScoreB} ${b1} & ${b2}`;
+  logAdminAction("Live Match", eventMsg, { kind: "remove", ids: [match.id] });
   if (_liveSessionData?.sessionActive) {
     _sessionMatchHistory.push({
       id: match.id,
@@ -21040,16 +21153,12 @@ function _notifyLiveEvent(type, msg) {
     player_added: "➕",
   };
   showToast(msg, icons[type] || "🎾", 3500);
-  if (
-    document.visibilityState !== "visible" &&
-    "Notification" in window &&
-    Notification.permission === "granted"
-  ) {
-    try {
-      new Notification("Ekta Padel 🎾", { body: msg, icon: "/icons/icon.svg" });
-    } catch (e) {
-      noteError("app:_notifyLiveEvent", e);
-    }
+  // A finished session gets its summary, even with the app open.
+  if (type === "session_end") {
+    const summary = _sessionSummaryText(todayISO());
+    if (summary) _showSystemNotification("Session saved 🏁", summary);
+  } else if (document.visibilityState !== "visible") {
+    _showSystemNotification("Ekta Padel 🎾", msg);
   }
 }
 
@@ -21063,34 +21172,65 @@ function _requestNotifPermission() {
 // Shows a local notification (via SW if available, falls back to
 // Notification API) when new matches arrive from Firestore while the
 // app is backgrounded or in a different tab.
+// A system notification. Through the service worker where possible: phones
+// (Android Chrome) don't allow `new Notification()` from a page.
+function _showSystemNotification(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "SHOW_NOTIFICATION", title, body });
+    return;
+  }
+  try {
+    new Notification(title, { body, icon: "icons/icon.svg" });
+  } catch (e) {
+    noteError("app:_showSystemNotification", e);
+  }
+}
+
+// One-line summary of a day's play: matches, best record, biggest climber.
+function _sessionSummaryText(date) {
+  const day = ratedMatches().filter((m) => m.date === date);
+  if (!day.length) return "";
+  const rec = {};
+  day.forEach((m) => {
+    const aWon = m.scoreA > m.scoreB;
+    [[m.teamA, aWon], [m.teamB, !aWon]].forEach(([t, won]) =>
+      (t || []).forEach((p) => {
+        rec[p] = rec[p] || { w: 0, l: 0 };
+        rec[p][won ? "w" : "l"]++;
+      }),
+    );
+  });
+  const best = Object.entries(rec).sort(
+    (a, b) => b[1].w - a[1].w || a[1].l - b[1].l,
+  )[0];
+  const parts = [`${day.length} match${day.length !== 1 ? "es" : ""}`];
+  if (best) parts.push(`Top: ${normPlayer(best[0]).split(" ")[0]} ${best[1].w}W–${best[1].l}L`);
+  // Biggest climb on the leaderboard over the day (season scope).
+  const season = activeMatches();
+  const before = rating.map(season.filter((m) => m.date < date));
+  const after = rating.map(season);
+  const climb = Object.keys(rec)
+    .map((p) => [p, (after[p] ?? rating.def()) - (before[p] ?? rating.def())])
+    .sort((a, b) => b[1] - a[1])[0];
+  if (climb && climb[1] > 0)
+    parts.push(`Biggest climb: ${normPlayer(climb[0]).split(" ")[0]} +${rating.fmt(climb[1])} ${rating.label()}`);
+  return parts.join(" · ");
+}
+
 function _sendMatchNotification(count, latestMatch) {
-  if (!("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
   // Don't notify if the page is visible — the live update already visible.
   if (!document.hidden) return;
   const players = [...(latestMatch?.teamA || []), ...(latestMatch?.teamB || [])]
     .map((p) => normPlayer(p).split(" ")[0])
     .join(", ");
-  const body =
+  const head =
     count === 1
       ? `New match added${players ? `: ${players}` : ""}`
       : `${count} new matches added`;
-  if (navigator.serviceWorker?.controller) {
-    navigator.serviceWorker.controller.postMessage({
-      type: "SHOW_NOTIFICATION",
-      title: "Ekta Padel 🎾",
-      body,
-    });
-  } else {
-    try {
-      new Notification("Ekta Padel 🎾", {
-        body,
-        icon: "/padel-ekta/icons/icon.svg",
-      });
-    } catch (e) {
-      noteError("app:_sendMatchNotification", e);
-    }
-  }
+  // Matches from today: add the session so far.
+  const summary = latestMatch?.date === todayISO() ? _sessionSummaryText(todayISO()) : "";
+  _showSystemNotification("Ekta Padel 🎾", summary ? `${head}\nToday: ${summary}` : head);
 }
 
 function toggleMatchNotifications(on) {

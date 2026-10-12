@@ -21,10 +21,31 @@ const OUT = path.join(ROOT, "precache.json");
 // buildinfo.json is the update probe and must always come from the network.
 const NEVER_CACHE = new Set(["sw.js", "buildinfo.json", "precache.json"]);
 
+// Removes // and /* */ comments, leaving string contents alone (a string like
+// "image/*" used to open a fake block comment that swallowed real imports).
 function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
+  let out = "";
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    const n = src[i + 1];
+    if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1;
+      while (j < src.length && src[j] !== c) j += src[j] === "\\" ? 2 : 1;
+      out += src.slice(i, j + 1);
+      i = j + 1;
+    } else if (c === "/" && n === "*") {
+      const end = src.indexOf("*/", i + 2);
+      i = end < 0 ? src.length : end + 2;
+    } else if (c === "/" && n === "/" && src[i - 1] !== ":") {
+      const end = src.indexOf("\n", i);
+      i = end < 0 ? src.length : end;
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
 }
 
 // Relative specifiers imported by a JS module: static imports, re-exports and

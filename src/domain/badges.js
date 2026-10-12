@@ -4,6 +4,7 @@
 // date helpers) are injected via initBadgesDeps so this module stays free of
 // app/DOM coupling (same injector pattern as elo.js / selectors.js).
 import { rating } from "./rating-service.js";
+import { attendanceStreaks } from "./records.js";
 
 let _computeStats, _getPairStats, _lastWeekRange, _fmtDate;
 export function initBadgesDeps(deps) {
@@ -196,6 +197,26 @@ export function computeBadges(
         desc: `${mp} matches played`,
         tier: "bronze",
       });
+  }
+
+  // 📅 Regular: sessions (match days) attended in a row, up to the latest one.
+  // ✅ Committed: share of all sessions in this window the player turned up to.
+  if (ps) {
+    const att = attendanceStreaks(allMatchesArr || []).find((a) => a.name === name);
+    if (att) {
+      const run = att.current;
+      const tier = run >= 10 ? "gold" : run >= 6 ? "silver" : run >= 3 ? "bronze" : null;
+      if (tier)
+        badges.push({ icon: "📅", label: "Regular", desc: `${run} sessions in a row`, tier });
+      const share = att.totalSessions ? att.sessionsPlayed / att.totalSessions : 0;
+      if (att.totalSessions >= 5 && share >= 0.75)
+        badges.push({
+          icon: "✅",
+          label: "Committed",
+          desc: `Played ${att.sessionsPlayed} of ${att.totalSessions} sessions`,
+          tier: share >= 0.95 ? "gold" : share >= 0.85 ? "silver" : "bronze",
+        });
+    }
   }
 
   // Win Machine: total wins

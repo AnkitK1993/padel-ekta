@@ -10,6 +10,9 @@ import { computeSeasonRecap } from "../src/domain/season-recap.js";
 import { rating } from "../src/domain/rating-service.js";
 import { escHtml, fmtDate } from "../src/ui/format.js";
 import { fireConfetti } from "./confetti.js";
+import { shareRecapCard } from "./recap-card.js";
+
+let _shareArgs = null; // what the open personal recap's Share button draws
 
 // Pure — no DOM. Order: Champion → MVP → Top Pair → Iron Man → Most Improved
 // → Final Top 3. Any award missing from the snapshot is skipped. "Champion"
@@ -231,6 +234,9 @@ export function openPersonalSeasonRecap(seasonId, playerName) {
   if (!recap) return;
   _revealSlides = buildPersonalRecapSlides(recap, season.name);
   _revealIdx = 0;
+  const board = rating.stats(ms, rating.map(ms));
+  const rank = board.findIndex((p) => p.name === playerName) + 1;
+  _shareArgs = [recap, { season: season.name, rank: rank || null, outOf: board.length, label: rating.label(), fmt: (v) => rating.fmt(v) }];
   document.getElementById("season-reveal-modal")?.remove();
   if (!_revealSlides.length) return;
   const html = `<div id="season-reveal-modal" class="season-reveal-modal" role="dialog" aria-modal="true" aria-label="${escHtml(playerName)}'s ${escHtml(season.name)} recap" onclick="if(event.target.id==='season-reveal-modal')closeSeasonReveal()">
@@ -242,7 +248,12 @@ export function openPersonalSeasonRecap(seasonId, playerName) {
       <button class="season-reveal-btn" id="season-reveal-prev" onclick="seasonRevealPrev()">‹ Back</button>
       <button class="season-reveal-btn season-reveal-btn-primary" id="season-reveal-next" onclick="seasonRevealNext()">Next ›</button>
     </div>
+    <button class="season-reveal-btn" style="margin-top:10px" onclick="shareSeasonRecap()">📤 Share as image</button>
   </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
   _renderRevealSlide();
+}
+
+export function shareSeasonRecap() {
+  if (_shareArgs) return shareRecapCard(..._shareArgs);
 }

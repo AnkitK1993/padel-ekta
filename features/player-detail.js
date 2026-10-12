@@ -48,6 +48,7 @@ import {
   isZeroMatch,
 } from "../src/ui/render-match-rows.js";
 import { emptyState } from "../src/ui/components.js";
+import { goalCardHtml } from "./goals.js";
 
 // ── Injected deps ─────────────────────────────────────────────────────────────
 // playerAvatar uses photoMap from app.js, so it must be injected.
@@ -1553,6 +1554,8 @@ function openPlayerDetail(name) {
                 </div>
 
                 ${xpCard}
+
+                ${goalCardHtml(name)}
 
                 <div class="ana-card">
                   <span class="badge">Streak & Form</span>
