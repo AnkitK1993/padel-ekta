@@ -7,6 +7,7 @@
     "features/fair-teams.js",
     "features/global-search.js",
     "features/h2h.js",
+    "features/kiosk.js",
     "features/live-session.js",
     "features/match-intro.js",
     "features/milestones.js",

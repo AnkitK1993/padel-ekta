@@ -53,7 +53,7 @@ const VET_LOSS = 25; // veteran loss costs up to this (when the team was a heavy
 const LOSS_BASE = 10; // newcomer loss CREDIT, "you turned up" (scaled by how big the underdog)
 // Career games (ALL seasons) before a player stops being a newcomer. A binary
 // flag, not a ramp, and career-wide so it never resets with a new season.
-const MATURITY_GAMES = 50;
+export const MATURITY_GAMES = 50;
 const MARGIN_W = 0.4; // margin swing: 4-0 pays 1.20x, 4-3 pays 0.90x
 const SHUTOUT_BONUS = 1.05; // extra for conceding nothing (~11% of matches)
 export const EP_SHRINKAGE = 10; // phantom zero-point games in the rank key

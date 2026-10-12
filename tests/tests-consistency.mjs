@@ -19,6 +19,8 @@ import { fileURLToPath } from "node:url";
 import {
   rating,
   setActiveSystem,
+  scopeFor,
+  invalidate,
   SCORING_SYSTEMS,
 } from "../src/domain/rating-service.js";
 import { state } from "../src/domain/state.js";
@@ -240,7 +242,44 @@ for (const sys of SCORING_SYSTEMS) {
     `${sys}: stats() carry an SR for every player on the 0-10 band's scale`,
     rating.stats(matches).every((p) => Number.isFinite(p.sr)),
   );
+  // Points at stake: the predicted change for a match about to be played is
+  // exactly what the leaderboard shows once that match is saved, for every
+  // player, for both outcomes.
+  {
+    const [A1, A2, B1, B2] = ["Ann", "Cy", "Ben", "Flo"];
+    const date = "2025-06-30";
+    const stake = rating.atStake([A1, A2], [B1, B2], { date, winScore: 4, loseScore: 2 });
+    const check = (aWon) => {
+      const real = { id: `stake-${aWon}`, date, teamA: [A1, A2], teamB: [B1, B2], scoreA: aWon ? 4 : 2, scoreB: aWon ? 2 : 4 };
+      const scopeBefore = scopeFor(real);
+      const before = rating.map(scopeBefore);
+      matches.push(real);
+      invalidate();
+      const after = rating.map(scopeFor(real));
+      const raw = rating.deltas(scopeFor(real)).get(real)?.playerDeltas || {};
+      matches.pop();
+      invalidate();
+      return [A1, A2, B1, B2].every((p) => {
+        const won = [A1, A2].includes(p) === aWon;
+        const pred = won ? stake.players[p].win : stake.players[p].loss;
+        const changeOk = Math.abs(after[p] - (before[p] ?? rating.def()) - pred.change) < 1e-9;
+        const ptsOk = sys !== "ep" || pred.pts === raw[p];
+        return changeOk && ptsOk;
+      });
+    };
+    ok(`${sys}: points at stake == the real change once the match is saved (A wins)`, stake.rated && check(true));
+    ok(`${sys}: points at stake == the real change once the match is saved (B wins)`, stake.rated && check(false));
+  }
   if (sys === "ep") {
+    const counts = {};
+    matches.forEach((m) => [...m.teamA, ...m.teamB].forEach((p) => (counts[p] = (counts[p] || 0) + 1)));
+    ok(
+      "ep: gamesUntilVeteran = 50 minus career games (never below 0)",
+      players.every((p) => rating.gamesUntilVeteran(p) === Math.max(0, rating.maturityGames() - counts[p])),
+      JSON.stringify(players.map((p) => [p, counts[p], rating.gamesUntilVeteran(p)])),
+    );
+    ok("ep: someone with no games needs the full 50", rating.gamesUntilVeteran("Nobody Yet") === rating.maturityGames());
+    ok("glicko2 has no newcomer rule", rating.gamesUntilVeteran("Ann", "glicko2") === null);
     const m0 = matches[matches.length - 1];
     const e = rating.entry(m0);
     ok(`ep: entry() gives win chance and an award breakdown`, e && Number.isFinite(e.expA) && e.breakdown);

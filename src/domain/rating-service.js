@@ -18,9 +18,10 @@ import {
   computeEPProjection,
   EP_SCALE,
   EP_SHRINKAGE,
+  MATURITY_GAMES,
 } from "./ep.js";
 import { computeStats, ratingToSr } from "./stats.js";
-import { withoutGuestMatches, ratedMatches, _inSeason } from "./selectors.js";
+import { withoutGuestMatches, ratedMatches, isRatedMatch, _inSeason } from "./selectors.js";
 import { state } from "./state.js";
 
 export const SCORING_SYSTEMS = ["ep", "glicko2", "openskill", "fairshare"];
@@ -70,9 +71,26 @@ let _entryCache = new Map();
 // while the array still has the same length and end elements and the career
 // history (state.matches) is unchanged; any data change also clears it.
 let _mapCache = new WeakMap();
+let _careerCounts = null; // { key, counts } — see careerGameCounts()
 export function invalidate() {
   _entryCache = new Map();
   _mapCache = new WeakMap();
+  _careerCounts = null;
+}
+
+// Rated-or-not, every non-guest match a player has ever played (all seasons):
+// what the ASS newcomer rule counts.
+function careerGameCounts() {
+  const career = careerMatches();
+  const key = `${state.matches.length}|${career.length}`;
+  if (_careerCounts && _careerCounts.key === key && _careerCounts.src === state.matches)
+    return _careerCounts.counts;
+  const counts = {};
+  career.forEach((m) =>
+    [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => (counts[p] = (counts[p] || 0) + 1)),
+  );
+  _careerCounts = { key, src: state.matches, counts };
+  return counts;
 }
 function _mapSig(matches, s) {
   const all = state.matches || [];
@@ -302,6 +320,43 @@ export const rating = {
     return s === "ep"
       ? computeEPProjection(matches, careerMatches(), formN, futureM)
       : null;
+  },
+  // ASS only: career games (all seasons) a player still needs before a loss
+  // starts to cost — the newcomer rule. 0 for a veteran; null on the other
+  // systems, which have no such rule.
+  gamesUntilVeteran(name, s = _system) {
+    if (s !== "ep") return null;
+    return Math.max(0, MATURITY_GAMES - (careerGameCounts()[name] || 0));
+  },
+  maturityGames: () => MATURITY_GAMES,
+  // What a match about to be played is worth to each of its players on the
+  // active system: the change to their leaderboard number — and on ASS the
+  // points it pays — if their side wins and if it loses, for the given score.
+  // Priced exactly the way saving it would price it: appended to the rated
+  // matches of the season its date falls in. { rated: false } when a guest or
+  // an excluded player is in it (it wouldn't count for anyone).
+  atStake(teamA, teamB, { date, winScore = 4, loseScore = 2 } = {}, s = _system) {
+    const probe = { date, teamA, teamB, scoreA: winScore, scoreB: loseScore };
+    if (!isRatedMatch(probe)) return { rated: false };
+    const scope = scopeFor(probe);
+    const before = rating.full(scope, s);
+    const beforeMap = rating.flat(scope, before, s);
+    const priced = (m) => {
+      const walk = [...scope, m];
+      const full = rating.full(walk, s);
+      return { full, map: rating.flat(walk, full, s) };
+    };
+    const aWins = priced(probe);
+    const bWins = priced({ ...probe, scoreA: loseScore, scoreB: winScore });
+    const def = rating.def(s);
+    const line = (p, res) => ({
+      change: (res.map[p] ?? def) - (beforeMap[p] ?? def),
+      pts: s === "ep" ? (res.full[p]?.ep ?? 0) - (before?.[p]?.ep ?? 0) : null,
+    });
+    const players = {};
+    teamA.forEach((p) => (players[p] = { now: beforeMap[p] ?? def, win: line(p, aWins), loss: line(p, bWins) }));
+    teamB.forEach((p) => (players[p] = { now: beforeMap[p] ?? def, win: line(p, bWins), loss: line(p, aWins) }));
+    return { rated: true, winScore, loseScore, players };
   },
   // EP only: the leaderboard score a running points total over `games` games
   // would produce (what the board prints), for what-if projections.

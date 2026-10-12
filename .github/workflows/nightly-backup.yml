@@ -1,0 +1,80 @@
+name: Nightly backup
+
+# Every night, save the league data (Firestore padel/main) to the
+# `data-backups` branch of this repo, in the app's own backup format — nobody
+# has to open the app for it to happen. The document is publicly readable
+# (see firestore.rules), so this needs no secrets.
+#
+#   backups/YYYY-MM-DD.json  full backup, written when the data changed
+#   backups/latest.json      the newest full backup
+#   backups/status.json      last run / last change (shown in the app's
+#                            Manage → Backup Health card)
+#
+# To restore: open a file on the data-backups branch → Download raw file →
+# in the app, Manage → Data → JSON File → 📥 Import.
+# A failed run (data unreadable, or not looking like the league) shows red in
+# the Actions tab and GitHub emails the repo owner.
+
+on:
+  schedule:
+    - cron: "40 21 * * *" # 03:10 IST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Open the backups branch
+        run: |
+          if git ls-remote --exit-code --heads origin data-backups >/dev/null; then
+            git fetch --depth 1 origin data-backups
+            git worktree add -B data-backups store FETCH_HEAD
+          else
+            # First run: a branch with no history of its own.
+            git worktree add --detach store
+            git -C store checkout --orphan data-backups
+            git -C store rm -rfq .
+          fi
+
+      - name: Back up
+        run: node scripts/nightly-backup.mjs store/backups
+
+      - name: Save to the backups branch
+        run: |
+          cd store
+          if [ ! -f README.md ]; then
+            printf '%s\n' \
+              '# Ekta Padel — nightly backups' \
+              '' \
+              'Written every night by `.github/workflows/nightly-backup.yml` on `main`.' \
+              '' \
+              '- `backups/YYYY-MM-DD.json` — full backup, saved on nights when the data changed (the last 60 days are kept here; git history has every version)' \
+              '- `backups/latest.json` — the newest backup' \
+              '- `backups/status.json` — when the job last ran and last saw a change' \
+              '' \
+              'To restore: open a file → "Download raw file" → in the app, Manage → Data → JSON File → 📥 Import.' \
+              > README.md
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to save."
+            exit 0
+          fi
+          git commit -q -m "Nightly backup $(TZ=Asia/Kolkata date +%F)"
+          git push -q origin data-backups

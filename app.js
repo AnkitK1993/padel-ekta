@@ -2976,9 +2976,33 @@ window._removeAdmin = async function (email) {
 };
 
 // ── BACKUP HEALTH DASHBOARD ──────────────────────────────────
+// The nightly backup (.github/workflows/nightly-backup.yml) writes a small
+// status file on the data-backups branch; the card reads it straight from GitHub.
+const _BACKUPS_REPO = "AnkitK1993/padel-ekta";
+const _NIGHTLY_STATUS_URL = `https://raw.githubusercontent.com/${_BACKUPS_REPO}/data-backups/backups/status.json`;
+const _NIGHTLY_KEY = "padel_last_nightly"; // local date of its last run, for the overdue check
+let _nightlyStatus = null;
+let _nightlyFetchedAt = 0;
+function _refreshNightlyStatus() {
+  if (Date.now() - _nightlyFetchedAt < 5 * 60 * 1000) return;
+  _nightlyFetchedAt = Date.now();
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  fetch(_NIGHTLY_STATUS_URL, { cache: "no-store", signal: ctl.signal })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((st) => {
+      _nightlyStatus = st || { missing: true };
+      if (st?.lastRun) localStorage.setItem(_NIGHTLY_KEY, toLocalISODate(new Date(st.lastRun)));
+      renderBackupHealthCard();
+    })
+    .catch((e) => noteError("app:_refreshNightlyStatus", e))
+    .finally(() => clearTimeout(t));
+}
+
 function renderBackupHealthCard() {
   const el = document.getElementById("backup-health-body");
   if (!el) return;
+  _refreshNightlyStatus();
   const emailDate = localStorage.getItem("padel_last_email");
   const driveDate = localStorage.getItem(_DRIVE_BACKUP_KEY);
   const today = todayISO();
@@ -3008,11 +3032,19 @@ function renderBackupHealthCard() {
   const overdue = _backupOverdueDays();
   el.innerHTML =
     (overdue != null
-      ? `<div style="font-size:10px;font-weight:700;color:var(--red);padding:4px 0 6px">⚠️ ${overdue === Infinity ? "No backup on record" : `Newest backup is ${overdue} days old`} — run a Drive or email backup.</div>`
+      ? `<div style="font-size:10px;font-weight:700;color:var(--red);padding:4px 0 6px">⚠️ ${overdue === Infinity ? "No backup on record" : `Newest backup is ${overdue} days old`} — check the nightly backup, or run a Drive or email backup.</div>`
       : "") +
     row("📧", "Email Backup", eStat) +
     row("☁️", "Drive Backup", dStat) +
     row("🗄️", "Daily cloud snapshot", statusOf(daysSince(localStorage.getItem("padel_last_backup")))) +
+    row("🌙", "Nightly backup (GitHub)", statusOf(daysSince(localStorage.getItem(_NIGHTLY_KEY)))) +
+    `<div style="font-size:9px;color:var(--muted);padding:2px 0 6px 24px;line-height:1.5">${
+      _nightlyStatus?.lastRun
+        ? `Runs every night, no app needed · ${_nightlyStatus.matches} matches · data last changed ${fmtDate(toLocalISODate(new Date(_nightlyStatus.lastChange || _nightlyStatus.lastRun)))} · <a href="https://github.com/${_BACKUPS_REPO}/tree/data-backups/backups" target="_blank" rel="noopener" style="color:var(--theme)">open backups ↗</a>`
+        : _nightlyStatus?.missing
+          ? "Not run yet — it starts tonight (or run it now from GitHub → Actions → Nightly backup)."
+          : "Checking…"
+    }</div>` +
     `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:10px;color:var(--muted)"><span>Cloud doc size</span><span>${kb} KB</span></div>`;
 }
 
@@ -3022,6 +3054,7 @@ function _backupOverdueDays() {
   const dates = [
     localStorage.getItem("padel_last_email"),
     localStorage.getItem(_DRIVE_BACKUP_KEY),
+    localStorage.getItem(_NIGHTLY_KEY),
     localStorage.getItem("padel_last_backup"),
   ].filter(Boolean);
   if (!dates.length) return Infinity;
@@ -5128,6 +5161,23 @@ let _renderHomeGen = 0;
 function _homeViewKey() {
   return `${homeFilter}|${homeFrom || ""}|${homeTo || ""}|${rating.system()}`;
 }
+// TV mode (menu, or ?tv=1) — loaded on first use. It reopens by itself after a
+// reload (an app update) via a sessionStorage flag the module sets.
+window.openTvMode = function (opts) {
+  return import("./features/kiosk.js")
+    .then((m) => m.openTvMode(opts))
+    .catch((err) => _handleFeatureLoadError("TV mode", err));
+};
+{
+  let _resumeTv = new URLSearchParams(location.search).get("tv") === "1";
+  try {
+    _resumeTv = _resumeTv || sessionStorage.getItem("ekta_tv") === "1";
+  } catch (e) {
+    noteError("app:resumeTv", e);
+  }
+  if (_resumeTv)
+    document.addEventListener("padel-data-ready", () => window.openTvMode({ fullscreen: false }), { once: true });
+}
 // Fair Teams (menu) — loaded on first use.
 window.openFairTeams = function () {
   return import("./features/fair-teams.js")
@@ -5313,10 +5363,15 @@ function renderHome() {
     const homeTotalVal = homeConfMap ? homeConfMap[p.name] : null;
     // Name row shows the total-points figure instead of the ASS rating —
     // the rating itself is still visible in the gauge below.
+    // ASS newcomer rule, in plain sight: games left before a loss costs.
+    const newLeft = rating.gamesUntilVeteran(p.name);
     const nameEloHtml =
-      homeConfLabel && homeTotalVal != null
+      (homeConfLabel && homeTotalVal != null
         ? `<span class="pname-elo">${homeTotalVal} ${homeConfLabel}</span>`
-        : "";
+        : "") +
+      (newLeft > 0
+        ? `<span class="pname-new" title="Losses don't cost until ${rating.maturityGames()} career games">NEW · ${newLeft} to go</span>`
+        : "");
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
       return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span>${nameEloHtml}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
@@ -19105,7 +19160,9 @@ function _renderLiveSlot(slot) {
     slotEl?.classList.add("live-slot-filled");
     const eloEl = document.getElementById(`live-elo-${slot}`);
     if (eloEl) {
-      const score = _statsFmt(_statsRatingMap(activeMatches())[p] ?? _statsDefault());
+      // Today's season leaderboard (what a match played now is scored in),
+      // not whichever season happens to be selected elsewhere.
+      const score = _statsFmt(rating.map(scopeFor({ date: todayISO() }))[p] ?? _statsDefault());
       eloEl.textContent = `${_statsLabel()} ${score}`;
       eloEl.style.display = "block";
     }
@@ -19218,6 +19275,7 @@ function liveAdjustScore(team, delta) {
 function setLiveRaceTo(n) {
   _liveRaceTo = n;
   _syncRaceToggleUI();
+  _updateLiveEloPreview(); // the typical result (4–2 / 6–3) follows the race
 }
 
 function _syncRaceToggleUI() {
@@ -19311,42 +19369,73 @@ function _updateLiveWinProb() {
   }
 }
 
+// Points at stake: for the four players picked, each one's leaderboard change
+// if their side wins and if it loses (and on ASS the points it pays), for a
+// typical result of the chosen race (4–2 / 6–3). Priced by the rating service
+// exactly as saving the match would — in the season today falls in, against
+// rated matches only — so the number shown is the number you'll get.
+// The RED / BLUE row shows each side's average; the panel below breaks it down
+// per player, which is where the ASS newcomer rule shows up.
+let _liveStakeKey = "";
 function _updateLiveEloPreview() {
   const el = document.getElementById("live-elo-preview");
+  const panel = document.getElementById("live-stake");
   if (!el) return;
   const { a1, a2, b1, b2 } = _liveSlots;
-  if (!a1 || !a2 || !b1 || !b2) {
+  if (!a1 || !a2 || !b1 || !b2 || new Set([a1, a2, b1, b2]).size < 4) {
     el.style.display = "none";
+    if (panel) panel.style.display = "none";
+    _liveStakeKey = "";
     return;
   }
-  // Runs a hypothetical 4-2 match through the ACTUAL active engine (not a
-  // generic K=32 heuristic), appended onto real history so maturity/partner
-  // effects are correctly in play. Mirrored 2-4 gives the "if you lose"
-  // side. This is what genuinely happens when the match is saved, for
-  // whichever system is selected — not an approximation of it.
-  const base = activeMatches();
-  const previewDeltas = (scoreA, scoreB) => {
-    const synth = { date: todayISO(), teamA: [a1, a2], teamB: [b1, b2], scoreA, scoreB };
-    const withSynth = [...base, synth];
-    const d = _matchDeltasForSystem(rating.system(), withSynth).get(synth);
-    return d ? d.playerDeltas : {};
-  };
-  const winDeltas = previewDeltas(4, 2);
-  const loseDeltas = previewDeltas(2, 4);
-  const teamAvg = (deltas, players) => {
-    const vals = players.map((p) => deltas[p]).filter((v) => v != null);
-    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
-  };
   el.style.display = "";
+  const winScore = _liveRaceTo;
+  const loseScore = Math.floor(_liveRaceTo / 2);
+  const key = [a1, a2, b1, b2, winScore, _dataVersion, rating.system()].join("|");
+  if (key === _liveStakeKey) return; // score taps don't change what's at stake
+  _liveStakeKey = key;
+  const stake = rating.atStake([a1, a2], [b1, b2], { date: todayISO(), winScore, loseScore });
   const set = (id, val) => {
     const e = document.getElementById(id);
     if (e) e.textContent = val;
   };
-  const fmt = (v) => (v == null ? "—" : `${v > 0 ? "+" : ""}${_statsFmt(v)}`);
-  set("lep-win-a", fmt(teamAvg(winDeltas, [a1, a2])));
-  set("lep-lose-a", fmt(teamAvg(loseDeltas, [a1, a2])));
-  set("lep-win-b", fmt(teamAvg(winDeltas, [b1, b2])));
-  set("lep-lose-b", fmt(teamAvg(loseDeltas, [b1, b2])));
+  const signed = (v) => (v == null ? "—" : `${v > 0 ? "+" : ""}${_statsFmt(v)}`);
+  const avg = (team, side) =>
+    stake.rated ? team.reduce((s, p) => s + stake.players[p][side].change, 0) / team.length : null;
+  set("lep-win-a", signed(avg([a1, a2], "win")));
+  set("lep-lose-a", signed(avg([a1, a2], "loss")));
+  set("lep-win-b", signed(avg([b1, b2], "win")));
+  set("lep-lose-b", signed(avg([b1, b2], "loss")));
+  if (!panel) return;
+  panel.style.display = "";
+  if (!stake.rated) {
+    panel.innerHTML = `<div class="ls-note">Not rated — a guest is playing, so this match won't change the leaderboard.</div>`;
+    return;
+  }
+  const lbl = _statsLabel();
+  const cls = (v) => (v > 0.0049 ? "ls-up" : v < -0.0049 ? "ls-down" : "ls-flat");
+  const cell = (o) =>
+    `<span class="ls-cell"><b class="${cls(o.change)}">${signed(o.change)}</b>${o.pts != null ? `<small>${o.pts > 0 ? "+" : ""}${o.pts} pts</small>` : ""}</span>`;
+  let anyNew = false;
+  const row = (p, side) => {
+    const left = rating.gamesUntilVeteran(p);
+    if (left > 0) anyNew = true;
+    const tag =
+      left > 0
+        ? `<span class="ls-new" title="Losses don't cost until ${rating.maturityGames()} career games">NEW · ${left} to go</span>`
+        : "";
+    const o = stake.players[p];
+    return `<div class="ls-row ls-${side}">
+      <span class="ls-name">${escHtml(normPlayer(p))}${tag}</span>
+      ${cell(o.win)}${cell(o.loss)}
+    </div>`;
+  };
+  const rows = [row(a1, "red"), row(a2, "red"), row(b1, "blue"), row(b2, "blue")].join("");
+  panel.innerHTML = `
+    <div class="ls-head"><span>AT STAKE · ${escHtml(lbl)}</span><span class="ls-sub">if it ends ${winScore}–${loseScore}</span></div>
+    <div class="ls-row ls-cols"><span></span><span class="ls-cell">WIN</span><span class="ls-cell">LOSE</span></div>
+    ${rows}
+    <div class="ls-note">${anyNew ? `NEW players' losses still pay until ${rating.maturityGames()} career games. ` : ""}Bigger wins pay a little more.</div>`;
 }
 
 function endLiveMatch() {

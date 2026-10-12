@@ -837,6 +837,12 @@ function openPlayerDetail(name) {
   const assRank = Object.entries(assMapPd).sort((a, b) => b[1] - a[1]).findIndex(([n]) => n === name) + 1;
   // SR derived from ASS.
   const srAss = _srFn(assMapPd)(playerASS);
+  // ASS newcomer rule: career games left before a loss starts to cost.
+  const newLeft = rating.gamesUntilVeteran(name);
+  const newcomerHtml =
+    newLeft > 0
+      ? `<div class="pd-newcomer">🆕 Newcomer — ${newLeft} more game${newLeft !== 1 ? "s" : ""} until losses count. Until then a loss still pays a little; from game ${rating.maturityGames() + 1} a loss costs points.</div>`
+      : "";
 
   // Badges
   const badges = computeBadges(name, s, assMapPd, activeMatches());
@@ -1466,6 +1472,7 @@ function openPlayerDetail(name) {
                       <div class="ov-win-pct">${s.winPct.toFixed(0)}% win rate · ${s.mp} played · ${daysPlayed} day${daysPlayed !== 1 ? "s" : ""}${firstGameLabel ? ` · <span style="color:var(--muted)">${firstGameLabel}</span>` : ""}</div>
                     </div>
                   </div>
+                  ${newcomerHtml}
                   <div class="ov-grid">
                     <div class="ov-cell">
                       <div class="ov-val p">${s.gw}</div>
