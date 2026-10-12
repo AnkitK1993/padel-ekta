@@ -19383,6 +19383,16 @@ function endLiveMatch() {
 
 function _commitSaveMatch() {
   const { a1, a2, b1, b2 } = _liveSlots;
+  // Re-check here too: a second tap on Save (or a stale sheet) reaches this
+  // after the slots/score were reset, and used to store a match of nulls.
+  if (
+    !a1 || !a2 || !b1 || !b2 ||
+    new Set([a1, a2, b1, b2]).size < 4 ||
+    _liveScoreA === _liveScoreB
+  ) {
+    closeMatchSaveSheet();
+    return;
+  }
   const date = todayISO();
   const match = {
     id: _genMatchId(),

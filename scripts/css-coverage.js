@@ -258,13 +258,21 @@ function parseRules(text) {
 // In-page helpers, stringified and run repeatedly.
 const PAGE_HELPERS = `
   window.__danger = /delet|clear|purge|remov|export|import|logout|signout|sign-out|reset|wipe|trash|undo/i;
-  window.__sweep = function(){
+  // Clicks every handler once, within a time budget: some handlers re-render
+  // whole pages, and one synchronous pass over ~1,000 of them could run for
+  // tens of minutes on a CI runner (it hung the job). Coverage is a report, so
+  // a bounded pass is enough; the second pass and the curated openers fill in.
+  window.__sweep = function(budgetMs){
+    const t0 = performance.now();
+    const limit = budgetMs || 4000;
     let n=0;
-    document.querySelectorAll('[onclick]').forEach(el=>{
+    for (const el of document.querySelectorAll('[onclick]')) {
+      if (performance.now() - t0 > limit) break;
+      if (!el.isConnected) continue;
       const code=el.getAttribute('onclick')||'';
-      if(window.__danger.test(code)) return;
+      if(window.__danger.test(code)) continue;
       try{ el.click(); n++; }catch(e){}
-    });
+    }
     return n;
   };
   window.__closeAll = function(){
