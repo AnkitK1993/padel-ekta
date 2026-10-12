@@ -6,8 +6,7 @@
 // can no longer silently show a different engine than the leaderboard.
 //
 // There are deliberately NO per-module fallbacks: a missing wiring used to
-// default to classic ASS and quietly show the wrong numbers.
-import { computeASS, computeMatchASSDeltas, computeASSTimeline } from "./ass.js";
+// default to another engine and quietly show the wrong numbers.
 import { computeGlicko2Full, computeMatchGlicko2Deltas } from "./glicko2.js";
 import { computeOpenSkillFull, computeMatchOpenSkillDeltas } from "./openskill.js";
 import { computeFairShare, computeMatchFairShareDeltas } from "./fairshare.js";
@@ -24,11 +23,10 @@ import { computeStats, ratingToSr } from "./stats.js";
 import { withoutGuestMatches, ratedMatches, _inSeason } from "./selectors.js";
 import { state } from "./state.js";
 
-export const SCORING_SYSTEMS = ["ep", "ass", "glicko2", "openskill", "fairshare"];
-// Only the DISPLAY names swap: Earned Points carries the house name ("ASS")
-// and the original engine reads "ASS CLASSIC".
+export const SCORING_SYSTEMS = ["ep", "glicko2", "openskill", "fairshare"];
+// Earned Points ("ep") carries the house name, "ASS". (The original
+// margin x opponent-strength engine, ASS CLASSIC, was retired.)
 export const SCORING_SYSTEM_LABELS = {
-  ass: "ASS CLASSIC",
   glicko2: "GLICKO-2",
   openskill: "OPENSKILL",
   fairshare: "FAIR SHARE",
@@ -113,7 +111,7 @@ function minMaxSrFn(ratingMap, round = true) {
 }
 
 // Absolute "level" ladders for celebrations and achievements, on each scale's
-// own units. The 1000-centred engines share the classic ladder. The 0-based EP
+// own units. The 1000-centred engines share one ladder. The 0-based EP
 // score (2 x average points per game) reads very differently, so it has its own:
 // calibrated on the real league data so a rung is about as hard to reach as its
 // classic counterpart (elite: the top ~15-20% of a season's players; bigGain:
@@ -218,8 +216,7 @@ export const rating = {
     if (s === "glicko2") return pick("r");
     if (s === "openskill") return pick("mu");
     if (s === "ep") return pick("score");
-    if (s === "fairshare") return computeFairShare(matches);
-    return computeASS(matches);
+    return computeFairShare(matches);
   },
   map(matches, s = _system) {
     return rating.flat(matches, rating.full(matches, s), s);
@@ -265,11 +262,9 @@ export const rating = {
     if (s === "glicko2") return computeMatchGlicko2Deltas(matches);
     if (s === "openskill") return computeMatchOpenSkillDeltas(matches);
     if (s === "fairshare") return computeMatchFairShareDeltas(matches);
-    if (s === "ep") return computeMatchEPDeltas(matches, careerMatches(), opts);
-    return computeMatchASSDeltas(matches);
+    return computeMatchEPDeltas(matches, careerMatches(), opts);
   },
   timeline(matches, s = _system) {
-    if (s === "ass") return computeASSTimeline(matches);
     if (s === "ep") return computeEPTimeline(matches, careerMatches());
     return timelineFromDeltas(matches, rating.deltas(matches, s), 1000);
   },

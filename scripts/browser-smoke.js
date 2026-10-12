@@ -896,10 +896,7 @@ async function main() {
         hasPowerRank: hasSec("powerrank"),
         hasLbReplay: hasSec("lbreplay"),
         hasCarry: hasSec("carry"),
-        // Match Simulator, What-If Simulator, Biggest Upsets were removed
-        // along with the rest of the ASS-CLASSIC-only sections (see
-        // docs/ass-classic-scoring.md); Rating Projection and Underdog
-        // Leaderboard were rebuilt on the new ASS engine's own logic.
+        // Rating Projection and Underdog Leaderboard run on ASS's own logic.
         hasRatingProj: hasSec("ratingproj"),
         hasUnderdogBoard: hasSec("underdogboard"),
         hasPairSynergy: hasSec("pairsynergy"),

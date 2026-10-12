@@ -10,7 +10,7 @@
 //     league's own yardstick for "who is actually good";
 //   - next-match prediction: before each match, does the team with the higher
 //     current score win? (causal: only earlier matches are used). Compared
-//     with a win-% predictor, ASS CLASSIC and a coin flip.
+//     with a win-% predictor and a coin flip.
 //
 // Nothing here changes the app; it only reads the engine with substituted
 // constants (ep.js has no imports, so a patched copy runs on its own).
@@ -18,7 +18,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { computeMatchASSDeltas } from "../src/domain/ass.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const file = process.argv[2];
@@ -91,13 +90,12 @@ function spearman(xs, ys) {
 function evaluate(season, ep, params) {
   const ordered = [...season.matches].sort(byDate);
   const epDeltas = ep.computeMatchEPDeltas(ordered, career);
-  const classic = computeMatchASSDeltas(ordered);
-  const tot = {}, games = {}, wins = {}, cls = {};
+  const tot = {}, games = {}, wins = {};
   const scale = 2; // EP_SCALE: ranking-neutral, kept for readable numbers
   const score = (p) => (games[p] ? (scale * (tot[p] || 0)) / (games[p] + params.EP_SHRINKAGE) : 0);
   const wr = (p) => ((wins[p] || 0) + 1) / ((games[p] || 0) + 2);
   const team = (t, f) => t.reduce((s, p) => s + f(p), 0) / t.length;
-  const hits = { ep: [0, 0], winrate: [0, 0], classic: [0, 0] };
+  const hits = { ep: [0, 0], winrate: [0, 0] };
   ordered.forEach((m, k) => {
     const aWon = m.scoreA > m.scoreB;
     if (k >= 20 && m.scoreA !== m.scoreB) {
@@ -108,22 +106,19 @@ function evaluate(season, ep, params) {
       };
       judge("ep", team(m.teamA, score), team(m.teamB, score));
       judge("winrate", team(m.teamA, wr), team(m.teamB, wr));
-      judge("classic", team(m.teamA, (p) => cls[p] ?? 1000), team(m.teamB, (p) => cls[p] ?? 1000));
     }
     const e = epDeltas.get(m);
-    const c = classic.get(m);
     [...m.teamA, ...m.teamB].forEach((p) => {
       tot[p] = (tot[p] || 0) + (e ? e.playerDeltas[p] || 0 : 0);
       games[p] = (games[p] || 0) + 1;
       const won = m.teamA.includes(p) === aWon;
       if (won) wins[p] = (wins[p] || 0) + 1;
-      cls[p] = (cls[p] ?? 1000) + (c ? c.playerDeltas[p] || 0 : 0);
     });
   });
   const regulars = Object.keys(games).filter((p) => games[p] >= 10);
   const rho = spearman(regulars.map(score), regulars.map((p) => (wins[p] || 0) / games[p]));
   const acc = (h) => (h[1] ? h[0] / h[1] : NaN);
-  return { rho, acc: acc(hits.ep), n: hits.ep[1], baseline: { winrate: acc(hits.winrate), classic: acc(hits.classic) } };
+  return { rho, acc: acc(hits.ep), n: hits.ep[1], baseline: { winrate: acc(hits.winrate) } };
 }
 
 function* gridPoints() {
@@ -172,7 +167,7 @@ for (let t = 0; t < seasons.length; t++) {
     console.log(`Tune on ${seasons[t].name} → test on ${H.name}`);
     console.log(`  tuned constants:   ${fmtP(best.params)}`);
     console.log(`  held-out win% rank agreement:  shipped ${shippedRes[h].rho.toFixed(2)} · tuned-on-other ${best.bySeason[h].rho.toFixed(2)} · best possible ${oracle.bySeason[h].rho.toFixed(2)}`);
-    console.log(`  held-out next-match prediction (${shippedRes[h].n} matches): shipped ${pct(shippedRes[h].acc)} · tuned-on-other ${pct(best.bySeason[h].acc)} · win% ${pct(shippedRes[h].baseline.winrate)} · ASS CLASSIC ${pct(shippedRes[h].baseline.classic)} · coin flip 50.0%\n`);
+    console.log(`  held-out next-match prediction (${shippedRes[h].n} matches): shipped ${pct(shippedRes[h].acc)} · tuned-on-other ${pct(best.bySeason[h].acc)} · win% ${pct(shippedRes[h].baseline.winrate)} · coin flip 50.0%\n`);
   }
 }
 for (const t of tries) {

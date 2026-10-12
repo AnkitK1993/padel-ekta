@@ -1,13 +1,6 @@
 ﻿import { _lightFingerprint } from "./src/domain/fingerprint.js";
 import { computeStats, _normScores } from "./src/domain/stats.js";
 import {
-  hasSeasonScoringReference,
-  computeSeasonScoringASS,
-  SEASON_SCORING_MODES,
-  SEASON_SCORING_LABELS,
-  SEASON_SCORING_DESCRIPTIONS,
-} from "./src/domain/season-scoring.js";
-import {
   rating,
   setActiveSystem,
   scopeFor,
@@ -832,51 +825,22 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-// ASS is the sole scoring system — no more Summary-tab-local mode toggle.
-const _summaryMode = "ass";
 let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
-// Season-carryover scoring variant for the Summary tab leaderboard — "reset"
-// (default, unchanged behaviour), "flip", or "fair". Only takes
-// effect on the ALL TIME view of a season that has a valid reference (prior)
-// season; every other surface keeps using the canonical per-season computeASS.
-let _seasonScoringMode = "reset";
-try {
-  const _stored = localStorage.getItem("padel_season_scoring_mode");
-  if (_stored && SEASON_SCORING_MODES.includes(_stored)) _seasonScoringMode = _stored;
-} catch (e) {
-  noteError("app:restoreSeasonScoringMode", e);
-}
-
-// Summary-tab scoring SYSTEM — "ep" (default), "ass", "glicko2", "openskill"
-// or "fairshare". Independent of _seasonScoringMode: the Flip/Fair
-// season-carryover variants are ASS-CLASSIC-specific and only apply when this
-// is "ass" (the picker hides them otherwise, and a stored format preference is
-// preserved and simply re-applies if ASS CLASSIC is selected again).
-// The stored keys are deliberately left alone: "ass" still means the original
-// margin×opponent-strength engine (the archived Season 1 snapshot records
-// scoringMode "ass", and the Flip/Fair season formats are built on its maths),
-// while "ep" is the 0-based Earned Points engine. Only the DISPLAY names swap —
-// Earned Points now carries the house name and the original becomes CLASSIC.
-// SR bands, defaults and printed forms all live in src/domain/rating-service.js.
+// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS"), "glicko2",
+// "openskill" or "fairshare". SR bands, defaults and printed forms all live
+// in src/domain/rating-service.js.
 const _srFnForSystem = (system, ratingMap) => rating.srFn(ratingMap, system);
 // The active system lives in the rating service (one copy, so no screen can
 // hold a different one); this block only restores the saved choice.
 try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
-  // A device still carrying the OLD default ("ass") predates the rename, when
-  // picking "ASS" meant "the house system" rather than this specific engine.
-  // The house name now belongs to Earned Points, so move those devices across
-  // once — otherwise the new default would never reach anyone who has ever
-  // opened the picker. Runs at most once; deliberately choosing ASS CLASSIC
-  // afterwards writes "ass" again and sticks, and every other system is left
-  // untouched.
-  if (_storedSys === "ass" && !localStorage.getItem("padel_scoring_renamed_v1")) {
-    localStorage.setItem("padel_scoring_renamed_v1", "1");
-    localStorage.setItem("padel_scoring_system", "ep");
-  } else if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) {
-    setActiveSystem(_storedSys);
-  }
+  // ASS CLASSIC ("ass") was retired: a device still set to it moves to the
+  // default, and the retired season-format preference is dropped.
+  if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) setActiveSystem(_storedSys);
+  else if (_storedSys) localStorage.removeItem("padel_scoring_system");
+  localStorage.removeItem("padel_season_scoring_mode");
+  localStorage.removeItem("padel_scoring_renamed_v1");
 } catch (e) {
   noteError("app:restoreScoringSystem", e);
 }
@@ -896,13 +860,8 @@ const _matchDeltasForSystem = (system, matches, opts) =>
 // ── STATISTICS PAGE RATING SOURCE ───────────────────────────
 // The Statistics page follows whichever engine the Summary tab's picker has
 // selected, so a section titled "<system> Rankings" always means the same
-// number as the leaderboard. The sections whose maths was ASS CLASSIC's
-// specifically (Win Probability, Biggest Upsets, Underdog Leaderboard, Match
-// Simulator, Rating Projection, What-If Simulator) were removed entirely
-// rather than pinned — see docs/ass-classic-scoring.md for what they did and
-// why they didn't just rewire onto the new engine. The internal ELO walk
-// behind Prediction Accuracy is left alone: that models match outcomes, not
-// the displayed rating.
+// number as the leaderboard. The internal ELO walk behind Prediction Accuracy
+// is left alone: that models match outcomes, not the displayed rating.
 const _statsLabel = () => rating.label();
 const _statsRatingMap = (matches) => rating.map(matches);
 const _statsSrFn = (ratingMap) => rating.srFn(ratingMap);
@@ -926,17 +885,45 @@ function _statsBadgeOpts() {
 // only formats — no print-time multiplier.
 const _statsFmt = (v) => rating.fmt(v);
 const _statsTimeline = (matches) => rating.timeline(matches);
-// Upsets (weaker team won), following the picker where a bespoke temporal
-// walk exists for the active engine. `ep` gets its own (computeEPUpsets,
-// same career-aware internal walk that prices every match). Every other
-// system falls back to the classic ASS walk (_computeUpsets) — there's no
-// equivalent per-match temporal model for Glicko-2/OpenSkill/Fair Share in
-// this codebase, so that's a known limitation, not a picker bug: the
-// important case (the new default, "ep") is fully accurate.
+// Upsets (weaker team won), following the picker. `ep` has its own
+// (computeEPUpsets: the same internal walk that prices every match); the other
+// systems compare the two teams' average rating going into each match, read
+// off the active engine's own per-match deltas.
 function _statsUpsets(matches) {
   const epUpsets = rating.upsets(matches);
   if (epUpsets) return epUpsets;
-  return _computeUpsets(matches).map((u) => ({ ...u, gap: u.assGap }));
+  const deltas = rating.deltas(matches);
+  const cur = {};
+  const def = rating.def();
+  const avg = (t) => t.reduce((s, p) => s + (cur[p] ?? def), 0) / Math.max(t.length, 1);
+  const upsets = [];
+  [...matches]
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((m) => {
+      const tA = m.teamA || [];
+      const tB = m.teamB || [];
+      if (m.scoreA !== m.scoreB) {
+        const aWon = m.scoreA > m.scoreB;
+        const winners = aWon ? tA : tB;
+        const losers = aWon ? tB : tA;
+        const gap = Math.round(avg(losers) - avg(winners));
+        if (gap > 0)
+          upsets.push({
+            date: m.date,
+            winners,
+            losers,
+            sw: Math.max(m.scoreA, m.scoreB),
+            sl: Math.min(m.scoreA, m.scoreB),
+            gap,
+          });
+      }
+      const e = deltas.get(m);
+      if (!e) return;
+      [...tA, ...tB].forEach((p) => {
+        cur[p] = e.playerAfter?.[p] ?? (cur[p] ?? def) + (e.playerDeltas[p] || 0);
+      });
+    });
+  return upsets;
 }
 
 // System-agnostic win probability, used by anything that needs to compare
@@ -2743,7 +2730,6 @@ function refreshManage() {
   renderBackupHealthCard();
   renderStorageBreakdownCard();
   renderPlayerMergeCard();
-  renderASSFormulaCard();
   renderAuditLogCard();
 }
 
@@ -3041,141 +3027,6 @@ window.mergePlayers = function () {
     msgEl.textContent = `Merged — ${rewritten} match(es) rewritten.`;
     msgEl.className = "msg ok show";
   }
-};
-
-// ── ASS FORMULA EDITOR (sandbox preview only — does not alter live scoring) ──
-function _previewASS(matches, params) {
-  const {
-    marginWeight,
-    baseWeight,
-    multClampMin,
-    multClampMax,
-    partnerTaxWeight,
-  } = params;
-  const elo = {},
-    ass = {};
-  [...matches]
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-    .forEach((m) => {
-      const allP = [...(m.teamA || []), ...(m.teamB || [])];
-      allP.forEach((p) => {
-        if (!(p in elo)) elo[p] = 1000;
-        if (!(p in ass)) ass[p] = 1000;
-      });
-      const margin = Math.abs(m.scoreA - m.scoreB);
-      const total = m.scoreA + m.scoreB;
-      const quality = marginWeight * margin + baseWeight * total;
-      const aWon = m.scoreA > m.scoreB;
-      const avgEloA =
-        m.teamA.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamA.length, 1);
-      const avgEloB =
-        m.teamB.reduce((s, p) => s + elo[p], 0) / Math.max(m.teamB.length, 1);
-      const expA = 1 / (1 + Math.pow(10, (avgEloB - avgEloA) / 400));
-      const eloDA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-      const eloDB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-      m.teamA.forEach((p) => {
-        const partner = m.teamA.find((pp) => pp !== p);
-        const partnerElo = partner ? elo[partner] : elo[p];
-        const mult = Math.max(
-          multClampMin,
-          Math.min(
-            multClampMax,
-            1 +
-              (avgEloB - elo[p]) / 400 -
-              (partnerTaxWeight * (partnerElo - elo[p])) / 400,
-          ),
-        );
-        ass[p] += aWon
-          ? Math.round(quality * mult)
-          : -Math.round(quality / mult);
-      });
-      m.teamB.forEach((p) => {
-        const partner = m.teamB.find((pp) => pp !== p);
-        const partnerElo = partner ? elo[partner] : elo[p];
-        const mult = Math.max(
-          multClampMin,
-          Math.min(
-            multClampMax,
-            1 +
-              (avgEloA - elo[p]) / 400 -
-              (partnerTaxWeight * (partnerElo - elo[p])) / 400,
-          ),
-        );
-        ass[p] += !aWon
-          ? Math.round(quality * mult)
-          : -Math.round(quality / mult);
-      });
-      m.teamA.forEach((p) => {
-        elo[p] += eloDA;
-      });
-      m.teamB.forEach((p) => {
-        elo[p] += eloDB;
-      });
-    });
-  return ass;
-}
-function _assCfgRow(id, label, val, min, max, step) {
-  return `<div>
-    <div style="font-size:9px;color:var(--muted);margin-bottom:3px">${label}</div>
-    <input id="${id}" type="number" value="${val}" min="${min}" max="${max}" step="${step}" class="mei-input" style="width:100%">
-  </div>`;
-}
-function renderASSFormulaCard() {
-  const el = document.getElementById("ass-formula-config");
-  if (!el) return;
-  el.innerHTML = `
-    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Sandbox only — adjust weights to preview how the ASS CLASSIC leaderboard would reorder. Doesn't change the live scoring system.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      ${_assCfgRow("assf-margin", "MARGIN WEIGHT", 4, 0, 10, 0.5)}
-      ${_assCfgRow("assf-base", "GAME-COUNT WEIGHT", 1, 0, 3, 0.1)}
-      ${_assCfgRow("assf-clampmin", "MULT CLAMP MIN", 0.5, 0.1, 1, 0.1)}
-      ${_assCfgRow("assf-clampmax", "MULT CLAMP MAX", 2.0, 1, 4, 0.1)}
-    </div>
-    <button onclick="previewASSFormula()" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.12);color:var(--theme);font-weight:700;font-size:11px;cursor:pointer">Preview Leaderboard</button>
-    <div id="ass-formula-preview" style="margin-top:10px"></div>`;
-}
-window.previewASSFormula = function () {
-  const el = document.getElementById("ass-formula-preview");
-  if (!el) return;
-  const params = {
-    marginWeight:
-      parseFloat(document.getElementById("assf-margin")?.value) || 4,
-    baseWeight: parseFloat(document.getElementById("assf-base")?.value) || 0,
-    multClampMin:
-      parseFloat(document.getElementById("assf-clampmin")?.value) || 0.5,
-    multClampMax:
-      parseFloat(document.getElementById("assf-clampmax")?.value) || 2.0,
-    partnerTaxWeight: 0.5,
-  };
-  const am2 = activeMatches();
-  // The sandbox tunes the CLASSIC formula, so it compares against classic.
-  const currentAss = rating.map(am2, "ass");
-  const previewAss = _previewASS(am2, params);
-  const currentRank = Object.entries(currentAss)
-    .sort((a, b) => b[1] - a[1])
-    .map(([n]) => n);
-  const previewRanked = Object.entries(previewAss).sort((a, b) => b[1] - a[1]);
-  const rows = previewRanked
-    .slice(0, 12)
-    .map(([name, score], i) => {
-      const oldRank = currentRank.indexOf(name) + 1;
-      const newRank = i + 1;
-      const diff = oldRank - newRank;
-      const arrow =
-        diff > 0
-          ? `<span style="color:var(--green)">▲${diff}</span>`
-          : diff < 0
-            ? `<span style="color:var(--red)">▼${Math.abs(diff)}</span>`
-            : `<span style="color:var(--muted)">–</span>`;
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-        <div style="width:22px;font-size:10px;color:var(--muted)">#${newRank}</div>
-        <div style="flex:1;font-size:11px;font-weight:700">${escHtml(name)}</div>
-        <div style="font-size:11px;font-weight:800;color:var(--theme)">${Math.round(score)}</div>
-        <div style="font-size:10px;width:32px;text-align:right">${arrow}</div>
-      </div>`;
-    })
-    .join("");
-  el.innerHTML = `<div style="font-size:9px;color:var(--muted);margin-bottom:6px">Preview vs current ASS CLASSIC ranking</div>${rows}`;
 };
 
 // ── DATE HELPERS ───────────────────────────────────────────
@@ -5029,7 +4880,7 @@ function renderHome() {
   const stats = rating.stats(filtered, homeASSMap);
   // Raw total points (EP) / confidence band (Glicko-2, OpenSkill) shown next
   // to the name, same secondary figure the Summary tab's TOTAL/± column
-  // shows — blank for ASS CLASSIC/Fair Share, which have no such total.
+  // shows — blank for Fair Share, which has no such total.
   const homeConfMap = rating.conf(homeFull);
   const homeConfLabel =
     rating.system() === "ep"
@@ -5356,7 +5207,7 @@ window.removeStatsCache = function removeStatsCache() {
 
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
-  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${_summaryMode}|${_seasonScoringMode}|${rating.system()}`;
+  _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${rating.system()}`;
   _updateExcludeBtn();
   _renderSeasonQuickSwitch();
   _updateSeasonScoringBadge();
@@ -5401,18 +5252,6 @@ function renderCompact() {
   }
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
-  const _isCmpAllFilter = cmpFilter === "all" && !cmpFrom && !cmpTo;
-  // Season-carryover scoring (Flip/Fair) is ASS-specific and only makes
-  // sense on the full, undated ALL TIME view of a season with a real prior
-  // season to draw from — FIRST/LAST windows, narrower date filters, and the
-  // other scoring systems always fall back to a plain per-season computation.
-  const _cmpSeason = _activeSeason();
-  const _hasScoringRef =
-    rating.system() === "ass" &&
-    !_lbWindow &&
-    _isCmpAllFilter &&
-    hasSeasonScoringReference(state.seasons, _cmpSeason);
-  const _effSeasonScoringMode = _hasScoringRef ? _seasonScoringMode : "reset";
   let _cmpASSMap, _cmpConfMap, stats;
   if (_lbWindow) {
     // FIRST/LAST window: recompute the active system's rating and SR over
@@ -5422,19 +5261,8 @@ function renderCompact() {
     _cmpASSMap = r.assMap;
     _cmpConfMap = r.confMap;
     stats = r.stats;
-  } else if (_hasScoringRef && _effSeasonScoringMode !== "reset") {
-    // Season-carryover (Flip/Fair) is ASS CLASSIC's own format, so this branch
-    // is only reachable with the classic engine selected.
-    _cmpASSMap = computeSeasonScoringASS(
-      _effSeasonScoringMode,
-      withoutGuestMatches(state.matches),
-      filtered,
-      state.seasons,
-      _cmpSeason,
-    );
-    stats = rating.stats(filtered, _cmpASSMap);
   } else {
-    // Every other case: the active system over the filtered window, one
+    // The active system over the filtered window, one
     // engine pass for both the rating and the secondary column.
     const _full = rating.full(filtered);
     _cmpASSMap = rating.flat(filtered, _full);
@@ -5655,28 +5483,17 @@ function renderCompact() {
   _cmpFiltered = filtered;
 
   // Delta walk base: ALL TIME uses the full active-season trajectory so each
-  // match's delta reflects its true historical ASS context. TODAY starts
-  // fresh and walks only today's matches (session-relative). Fair never
-  // resets — its whole premise is continuous, true-strength-weighted deltas —
-  // so it always walks the complete cross-season history regardless of window.
+  // match's delta reflects its true in-season context. TODAY starts fresh and
+  // walks only today's matches (session-relative).
   const _allActive = activeMatches();
   const _deltaMatches =
     _matchDeltaWindow === "today"
       ? _allActive.filter((m) => m.date === todayISO())
       : _allActive;
-  const matchEloDeltas =
-    rating.system() === "ass" && _effSeasonScoringMode === "fair"
-      ? rating.deltas(withoutGuestMatches(state.matches), "ass")
-      : // EP's expectation warms from the full career, so TODAY needs a fresh
-        // start to differ from ALL TIME: blindElo restarts expectation level
-        // while the career game counts (50-game newcomer flag) stay intact.
-        rating.deltas(
-          _deltaMatches,
-          rating.system(),
-          rating.system() === "ep" && _matchDeltaWindow === "today"
-            ? { blindElo: true }
-            : {},
-        );
+  // EP's expectation learns only from the walked window, so TODAY's walk
+  // (today's matches only) starts level, while the career game counts behind
+  // the 50-game newcomer flag stay intact.
+  const matchEloDeltas = rating.deltas(_deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
@@ -9340,27 +9157,19 @@ function _cmpSetWindow(slot, mode) {
 }
 
 // ── SCORING PICKER (Summary tab badge) ──────────────────────
-// Tapping #summary-mode-badge opens a sheet with two sections: which SYSTEM
-// computes the rating (ASS / Glicko-2 / OpenSkill), and — only under ASS,
-// where it has a well-defined meaning — which season-carryover FORMAT to use
-// (Reset/Flip/Fair). Format options with no valid reference season
-// (e.g. the very first season, or "ALL SEASONS") are shown disabled —
-// selecting one is a no-op in that case and renderCompact() silently falls
-// back to Reset regardless of the stored preference, so nothing breaks if a
-// season boundary later changes.
+// Tapping #summary-mode-badge opens a sheet listing the scoring SYSTEMS. ASS
+// (Earned Points) is the league's system; the others are kept for comparison
+// behind "Advanced".
 const SCORING_SYSTEM_BLURBS = {
-  ass: "The original: match quality (margin + games) times an opponent-strength multiplier, starting everyone at 1000. Kept for the Flip/Fair season formats and for comparison.",
   glicko2: "Chess.com/Lichess's algorithm: a rating plus a confidence band that narrows the more you play.",
   openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
 };
 
-// ASS (Earned Points) and ASS CLASSIC are the league's systems; the other three
-// are kept for comparison and live behind "Advanced" so the everyday choice is
-// one of two. The Advanced group opens by itself when one of them is active,
-// so the current selection is never hidden.
-const SCORING_MAIN = ["ep", "ass"];
+// The Advanced group opens by itself when one of its systems is active, so the
+// current selection is never hidden.
+const SCORING_MAIN = ["ep"];
 const SCORING_ADVANCED = SCORING_SYSTEMS.filter((s) => !SCORING_MAIN.includes(s));
 let _scoringAdvancedOpen = false;
 
@@ -9385,35 +9194,13 @@ window._toggleScoringAdvanced = function () {
   _renderScoringPickerSheet();
 };
 
-function _seasonScoringPickerRows() {
-  const season = _activeSeason();
-  const hasRef = hasSeasonScoringReference(state.seasons, season);
-  return SEASON_SCORING_MODES.map((mode) => {
-    const disabled = mode !== "reset" && !hasRef;
-    const selected = _seasonScoringMode === mode;
-    return `<button class="live-sheet-item${selected ? " live-sheet-item-selected" : ""}" ${disabled ? "disabled" : `onclick="_setSeasonScoringMode('${mode}')"`}>
-      <div style="flex:1;text-align:left;font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SEASON_SCORING_LABELS[mode]}</div>
-    </button>`;
-  }).join("");
-}
-
 function _renderScoringPickerSheet() {
   const list = document.getElementById("season-scoring-list");
   if (!list) return;
-  const season = _activeSeason();
-  const showFormats = rating.system() === "ass";
-  const hasRef = hasSeasonScoringReference(state.seasons, season);
   list.innerHTML = `
     <div class="live-sheet-section-lbl">SCORING SYSTEM</div>
     ${_scoringSystemPickerRows()}
-    ${
-      showFormats
-        ? `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div>${_seasonScoringPickerRows()}`
-        : `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div><div style="font-size:10px;color:var(--muted);padding:4px 10px 2px">Season formats (Flip/Fair) apply to ASS CLASSIC only.</div>`
-    }
   `;
-  const note = document.getElementById("season-scoring-note");
-  if (note) note.style.display = showFormats && !hasRef ? "block" : "none";
 }
 
 function openSeasonScoringPicker() {
@@ -9446,39 +9233,15 @@ function _setScoringSystem(sys) {
   document.body.classList.remove("no-cascade");
 }
 
-function _setSeasonScoringMode(mode) {
-  if (!SEASON_SCORING_MODES.includes(mode)) return;
-  _seasonScoringMode = mode;
-  try {
-    localStorage.setItem("padel_season_scoring_mode", mode);
-  } catch (e) {
-    noteError("app:_setSeasonScoringMode", e);
-  }
-  closeSeasonScoringPicker();
-  _updateSeasonScoringBadge();
-  document.body.classList.add("no-cascade");
-  const tbody = document.getElementById("cmpBody");
-  if (tbody) tbody.innerHTML = "";
-  renderCompact();
-  document.body.classList.remove("no-cascade");
-}
-
 // ── SCORING INFO POPUP (ⓘ icon beside the badge) ────────────
-// Plain-language explainer for every system and season format, each with a
+// Plain-language explainer for every system, each with a
 // worked numeric example — a floating popup (not the picker sheet) so
 // tapping ⓘ never accidentally changes a selection.
 const SCORING_SYSTEM_EXAMPLES = {
-  ass: `<b>Example:</b> a 6–3 win (margin 3, 9 games total) has "quality" 4×3+9 = 21. If the teams were evenly matched, the winners each gain about +21 and the losers each lose about +21. Beating a much stronger average-rated team can push a win up toward +30–40; beating a much weaker team can shrink it down toward +10 or less.`,
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
   fairshare: `<b>Example:</b> a 1300-rated player and a 700-rated player team up and beat two 1000-rated players; the win is worth 18 points to the team. Because Puneet (700) is the weaker partner, he gets the bigger share: <b>Puneet +26, Ankit +10</b> (average 18 — the team total either way). Had they LOST instead, Puneet would drop more too — <b>Puneet −35, Ankit −13</b> — the split always favours whichever partner the match rode on more, win or lose.`,
   ep: `<b>Example:</b> a 60-game veteran partners a 10-game newcomer against two regulars. Win it 4–1 and <b>both bank about +110</b>. Lose it 2–4 and the two part ways: the veteran takes <b>−12</b> (50+ games in, losses count), while the newcomer still earns <b>+5</b> (still in their first 50). Same team, same match — the difference is how long each has been playing. A 4–0 pays about 40% more than a 4–3. Who counts as the favourite is worked out fresh each season from that season's matches only, so last season's form doesn't carry over.`,
-};
-
-const SEASON_SCORING_EXAMPLES = {
-  reset: `<b>Example:</b> you finished last season at 1400. This season you (and everyone else) start over at exactly 1000, as if last season never happened.`,
-  flip: `<b>Example:</b> you finished last season at 650 → this season you start at 2000−650 = <b>1350</b>. A player who finished at 1200 instead starts at 2000−1200 = <b>800</b>. From there, matches play out normally on top of that new starting point.`,
-  fair: `<b>Example:</b> a player who's really 1300-strength (all-time) beats a 700-strength player for 5 points in the season's first match. Their season score becomes 1000+5 = <b>1005</b> (not 1305) — match points are earned using true strength, but credited on a clean 1000 season baseline.`,
 };
 
 function _scoringInfoHtml() {
@@ -9492,17 +9255,9 @@ function _scoringInfoHtml() {
     SCORING_MAIN.map(sysRow).join("") +
     `<div class="scoring-info-section-lbl" style="margin-top:12px">ADVANCED <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(kept for comparison)</span></div>` +
     SCORING_ADVANCED.map(sysRow).join("");
-  const fmtRows = SEASON_SCORING_MODES.map((mode) => `
-    <div class="scoring-info-row">
-      <div class="scoring-info-title">${SEASON_SCORING_LABELS[mode]}</div>
-      <div class="scoring-info-body">${SEASON_SCORING_DESCRIPTIONS[mode]}</div>
-      <div class="scoring-info-example">${SEASON_SCORING_EXAMPLES[mode] || ""}</div>
-    </div>`).join("");
   return `
     <div class="scoring-info-section-lbl">SCORING SYSTEMS</div>
     ${sysRows}
-    <div class="scoring-info-section-lbl" style="margin-top:12px">SEASON FORMATS <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(ASS CLASSIC only)</span></div>
-    ${fmtRows}
     <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">ASS starts everyone at 0 and ranks points earned per match; the other systems start new players at 1000. "±" columns show how confident the system is — a wide band means "not proven yet," and it narrows the more a player plays.</div>
   `;
 }
@@ -9531,24 +9286,10 @@ function closeScoringInfoSheet() {
   document.getElementById("scoring-info-modal")?.remove();
 }
 
-// Reflects the badge's text/subscript with the effective mode — falls back to
-// showing RESET when the active season has no valid reference, even if a
-// different mode is stored, so the badge never claims an inactive variant.
+// The badge names the active scoring system.
 function _updateSeasonScoringBadge() {
   const badge = document.getElementById("summary-mode-badge");
-  if (!badge) return;
-  const sysLabel = SCORING_SYSTEM_LABELS[rating.system()];
-  if (rating.system() !== "ass") {
-    badge.innerHTML = sysLabel;
-    return;
-  }
-  const season = _activeSeason();
-  const hasRef = hasSeasonScoringReference(state.seasons, season);
-  const effective = hasRef ? _seasonScoringMode : "reset";
-  badge.innerHTML =
-    effective === "reset"
-      ? sysLabel
-      : `${sysLabel}<span class="smt-mode-sub">${SEASON_SCORING_LABELS[effective]}</span>`;
+  if (badge) badge.textContent = SCORING_SYSTEM_LABELS[rating.system()];
 }
 
 function _cmpWindowCtrlHtml(slot) {
@@ -12716,92 +12457,6 @@ window.wrcSelectPlayer = wrcSelectPlayer;
 window.wrcCloseCalc = wrcCloseCalc;
 window.wrcOnSlider = wrcOnSlider;
 
-// Biggest upsets: replays both ELO and ASS match-by-match, capturing pre-match
-// scores per player. Records any match where either gap > 0.
-function _computeUpsets(matches = activeMatches()) {
-  const ms = [...matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  // `elo` here is a private strength-walk helper feeding the ASS partner/
-  // opponent multiplier below — mirrors ass.js's own internal computation.
-  const elo = {},
-    ass = {};
-  const seed = (n) => {
-    if (!(n in elo)) elo[n] = 1000;
-    if (!(n in ass)) ass[n] = 1000;
-  };
-  const upsets = [];
-  ms.forEach((m) => {
-    const tA = m.teamA || [],
-      tB = m.teamB || [];
-    [...tA, ...tB].forEach(seed);
-
-    // Snapshot pre-match ASS ratings for every player in this match
-    const preAss = {};
-    [...tA, ...tB].forEach((p) => {
-      preAss[p] = ass[p];
-    });
-
-    const avgEloA = tA.reduce((s, p) => s + elo[p], 0) / Math.max(tA.length, 1);
-    const avgEloB = tB.reduce((s, p) => s + elo[p], 0) / Math.max(tB.length, 1);
-    const avgAssA = tA.reduce((s, p) => s + ass[p], 0) / Math.max(tA.length, 1);
-    const avgAssB = tB.reduce((s, p) => s + ass[p], 0) / Math.max(tB.length, 1);
-    const aWon = m.scoreA > m.scoreB;
-    const winners = aWon ? tA : tB;
-    const losers = aWon ? tB : tA;
-    const assGap = Math.round(aWon ? avgAssB - avgAssA : avgAssA - avgAssB);
-
-    // Advance ASS (uses pre-match strength walk for the partner multiplier, same as ass.js)
-    const margin = Math.abs(m.scoreA - m.scoreB);
-    const quality = 4 * margin + (m.scoreA + m.scoreB);
-    tA.forEach((p) => {
-      const partner = tA.find((pp) => pp !== p);
-      const pElo = partner ? elo[partner] : elo[p];
-      const mult = Math.max(
-        0.5,
-        Math.min(
-          2.0,
-          1 + (avgEloB - elo[p]) / 400 - (0.5 * (pElo - elo[p])) / 400,
-        ),
-      );
-      ass[p] += aWon ? Math.round(quality * mult) : -Math.round(quality / mult);
-    });
-    tB.forEach((p) => {
-      const partner = tB.find((pp) => pp !== p);
-      const pElo = partner ? elo[partner] : elo[p];
-      const mult = Math.max(
-        0.5,
-        Math.min(
-          2.0,
-          1 + (avgEloA - elo[p]) / 400 - (0.5 * (pElo - elo[p])) / 400,
-        ),
-      );
-      ass[p] += !aWon
-        ? Math.round(quality * mult)
-        : -Math.round(quality / mult);
-    });
-
-    // Advance the internal strength walk
-    const expA = 1 / (1 + Math.pow(10, (avgEloB - avgEloA) / 400));
-    const dA = Math.round(32 * ((aWon ? 1 : 0) - expA));
-    const dB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
-    tA.forEach((p) => (elo[p] += dA));
-    tB.forEach((p) => (elo[p] += dB));
-
-    if (assGap > 0)
-      upsets.push({
-        date: m.date,
-        assGap,
-        winners,
-        losers,
-        sw: Math.max(m.scoreA, m.scoreB),
-        sl: Math.min(m.scoreA, m.scoreB),
-        preAss,
-      });
-  });
-  return upsets;
-}
-
 window._streakSort = function (col) {
   if (!window._streakState)
     window._streakState = { col: "curSigned", dir: "desc" };
@@ -13209,7 +12864,7 @@ function _buildSeasonRiserFallerHtml() {
         </div>`
       : "";
   const _allM = withoutGuestMatches(state.matches);
-  // Follows the active scoring picker — was hardcoded to classic ASS.
+  // Follows the active scoring picker.
   const movers = computeSeasonRiserFaller(
     _allM,
     seasonA,
@@ -13315,9 +12970,8 @@ window._hiLoSortBy = function (col) {
 // ── ASS RATING PROJECTION ───────────────────────────────────
 // Rebuilt on the new ASS (EP) engine's own logic — see computeEPProjection
 // in src/domain/ep.js. Always computed from EP data regardless of which
-// system is active in the Summary tab picker (same convention the removed
-// ASS-CLASSIC-only sections used): the title says which engine, so the
-// numbers never disagree with it.
+// system is active in the Summary tab picker: the title says which engine, so
+// the numbers never disagree with it.
 window._assProj = {
   formN: 10,
   futureM: 20,
@@ -18945,7 +18599,6 @@ Object.assign(window, {
   _cmpCountApply,
   openSeasonScoringPicker,
   closeSeasonScoringPicker,
-  _setSeasonScoringMode,
   _setScoringSystem,
   openScoringInfoSheet,
   closeScoringInfoSheet,
@@ -20799,7 +20452,6 @@ function archiveSeason(id) {
     standings: standings
       .slice(0, 20)
       .map((p) => ({ name: p.name, mp: p.mp, mw: p.mw, ml: p.ml, sr: p.sr })),
-    scoringMode: "ass", // legacy field, kept for older snapshot readers
     scoringSystem: rating.system(),
   };
   _persistSeasons();
@@ -20832,7 +20484,7 @@ function viewSeasonArchive(id) {
         <button onclick="document.getElementById('season-archive-modal').remove()" aria-label="Back" title="Back" style="background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer">←</button>
         <div>
           <div style="font-size:16px;font-weight:900">📦 ${escHtml(s.name)}</div>
-          <div style="font-size:10px;color:var(--muted)">Archived ${fmtDate(s.archivedAt)} · frozen snapshot, ${snap.matches} matches · scored with ${escHtml(SCORING_SYSTEM_LABELS[snap.scoringSystem] || SCORING_SYSTEM_LABELS.ass)}</div>
+          <div style="font-size:10px;color:var(--muted)">Archived ${fmtDate(s.archivedAt)} · frozen snapshot, ${snap.matches} matches · scored with ${escHtml(SCORING_SYSTEM_LABELS[snap.scoringSystem] || (snap.scoringSystem === "ass" || !snap.scoringSystem ? "ASS CLASSIC (retired)" : snap.scoringSystem))}</div>
         </div>
       </div>
       <div class="ana-card" style="padding:10px 12px;margin-bottom:8px">

@@ -1,13 +1,12 @@
 // tests-golden.mjs — regression "golden file" tests for the SHIPPED engines.
 //
 // Unlike tests.js (which exercises an in-file PORT of the stats math), this
-// imports the REAL engine modules (ass.js, badges.js, player-analytics.js, …)
+// imports the REAL engine modules (rating service, badges.js, player-analytics.js, …)
 // and exercises their behaviour against a fixed match set. Run:
 //   node tests-golden.mjs    (or: npm run test:golden)
 
-import { computeASS } from "../src/domain/ass.js";
 import { computeStats } from "../src/domain/stats.js";
-import { setActiveSystem } from "../src/domain/rating-service.js";
+import { setActiveSystem, rating } from "../src/domain/rating-service.js";
 import {
   computeSeasonTrajectory,
   computeSeasonRiserFaller,
@@ -43,12 +42,12 @@ import {
   invalidateAmMemo,
 } from "../src/domain/selectors.js";
 
-// Every golden number below was recorded on the ASS CLASSIC engine. Modules
-// that follow the app's active scoring system (badges, analytics, season
-// stats, the recap) read it from the rating service, so pin classic here —
-// these tests keep asserting the same maths whichever system the app defaults
-// to. (tests-consistency.mjs and tests-ep.mjs cover the other systems.)
-setActiveSystem("ass");
+// Every golden number below is recorded on ASS (Earned Points), the app's
+// default system. Modules that follow the active scoring system (badges,
+// analytics, season stats, the recap) read it from the rating service, so pin
+// it here. (tests-consistency.mjs covers the other systems.)
+setActiveSystem("ep");
+const computeASS = (matches) => rating.map(matches, "ep");
 
 let pass = 0,
   fail = 0;
@@ -78,13 +77,11 @@ const SEASON = [
   M("2024-01-08", ["Bob", "Dave"], ["Alice", "Carol"], 4, 1),
 ];
 
-console.log("\n\x1b[36m── ASS golden file (real ass.js) ────────────────────────\x1b[0m");
+console.log("\n\x1b[36m── ASS golden file (rating service, EP) ─────────────────\x1b[0m");
 
 const ass = computeASS(SEASON);
 
-// Invariant: ASS is anchored around the 1000 base per player (each player's
-// own baseline is 1000, deltas are not necessarily zero-sum like classic ELO,
-// so just sanity-check every player has a finite numeric rating).
+// Invariant: every player has a finite numeric rating.
 ok(
   "computeASS returns a finite numeric rating for every player",
   Object.values(ass).every((v) => Number.isFinite(v)),
@@ -477,14 +474,14 @@ ok(
 );
 
 ok(
-  "missing player in eloMap defaults to 1000",
+  "missing player in the rating map reads as the system baseline (0 on ASS)",
   (() => {
     const r = computeAvgOpponentEloGap(
       [M("2024-01-01", ["Newbie", "P2"], ["P3", "P4"], 6, 3)],
       EGM,
     );
-    // Newbie(1000)+P2(1200)=2200 vs P3(900)+P4(1100)=2000 → gap -200 for Newbie/P2
-    return r.find((x) => x.name === "Newbie")?.avgGap === -200;
+    // Newbie(0)+P2(1200)=1200 vs P3(900)+P4(1100)=2000 → gap +800 for Newbie/P2
+    return r.find((x) => x.name === "Newbie")?.avgGap === 800;
   })(),
 );
 ok("empty matches → []", computeAvgOpponentEloGap([], EGM).length === 0);

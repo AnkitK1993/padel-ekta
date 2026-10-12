@@ -440,7 +440,7 @@ function openMatchIntro(idx) {
     });
 
     // Rating tier cross: check if any player crossed a tier boundary. The
-    // tier thresholds are 1000-centred (ASS CLASSIC's own scale), so they
+    // tier thresholds are 1000-centred (Glicko-2/OpenSkill/Fair Share), so they
     // only mean anything for engines on that scale — skip this callout for
     // a 0-based engine (EP) rather than showing tiers no one will ever hit.
     if (_rated && !rating.isZeroBased()) {

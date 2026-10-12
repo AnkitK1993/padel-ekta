@@ -373,7 +373,7 @@
         <div class="summary-nav">
           <div class="history-nav-title" role="heading" aria-level="1">SESSION <span>SUMMARY</span></div>
           <div class="smt-mode-group">
-            <div id="summary-mode-badge" class="smt-mode-badge" role="button" tabindex="0" title="Scoring system & season format" onclick="openSeasonScoringPicker()">ASS</div>
+            <div id="summary-mode-badge" class="smt-mode-badge" role="button" tabindex="0" title="Scoring system" onclick="openSeasonScoringPicker()">ASS</div>
             <button class="smt-info-btn" type="button" title="How scoring works" onclick="openScoringInfoSheet()">ⓘ</button>
           </div>
         </div>
@@ -1101,16 +1101,6 @@ Puneet - Pun, PK
                 <span class="mng-card-title">Merge Players</span>
               </div>
               <div id="player-merge-body"></div>
-            </div>
-
-            <!-- ASS Formula Sandbox -->
-            <div class="mng-card" data-card-id="ass-formula">
-              <div class="mng-card-header">
-                <span class="mng-card-drag-handle">⠿</span>
-                <span class="mng-card-icon">🧮</span>
-                <span class="mng-card-title">ASS Formula Sandbox</span>
-              </div>
-              <div id="ass-formula-config"></div>
             </div>
 
             <!-- Admin Audit Log -->
@@ -1971,12 +1961,11 @@ Puneet - Pun, PK
       </div>
     </div>
 
-    <!-- Scoring system + season format picker sheet (Summary tab badge) -->
+    <!-- Scoring system picker sheet (Summary tab badge) -->
     <div class="live-sheet-overlay" id="season-scoring-overlay" onclick="closeSeasonScoringPicker()"></div>
     <div class="live-sheet" role="dialog" aria-modal="true" id="season-scoring-sheet" aria-label="Scoring">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">SCORING</div>
-      <div id="season-scoring-note" style="display:none;font-size:10px;color:var(--muted);text-align:center;padding:0 16px 10px">Flip/Fair need a prior season to compare against — showing RESET.</div>
       <div class="live-sheet-list" id="season-scoring-list"></div>
     </div>
 

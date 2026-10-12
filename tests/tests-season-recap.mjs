@@ -2,12 +2,11 @@
 // Run: node tests/tests-season-recap.mjs
 
 import { computeSeasonRecap } from "../src/domain/season-recap.js";
-import { computeASS } from "../src/domain/ass.js";
 import { rating, setActiveSystem } from "../src/domain/rating-service.js";
 
-// The numbers below are ASS CLASSIC's; the EP section at the end re-runs the
-// recap with the 0-based system active.
-setActiveSystem("ass");
+// The first section runs on a 1000-centred system (Glicko-2); the EP section
+// at the end re-runs the recap with the default 0-based system active.
+setActiveSystem("glicko2");
 
 let pass = 0,
   fail = 0;
@@ -38,7 +37,7 @@ ok("daysPlayed counts distinct dates", recap.daysPlayed === 4);
 ok("record (mw/ml) matches computeStats", recap.mw === 3 && recap.ml === 1);
 ok("winPct is rounded and consistent with 3/4", recap.winPct === 75);
 ok("startRating is always the 1000 season baseline", recap.startRating === 1000);
-ok("endRating matches the final computeASS() value for this player", recap.endRating === Math.round(computeASS(matches).Ankit));
+ok("endRating matches the final leaderboard value for this player", recap.endRating === Math.round(rating.map(matches).Ankit));
 ok("ratingDelta = endRating - startRating", recap.ratingDelta === recap.endRating - 1000);
 ok("peakRating is at least the endRating (never lower than where they ended, in a net-positive run)", recap.peakRating >= recap.endRating || recap.ratingDelta < 0);
 ok("lowRating is at most the peakRating", recap.lowRating <= recap.peakRating);
@@ -106,7 +105,7 @@ ok(
   "EP peak/low bracket the journey",
   epRecap.lowRating <= epRecap.endRating && epRecap.endRating <= epRecap.peakRating,
 );
-setActiveSystem("ass");
+setActiveSystem("glicko2");
 
 console.log(
   `\n\x1b[1mSeason Recap: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`,

@@ -75,7 +75,7 @@ function _splitTeam(players, teamDelta, rating) {
 }
 
 // Core walk: returns a Map<match, {dA, dB, playerDeltas}> of RAW per-match
-// deltas (not baseline-inclusive), in the same shape as computeMatchASSDeltas
+// deltas (not baseline-inclusive), in the same shape as the other engines
 // /computeMatchGlicko2Deltas/computeMatchOpenSkillDeltas. `rating` is tracked
 // internally (baseline-inclusive, starting at 1000) purely to know each
 // player's CURRENT standing for the team-average and gap calculations —
@@ -125,7 +125,7 @@ export function computeMatchFairShareDeltas(matches) {
 }
 
 // Flat { name: rating } map — the shape computeStats()/ratingToSr() expect,
-// matching computeASS()'s return shape.
+// the same flat { name: rating } shape as the other engines.
 export function computeFairShare(matches) {
   const rating = {};
   computeMatchFairShareDeltas(matches).forEach(({ playerDeltas }) => {

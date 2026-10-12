@@ -108,7 +108,7 @@ export function ordinal(mu, sigma) {
 }
 
 // Per-match rating deltas (change in mu), same Map<match, {dA, dB,
-// playerDeltas}> shape as computeMatchASSDeltas/computeMatchGlicko2Deltas.
+// playerDeltas}> shape as computeMatchGlicko2Deltas.
 // playerAfter is each player's exact mu AFTER the match (see the note on
 // computeMatchGlicko2Deltas: rounded deltas drift from the real rating).
 export function computeMatchOpenSkillDeltas(matches) {

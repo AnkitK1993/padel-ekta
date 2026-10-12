@@ -4,9 +4,9 @@
 // screen. Complements tests/tests-consistency.mjs (static: no screen may reach
 // around the rating service) by checking what is actually printed.
 //
-//   node scripts/consistency-check.js                       # ep, ass, glicko2 on a synthetic league
-//   node scripts/consistency-check.js --all                 # all five systems
-//   node scripts/consistency-check.js --systems ep,ass
+//   node scripts/consistency-check.js                       # ep, glicko2 on a synthetic league
+//   node scripts/consistency-check.js --all                 # all four systems
+//   node scripts/consistency-check.js --systems ep,fairshare
 //   node scripts/consistency-check.js --backup file.json    # a real exported backup instead
 //
 // Invariants, per scoring system:
@@ -28,8 +28,8 @@ const argVal = (name) => {
   return i >= 0 ? args[i + 1] : null;
 };
 const SYSTEMS = args.includes("--all")
-  ? ["ep", "ass", "glicko2", "openskill", "fairshare"]
-  : (argVal("--systems") || "ep,ass,glicko2").split(",");
+  ? ["ep", "glicko2", "openskill", "fairshare"]
+  : (argVal("--systems") || "ep,glicko2").split(",");
 
 // ── Dataset ───────────────────────────────────────────────────────────────
 // Deterministic synthetic league (two seasons, 8 players, mixed margins) so

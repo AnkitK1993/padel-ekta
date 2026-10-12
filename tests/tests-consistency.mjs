@@ -2,7 +2,7 @@
 //
 // Two layers:
 //   1. STATIC: no screen may reach around src/domain/rating-service.js. The
-//      bug class this prevents is a module quietly computing classic ASS (or a
+//      bug class this prevents is a module quietly computing another engine (or a
 //      1000-centred default) while the rest of the app shows another system —
 //      the same player showing two different numbers on two screens.
 //   2. ENGINE: for every scoring system, the number a History card shows (the
@@ -56,14 +56,12 @@ const code = (text) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 
-const ENGINE_FILES = new Set(["ass.js", "ep.js", "glicko2.js", "openskill.js", "fairshare.js"]);
+const ENGINE_FILES = new Set(["ep.js", "glicko2.js", "openskill.js", "fairshare.js"]);
 // Modules allowed to talk to an engine directly:
 //  - the rating service itself (the single dispatcher),
-//  - the engines (they build on each other and on their own helpers),
-//  - season-scoring.js, whose Flip/Fair formats are defined on top of classic ASS.
+//  - the engines (they build on each other and on their own helpers).
 const ENGINE_OK = new Set([
   "src/domain/rating-service.js",
-  "src/domain/season-scoring.js",
   ...[...ENGINE_FILES].map((f) => `src/domain/${f}`),
 ]);
 
@@ -79,13 +77,13 @@ for (const { file, text } of files) {
   }
 }
 ok(
-  "only the rating service (and classic season formats) import a scoring engine",
+  "only the rating service imports a scoring engine",
   badImports.length === 0,
   badImports.join("\n    "),
 );
 
 const ENGINE_CALL =
-  /(?<![\w.$])(computeASS|computeMatchASSDeltas|computeASSTimeline|computeEP|computeEPFull|computeEPTimeline|computeMatchEPDeltas|computeEPUpsets|computeEPProjection|computeGlicko2|computeGlicko2Full|computeMatchGlicko2Deltas|computeOpenSkill|computeOpenSkillFull|computeMatchOpenSkillDeltas|computeFairShare|computeMatchFairShareDeltas)\s*\(/;
+  /(?<![\w.$])(computeEP|computeEPFull|computeEPTimeline|computeMatchEPDeltas|computeEPUpsets|computeEPProjection|computeGlicko2|computeGlicko2Full|computeMatchGlicko2Deltas|computeOpenSkill|computeOpenSkillFull|computeMatchOpenSkillDeltas|computeFairShare|computeMatchFairShareDeltas)\s*\(/;
 const badCalls = [];
 for (const { file, text } of files) {
   if (ENGINE_OK.has(file)) continue;

@@ -1,5 +1,5 @@
 // ── STATS ENGINE ───────────────────────────────────────────
-// Pure computation — no DOM, no Firebase, no app state. Mirrors the ass.js
+// Pure computation — no DOM, no Firebase, no app state. Mirrors the engine-module
 // pattern: app.js imports these and passes all inputs as arguments.
 
 // ── SCORE NORMALISATION (cap max side to 4) ────────────────

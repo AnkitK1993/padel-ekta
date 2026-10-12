@@ -1,10 +1,9 @@
 {
   "private": true,
   "scripts": {
-    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-components.mjs && node tests/tests-season-scoring.mjs && node tests/tests-glicko2.mjs && node tests/tests-openskill.mjs && node tests/tests-fairshare.mjs && node tests/tests-ep.mjs && node tests/tests-season-recap.mjs && node tests/tests-consistency.mjs && node tests/tests-precache.mjs && node tests/tests-data-health.mjs && node scripts/handler-audit.mjs",
+    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-components.mjs && node tests/tests-glicko2.mjs && node tests/tests-openskill.mjs && node tests/tests-fairshare.mjs && node tests/tests-ep.mjs && node tests/tests-season-recap.mjs && node tests/tests-consistency.mjs && node tests/tests-precache.mjs && node tests/tests-data-health.mjs && node scripts/handler-audit.mjs",
     "test:golden": "node tests/tests-golden.mjs",
     "test:components": "node tests/tests-components.mjs",
-    "test:season-scoring": "node tests/tests-season-scoring.mjs",
     "test:glicko2": "node tests/tests-glicko2.mjs",
     "test:openskill": "node tests/tests-openskill.mjs",
     "test:fairshare": "node tests/tests-fairshare.mjs",

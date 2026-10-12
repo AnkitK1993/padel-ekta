@@ -236,7 +236,7 @@ export function computeEP(matches, careerMatches = null) {
   return out;
 }
 
-// { history, peaks, lows } in the same shape as computeASSTimeline, so the
+// { history, peaks, lows } in the same shape as the other engines' timelines, so the
 // analytics renderers can swap between engines transparently.
 //
 // `elo` here tracks the running LEADERBOARD score — cumulative EP over
@@ -359,7 +359,7 @@ export function computeEPUpsets(matches, careerMatches = null) {
 // their average EP earned over their last `formN` matches (a simple rate
 // projection — it does not attempt to re-simulate opponents, maturity
 // ramping, or margin for hypothetical future matches, matching the level of
-// approximation the equivalent ASS CLASSIC feature used).
+// approximation the retired classic engine's feature used).
 //
 // Both the current and projected score go through the SAME shrinkage
 // denominator EP always uses, `games + EP_SHRINKAGE` — the projected score's

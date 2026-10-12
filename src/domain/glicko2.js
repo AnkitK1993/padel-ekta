@@ -158,7 +158,7 @@ export function computeGlicko2Full(matches) {
 }
 
 // Flat { name: rating } map — the shape computeStats()/ratingToSr() expect,
-// matching computeASS()'s return shape.
+// the same flat { name: rating } shape as the other engines.
 export function computeGlicko2(matches) {
   const full = computeGlicko2Full(matches);
   const out = {};
@@ -169,7 +169,7 @@ export function computeGlicko2(matches) {
 }
 
 // Per-match rating deltas, in the same Map<match, {dA, dB, playerDeltas}>
-// shape as computeMatchASSDeltas — dA/dB are the team-average delta (rounded)
+// shape as the other engines' per-match deltas — dA/dB are the team-average delta (rounded)
 // for the summary match-row pills; playerDeltas is per-player (rounded).
 // playerAfter is each player's exact rating AFTER the match: the deltas are
 // rounded for display, so summing them drifts from the real rating — anything
