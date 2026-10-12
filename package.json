@@ -12,7 +12,7 @@
     "test:season-recap": "node tests/tests-season-recap.mjs",
     "test:handlers": "node scripts/handler-audit.mjs",
     "test:browser": "node scripts/browser-smoke.js",
-    "test:a11y": "node scripts/a11y-audit.js",
+    "test:a11y": "node scripts/a11y-audit.js --fail-on=critical,serious,moderate,minor",
     "test:visual": "node scripts/visual-regression.js",
     "test:visual:update": "node scripts/visual-regression.js --update-baselines",
     "css:coverage": "node scripts/css-coverage.js",
@@ -21,7 +21,8 @@
     "test:consistency": "node tests/tests-consistency.mjs",
     "test:consistency:browser": "node scripts/consistency-check.js",
     "precache": "node scripts/gen-precache.js",
-    "test:sw": "node scripts/sw-update-check.js"
+    "test:sw": "node scripts/sw-update-check.js",
+    "test:keyboard": "node scripts/keyboard-check.js"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",

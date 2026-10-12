@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
@@ -29,7 +29,13 @@
           !!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
         const setAppHeight = () => {
           const vv = window.visualViewport;
-          const height = Math.round((vv && vv.height) || window.innerHeight);
+          // While the user is pinch-zoomed, visualViewport.height is the zoomed
+          // (smaller) window — using it would squash the whole layout — so fall
+          // back to the layout viewport and skip keyboard detection.
+          const zoomed = !!vv && vv.scale > 1.02;
+          const height = zoomed
+            ? window.innerHeight
+            : Math.round((vv && vv.height) || window.innerHeight);
           document.documentElement.style.setProperty("--app-height", `${height}px`);
           const orient = window.innerWidth > window.innerHeight ? "l" : "p";
           if (orient !== baseOrientation) {
@@ -38,7 +44,7 @@
           }
           baseHeight = Math.max(baseHeight, height, window.innerHeight);
           const kbOpen =
-            isTextField(document.activeElement) && baseHeight - height > 120;
+            !zoomed && isTextField(document.activeElement) && baseHeight - height > 120;
           document.body && document.body.classList.toggle("kb-open", kbOpen);
         };
         document.addEventListener("focusin", () => setTimeout(setAppHeight, 50));
@@ -100,7 +106,7 @@
       <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
       <div class="splash-status" id="splash-status">Loading…</div>
     </div>
-    <div class="page active" id="pg-home">
+    <div class="page active" id="pg-home" role="main">
       <div class="page-body-scroll">
         <div class="nav">
           <!-- left: hamburger -->
@@ -116,7 +122,7 @@
           </div>
 
           <!-- centre: title -->
-          <div class="nav-title nav-title-inline">
+          <div class="nav-title nav-title-inline" role="heading" aria-level="1">
             EKTA <span>PADEL</span> STATISTICS<span
               class="nav-inline-sub"
             ></span>
@@ -159,7 +165,7 @@
           <div class="hmenu-item">
             <span class="hmenu-label">Smooth Mode</span>
             <label class="hmenu-toggle">
-              <input type="checkbox" id="smooth-mode-toggle" onchange="toggleSmoothMode(this.checked)">
+              <input type="checkbox" id="smooth-mode-toggle" aria-label="Smooth mode" onchange="toggleSmoothMode(this.checked)">
               <span class="hmenu-toggle-slider"></span>
             </label>
           </div>
@@ -167,7 +173,7 @@
           <div class="hmenu-item">
             <span class="hmenu-label">🔋 Battery Saver</span>
             <label class="hmenu-toggle">
-              <input type="checkbox" id="battery-saver-toggle" onchange="toggleBatterySaver(this.checked)">
+              <input type="checkbox" id="battery-saver-toggle" aria-label="Battery saver" onchange="toggleBatterySaver(this.checked)">
               <span class="hmenu-toggle-slider"></span>
             </label>
           </div>
@@ -175,7 +181,7 @@
           <div class="hmenu-item" id="offline-mode-item" style="display:none">
             <span class="hmenu-label">Offline Mode</span>
             <label class="hmenu-toggle">
-              <input type="checkbox" id="offline-mode-toggle" onchange="toggleOfflineMode(this.checked)">
+              <input type="checkbox" id="offline-mode-toggle" aria-label="Offline mode" onchange="toggleOfflineMode(this.checked)">
               <span class="hmenu-toggle-slider"></span>
             </label>
           </div>
@@ -324,7 +330,7 @@
         </div>
       </div>
       <!-- Main tabs -->
-      <div class="tabbar">
+      <div class="tabbar" role="navigation" aria-label="Main">
         <button class="tbb on" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
         </button>
@@ -365,7 +371,7 @@
       <div class="page-body-scroll">
         <!-- Title header — matches History/Analytics style -->
         <div class="summary-nav">
-          <div class="history-nav-title">SESSION <span>SUMMARY</span></div>
+          <div class="history-nav-title" role="heading" aria-level="1">SESSION <span>SUMMARY</span></div>
           <div class="smt-mode-group">
             <div id="summary-mode-badge" class="smt-mode-badge" role="button" tabindex="0" title="Scoring system & season format" onclick="openSeasonScoringPicker()">ASS</div>
             <button class="smt-info-btn" type="button" title="How scoring works" onclick="openScoringInfoSheet()">ⓘ</button>
@@ -482,7 +488,7 @@
         </div>
       </div>
       <!-- end page-body-scroll -->
-      <div class="tabbar">
+      <div class="tabbar" role="navigation" aria-label="Main">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
         </button>
@@ -530,7 +536,7 @@
             padding-right: 12px;
           "
         >
-          <div class="history-nav-title">MATCHES <span>PLAYED</span></div>
+          <div class="history-nav-title" role="heading" aria-level="1">MATCHES <span>PLAYED</span></div>
           <div style="display: flex; align-items: center; gap: 6px">
             <span
               id="hist-filter-badge"
@@ -596,7 +602,7 @@
             <div class="compact-filter-item">
               <select
                 class="hist-select compact-select"
-                id="histDateFilter"
+                id="histDateFilter" aria-label="Filter by date"
                 onchange="setHistoryDateFilter(this.value)"
               >
                 <option value="all">ALL TIME</option>
@@ -623,7 +629,7 @@
             <div class="compact-filter-item">
               <select
                 class="hist-select compact-select"
-                id="histResultFilter"
+                id="histResultFilter" aria-label="Filter by result"
                 onchange="setHistOutcome(this.value)"
               >
                 <option value="all">WINS & LOSSES</option>
@@ -635,7 +641,7 @@
             <div class="compact-filter-item">
               <select
                 class="hist-select compact-select"
-                id="histTagFilter"
+                id="histTagFilter" aria-label="Filter by margin"
                 onchange="setHistMargin(this.value)"
               >
                 <option value="all">ALL TAGS</option>
@@ -702,7 +708,7 @@
         ></div>
       </div>
       <!-- end page-body-scroll -->
-      <div class="tabbar">
+      <div class="tabbar" role="navigation" aria-label="Main">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
         </button>
@@ -742,7 +748,7 @@
     <div class="page" id="pg-analytics">
       <div class="page-body-scroll">
         <div class="nav" style="position: relative">
-          <div class="history-nav-title">STAT<span>ISTICS</span></div>
+          <div class="history-nav-title" role="heading" aria-level="1">STAT<span>ISTICS</span></div>
           <button
             class="ana-search-btn"
             onclick="openAnaSearch()"
@@ -793,7 +799,7 @@
         </div>
         <div id="analytics-page-content" style="padding: 0 11px calc(110px + env(safe-area-inset-bottom))"></div>
       </div>
-      <div class="tabbar">
+      <div class="tabbar" role="navigation" aria-label="Main">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
         </button>
@@ -833,7 +839,7 @@
     <div class="page" id="pg-add">
       <div class="nav">
         <div style="flex: 1"></div>
-        <div class="nav-title nav-title-inline">ADD <span>DATA</span></div>
+        <div class="nav-title nav-title-inline" role="heading" aria-level="1">ADD <span>DATA</span></div>
         <div style="flex: 1"></div>
       </div>
       <!-- Admin tabs use .itab — uniform style -->
@@ -1136,7 +1142,7 @@ Puneet - Pun, PK
           </div>
         </div>
       </div>
-      <div class="tabbar">
+      <div class="tabbar" role="navigation" aria-label="Main">
         <button class="tbb" data-tab="home" onclick="switchMainTab('home')">
           <span class="ico">📊</span>Detailed
         </button>
@@ -1173,7 +1179,7 @@ Puneet - Pun, PK
     </div>
 
     <!-- Share Preview Sheet -->
-    <div id="share-preview-sheet" class="share-preview-sheet">
+    <div id="share-preview-sheet" class="share-preview-sheet" role="dialog" aria-modal="true" aria-label="Share preview">
       <div class="share-preview-backdrop" onclick="closeSharePreview()"></div>
       <div class="share-preview-panel">
         <div class="share-preview-header">
@@ -1396,7 +1402,7 @@ Puneet - Pun, PK
         id="live-sheet-overlay"
         onclick="closeLivePlayerSheet()"
       ></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="live-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="live-sheet" aria-label="Select player">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title" id="live-sheet-title">SELECT PLAYER</div>
         <div class="live-sheet-list" id="live-sheet-list"></div>
@@ -1404,7 +1410,7 @@ Puneet - Pun, PK
 
       <!-- Session Setup Sheet -->
       <div class="live-sheet-overlay" id="session-setup-overlay" onclick="closeSessionSetup()"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="session-setup-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="session-setup-sheet" aria-label="Start session">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">START SESSION</div>
         <div style="padding:2px 14px 8px;font-size:12px;color:var(--text-muted);text-align:center">Select players present today</div>
@@ -1420,7 +1426,7 @@ Puneet - Pun, PK
       <!-- Add Player Mid-Session Sheet -->
       <!-- Session Player Action Modal (centred popup) -->
       <div class="spa-overlay" id="spa-overlay" onclick="closePlayerPickerSheet()"></div>
-      <div class="spa-modal" id="spa-modal" role="dialog" aria-modal="true">
+      <div class="spa-modal" id="spa-modal" role="dialog" aria-modal="true" aria-label="Add or remove player">
         <div class="spa-title">PLAYER</div>
         <button class="spa-btn spa-btn-add" onclick="closePlayerPickerSheet();openAddPlayerSheet()">
           <span class="spa-btn-icon">+</span><span>ADD PLAYER</span>
@@ -1431,7 +1437,7 @@ Puneet - Pun, PK
       </div>
 
       <div class="live-sheet-overlay" id="add-player-overlay" onclick="closeAddPlayerSheet()"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="add-player-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="add-player-sheet" aria-label="Add player">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">ADD PLAYER</div>
         <div id="add-player-list" style="padding:0 14px;max-height:50vh;overflow-y:auto"></div>
@@ -1440,7 +1446,7 @@ Puneet - Pun, PK
 
       <!-- Remove Player Mid-Session Sheet -->
       <div class="live-sheet-overlay" id="remove-player-overlay" onclick="closeRemovePlayerSheet()"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="remove-player-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="remove-player-sheet" aria-label="Remove player">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">REMOVE PLAYER</div>
         <div id="remove-player-list" style="padding:0 14px;max-height:50vh;overflow-y:auto"></div>
@@ -1449,7 +1455,7 @@ Puneet - Pun, PK
 
       <!-- Seasons -->
       <div class="live-sheet-overlay" id="season-overlay" onclick="closeSeasonSheet()"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="season-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="season-sheet" aria-label="Seasons">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">🗓️ SEASONS</div>
         <!-- LIST VIEW -->
@@ -1494,7 +1500,7 @@ Puneet - Pun, PK
 
       <!-- Session Summary Sheet -->
       <div class="live-sheet-overlay" id="session-summary-overlay" onclick="closeSessionSummary()"></div>
-      <div class="live-sheet live-sheet-tall" role="dialog" aria-modal="true" id="session-summary-sheet">
+      <div class="live-sheet live-sheet-tall" role="dialog" aria-modal="true" id="session-summary-sheet" aria-label="Session summary">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">SESSION SUMMARY</div>
         <div id="session-summary-body" style="padding:0 14px;overflow-y:auto;max-height:62vh"></div>
@@ -1507,7 +1513,7 @@ Puneet - Pun, PK
 
       <!-- Match Confirm Sheet (shown after all 4 players selected) -->
       <div class="live-sheet-overlay" id="match-confirm-overlay" onclick="closeMatchConfirmSheet()"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="match-confirm-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="match-confirm-sheet" aria-label="Match ready">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">MATCH READY</div>
         <div id="match-confirm-matchup" class="match-confirm-matchup"></div>
@@ -1520,7 +1526,7 @@ Puneet - Pun, PK
 
       <!-- Undo Confirm Sheet -->
       <div class="live-sheet-overlay" id="undo-confirm-overlay" onclick="closeUndoConfirmSheet()" style="display:none"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="undo-confirm-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="undo-confirm-sheet" aria-label="Undo match?">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">UNDO MATCH?</div>
         <div id="undo-confirm-body" style="padding:4px 14px 2px;text-align:center"></div>
@@ -1533,7 +1539,7 @@ Puneet - Pun, PK
 
       <!-- Suggest Next Match Sheet -->
       <div class="live-sheet-overlay" id="suggest-sheet-overlay" onclick="window._closeSuggestSheet()" style="display:none"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="suggest-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="suggest-sheet" aria-label="Next match suggestions">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">🎲 NEXT MATCH SUGGESTIONS</div>
         <div id="suggest-sheet-body" style="padding:0 14px 8px;overflow-y:auto;max-height:60vh"></div>
@@ -1542,7 +1548,7 @@ Puneet - Pun, PK
 
       <!-- Match Save Sheet (shown when match is won) -->
       <div class="live-sheet-overlay" id="match-save-overlay" onclick="closeMatchSaveSheet()"></div>
-      <div class="live-sheet" role="dialog" aria-modal="true" id="match-save-sheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" id="match-save-sheet" aria-label="Match over">
         <div class="live-sheet-handle"></div>
         <div class="live-sheet-title">MATCH OVER 🎾</div>
         <div id="match-save-result" class="match-save-result"></div>
@@ -1557,7 +1563,7 @@ Puneet - Pun, PK
 
     <!-- Player edit / add sheet -->
     <div class="live-sheet-overlay" id="player-edit-overlay" onclick="closePlayerEditSheet()"></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="player-edit-sheet" style="max-height:92vh;overflow-y:auto">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="player-edit-sheet" style="max-height:92vh;overflow-y:auto" aria-label="Edit player">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="pes-title">EDIT PLAYER</div>
       <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:12px">
@@ -1592,7 +1598,7 @@ Puneet - Pun, PK
 
     <!-- Duplicate match confirmation sheet (global) -->
     <div class="live-sheet-overlay" id="dup-confirm-overlay" onclick="closeDupConfirmSheet()"></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="dup-confirm-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="dup-confirm-sheet" aria-label="Duplicate match">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">DUPLICATE MATCH</div>
       <div id="dup-confirm-msg" style="padding:0 16px 12px;font-size:13px;color:var(--muted);line-height:1.5;text-align:center"></div>
@@ -1920,7 +1926,7 @@ Puneet - Pun, PK
 
     <!-- Compare count picker sheet -->
     <div class="live-sheet-overlay" id="cmp-count-overlay" onclick="_cmpCountPickerClose()"></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="cmp-count-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="cmp-count-sheet" aria-label="Number of games">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="cmp-count-title">LAST GAMES</div>
       <div class="cmp-count-picker">
@@ -1937,7 +1943,7 @@ Puneet - Pun, PK
 
     <!-- Scoring system + season format picker sheet (Summary tab badge) -->
     <div class="live-sheet-overlay" id="season-scoring-overlay" onclick="closeSeasonScoringPicker()"></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="season-scoring-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="season-scoring-sheet" aria-label="Scoring">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">SCORING</div>
       <div id="season-scoring-note" style="display:none;font-size:10px;color:var(--muted);text-align:center;padding:0 16px 10px">Flip/Fair need a prior season to compare against — showing RESET.</div>
@@ -1954,7 +1960,7 @@ Puneet - Pun, PK
       id="filter-sheet-overlay"
       onclick="closeFilterSheet()"
     ></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="filter-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="filter-sheet" aria-label="Filter">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="filter-sheet-title">SELECT</div>
       <div class="filter-sheet-search-wrap" id="filter-sheet-search-wrap" style="display:none">
@@ -1971,7 +1977,7 @@ Puneet - Pun, PK
       id="exclude-sheet-overlay"
       onclick="closeExcludeSheet()"
     ></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="exclude-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="exclude-sheet" aria-label="Exclude players">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>EXCLUDE PLAYERS</span>
@@ -1989,7 +1995,7 @@ Puneet - Pun, PK
       id="col-sheet-overlay"
       onclick="closeColSheet()"
     ></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="col-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="col-sheet" aria-label="Show or hide columns">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">SHOW / HIDE COLUMNS</div>
       <div class="col-chip-wrap" id="col-chip-list"></div>
@@ -2004,7 +2010,7 @@ Puneet - Pun, PK
       id="h2h-sheet-overlay"
       onclick="closeH2HSheet()"
     ></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="h2h-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="h2h-sheet" aria-label="Head to head: select player">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title" id="h2h-sheet-title">SELECT PLAYER</div>
       <div class="live-sheet-list" id="h2h-sheet-list"></div>
@@ -2016,7 +2022,7 @@ Puneet - Pun, PK
       id="screenshot-choice-overlay"
       onclick="closeScreenshotChoiceSheet()"
     ></div>
-    <div class="live-sheet" role="dialog" aria-modal="true" id="screenshot-choice-sheet">
+    <div class="live-sheet" role="dialog" aria-modal="true" id="screenshot-choice-sheet" aria-label="Screenshot">
       <div class="live-sheet-handle"></div>
       <div class="live-sheet-title">SCREENSHOT</div>
       <div class="live-sheet-list">

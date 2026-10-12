@@ -53,6 +53,7 @@
     "src/infra/app-prefs.js",
     "src/infra/cloud/firebase.js",
     "src/infra/match-store.js",
+    "src/ui/a11y.js",
     "src/ui/charts.js",
     "src/ui/components.js",
     "src/ui/format.js",

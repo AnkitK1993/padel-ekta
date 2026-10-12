@@ -286,7 +286,7 @@ function _buildStreakCalendarHtml(name) {
   return `<div class="ana-card sc-card">
     <span class="badge">Activity Calendar — last 52 weeks</span>
     <div class="sc-stats">${total} matches · ${activeDays} active days</div>
-    <div class="sc-scroll">
+    <div class="sc-scroll" tabindex="0" role="region" aria-label="Activity calendar, scrollable">
       <div class="sc-monthrow">${monthHeader}</div>
       <div class="sc-grid">${colsHtml}</div>
     </div>

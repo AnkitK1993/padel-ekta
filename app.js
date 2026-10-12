@@ -19,6 +19,7 @@ import {
   SCORING_SYSTEMS_ZERO_BASED,
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
+import { initKeyboardAccess, syncPageLandmarks } from "./src/ui/a11y.js";
 import {
   ratingDistribution,
   competitivenessOverTime,
@@ -1984,6 +1985,9 @@ function goTo(id) {
     .querySelectorAll(".page")
     .forEach((p) => p.classList.remove("active"));
   document.getElementById("pg-" + id).classList.add("active");
+  // Synchronously, so code later in this same handler can focus a field on
+  // the page we just opened (the observer would only catch up afterwards).
+  syncPageLandmarks();
   document.getElementById("fab").style.display =
     id === "add" && window.isAdmin ? "flex" : "none";
   if (id === "home") {
@@ -2090,6 +2094,7 @@ function switchMainTab(id, skipAnim = false) {
     .querySelectorAll(".page")
     .forEach((p) => p.classList.remove("active"));
   if (nextPage) nextPage.classList.add("active");
+  syncPageLandmarks(); // same reason as goTo(): focusable right away
 
   // FAB only visible on admin/add page
   document.getElementById("fab").style.display =
@@ -8019,6 +8024,7 @@ function openSummaryScreenshot() {
     .querySelectorAll(".page")
     .forEach((p) => p.classList.remove("active"));
   document.getElementById("pg-snapshot").classList.add("active");
+  syncPageLandmarks();
   document.getElementById("pg-snapshot").scrollTop = 0;
   document.getElementById("fab").style.display = "none";
 }
@@ -8028,6 +8034,7 @@ function closeSnapshot() {
     .querySelectorAll(".page")
     .forEach((p) => p.classList.remove("active"));
   document.getElementById("pg-compact").classList.add("active");
+  syncPageLandmarks();
   renderCompact();
 }
 
@@ -21790,3 +21797,7 @@ window.closeLiveBanner = closeLiveBanner;
   src.addEventListener("focus", open);
   src.addEventListener("click", open);
 })();
+
+// Keyboard + screen-reader access for the clickable cards, rows and chips the
+// templates render as plain <div>/<tr>/<span> with an inline onclick.
+initKeyboardAccess();

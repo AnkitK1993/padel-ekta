@@ -54,6 +54,15 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
 
+      # axe-core over Home, Summary, Statistics, History, Player Detail and the
+      # Admin names table: currently ZERO violations of any severity, so any new
+      # one fails the build. Plus the keyboard/zoom checks axe can't see (Tab
+      # reaches every clickable card, Enter/Space activate it, pinch-zoom works).
+      - name: Accessibility (axe-core + keyboard, headless Chrome)
+        run: npm run test:a11y && npm run test:keyboard
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+
       # Offline + update flow in a real browser, against the minified production
       # build in dist/ (what actually ships): full precache on first visit,
       # atomic update on a new deploy, a failed download is never half-applied.

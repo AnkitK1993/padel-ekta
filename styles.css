@@ -12,7 +12,9 @@
   --green: #36d47e;
   --red: #f04f4f;
   --text: #eeeae4;
-  --muted: #60607a;
+  /* Secondary text. Lightened from #60607a, which measured 3.25-3.45:1 on the
+     dark surfaces; this clears WCAG AA (4.5:1) on every surface it sits on. */
+  --muted: #8080a0;
   --card: #131320;
   --gold: #f5c842;
   --silver: #9898b8;
@@ -9648,7 +9650,7 @@ select.cmp-sel option {
 }
 .prestige-rookie {
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(255, 255, 255, 0.55); /* was .38: 3.5:1 -> clears AA */
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 @keyframes lvlDiamond {
@@ -19380,4 +19382,17 @@ body.kb-open #pg-add #ip-matches .match-preview:empty {
   color: var(--muted);
   margin-top: 3px;
   text-transform: uppercase;
+}
+
+/* ── Keyboard focus ───────────────────────────────────────
+   Clickable cards/rows/chips are made focusable by src/ui/a11y.js; without a
+   visible ring a keyboard user can't tell where they are. :focus-visible so a
+   mouse or touch click never draws it. */
+[data-kb]:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--theme);
+  outline-offset: 2px;
 }
