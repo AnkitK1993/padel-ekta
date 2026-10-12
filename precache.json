@@ -25,6 +25,7 @@
     "manifest.json",
     "src/app/cloud-repo.js",
     "src/app/filter-state.js",
+    "src/app/match-ratings.js",
     "src/app/memo-store.js",
     "src/app/session-state.js",
     "src/domain/ass.js",

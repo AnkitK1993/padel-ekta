@@ -33,6 +33,12 @@ export function initMemoStoreDeps({ getDataVersion }) {
 
 let _getDataVersion = () => 0;
 
+// The app's data version (bumped on every data change) — for other app-level
+// memos that need the same invalidation as this store.
+export function dataVersion() {
+  return _getDataVersion();
+}
+
 // The active scoring system is part of every key: stats carry SR and a rank
 // order derived from the rating, so a picker change must never reuse them.
 function _statKey() {

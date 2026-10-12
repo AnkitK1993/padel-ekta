@@ -14,8 +14,9 @@
 //   • none of its classes appear inside @media / @supports / @keyframes
 //   • it has no interaction pseudo-class (:hover/:focus/…) that headless
 //     can't trigger
-//   • none of its class names appear as a string literal anywhere in
-//     app.js / index.html (catches dynamically-built class names)
+//   • none of its class names appear as a string literal anywhere in the
+//     app's source (index.html, root JS, src/, features/), and none is built
+//     from a prefix at runtime (`prestige-${tier}`, "tp-dot-" + mode)
 //
 // Anything failing those filters is listed under "review" instead.
 // This script REMOVES NOTHING — it only prints a report.
@@ -495,6 +496,20 @@ async function main() {
       .join("\n");
     const classInSource = (cls) =>
       new RegExp("[\"'`\\s.]" + cls.replace(/[-]/g, "\\-") + "\\b").test(corpus);
+    // Class names assembled at runtime never appear whole in source:
+    // `prestige-${tier}`, "tp-dot-" + mode, `ui-badge-${tone}`. Treat a class as
+    // possibly live when any of its hyphen-prefixes is followed by a template
+    // placeholder or a string concatenation somewhere in the corpus.
+    const builtFromPrefix = (cls) => {
+      const parts = cls.split("-");
+      for (let i = parts.length - 1; i >= 1; i--) {
+        const prefix = parts.slice(0, i).join("-") + "-";
+        if (corpus.includes(prefix + "${")) return true;
+        const esc = prefix.replace(/[-]/g, "\\-");
+        if (new RegExp(esc + "[\"'`]\\s*\\+").test(corpus)) return true;
+      }
+      return false;
+    };
 
     const deadHigh = [];
     const review = [];
@@ -510,7 +525,7 @@ async function main() {
       if (!classes.length) reasons.push("no-class-selector");
       if (rule.inMedia) reasons.push("inside-@media");
       if (PSEUDO.test(selector)) reasons.push("interaction-pseudo");
-      const builtInSource = classes.filter(classInSource);
+      const builtInSource = classes.filter((c) => classInSource(c) || builtFromPrefix(c));
       if (builtInSource.length)
         reasons.push("class-in-source:" + builtInSource.join(","));
       if (reasons.length) review.push({ selector, reasons });

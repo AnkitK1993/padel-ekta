@@ -10,6 +10,7 @@ import {
   careerGamesBefore,
 } from "../src/domain/rating-service.js";
 import { isRatedMatch } from "../src/domain/selectors.js";
+import { matchRating as _matchRating } from "../src/app/match-ratings.js";
 import {
   computePlayerXP,
   getPlayerLevel,
@@ -27,16 +28,9 @@ import {
 } from "../src/ui/render-match-rows.js";
 
 // Everything rating-related comes straight from the rating service, so this
-// overlay follows the Summary tab's scoring picker by construction. The one
-// injected piece is the History card's own per-player { delta, after } for a
-// match (app.js owns that memoised walk): using it keeps the overlay's numbers
-// identical to the card that opened it. Not wired -> null -> the overlay falls
-// back to its own season-scoped snapshots.
-let _matchRating = () => null;
-
-export function initMatchIntroDeps({ matchRating }) {
-  if (matchRating) _matchRating = matchRating;
-}
+// overlay follows the Summary tab's scoring picker by construction, and the
+// four players' before -> after are the History card's own numbers
+// (src/app/match-ratings.js) — identical to the card that opened it.
 
 // ── MATCH INTRO OVERLAY ────────────────────────────────────
 let _mioTimers = [];

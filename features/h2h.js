@@ -5,6 +5,7 @@ import { activeMatches } from "../src/domain/selectors.js";
 import { normPlayer } from "../src/domain/players.js";
 import { getHeadToHeadStats } from "../src/domain/pairs.js";
 import { rating } from "../src/domain/rating-service.js";
+import { matchRating as _matchRating } from "../src/app/match-ratings.js";
 import { emptyState } from "../src/ui/components.js";
 import {
   escHtml,
@@ -20,14 +21,11 @@ let _playerAvatar = (name, size = 26) => {
   return `<span class="p-av" style="width:${size}px;height:${size}px;min-width:${size}px;font-size:${fs}px;background:${col}22;border:1.5px solid ${col};color:${col}">${playerInitials(name)}</span>`;
 };
 
-// The History feed's own per-player { delta, after } for a match, so a rating
-// change shown here is the very number on that match's History card and
-// overlay. Not wired -> null -> no pills (never a different engine's number).
-let _matchRating = () => null;
-
-export function initH2HDeps({ playerAvatar, matchRating }) {
+// Rating changes come from the History feed's own per-match numbers
+// (src/app/match-ratings.js), so a pill here is the very number on that
+// match's History card and overlay; a guest match has none.
+export function initH2HDeps({ playerAvatar }) {
   if (playerAvatar) _playerAvatar = playerAvatar;
-  if (matchRating) _matchRating = matchRating;
 }
 
 // ── RIVALRY STREAKS ─────────────────────────────────────────

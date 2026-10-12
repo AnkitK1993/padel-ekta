@@ -11,6 +11,7 @@ import {
 import { state } from "../src/domain/state.js";
 import { computeStats } from "../src/domain/stats.js";
 import { rating } from "../src/domain/rating-service.js";
+import { matchRating as _matchRating } from "../src/app/match-ratings.js";
 import {
   computeAchievements,
   computeArchetype,
@@ -57,16 +58,10 @@ let _playerAvatar = (name, size = 26) => {
 };
 
 // Every rating, SR, label and printed number comes from the rating service, so
-// this sheet follows the Summary tab's scoring picker by construction. The one
-// injected piece is the History card's own per-player { delta, after } for a
-// match (app.js owns that memoised walk): per-match rating changes shown here
-// are then exactly the numbers on the History cards. Not wired -> null -> the
-// change is simply omitted (never another engine's number).
-let _matchRating = () => null;
-
-export function initPlayerDetailDeps({ playerAvatar, matchRating }) {
+// this sheet follows the Summary tab's scoring picker by construction; per-match
+// rating changes are the History cards' own numbers (src/app/match-ratings.js).
+export function initPlayerDetailDeps({ playerAvatar }) {
   if (playerAvatar) _playerAvatar = playerAvatar;
-  if (matchRating) _matchRating = matchRating;
 }
 
 // Short local names for the service calls this file makes everywhere.

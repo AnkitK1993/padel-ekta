@@ -3,23 +3,17 @@
 // Pure src/ deps only — no app.js closure state needed.
 import { state } from "../src/domain/state.js";
 import { rating } from "../src/domain/rating-service.js";
+import { matchRating } from "../src/app/match-ratings.js";
 import { escHtml, fmtDate, playerColor, playerInitials } from "../src/ui/format.js";
 
-// The History card's own per-player { delta, after } for a match (app.js owns
-// that memoised walk), so the poster shows exactly the number on the card it
-// was shared from. Not wired -> null -> no rating chips (never another
-// engine's number).
-let _matchRating = () => null;
-
-export function initSharePosterDeps({ matchRating }) {
-  if (matchRating) _matchRating = matchRating;
-}
+// Rating chips are the History card's own per-match numbers
+// (src/app/match-ratings.js) — exactly what the card it was shared from shows.
 
 export function openShareMatchPoster(matchIdx) {
   document.getElementById("share-card-overlay")?.remove();
   const m = state.matches[matchIdx];
   if (!m) return;
-  const _cardRating = _matchRating(m);
+  const _cardRating = matchRating(m);
   const aWon = m.scoreA > m.scoreB;
   const winTeam = aWon ? m.teamA : m.teamB;
   const losTeam = aWon ? m.teamB : m.teamA;

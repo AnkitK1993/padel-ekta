@@ -20,6 +20,7 @@ import {
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { initKeyboardAccess, syncPageLandmarks } from "./src/ui/a11y.js";
+import { matchCardPrecompute as _matchCardPrecompute } from "./src/app/match-ratings.js";
 import {
   ratingDistribution,
   competitivenessOverTime,
@@ -219,7 +220,6 @@ import {
   openMatchIntro,
   closeMatchIntro,
   mioSkipAnimation,
-  initMatchIntroDeps,
 } from "./features/match-intro.js";
 import { openPairDetail } from "./features/pair-detail.js";
 import {
@@ -229,7 +229,7 @@ import {
   openRivalryScreen,
   renderH2HDeepDive,
 } from "./features/h2h.js";
-import { openShareMatchPoster, initSharePosterDeps } from "./features/share-poster.js";
+import { openShareMatchPoster } from "./features/share-poster.js";
 import { openWeeklyDigest } from "./features/weekly-digest.js";
 import {
   openThemePicker,
@@ -1225,10 +1225,6 @@ initHistorySummaryDeps({
   getPairStats,
   topGainersWindow: () => _topGainersWindow,
 });
-// Share match poster — shows the History card's own per-match rating change.
-initSharePosterDeps({
-  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
-});
 // Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
 initPairsDeps({ normPlayer });
@@ -1252,22 +1248,9 @@ initBadgesDeps({
 initPlayerAnalyticsDeps({ getPairStats, toLocalISODate });
 // Player detail modal — needs playerAvatar (photoMap lives in app.js) and the
 // History card's per-match rating change; ratings come from the service.
-initPlayerDetailDeps({
-  playerAvatar,
-  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
-});
+initPlayerDetailDeps({ playerAvatar });
 // H2H modals — same playerAvatar dependency.
-initH2HDeps({
-  playerAvatar,
-  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
-});
-// Match Intro overlay — ratings, scope, points and win chance come from the
-// rating service; the one injected piece is the History card's own per-player
-// { delta, after } for the match, so the overlay's numbers are exactly the
-// card's (one source of truth).
-initMatchIntroDeps({
-  matchRating: (m) => _matchCardPrecompute().eloMatchMap.get(m) || null,
-});
+initH2HDeps({ playerAvatar });
 
 // ── One-time module initialisations ────────────────────────
 // memo-store needs the app-level data-version counter and ELO config.
@@ -5904,121 +5887,8 @@ function setCmpSort(key) {
 // buildSummaryMatchRow → ./render-match-rows.js
 // buildSummaryMatchRows → ./render-match-rows.js
 
-// Heavy precompute for the history feed: one chronological ASS walk yielding
-// per-match ASS deltas + pre-match pair ranks, plus the pair-vs-pair H2H map.
-// Depends only on state.matches, so it's memoized on (_dataVersion, array
-// identity). buildMatchCards runs on every history render/filter and this walk
-// is O(matches × pairs) — recomputing it each time was a mobile hot spot.
-let _mcPrecompMemo = null;
-function _matchCardPrecompute() {
-  const ratedRef = ratedMatches();
-  if (
-    _mcPrecompMemo &&
-    _mcPrecompMemo.version === _dataVersion &&
-    _mcPrecompMemo.system === rating.system() &&
-    _mcPrecompMemo.matchesRef === state.matches &&
-    _mcPrecompMemo.ratedRef === ratedRef
-  )
-    return _mcPrecompMemo;
-  const rated = new Set(ratedRef);
-  const eloMatchMap = new Map();
-  const matchPairRankMap = new Map(); // match → Map(pairKey → pre-match rank)
-  const _mcDefault = _statsDefault();
-  const allPairsList = _memoPairStats(); // all pairs ever formed
-  const sortedForPrecompute = [...state.matches].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || ""),
-  );
-  // Follows the active scoring picker — was hardcoded to classic ASS, so
-  // every History card's rating pill and pre-match pair rank stayed on the
-  // 1000-baseline engine regardless of which system was selected. Reads off
-  // the same per-system timeline Statistics/Player Detail use (not a naive
-  // running sum of raw match deltas) because for a shrinkage-based engine
-  // (EP) the raw per-match delta is on a different scale than the displayed
-  // score — summing it directly would blow the pill's numbers up into the
-  // thousands instead of showing the real, bounded leaderboard score.
-  // Each season is scored on its own, exactly like the Summary leaderboard:
-  // ratings restart at the baseline and only that season's matches feed the
-  // score (EP still reads the full career for its internal expectation and
-  // maturity). Walking every season as one continuous history made a
-  // veteran's per-match change tiny — a 320-game player's shrinkage
-  // denominator dwarfed a 70-game player's — which is not what either
-  // player's season score does.
-  const seasonKey = (m) =>
-    state.seasons.find((sn) => _inSeason(sn, m.date))?.id ?? "__none__";
-  const groups = new Map();
-  sortedForPrecompute.forEach((m) => {
-    const k = seasonKey(m);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(m);
-  });
-  groups.forEach((groupMatches) => {
-    // Ratings are walked over RATED matches only (no guests, no excluded
-    // players) — the very list the leaderboard scores — so a card's "after"
-    // for a player is that player's leaderboard number at that point. An
-    // unrated match stays in the log as a plain result: no rating change.
-    const timeline = _statsTimeline(
-      groupMatches.filter((m) => rated.has(m)),
-    ).history;
-    const cur = {};
-    const idxByPlayer = {};
-    groupMatches.forEach((m) => {
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        if (!(p in cur)) cur[p] = _mcDefault;
-      });
-      // Rank all pairs by their avg rating right now (before this match)
-      matchPairRankMap.set(
-        m,
-        new Map(
-          allPairsList
-            .map((p) => ({
-              key: p.key,
-              avgElo:
-                p.players.reduce((sum, n) => sum + (cur[n] ?? _mcDefault), 0) /
-                p.players.length,
-            }))
-            .sort((a, b) => b.avgElo - a.avgElo)
-            .map(({ key }, i) => [key, i + 1]),
-        ),
-      );
-      if (!rated.has(m)) return; // plain result: no rating change
-      const mData = {};
-      [...(m.teamA || []), ...(m.teamB || [])].forEach((p) => {
-        const hist = timeline[p] || [];
-        const idx = idxByPlayer[p] ?? 0;
-        const entry = hist[idx];
-        const before = cur[p] ?? _mcDefault;
-        const after = entry ? entry.elo : before;
-        mData[p] = { delta: after - before, after };
-        cur[p] = after;
-        idxByPlayer[p] = idx + 1;
-      });
-      eloMatchMap.set(m, mData);
-    });
-  });
-  // Enhancement 8: pre-compute pair-vs-pair H2H records
-  const pvpMap = {};
-  state.matches.forEach((hm) => {
-    const pa = (hm.teamA || []).slice().sort().join("&");
-    const pb = (hm.teamB || []).slice().sort().join("&");
-    if (!pa || !pb) return;
-    const key = pa <= pb ? `${pa}|${pb}` : `${pb}|${pa}`;
-    if (!pvpMap[key]) pvpMap[key] = { a: 0, b: 0, aFirst: pa <= pb };
-    const aWonH = hm.scoreA > hm.scoreB;
-    const paFirst = pvpMap[key].aFirst;
-    if (paFirst ? aWonH : !aWonH) pvpMap[key].a++;
-    else pvpMap[key].b++;
-  });
-  _mcPrecompMemo = {
-    version: _dataVersion,
-    system: rating.system(),
-    matchesRef: state.matches,
-    ratedRef,
-    eloMatchMap,
-    matchPairRankMap,
-    pvpMap,
-  };
-  return _mcPrecompMemo;
-}
+// Per-match ratings + pre-match pair ranks + pair-vs-pair records for the
+// History feed live in src/app/match-ratings.js (imported as _matchCardPrecompute).
 
 function buildMatchCards(matches, showAdmin) {
   if (!matches.length)
