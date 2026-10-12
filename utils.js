@@ -1,5 +1,20 @@
 ﻿/* ══════════════════════════════════════ */
 
+// Quiet trace for failures that must not stop the app (storage full, private
+// mode, an optional API) — logged once per place instead of silently dropped.
+// (Classic script, so it can't import src/infra/log.js; same behaviour.)
+var __ektaNoted = {};
+function __ektaNote(where, err) {
+  var key = where + "|" + ((err && err.name) || typeof err);
+  if (__ektaNoted[key]) return;
+  __ektaNoted[key] = true;
+  try {
+    console.warn("[ekta] " + where + ":", err);
+  } catch (_) {
+    // console itself unavailable — nothing more we can do
+  }
+}
+
 // ── ERROR LOGGER ──────────────────────────────────────────
 // Captures uncaught errors + promise rejections into a capped localStorage
 // ring buffer so a solo maintainer can see real-world breakage instead of
@@ -29,10 +44,14 @@
         while (log.length > MAX) log.shift();
       }
       localStorage.setItem(KEY, JSON.stringify(log));
-    } catch (e) {}
+    } catch (e) {
+      __ektaNote("utils:errlog.save", e);
+    }
     try {
       if (typeof window.__onAppError === "function") window.__onAppError(entry);
-    } catch (e) {}
+    } catch (e) {
+      __ektaNote("utils:errlog.mirror", e);
+    }
   }
   window.addEventListener("error", function (e) {
     record({
@@ -57,7 +76,9 @@
   window.clearErrorLog = function () {
     try {
       localStorage.removeItem(KEY);
-    } catch (e) {}
+    } catch (e) {
+      __ektaNote("utils:errlog.clear", e);
+    }
   };
 })();
 
@@ -184,7 +205,9 @@ body.paused-animations *{
               };
               localStorage.setItem(CACHE_KEY, JSON.stringify(p));
               mem.data = p;
-            } catch (e) {}
+            } catch (e) {
+              __ektaNote("utils:appCache.save", e);
+            }
           },
           load: function () {
             if (mem.data) {
@@ -278,7 +301,9 @@ body.paused-animations *{
         // Re-render Home so the active mode picks up the right card template
         try {
           if (typeof window.renderHome === "function") window.renderHome();
-        } catch (e) {}
+        } catch (e) {
+          __ektaNote("utils:theme.rerenderHome", e);
+        }
         var btn = document.getElementById("themeBtn");
         if (btn) {
           btn.style.background = t.hex;
@@ -301,7 +326,9 @@ body.paused-animations *{
           // Persist by NAME, not array index — so adding/removing/reordering
           // themes never silently switches a user to a different theme.
           localStorage.setItem("padel-theme-name", t.name);
-        } catch (e) {}
+        } catch (e) {
+          __ektaNote("utils:theme.saveName", e);
+        }
       }
 
       function cycleTheme() {
@@ -370,7 +397,9 @@ body.paused-animations *{
             "--theme-rgb",
             t.r + ", " + t.g + ", " + t.b,
           );
-        } catch (e) {}
+        } catch (e) {
+          __ektaNote("utils:theme.applyVars", e);
+        }
       })();
 
 /* ══════════════════════════════════════ */

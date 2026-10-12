@@ -10,6 +10,7 @@
 //
 // Pure: no DOM, no app state. checkDataHealth() takes plain data and returns
 // issues; the Admin "Data Health Check" card renders them.
+import { cleanPlayerName } from "./players.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SEVERITY_ORDER = { error: 0, warn: 1, info: 2 };
@@ -84,6 +85,12 @@ export function checkDataHealth({
   const rosterSet = new Set(rosterNames);
 
   // ── roster ───────────────────────────────────────────────────────────
+  // Names saved before the name rule existed may still carry characters it
+  // now rejects (markup, separators); they still work, but rename them.
+  rosterNames.forEach((n) => {
+    const r = cleanPlayerName(n);
+    if (!r.ok && n) add("warn", "name-chars", `Roster name ${r.error} — rename it in Manage → Players`, { name: n });
+  });
   const byNorm = new Map();
   rosterNames.forEach((n) => {
     const k = normalizeName(n);

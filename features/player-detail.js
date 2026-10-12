@@ -756,7 +756,7 @@ function openPlayerDetail(name) {
           <div class="det-conn">
             <div class="det-conn-icon">🤝</div>
             <div class="det-conn-body">
-              <div class="det-conn-name">${s.bestPartner.name}</div>
+              <div class="det-conn-name">${escHtml(s.bestPartner.name)}</div>
               <div class="det-conn-meta"><span class="p">${s.bestPartner.pct.toFixed(0)}% win</span> · ${s.bestPartner.played}g</div>
             </div>
             <div class="det-conn-tag">Best Partner</div>
@@ -769,7 +769,7 @@ function openPlayerDetail(name) {
           <div class="det-conn">
             <div class="det-conn-icon">⚡</div>
             <div class="det-conn-body">
-              <div class="det-conn-name">${s.worstPartner.name}</div>
+              <div class="det-conn-name">${escHtml(s.worstPartner.name)}</div>
               <div class="det-conn-meta"><span class="n">${s.worstPartner.pct.toFixed(0)}% win</span> · ${s.worstPartner.played}g</div>
             </div>
             <div class="det-conn-tag">Worst Partner</div>
@@ -782,7 +782,7 @@ function openPlayerDetail(name) {
           <div class="det-conn">
             <div class="det-conn-icon">⚔️</div>
             <div class="det-conn-body">
-              <div class="det-conn-name">${s.nemesis.name}</div>
+              <div class="det-conn-name">${escHtml(s.nemesis.name)}</div>
               <div class="det-conn-meta"><span class="n">${s.nemesis.pct.toFixed(0)}% win rate</span> · ${s.nemesis.played}g</div>
             </div>
             <div class="det-conn-tag">Nemesis</div>
@@ -795,7 +795,7 @@ function openPlayerDetail(name) {
           <div class="det-conn">
             <div class="det-conn-icon">💪</div>
             <div class="det-conn-body">
-              <div class="det-conn-name">${s.favOpp.name}</div>
+              <div class="det-conn-name">${escHtml(s.favOpp.name)}</div>
               <div class="det-conn-meta"><span class="p">${s.favOpp.pct.toFixed(0)}% win rate</span> · ${s.favOpp.played}g</div>
             </div>
             <div class="det-conn-tag">Fav Opponent</div>

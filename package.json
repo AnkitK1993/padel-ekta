@@ -22,7 +22,8 @@
     "test:consistency:browser": "node scripts/consistency-check.js",
     "precache": "node scripts/gen-precache.js",
     "test:sw": "node scripts/sw-update-check.js",
-    "test:keyboard": "node scripts/keyboard-check.js"
+    "test:keyboard": "node scripts/keyboard-check.js",
+    "test:xss": "node scripts/xss-check.js"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",

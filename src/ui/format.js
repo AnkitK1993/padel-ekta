@@ -3,7 +3,8 @@
 
 // HTML-escape a value for safe interpolation into innerHTML templates.
 export function escHtml(str) {
-  if (!str) return "";
+  // Nothing to print for null/undefined/false — but 0 must still print "0".
+  if (str === null || str === undefined || str === false) return "";
   return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

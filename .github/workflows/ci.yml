@@ -63,6 +63,13 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
 
+      # Player names are data: seeds names that are live markup / quote traps
+      # and opens every main screen — fails if any of it renders as HTML.
+      - name: HTML escaping canary (headless Chrome)
+        run: npm run test:xss
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+
       # Offline + update flow in a real browser, against the minified production
       # build in dist/ (what actually ships): full precache on first visit,
       # atomic update on a new deploy, a failed download is never half-applied.

@@ -6,6 +6,7 @@ import {
   normalizeName,
   editDistance,
 } from "../src/domain/data-health.js";
+import { cleanPlayerName } from "../src/domain/players.js";
 
 let pass = 0,
   fail = 0;
@@ -128,6 +129,24 @@ console.log("\n\x1b[36m── seasons ──────────────
   ok("overlapping seasons are warned about", kinds(ov).includes("season-overlap"));
   ok("an open-ended season overlaps a later start", kinds(checkDataHealth({ matches: clean, players, seasons: [{ id: "a", name: "A", start: "2026-01-01", end: null }, { id: "b", name: "B", start: "2026-09-01", end: null }], today: "2026-10-11" })).includes("season-overlap"));
   ok("back-to-back seasons are fine", !kinds(run(clean)).includes("season-overlap"));
+}
+
+console.log("\n\x1b[36m── the name rule ───────────────────────────────────────\x1b[0m");
+{
+  const ok1 = (raw, expect) => cleanPlayerName(raw).ok === expect;
+  ok("plain names, initials, accents, apostrophes and hyphens are accepted",
+    ["Rahul M", "José", "O'Brien", "Jean-Luc", "D.K.", "Ankit2"].every((n) => ok1(n, true)));
+  ok("markup, separators and quotes are rejected",
+    ["Ravi<b>", "A & B", "A|B", 'Say "hi"', "back`tick", "a/b"].every((n) => ok1(n, false)));
+  ok("whitespace is collapsed and trimmed", cleanPlayerName("  Ankit    K ").name === "Ankit K");
+  ok("empty and over-long names are rejected", !cleanPlayerName("   ").ok && !cleanPlayerName("x".repeat(31)).ok);
+  const legacy = checkDataHealth({
+    matches: clean,
+    players: { ...players, 9: { id: 9, name: "Ravi<b>", isGuest: false } },
+    seasons,
+    today: "2026-10-11",
+  });
+  ok("an old roster name that breaks the rule is flagged", kinds(legacy).includes("name-chars"), kinds(legacy).join());
 }
 
 console.log("\n\x1b[36m── ordering & report ───────────────────────────────────\x1b[0m");

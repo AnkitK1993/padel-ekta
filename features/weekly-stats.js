@@ -6,6 +6,7 @@ import { activeMatches } from "../src/domain/selectors.js";
 import { memoStats } from "../src/app/memo-store.js";
 import { toLocalISODate } from "../src/ui/format.js";
 
+import { noteError } from "../src/infra/log.js";
 export function computeSessionStreak() {
   if (!state.matches.length) return 0;
   const getMonday = (dateStr) => {
@@ -55,7 +56,9 @@ export function saveWeeklySnap(snap) {
   snaps.splice(12); // keep last 12 weeks
   try {
     localStorage.setItem(SNAP_KEY, JSON.stringify(snaps));
-  } catch {}
+  } catch (e) {
+    noteError("weekly-stats:saveWeeklySnap", e);
+  }
 }
 
 export function autoSaveWeeklySnap() {

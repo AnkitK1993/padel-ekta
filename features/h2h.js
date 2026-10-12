@@ -191,7 +191,7 @@ function openH2HDetail(a, b) {
           <div class="h2h-hero">
             <div class="h2h-hero-side" style="background:linear-gradient(135deg,${col1}18 0%,transparent 70%)">
               ${_playerAvatar(a, 34)}
-              <div class="h2h-hero-name">${a}</div>
+              <div class="h2h-hero-name">${escHtml(a)}</div>
               <div class="h2h-hero-wins" style="color:${col1}">${h2h.aWins}</div>
               <div class="h2h-hero-sub">${aWinPct}% win rate</div>
             </div>
@@ -201,7 +201,7 @@ function openH2HDetail(a, b) {
             </div>
             <div class="h2h-hero-side h2h-hero-right" style="background:linear-gradient(225deg,${col2}18 0%,transparent 70%)">
               ${_playerAvatar(b, 34)}
-              <div class="h2h-hero-name">${b}</div>
+              <div class="h2h-hero-name">${escHtml(b)}</div>
               <div class="h2h-hero-wins" style="color:${col2}">${h2h.bWins}</div>
               <div class="h2h-hero-sub">${bWinPct}% win rate</div>
             </div>
@@ -219,7 +219,7 @@ function openH2HDetail(a, b) {
           <div class="h2h-leader-badge">
             ${
               leader
-                ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
+                ? `<span style="color:${leaderCol};font-weight:800">${escHtml(leader)}</span>&nbsp;leads this rivalry`
                 : "⚖️ Perfectly balanced"
             }
           </div>
@@ -235,32 +235,32 @@ function openH2HDetail(a, b) {
             </div>
             <div class="h2h-stat-cell">
               <div class="h2h-stat-val" style="color:${col1}">${aGW}</div>
-              <div class="h2h-stat-lbl">${aN} GW</div>
+              <div class="h2h-stat-lbl">${escHtml(aN)} GW</div>
             </div>
             <div class="h2h-stat-cell">
               <div class="h2h-stat-val" style="color:${col2}">${bGW}</div>
-              <div class="h2h-stat-lbl">${bN} GW</div>
+              <div class="h2h-stat-lbl">${escHtml(bN)} GW</div>
             </div>
             <div class="h2h-stat-cell">
               <div class="h2h-stat-val" style="color:var(--green)">${aShut}</div>
-              <div class="h2h-stat-lbl">${aN} SHUTOUT</div>
+              <div class="h2h-stat-lbl">${escHtml(aN)} SHUTOUT</div>
             </div>
             <div class="h2h-stat-cell">
               <div class="h2h-stat-val" style="color:var(--green)">${bShut}</div>
-              <div class="h2h-stat-lbl">${bN} SHUTOUT</div>
+              <div class="h2h-stat-lbl">${escHtml(bN)} SHUTOUT</div>
             </div>
           </div>
 
           <div class="h2h-elo-row">
             <div class="h2h-elo-card" style="border-top-color:${borderCol(aEloTotal)}">
               <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
-              <div class="h2h-elo-player" style="color:${col1}">${a}</div>
+              <div class="h2h-elo-player" style="color:${col1}">${escHtml(a)}</div>
               <div class="h2h-elo-delta" style="color:${dCol(aEloTotal)}">${fmtD(aEloTotal)}</div>
               <div class="h2h-elo-sub">from ${total} meetings</div>
             </div>
             <div class="h2h-elo-card" style="border-top-color:${borderCol(bEloTotal)}">
               <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
-              <div class="h2h-elo-player" style="color:${col2}">${b}</div>
+              <div class="h2h-elo-player" style="color:${col2}">${escHtml(b)}</div>
               <div class="h2h-elo-delta" style="color:${dCol(bEloTotal)}">${fmtD(bEloTotal)}</div>
               <div class="h2h-elo-sub">from ${total} meetings</div>
             </div>
@@ -269,12 +269,12 @@ function openH2HDetail(a, b) {
           <div class="h2h-elo-row" style="margin-bottom:14px">
             <div class="h2h-elo-card" style="border-top-color:var(--accent)">
               <div class="h2h-elo-label">BEST WIN STREAK</div>
-              <div class="h2h-elo-player" style="color:${col1}">${a}</div>
+              <div class="h2h-elo-player" style="color:${col1}">${escHtml(a)}</div>
               <div class="h2h-elo-delta" style="color:var(--accent)">${aStreak}</div>
             </div>
             <div class="h2h-elo-card" style="border-top-color:var(--accent)">
               <div class="h2h-elo-label">BEST WIN STREAK</div>
-              <div class="h2h-elo-player" style="color:${col2}">${b}</div>
+              <div class="h2h-elo-player" style="color:${col2}">${escHtml(b)}</div>
               <div class="h2h-elo-delta" style="color:var(--accent)">${bStreak}</div>
             </div>
           </div>
@@ -283,7 +283,7 @@ function openH2HDetail(a, b) {
             const rs = computeH2HStreak(a, b, activeMatches());
             if (!rs.leader || rs.streak < 2) return "";
             const rCol = rs.leader === a ? col1 : col2;
-            return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${rs.leader}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
+            return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${escHtml(rs.leader)}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
           })()}
 
           <div class="h2h-matches-title">RECENT MATCHES</div>
@@ -345,7 +345,7 @@ function openRivalryScreen(a, b) {
     greatestHtml = `<div class="rivalry-greatest">
       <div class="rivalry-greatest-lbl">⚡ GREATEST MATCH</div>
       <div class="rivalry-greatest-score" style="color:${winnerCol}">${sa}–${sb}</div>
-      <div class="rivalry-greatest-sub">${winnerName} won · ${fmtDate(greatest.date)}</div>
+      <div class="rivalry-greatest-sub">${escHtml(winnerName)} won · ${fmtDate(greatest.date)}</div>
     </div>`;
   }
 
@@ -372,7 +372,7 @@ function openRivalryScreen(a, b) {
   const rs = computeH2HStreak(a, b, activeMatches());
   const rsHtml =
     rs.leader && rs.streak >= 2
-      ? `<div class="rivalry-streak-badge" style="color:${rs.leader === a ? colA : colB}">🔥 ${rs.leader.split(" ")[0]} on ${rs.streak}-match streak</div>`
+      ? `<div class="rivalry-streak-badge" style="color:${rs.leader === a ? colA : colB}">🔥 ${escHtml(rs.leader.split(" ")[0])} on ${rs.streak}-match streak</div>`
       : "";
 
   const html = `
@@ -383,7 +383,7 @@ function openRivalryScreen(a, b) {
         <div class="rivalry-header" style="--ca:${colA};--cb:${colB}">
           <div class="rivalry-player-side" style="background:linear-gradient(135deg,${colA}22 0%,transparent 60%)">
             <div class="rivalry-avatar" style="background:${colA}33;border-color:${colA}66;color:${colA}">${playerInitials(a)}</div>
-            <div class="rivalry-player-name" style="color:${colA}">${aN}</div>
+            <div class="rivalry-player-name" style="color:${colA}">${escHtml(aN)}</div>
             <div class="rivalry-big-wins" style="color:${colA}">${h2h.aWins}</div>
             <div class="rivalry-win-pct">${pctA}%</div>
           </div>
@@ -393,7 +393,7 @@ function openRivalryScreen(a, b) {
           </div>
           <div class="rivalry-player-side rivalry-player-right" style="background:linear-gradient(225deg,${colB}22 0%,transparent 60%)">
             <div class="rivalry-avatar" style="background:${colB}33;border-color:${colB}66;color:${colB}">${playerInitials(b)}</div>
-            <div class="rivalry-player-name" style="color:${colB}">${bN}</div>
+            <div class="rivalry-player-name" style="color:${colB}">${escHtml(bN)}</div>
             <div class="rivalry-big-wins" style="color:${colB}">${h2h.bWins}</div>
             <div class="rivalry-win-pct">${pctB}%</div>
           </div>
@@ -403,12 +403,12 @@ function openRivalryScreen(a, b) {
           <div class="rivalry-win-bar-a" style="width:${pctA}%;background:${colA}"></div>
           <div class="rivalry-win-bar-b" style="width:${pctB}%;background:${colB}"></div>
         </div>
-        ${leader ? `<div class="rivalry-leader-badge" style="color:${leader === a ? colA : colB}">${leader.split(" ")[0]} leads this rivalry</div>` : `<div class="rivalry-leader-badge" style="color:var(--muted)">Perfect Tie</div>`}
+        ${leader ? `<div class="rivalry-leader-badge" style="color:${leader === a ? colA : colB}">${escHtml(leader.split(" ")[0])} leads this rivalry</div>` : `<div class="rivalry-leader-badge" style="color:var(--muted)">Perfect Tie</div>`}
 
         <div class="rivalry-streaks-row">
-          <div class="rivalry-streak-card"><div style="color:${colA};font-weight:800">${aN}</div><div style="font-size:18px;font-weight:900;color:var(--theme)">${aStreak}</div><div style="font-size:9px;color:var(--muted)">BEST STREAK</div></div>
+          <div class="rivalry-streak-card"><div style="color:${colA};font-weight:800">${escHtml(aN)}</div><div style="font-size:18px;font-weight:900;color:var(--theme)">${aStreak}</div><div style="font-size:9px;color:var(--muted)">BEST STREAK</div></div>
           ${rsHtml}
-          <div class="rivalry-streak-card"><div style="color:${colB};font-weight:800">${bN}</div><div style="font-size:18px;font-weight:900;color:var(--theme)">${bStreak}</div><div style="font-size:9px;color:var(--muted)">BEST STREAK</div></div>
+          <div class="rivalry-streak-card"><div style="color:${colB};font-weight:800">${escHtml(bN)}</div><div style="font-size:18px;font-weight:900;color:var(--theme)">${bStreak}</div><div style="font-size:9px;color:var(--muted)">BEST STREAK</div></div>
         </div>
 
         ${greatestHtml}
@@ -471,7 +471,7 @@ function renderH2HDeepDive() {
       <div class="h2h-hero">
         <div class="h2h-hero-side" style="background:linear-gradient(135deg,${col1}18 0%,transparent 70%)">
           ${_playerAvatar(p1, 34)}
-          <div class="h2h-hero-name">${p1}</div>
+          <div class="h2h-hero-name">${escHtml(p1)}</div>
           <div class="h2h-hero-wins" style="color:${col1}">${h2h.aWins}</div>
           <div class="h2h-hero-sub">${p1Pct}% win rate</div>
         </div>
@@ -481,7 +481,7 @@ function renderH2HDeepDive() {
         </div>
         <div class="h2h-hero-side h2h-hero-right" style="background:linear-gradient(225deg,${col2}18 0%,transparent 70%)">
           ${_playerAvatar(p2, 34)}
-          <div class="h2h-hero-name">${p2}</div>
+          <div class="h2h-hero-name">${escHtml(p2)}</div>
           <div class="h2h-hero-wins" style="color:${col2}">${h2h.bWins}</div>
           <div class="h2h-hero-sub">${p2Pct}% win rate</div>
         </div>
@@ -499,7 +499,7 @@ function renderH2HDeepDive() {
       <div class="h2h-leader-badge">
         ${
           leader
-            ? `<span style="color:${leaderCol};font-weight:800">${leader}</span>&nbsp;leads this rivalry`
+            ? `<span style="color:${leaderCol};font-weight:800">${escHtml(leader)}</span>&nbsp;leads this rivalry`
             : "⚖️ Perfectly balanced"
         }
       </div>
@@ -507,13 +507,13 @@ function renderH2HDeepDive() {
       <div class="h2h-elo-row">
         <div class="h2h-elo-card" style="border-top-color:${borderCol(p1Total)}">
           <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
-          <div class="h2h-elo-player" style="color:${col1}">${p1}</div>
+          <div class="h2h-elo-player" style="color:${col1}">${escHtml(p1)}</div>
           <div class="h2h-elo-delta" style="color:${dCol(p1Total)}">${fmtD(p1Total)}</div>
           <div class="h2h-elo-sub">from ${total} meetings</div>
         </div>
         <div class="h2h-elo-card" style="border-top-color:${borderCol(p2Total)}">
           <div class="h2h-elo-label">${escHtml(rating.label())} IMPACT</div>
-          <div class="h2h-elo-player" style="color:${col2}">${p2}</div>
+          <div class="h2h-elo-player" style="color:${col2}">${escHtml(p2)}</div>
           <div class="h2h-elo-delta" style="color:${dCol(p2Total)}">${fmtD(p2Total)}</div>
           <div class="h2h-elo-sub">from ${total} meetings</div>
         </div>
@@ -523,7 +523,7 @@ function renderH2HDeepDive() {
         const rs = computeH2HStreak(p1, p2, activeMatches());
         if (!rs.leader || rs.streak < 2) return "";
         const rCol = rs.leader === p1 ? col1 : col2;
-        return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${rs.leader}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
+        return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${escHtml(rs.leader)}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;
       })()}
 
       <div class="h2h-matches-title">RECENT ENCOUNTERS</div>

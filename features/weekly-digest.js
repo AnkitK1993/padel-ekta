@@ -4,6 +4,7 @@
 import { state } from "../src/domain/state.js";
 import { activeMatches } from "../src/domain/selectors.js";
 import { rating } from "../src/domain/rating-service.js";
+import { noteError } from "../src/infra/log.js";
 import { getPairStats } from "../src/domain/pairs.js";
 import { todayISO, weekISO, lastWeekRange } from "../src/domain/dates.js";
 
@@ -154,7 +155,9 @@ export function openWeeklyDigest() {
     if (navigator.share) {
       navigator
         .share({ title: "Padel Ekta Weekly Digest", text: shareLines })
-        .catch(() => {});
+        .catch((e) => {
+          if (e?.name !== "AbortError") noteError("weekly-digest:share", e);
+        });
     } else {
       navigator.clipboard
         ?.writeText(shareLines)

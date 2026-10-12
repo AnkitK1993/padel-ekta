@@ -16,6 +16,7 @@
 import { db, auth, doc, setDoc, onSnapshot } from "../infra/cloud/firebase.js";
 import { state } from "../domain/state.js";
 
+import { noteError } from "../infra/log.js";
 // ── Injected dependencies (app.js injects via init()) ─────────
 let _deps = {
   getMatches: () => state.matches,
@@ -107,7 +108,9 @@ function _checkDocSize(payload) {
         "⚠️",
       );
     }
-  } catch (e) {}
+  } catch (e) {
+    noteError("cloud-repo:_checkDocSize", e);
+  }
 }
 
 // ── Save (debounced) ───────────────────────────────────────────
@@ -126,7 +129,9 @@ export function saveCloudData(opts) {
     );
   try {
     localStorage.setItem("padel_matches", JSON.stringify(payload.matches));
-  } catch (e) {}
+  } catch (e) {
+    noteError("cloud-repo:saveCloudData", e);
+  }
   scheduleDocSizeCheck();
 
   if (!navigator.onLine || _deps.isForcedOffline()) {
@@ -241,7 +246,9 @@ export function loadCloudData(onData, onConflict) {
         const { pls, pam, npid } = extractPlayerData(cached);
         handle(cached.matches || [], pls, pam, npid, true);
       }
-    } catch (e) {}
+    } catch (e) {
+      noteError("cloud-repo:loadCachedData", e);
+    }
   }
 
   const unsub = onSnapshot(

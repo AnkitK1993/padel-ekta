@@ -54,9 +54,9 @@ export function buildMatchRowHtml(m, extraClass = "", delay = null, matchIdx = n
           <td class="cmr-date">${fmtDate(m.date)
             .replace(/\s+\d{4}$/, "")
             .toUpperCase()}</td>
-          <td class="cmr-team ${winA}">${teamA}</td>
+          <td class="cmr-team ${winA}">${escHtml(teamA)}</td>
           <td class="cmr-sc"><span class="cmr-sv ${winA}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${winB}">${m.scoreB}</span></td>
-          <td class="cmr-team cmr-team-r ${winB}">${teamB}</td>
+          <td class="cmr-team cmr-team-r ${winB}">${escHtml(teamB)}</td>
           <td class="cmr-meta">${badge}${delBtn}</td>
         </tr>`;
 }

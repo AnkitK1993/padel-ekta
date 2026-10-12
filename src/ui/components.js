@@ -97,7 +97,9 @@ export function iconButton({
   if (!ariaLabel) {
     try {
       console.warn("iconButton: missing ariaLabel — icon-only controls need one");
-    } catch (e) {}
+    } catch (e) {
+      // console itself unavailable — nothing to report to
+    }
     ariaLabel = "Button";
   }
   const cls = ["ui-btn", "ui-btn-icon", size !== "md" && `ui-btn-${size}`]
@@ -492,7 +494,9 @@ export function field({
   if (!id) {
     try {
       console.warn("field: missing id — label can't be associated with input");
-    } catch (e) {}
+    } catch (e) {
+      // console itself unavailable — nothing to report to
+    }
     id = `ui-field-${Math.random().toString(36).slice(2, 8)}`;
   }
   const descId = `${id}-desc`;
@@ -543,7 +547,9 @@ export function toggle({
   if (!id) {
     try {
       console.warn("toggle: missing id — label can't be associated with input");
-    } catch (e) {}
+    } catch (e) {
+      // console itself unavailable — nothing to report to
+    }
     id = `ui-toggle-${Math.random().toString(36).slice(2, 8)}`;
   }
   return (
@@ -579,7 +585,9 @@ export function sheet({ id = "", title = "", body = "", onClose = "", footer = "
   if (!id) {
     try {
       console.warn("sheet: missing id — dismissal needs a stable element id");
-    } catch (e) {}
+    } catch (e) {
+      // console itself unavailable — nothing to report to
+    }
     id = `ui-sheet-${Math.random().toString(36).slice(2, 8)}`;
   }
   const titleId = `${id}-title`;

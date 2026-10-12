@@ -5,6 +5,23 @@
 
 import { state } from "./state.js";
 
+// ── Name rules ──────────────────────────────────────────────
+// Player names (and aliases) flow into every screen, into pair keys
+// ("A & B"), into the match parser's alias table and into inline handlers, so
+// only plain name characters are accepted: letters (any script), digits,
+// spaces and . ' - . Whitespace is collapsed. Returns { ok, name, error }.
+const NAME_OK = /^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N} .'-]*$/u;
+export const PLAYER_NAME_MAX = 30;
+export function cleanPlayerName(raw) {
+  const name = String(raw ?? "").replace(/\s+/g, " ").trim();
+  if (!name) return { ok: false, name, error: "Name is required" };
+  if (name.length > PLAYER_NAME_MAX)
+    return { ok: false, name, error: `"${name}" is too long (${PLAYER_NAME_MAX} characters max)` };
+  if (!NAME_OK.test(name))
+    return { ok: false, name, error: `"${name}": use only letters, numbers, spaces and . ' -` };
+  return { ok: true, name, error: null };
+}
+
 // ── Identity helpers ──────────────────────────────────────────
 // Resolve a raw player token (alias or canonical name) to the display name.
 export function normPlayer(name) {

@@ -8,6 +8,7 @@ import { rating, scopeKey } from "../src/domain/rating-service.js";
 import { normPlayer } from "../src/domain/players.js";
 import { todayISO } from "../src/domain/dates.js";
 
+import { noteError } from "../src/infra/log.js";
 // Best-ever win streak per player, walked fresh from a match array — used to
 // detect "new personal-best streak" independent of the fixed 3/5/10 thresholds.
 function _bestStreakMap(matches) {
@@ -41,7 +42,9 @@ export function saveMilestoneEntry(msg, emoji) {
   if (log.length > 100) log.length = 100;
   try {
     localStorage.setItem(MILESTONE_LOG_KEY, JSON.stringify(log));
-  } catch (e) {}
+  } catch (e) {
+    noteError("milestones:saveMilestoneEntry", e);
+  }
 }
 
 export function checkMilestones(prevMatches, newMatches) {
@@ -181,7 +184,9 @@ export function _checkAnniversaries() {
   let seen = "";
   try {
     seen = sessionStorage.getItem("padel_anniv_shown") || "";
-  } catch (e) {}
+  } catch (e) {
+    noteError("milestones:_checkAnniversaries", e);
+  }
   const firstSeen = {};
   for (const m of state.matches) {
     if (!m.date) continue;
@@ -216,5 +221,7 @@ export function _checkAnniversaries() {
   });
   try {
     sessionStorage.setItem("padel_anniv_shown", allKeys);
-  } catch (e) {}
+  } catch (e) {
+    noteError("milestones:_checkAnniversaries", e);
+  }
 }

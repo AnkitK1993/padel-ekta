@@ -141,6 +141,17 @@ ok(
   missing.map((k) => `${k} (${[...new Set(used.get(k))].join(", ")})`).join("; "),
 );
 
+// A swallowed error hides real bugs inside the same try: every catch must
+// either handle the error, log it (noteError) or say why it can be ignored.
+const silentCatches = [];
+for (const { file, text } of files) {
+  text.split("\n").forEach((line, i) => {
+    if (/^\s*(\/\/|\*)/.test(line)) return; // prose in a comment
+    if (/catch\s*(\(\s*\w*\s*\))?\s*\{\s*\}/.test(line)) silentCatches.push(`${file}:${i + 1}`);
+  });
+}
+ok("no empty catch blocks (log with noteError, or comment why it's safe)", silentCatches.length === 0, silentCatches.join(", "));
+
 // ── 2. engine-level invariants ───────────────────────────────────────────
 // A small deterministic league: two seasons, 6 players, mixed margins.
 function league() {

@@ -1,3 +1,4 @@
+import { noteError } from "../src/infra/log.js";
 // ── CONFETTI ───────────────────────────────────────────────
 // Canvas-based celebration animation. No src/ deps — pure DOM + canvas API.
 
@@ -73,6 +74,8 @@ export function fireConfetti(opts = {}) {
   if (navigator.vibrate) {
     try {
       navigator.vibrate([12, 25, 12, 25, 30]);
-    } catch (e) {}
+    } catch (e) {
+      noteError("confetti:tick", e);
+    }
   }
 }

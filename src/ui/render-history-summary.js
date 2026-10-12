@@ -131,7 +131,7 @@ export function buildHistorySummary(matches, filter = "all") {
   if (bigWin) {
     const w = bigWin.scoreA > bigWin.scoreB ? bigWin.teamA : bigWin.teamB;
     highlights.push(
-      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">💀</span><span class="hsum-hl-label">Biggest Win</span><span class="hsum-hl-val">${bigWin.scoreA}–${bigWin.scoreB} &nbsp;${w.join(" & ")}</span></div>`,
+      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">💀</span><span class="hsum-hl-label">Biggest Win</span><span class="hsum-hl-val">${bigWin.scoreA}–${bigWin.scoreB} &nbsp;${escHtml(w.join(" & "))}</span></div>`,
     );
   }
   const hottest = stats
@@ -139,7 +139,7 @@ export function buildHistorySummary(matches, filter = "all") {
     .sort((a, b) => b.curStreak - a.curStreak)[0];
   if (hottest) {
     highlights.push(
-      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label">On Fire</span><span class="hsum-hl-val">${hottest.name} &nbsp;<span style="color:var(--green)">${hottest.curStreak} win streak</span></span></div>`,
+      `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label">On Fire</span><span class="hsum-hl-val">${escHtml(hottest.name)} &nbsp;<span style="color:var(--green)">${hottest.curStreak} win streak</span></span></div>`,
     );
   }
   const topScore = Object.entries(scoreDist).sort((a, b) => b[1] - a[1])[0];
@@ -162,11 +162,11 @@ export function buildHistorySummary(matches, filter = "all") {
     const rows = [
       ...hotPlayers.map(
         (p) =>
-          `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label" style="color:var(--green)">${p.name}</span><span class="hsum-hl-val" style="color:var(--green)">${p.curStreak}W streak</span></div>`,
+          `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">🔥</span><span class="hsum-hl-label" style="color:var(--green)">${escHtml(p.name)}</span><span class="hsum-hl-val" style="color:var(--green)">${p.curStreak}W streak</span></div>`,
       ),
       ...coldPlayers.map(
         (p) =>
-          `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">❄️</span><span class="hsum-hl-label" style="color:var(--red)">${p.name}</span><span class="hsum-hl-val" style="color:var(--red)">${p.curStreak}L streak</span></div>`,
+          `<div class="hsum-hl hsum-cascade" style="animation-delay:${d()}ms"><span class="hsum-hl-icon">❄️</span><span class="hsum-hl-label" style="color:var(--red)">${escHtml(p.name)}</span><span class="hsum-hl-val" style="color:var(--red)">${p.curStreak}L streak</span></div>`,
       ),
     ];
     hotColdHtml = `<div class="hsum-section-lbl">HOT &amp; COLD</div><div class="hsum-highlights">${rows.join("")}</div>`;

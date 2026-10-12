@@ -142,7 +142,7 @@ function openPairDetail(key) {
           <div id="pair-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="font-size:15px">🤝 ${key}</div>
+                <div class="analytics-title" style="font-size:15px">🤝 ${escHtml(key)}</div>
                 <button class="analytics-close" onclick="document.getElementById('pair-detail-modal').remove()">✕</button>
               </div>
               <div class="analytics-cards">

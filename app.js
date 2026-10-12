@@ -251,6 +251,7 @@ import {
 
 // ── New architecture modules ───────────────────────────────────
 import {
+  cleanPlayerName,
   normPlayer as _normPlayer,
   rebuildNameMaps as _rebuildNameMaps,
   migrateAliasMapToPlayers,
@@ -291,6 +292,7 @@ import {
 } from "./src/infra/match-store.js";
 import { sessionState, resetSessionState } from "./src/app/session-state.js";
 
+import { noteError } from "./src/infra/log.js";
 // ── BACKWARD-COMPAT BRIDGES ──────────────────────────────────
 // Internal functions that have been extracted to domain/app modules.
 // The thin wrappers below keep every existing call site in app.js working
@@ -470,7 +472,9 @@ function _clientId() {
       id = Math.random().toString(36).slice(2) + Date.now().toString(36);
       localStorage.setItem("padel_client_id", id);
     }
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_clientId", e);
+  }
   return id || "anon";
 }
 let _errFlushT = null;
@@ -482,8 +486,10 @@ function _flushErrorLog() {
       entries: log.slice(-50),
       email: (window.isAdmin && ADMIN_EMAIL) || (auth.currentUser?.email ?? ""),
       updated: Date.now(),
-    }).catch(() => {});
-  } catch (e) {}
+    }).catch((e) => noteError("app:_flushErrorLog", e));
+  } catch (e) {
+    noteError("app:_flushErrorLog", e);
+  }
 }
 window.__onAppError = function () {
   clearTimeout(_errFlushT);
@@ -512,7 +518,9 @@ async function _maybeBackup() {
       seasons: state.seasons,
     });
     localStorage.setItem("padel_last_backup", today);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_maybeBackup", e);
+  }
 }
 
 // ── KEYED DOM RECONCILE (incremental rendering) ───────────────
@@ -585,7 +593,13 @@ function toggleHamburgerMenu() {
 function showToast(msg, emoji = "🎉", duration = 4000) {
   const el = document.createElement("div");
   el.className = "milestone-toast";
-  el.innerHTML = `<span class="toast-icon">${emoji}</span><span>${msg}</span>`;
+  // Text, never markup: messages carry player names (and no caller passes HTML).
+  const icon = document.createElement("span");
+  icon.className = "toast-icon";
+  icon.textContent = emoji;
+  const text = document.createElement("span");
+  text.textContent = msg;
+  el.append(icon, text);
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add("toast-show"));
   setTimeout(() => {
@@ -685,7 +699,9 @@ function _ptrEnd() {
       if (navigator.vibrate) {
         try {
           navigator.vibrate(20);
-        } catch (e) {}
+        } catch (e) {
+          noteError("app:_ptrEnd", e);
+        }
       }
       setTimeout(() => {
         if (ind) {
@@ -787,7 +803,9 @@ const _INIT_STORAGE = (() => {
     keys.forEach((k) => {
       cache[k] = localStorage.getItem(k);
     });
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_INIT_STORAGE", e);
+  }
   return cache;
 })();
 
@@ -805,7 +823,9 @@ let _seasonManuallySet = false;
 try {
   _activeSeasonId = _INIT_STORAGE["padel_active_season"] || "all";
   state.seasons = JSON.parse(_INIT_STORAGE["padel_seasons"] || "[]") || [];
-} catch (e) {}
+} catch (e) {
+  noteError("app:restoreSeasons", e);
+}
 _applyAutoSeason(); // override with the ongoing season if auto-select is on
 let _dataVersion = 0;
 let _homeRenderedVersion = -1,
@@ -824,7 +844,9 @@ let _seasonScoringMode = "reset";
 try {
   const _stored = localStorage.getItem("padel_season_scoring_mode");
   if (_stored && SEASON_SCORING_MODES.includes(_stored)) _seasonScoringMode = _stored;
-} catch (e) {}
+} catch (e) {
+  noteError("app:restoreSeasonScoringMode", e);
+}
 
 // Summary-tab scoring SYSTEM — "ep" (default), "ass", "glicko2", "openskill"
 // or "fairshare". Independent of _seasonScoringMode: the Flip/Fair
@@ -855,7 +877,9 @@ try {
   } else if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) {
     setActiveSystem(_storedSys);
   }
-} catch (e) {}
+} catch (e) {
+  noteError("app:restoreScoringSystem", e);
+}
 
 // Thin aliases over the rating service (kept so existing call sites read the
 // same). The service owns the engine dispatch; nothing here picks an engine.
@@ -999,7 +1023,9 @@ function _loadCmpHiddenCols() {
   try {
     const s = _INIT_STORAGE["padel_cmp_hidden_cols_v3"];
     if (s) return new Set(JSON.parse(s));
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_loadCmpHiddenCols", e);
+  }
   return new Set([]);
 }
 let _cmpHiddenCols = _loadCmpHiddenCols();
@@ -1103,7 +1129,9 @@ window.isAppBusy = function () {
     const ae = document.activeElement;
     if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA"))
       return true;
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:isAppBusy", e);
+  }
   return false;
 };
 const _animLevel0 = resolveAnimLevel();
@@ -1462,7 +1490,9 @@ function loadPhotos() {
   try {
     const cached = JSON.parse(localStorage.getItem("padel_photos") || "null");
     if (cached && typeof cached === "object") photoMap = cached;
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:loadPhotos", e);
+  }
   try {
     onSnapshot(doc(db, "padel", "photos"), (snap) => {
       if (!snap.exists()) return;
@@ -1471,11 +1501,15 @@ function loadPhotos() {
         photoMap = d.photoMap;
         try {
           localStorage.setItem("padel_photos", JSON.stringify(photoMap));
-        } catch (_) {}
+        } catch (e) {
+          noteError("app:loadPhotos", e);
+        }
         renderHome();
       }
     });
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:loadPhotos", e);
+  }
 }
 
 async function _savePhotosToCloud() {
@@ -1817,7 +1851,9 @@ function loadCloudData() {
       const { pls, pam, npid } = extractPlayerData(cached);
       onData(cached.matches, pls, pam, npid);
     }
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:loadCachedData", e);
+  }
 
   // Step 2 — Firestore live subscription (skipped in forced-offline mode)
   if (_forcedOffline) {
@@ -2619,14 +2655,18 @@ function _saveMngOrder() {
   ).map((c) => c.dataset.cardId);
   try {
     localStorage.setItem(MNG_ORDER_KEY, JSON.stringify(ids));
-  } catch {}
+  } catch (e) {
+    noteError("app:_saveMngOrder", e);
+  }
 }
 
 function applyMngOrder() {
   let order;
   try {
     order = JSON.parse(localStorage.getItem(MNG_ORDER_KEY));
-  } catch {}
+  } catch (e) {
+    noteError("app:applyMngOrder", e);
+  }
   if (!Array.isArray(order)) return;
   const container = document.getElementById("mng-cards-container");
   if (!container) return;
@@ -2732,12 +2772,16 @@ function logAdminAction(action, detail) {
   let log = [];
   try {
     log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || [];
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:logAdminAction", e);
+  }
   log.unshift({ action, detail, at: new Date().toISOString() });
   if (log.length > 100) log.length = 100;
   try {
     localStorage.setItem(ADMIN_LOG_KEY, JSON.stringify(log));
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:logAdminAction", e);
+  }
 }
 function renderAuditLogCard() {
   const el = document.getElementById("audit-log-body");
@@ -2745,7 +2789,9 @@ function renderAuditLogCard() {
   let log = [];
   try {
     log = JSON.parse(localStorage.getItem(ADMIN_LOG_KEY)) || [];
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:renderAuditLogCard", e);
+  }
   if (!log.length) {
     el.innerHTML =
       '<div class="sub" style="padding:8px">No admin actions logged yet.</div>';
@@ -3217,13 +3263,17 @@ function _applyAutoSeason() {
   _activeSeasonId = og ? og.id : "all";
   try {
     localStorage.setItem("padel_active_season", _activeSeasonId);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_applyAutoSeason", e);
+  }
 }
 // Per-device toggle. Turning it on immediately jumps to the ongoing season.
 function setSeasonAuto(on) {
   try {
     localStorage.setItem("padel_season_auto", on ? "1" : "0");
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:setSeasonAuto", e);
+  }
   if (on) {
     const og = _currentOngoingSeason();
     setSeason(og ? og.id : "all");
@@ -3290,7 +3340,9 @@ function setSeason(id) {
   _activeSeasonId = next;
   try {
     localStorage.setItem("padel_active_season", _activeSeasonId);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:setSeason", e);
+  }
   commit();
   // Analytics isn't covered by renderActivePage(); refresh it if it's showing.
   if (document.querySelector(".page.active")?.id === "pg-analytics")
@@ -3325,7 +3377,9 @@ function _ingestSeasons(arr) {
       _activeSeasonId = want;
       try {
         localStorage.setItem("padel_active_season", want);
-      } catch (e) {}
+      } catch (e) {
+        noteError("app:_ingestSeasons", e);
+      }
       updateSeasonHamburgerUI();
     }
   }
@@ -3337,12 +3391,16 @@ function _ingestSeasons(arr) {
     _activeSeasonId = "all";
     try {
       localStorage.setItem("padel_active_season", "all");
-    } catch (e) {}
+    } catch (e) {
+      noteError("app:_ingestSeasons", e);
+    }
     updateSeasonHamburgerUI();
   }
   try {
     localStorage.setItem("padel_seasons", JSON.stringify(state.seasons));
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_ingestSeasons", e);
+  }
 }
 
 // ── GUEST FILTER ────────────────────────────────────────────
@@ -3569,7 +3627,7 @@ function previewMatchImport() {
       warn = true;
       askCount++;
     }
-    return `<div class="preview-row"><span>${m.date} · ${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</span><strong class="${warn ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${tag}</strong></div>`;
+    return `<div class="preview-row"><span>${escHtml(m.date)} · ${escHtml(m.teamA.join(" & "))} vs ${escHtml(m.teamB.join(" & "))}</span><strong class="${warn ? "preview-warn" : ""}">${m.scoreA}-${m.scoreB}${tag}</strong></div>`;
   });
   // Finish counting for rows not shown — mirror the visible loop exactly:
   // repeated-player rows are tallied under dupPlayers, not skip/ask.
@@ -3791,10 +3849,15 @@ function saveNames() {
         errs.push(`Line ${i + 1}`);
         return;
       }
-      importMap[display] = aliases;
+      const bad = [display, ...aliases].map(cleanPlayerName).find((r) => !r.ok);
+      if (bad) {
+        errs.push(`Line ${i + 1} (${bad.error})`);
+        return;
+      }
+      importMap[cleanPlayerName(display).name] = aliases.map((a) => cleanPlayerName(a).name);
     });
     if (errs.length && eEl) {
-      eEl.innerHTML = `${errs.length} line(s) skipped`;
+      eEl.textContent = `${errs.length} line(s) skipped: ${errs.join("; ")}`;
       eEl.classList.add("show");
     }
   }
@@ -3993,7 +4056,9 @@ function toggleSmoothMode(on) {
   document.body.classList.toggle("smooth-mode", enabled);
   try {
     setSmoothMode(enabled);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:toggleSmoothMode", e);
+  }
   const cb = document.getElementById("smooth-mode-toggle");
   if (cb) cb.checked = enabled;
 }
@@ -4049,7 +4114,9 @@ function toggleBatterySaver(on) {
       : !!on;
   try {
     setBatterySaver(enabled);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:toggleBatterySaver", e);
+  }
   _applyBatterySaver(enabled);
 }
 
@@ -4208,7 +4275,7 @@ async function backupToDrive() {
   try {
     const link = await _uploadToDrive(blob, filename);
     // Retain the newest backup per day for the last 7 days (prunes same-day dups).
-    _pruneDriveBackups(7).catch(() => {});
+    _pruneDriveBackups(7).catch((e) => noteError("app:_pruneDriveBackups", e));
     logAdminAction("Drive Backup", filename);
     showToast("Saved to Drive!", "✅");
     const el = document.getElementById("expOk");
@@ -4254,7 +4321,10 @@ async function exportJsonFile() {
         title: "Ekta Padel Backup",
         text: `Full backup — ${state.matches.length} matches`,
       })
-      .catch(() => {});
+      .catch((e) => {
+        // Dismissing the share sheet rejects with AbortError — expected, not a failure.
+        if (e?.name !== "AbortError") noteError("app:shareBackup", e);
+      });
   } else {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -4300,7 +4370,9 @@ async function _ensureDriveBackupFolder() {
         const d = await r.json();
         if (!d.trashed) return (_driveFolderId = d.id);
       }
-    } catch {}
+    } catch (e) {
+      noteError("app:_ensureDriveBackupFolder", e);
+    }
   }
   // 2) Search for an existing app-created folder by name.
   try {
@@ -4318,7 +4390,9 @@ async function _ensureDriveBackupFolder() {
         return (_driveFolderId = files[0].id);
       }
     }
-  } catch {}
+  } catch (e) {
+    noteError("app:_ensureDriveBackupFolder", e);
+  }
   // 3) Create it.
   try {
     const r = await fetch(
@@ -4337,7 +4411,9 @@ async function _ensureDriveBackupFolder() {
       localStorage.setItem(_DRIVE_FOLDER_KEY, d.id);
       return (_driveFolderId = d.id);
     }
-  } catch {}
+  } catch (e) {
+    noteError("app:_ensureDriveBackupFolder", e);
+  }
   return null;
 }
 
@@ -4370,7 +4446,9 @@ async function _uploadToDrive(blob, filename) {
     let errMsg = `HTTP ${resp.status}`;
     try {
       errMsg = JSON.parse(body)?.error?.message || errMsg;
-    } catch {}
+    } catch (e) {
+      noteError("app:_uploadToDrive", e);
+    }
     console.error("Drive API error", resp.status, body);
     // Token expired/invalid → clear so next call triggers re-auth
     if (resp.status === 401 || resp.status === 403) _driveAccessToken = null;
@@ -4591,7 +4669,9 @@ async function importFromDrive() {
       let msg = `HTTP ${resp.status}`;
       try {
         msg = JSON.parse(body)?.error?.message || msg;
-      } catch {}
+      } catch (e) {
+        noteError("app:importFromDrive", e);
+      }
       throw new Error(msg);
     }
     files = (await resp.json()).files || [];
@@ -4724,7 +4804,9 @@ function _saveExcludedPlayers() {
       "padel-exclude-players",
       JSON.stringify([..._excludedPlayers]),
     );
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_saveExcludedPlayers", e);
+  }
 }
 
 function _updateExcludeBtn() {
@@ -4878,7 +4960,9 @@ function showAllCmpCols() {
   _cmpHiddenCols.clear();
   try {
     localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([]));
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:showAllCmpCols", e);
+  }
   _applyCmpColClasses();
   _renderColChips();
 }
@@ -4890,7 +4974,9 @@ function toggleCmpCol(key) {
       "padel_cmp_hidden_cols_v3",
       JSON.stringify([..._cmpHiddenCols]),
     );
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:toggleCmpCol", e);
+  }
   _applyCmpColClasses();
   _renderColChips();
 }
@@ -6700,7 +6786,7 @@ function _openMatchQuickActions(idx2, cardEl) {
   sheet.innerHTML = `
     <div class="mqs-backdrop" onclick="document.getElementById('match-quick-sheet').remove()"></div>
     <div class="mqs-panel">
-      <div class="mqs-title">${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")} · ${m.scoreA}–${m.scoreB}</div>
+      <div class="mqs-title">${escHtml(m.teamA.join(" & "))} vs ${escHtml(m.teamB.join(" & "))} · ${m.scoreA}–${m.scoreB}</div>
       <button class="mqs-btn" onclick="openMatchIntro(${idx2});document.getElementById('match-quick-sheet').remove()">👁 View Details</button>
       ${window.isAdmin ? `<button class="mqs-btn" onclick="openEditMatch(${idx2});document.getElementById('match-quick-sheet').remove()">✏️ Edit Match</button>` : ""}
       ${window.isAdmin ? `<button class="mqs-btn mqs-btn-danger" onclick="deleteMatchByIndex(${idx2});document.getElementById('match-quick-sheet').remove()">🗑 Delete Match</button>` : ""}
@@ -7647,22 +7733,30 @@ document.getElementById("name-add-modal").addEventListener("click", (e) => {
 });
 
 function saveQuickName() {
-  const display = document.getElementById("name-display").value.trim();
+  const nameCheck = cleanPlayerName(document.getElementById("name-display").value);
   const aliasesText = document.getElementById("name-aliases").value.trim();
   const email = document.getElementById("name-email")?.value.trim() || "";
   const isGuest = document.getElementById("name-guest")?.checked || false;
 
-  if (!display) {
-    alert("Display name is required");
+  if (!nameCheck.ok) {
+    alert(nameCheck.error);
     return;
   }
+  const display = nameCheck.name;
 
-  const aliases = aliasesText
+  const aliasChecks = aliasesText
     ? aliasesText
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean)
+        .map(cleanPlayerName)
     : [];
+  const badAlias = aliasChecks.find((r) => !r.ok);
+  if (badAlias) {
+    alert(`Alias ${badAlias.error}`);
+    return;
+  }
+  const aliases = aliasChecks.map((r) => r.name);
 
   const id = nextPlayerId++;
   state.players[id] = { id, name: display, email, isGuest };
@@ -7923,7 +8017,10 @@ async function doShareWhatsApp() {
         title: "Ekta Padel",
         text: _shareCaption || `${_shareLabel} Leaderboard`,
       })
-      .catch(() => {});
+      .catch((e) => {
+        // Dismissing the share sheet rejects with AbortError — expected, not a failure.
+        if (e?.name !== "AbortError") noteError("app:shareSnapshot", e);
+      });
   } else {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(_shareBlob);
@@ -8132,7 +8229,7 @@ function openShareCard(name) {
           <div style="position:absolute;inset:-3px;border-radius:50%;border:1.5px solid ${col}33;pointer-events:none"></div>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:22px;font-weight:900;color:#f0ecff;letter-spacing:-0.01em;line-height:1.1">${name}</div>
+          <div style="font-size:22px;font-weight:900;color:#f0ecff;letter-spacing:-0.01em;line-height:1.1">${escHtml(name)}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
             <span style="background:${col}22;color:${col};font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;border:1px solid ${col}44;letter-spacing:0.04em">#${rank} RANK</span>
             <span style="color:#4a4a6a;font-size:10px;font-weight:600">${elo} ${escHtml(eloLbl)}</span>
@@ -8493,7 +8590,7 @@ function openSessionHighlights(date) {
             : "var(--muted)";
       const sign = g.delta > 0 ? "+" : "";
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
-      <span style="font-size:11px;font-weight:700">${g.name}</span>
+      <span style="font-size:11px;font-weight:700">${escHtml(g.name)}</span>
       <span style="font-size:12px;font-weight:800;color:${col}">${sign}${rating.fmt(g.delta)}</span>
     </div>`;
     })
@@ -8513,7 +8610,7 @@ function openSessionHighlights(date) {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:14px;font-weight:800;color:var(--theme)">${sortedMs.length}</div><div style="font-size:9px;color:var(--muted);font-weight:700">MATCHES</div></div>
       <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:14px;font-weight:800;color:var(--theme)">${players.length}</div><div style="font-size:9px;color:var(--muted);font-weight:700">PLAYERS</div></div>
-      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:11px;font-weight:800;color:var(--accent)">${mvp}</div><div style="font-size:9px;color:var(--muted);font-weight:700">🏆 MVP</div></div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center"><div style="font-size:11px;font-weight:800;color:var(--accent)">${escHtml(mvp)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">🏆 MVP</div></div>
     </div>
     ${closest ? `<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">🔥 CLOSEST GAME</div><div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700">${closest.teamA.map((p) => p.split(" ")[0]).join("&")} ${closest.scoreA}–${closest.scoreB} ${closest.teamB.map((p) => p.split(" ")[0]).join("&")}</div>` : ""}
     <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">ALL MATCHES</div>
@@ -9447,7 +9544,9 @@ function _setScoringSystem(sys) {
   _clearAnalyticsCache();
   try {
     localStorage.setItem("padel_scoring_system", sys);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_setScoringSystem", e);
+  }
   _renderScoringPickerSheet();
   _updateSeasonScoringBadge();
   document.body.classList.add("no-cascade");
@@ -9462,7 +9561,9 @@ function _setSeasonScoringMode(mode) {
   _seasonScoringMode = mode;
   try {
     localStorage.setItem("padel_season_scoring_mode", mode);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_setSeasonScoringMode", e);
+  }
   closeSeasonScoringPicker();
   _updateSeasonScoringBadge();
   document.body.classList.add("no-cascade");
@@ -9748,7 +9849,7 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
     .join("");
 
   const noData = (n) =>
-    `<span style="color:var(--muted);font-size:11px">${n} — no data for this period</span>`;
+    `<span style="color:var(--muted);font-size:11px">${escHtml(n)} — no data for this period</span>`;
 
   const _winLabel = (w) =>
     !w || w.mode === "all"
@@ -10284,7 +10385,9 @@ function _pillActivateDrag() {
   if (srcEl) {
     try {
       srcEl.setPointerCapture(_pillPointerId);
-    } catch {}
+    } catch (e) {
+      noteError("app:_pillActivateDrag", e);
+    }
     const rect = srcEl.getBoundingClientRect();
     _pillClone = srcEl.cloneNode(true);
     Object.assign(_pillClone.style, {
@@ -10541,7 +10644,9 @@ function toggleAnaHideEmpty() {
   const on = !getAnaHideEmpty();
   try {
     setAnaHideEmpty(on);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:toggleAnaHideEmpty", e);
+  }
   const c = document.getElementById("analytics-page-content");
   if (c) c.classList.toggle("ana-hide-empty", on);
   const btn = c?.querySelector(".ana-hideempty-btn");
@@ -10867,7 +10972,7 @@ function showEloMatchDetail(idx) {
       <span style="font-size:11px;font-weight:700;color:${p.won ? "var(--green)" : "var(--red)"}">${p.won ? "WIN" : "LOSS"}</span>
       <span style="font-size:10px;color:var(--muted)">${fmtDate(p.date)}</span>
     </div>
-    <div style="margin-top:3px;font-size:11px">vs <strong>${p.opponent.toUpperCase()}</strong></div>
+    <div style="margin-top:3px;font-size:11px">vs <strong>${escHtml(p.opponent.toUpperCase())}</strong></div>
     <div style="margin-top:3px;display:flex;gap:12px;font-size:11px">
       <span style="color:var(--muted)">Score: <strong style="color:var(--fg)">${p.scoreA}–${p.scoreB}</strong></span>
       <span style="color:var(--muted)">ASS: <strong style="color:var(--fg)">${p.elo}</strong></span>
@@ -11982,7 +12087,7 @@ function _buildPowerRankingsHtml() {
       ${movement}
       ${avatar}
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+        <div style="font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name)}</div>
         ${bar}
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -12015,7 +12120,7 @@ function _buildChemistryLeaderboardHtml() {
         <div style="width:24px;height:24px;border-radius:50%;background:${col2};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;margin-left:-6px">${playerInitials(p.players[1])}</div>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.players.join(" & ")}</div>
+        <div style="font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.players.join(" & "))}</div>
         <div style="font-size:9px;color:var(--muted)">${p.played} matches · ${p.winPct}% win · avg ${p.avgMargin > 0 ? "+" : ""}${p.avgMargin?.toFixed ? p.avgMargin.toFixed(1) : 0}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -12036,7 +12141,7 @@ function _buildChemistryLeaderboardHtml() {
         <div style="width:22px;height:22px;border-radius:50%;background:${col2};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;margin-left:-5px;filter:grayscale(0.35)">${playerInitials(p.players[1])}</div>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.players.join(" & ")}</div>
+        <div style="font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.players.join(" & "))}</div>
         <div style="font-size:9px;color:var(--muted)">${p.played} matches · ${p.winPct}% win · avg ${p.avgMargin > 0 ? "+" : ""}${p.avgMargin?.toFixed ? p.avgMargin.toFixed(1) : 0}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -12227,8 +12332,8 @@ function runMatchPrediction() {
         <div style="flex:${pctB};background:${colB};min-width:4px"></div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-        <div><div style="font-size:24px;font-weight:900;color:${colA}">${pctA}%</div><div style="font-size:9px;color:var(--muted)">${teamA.join(" & ").toUpperCase()}</div></div>
-        <div style="text-align:right"><div style="font-size:24px;font-weight:900;color:${colB}">${pctB}%</div><div style="font-size:9px;color:var(--muted)">${teamB.join(" & ").toUpperCase()}</div></div>
+        <div><div style="font-size:24px;font-weight:900;color:${colA}">${pctA}%</div><div style="font-size:9px;color:var(--muted)">${escHtml(teamA.join(" & ").toUpperCase())}</div></div>
+        <div style="text-align:right"><div style="font-size:24px;font-weight:900;color:${colB}">${pctB}%</div><div style="font-size:9px;color:var(--muted)">${escHtml(teamB.join(" & ").toUpperCase())}</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px">
@@ -12267,10 +12372,10 @@ function _buildSeasonModeHtml() {
         </div>
       </div>
       <div class="season-card-body">
-        ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${s.mvp.name}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw / s.mvp.mp) * 100)}%</div></div></div>` : ""}
-        ${s.topPair ? `<div class="season-award"><span class="season-award-icon">🤝</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">TOP PAIR</div><div style="font-size:12px;font-weight:800">${s.topPair.players.join(" & ")}</div><div style="font-size:9px;color:var(--muted)">${s.topPair.wins}W ${s.topPair.played}P ${s.topPair.winPct}%</div></div></div>` : ""}
+        ${s.mvp ? `<div class="season-award"><span class="season-award-icon">🥇</span><div><div style="font-size:9px;color:var(--gold);font-weight:700">MVP</div><div style="font-size:12px;font-weight:800">${escHtml(s.mvp.name)}</div><div style="font-size:9px;color:var(--muted)">${s.mvp.mw}W ${s.mvp.mp}P ${Math.round((s.mvp.mw / s.mvp.mp) * 100)}%</div></div></div>` : ""}
+        ${s.topPair ? `<div class="season-award"><span class="season-award-icon">🤝</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">TOP PAIR</div><div style="font-size:12px;font-weight:800">${escHtml(s.topPair.players.join(" & "))}</div><div style="font-size:9px;color:var(--muted)">${s.topPair.wins}W ${s.topPair.played}P ${s.topPair.winPct}%</div></div></div>` : ""}
         ${s.mostImproved ? `<div class="season-award"><span class="season-award-icon">📈</span><div><div style="font-size:9px;color:var(--green);font-weight:700">MOST IMPROVED</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostImproved.name)}</div></div></div>` : ""}
-        ${s.ironMan ? `<div class="season-award"><span class="season-award-icon">💪</span><div><div style="font-size:9px;color:var(--green);font-weight:700">IRON MAN</div><div style="font-size:12px;font-weight:800">${s.ironMan.name}</div><div style="font-size:9px;color:var(--muted)">${s.ironMan.mp} matches</div></div></div>` : ""}
+        ${s.ironMan ? `<div class="season-award"><span class="season-award-icon">💪</span><div><div style="font-size:9px;color:var(--green);font-weight:700">IRON MAN</div><div style="font-size:12px;font-weight:800">${escHtml(s.ironMan.name)}</div><div style="font-size:9px;color:var(--muted)">${s.ironMan.mp} matches</div></div></div>` : ""}
         ${s.mostConsistent ? `<div class="season-award"><span class="season-award-icon">🎯</span><div><div style="font-size:9px;color:var(--theme);font-weight:700">MOST CONSISTENT</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostConsistent.name)}</div><div style="font-size:9px;color:var(--muted)">${(s.mostConsistent.sd * 100).toFixed(1)}% std dev</div></div></div>` : ""}
         ${s.mostFeared ? `<div class="season-award"><span class="season-award-icon">👹</span><div><div style="font-size:9px;color:var(--red);font-weight:700">MOST FEARED</div><div style="font-size:12px;font-weight:800">${escHtml(s.mostFeared.name)}</div><div style="font-size:9px;color:var(--muted)">${s.mostFeared.winPct.toFixed(0)}% win rate</div></div></div>` : ""}
         <div style="margin-top:8px;font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.06em">STANDINGS</div>
@@ -12283,7 +12388,7 @@ function _buildSeasonModeHtml() {
             ) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
           <div style="font-size:11px;font-weight:800;color:var(--muted);width:16px">#${i + 1}</div>
           <div style="width:20px;height:20px;border-radius:50%;background:${playerColor(p.name)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${playerInitials(p.name)}</div>
-          <div style="flex:1;font-size:11px;font-weight:700">${p.name}</div>
+          <div style="flex:1;font-size:11px;font-weight:700">${escHtml(p.name)}</div>
           <div style="font-size:11px;font-weight:800;color:var(--muted)">${p.mw}W ${Math.round((p.mw / p.mp) * 100)}%</div>
           <button onclick="event.stopPropagation();window._showPlayerMonthReport(${jsArg(s.month)},${jsArg(p.name)})" aria-label="View month report" title="View month report" style="font-size:9px;background:rgba(255,255,255,0.06);border:none;color:var(--muted);border-radius:5px;padding:2px 6px;cursor:pointer">📋</button>
         </div>`,
@@ -13283,7 +13388,7 @@ window._renderHiLoTable = function () {
             : `<span style="color:var(--muted);font-size:8px">→</span>`;
       return `<div class="lrace-row" style="${pg3};padding:6px 4px">
       <div class="lrace-rank" style="font-size:10px">#${i + 1}</div>
-      <div class="lrace-name" style="font-size:10px">${r.name}</div>
+      <div class="lrace-name" style="font-size:10px">${escHtml(r.name)}</div>
       <div style="text-align:center;font-size:11px;font-weight:800">${_statsFmt(r.current)}</div>
       <div style="text-align:center;font-size:11px;font-weight:800;color:var(--gold)">${_statsFmt(r.peak)}</div>
       <div style="text-align:center;font-size:9px">${fpStr}</div>
@@ -13759,7 +13864,7 @@ function renderAnalyticsPage() {
                 ? "var(--red)"
                 : "var(--muted)";
           const lbl = p.pct > 60 ? "CLUTCH" : p.pct < 40 ? "CHOKER" : "NEUTRAL";
-          return `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:${col}">${p.pct}% <span style="font-size:9px">${lbl}</span></div></div>`;
+          return `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(p.name)}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:${col}">${p.pct}% <span style="font-size:9px">${lbl}</span></div></div>`;
         })
         .join("")
     : '<div class="sub" style="padding:8px">Need 3+ close matches per player.</div>';
@@ -13774,7 +13879,7 @@ function renderAnalyticsPage() {
         _antiClutchRows
           .map(
             (p, i) =>
-              `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:var(--red)">${p.pct}% <span style="font-size:9px">CHOKER</span></div></div>`,
+              `<div class="lrace-row" style="${clutchGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(p.name)}</div><div class="lrace-1mo">${p.wins}–${p.played - p.wins}</div><div class="lrace-delta" style="color:var(--red)">${p.pct}% <span style="font-size:9px">CHOKER</span></div></div>`,
           )
           .join("") +
         `</div>`
@@ -13803,7 +13908,7 @@ function renderAnalyticsPage() {
               : p.consistency <= 4
                 ? "STEADY"
                 : "ERRATIC";
-          return `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:${col}">±${p.consistency} <span style="font-size:9px">${lbl}</span></div></div>`;
+          return `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(p.name)}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:${col}">±${p.consistency} <span style="font-size:9px">${lbl}</span></div></div>`;
         })
         .join("") +
       (consistencyStats.length >= 3
@@ -13813,7 +13918,7 @@ function renderAnalyticsPage() {
             .slice(0, 3)
             .map(
               (p, i) =>
-                `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:var(--red)">±${p.consistency} <span style="font-size:9px">VOLATILE</span></div></div>`,
+                `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(p.name)}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:var(--red)">±${p.consistency} <span style="font-size:9px">VOLATILE</span></div></div>`,
             )
             .join("") +
           `</div>`
@@ -13872,7 +13977,7 @@ function renderAnalyticsPage() {
         const _l = (
           _aw2 ? _hardestWinMatch.teamB : _hardestWinMatch.teamA
         ).join(" & ");
-        return `<div style="background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.18);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:5px">💎 HARDEST WIN · OPP ${_qwLabel} ${Math.round(_hardestCombinedScore)}</div><div style="font-size:12px;font-weight:800">${_w} <span style="color:var(--green)">beat</span> ${_l}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtDate(_hardestWinMatch.date)} · ${_hardestWinMatch.scoreA}–${_hardestWinMatch.scoreB}</div></div>`;
+        return `<div style="background:rgba(var(--theme-rgb),0.08);border:1px solid rgba(var(--theme-rgb),0.18);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:5px">💎 HARDEST WIN · OPP ${_qwLabel} ${rating.fmt(_hardestCombinedScore)}</div><div style="font-size:12px;font-weight:800">${escHtml(_w)} <span style="color:var(--green)">beat</span> ${escHtml(_l)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtDate(_hardestWinMatch.date)} · ${_hardestWinMatch.scoreA}–${_hardestWinMatch.scoreB}</div></div>`;
       })()
     : "";
 
@@ -13911,7 +14016,7 @@ function renderAnalyticsPage() {
               : p.score <= _qwLow
                 ? "📉 EASY"
                 : "⚖️ MID";
-          return `<div class="lrace-row" style="${qualGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${p.name}</div><div class="lrace-1mo">${p.wins}</div><div class="lrace-delta" style="color:${col}">${p.score} <span style="font-size:8px">${lbl}</span></div></div>`;
+          return `<div class="lrace-row" style="${qualGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(p.name)}</div><div class="lrace-1mo">${p.wins}</div><div class="lrace-delta" style="color:${col}">${p.score} <span style="font-size:8px">${lbl}</span></div></div>`;
         })
         .join("")
     : '<div class="sub" style="padding:8px">Need 3+ wins per player.</div>';
@@ -14067,7 +14172,7 @@ function renderAnalyticsPage() {
   const card = (badge, name, sub) =>
     `<div class="ana-card"><span class="badge">${badge}</span><div class="name">${name || "—"}</div><div class="sub">${sub}</div></div>`;
   const scard = (icon, title, name, sub) =>
-    `<div class="award-card"><div class="award-icon">${icon}</div><div class="award-title">${title}</div><div class="award-name">${name || "—"}</div><div class="award-sub">${sub}</div></div>`;
+    `<div class="award-card"><div class="award-icon">${icon}</div><div class="award-title">${title}</div><div class="award-name">${escHtml(name || "—")}</div><div class="award-sub">${escHtml(sub)}</div></div>`;
   const section = (title) => `<div class="ana-section-title">${title}</div>`;
   const fdots = (arr) =>
     arr
@@ -14141,7 +14246,7 @@ function renderAnalyticsPage() {
     const legend = top5
       .map(
         (p, ci) =>
-          `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:rgba(255,255,255,0.65)"><span style="display:inline-block;width:10px;height:2px;background:${chartColors[ci % 5]};border-radius:1px"></span>${p.split(" ")[0]}</span>`,
+          `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:rgba(255,255,255,0.65)"><span style="display:inline-block;width:10px;height:2px;background:${chartColors[ci % 5]};border-radius:1px"></span>${escHtml(p.split(" ")[0])}</span>`,
       )
       .join("");
     winChartHtml = `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">${yL}${lines}${xL}</svg></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">${legend}</div>`;
@@ -14290,7 +14395,7 @@ function renderAnalyticsPage() {
           p.streak >= 2
             ? `<span class="ft-streak-badge ${p.streakType === "W" ? "ft-sk-w" : "ft-sk-l"}">${p.streak}${p.streakType}</span>`
             : `<span class="ft-streak-badge ft-sk-n">—</span>`;
-        return `<div class="ftable-row"><div class="ftable-rank">${i + 1}</div><div class="ftable-name">${p.name}</div><div class="ftable-dots">${fdots(p.dots)}</div><div class="ftable-pct" style="color:${pc}">${p.pct}%</div>${skBadge}</div>`;
+        return `<div class="ftable-row"><div class="ftable-rank">${i + 1}</div><div class="ftable-name">${escHtml(p.name)}</div><div class="ftable-dots">${fdots(p.dots)}</div><div class="ftable-pct" style="color:${pc}">${p.pct}%</div>${skBadge}</div>`;
       })
       .join("") ||
     '<div class="sub" style="padding:8px">Not enough data.</div>';
@@ -14308,7 +14413,7 @@ function renderAnalyticsPage() {
       const avatar = sheetAvSm(p.name);
       return `<div class="lrace-row">
         <div class="lrace-rank" style="color:${rankColor}">#${p.rAll}</div>
-        <div class="lrace-name">${avatar}<span>${p.name}</span></div>
+        <div class="lrace-name">${avatar}<span>${escHtml(p.name)}</span></div>
         <div class="lrace-1mo">${typeof p.r1mo === "number" ? `#${p.r1mo}` : "—"}</div>
         <div class="lrace-delta">${arrow}</div>
       </div>`;
@@ -14384,7 +14489,7 @@ function renderAnalyticsPage() {
   const awardsHtml = awards
     .map(
       (a) =>
-        `<div class="award-card"><div class="award-icon">${a.i}</div><div class="award-title">${a.t}</div><div class="award-name">${a.n || "—"}</div><div class="award-sub">${a.s}</div></div>`,
+        `<div class="award-card"><div class="award-icon">${a.i}</div><div class="award-title">${a.t}</div><div class="award-name">${escHtml(a.n || "—")}</div><div class="award-sub">${escHtml(a.s)}</div></div>`,
     )
     .join("");
 
@@ -14393,7 +14498,7 @@ function renderAnalyticsPage() {
     ? closeMatches
         .map(
           (m) =>
-            `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700;text-transform:uppercase">${m.teamA.join(" & ")} vs ${m.teamB.join(" & ")}</div><div class="sub">${fmtDate(m.date)}</div></div><div style="font-size:16px;font-weight:800;color:var(--theme)">${m.scoreA}–${m.scoreB}</div></div>`,
+            `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700;text-transform:uppercase">${escHtml(m.teamA.join(" & "))} vs ${escHtml(m.teamB.join(" & "))}</div><div class="sub">${fmtDate(m.date)}</div></div><div style="font-size:16px;font-weight:800;color:var(--theme)">${m.scoreA}–${m.scoreB}</div></div>`,
         )
         .join("")
     : '<div class="ana-card"><div class="sub">No close matches yet.</div></div>';
@@ -14403,7 +14508,7 @@ function renderAnalyticsPage() {
     ? upsets
         .map(
           (u) =>
-            `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700;text-transform:uppercase">${u.wTeam.join(" & ")} <span style="color:var(--green)">won</span></div><div class="sub" style="text-transform:uppercase">vs ${u.lTeam.join(" & ")} · ${fmtDate(u.m.date)}</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:800;color:var(--text)">${u.m.scoreA}–${u.m.scoreB}</div><div style="font-size:9px;color:var(--red);font-weight:700">+${(u.gap * 100).toFixed(0)}% gap</div></div></div>`,
+            `<div class="ana-card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div><div style="font-size:12px;font-weight:700;text-transform:uppercase">${escHtml(u.wTeam.join(" & "))} <span style="color:var(--green)">won</span></div><div class="sub" style="text-transform:uppercase">vs ${escHtml(u.lTeam.join(" & "))} · ${fmtDate(u.m.date)}</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:800;color:var(--text)">${u.m.scoreA}–${u.m.scoreB}</div><div style="font-size:9px;color:var(--red);font-weight:700">+${(u.gap * 100).toFixed(0)}% gap</div></div></div>`,
         )
         .join("")
     : '<div class="ana-card"><div class="sub">No clear upsets found.</div></div>';
@@ -14422,7 +14527,7 @@ function renderAnalyticsPage() {
           const pc = Math.round((p.wins / p.played) * 100);
           const col =
             pc >= 60 ? "var(--green)" : pc <= 40 ? "var(--red)" : "var(--text)";
-          return `<div class="chem-row"><div class="chem-names">${p.players.join(" & ")}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;
+          return `<div class="chem-row"><div class="chem-names">${escHtml(p.players.join(" & "))}</div><div class="chem-bar-wrap"><div class="chem-bar" style="width:${pc}%;background:${col}"></div></div><div class="chem-pct" style="color:${col}">${pc}%</div><div class="chem-played">${p.played}g</div></div>`;
         })
         .join("")
     : '<div class="sub" style="padding:8px">Need more doubles data.</div>';
@@ -14431,7 +14536,7 @@ function renderAnalyticsPage() {
     bestPairPerP
       .map(
         (p) =>
-          `<div class="bpair-row"><div class="bpair-player">${p.name}</div><div class="bpair-partner">🤝 ${p.partner.name.split(" ")[0]}</div><div class="bpair-pct">${p.partner.pct.toFixed(0)}%</div></div>`,
+          `<div class="bpair-row"><div class="bpair-player">${escHtml(p.name)}</div><div class="bpair-partner">🤝 ${escHtml(p.partner.name.split(" ")[0])}</div><div class="bpair-pct">${p.partner.pct.toFixed(0)}%</div></div>`,
       )
       .join("") ||
     '<div class="sub" style="padding:8px">Not enough data.</div>';
@@ -14682,7 +14787,7 @@ function renderAnalyticsPage() {
     ? pairFormData
         .map(
           (p, i) =>
-            `<div class="pform-row pform-extra${i >= 6 ? " pform-hidden" : ""}" style="${i >= 6 ? "display:none" : ""}"><div class="pform-name">${p.key}</div><div class="pform-dots">${fdots(p.form)}</div><div class="pform-stat">${p.winPct}% · ${p.played}g</div></div>`,
+            `<div class="pform-row pform-extra${i >= 6 ? " pform-hidden" : ""}" style="${i >= 6 ? "display:none" : ""}"><div class="pform-name">${escHtml(p.key)}</div><div class="pform-dots">${fdots(p.form)}</div><div class="pform-stat">${p.winPct}% · ${p.played}g</div></div>`,
         )
         .join("") +
       (pairFormData.length > 6
@@ -14706,7 +14811,7 @@ function renderAnalyticsPage() {
           : null;
     const leaderWins = leader ? Math.max(rivalry.aWins, rivalry.bWins) : null;
     const leaderHtml = leader
-      ? `<div class="rival-leader"><span class="rival-leader-name">${leader}</span><span class="rival-leader-lbl">leads ${leaderWins}–${tot - leaderWins}</span></div>`
+      ? `<div class="rival-leader"><span class="rival-leader-name">${escHtml(leader)}</span><span class="rival-leader-lbl">leads ${leaderWins}–${tot - leaderWins}</span></div>`
       : `<div class="rival-leader"><span class="rival-leader-lbl" style="color:var(--muted)">Series tied ${rivalry.aWins}–${rivalry.bWins}</span></div>`;
 
     // Current run within rivalry
@@ -14808,7 +14913,7 @@ function renderAnalyticsPage() {
       sessions
         .map(
           (s) =>
-            `<div class="session-card" onclick="openSessionHighlights('${s.date}')" style="cursor:pointer"><div class="session-date">${fmtDate(s.date)}</div><div class="session-stats"><span>${s.matches.length} match${s.matches.length > 1 ? "es" : ""}</span><span>${s.players.length} players</span></div>${s.mvp ? `<div class="session-mvp">🏆 MVP: <strong>${s.mvp[0]}</strong> · ${s.mvp[1]}W</div>` : ""}<div class="session-players">${s.players.map((p) => `<span class="session-chip">${p}</span>`).join("")}</div><div class="session-tap-hint">Tap for highlights →</div></div>`,
+            `<div class="session-card" onclick="openSessionHighlights('${s.date}')" style="cursor:pointer"><div class="session-date">${fmtDate(s.date)}</div><div class="session-stats"><span>${s.matches.length} match${s.matches.length > 1 ? "es" : ""}</span><span>${s.players.length} players</span></div>${s.mvp ? `<div class="session-mvp">🏆 MVP: <strong>${escHtml(s.mvp[0])}</strong> · ${s.mvp[1]}W</div>` : ""}<div class="session-players">${s.players.map((p) => `<span class="session-chip">${escHtml(p)}</span>`).join("")}</div><div class="session-tap-hint">Tap for highlights →</div></div>`,
         )
         .join("")
     : '<div class="sub" style="padding:8px">No sessions yet.</div>';
@@ -14905,7 +15010,7 @@ function renderAnalyticsPage() {
           return `<div class="elo-row" style="gap:5px;align-items:center">
             <div class="elo-rank-col"><div class="elo-rank">#${i + 1}</div>${rankArrow}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:12px;font-weight:700;text-transform:uppercase;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pname}</div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(pname)}</div>
               <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:${col};animation-delay:${(i * 0.07).toFixed(2)}s"></div></div>
             </div>
             <div style="flex-shrink:0;width:38px;text-align:right">
@@ -14970,7 +15075,7 @@ function renderAnalyticsPage() {
                 : "var(--muted)";
           return `<div class="elo-row">
           <div class="elo-rank">#${i + 1}</div>
-          <div class="elo-name">${r.name}</div>
+          <div class="elo-name">${escHtml(r.name)}</div>
           <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:var(--theme);opacity:0.7"></div></div>
           <div style="font-size:9px;color:var(--muted);min-width:26px;text-align:right">±${r.stdDev.toFixed(0)}</div>
           <div style="font-size:9px;min-width:30px;text-align:right;color:${avgCol}">${avgStr}</div>
@@ -15301,7 +15406,7 @@ function renderAnalyticsPage() {
                   const dc = b.diff >= 0 ? "var(--green)" : "var(--red)";
                   const ds = b.diff >= 0 ? "+" : "";
                   return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:10px">
-            <span style="color:var(--muted)">${b.p}</span>
+            <span style="color:var(--muted)">${escHtml(b.p)}</span>
             <span style="color:${dc};font-weight:700">${b.wPct}% with (${ds}${b.diff}%)</span>
             <span style="color:var(--muted);font-size:9px">${b.played}g</span>
           </div>`;
@@ -15309,7 +15414,7 @@ function renderAnalyticsPage() {
                 .join("")
             : "";
           return `<div class="carry-row" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer">
-          <span class="carry-name">${r.name}</span>
+          <span class="carry-name">${escHtml(r.name)}</span>
           <div class="carry-bars">
             <div class="carry-bar-bg"><div class="carry-bar-fill" style="width:${r.avgWithMe}%;background:${col}"></div></div>
           </div>
@@ -15395,7 +15500,7 @@ function renderAnalyticsPage() {
                 ? "var(--red)"
                 : "var(--gold)";
           const rating = pct >= 60 ? "CLUTCH" : pct <= 40 ? "CHOKER" : "STEADY";
-          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${p}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
+          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${escHtml(p)}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
         })
         .join("");
       if (!summaryRows) return "";
@@ -15434,7 +15539,7 @@ function renderAnalyticsPage() {
                 return `<td style="text-align:center;color:${col};font-weight:700">${pct}%</td>`;
               })
               .join("");
-            return `<tr><td style="padding:4px 0;color:${pCol};font-weight:700">${p}</td>${cells}</tr>`;
+            return `<tr><td style="padding:4px 0;color:${pCol};font-weight:700">${escHtml(p)}</td>${cells}</tr>`;
           })
           .join("")}
       </table>
@@ -15577,7 +15682,7 @@ function renderAnalyticsPage() {
     const h = (label, col, bg, frz = false) =>
       `<div onclick="window._bstatSort('${col}')" style="${HDR}background:${frz ? FRZ : bg};${frz ? FRZX + "z-index:3;" : ""}">${label}</div>`;
     const d = (val, bg, col = "var(--text)", frz = false) =>
-      `<div style="${CEL}background:${frz ? FRZ : bg};color:${col};${frz ? FRZX : ""}">${val}</div>`;
+      `<div style="${CEL}background:${frz ? FRZ : bg};color:${col};${frz ? FRZX : ""}">${escHtml(val)}</div>`;
 
     const headers = [
       h("Player", "name", null, true),
@@ -15708,7 +15813,7 @@ function renderAnalyticsPage() {
                 ? "var(--red)"
                 : "var(--muted)";
           const shortKey = pd.players.map((p) => p.split(" ")[0]).join(" & ");
-          return `<div class="lrace-row" style="${pg2}"><div class="lrace-name" style="font-size:10px">#${i + 1} ${shortKey}</div><div style="text-align:center;font-weight:700">${pd.played}</div><div style="text-align:center;font-weight:700;color:${col}">${pct}%</div><div style="text-align:center;font-weight:700;font-size:10px">${aq}</div><div style="text-align:center;font-weight:700;color:${sCol}">${sStr}</div></div>`;
+          return `<div class="lrace-row" style="${pg2}"><div class="lrace-name" style="font-size:10px">#${i + 1} ${escHtml(shortKey)}</div><div style="text-align:center;font-weight:700">${pd.played}</div><div style="text-align:center;font-weight:700;color:${col}">${pct}%</div><div style="text-align:center;font-weight:700;font-size:10px">${aq}</div><div style="text-align:center;font-weight:700;color:${sCol}">${sStr}</div></div>`;
         })
         .join("") +
       `</div>`
@@ -15781,7 +15886,7 @@ function renderAnalyticsPage() {
         Object.entries(potmMap)
           .map(
             ([mo, d]) =>
-              `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px;cursor:pointer" onclick="window._showMonthReport('${mo}')"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${d.name.split(" ")[0]}</div><div style="font-size:9px;color:var(--muted)">${d.score} · ${d.matches}P</div><div style="font-size:8px;color:var(--theme);margin-top:3px;font-weight:700">📊 Report</div></div>`,
+              `<div style="background:rgba(var(--theme-rgb),0.1);border:1px solid rgba(var(--theme-rgb),0.2);border-radius:8px;padding:6px 10px;cursor:pointer" onclick="window._showMonthReport('${mo}')"><div style="font-size:8px;color:var(--gold);font-weight:700;letter-spacing:0.06em">${moN2[parseInt(mo.slice(5))]} POTM</div><div style="font-size:11px;font-weight:800">${escHtml(d.name.split(" ")[0])}</div><div style="font-size:9px;color:var(--muted)">${d.score} · ${d.matches}P</div><div style="font-size:8px;color:var(--theme);margin-top:3px;font-weight:700">📊 Report</div></div>`,
           )
           .join("") +
         `</div>`
@@ -15825,7 +15930,7 @@ function renderAnalyticsPage() {
         const arrSpan = arr
           ? `<span style="font-size:10px;color:${arrCol};margin-left:3px">${arr}</span>`
           : "";
-        return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}${arrSpan}</td>${cells2}</tr>`;
+        return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${escHtml(p)}${arrSpan}</td>${cells2}</tr>`;
       })
       .join("");
     return `<div class="ana-card" style="padding:12px;overflow-x:auto">${potmHtml2}<table style="width:100%;border-collapse:collapse;font-size:10px;border-spacing:2px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs}</tr></thead><tbody>${bodyRows2}</tbody></table></div>`;
@@ -15916,7 +16021,7 @@ function renderAnalyticsPage() {
             return `<td onclick="_dowDayRecord(${jsArg(p)},${d})" title="${dd.w}W–${dd.p - dd.w}L · tap for record" style="text-align:center;font-size:10px;font-weight:700;color:${col};cursor:pointer">${pct}%</td>`;
           })
           .join("");
-        return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${p}</td>${cells3}</tr>`;
+        return `<tr><td style="font-size:11px;font-weight:700;padding:4px 6px 4px 0;white-space:nowrap">${escHtml(p)}</td>${cells3}</tr>`;
       })
       .join("");
     return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % per player per day of week</div><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs2}</tr></thead><tbody>${rows2}</tbody></table></div>`;
@@ -18050,7 +18155,7 @@ async function _maybeAutoDriveBackup() {
     });
     await _uploadToDrive(blob, _backupFilename());
     // Retain the newest backup per day for the last 7 days (prunes same-day dups).
-    _pruneDriveBackups(7).catch(() => {});
+    _pruneDriveBackups(7).catch((e) => noteError("app:_pruneDriveBackups", e));
   } catch (e) {
     // Release the slot so it can retry if the page is reloaded today.
     localStorage.removeItem(_DRIVE_BACKUP_KEY);
@@ -18100,7 +18205,7 @@ async function _pruneDriveBackups(keep = 7) {
       fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${_driveAccessToken}` },
-      }).catch(() => {}),
+      }).catch((e) => noteError("app:_pruneDriveBackups.delete", e)),
     ),
   );
   // Consolidate: move any surviving keeper that lives outside the backup folder
@@ -18124,7 +18229,7 @@ async function _pruneDriveBackups(keep = 7) {
         return fetch(url, {
           method: "PATCH",
           headers: { Authorization: `Bearer ${_driveAccessToken}` },
-        }).catch(() => {});
+        }).catch((e) => noteError("app:_moveDriveBackups", e));
       }),
     );
   }
@@ -19095,7 +19200,9 @@ function _liveHaptic(ms) {
   if (navigator.vibrate) {
     try {
       navigator.vibrate(ms);
-    } catch (e) {}
+    } catch (e) {
+      noteError("app:_liveHaptic", e);
+    }
   }
 }
 
@@ -20682,7 +20789,9 @@ function _renderSeasonRolloverBanner() {
   let dismissedFor = null;
   try {
     dismissedFor = localStorage.getItem("padel_rollover_dismissed");
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_renderSeasonRolloverBanner", e);
+  }
   if (dismissedFor === lastEnded.id) {
     el.style.display = "none";
     return;
@@ -20698,7 +20807,9 @@ function _renderSeasonRolloverBanner() {
 function dismissSeasonRollover(seasonId) {
   try {
     localStorage.setItem("padel_rollover_dismissed", seasonId);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:dismissSeasonRollover", e);
+  }
   _renderSeasonRolloverBanner();
 }
 function closeSeasonSheet() {
@@ -20923,7 +21034,9 @@ function _persistSeasons() {
   try {
     localStorage.setItem("padel_seasons", JSON.stringify(state.seasons));
     localStorage.setItem("padel_active_season", _activeSeasonId);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_persistSeasons", e);
+  }
 }
 
 // Enhancement 13: session pause/resume via localStorage
@@ -20940,13 +21053,17 @@ function _saveSessionState() {
         savedAt: new Date().toISOString(),
       }),
     );
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_saveSessionState", e);
+  }
 }
 
 function _clearSessionState() {
   try {
     localStorage.removeItem(_SESSION_SAVE_KEY);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:_clearSessionState", e);
+  }
 }
 function _renderSessionActiveCard() {
   const wrap = document.getElementById("session-active-wrap");
@@ -21018,7 +21135,9 @@ function checkResumeSession() {
         "display",
         _sessionRedoStack.length > 0 ? "" : "none",
       );
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:checkResumeSession", e);
+  }
 }
 function resumeSession() {
   try {
@@ -21215,14 +21334,16 @@ function _notifyLiveEvent(type, msg) {
   ) {
     try {
       new Notification("Ekta Padel 🎾", { body: msg, icon: "/icons/icon.svg" });
-    } catch (e) {}
+    } catch (e) {
+      noteError("app:_notifyLiveEvent", e);
+    }
   }
 }
 
 function _requestNotifPermission() {
   if (!("Notification" in window) || Notification.permission !== "default")
     return;
-  Notification.requestPermission().catch(() => {});
+  Notification.requestPermission().catch((e) => noteError("app:requestNotificationPermission", e));
 }
 
 // ── MATCH NOTIFICATIONS ────────────────────────────────────
@@ -21253,14 +21374,18 @@ function _sendMatchNotification(count, latestMatch) {
         body,
         icon: "/padel-ekta/icons/icon.svg",
       });
-    } catch (e) {}
+    } catch (e) {
+      noteError("app:_sendMatchNotification", e);
+    }
   }
 }
 
 function toggleMatchNotifications(on) {
   try {
     setNotifEnabled(on);
-  } catch (e) {}
+  } catch (e) {
+    noteError("app:toggleMatchNotifications", e);
+  }
   const cb = document.getElementById("notif-toggle");
   if (cb) cb.checked = on;
   if (on && "Notification" in window && Notification.permission === "default") {
@@ -21272,7 +21397,7 @@ function toggleMatchNotifications(on) {
           showToast("Notifications blocked by browser", "⚠️");
         }
       })
-      .catch(() => {});
+      .catch((e) => noteError("app:toggleMatchNotifications", e));
   }
   showToast(on ? "Match notifications on 🔔" : "Match notifications off 🔕");
 }
@@ -21328,22 +21453,30 @@ function closePlayerEditSheet() {
 window.closePlayerEditSheet = closePlayerEditSheet;
 
 function savePlayerEdit() {
-  const name = document.getElementById("pes-name").value.trim();
+  const nameCheck = cleanPlayerName(document.getElementById("pes-name").value);
   const aliasesRaw = document.getElementById("pes-aliases").value.trim();
   const email = document.getElementById("pes-email").value.trim();
   const isGuest = document.getElementById("pes-guest").checked;
 
-  if (!name) {
-    alert("Display name is required");
+  if (!nameCheck.ok) {
+    alert(nameCheck.error);
     return;
   }
+  const name = nameCheck.name;
 
-  const aliases = aliasesRaw
+  const aliasChecks = aliasesRaw
     ? aliasesRaw
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean)
+        .map(cleanPlayerName)
     : [];
+  const badAlias = aliasChecks.find((r) => !r.ok);
+  if (badAlias) {
+    alert(`Alias ${badAlias.error}`);
+    return;
+  }
+  const aliases = aliasChecks.map((r) => r.name);
 
   const id = _editingPlayerId || nextPlayerId++;
 

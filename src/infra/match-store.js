@@ -1,3 +1,4 @@
+import { noteError } from "./log.js";
 // ── MATCH STORE · local persistence adapter ────────────────────────────────
 // Owns localStorage keys and serialisation for the match-adjacent tables that
 // are NOT part of the main cloud payload: deleted matches and the milestone
@@ -18,7 +19,9 @@ export function loadDeletedMatches() {
 export function saveDeletedMatches(matches) {
   try {
     localStorage.setItem(_DELETED_KEY, JSON.stringify(matches));
-  } catch (e) {}
+  } catch (e) {
+    noteError("match-store:saveDeletedMatches", e);
+  }
 }
 
 // ── Milestone log ──────────────────────────────────────────────
@@ -41,7 +44,9 @@ export function saveMilestoneEntry(msg, emoji) {
       _MILESTONE_KEY,
       JSON.stringify(log.slice(0, _MILESTONE_MAX)),
     );
-  } catch (e) {}
+  } catch (e) {
+    noteError("match-store:saveMilestoneEntry", e);
+  }
 }
 
 // ── Season list ────────────────────────────────────────────────
@@ -58,7 +63,9 @@ export function loadSeasonsLocal() {
 export function saveSeasonsLocal(seasons) {
   try {
     localStorage.setItem(_SEASONS_KEY, JSON.stringify(seasons));
-  } catch (e) {}
+  } catch (e) {
+    noteError("match-store:saveSeasonsLocal", e);
+  }
 }
 
 // ── Weekly rank snapshots ──────────────────────────────────────
@@ -77,7 +84,9 @@ export function saveWeeklySnap(snap) {
     const snaps = getWeeklySnaps();
     snaps.push(snap);
     localStorage.setItem(_SNAP_KEY, JSON.stringify(snaps));
-  } catch (e) {}
+  } catch (e) {
+    noteError("match-store:saveWeeklySnap", e);
+  }
 }
 
 // ── Player photo cache ─────────────────────────────────────────
@@ -94,5 +103,7 @@ export function loadPhotosLocal() {
 export function savePhotosLocal(map) {
   try {
     localStorage.setItem(_PHOTO_KEY, JSON.stringify(map));
-  } catch (e) {}
+  } catch (e) {
+    noteError("match-store:savePhotosLocal", e);
+  }
 }

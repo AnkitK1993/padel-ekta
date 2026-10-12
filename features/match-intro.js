@@ -294,12 +294,12 @@ function openMatchIntro(idx) {
     h2hEl.innerHTML = `
       <div class="mio-h2h-cell" style="position:relative">
         <div class="mio-h2h-num mio-h2h-num-a" style="color:${colA}">${h2hWinsA}</div>
-        <div class="mio-h2h-lbl">${nameA}</div>
+        <div class="mio-h2h-lbl">${escHtml(nameA)}</div>
       </div>
       <div class="mio-h2h-sep">${h2hTotal === 0 ? "FIRST<br>MEETING" : "H2H"}</div>
       <div class="mio-h2h-cell" style="position:relative">
         <div class="mio-h2h-num mio-h2h-num-b" style="color:${colB}">${h2hWinsB}</div>
-        <div class="mio-h2h-lbl">${nameB}</div>
+        <div class="mio-h2h-lbl">${escHtml(nameB)}</div>
       </div>`;
     _mioSched(() => {
       const winNumEl = h2hEl.querySelector(
@@ -354,11 +354,11 @@ function openMatchIntro(idx) {
         const newWB = wB + (!aWon ? 1 : 0);
         // Show pre-match counts; winner's number animates up after delay
         return `<div class="mio-pvp-row">
-        <span class="mio-pvp-name ${aWon ? "mio-pvp-winner" : ""}">${pa}</span>
+        <span class="mio-pvp-name ${aWon ? "mio-pvp-winner" : ""}">${escHtml(pa)}</span>
         <span class="mio-pvp-rec" style="position:relative">
           <span class="mio-pvp-num-a" data-after="${newWA}"${aWon ? ' style="color:var(--green)"' : ""}>${wA}</span>–<span class="mio-pvp-num-b" data-after="${newWB}"${!aWon ? ' style="color:var(--green)"' : ""}>${wB}</span>
         </span>
-        <span class="mio-pvp-name mio-pvp-right ${!aWon ? "mio-pvp-winner" : ""}">${pb}</span>
+        <span class="mio-pvp-name mio-pvp-right ${!aWon ? "mio-pvp-winner" : ""}">${escHtml(pb)}</span>
       </div>`;
       })
       .join("");
@@ -489,7 +489,9 @@ function openMatchIntro(idx) {
     }
 
     ctxEl.innerHTML = ctxParts.length
-      ? ctxParts.map((t) => `<div class="mio-ctx-line">${t}</div>`).join("")
+      ? ctxParts
+          .map((t) => `<div class="mio-ctx-line">${escHtml(t)}</div>`) // plain text with names
+          .join("")
       : "";
     ctxEl.style.display = ctxParts.length ? "block" : "none";
   }
