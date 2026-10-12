@@ -76,11 +76,14 @@ ok(
   d(one, one[0]).Rahul > 0 && matureLoss.Rahul < 0,
   "identical scored window, only the career history differs",
 );
-const halfCareer = d(one, one[0], [...ageing("Rahul", 25), ...one]);
+// The flag is binary at 50 career games, not a ramp: 49 still earns the
+// newcomer credit, 50 starts paying the veteran's cost.
+const justUnder = d(one, one[0], [...ageing("Rahul", 49), ...one]);
+const justOver = d(one, one[0], [...ageing("Rahul", 50), ...one]);
 ok(
-  "maturity ramps smoothly — 25 career games sits between 0 and 60",
-  halfCareer.Rahul < p1.Rahul && halfCareer.Rahul > matureLoss.Rahul,
-  `new=${p1.Rahul}, half=${halfCareer.Rahul}, mature=${matureLoss.Rahul}`,
+  "maturity is binary — 49 career games is still a newcomer, 50 is a veteran",
+  justUnder.Rahul > 0 && justOver.Rahul < 0,
+  `49 games=${justUnder.Rahul}, 50 games=${justOver.Rahul}`,
 );
 
 console.log("\n\x1b[36m── EP: margin and shutouts ──────────────────────────\x1b[0m");
@@ -129,8 +132,8 @@ const history = [
 ];
 const vsGood = [M("2024-01-01", ["Strong", "Mid1"], ["Opp1", "Opp2"], 4, 1)];
 const vsWeak = [M("2024-01-01", ["Strong", "Weak"], ["Opp1", "Opp2"], 4, 1)];
-const winGood = d(vsGood, vsGood[0], [...history, ...vsGood]).Strong;
-const winWeak = d(vsWeak, vsWeak[0], [...history, ...vsWeak]).Strong;
+const winGood = d([...history, ...vsGood], vsGood[0]).Strong;
+const winWeak = d([...history, ...vsWeak], vsWeak[0]).Strong;
 ok(
   "winning WITH a weaker partner pays more than with a stronger one",
   winWeak > winGood,
@@ -138,8 +141,10 @@ ok(
 );
 const lostGood = [M("2024-01-01", ["Strong", "Mid1"], ["Opp1", "Opp2"], 1, 4)];
 const lostWeak = [M("2024-01-01", ["Strong", "Weak"], ["Opp1", "Opp2"], 1, 4)];
-const loseGood = d(lostGood, lostGood[0], [...history, ...lostGood]).Strong;
-const loseWeak = d(lostWeak, lostWeak[0], [...history, ...lostWeak]).Strong;
+// A veteran (50+ career games) is the one whose loss costs, so age Strong first.
+const strongVet = ageing("Strong", 50, "2022-01-01");
+const loseGood = d([...history, ...lostGood], lostGood[0], [...strongVet, ...history, ...lostGood]).Strong;
+const loseWeak = d([...history, ...lostWeak], lostWeak[0], [...strongVet, ...history, ...lostWeak]).Strong;
 ok(
   "losing WITH a weaker partner costs less than with a stronger one",
   loseWeak > loseGood,
@@ -156,9 +161,35 @@ ok(
     const stomp = [M("2024-01-01", ["Strong", "S2"], ["Weak", "W2"], 4, 1)];
     const hist = [...history, ...Array.from({ length: 12 }, (_, i) =>
       M("2023-06-02", ["Strong", `P${i}`], ["S2", `Q${i}`], 4, 1))];
-    return d(upset, upset[0], [...hist, ...upset]).Weak >
-      d(stomp, stomp[0], [...hist, ...stomp]).Strong;
+    return d([...hist, ...upset], upset[0]).Weak >
+      d([...hist, ...stomp], stomp[0]).Strong;
   })(),
+);
+
+console.log("\n\x1b[36m── EP: expectation starts fresh each window ─────────\x1b[0m");
+
+// Season 1: Strong beats Weak 12 times. Season 2 (the window under test): the
+// same two meet level. Under the old career-wide expectation Strong carried
+// his Season 1 strength in and the Season 2 win paid less.
+const s1 = Array.from({ length: 12 }, (_, i) => M("2023-06-01", ["Strong", `X${i}`], ["Weak", `Y${i}`], 4, 1));
+const s2 = [M("2024-02-01", ["Strong", "S2"], ["Weak", "W2"], 4, 1)];
+const withS1 = d(s2, s2[0], [...s1, ...s2]);
+const withoutS1 = d(s2, s2[0], s2);
+ok(
+  "an earlier season's results don't change what a match in this season pays",
+  JSON.stringify(withS1) === JSON.stringify(withoutS1),
+  `with S1 ${JSON.stringify(withS1)}, without ${JSON.stringify(withoutS1)}`,
+);
+ok(
+  "…but career games still count for the 50-game veteran flag",
+  d(s2, s2[0], [...ageing("Strong", 60, "2022-01-01"), ...s2]).Strong === d(s2, s2[0], s2).Strong,
+  "a win pays the same either way; only losses differ by the flag",
+);
+const loseS2 = [M("2024-02-01", ["Strong", "S2"], ["Weak", "W2"], 1, 4)];
+ok(
+  "a veteran's loss costs, a newcomer's earns — flag from career games, expectation from the window",
+  d(loseS2, loseS2[0], [...ageing("Strong", 60, "2022-01-01"), ...loseS2]).Strong < 0 &&
+    d(loseS2, loseS2[0], loseS2).Strong > 0,
 );
 
 console.log("\n\x1b[36m── EP: the shrinkage divisor (rank key) ─────────────\x1b[0m");
@@ -334,7 +365,11 @@ const strengthHistory = Array.from({ length: 12 }, (_, i) =>
 const upsetMatch = [M("2024-02-01", ["Weak", "W2"], ["Strong", "S2"], 4, 1)];
 const noUpsetMatch = [M("2024-02-01", ["Strong", "S2"], ["Weak", "W2"], 4, 1)];
 
-const upsets = computeEPUpsets(upsetMatch, [...strengthHistory, ...upsetMatch]);
+// Strength is learned inside the scored window (each season starts level), so
+// the history is part of the window; only the 2024 match is the upset.
+const upsets = computeEPUpsets([...strengthHistory, ...upsetMatch]).filter((u) =>
+  u.date.startsWith("2024"),
+);
 ok("the weaker team winning is recorded as an upset", upsets.length === 1, JSON.stringify(upsets));
 ok(
   "winners/losers/score are recorded correctly",
@@ -346,16 +381,20 @@ ok(
 );
 ok("gap is positive (the winner was the underdog)", upsets[0].gap > 0, `got ${upsets[0].gap}`);
 
-const noUpsets = computeEPUpsets(noUpsetMatch, [...strengthHistory, ...noUpsetMatch]);
+const noUpsets = computeEPUpsets([...strengthHistory, ...noUpsetMatch]).filter((u) =>
+  u.date.startsWith("2024"),
+);
 ok(
   "the stronger team winning is NOT an upset",
   noUpsets.length === 0,
   JSON.stringify(noUpsets),
 );
+// Strength is learned only from the scored window: an earlier season's results
+// (career history outside the window) neither create upsets nor decide who was
+// the favourite — the same fresh start the points use.
 ok(
-  "only the scored window is scanned for upsets, even with career history behind it",
-  computeEPUpsets(upsetMatch, [...strengthHistory, ...upsetMatch, ...ageing("Strong", 5, "2023-08-01")])
-    .length === 1,
+  "only the scored window is scanned for upsets, and earlier seasons don't set the favourite",
+  computeEPUpsets(upsetMatch, [...strengthHistory, ...upsetMatch]).length === 0,
 );
 ok("empty matches → []", computeEPUpsets([]).length === 0);
 ok(

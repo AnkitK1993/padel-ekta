@@ -13,14 +13,19 @@
 // sides out-ranked 62% and 64% players; win rate only explained the order at
 // rho 0.46. Now it is ~0.9 on real Season 2 / Season 1 data.
 //   • a win pays ~100, +/-20% for how strong the opposition was (OPP_W)
-//   • a veteran's loss COSTS, more when the team was favoured (VET_LOSS)
+//   • a veteran's loss COSTS, more when the team was favoured (VET_LOSS, a
+//     moderate 25 — tuned on held-out seasons, see scripts/ep-holdout.mjs)
 //   • a NEWCOMER's loss pays a small credit (LOSS_BASE) so showing up is never
 //     punished while you are learning
 //
 // Inputs that decide what a match is worth:
 //   1. EXPECTATION (p) — team win probability from an internal ELO walk. It
 //      only moves a win by a modest amount (see OPP_W) and sizes a veteran's
-//      loss; partner quality is inside it (a weaker partner lowers p).
+//      loss; partner quality is inside it (a weaker partner lowers p). The
+//      walk starts level at the first match of every scored window (a season,
+//      a day, a filter) and learns only from that window — an earlier season's
+//      strength is never the benchmark for this one. Career game counts (the
+//      newcomer flag below) still span every season.
 //   2. NEWCOMER FLAG — career games (ALL seasons) under MATURITY_GAMES (50).
 //      Binary, and career-wide on purpose: a veteran does not become a rookie
 //      again when a new season starts or a date filter changes.
@@ -44,7 +49,7 @@ const WIN_BASE = 100; // a neutral win, before opposition and margin
 // over a stronger side is worth a little more and over a weaker side a little
 // less, but it must never let a losing record out-earn a winning one.
 const OPP_W = 0.4;
-const VET_LOSS = 40; // veteran loss costs up to this (when the team was a heavy favourite)
+const VET_LOSS = 25; // veteran loss costs up to this (when the team was a heavy favourite)
 const LOSS_BASE = 10; // newcomer loss CREDIT, "you turned up" (scaled by how big the underdog)
 // Career games (ALL seasons) before a player stops being a newcomer. A binary
 // flag, not a ramp, and career-wide so it never resets with a new season.
@@ -180,10 +185,12 @@ export function computeMatchEPDeltas(matches, careerMatches = null, opts = {}) {
       });
     }
 
-    // blindElo: a "fresh session" view — expectation only learns from the
-    // matches being scored (everyone starts level), while career game counts
-    // (the newcomer flag) still come from the full history.
-    const learnElo = !opts.blindElo || scoring.has(m);
+    // Expectation only learns from the matches being scored: every window
+    // (a season, a day, a filter) starts with everyone level, so an earlier
+    // season's strength never decides who was the favourite in this one. The
+    // career game counts (the 50-game newcomer flag) still come from the full
+    // history. Pass { blindElo: false } to learn from the whole career instead.
+    const learnElo = opts.blindElo === false || scoring.has(m);
     const eloDA = learnElo ? Math.round(32 * ((aWon ? 1 : 0) - expA)) : 0;
     const eloDB = learnElo ? Math.round(32 * ((aWon ? 0 : 1) - (1 - expA))) : 0;
     teamA.forEach((p) => {
@@ -338,6 +345,7 @@ export function computeEPUpsets(matches, careerMatches = null) {
       }
     }
 
+    if (!scoring.has(m)) return; // same fresh start as the scoring walk
     const eloDA = Math.round(32 * ((aWon ? 1 : 0) - expA));
     const eloDB = Math.round(32 * ((aWon ? 0 : 1) - (1 - expA)));
     teamA.forEach((p) => (elo[p] += eloDA));
