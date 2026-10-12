@@ -1,14 +1,16 @@
-const STATIC_CACHE = "ekta-padel-static-v23";
+// One cache PER BUILD ("ekta-padel-static-<build>"), plus a tiny pointer to the
+// one in use. The app is only ever served from a single, complete build: a new
+// build is downloaded whole into its own cache and then switched to by writing
+// the pointer (one atomic put). There is no per-file overwriting, so a reload
+// can never mix old and new modules (the "works only after clearing cache" bug).
+const STATIC_PREFIX = "ekta-padel-static-";
+const META_CACHE = "ekta-padel-meta";
+const POINTER = "/__current__";
 const RUNTIME_CACHE = "ekta-padel-runtime-v2";
-const BUILD_KEY = "/__buildv__";
 const BASE = self.registration.scope;
 const RUNTIME_MAX_ENTRIES = 40;
+const CHECK_EVERY_MS = 10 * 60 * 1000; // navigations trigger a check at most this often
 
-// What must be cached for the app to start with no network. The list is
-// GENERATED from the real import graph (scripts/gen-precache.js -> precache.json,
-// kept fresh by a test), so a new module can never be forgotten. If the file
-// can't be fetched we still precache the bare shell below rather than fail the
-// install; every other module is then picked up lazily by the fetch handler.
 const FALLBACK_FILES = [
   "",
   "index.html",
@@ -60,21 +62,39 @@ async function fetchAllInto(cache, urls) {
   return results.every(Boolean);
 }
 
-async function cacheStaticAssets() {
-  const cache = await caches.open(STATIC_CACHE);
-  const [urls, version] = await Promise.all([loadPrecacheList(), fetchBuildVersion()]);
-  // Best effort at install: one failed file must not abort the whole install
-  // (the activate-time heal and the update check fill any gap).
+// The pointer: name of the build cache currently served.
+let _current = null;
+async function currentName() {
+  if (_current) return _current;
+  const meta = await caches.open(META_CACHE);
+  const hit = await meta.match(POINTER);
+  _current = hit ? await hit.text() : null;
+  return _current;
+}
+async function setCurrent(name) {
+  const meta = await caches.open(META_CACHE);
+  await meta.put(POINTER, new Response(name));
+  _current = name;
+}
+async function dropOldBuilds(keep) {
+  const keys = await caches.keys();
   await Promise.all(
-    urls.map((u) =>
-      fetch(new Request(u, { cache: "reload" }))
-        .then((res) => (res && res.ok ? cache.put(u, res) : null))
-        .catch(() => null),
-    ),
+    keys.filter((k) => k.startsWith(STATIC_PREFIX) && !keep.includes(k)).map((k) => caches.delete(k)),
   );
-  // Record which build this cache holds, so the first update check doesn't
-  // mistake "no stamp" for "a new build" and re-download everything.
-  if (version !== null) await cache.put(BUILD_KEY, new Response(version));
+}
+
+// Download the WHOLE build into a cache of its own; if any file fails, throw it
+// away and report failure — the cache in use is never touched.
+async function downloadBuild(version) {
+  const name = STATIC_PREFIX + version;
+  await caches.delete(name);
+  const cache = await caches.open(name);
+  const urls = await loadPrecacheList();
+  if (!(await fetchAllInto(cache, urls))) {
+    await caches.delete(name);
+    return null;
+  }
+  return name;
 }
 
 async function notifyClientsNewBuild() {
@@ -83,20 +103,30 @@ async function notifyClientsNewBuild() {
 }
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(cacheStaticAssets().then(() => self.skipWaiting()));
+  e.waitUntil(
+    (async () => {
+      // Best effort: with no buildinfo or a failed download we still install;
+      // the activate-time heal and the first update check fill any gap.
+      const version = (await fetchBuildVersion()) || "u" + Date.now();
+      const name = (await downloadBuild(version)) || STATIC_PREFIX + version;
+      await caches.open(name); // make sure it exists even if the download was partial
+      await setCurrent(name);
+      await self.skipWaiting();
+    })(),
+  );
 });
 
-// On activate: delete old caches, then verify every precache entry is actually
-// present (install's best-effort fetch can silently drop files on CDN blips).
-// Any gap is refetched before we claim clients, so the first load never hits
-// a missing-module import error.
+// On activate: drop caches of older builds, then verify every precache entry is
+// present (a CDN blip at install can drop files) so the first load never hits a
+// missing-module import error.
 async function _healCache() {
-  const cache = await caches.open(STATIC_CACHE);
+  const name = await currentName();
+  if (!name) return;
+  const cache = await caches.open(name);
   const urls = await loadPrecacheList();
   await Promise.all(
     urls.map(async (u) => {
-      const hit = await cache.match(u);
-      if (hit) return;
+      if (await cache.match(u)) return;
       return fetch(new Request(u, { cache: "reload" }))
         .then((r) => (r && r.ok ? cache.put(u, r) : null))
         .catch(() => null);
@@ -106,17 +136,20 @@ async function _healCache() {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((k) => k !== STATIC_CACHE && k !== RUNTIME_CACHE)
-            .map((k) => caches.delete(k)),
-        ),
-      )
-      .then(() => _healCache())
-      .then(() => self.clients.claim()),
+    (async () => {
+      const name = await currentName();
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter(
+            (k) =>
+              k !== META_CACHE && k !== RUNTIME_CACHE && k !== name,
+          )
+          .map((k) => caches.delete(k)),
+      );
+      await _healCache();
+      await self.clients.claim();
+    })(),
   );
 });
 
@@ -136,50 +169,35 @@ async function putRuntime(request, response) {
   await trimRuntimeCache();
 }
 
-// Fetch buildinfo.json from network, compare to the stored version. If changed,
-// download the WHOLE new file set into a staging cache first — if any file
-// fails we abort and keep the current cache untouched, so a partial download
-// (network blip, CDN propagation lag) can never leave the app half-updated.
-// Only then is it swapped into the live cache: new files are written over the
-// old ones and obsolete ones pruned, so the live cache is never empty.
+// Compare buildinfo.json (always from the network) with the build being served.
+// If it changed, download the new build whole into its own cache, then switch
+// the pointer. The previous build stays until the next switch, so a page that
+// is still open (and lazily importing modules) keeps finding its own files.
 // Resolves { updated, error } — error is true when we couldn't tell.
-async function checkForUpdates() {
-  try {
-    const version = await fetchBuildVersion();
-    if (version === null) return { updated: false, error: true };
-    const live = await caches.open(STATIC_CACHE);
-    const stored = await live.match(BUILD_KEY);
-    if (stored && (await stored.text()) === version) return { updated: false, error: false };
-
-    const urls = await loadPrecacheList();
-    const STAGING = STATIC_CACHE + "-staging";
-    await caches.delete(STAGING);
-    const staging = await caches.open(STAGING);
-    if (!(await fetchAllInto(staging, urls))) {
-      await caches.delete(STAGING);
-      return { updated: false, error: true }; // partial download — retry next check
+let _checking = null;
+let _lastCheck = 0;
+function checkForUpdates() {
+  if (_checking) return _checking; // one check at a time (install, page, navigation)
+  _lastCheck = Date.now();
+  _checking = (async () => {
+    try {
+      const version = await fetchBuildVersion();
+      if (version === null) return { updated: false, error: true };
+      const cur = await currentName();
+      const want = STATIC_PREFIX + version;
+      if (cur === want) return { updated: false, error: false };
+      const name = await downloadBuild(version);
+      if (!name) return { updated: false, error: true }; // partial — retry next check
+      await setCurrent(name); // the atomic switch
+      await dropOldBuilds([name, cur]);
+      return { updated: true, error: false };
+    } catch {
+      return { updated: false, error: true };
     }
-    await staging.put(BUILD_KEY, new Response(version));
-
-    const wanted = new Set([...urls, new URL(BUILD_KEY, BASE).href]);
-    const staged = await staging.keys();
-    await Promise.all(
-      staged.map(async (req) => live.put(req, await staging.match(req))),
-    );
-    // Prune what the new build no longer ships (keep the runtime SWR copies of
-    // anything still wanted, drop files that left the precache list).
-    const liveKeys = await live.keys();
-    await Promise.all(
-      liveKeys
-        .filter((req) => !wanted.has(req.url) && !staged.some((s) => s.url === req.url))
-        .filter((req) => /\.(?:js|css|html|json)$/.test(new URL(req.url).pathname))
-        .map((req) => live.delete(req)),
-    );
-    await caches.delete(STAGING);
-    return { updated: true, error: false };
-  } catch {
-    return { updated: false, error: true };
-  }
+  })().finally(() => {
+    _checking = null;
+  });
+  return _checking;
 }
 
 // Client can ask us to check for a new build without a full navigation
@@ -194,6 +212,19 @@ self.addEventListener("message", (e) => {
         // A manual "check for updates" passes a port and gets the verdict back.
         if (reply) reply.postMessage(result);
       }),
+    );
+  }
+  if (e.data && e.data.type === "RESET_CACHES") {
+    // Self-heal: the page failed to start. Forget every cache so the next load
+    // is a clean download of the current deploy.
+    e.waitUntil(
+      (async () => {
+        _current = null;
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+        const reply = e.ports && e.ports[0];
+        if (reply) reply.postMessage({ ok: true });
+      })(),
     );
   }
   if (e.data && e.data.type === "SHOW_NOTIFICATION") {
@@ -228,29 +259,30 @@ self.addEventListener("notificationclick", (e) => {
   e.waitUntil(clients.openWindow(url));
 });
 
-// Stale-while-revalidate for code (HTML shell, app.js, styles.css, ES modules).
-// Respond INSTANTLY from cache — same fast, offline-safe timing as before — but
-// always kick a background fetch with cache:"no-store" (bypassing the browser's
-// own 10-minute HTTP cache) that overwrites the cached copy with the freshly
-// deployed bytes. The result: after a deploy the very next reload serves the new
-// code, so users never have to clear their browser cache. Self-heals on every
-// load and does not depend on buildinfo.json changing.
-async function staleWhileRevalidate(request, cacheName, ignoreSearch) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request, { ignoreSearch });
-
-  const revalidate = fetch(new Request(request.url, { cache: "no-store" }))
-    .then((fresh) => {
-      if (fresh && fresh.ok) cache.put(request.url, fresh.clone()).catch(() => {});
-      return fresh;
-    })
-    .catch(() => null);
-
-  // Cached copy present → serve it now; the background fetch refreshes the cache
-  // for next time. Nothing cached (first visit / offline) → wait for the network.
-  if (cached) return cached;
-  const fresh = await revalidate;
-  return fresh || fetch(request);
+// Code (HTML shell, app.js, styles.css, ES modules) is served ONLY from the
+// current build's cache — instant and offline-safe, and always one consistent
+// version. Freshness comes from checkForUpdates (on load, focus, hourly and, as
+// a backstop, from navigations here), never from rewriting single files.
+async function serveCode(e, ignoreSearch) {
+  const name = await currentName();
+  if (name) {
+    const cache = await caches.open(name);
+    const hit = await cache.match(e.request, { ignoreSearch });
+    if (hit) {
+      if (e.request.mode === "navigate" && Date.now() - _lastCheck > CHECK_EVERY_MS) {
+        e.waitUntil(checkForUpdates().then((r) => (r.updated ? notifyClientsNewBuild() : null)));
+      }
+      return hit;
+    }
+  }
+  // Not cached (first visit, or a file the precache list lacks): network, and
+  // keep a copy in the current build so it works offline next time.
+  const res = await fetch(e.request);
+  if (name && res && res.ok && e.request.method === "GET") {
+    const copy = res.clone();
+    e.waitUntil(caches.open(name).then((c) => c.put(e.request.url, copy)).catch(() => {}));
+  }
+  return res;
 }
 
 self.addEventListener("fetch", (e) => {
@@ -281,7 +313,7 @@ self.addEventListener("fetch", (e) => {
   const isCode = sameOrigin && /\.(?:js|css|html)$/.test(url.pathname);
 
   if (isNavigate || isCode) {
-    e.respondWith(staleWhileRevalidate(e.request, STATIC_CACHE, isNavigate));
+    e.respondWith(serveCode(e, isNavigate));
     return;
   }
 

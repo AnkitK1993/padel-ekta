@@ -1757,6 +1757,36 @@ Puneet - Pun, PK
           navigator.serviceWorker.register("sw.js").catch(() => {});
         });
 
+        // ── Self-heal: never ask the user to clear the cache ────────
+        // If the app's scripts fail to load/evaluate (a broken or mixed
+        // cache), wipe the service-worker caches once and reload into a clean
+        // download. Guarded so a genuinely broken deploy can't loop.
+        window.__appBooted = false;
+        function _selfHeal(why) {
+          if (window.__appBooted || window.__healing) return;
+          try {
+            var last = Number(sessionStorage.getItem("ekta_heal") || 0);
+            if (Date.now() - last < 120000) return;
+            sessionStorage.setItem("ekta_heal", String(Date.now()));
+          } catch (e) { /* no sessionStorage: still try once per page load */ }
+          window.__healing = true;
+          console.warn("[self-heal] " + why + " — resetting caches and reloading");
+          var done = function () { window.location.reload(); };
+          var sw = navigator.serviceWorker.controller;
+          if (!sw) return done();
+          var ch = new MessageChannel();
+          ch.port1.onmessage = done;
+          setTimeout(done, 4000);
+          sw.postMessage({ type: "RESET_CACHES" }, [ch.port2]);
+        }
+        window.addEventListener("error", function (e) {
+          var t = e.target;
+          if (t && t.tagName === "SCRIPT" && t.type === "module") _selfHeal("module failed to load");
+        }, true);
+        window.addEventListener("load", function () {
+          setTimeout(function () { _selfHeal("app did not start"); }, 10000);
+        });
+
         // ── Non-disruptive update flow ──────────────────────────────
         // The SW posts NEW_BUILD when a fresh deploy is fully cached.
         // We show a persistent banner the user must tap — never auto-reload

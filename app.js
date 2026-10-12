@@ -21828,3 +21828,6 @@ window.closeLiveBanner = closeLiveBanner;
 // Keyboard + screen-reader access for the clickable cards, rows and chips the
 // templates render as plain <div>/<tr>/<span> with an inline onclick.
 initKeyboardAccess();
+
+// Reached the end of start-up: tells index.html's self-heal the scripts loaded.
+window.__appBooted = true;

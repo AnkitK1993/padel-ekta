@@ -133,10 +133,10 @@ async function main() {
         client,
         `(async () => {
           const names = await caches.keys();
-          const staticName = names.find((n) => n.startsWith("ekta-padel-static") && !n.endsWith("-staging"));
+          const staticName = await (await (await caches.open("ekta-padel-meta")).match("/__current__")).text();
           const c = await caches.open(staticName);
           const keys = (await c.keys()).map((r) => new URL(r.url).pathname);
-          const stamp = await (await c.match("/__buildv__"))?.text();
+          const stamp = staticName.replace("ekta-padel-static-", "");
           const peek = async (p) => (await (await c.match(p))?.text()) || null;
           return { names, keys, stamp, dates: await peek("/src/domain/dates.js") };
         })()`,
@@ -157,7 +157,7 @@ async function main() {
     const missing = need.filter((f) => !st.keys.includes(f));
     ok(`first visit: all ${need.length} precache files are cached`, missing.length === 0, `missing: ${missing.join(", ")}`);
     ok("first visit: cache records the build it holds", st.stamp === String(buildA), `stamp ${st.stamp}`);
-    ok("only one static cache exists after install", st.names.filter((n) => n.startsWith("ekta-padel-static")).length === 1, st.names.join(","));
+    ok("only one static cache exists after install", st.names.filter((n) => n.startsWith("ekta-padel-static-")).length === 1, st.names.join(","));
 
     // ── 5. the page knows which build it runs ───────────────────────────
     const label = await evaluate(client, `window.appBuildLabel()`);
@@ -187,7 +187,7 @@ async function main() {
     ok("new deploy: changed module is the new one", (st.dates || "").includes("build B marker"));
     ok("new deploy: a file added in the new build is cached", st.keys.includes("/src/domain/brand-new.js"));
     ok("new deploy: cache records the new build", st.stamp === String(buildB), `stamp ${st.stamp}`);
-    ok("new deploy: no staging cache left behind", !st.names.some((n) => n.endsWith("-staging")), st.names.join(","));
+    ok("new deploy: at most the previous and the new build are kept", st.names.filter((n) => n.startsWith("ekta-padel-static-")).length <= 2, st.names.join(","));
     await waitFor(client, `!!document.getElementById("update-banner")`, "update banner", 5000).catch(() => {});
     ok(
       "new deploy: the page shows the 'tap to refresh' banner",
@@ -207,7 +207,7 @@ async function main() {
     ok("failed download: reported as an error, not applied", r && r.updated === false && r.error === true, JSON.stringify(r));
     st = await cacheState();
     ok("failed download: cache still holds build B in full", st.stamp === String(buildB) && !(st.dates || "").includes("build C marker") && st.keys.includes("/src/domain/stats.js"), `stamp ${st.stamp}`);
-    ok("failed download: staging cache cleaned up", !st.names.some((n) => n.endsWith("-staging")), st.names.join(","));
+    ok("failed download: the half-downloaded build was discarded", !st.names.some((n) => n.endsWith(String(buildC))), st.names.join(","));
     failFile = null;
     r = await check();
     ok("download recovers on the next check", r && r.updated === true, JSON.stringify(r));
