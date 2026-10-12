@@ -1323,7 +1323,7 @@ function renderAnalyticsFeature() {
   return _loadAnalyticsFeature()
     .then((feature) =>
       feature.mountAnalyticsFeature({
-        renderAnalyticsPage,
+        renderAnalyticsPage: () => renderAnalyticsPage({ fromTab: true }),
         afterRender: () => setTimeout(applyAnalyticsAnimations, 0),
       }),
     )
@@ -2185,11 +2185,10 @@ function switchMainTab(id, skipAnim = false) {
   if (id === "analytics") {
     renderAnalyticsFeature();
   } else if (curPage?.id === "pg-analytics") {
-    // Leaving Statistics — it's load-on-demand only, so drop its cached
-    // computations rather than let them sit in memory until data changes.
+    // Leaving Statistics — drop its cached computations rather than let them
+    // sit in memory. The rendered page stays, so coming back with nothing
+    // changed doesn't rebuild it (renderAnalyticsPage checks the render key).
     _clearAnalyticsCache();
-    _anaRenderedVersion = -1;
-    _anaRenderedFilter = "";
   }
   if (id === "add") {
     refreshManage();
@@ -13381,13 +13380,20 @@ function _anaSetDateRange(which, value) {
   renderAnalyticsPage();
 }
 
-function renderAnalyticsPage() {
+function renderAnalyticsPage(renderOpts = {}) {
   const container = document.getElementById("analytics-page-content");
   if (!container) return;
-  // Statistics page always recomputes fresh on open (no cached-render skip) —
-  // its underlying memo values (memoStats/memoASS/pair/reign/rank) are cleared
-  // as soon as the user navigates away, in switchMainTab().
-  const _anaRenderedKey = `${_activeSeasonId}|${viewState.anaDateFilter || "all"}|${viewState.anaDateFrom || ""}|${viewState.anaDateTo || ""}|${viewState.anaActiveCat || "all"}|${getAnaHideEmpty() ? 1 : 0}`;
+  // Everything the page depends on besides the data version. Opening the tab
+  // again with all of it unchanged keeps the page already built (rebuilding
+  // ~70 sections took over a second on a phone); any other caller re-renders.
+  const _anaRenderedKey = `${_activeSeasonId}|${viewState.anaDateFilter || "all"}|${viewState.anaDateFrom || ""}|${viewState.anaDateTo || ""}|${viewState.anaActiveCat || "all"}|${getAnaHideEmpty() ? 1 : 0}|${rating.system()}|${todayISO()}|${window.isAdmin ? 1 : 0}|${[..._excludedPlayers].sort().join(",")}`;
+  if (
+    renderOpts.fromTab &&
+    _anaRenderedVersion === _dataVersion &&
+    _anaRenderedFilter === _anaRenderedKey &&
+    container.querySelector(".ana-sec, .empty-state, [class*='empty']")
+  )
+    return;
   // Statistics run over the season-scoped, GUEST-EXCLUDED set — never raw
   // state.matches — so players marked as guest don't appear in any stat.
   const am = _analyticsMatches();
