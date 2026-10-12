@@ -65,9 +65,20 @@ export function scopeFor(m, matches = ratedMatches()) {
 // Per-match detail is cached because one overlay asks for it several ways;
 // memo-store's invalidateAll() clears it whenever the data changes.
 let _entryCache = new Map();
+// rating.map() results per match ARRAY (screens ask for the same window's map
+// many times in one render — e.g. once per player). An entry is only reused
+// while the array still has the same length and end elements and the career
+// history (state.matches) is unchanged; any data change also clears it.
+let _mapCache = new WeakMap();
 export function invalidate() {
   _entryCache = new Map();
+  _mapCache = new WeakMap();
 }
+function _mapSig(matches, s) {
+  const all = state.matches || [];
+  return [s, matches.length, matches[0], matches[matches.length - 1], all, all.length];
+}
+const _sameSig = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
 // Career games (all seasons, guest matches excluded like the engine) each
 // player had played before match `m` — what the 50-game newcomer flag reads.
@@ -219,7 +230,14 @@ export const rating = {
     return computeFairShare(matches);
   },
   map(matches, s = _system) {
-    return rating.flat(matches, rating.full(matches, s), s);
+    const sig = _mapSig(matches, s);
+    let bySys = _mapCache.get(matches);
+    if (!bySys) _mapCache.set(matches, (bySys = {}));
+    const hit = bySys[s];
+    if (hit && _sameSig(hit.sig, sig)) return { ...hit.map };
+    const map = rating.flat(matches, rating.full(matches, s), s);
+    bySys[s] = { sig, map };
+    return { ...map };
   },
   // Per-player stats (record, SR, rank order) off a rating map. SR is scaled
   // with the SAME system's band, so a 0-based map can't be read as 1000-centred.

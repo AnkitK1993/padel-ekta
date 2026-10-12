@@ -801,7 +801,7 @@ function openPlayerDetail(name) {
     ? `<div class="det-conn">
             <div class="det-conn-icon">👥</div>
             <div class="det-conn-body">
-              <div class="det-conn-name">${detail.topMate[0]}</div>
+              <div class="det-conn-name">${escHtml(detail.topMate[0])}</div>
               <div class="det-conn-meta">${detail.topMate[1]} matches together</div>
             </div>
             <div class="det-conn-tag">Most Common Partner</div>
@@ -812,7 +812,7 @@ function openPlayerDetail(name) {
     ? `<div class="det-conn">
             <div class="det-conn-icon">🎯</div>
             <div class="det-conn-body">
-              <div class="det-conn-name">${detail.toughOpp[0]}</div>
+              <div class="det-conn-name">${escHtml(detail.toughOpp[0])}</div>
               <div class="det-conn-meta">${detail.toughOpp[1]} matches faced</div>
             </div>
             <div class="det-conn-tag">Most Common Opponent</div>
@@ -1672,9 +1672,10 @@ function openPlayerDetail(name) {
     let cur = 0;
     const step = target / 15;
     const tick = () => {
-      cur = Math.min(cur + step, target);
+      // (counts toward negative targets too)
+      cur = target < 0 ? Math.max(cur + step, target) : Math.min(cur + step, target);
       el.textContent = format(cur);
-      if (cur < target) setTimeout(tick, 33);
+      if (cur !== target) setTimeout(tick, 33);
     };
     setTimeout(tick, delay);
   };
@@ -1686,8 +1687,9 @@ function openPlayerDetail(name) {
   );
   pdTick(
     document.getElementById("pd-ass-val"),
-    parseInt(document.getElementById("pd-ass-val")?.dataset.final || 0, 10),
-    (v) => Math.round(v),
+    // ASS has two decimals; parseInt dropped them (12.34 animated to "12").
+    parseFloat(document.getElementById("pd-ass-val")?.dataset.final || 0),
+    (v) => rating.fmt(v),
   );
   pdTick(
     document.getElementById("pd-xp-total"),

@@ -12,6 +12,7 @@ import {
   SCORING_SYSTEMS_ZERO_BASED,
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
+import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { initKeyboardAccess, syncPageLandmarks } from "./src/ui/a11y.js";
 import { matchCardPrecompute as _matchCardPrecompute } from "./src/app/match-ratings.js";
 import {
@@ -348,14 +349,18 @@ function _activeScoreMap() {
 let _statsTimelineCache = null;
 function _activeTimeline() {
   const ms = activeMatches();
+  // Keyed on the data version too: with ALL seasons and no exclusions
+  // activeMatches() is state.matches itself, which adds/deletes change in place.
   if (
     _statsTimelineCache &&
     _statsTimelineCache.system === rating.system() &&
-    _statsTimelineCache.matches === ms
+    _statsTimelineCache.matches === ms &&
+    _statsTimelineCache.version === _dataVersion &&
+    _statsTimelineCache.len === ms.length
   )
     return _statsTimelineCache.tl;
   const tl = _statsTimeline(ms);
-  _statsTimelineCache = { system: rating.system(), matches: ms, tl };
+  _statsTimelineCache = { system: rating.system(), matches: ms, version: _dataVersion, len: ms.length, tl };
   return tl;
 }
 function _activeHistory() {
@@ -1029,7 +1034,7 @@ if (!_INIT_STORAGE["padel_cmp_col_migrate_v5"]) {
   localStorage.setItem("padel_cmp_col_migrate_v5", "1");
 }
 let prevPage = "home";
-let lastMatchSnapshot = null;
+let lastMatchSnapshot = null; // ids of the matches the last add/import created
 let _forcedOffline = getForcedOffline();
 let _firestoreUnsub = null;
 let _emailTimer = null;
@@ -1111,10 +1116,22 @@ window.isAdmin = false;
 window.isAppBusy = function () {
   try {
     if (_liveSessionData && _liveSessionData.sessionActive) return true;
-    if (document.querySelector(".modal.show, .sheet.open, .overlay.open"))
+    // A live match being scored (not yet saved anywhere).
+    if (_liveScoreA > 0 || _liveScoreB > 0) return true;
+    // Any open sheet, popup or full-screen panel (the app's real class names).
+    if (
+      document.querySelector(
+        ".live-sheet-open, .h2h-modal-overlay, #match-intro-overlay.active, .mem-panel.open, .modern-modal.show, .spa-overlay.open, " +
+          // popups built on demand (the static *-modal shells are excluded)
+          "[id$='-modal']:not(#spa-modal):not(#modern-add-modal):not(#name-add-modal)",
+      )
+    )
       return true;
     const ae = document.activeElement;
-    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA"))
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT"))
+      return true;
+    // Unsent text in any text box (e.g. a pasted match list).
+    if ([...document.querySelectorAll("textarea")].some((t) => t.value.trim()))
       return true;
   } catch (e) {
     noteError("app:isAppBusy", e);
@@ -1255,6 +1272,7 @@ initCloudRepo({
   isAdmin: () => !!window.isAdmin,
   isForcedOffline: () => _forcedOffline,
   isSessionBuffering: () => !!_liveSessionData?.sessionActive,
+  isCloudLoaded: () => _cloudSnapshotSeen,
   showToast,
   appCache: window.appCache || null,
   mkMatchKey: _mkMatchKey,
@@ -1382,6 +1400,7 @@ function _resubscribeFirestore() {
     _firestoreUnsub = onSnapshot(
       doc(db, "padel", "main"),
       (snap) => {
+        if (!snap.metadata?.fromCache) _cloudSnapshotSeen = true;
         if (!snap.exists()) return;
         const d = snap.data();
         _ingestSeasons(d.seasons);
@@ -1403,47 +1422,36 @@ function _resubscribeFirestore() {
         const incoming = d.matches || [];
         _ensureMatchIds(incoming);
         const _sessionBuffering = !!_liveSessionData?.sessionActive;
-        const _hadOfflineEdits = _hasPendingSync() && !_sessionBuffering;
+        const _hadOfflineEdits =
+          window.isAdmin && _hasPendingSync() && !_sessionBuffering;
         if (_hadOfflineEdits) {
-          // Offline mode: find matches added locally while offline, push merged set to cloud
-          const cloudKeys = new Set(incoming.map(_mkMatchKey));
-          const offlineAdditions = state.matches.filter(
-            (m) => !cloudKeys.has(_mkMatchKey(m)),
-          );
-          if (offlineAdditions.length > 0) {
-            state.matches = [...incoming, ...offlineAdditions].sort((a, b) =>
-              (a.date || "").localeCompare(b.date || ""),
-            );
-            // Keep local player roster (may have new names added offline)
-            // push merged data back to Firestore
-            state.players = pls;
-            playerAliasMap = pam;
-            nextPlayerId = npid;
-            rebuildNameMaps();
-            _invalidateStatsMemo();
-            saveCloudData();
-            showToast(
-              `Pushed ${offlineAdditions.length} offline match${offlineAdditions.length !== 1 ? "es" : ""} to cloud ☁️`,
-            );
-            _setPendingSync(false);
-            renderHome();
-            renderCompact();
-            refreshManage();
-            return;
-          } else {
-            state.matches = incoming;
-          }
-        } else {
-          state.matches = incoming;
+          // Back from Offline Mode with unsynced edits: merge them into the
+          // cloud copy (edits and deletions made here win, matches added on
+          // either side are kept, rosters unioned) and push the result.
+          const merged = _mergeWithCloud(incoming, pls, pam, npid);
+          state.matches = merged.matches;
+          state.players = merged.players;
+          playerAliasMap = merged.aliases;
+          nextPlayerId = merged.nextId;
+          rebuildNameMaps();
+          saveCloudData(); // bumps the data version, caches locally, pushes
+          const changes = merged.added + merged.edited + merged.removed;
+          if (changes)
+            showToast(`Synced ${changes} offline change${changes !== 1 ? "s" : ""} to cloud`, "☁️");
+          renderActivePage();
+          return;
         }
+        state.matches = incoming;
         state.players = pls;
         playerAliasMap = pam;
         nextPlayerId = npid;
         rebuildNameMaps();
         _invalidateStatsMemo();
+        _dataVersion++;
+        if (window.appCache)
+          window.appCache.save(state.matches, state.players, playerAliasMap, nextPlayerId);
         _setPendingSync(false);
-        renderHome();
-        renderCompact();
+        renderActivePage();
         refreshManage();
       },
       (err) => {
@@ -1573,6 +1581,27 @@ function _mkMatchKey(m) {
   return `${m.date || ""}|${(m.teamA || []).join(",")}|${(m.teamB || []).join(",")}|${m.scoreA}|${m.scoreB}`;
 }
 
+// This device's unsynced changes merged into an incoming cloud copy (see
+// src/domain/sync-merge.js): edits and deletions made here win, matches added
+// on either side are kept, and the roster is unioned.
+function _mergeWithCloud(cloudMatches, cloudPls, cloudPam, cloudNpid) {
+  const m = mergeLocalIntoCloud({
+    cloud: cloudMatches,
+    local: state.matches,
+    deletedIds: deletedMatches.map((d) => d.id),
+    keyOf: _mkMatchKey,
+  });
+  const r = mergeRoster({
+    cloudPlayers: cloudPls,
+    localPlayers: state.players,
+    cloudAliases: cloudPam,
+    localAliases: playerAliasMap,
+    cloudNextId: cloudNpid,
+    localNextId: nextPlayerId,
+  });
+  return { ...m, players: r.players, aliases: r.aliases, nextId: r.nextId };
+}
+
 function _showSyncConflict(
   cloudMatches,
   cloudPls,
@@ -1589,13 +1618,13 @@ function _showSyncConflict(
 
   const localCount = state.matches.length;
   const cloudCount = cloudMatches.length;
-  const mergeCount = cloudCount + localOnly.length;
+  const mergeCount = _mergeWithCloud(cloudMatches, cloudPls, cloudPam, cloudNpid).matches.length;
 
   const listHtml =
     localOnly
       .slice(0, 6)
       .map((m) => {
-        const label = `${(m.teamA || []).map((p) => p.split(" ")[0]).join(" & ")} vs ${(m.teamB || []).map((p) => p.split(" ")[0]).join(" & ")} <span style="color:var(--muted)">${m.scoreA}–${m.scoreB}</span>`;
+        const label = `${escHtml((m.teamA || []).map((p) => p.split(" ")[0]).join(" & "))} vs ${escHtml((m.teamB || []).map((p) => p.split(" ")[0]).join(" & "))} <span style="color:var(--muted)">${m.scoreA}–${m.scoreB}</span>`;
         return `<div class="sc-row">${fmtDate(m.date)} · ${label}</div>`;
       })
       .join("") +
@@ -1617,19 +1646,9 @@ function _showSyncConflict(
   document.body.appendChild(overlay);
 
   overlay.querySelector("#sc-merge").onclick = () => {
-    const cloudKeys = new Set(cloudMatches.map(_mkMatchKey));
-    const merged = [
-      ...cloudMatches,
-      ...localOnly.filter((m) => !cloudKeys.has(_mkMatchKey(m))),
-    ].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const merged = _mergeWithCloud(cloudMatches, cloudPls, cloudPam, cloudNpid);
     overlay.remove();
-    resolveFn(
-      merged,
-      { ...cloudPls, ...state.players },
-      { ...cloudPam, ...playerAliasMap },
-      Math.max(cloudNpid || 1, nextPlayerId),
-      true,
-    );
+    resolveFn(merged.matches, merged.players, merged.aliases, merged.nextId, true);
   };
   overlay.querySelector("#sc-cloud").onclick = () => {
     overlay.remove();
@@ -1643,6 +1662,9 @@ function _showSyncConflict(
 }
 
 // ── DATA LOADER ────────────────────────────────────────────
+// True once this session has received the cloud document (cloud-repo won't
+// overwrite the cloud before then).
+let _cloudSnapshotSeen = false;
 function loadCloudData() {
   let fired = false;
   let lastDataFingerprint = null;
@@ -1696,8 +1718,11 @@ function loadCloudData() {
     // If this is a Firestore update that matches the cache we already rendered, skip re-render
     if (!isFirstLoad && fp === lastDataFingerprint) return;
 
-    // Conflict detection: local matches that aren't in the incoming cloud data.
-    // Skip for 5 s after a local save — the stale Firestore cache snapshot
+    // Conflict detection: only when THIS device has changes the cloud hasn't
+    // received (an admin's offline / unsynced edits). Otherwise the cloud is
+    // the truth: a match missing from it was deleted or edited elsewhere, and
+    // offering to "merge" it back resurrected deleted matches on every device.
+    // Skip for 15 s after a local save — the stale Firestore cache snapshot
     // hasn't picked up our write yet and would falsely flag new matches.
     // Also skip while a live session is active — buffered matches are intentionally
     // local-only until the user taps SYNC or END SESSION.
@@ -1708,11 +1733,14 @@ function loadCloudData() {
       !isFirstLoad &&
       !_recentSave &&
       !_sessionBuffering &&
+      window.isAdmin &&
+      _hasPendingSync() &&
       state.matches.length > 0
     ) {
+      const cloudIds = new Set(matches.map((m) => m.id).filter(Boolean));
       const cloudKeys = new Set(matches.map(_mkMatchKey));
       const localOnly = state.matches.filter(
-        (m) => !cloudKeys.has(_mkMatchKey(m)),
+        (m) => !(m.id && cloudIds.has(m.id)) && !cloudKeys.has(_mkMatchKey(m)),
       );
       if (localOnly.length > 0) {
         _showSyncConflict(
@@ -1729,6 +1757,19 @@ function loadCloudData() {
         );
         return;
       }
+      // No additions, but unsynced edits or deletions made here: keep them
+      // (they used to be overwritten by the cloud copy) and push the merge.
+      const merged = _mergeWithCloud(matches, pls, pam, npid);
+      const rosterChanged =
+        JSON.stringify(merged.players) !== JSON.stringify(pls) ||
+        JSON.stringify(merged.aliases) !== JSON.stringify(pam);
+      if (merged.edited || merged.removed || rosterChanged) {
+        lastDataFingerprint = null;
+        onData(merged.matches, merged.players, merged.aliases, merged.nextId, true);
+        saveCloudData();
+        return;
+      }
+      _setPendingSync(false); // nothing here the cloud doesn't already have
     }
 
     lastDataFingerprint = fp;
@@ -1834,6 +1875,8 @@ function loadCloudData() {
     _firestoreUnsub = onSnapshot(
       doc(db, "padel", "main"),
       function (snap) {
+        // A snapshot served from Firestore's local cache isn't the cloud yet.
+        if (!snap.metadata?.fromCache) _cloudSnapshotSeen = true;
         if (!snap.exists()) {
           window.dismissSplash("Ready");
           return;
@@ -2791,7 +2834,7 @@ function renderAuditLogCard() {
 function renderBackupHealthCard() {
   const el = document.getElementById("backup-health-body");
   if (!el) return;
-  const emailDate = localStorage.getItem("padel_last_backup");
+  const emailDate = localStorage.getItem("padel_last_email");
   const driveDate = localStorage.getItem(_DRIVE_BACKUP_KEY);
   const today = todayISO();
   const daysSince = (d) =>
@@ -2915,9 +2958,9 @@ window.runDataHealthCheck = function () {
         `<button onclick="${onclick}" style="font-size:9px;padding:3px 7px;border-radius:6px;border:1px solid ${danger ? "rgba(240,80,80,0.4)" : "rgba(var(--theme-rgb),0.4)"};background:${danger ? "rgba(240,80,80,0.1)" : "rgba(var(--theme-rgb),0.1)"};color:${danger ? "var(--red)" : "var(--theme)"};cursor:pointer;flex-shrink:0">${label}</button>`;
       const actions =
         idx != null
-          ? (window.isAdmin ? btn("Edit", `openEditMatch(${idx})`, false) : "") +
+          ? (window.isAdmin ? btn("Edit", `_dhMatchAction('edit',${jsArg(iss.matchId ?? "")},${idx})`, false) : "") +
             (_DH_DELETABLE.has(iss.kind) && window.isAdmin
-              ? btn("Delete", `deleteMatchByIndex(${idx});runDataHealthCheck()`, true)
+              ? btn("Delete", `_dhMatchAction('delete',${jsArg(iss.matchId ?? "")},${idx})`, true)
               : "")
           : "";
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -2932,6 +2975,21 @@ window.runDataHealthCheck = function () {
     .join("");
   el.innerHTML = `<div style="font-size:10px;color:var(--muted);margin-bottom:6px">${result.errors} error(s), ${result.warnings} warning(s), ${result.infos} note(s)</div>${rows}${more}
     <button class="btn-s" onclick="copyDataHealthReport()" style="width:100%;margin-top:8px">📋 Copy report</button>`;
+};
+// Acts on the match by id: the list can be older than the data (a match
+// deleted elsewhere shifts every index after it).
+window._dhMatchAction = function (action, id, idx) {
+  const at = id ? state.matches.findIndex((m) => m.id === id) : idx;
+  if (at < 0 || !state.matches[at]) {
+    showToast("That match has changed — re-running the check", "ℹ️");
+    window.runDataHealthCheck();
+    return;
+  }
+  if (action === "edit") openEditMatch(at);
+  else {
+    deleteMatchByIndex(at);
+    window.runDataHealthCheck();
+  }
 };
 window.copyDataHealthReport = function () {
   const text = window._dataHealthReport || "";
@@ -2977,6 +3035,18 @@ window.mergePlayers = function () {
     }
     return;
   }
+  // Two people who played in the same match can't be one person.
+  const together = state.matches.filter((m) => {
+    const all = [...(m.teamA || []), ...(m.teamB || [])];
+    return all.includes(fromName) && all.includes(intoName);
+  }).length;
+  if (together) {
+    if (msgEl) {
+      msgEl.textContent = `"${fromName}" and "${intoName}" played in the same match ${together} time(s) — they can't be the same player.`;
+      msgEl.className = "msg err show";
+    }
+    return;
+  }
   if (
     !window.confirm(
       `Merge "${fromName}" into "${intoName}"? This rewrites all match history and cannot be undone.`,
@@ -3011,9 +3081,21 @@ window.mergePlayers = function () {
   );
   if (fromEntry) {
     const [fromId] = fromEntry;
+    // Keep the merged player's aliases (and its old name) pointing at the
+    // survivor, so pasting an old alias doesn't recreate the duplicate.
+    const intoEntry = Object.entries(state.players).find(
+      ([, p]) => p.name === intoName,
+    );
+    if (intoEntry) {
+      const [intoId] = intoEntry;
+      playerAliasMap[intoId] = [
+        ...new Set([...(playerAliasMap[intoId] || []), ...(playerAliasMap[fromId] || []), fromName]),
+      ];
+    }
     delete state.players[fromId];
     delete playerAliasMap[fromId];
   }
+  saveDeletedMatches(); // the trash was rewritten too
   rebuildNameMaps();
   logAdminAction(
     "Merge Players",
@@ -3572,14 +3654,13 @@ function addMatches() {
       return;
     }
     const prevSnapshot = [...state.matches];
-    lastMatchSnapshot = prevSnapshot;
     _ensureMatchIds(list);
-    let step = [...prevSnapshot];
-    for (const m of list) {
-      const next = [...step, m];
-      checkMilestones(step, next);
-      step = next;
-    }
+    // Undo removes exactly these matches (not a whole-list snapshot, which
+    // also threw away anything saved after the import).
+    lastMatchSnapshot = list.map((m) => m.id);
+    // One milestone check for the whole import (per-match checks recomputed
+    // every player's stats for each pasted match).
+    checkMilestones(prevSnapshot, [...prevSnapshot, ...list]);
     state.matches.push(...list);
     _lastLocalSaveTime = Date.now();
     saveCloudData();
@@ -3618,7 +3699,8 @@ function addMatches() {
 
 function undoLastAdd() {
   if (!lastMatchSnapshot) return;
-  state.matches = lastMatchSnapshot;
+  const ids = new Set(lastMatchSnapshot);
+  state.matches = state.matches.filter((m) => !ids.has(m.id));
   lastMatchSnapshot = null;
   saveCloudData();
   commit();
@@ -4055,8 +4137,9 @@ function _backupPayload() {
 }
 
 function _backupFilename() {
-  const d = new Date().toISOString().slice(0, 10);
-  return `ekta-padel-backup-${d}.json`;
+  // Local date (toISOString is UTC: a backup at 00:00–05:30 IST was named for
+  // the previous day, and day-based pruning then deleted that day's backup).
+  return `ekta-padel-backup-${todayISO()}.json`;
 }
 
 // Try to get a fresh Drive access token if we don't have one (e.g. after a
@@ -4921,7 +5004,7 @@ function renderHome() {
   const _thirtyAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().slice(0, 10);
+    return toLocalISODate(d);
   })();
   const assDeltaMap = {};
   const monthlyAssDeltaMap = {};
@@ -6092,8 +6175,9 @@ function renderModernMatches() {
   let summary = "";
   if (h2hFilterA && h2hFilterB) {
     const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, activeMatches());
-    const total = h2h.aWins + h2h.bWins || 1;
-    const aWinPct = Math.round((h2h.aWins / total) * 100);
+    // Never played each other: 50/50 rather than "Played 1, 0% vs 100%".
+    const total = h2h.aWins + h2h.bWins;
+    const aWinPct = total ? Math.round((h2h.aWins / total) * 100) : 50;
     const bWinPct = 100 - aWinPct;
     const aCol =
       aWinPct > bWinPct
@@ -6115,13 +6199,23 @@ function renderModernMatches() {
     const h2hP2Pts = (h2hEloHist[h2hFilterB] || []).filter((pt) =>
       pt.opponent.split(" & ").includes(h2hFilterA),
     );
-    const h2hP1Impact = h2hP1Pts.reduce((s, pt) => s + pt.delta, 0);
-    const h2hP2Impact = h2hP2Pts.reduce((s, pt) => s + pt.delta, 0);
+    // Change in the leaderboard score across these matches (each entry's score
+    // minus the one before it). On ASS `delta` is raw points earned, which
+    // summed to numbers far off the 0-100 scale.
+    const _scoreChange = (hist, pts) =>
+      rating.round(
+        pts.reduce((s, pt) => {
+          const k = hist.indexOf(pt);
+          return s + pt.elo - (k > 0 ? hist[k - 1].elo : rating.def());
+        }, 0),
+      );
+    const h2hP1Impact = _scoreChange(h2hEloHist[h2hFilterA] || [], h2hP1Pts);
+    const h2hP2Impact = _scoreChange(h2hEloHist[h2hFilterB] || [], h2hP2Pts);
     const fmtEloImpact = (n) =>
       n > 0
-        ? `<span style="color:var(--green)">+${n}</span>`
+        ? `<span style="color:var(--green)">+${rating.fmt(n)}</span>`
         : n < 0
-          ? `<span style="color:var(--red)">${n}</span>`
+          ? `<span style="color:var(--red)">${rating.fmt(n)}</span>`
           : `<span style="color:var(--muted)">0</span>`;
     summary = `<div class="pair-stats-card" style="margin-bottom:10px" onclick="openH2HDetail(${jsArg(h2hFilterA)},${jsArg(h2hFilterB)})">
             <div class="psc-header"><span class="psc-badge">⚔️ Head-to-Head</span><span class="psc-tap">Full stats →</span></div>
@@ -6370,6 +6464,10 @@ function _histFilterKey() {
     h2hFilterA || "",
     h2hFilterB || "",
     histScorelineFilter || "",
+    // the date boxes too, or picking a different day/range kept the old list
+    document.getElementById("matchFrom")?.value || "",
+    document.getElementById("matchTo")?.value || "",
+    document.getElementById("matchDayInput")?.value || "",
   ].join("|");
 }
 
@@ -7497,7 +7595,7 @@ function saveModernMatch() {
 
   function _doSave() {
     const prevSnapshot = [...state.matches];
-    lastMatchSnapshot = prevSnapshot;
+    lastMatchSnapshot = [candidate.id];
     if (note) candidate.note = note;
     state.matches.push(candidate);
     checkMilestones(prevSnapshot, state.matches);
@@ -8441,7 +8539,7 @@ function buildH2HMatrixCompact(players) {
   const colHeaders = players
     .map(
       (p) =>
-        `<th class="pvp-th" title="${p}">${getMatrixAlias(state.aliasMap[p])}</th>`,
+        `<th class="pvp-th" title="${escHtml(p)}">${escHtml(getMatrixAlias(state.aliasMap[p]))}</th>`,
     )
     .join("");
 
@@ -9411,7 +9509,13 @@ function openPlayerCompare(nameA, nameB, dateFilter = "all") {
   const statsB = computeStats(matchesB, eloMapB, _statsSrFn(eloMapB));
   const sB = statsB.find((s) => s.name === nameB);
 
-  if (!sA || !sB) return;
+  if (!sA || !sB) {
+    showToast(
+      `No matches for ${!sA ? nameA : nameB} in this period`,
+      "ℹ️",
+    );
+    return;
+  }
 
   // Shutout wins/losses over each player's own (independent) match window —
   // a shutout is any match where the loser scored 0, same definition the
@@ -9632,9 +9736,22 @@ function toggleAnaHidden(key, e) {
   anaFilterCategory(viewState.anaActiveCat, true);
 }
 
+// Statistics section bodies not yet inserted (collapsed at render time).
+const _anaDeferredBodies = new Map();
+function _anaInsertDeferredBody(key, el) {
+  if (!_anaDeferredBodies.has(key)) return;
+  const body = el.querySelector(".ana-sec-body");
+  if (body) body.innerHTML = _anaDeferredBodies.get(key);
+  _anaDeferredBodies.delete(key);
+  // Tables filled after render need their container to exist.
+  window._renderHiLoTable?.();
+  window._renderAssProjTable?.();
+}
+
 function toggleAnaSection(key) {
   const el = document.querySelector(`.ana-sec[data-key="${key}"]`);
   if (!el) return;
+  if (el.classList.contains("collapsed")) _anaInsertDeferredBody(key, el);
   el.classList.toggle("collapsed");
   const col = getAnaCollapsed();
   el.classList.contains("collapsed") ? col.add(key) : col.delete(key);
@@ -10464,7 +10581,11 @@ function buildEloTimelineHtml(filterKey) {
       )
       .join("");
     const lastElo = pts[pts.length - 1].elo;
-    const startElo = pts[0].elo - pts[0].delta;
+    // Score just before the window's first match (on ASS, `delta` is the raw
+    // points a match paid, not the change in the score, so elo - delta was wrong).
+    const _full = history[name] || [];
+    const _k = _full.indexOf(pts[0]);
+    const startElo = _k > 0 ? _full[_k - 1].elo : rating.def(); // score before the window
     const netChange = lastElo - startElo;
     const netStr =
       netChange > 0
@@ -10610,7 +10731,7 @@ function showEloMatchDetail(idx) {
     <div style="margin-top:3px;font-size:11px">vs <strong>${escHtml(p.opponent.toUpperCase())}</strong></div>
     <div style="margin-top:3px;display:flex;gap:12px;font-size:11px">
       <span style="color:var(--muted)">Score: <strong style="color:var(--fg)">${p.scoreA}–${p.scoreB}</strong></span>
-      <span style="color:var(--muted)">ASS: <strong style="color:var(--fg)">${p.elo}</strong></span>
+      <span style="color:var(--muted)">ASS: <strong style="color:var(--fg)">${rating.fmt(p.elo)}</strong></span>
       <span style="font-weight:700;color:${dCol}">${dStr}</span>
     </div>
   </div>`;
@@ -11823,11 +11944,11 @@ function _buildMatchPredictHtml() {
         <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:4px">TEAM A</div>
         <button class="h2h-slot-btn${viewState.predictPlayerA ? " h2h-slot-filled" : ""}" id="pred-slot-a1" onclick="openPredictSheet('a1')" style="width:100%;margin-bottom:6px">
           <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-          <span id="pred-label-a1" style="font-size:11px;font-weight:800">${viewState.predictPlayerA || "—"}</span>
+          <span id="pred-label-a1" style="font-size:11px;font-weight:800">${escHtml(viewState.predictPlayerA || "—")}</span>
         </button>
         <button class="h2h-slot-btn${viewState.predictPartnerA ? " h2h-slot-filled" : ""}" id="pred-slot-a2" onclick="openPredictSheet('a2')" style="width:100%">
           <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-          <span id="pred-label-a2" style="font-size:11px;font-weight:800">${viewState.predictPartnerA || "—"}</span>
+          <span id="pred-label-a2" style="font-size:11px;font-weight:800">${escHtml(viewState.predictPartnerA || "—")}</span>
         </button>
       </div>
       <div style="font-size:14px;font-weight:900;color:var(--muted)">VS</div>
@@ -11835,11 +11956,11 @@ function _buildMatchPredictHtml() {
         <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:4px">TEAM B</div>
         <button class="h2h-slot-btn${viewState.predictPlayerB ? " h2h-slot-filled" : ""}" id="pred-slot-b1" onclick="openPredictSheet('b1')" style="width:100%;margin-bottom:6px">
           <span style="font-size:9px;color:var(--muted);display:block">P1</span>
-          <span id="pred-label-b1" style="font-size:11px;font-weight:800">${viewState.predictPlayerB || "—"}</span>
+          <span id="pred-label-b1" style="font-size:11px;font-weight:800">${escHtml(viewState.predictPlayerB || "—")}</span>
         </button>
         <button class="h2h-slot-btn${viewState.predictPartnerB ? " h2h-slot-filled" : ""}" id="pred-slot-b2" onclick="openPredictSheet('b2')" style="width:100%">
           <span style="font-size:9px;color:var(--muted);display:block">P2</span>
-          <span id="pred-label-b2" style="font-size:11px;font-weight:800">${viewState.predictPartnerB || "—"}</span>
+          <span id="pred-label-b2" style="font-size:11px;font-weight:800">${escHtml(viewState.predictPartnerB || "—")}</span>
         </button>
       </div>
     </div>
@@ -12633,7 +12754,7 @@ window._renderBstatTable = function () {
   el.innerHTML = sorted
     .map((r) =>
       [
-        d(r.name, null, "var(--text)", true),
+        d(escHtml(r.name), null, "var(--text)", true),
         d(r.winPct.toFixed(0) + "%", TP, r.wCol),
         d(r.sr.toFixed(2), TP),
         d(r.avgG.toFixed(1), TS),
@@ -12721,6 +12842,8 @@ window._playRatingsRace = function (btn) {
   const monthLbl = document.getElementById("race-month-lbl");
   let i = 0;
   const step = () => {
+    // A re-render replaced this button: stop, or two runs fight over the bars.
+    if (!btn.isConnected) return;
     const f = frames[i];
     if (monthLbl) monthLbl.textContent = f.month;
     names.forEach((n, idx) => {
@@ -12852,7 +12975,7 @@ function _buildSeasonRiserFallerHtml() {
     ordered
       .map(
         (s) =>
-          `<option value="${jsArg(s.id)}"${s.id === selectedId ? " selected" : ""}>${escHtml(s.name)}</option>`,
+          `<option value="${escHtml(s.id)}"${s.id === selectedId ? " selected" : ""}>${escHtml(s.name)}</option>`,
       )
       .join("");
   const picker =
@@ -13249,6 +13372,9 @@ function _anaSetDateFilter(v) {
 }
 
 function _anaSetDateRange(which, value) {
+  // Typing a year into a date box fires change on in-between values like
+  // 0002-05-01; ignore those rather than re-render (which also wiped the box).
+  if (value && !(/^\d{4}-\d{2}-\d{2}$/.test(value) && value >= "2000-01-01")) return;
   if (which === "from") viewState.anaDateFrom = value || "";
   else if (which === "to") viewState.anaDateTo = value || "";
   if (viewState.anaDateFilter !== "range") viewState.anaDateFilter = "range";
@@ -13266,12 +13392,20 @@ function renderAnalyticsPage() {
   // state.matches — so players marked as guest don't appear in any stat.
   const am = _analyticsMatches();
   if (!am.length) {
-    container.innerHTML = emptyState({
-      icon: "📊",
-      title: "No matches in this view",
-      message: `Try a different season or date filter. Current scope: ${_analyticsDateFilterLabel(viewState.anaDateFilter || "all", viewState.anaDateFrom || "", viewState.anaDateTo || "")}.`,
-      action: { label: "Add match", onClick: "switchMainTab('add')" },
-    });
+    // Keep the season and date controls on screen, so a filter that matches
+    // nothing can be changed back (it used to leave no way out).
+    const _dateFiltered = (viewState.anaDateFilter || "all") !== "all";
+    container.innerHTML =
+      _analyticsSeasonControlsHtml() +
+      _analyticsDateControlsHtml() +
+      emptyState({
+        icon: "📊",
+        title: "No matches in this view",
+        message: `Try a different season or date filter. Current scope: ${_analyticsDateFilterLabel(viewState.anaDateFilter || "all", viewState.anaDateFrom || "", viewState.anaDateTo || "")}.`,
+        action: _dateFiltered
+          ? { label: "Show all dates", onClick: "_anaSetDateFilter('all')" }
+          : { label: "Add match", onClick: "switchMainTab('add')" },
+      });
     _anaRenderedVersion = _dataVersion;
     _anaRenderedFilter = _anaRenderedKey;
     return;
@@ -13819,8 +13953,13 @@ function renderAnalyticsPage() {
     const DOW = ["M", "T", "W", "T", "F", "S", "S"];
 
     // Start from Monday of the week containing the first ever match
-    const allDs = Object.keys(dateCounts).sort();
-    const refDate = allDs.length ? new Date(allDs[0]) : new Date();
+    // (local midnight, not UTC; at most ~2 years back so a mistyped date like
+    // 0202-05-01 can't build hundreds of thousands of cells)
+    const allDs = Object.keys(dateCounts).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    const _floor = new Date();
+    _floor.setDate(_floor.getDate() - 730);
+    let refDate = allDs.length ? new Date(allDs[0] + "T00:00:00") : new Date();
+    if (!(refDate >= _floor)) refDate = _floor;
     const startDow = (refDate.getDay() + 6) % 7;
     refDate.setDate(refDate.getDate() - startDow);
 
@@ -14159,7 +14298,7 @@ function renderAnalyticsPage() {
       synPlayers
         .map(
           (p) =>
-            `<button class="lsst-btn syn-filter-pill" data-player="${escHtml(p)}" onclick="window._synSetPlayer('${escHtml(p)}')" style="${pillStyle}">${escHtml(p)}</button>`,
+            `<button class="lsst-btn syn-filter-pill" data-player="${escHtml(p)}" onclick="window._synSetPlayer(${jsArg(p)})" style="${pillStyle}">${escHtml(p)}</button>`,
         )
         .join("") +
       `</div>`;
@@ -14238,7 +14377,7 @@ function renderAnalyticsPage() {
             .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
             .map((m) => {
               const aWon = m.scoreA > m.scoreB;
-              const mtkA = m.teamA.sort().join(" & ");
+              const mtkA = [...m.teamA].sort().join(" & ");
               const isVtkA = mtkA === v.teamA.slice().sort().join(" & ");
               const winnerSide = aWon
                 ? isVtkA
@@ -14253,7 +14392,7 @@ function renderAnalyticsPage() {
                 : `${m.scoreB}–${m.scoreA}`;
               return `<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
               <span style="color:var(--muted)">${fmtDate(m.date)}</span>
-              <span style="font-weight:700;color:${winnerSide === "A" ? colA : colB}">${winName}</span>
+              <span style="font-weight:700;color:${winnerSide === "A" ? colA : colB}">${escHtml(winName)}</span>
               <span style="font-weight:700">${scoreStr}</span>
             </div>`;
             })
@@ -14263,8 +14402,8 @@ function renderAnalyticsPage() {
           return `<div style="border-bottom:1px solid var(--border)">
             <div style="display:flex;align-items:center;padding:8px 0;cursor:pointer;gap:8px" onclick="this.parentElement.querySelector('.ph2h-detail').style.display=this.parentElement.querySelector('.ph2h-detail').style.display==='none'?'block':'none'">
               <div style="flex:1;min-width:0">
-                <div style="font-size:11px;font-weight:700">${shortA} <span style="color:var(--muted);font-weight:400">vs</span> ${shortB}</div>
-                ${shortLeader ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${shortLeader} leads by ${leadsBy}</div>` : `<div style="font-size:9px;color:var(--muted);margin-top:2px">Series tied</div>`}
+                <div style="font-size:11px;font-weight:700">${escHtml(shortA)} <span style="color:var(--muted);font-weight:400">vs</span> ${escHtml(shortB)}</div>
+                ${shortLeader ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${escHtml(shortLeader)} leads by ${leadsBy}</div>` : `<div style="font-size:9px;color:var(--muted);margin-top:2px">Series tied</div>`}
               </div>
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:18px;font-weight:900;color:${colA}">${wA}</span>
@@ -14382,7 +14521,7 @@ function renderAnalyticsPage() {
     }
     const runHtml =
       runCount >= 2
-        ? `<div class="rival-run">🔥 <strong>${runWinner}</strong> has won the last <strong>${runCount}</strong> in this rivalry</div>`
+        ? `<div class="rival-run">🔥 <strong>${escHtml(runWinner)}</strong> has won the last <strong>${runCount}</strong> in this rivalry</div>`
         : "";
 
     // W/L dots (last 10, chronological left→right, from rivalA's perspective)
@@ -14392,10 +14531,10 @@ function renderAnalyticsPage() {
         const aWon =
           (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) ||
           (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
-        return `<span class="rival-dot ${aWon ? "rival-dot-w" : "rival-dot-l"}" title="${aWon ? rivalA : rivalB} won ${m.scoreA}-${m.scoreB}"></span>`;
+        return `<span class="rival-dot ${aWon ? "rival-dot-w" : "rival-dot-l"}" title="${escHtml(aWon ? rivalA : rivalB)} won ${m.scoreA}-${m.scoreB}"></span>`;
       })
       .join("");
-    const dotsHtml = `<div class="rival-dots-row"><span class="rival-dots-name">${rivalA}</span><div class="rival-dots">${dots}</div><span class="rival-dots-name">${rivalB}</span></div>`;
+    const dotsHtml = `<div class="rival-dots-row"><span class="rival-dots-name">${escHtml(rivalA)}</span><div class="rival-dots">${dots}</div><span class="rival-dots-name">${escHtml(rivalB)}</span></div>`;
 
     // Recent 5 matches
     const recent = [...rivalry.matches]
@@ -14408,12 +14547,12 @@ function renderAnalyticsPage() {
           (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
         const winScore = Math.max(m.scoreA, m.scoreB);
         const loseScore = Math.min(m.scoreA, m.scoreB);
-        return `<div class="rival-match-row"><span class="rival-match-winner" style="color:${aWon ? "var(--green)" : "var(--red)"}">${aWon ? rivalA : rivalB} won</span><span class="rival-match-score">${winScore}–${loseScore} · ${fmtDate(m.date)}</span></div>`;
+        return `<div class="rival-match-row"><span class="rival-match-winner" style="color:${aWon ? "var(--green)" : "var(--red)"}">${escHtml(aWon ? rivalA : rivalB)} won</span><span class="rival-match-score">${winScore}–${loseScore} · ${fmtDate(m.date)}</span></div>`;
       })
       .join("");
 
     rivalHtml = `
-      <div class="rivalry-header"><div class="rivalry-player">${rivalA}</div><div class="rivalry-vs">VS</div><div class="rivalry-player">${rivalB}</div></div>
+      <div class="rivalry-header"><div class="rivalry-player">${escHtml(rivalA)}</div><div class="rivalry-vs">VS</div><div class="rivalry-player">${escHtml(rivalB)}</div></div>
       <div class="rivalry-record">
         <div class="rivalry-stat"><div class="rivalry-val p">${rivalry.aWins}</div><div class="rivalry-lbl">${aPct}%</div></div>
         <div class="rivalry-stat"><div class="rivalry-val m">${tot}</div><div class="rivalry-lbl">Meetings</div></div>
@@ -14598,17 +14737,22 @@ function renderAnalyticsPage() {
       })
       .sort((a, b) => a.stdDev - b.stdDev);
     const maxStd = rows[rows.length - 1]?.stdDev || 1;
+    // Labels are relative to the league's median swing, so they mean the same
+    // on every scoring scale (fixed 10/14/18 cut-offs suited ±16 ELO swings and
+    // called everyone "Volatile" on ASS, where a win pays ~100 points).
+    const medStd = rows[Math.floor(rows.length / 2)]?.stdDev || 1;
     return `<div class="ana-card" style="padding:10px 12px">
       <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Lower deviation = more consistent ASS swings per match.</div>
       ${rows
         .map((r, i) => {
           const barW = Math.max(5, (r.stdDev / maxStd) * 100).toFixed(0);
+          const rel = r.stdDev / medStd;
           const label =
-            r.stdDev < 10
+            rel < 0.8
               ? "🪨 Rock"
-              : r.stdDev < 14
+              : rel < 1
                 ? "✅ Steady"
-                : r.stdDev < 18
+                : rel < 1.25
                   ? "⚡ Variable"
                   : "🎲 Volatile";
           const avgStr =
@@ -14646,7 +14790,7 @@ function renderAnalyticsPage() {
       pairLookup[p.key] = p;
     });
     const colHeaders = pairMatrixPlayers
-      .map((p) => `<th class="pvp-th" title="${p}">${getMatrixAlias(p)}</th>`)
+      .map((p) => `<th class="pvp-th" title="${escHtml(p)}">${escHtml(getMatrixAlias(p))}</th>`)
       .join("");
     const rows = pairMatrixPlayers
       .map((rowP) => {
@@ -15770,7 +15914,7 @@ function renderAnalyticsPage() {
         .map((r) => {
           const domPct = Math.round((r.dom / r.played) * 100);
           const short = (t) => t.map((p) => p.split(" ")[0]).join(" & ");
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><div><div style="font-size:11px;font-weight:700">${short(r.domTeam)} <span style="color:var(--green)">dominate</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px">vs ${short(r.subTeam)}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:var(--green)">${r.dom}–${r.sub}</div><div style="font-size:9px;color:var(--muted)">${r.played}g · ${domPct}%</div></div></div>`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><div><div style="font-size:11px;font-weight:700">${escHtml(short(r.domTeam))} <span style="color:var(--green)">dominate</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px">vs ${escHtml(short(r.subTeam))}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:var(--green)">${r.dom}–${r.sub}</div><div style="font-size:9px;color:var(--muted)">${r.played}g · ${domPct}%</div></div></div>`;
         })
         .join("") +
       `</div>`
@@ -15784,7 +15928,8 @@ function renderAnalyticsPage() {
     sortedM.forEach((m) => {
       const hi = Math.max(m.scoreA, m.scoreB);
       const lo = Math.min(m.scoreA, m.scoreB);
-      if (isNaN(hi) || isNaN(lo) || hi < 0) return;
+      // (a mistyped score like 60 is left out rather than building a 60x60 grid)
+      if (isNaN(hi) || isNaN(lo) || hi < 0 || hi > 15) return;
       const key = `${hi}_${lo}`;
       grid3[key] = (grid3[key] || 0) + 1;
       if (hi > maxScore) maxScore = hi;
@@ -15869,10 +16014,18 @@ function renderAnalyticsPage() {
   // ── RENDER ─────────────────────────────────────────────
   const favKeys = getAnaFavs();
   const hiddenKeys = getAnaHidden();
+  _anaDeferredBodies.clear();
   const makeSec = (key, title, body, col, cat) => {
     const isFav = favKeys.includes(key);
     const isHid = hiddenKeys.includes(key);
     const emptyCls = _secIsEmpty(body) ? " is-empty" : "";
+    // A collapsed section's body is kept out of the page until it is opened
+    // (toggleAnaSection inserts it): most sections start collapsed, and
+    // parsing + styling ~12k hidden elements made every visit slow.
+    if (col) {
+      _anaDeferredBodies.set(key, body);
+      body = "";
+    }
     return `<div class="ana-sec${col ? " collapsed" : ""}${emptyCls}" data-key="${key}" data-cat="${cat || "all"}"${isHid ? ' data-hidden="true"' : ""}>
       <div class="ana-section-title ana-sec-hdr" onclick="toggleAnaSection('${key}')">
         <span class="ana-sec-drag-handle"
@@ -17802,20 +17955,24 @@ function _scheduleDriveBackup() {
   const target = new Date(now);
   target.setHours(13, 0, 0, 0);
 
-  // Already past 13:00 today and not yet backed up → run now.
-  if (localStorage.getItem(_DRIVE_BACKUP_KEY) !== today && now >= target) {
-    _maybeAutoDriveBackup().then(() => _scheduleDriveBackup());
+  const done = () => localStorage.getItem(_DRIVE_BACKUP_KEY) === today;
+  // Past 13:00 and not yet backed up → try now. If that didn't back up (no
+  // Drive token this session, or the upload failed) retry in an hour: calling
+  // straight back into this function looped forever and froze the page.
+  if (!done() && now >= target) {
+    _maybeAutoDriveBackup()
+      .catch((e) => noteError("app:_maybeAutoDriveBackup", e))
+      .then(() => {
+        if (done()) _scheduleDriveBackup();
+        else _driveBackupTimer = setTimeout(_scheduleDriveBackup, 60 * 60 * 1000);
+      });
     return;
   }
 
   // Already backed up today → schedule for 13:00 tomorrow.
-  if (localStorage.getItem(_DRIVE_BACKUP_KEY) === today) {
-    target.setDate(target.getDate() + 1);
-  }
+  if (done()) target.setDate(target.getDate() + 1);
 
-  _driveBackupTimer = setTimeout(() => {
-    _maybeAutoDriveBackup().then(() => _scheduleDriveBackup());
-  }, target - now);
+  _driveBackupTimer = setTimeout(_scheduleDriveBackup, target - now);
 }
 
 // ── DEEP-LINK PARAM HANDLING ────────────────────────────────
@@ -17856,7 +18013,7 @@ loadCloudData();
 const _offlineToggleEl = document.getElementById("offline-mode-toggle");
 if (_offlineToggleEl) _offlineToggleEl.checked = _forcedOffline;
 loadPhotos();
-loadDeletedMatches();
+_loadDeletedMatchesInto(); // restore the trash (the bare load discarded it)
 scheduleAutoEmail();
 
 // Expose globals
@@ -18334,7 +18491,7 @@ window._showMonthReport = function (mo) {
         <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">⚡ ${_statsFmt(p.ass)} ${escHtml(_moLbl)}&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:${wlColor}">${p.mw}W–${p.mp - p.mw}L</span>&nbsp;&nbsp;·&nbsp;&nbsp;${p.winPct}%</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:16px;font-weight:900;color:var(--theme)">${p.ass}</div>
+        <div style="font-size:16px;font-weight:900;color:var(--theme)">${rating.fmt(p.ass)}</div>
         <div style="font-size:7px;font-weight:700;letter-spacing:0.1em;color:var(--muted)">ASS</div>
       </div>
       <div style="font-size:11px;color:var(--muted);flex-shrink:0">›</div>
@@ -19029,6 +19186,10 @@ function endLiveMatch() {
   }
   if (_liveScoreA === 0 && _liveScoreB === 0) {
     showToast("Score must be > 0", "❌");
+    return;
+  }
+  if (_liveScoreA === _liveScoreB) {
+    showToast("A match can't end in a tie", "❌");
     return;
   }
   // Show confirmation popup — actual save happens in confirmSaveMatch()

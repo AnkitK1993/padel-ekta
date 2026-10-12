@@ -7,6 +7,7 @@ import { rating } from "../src/domain/rating-service.js";
 import { noteError } from "../src/infra/log.js";
 import { getPairStats } from "../src/domain/pairs.js";
 import { todayISO, weekISO, lastWeekRange } from "../src/domain/dates.js";
+import { escHtml } from "../src/ui/format.js";
 
 export function openWeeklyDigest() {
   document.getElementById("share-card-overlay")?.remove();
@@ -100,7 +101,7 @@ export function openWeeklyDigest() {
       <div style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:10px;font-weight:700;color:#4a4a6a;letter-spacing:0.06em;text-transform:uppercase">${label2}</div>
-        <div style="font-size:13px;font-weight:900;color:#eeeae4;margin-top:1px">${val}</div>
+        <div style="font-size:13px;font-weight:900;color:#eeeae4;margin-top:1px">${escHtml(val)}</div>
       </div>
       <div style="font-size:10px;color:#4a4a6a;text-align:right;flex-shrink:0">${sub}</div>
     </div>`;

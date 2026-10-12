@@ -14,6 +14,13 @@ import { cleanPlayerName } from "./players.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SEVERITY_ORDER = { error: 0, warn: 1, info: 2 };
+// A real calendar day ("2026-02-31" parses, rolled over to 3 March, so check
+// the parts survive the round trip).
+function _realDate(iso) {
+  const [y, mo, d] = iso.split("-").map(Number);
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+}
 
 // Case/space/punctuation/diacritic-insensitive form of a name.
 export function normalizeName(n) {
@@ -178,7 +185,7 @@ export function checkDataHealth({
       add("warn", "score-tie", `Tied score ${a}–${b} (no winner): ${describe(m)}`, tag);
 
     // date
-    if (!DATE_RE.test(m.date || "") || Number.isNaN(Date.parse(m.date)))
+    if (!DATE_RE.test(m.date || "") || !_realDate(m.date))
       add("error", "date-invalid", `Missing or malformed date "${m.date ?? ""}": ${describe(m)}`, tag);
     else {
       if (today && m.date > today)

@@ -5,7 +5,7 @@
 // numbers always match what viewSeasonArchive() shows. This is presentation
 // on top of that existing data, not a second archival mechanism.
 import { state } from "../src/domain/state.js";
-import { activeMatches, _inSeason } from "../src/domain/selectors.js";
+import { ratedMatches, _inSeason } from "../src/domain/selectors.js";
 import { computeSeasonRecap } from "../src/domain/season-recap.js";
 import { rating } from "../src/domain/rating-service.js";
 import { escHtml, fmtDate } from "../src/ui/format.js";
@@ -224,7 +224,9 @@ export function buildPersonalRecapSlides(recap, seasonName) {
 export function openPersonalSeasonRecap(seasonId, playerName) {
   const season = state.seasons.find((s) => s.id === seasonId);
   if (!season) return;
-  const ms = activeMatches().filter((m) => _inSeason(season, m.date));
+  // That season's rated matches, whichever season is being viewed
+  // (activeMatches() is already narrowed to the viewed season).
+  const ms = ratedMatches().filter((m) => _inSeason(season, m.date));
   const recap = computeSeasonRecap(ms, playerName);
   if (!recap) return;
   _revealSlides = buildPersonalRecapSlides(recap, season.name);

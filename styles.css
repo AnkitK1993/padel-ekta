@@ -17598,7 +17598,7 @@ body.zoomed *::after {
 .season-reveal-modal {
   position: fixed;
   inset: 0;
-  z-index: 1001;
+  z-index: 10050; /* above player detail (9999), where the recap opens from */
   background: radial-gradient(
     circle at 50% 20%,
     color-mix(in srgb, var(--theme) 22%, var(--bg)),

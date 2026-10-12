@@ -7,6 +7,7 @@ import { computeStats } from "../src/domain/stats.js";
 import { rating, scopeKey } from "../src/domain/rating-service.js";
 import { normPlayer } from "../src/domain/players.js";
 import { todayISO } from "../src/domain/dates.js";
+import { isRatedMatch } from "../src/domain/selectors.js";
 
 import { noteError } from "../src/infra/log.js";
 // Best-ever win streak per player, walked fresh from a match array — used to
@@ -70,11 +71,27 @@ export function checkMilestones(prevMatches, newMatches) {
       }
     });
   });
-  // Check for win streaks hitting milestones
+  // Rating milestones, ranks and records are judged on the active scoring
+  // system over the leaderboard's own matches (rated ones), inside the season
+  // the new match belongs to (ratings restart every season, so a cross-season
+  // window would be a number no leaderboard ever shows).
+  const label = rating.label();
+  const latest = [...newMatches].sort((a, b) =>
+    (b.date || "").localeCompare(a.date || ""),
+  )[0];
+  const scope = latest ? scopeKey(latest) : null;
+  const inScope = (m) => scopeKey(m) === scope && isRatedMatch(m);
+  const prevScope = latest ? prevMatches.filter(inScope) : [];
+  const newScope = latest ? newMatches.filter(inScope) : [];
+
+  // Win streaks (all matches) — computed once, not once per player.
   const streakMilestones = [3, 5, 10];
+  const prevStats = computeStats(prevMatches);
+  const newStats = computeStats(newMatches);
+  // Leaderboard order (the same ranking the Summary tab shows).
+  const prevRanked = prevScope.length ? rating.stats(prevScope) : [];
+  const newRanked = newScope.length ? rating.stats(newScope) : [];
   allPlayers.forEach((player) => {
-    const prevStats = computeStats(prevMatches);
-    const newStats = computeStats(newMatches);
     const prev = prevStats.find((s) => s.name === player);
     const cur = newStats.find((s) => s.name === player);
     if (!prev || !cur) return;
@@ -88,9 +105,11 @@ export function checkMilestones(prevMatches, newMatches) {
         saveMilestoneEntry(`${player} is on a ${n}-match win streak!`, "🔥");
       }
     });
-    // Rank change (top 3)
-    const prevRank = prevStats.findIndex((s) => s.name === player) + 1;
-    const newRank = newStats.findIndex((s) => s.name === player) + 1;
+    // Rank change (top 3), on the leaderboard's ranking.
+    if (!prevRanked.length) return;
+    const prevRank = prevRanked.findIndex((s) => s.name === player) + 1;
+    const newRank = newRanked.findIndex((s) => s.name === player) + 1;
+    if (!prevRank || !newRank) return;
     if (prevRank > 1 && newRank === 1) {
       window.showToast(`${player} is now #1!`, "👑");
       saveMilestoneEntry(`${player} is now #1!`, "👑");
@@ -101,16 +120,6 @@ export function checkMilestones(prevMatches, newMatches) {
       window.fireConfetti({ count: 80, duration: 2200 });
     }
   });
-  // Rating milestones are judged on the active scoring system, inside the
-  // season the new match belongs to (ratings restart every season, so a
-  // cross-season window would be a number no leaderboard ever shows).
-  const label = rating.label();
-  const latest = [...newMatches].sort((a, b) =>
-    (b.date || "").localeCompare(a.date || ""),
-  )[0];
-  const scope = latest ? scopeKey(latest) : null;
-  const prevScope = latest ? prevMatches.filter((m) => scopeKey(m) === scope) : [];
-  const newScope = latest ? newMatches.filter((m) => scopeKey(m) === scope) : [];
   if (prevScope.length > 0) {
     const prevMap = rating.map(prevScope);
     const newMap = rating.map(newScope);

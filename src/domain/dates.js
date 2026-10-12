@@ -17,11 +17,13 @@ export function weekISO() {
   return toLocalISODate(d);
 }
 
+// The current weekend on Sat/Sun; on a weekday, the weekend just gone (the
+// coming one has no matches yet, so it always read as empty).
 export function weekendRange() {
   const now = new Date(),
     day = now.getDay();
   const sat = new Date(now);
-  sat.setDate(now.getDate() + (day === 0 ? -1 : 6 - day));
+  sat.setDate(now.getDate() + (day === 6 ? 0 : day === 0 ? -1 : -(day + 1)));
   const sun = new Date(sat);
   sun.setDate(sat.getDate() + 1);
   return {

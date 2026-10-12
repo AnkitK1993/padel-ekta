@@ -744,6 +744,8 @@ async function main() {
       "Analytics re-rendered with both seasons known",
     );
     const riserFaller = await evaluate(client, `(() => {
+      // Collapsed sections insert their body only when opened — open them all.
+      document.querySelectorAll(".ana-sec.collapsed").forEach((s) => toggleAnaSection(s.dataset.key));
       const body = document.querySelector('.ana-sec[data-key="seasonmovers"] .ana-sec-body');
       return { found: !!body, text: body ? body.textContent : "" };
     })()`);
@@ -877,6 +879,8 @@ async function main() {
       "Analytics rendered the Season Awards section",
     );
     const awards = await evaluate(client, `(() => {
+      // Collapsed sections insert their body only when opened — open them all.
+      document.querySelectorAll(".ana-sec.collapsed").forEach((s) => toggleAnaSection(s.dataset.key));
       const html = document.getElementById("analytics-page-content").innerHTML;
       const hasSec = (key) => !!document.querySelector('.ana-sec[data-key="' + key + '"]');
       return {

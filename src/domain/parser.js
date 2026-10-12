@@ -31,6 +31,8 @@ export function parseDateHdr(s) {
     mn = Number(mo);
   if (dn < 1 || dn > 31 || mn < 1 || mn > 12) return null;
   if (y.length === 2) y = "20" + y;
+  // Reject days the month doesn't have (31/2 used to become "2026-02-31").
+  if (dn > new Date(Number(y), mn, 0).getDate()) return null;
   return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 

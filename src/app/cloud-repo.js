@@ -27,6 +27,7 @@ let _deps = {
   isAdmin: () => false,
   isForcedOffline: () => false,
   isSessionBuffering: () => false,
+  isCloudLoaded: () => true,
   onData: (_matches, _players, _pam, _npid) => {},
   showToast: (_msg, _emoji) => {},
   showConflict: (_args) => {},
@@ -127,12 +128,19 @@ export function saveCloudData(opts) {
     _deps.appCache.save(
       payload.matches, payload.players, payload.playerAliasMap, payload.nextPlayerId,
     );
+  // (A second full copy of the matches used to be written to "padel_matches"
+  // here; nothing read it, and it doubled storage use. Drop the leftover.)
   try {
-    localStorage.setItem("padel_matches", JSON.stringify(payload.matches));
+    localStorage.removeItem("padel_matches");
   } catch (e) {
     noteError("cloud-repo:saveCloudData", e);
   }
   scheduleDocSizeCheck();
+  // Only an admin's changes go to the cloud; nothing is pending for others.
+  if (!_deps.isAdmin()) {
+    setPendingSync(false);
+    return Promise.resolve();
+  }
 
   if (!navigator.onLine || _deps.isForcedOffline()) {
     setPendingSync(true);
@@ -153,6 +161,13 @@ async function _flushCloudSave() {
     return;
   }
   if (!(auth.currentUser && _deps.isAdmin())) return;
+  // Never write before this session has seen the cloud copy: the whole
+  // document is replaced, so pushing the local cache first would wipe matches
+  // added from another device. Stays pending; the first snapshot merges it.
+  if (!_deps.isCloudLoaded()) {
+    setPendingSync(true);
+    return;
+  }
   try {
     _lastLocalSaveTime = Date.now();
     await setDoc(doc(db, "padel", "main"), buildCloudPayload());
@@ -166,7 +181,7 @@ async function _flushCloudSave() {
 export async function trySyncNow() {
   if (!navigator.onLine || _deps.isForcedOffline() || !auth?.currentUser || !_deps.isAdmin())
     return;
-  if (!hasPendingSync()) return;
+  if (!hasPendingSync() || !_deps.isCloudLoaded()) return;
   try {
     _lastLocalSaveTime = Date.now();
     await setDoc(doc(db, "padel", "main"), buildCloudPayload());

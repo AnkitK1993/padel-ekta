@@ -51,6 +51,7 @@ function _replayComputeMilestones(sorted) {
 }
 
 export function _buildLeaderboardReplayHtml() {
+  _replayStop(); // a re-render replaces the controls; don't leave a timer behind
   const sorted = _replaySorted();
   if (sorted.length < _REPLAY_MIN)
     return '<div class="sub" style="padding:8px">Need at least 5 matches for replay.</div>';
@@ -283,6 +284,12 @@ export function _replayPlay() {
   if (btn) btn.textContent = "⏸";
   const intervalMs = Math.max(50, Math.round(_REPLAY_BASE_MS / _replaySpeed));
   _replayTimer = setInterval(() => {
+    // Stop once the replay is no longer on screen (left Statistics, collapsed).
+    const ctrl = document.getElementById("replay-play-btn");
+    if (!ctrl || !ctrl.offsetParent) {
+      _replayStop();
+      return;
+    }
     if (_replayReverse) {
       _replayIdx = Math.max(_REPLAY_MIN, _replayIdx - 1);
       _replayUpdate(_replayIdx);

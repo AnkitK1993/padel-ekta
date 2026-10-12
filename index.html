@@ -1760,14 +1760,29 @@ Puneet - Pun, PK
             sessionStorage.setItem("ekta_heal", String(Date.now()));
           } catch (e) { /* no sessionStorage: still try once per page load */ }
           window.__healing = true;
-          console.warn("[self-heal] " + why + " — resetting caches and reloading");
-          var done = function () { window.location.reload(); };
-          var sw = navigator.serviceWorker.controller;
-          if (!sw) return done();
-          var ch = new MessageChannel();
-          ch.port1.onmessage = done;
-          setTimeout(done, 4000);
-          sw.postMessage({ type: "RESET_CACHES" }, [ch.port2]);
+          // Only when the server is reachable: wiping the caches offline would
+          // leave nothing to start from.
+          fetch("buildinfo.json", { cache: "no-store" })
+            .then(function (r) {
+              if (!r.ok) throw new Error(String(r.status));
+              console.warn("[self-heal] " + why + " — resetting caches and reloading");
+              var reloaded = false;
+              var done = function () {
+                if (reloaded) return;
+                reloaded = true;
+                window.location.reload();
+              };
+              var sw = navigator.serviceWorker.controller;
+              if (!sw) return done();
+              var ch = new MessageChannel();
+              ch.port1.onmessage = done;
+              setTimeout(done, 4000);
+              sw.postMessage({ type: "RESET_CACHES" }, [ch.port2]);
+            })
+            .catch(function () {
+              window.__healing = false; // offline: keep what we have
+              try { sessionStorage.removeItem("ekta_heal"); } catch (e) { /* ignore */ }
+            });
         }
         window.addEventListener("error", function (e) {
           var t = e.target;

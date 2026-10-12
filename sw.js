@@ -6,7 +6,34 @@
 const STATIC_PREFIX = "ekta-padel-static-";
 const META_CACHE = "ekta-padel-meta";
 const POINTER = "/__current__";
-const RUNTIME_CACHE = "ekta-padel-runtime-v2";
+// v3: v2 also held Google Drive API responses, which must never be cached.
+const RUNTIME_CACHE = "ekta-padel-runtime-v3";
+// Versioned third-party files (Firebase SDK, fonts, html2canvas, EmailJS):
+// cache-first and never trimmed — the app can't start offline without the SDK.
+const CDN_CACHE = "ekta-padel-cdn-v1";
+const CDN_HOSTS = [
+  "www.gstatic.com",
+  "fonts.googleapis.com",
+  "fonts.gstatic.com",
+  "cdnjs.cloudflare.com",
+  "cdn.jsdelivr.net",
+];
+// The Firebase SDK the app imports at startup (src/infra/cloud/firebase.js).
+const CDN_PRECACHE = [
+  "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
+  "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+];
+async function precacheCdn() {
+  const cache = await caches.open(CDN_CACHE);
+  await Promise.all(
+    CDN_PRECACHE.map(async (u) => {
+      if (await cache.match(u)) return;
+      const res = await fetch(u).catch(() => null);
+      if (res && res.ok) await cache.put(u, res).catch(() => {});
+    }),
+  );
+}
 const BASE = self.registration.scope;
 const RUNTIME_MAX_ENTRIES = 40;
 const CHECK_EVERY_MS = 10 * 60 * 1000; // navigations trigger a check at most this often
@@ -111,6 +138,7 @@ self.addEventListener("install", (e) => {
       const name = (await downloadBuild(version)) || STATIC_PREFIX + version;
       await caches.open(name); // make sure it exists even if the download was partial
       await setCurrent(name);
+      await precacheCdn().catch(() => {});
       await self.skipWaiting();
     })(),
   );
@@ -143,7 +171,7 @@ self.addEventListener("activate", (e) => {
         keys
           .filter(
             (k) =>
-              k !== META_CACHE && k !== RUNTIME_CACHE && k !== name,
+              k !== META_CACHE && k !== RUNTIME_CACHE && k !== CDN_CACHE && k !== name,
           )
           .map((k) => caches.delete(k)),
       );
@@ -215,13 +243,14 @@ self.addEventListener("message", (e) => {
     );
   }
   if (e.data && e.data.type === "RESET_CACHES") {
-    // Self-heal: the page failed to start. Forget every cache so the next load
-    // is a clean download of the current deploy.
+    // Self-heal: the page failed to start. Forget the app's caches so the next
+    // load is a clean download of the current deploy (the versioned CDN files
+    // are kept: they can't be stale, and the app can't start offline without them).
     e.waitUntil(
       (async () => {
         _current = null;
         const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
+        await Promise.all(keys.filter((k) => k !== CDN_CACHE).map((k) => caches.delete(k)));
         const reply = e.ports && e.ports[0];
         if (reply) reply.postMessage({ ok: true });
       })(),
@@ -240,7 +269,12 @@ self.addEventListener("message", (e) => {
 });
 
 self.addEventListener("push", (e) => {
-  const data = e.data ? e.data.json() : {};
+  let data = {};
+  try {
+    data = e.data ? e.data.json() : {};
+  } catch {
+    data = { body: e.data ? e.data.text() : "" }; // a plain-text payload
+  }
   const title = data.title || "Ekta Padel 🎾";
   const body = data.body || "Live session update";
   e.waitUntil(
@@ -256,7 +290,13 @@ self.addEventListener("push", (e) => {
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const url = e.notification.data?.url || BASE;
-  e.waitUntil(clients.openWindow(url));
+  // Bring an open app window forward rather than opening another one.
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      const open = wins.find((w) => w.url.startsWith(BASE));
+      return open ? open.focus() : clients.openWindow(url);
+    }),
+  );
 });
 
 // Code (HTML shell, app.js, styles.css, ES modules) is served ONLY from the
@@ -291,22 +331,31 @@ self.addEventListener("fetch", (e) => {
 
   if (!isHttp) return;
 
-  // Network-first for Firebase / Firestore.
-  if (
-    url.hostname.includes("firestore.googleapis.com") ||
-    url.hostname.includes("firebase") ||
-    url.hostname.includes("identitytoolkit.googleapis.com")
-  ) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-    return;
-  }
-
-  if (e.request.method !== "GET") {
-    e.respondWith(fetch(e.request));
-    return;
-  }
+  // Live traffic (Firestore's streaming channel, sign-in, uploads) goes
+  // straight to the network without passing through the worker.
+  if (e.request.method !== "GET") return;
 
   const sameOrigin = url.origin === self.location.origin;
+  if (!sameOrigin) {
+    // Versioned CDN files: cache-first. Anything else cross-origin (Google
+    // Drive API, sign-in, …) is live data — leave it to the network, never cache.
+    if (CDN_HOSTS.includes(url.hostname)) {
+      e.respondWith(
+        caches.open(CDN_CACHE).then((cache) =>
+          cache.match(e.request).then(
+            (hit) =>
+              hit ||
+              fetch(e.request).then((res) => {
+                if (res && (res.ok || res.type === "opaque"))
+                  cache.put(e.request, res.clone()).catch(() => {});
+                return res;
+              }),
+          ),
+        ),
+      );
+    }
+    return;
+  }
   const isNavigate = e.request.mode === "navigate";
   // Code that goes stale between deploys: the HTML shell, app.js, styles.css
   // and every ES module under src/ and features/.
@@ -317,8 +366,8 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Static assets (icons, fonts, images, manifest) rarely change — cache-first
-  // for instant loads; populate the runtime cache on first fetch.
+  // Same-origin static assets (icons, images, manifest) rarely change —
+  // cache-first for instant loads; populate the runtime cache on first fetch.
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;

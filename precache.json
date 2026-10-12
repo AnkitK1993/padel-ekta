@@ -47,6 +47,7 @@
     "src/domain/selectors.js",
     "src/domain/state.js",
     "src/domain/stats.js",
+    "src/domain/sync-merge.js",
     "src/domain/xp.js",
     "src/infra/ana-prefs.js",
     "src/infra/app-prefs.js",
