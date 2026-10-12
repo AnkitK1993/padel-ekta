@@ -18,12 +18,6 @@ import {
   computePlayerForm,
 } from "../src/domain/player-analytics.js";
 import { computeBadges } from "../src/domain/badges.js";
-import {
-  computePlayerXP,
-  getPlayerLevel,
-  xpThreshold,
-  getPrestigeTier,
-} from "../src/domain/xp.js";
 import { lastWeekRange } from "../src/domain/dates.js";
 import { viewState } from "../src/ui/view-state.js";
 import {
@@ -42,11 +36,6 @@ import {
   _rankColor,
   toLocalISODate,
 } from "../src/ui/format.js";
-import {
-  isFireMatch,
-  isDominatingMatch,
-  isZeroMatch,
-} from "../src/ui/render-match-rows.js";
 import { emptyState } from "../src/ui/components.js";
 import { goalCardHtml } from "./goals.js";
 
@@ -841,61 +830,6 @@ function openPlayerDetail(name) {
             </div>`
       : "";
 
-  // XP + Level
-  const pdXP = computePlayerXP(name);
-  const { level: pdLevel, progress: pdProgress } = getPlayerLevel(pdXP);
-  const pdTier = getPrestigeTier(pdLevel);
-  const pdXpPct = Math.round(pdProgress * 100);
-  const pdXpToNext = xpThreshold(pdLevel + 1) - pdXP;
-  let pdMatchCount = 0,
-    pdWinCount = 0,
-    pdFireCount = 0,
-    pdDomCount = 0,
-    pdZeroCount = 0;
-  activeMatches().forEach((m) => {
-    const inA = (m.teamA || []).some((p) => normPlayer(p) === name);
-    const inB = (m.teamB || []).some((p) => normPlayer(p) === name);
-    if (!inA && !inB) return;
-    pdMatchCount++;
-    const won = inA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-    if (won) pdWinCount++;
-    if (isFireMatch(m)) pdFireCount++;
-    if (isDominatingMatch(m) && won) pdDomCount++;
-    if (isZeroMatch(m) && won) pdZeroCount++;
-  });
-  const _pdBarClr = {
-    diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)",
-    gold: "#ffd700",
-    silver: "#c0c0c0",
-    bronze: "#cd7f32",
-    rookie: "rgba(255,255,255,0.28)",
-  };
-  const pdBarStyle = _pdBarClr[pdTier].startsWith("linear")
-    ? `background:${_pdBarClr[pdTier]}`
-    : `background:${_pdBarClr[pdTier]}`;
-  const xpCard = `
-    <div class="ana-card">
-      <span class="badge">XP & Level</span>
-      <div class="pd-xp-header">
-        <span class="lvl-badge prestige-${pdTier} pd-big">LVL <span id="pd-lvl-num" data-final="${pdLevel}">${pdLevel}</span></span>
-        <div class="pd-xp-total"><span id="pd-xp-total" data-final="${pdXP}">${pdXP}</span><span style="font-size:12px;color:var(--muted);font-weight:600;margin-left:4px">XP</span></div>
-      </div>
-      <div class="pd-xp-bar-wrap">
-        <div class="pd-xp-bar" id="pd-xp-bar" data-pct="${pdXpPct}" style="width:0%;${pdBarStyle}"></div>
-      </div>
-      <div class="pd-xp-progress-row">
-        <span>${pdXpPct}% to LVL ${pdLevel + 1}</span>
-        <span>${pdXpToNext} XP to go</span>
-      </div>
-      <div class="pd-xp-breakdown">
-        <div class="pd-xp-src-row"><span class="pd-xp-src-lbl">Matches Played</span><span class="pd-xp-src-count">${pdMatchCount} × 15</span><span class="pd-xp-src-val">+${pdMatchCount * 15}</span></div>
-        <div class="pd-xp-src-row"><span class="pd-xp-src-lbl">Wins</span><span class="pd-xp-src-count">${pdWinCount} × 25</span><span class="pd-xp-src-val">+${pdWinCount * 25}</span></div>
-        ${pdFireCount > 0 ? `<div class="pd-xp-src-row"><span class="pd-xp-src-lbl">🔥 Fire Matches</span><span class="pd-xp-src-count">${pdFireCount} × 8</span><span class="pd-xp-src-val">+${pdFireCount * 8}</span></div>` : ""}
-        ${pdDomCount > 0 ? `<div class="pd-xp-src-row"><span class="pd-xp-src-lbl">💀 Dominating Wins</span><span class="pd-xp-src-count">${pdDomCount} × 8</span><span class="pd-xp-src-val">+${pdDomCount * 8}</span></div>` : ""}
-        ${pdZeroCount > 0 ? `<div class="pd-xp-src-row"><span class="pd-xp-src-lbl">😂 Zero Wins</span><span class="pd-xp-src-count">${pdZeroCount} × 12</span><span class="pd-xp-src-val">+${pdZeroCount * 12}</span></div>` : ""}
-      </div>
-    </div>`;
-
   // ASS
   const assMapPd = _ratingMap(activeMatches());
   const playerASS = assMapPd[name] ?? _ratingDefault();
@@ -1553,8 +1487,6 @@ function openPlayerDetail(name) {
                   </div>
                 </div>
 
-                ${xpCard}
-
                 ${goalCardHtml(name)}
 
                 <div class="ana-card">
@@ -1695,11 +1627,6 @@ function openPlayerDetail(name) {
     (v) => rating.fmt(v),
   );
   pdTick(
-    document.getElementById("pd-xp-total"),
-    parseInt(document.getElementById("pd-xp-total")?.dataset.final || 0, 10),
-    (v) => Math.round(v),
-  );
-  pdTick(
     document.getElementById("pd-rank-cur"),
     parseInt(document.getElementById("pd-rank-cur")?.dataset.final || 0, 10),
     (v) => Math.round(v),
@@ -1715,18 +1642,6 @@ function openPlayerDetail(name) {
     (v) => Math.round(v),
   );
 
-  // XP bar fill animation (level number already shows final value from HTML)
-  const xpBarEl = document.getElementById("pd-xp-bar");
-  if (xpBarEl) {
-    const finalPct = parseInt(xpBarEl.dataset.pct, 10);
-    xpBarEl.style.transition = "none";
-    xpBarEl.style.width = "0%";
-    setTimeout(() => {
-      void xpBarEl.offsetWidth;
-      xpBarEl.style.transition = `width ${Math.max(600, finalPct * 8)}ms ease-out`;
-      xpBarEl.style.width = `${finalPct}%`;
-    }, 420);
-  }
 }
 
 // ── PLAYER COMPARE ───────────────────────────────────────────────────────────

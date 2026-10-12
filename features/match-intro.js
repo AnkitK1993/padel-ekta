@@ -11,10 +11,6 @@ import {
 } from "../src/domain/rating-service.js";
 import { isRatedMatch } from "../src/domain/selectors.js";
 import { matchRating as _matchRating } from "../src/app/match-ratings.js";
-import {
-  computePlayerXP,
-  getPlayerLevel,
-} from "../src/domain/xp.js";
 import { getPairKey } from "../src/domain/pairs.js";
 import { memoPairStats } from "../src/app/memo-store.js";
 import {
@@ -207,19 +203,9 @@ function openMatchIntro(idx) {
   document.getElementById("mio-name-b").innerHTML = m.teamB
     .map((p) => escHtml(normPlayer(p)))
     .join("<br>& ");
-  const teamAvgLvl = (players) => {
-    const levels = players.map(
-      (p) => getPlayerLevel(computePlayerXP(normPlayer(p))).level,
-    );
-    return Math.round(levels.reduce((s, l) => s + l, 0) / levels.length);
-  };
   const _mioLbl = rating.label();
-  document.getElementById("mio-elo-a").textContent = _rated
-    ? `${_mioLbl} ${avgAss(m.teamA)} · LVL ${teamAvgLvl(m.teamA)}`
-    : `LVL ${teamAvgLvl(m.teamA)}`;
-  document.getElementById("mio-elo-b").textContent = _rated
-    ? `${_mioLbl} ${avgAss(m.teamB)} · LVL ${teamAvgLvl(m.teamB)}`
-    : `LVL ${teamAvgLvl(m.teamB)}`;
+  document.getElementById("mio-elo-a").textContent = _rated ? `${_mioLbl} ${avgAss(m.teamA)}` : "";
+  document.getElementById("mio-elo-b").textContent = _rated ? `${_mioLbl} ${avgAss(m.teamB)}` : "";
 
   const scoreAEl = document.getElementById("mio-score-a");
   const scoreBEl = document.getElementById("mio-score-b");

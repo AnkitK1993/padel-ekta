@@ -103,27 +103,6 @@ function isZeroMatch(m) {
   return Number(m.scoreA) === 0 || Number(m.scoreB) === 0;
 }
 
-function xpThreshold(level) {
-  if (level <= 1) return 0;
-  return Math.floor(60 * Math.pow(level - 1, 1.8));
-}
-
-function getPlayerLevel(xp) {
-  let level = 1;
-  while (xpThreshold(level + 1) <= xp) level++;
-  const thisXp = xpThreshold(level);
-  const nextXp  = xpThreshold(level + 1);
-  return { level, xp, progress: (xp - thisXp) / (nextXp - thisXp) };
-}
-
-function getPrestigeTier(level) {
-  if (level >= 20) return "diamond";
-  if (level >= 15) return "gold";
-  if (level >= 10) return "silver";
-  if (level >= 5)  return "bronze";
-  return "rookie";
-}
-
 function getPairKey(team) {
   return [...team].sort().join(" & ");
 }
@@ -486,59 +465,6 @@ test("rating 1060 → SR 6.00 (round number)", () => {
   // (1060 - 700) / 60 = 360/60 = 6.00
   assertEqual(ratingToSr(1060), 6.00);
 });
-
-group("xpThreshold");
-test("level 1 threshold is 0", () => {
-  assertEqual(xpThreshold(1), 0);
-});
-test("level 2 threshold is 60", () => {
-  assertEqual(xpThreshold(2), 60);
-});
-test("thresholds increase with level", () => {
-  assert(xpThreshold(3) > xpThreshold(2), "level 3 > level 2");
-  assert(xpThreshold(5) > xpThreshold(4), "level 5 > level 4");
-});
-test("threshold is always a non-negative integer", () => {
-  for (let lvl = 1; lvl <= 20; lvl++) {
-    const t = xpThreshold(lvl);
-    assert(Number.isInteger(t) && t >= 0, `level ${lvl} threshold should be non-negative integer`);
-  }
-});
-
-group("getPlayerLevel");
-test("0 XP → level 1", () => {
-  assertEqual(getPlayerLevel(0).level, 1);
-});
-test("exactly at threshold → levels up", () => {
-  assertEqual(getPlayerLevel(60).level, 2);
-});
-test("one XP below threshold → does not level up", () => {
-  assertEqual(getPlayerLevel(59).level, 1);
-});
-test("progress is between 0 and 1", () => {
-  const { progress } = getPlayerLevel(30);
-  assert(progress >= 0 && progress <= 1, "progress should be 0-1");
-});
-test("progress is 0 at level threshold", () => {
-  const { progress } = getPlayerLevel(60); // exactly level 2
-  assertClose(progress, 0, 0.001);
-});
-test("XP accumulates across many levels", () => {
-  const { level } = getPlayerLevel(1000);
-  assert(level >= 5, "1000 XP should be at least level 5");
-});
-
-group("getPrestigeTier");
-test("level 1 → rookie", () => { assertEqual(getPrestigeTier(1), "rookie"); });
-test("level 4 → rookie", () => { assertEqual(getPrestigeTier(4), "rookie"); });
-test("level 5 → bronze", () => { assertEqual(getPrestigeTier(5), "bronze"); });
-test("level 9 → bronze", () => { assertEqual(getPrestigeTier(9), "bronze"); });
-test("level 10 → silver", () => { assertEqual(getPrestigeTier(10), "silver"); });
-test("level 14 → silver", () => { assertEqual(getPrestigeTier(14), "silver"); });
-test("level 15 → gold",   () => { assertEqual(getPrestigeTier(15), "gold"); });
-test("level 19 → gold",   () => { assertEqual(getPrestigeTier(19), "gold"); });
-test("level 20 → diamond",() => { assertEqual(getPrestigeTier(20), "diamond"); });
-test("level 50 → diamond",() => { assertEqual(getPrestigeTier(50), "diamond"); });
 
 group("getPairKey");
 test("canonical order (alphabetical) regardless of input order", () => {

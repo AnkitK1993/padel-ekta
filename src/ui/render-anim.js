@@ -65,20 +65,6 @@ export function animateGauges() {
   });
 }
 
-// Grow an XP progress bar from 0 to its data-pct width.
-export function animateXpRow(el, delay = 300) {
-  const barEl = el.querySelector(".xp-bar-fill[data-pct]");
-  if (!barEl) return;
-  const finalPct = parseInt(barEl.dataset.pct, 10);
-  barEl.style.transition = "none";
-  barEl.style.width = "0%";
-  setTimeout(() => {
-    void barEl.offsetWidth;
-    barEl.style.transition = `width ${Math.max(500, finalPct * 7)}ms ease-out`;
-    barEl.style.width = `${finalPct}%`;
-  }, delay);
-}
-
 // Count an SR value up from 0 to its data-final.
 export function animateSrVal(el, delay = 200) {
   const finalText = el.dataset.final;

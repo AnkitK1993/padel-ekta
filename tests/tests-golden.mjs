@@ -16,7 +16,6 @@ import {
 } from "../src/domain/season-stats.js";
 import { buildSeasonRevealSlides } from "../features/season-reveal.js";
 import { initPairsDeps, getPairStats, getPairKey } from "../src/domain/pairs.js";
-import { initXpDeps, xpThreshold, getPlayerLevel, getPrestigeTier } from "../src/domain/xp.js";
 import { computeBadges, initBadgesDeps } from "../src/domain/badges.js";
 import {
   initPlayerAnalyticsDeps,
@@ -582,24 +581,6 @@ ok("getPairKey is order-independent", getPairKey(["Alice","Bob"]) === getPairKey
 ok("getPairKey normalises to sorted & format", getPairKey(["Bob","Alice"]) === "Alice & Bob");
 ok("getPairStats is deterministic", JSON.stringify(getPairStats(BADGE_SEASON)) === JSON.stringify(pairs));
 
-// ── XP golden (real src/domain/xp.js) ───────────────────────────────────────
-console.log("\n\x1b[36m── XP/Level golden (real xp.js) ─────────────────────────\x1b[0m");
-// computePlayerXP reads matches — stub with empty activeMatches; match-type
-// helpers not needed for pure level/prestige tests.
-initXpDeps({ normPlayer: (n) => n, activeMatches: () => [], isFireMatch: () => false, isDominatingMatch: () => false, isZeroMatch: () => false });
-ok("xpThreshold(1) === 0", xpThreshold(1) === 0);
-ok("xpThreshold(2) === 60", xpThreshold(2) === 60);
-ok("thresholds strictly increase", xpThreshold(3) > xpThreshold(2) && xpThreshold(5) > xpThreshold(3));
-const lvl1 = getPlayerLevel(0);
-ok("0 XP → level 1", lvl1.level === 1);
-ok("progress is in [0,1]", lvl1.progress >= 0 && lvl1.progress <= 1);
-const lvl2 = getPlayerLevel(xpThreshold(2));
-ok("XP at threshold → level up", lvl2.level === 2 && lvl2.progress === 0);
-ok("prestige: level 1 → rookie", getPrestigeTier(1) === "rookie");
-ok("prestige: level 5 → bronze", getPrestigeTier(5) === "bronze");
-ok("prestige: level 10 → silver", getPrestigeTier(10) === "silver");
-ok("prestige: level 15 → gold", getPrestigeTier(15) === "gold");
-ok("prestige: level 20 → diamond", getPrestigeTier(20) === "diamond");
 
 // ── season-stats golden (real src/domain/season-stats.js) ──────────────────
 console.log(

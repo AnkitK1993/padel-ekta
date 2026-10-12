@@ -154,13 +154,6 @@ import {
   playersOpposed,
 } from "./src/domain/pairs.js";
 import {
-  initXpDeps,
-  xpThreshold,
-  getPlayerLevel,
-  getPrestigeTier,
-  computePlayerXP,
-} from "./src/domain/xp.js";
-import {
   initPlayerAnalyticsDeps,
   computeAchievements,
   computeArchetype,
@@ -176,7 +169,6 @@ import {
 import {
   morphList,
   animateGauges,
-  animateXpRow,
   animateSrVal,
   _sweepNeedle,
   runSpeedometerSweep,
@@ -826,7 +818,7 @@ const _INIT_STORAGE = (() => {
 // `seasons` is shared config (persisted in the cloud doc alongside matches).
 // `_activeSeasonId` is a per-device VIEW preference ("all" = no filter) kept in
 // localStorage — selecting one globally scopes every analytical surface (home,
-// compact, history, analytics, ELO, XP, stats) to that range via activeMatches().
+// compact, history, analytics, ELO, stats) to that range via activeMatches().
 // seasons now lives in shared state.seasons (./state.js)
 let _activeSeasonId = "all";
 // When enabled (per-device), the ongoing season (the one whose range contains
@@ -1246,15 +1238,6 @@ initHistorySummaryDeps({
 // Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
 initPairsDeps({ normPlayer });
-// XP / Level / Prestige — computePlayerXP needs normPlayer + activeMatches +
-// the three match-type helpers (isFireMatch/isDominating/isZero) from render-match-rows.
-initXpDeps({
-  normPlayer,
-  activeMatches,
-  isFireMatch,
-  isDominatingMatch,
-  isZeroMatch,
-});
 // Analytics section builders — HTML generators for the Statistics page.
 initBadgesDeps({
   computeStats,
@@ -5345,9 +5328,9 @@ function renderHome() {
         : "";
     if (document.body.classList.contains("holo-mode")) {
       const corners = `<span class="holo-corner holo-corner-tl"></span><span class="holo-corner holo-corner-tr"></span><span class="holo-corner holo-corner-bl"></span><span class="holo-corner holo-corner-br"></span>`;
-      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span>${nameEloHtml}${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+      return `<div class="pc ${rc} holo-pc" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})">${corners}<div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span>${nameEloHtml}</div></div><div class="skill-block"><div class="mini-gauge-wrap">${buildHudGaugeSvg(p.sr, cardRatingClass)}<div class="sr-val hud-sr-val ${cardRatingClass}" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
     }
-    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span>${nameEloHtml}${mkLvlRow(p.name)}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
+    return `<div class="pc ${rc}" style="--card-index:${i}" onclick="openPlayerDetail(${jsArg(p.name)})"><div class="glow"></div><div class="ct"><div class="rb">${ri}</div><div class="ct-nameblock"><div class="pname-elo-row"><span class="pname">${escHtml(p.name)}</span>${nameEloHtml}</div></div><div class="skill-block"><div class="mini-gauge-wrap"><div class="sr-ring ${cardRatingClass}" style="--speed-angle:${cardAngle}deg;--target-angle:${cardAngle}deg"><div class="gauge"><div class="needle"></div></div><div class="sr-val" data-final="${gaugeAssVal}">${gaugeAssVal}</div></div></div></div></div>${srBar}${statsRow}${sparklineHtml}</div>`;
   });
 
   _renderSessionActiveCard();
@@ -5367,8 +5350,6 @@ function renderHome() {
         board.appendChild(card);
         const srEl = card.querySelector(".sr-val[data-final]");
         if (srEl) animateSrVal(srEl, 300);
-        const xpRow = card.querySelector(".xp-row");
-        if (xpRow) animateXpRow(xpRow, 300);
         card
           .querySelectorAll(".holo-gauge-val[data-final]")
           .forEach((el) => animateSrVal(el, 220 + i * 60));
@@ -5386,14 +5367,12 @@ function renderHome() {
     board
       .querySelectorAll(".sr-val[data-final]")
       .forEach((el) => animateSrVal(el, 300));
-    board.querySelectorAll(".xp-row").forEach((el) => animateXpRow(el, 300));
     board
       .querySelectorAll(".holo-gauge-val[data-final]")
       .forEach((el) => animateSrVal(el, 300));
   }
 }
 
-// animateXpRow -> ./render-anim.js
 
 // animateSrVal -> ./render-anim.js
 
@@ -10444,33 +10423,6 @@ function _pillOnUp(e) {
   _pillDragSrc = null;
   _pillIsDragging = false;
   _pillDragReady = false;
-}
-
-// ── XP + LEVELS ────────────────────────────────────────────
-// xpThreshold → src/domain/xp.js
-
-// computePlayerXP → src/domain/xp.js
-
-// getPlayerLevel → src/domain/xp.js
-
-// getPrestigeTier → src/domain/xp.js
-
-function mkLvlRow(displayName) {
-  const xp = computePlayerXP(displayName);
-  const { level, progress } = getPlayerLevel(xp);
-  const tier = getPrestigeTier(level);
-  const pct = Math.round(progress * 100);
-  const barClr = {
-    diamond: "linear-gradient(90deg,#a0e8ff,#e0b0ff)",
-    gold: "#ffd700",
-    silver: "#c0c0c0",
-    bronze: "#cd7f32",
-    rookie: "rgba(255,255,255,0.28)",
-  };
-  const bg = barClr[tier].startsWith("linear")
-    ? `background:${barClr[tier]}`
-    : `background:${barClr[tier]}`;
-  return `<div class="xp-row"><span class="lvl-badge prestige-${tier}">LVL <span class="xp-lvl-num" data-final="${level}">${level}</span></span><div class="xp-bar-mini"><div class="xp-bar-fill" data-pct="${pct}" style="width:0%;${bg}"></div></div><span class="xp-pct-lbl">${pct}%</span></div>`;
 }
 
 // computeBadges → src/domain/badges.js (injected via initBadgesDeps)
