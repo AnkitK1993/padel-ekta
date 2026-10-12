@@ -1109,11 +1109,21 @@ Puneet - Pun, PK
             </div>
 
             <!-- Admin Audit Log -->
-            <div class="mng-card" data-card-id="audit-log">
+            <!-- Admins (superadmin only) -->
+            <div class="mng-card" data-card-id="admins" style="display:none">
+              <div class="mng-card-header">
+                <span class="mng-card-drag-handle">⠿</span>
+                <span class="mng-card-icon">👑</span>
+                <span class="mng-card-title">Admins</span>
+              </div>
+              <div id="admins-body"></div>
+            </div>
+
+            <div class="mng-card" data-card-id="audit-log" style="display:none">
               <div class="mng-card-header">
                 <span class="mng-card-drag-handle">⠿</span>
                 <span class="mng-card-icon">📜</span>
-                <span class="mng-card-title">Audit Log</span>
+                <span class="mng-card-title">Admin Activity Log</span>
               </div>
               <div id="audit-log-body"></div>
             </div>

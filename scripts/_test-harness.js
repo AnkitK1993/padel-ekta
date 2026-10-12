@@ -37,6 +37,13 @@ export function signInWithRedirect() {}
 export function getRedirectResult() { return Promise.resolve(null); }
 export function onAuthStateChanged() { return () => {}; }
 export function signOut() { return Promise.resolve(); }
+export function getDoc() { return Promise.resolve({ exists: () => false, data: () => ({}) }); }
+export function collection() { return {}; }
+export function addDoc() { return Promise.resolve({}); }
+export function getDocs() { return Promise.resolve({ docs: [] }); }
+export function query() { return {}; }
+export function orderBy() { return {}; }
+export function limit() { return {}; }
 `;
 
 const CONTENT_TYPES = {

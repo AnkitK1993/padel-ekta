@@ -3,11 +3,11 @@ rules_version = '2';
 // ════════════════════════════════════════════════════════════════════
 // Firestore security rules for Ekta Padel.
 //
-// WHY THIS MATTERS: the app's admin check (window.isAdmin = email == ADMIN)
-// is CLIENT-SIDE ONLY — it gates the UI, NOT the database. Without these
+// WHY THIS MATTERS: the app's admin checks (window.isAdmin / isSuperAdmin)
+// are CLIENT-SIDE ONLY — they gate the UI, NOT the database. Without these
 // rules, anyone could open the Firebase SDK/console and overwrite or wipe
 // `padel/main` (every match ever recorded). These rules make the database
-// itself enforce "only the admin may write".
+// itself enforce who may write and who may read the admin activity log.
 //
 // DEPLOY: Firebase Console → Firestore Database → Rules → paste → Publish.
 //   (or `firebase deploy --only firestore:rules` if you use the CLI)
@@ -16,36 +16,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // The single admin allowed to modify the dataset. Matches the email used
-    // by ADMIN_EMAIL in app.js. (Switch to a UID check — request.auth.uid ==
-    // 'xxx' — if you prefer; email works fine for Google sign-in.)
-    function isAdmin() {
+    // The superadmin: manages the admin list and is the only one who can read
+    // the admin activity log. Matches SUPERADMIN_EMAIL in
+    // src/infra/cloud/admins.js.
+    function isSuperAdmin() {
       return request.auth != null
-          && request.auth.token.email == 'ankit.konchady@gmail.com'
-          && request.auth.token.email_verified == true;
+          && request.auth.token.email_verified == true
+          && request.auth.token.email.lower() == 'ankit.konchady@gmail.com';
+    }
+
+    // Admins: the superadmin plus every email in config/admins.emails
+    // (lower-case), which only the superadmin can change.
+    function isAdmin() {
+      return isSuperAdmin() || (
+        request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/config/admins)
+        && request.auth.token.email.lower()
+             in get(/databases/$(database)/documents/config/admins).data.emails
+      );
     }
 
     // ── Leaderboard data (padel/main, padel/photos) ──
-    // Public read (anyone can view the leaderboard); only the admin may write.
-    // To make the data private instead, change `read` to `if request.auth != null`.
+    // Public read (anyone can view the leaderboard); only admins may write.
     match /padel/{doc} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    // ── Admin list (config/admins) ──
+    // Signed-in users may read it (the app checks whether they're an admin);
+    // only the superadmin may change it.
+    match /config/admins {
+      allow read: if request.auth != null;
+      allow write: if isSuperAdmin();
+    }
+
+    // ── Admin activity log (adminLog/{id}) ──
+    // Every admin appends an entry for each add / edit / delete, stamped with
+    // their own email (it can't be forged). Only the superadmin can read the
+    // log or mark an entry undone; nobody can rewrite history.
+    match /adminLog/{id} {
+      allow create: if isAdmin()
+                    && request.resource.data.by == request.auth.token.email.lower();
+      allow read: if isSuperAdmin();
+      allow update: if isSuperAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undone']);
+      allow delete: if false;
+    }
+
     // ── Backups (backups/{YYYY-MM-DD}) ──
-    // Admin only, both directions.
+    // Admins, both directions.
     match /backups/{doc} {
       allow read, write: if isAdmin();
     }
 
     // ── Client error reports (errors/{clientId}) ──
     // Any SIGNED-IN user may write their own error doc so real-world breakage
-    // reaches the maintainer; only the admin may read/delete them. This is NOT
-    // world-writable (requires auth), which keeps it from being a spam vector.
-    // Trade-off: errors from signed-OUT viewers stay only in their localStorage.
+    // reaches the maintainer; only the superadmin may read/delete them.
     match /errors/{clientId} {
-      allow read, delete: if isAdmin();
+      allow read, delete: if isSuperAdmin();
       allow create, update: if request.auth != null;
     }
 

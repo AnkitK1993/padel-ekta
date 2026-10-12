@@ -57,6 +57,7 @@
     "src/domain/xp.js",
     "src/infra/ana-prefs.js",
     "src/infra/app-prefs.js",
+    "src/infra/cloud/admins.js",
     "src/infra/cloud/firebase.js",
     "src/infra/log.js",
     "src/infra/match-store.js",

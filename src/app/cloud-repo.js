@@ -47,8 +47,6 @@ export function buildCloudPayload() {
     playerAliasMap: _deps.getPlayerAliasMap(),
     nextPlayerId: _deps.getNextPlayerId(),
     seasons: _deps.getSeasons(),
-    // Admin audit log (newest entries) so changes can be undone from any device.
-    auditLog: _deps.getAuditLog ? _deps.getAuditLog() : [],
   };
 }
 

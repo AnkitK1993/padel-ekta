@@ -13,8 +13,19 @@ import {
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
-import { applyUndo, mergeLogs, newLogId, LOG_CAP } from "./src/domain/audit.js";
+import { applyUndo, newLogId } from "./src/domain/audit.js";
 import { goalBannerHtml } from "./features/goals.js";
+import {
+  SUPERADMIN_EMAIL,
+  normEmail,
+  isSuperAdminEmail,
+  loadAdminEmails,
+  saveAdminEmails,
+  appendAdminLog,
+  flushAdminLog,
+  fetchAdminLog,
+  markAdminLogUndone,
+} from "./src/infra/cloud/admins.js";
 import { initKeyboardAccess, syncPageLandmarks } from "./src/ui/a11y.js";
 import { matchCardPrecompute as _matchCardPrecompute } from "./src/app/match-ratings.js";
 import {
@@ -413,8 +424,8 @@ function _compactFilterKey() {
 }
 
 // Firebase init + db/auth/provider singletons live in src/infra/cloud/firebase.js
-// (imported at top). ADMIN_EMAIL + the Drive token stay here as app state.
-const ADMIN_EMAIL = "ankit.konchady@gmail.com";
+// (imported at top). The Drive token stays here as app state; who is an admin
+// lives in src/infra/cloud/admins.js (one superadmin + a list they manage).
 let _driveAccessToken = null; // set on sign-in, cleared on sign-out
 
 // ── ON-DEMAND EXTERNAL LIBS ───────────────────────────────
@@ -485,7 +496,7 @@ function _flushErrorLog() {
     if (!log.length) return;
     setDoc(doc(db, "errors", _clientId()), {
       entries: log.slice(-50),
-      email: (window.isAdmin && ADMIN_EMAIL) || (auth.currentUser?.email ?? ""),
+      email: auth.currentUser?.email ?? "",
       updated: Date.now(),
     }).catch((e) => noteError("app:_flushErrorLog", e));
   } catch (e) {
@@ -1276,7 +1287,6 @@ initCloudRepo({
   isForcedOffline: () => _forcedOffline,
   isSessionBuffering: () => !!_liveSessionData?.sessionActive,
   isCloudLoaded: () => _cloudSnapshotSeen,
-  getAuditLog: () => _readAuditLog().slice(0, LOG_CAP),
   showToast,
   appCache: window.appCache || null,
   mkMatchKey: _mkMatchKey,
@@ -1408,7 +1418,6 @@ function _resubscribeFirestore() {
         if (!snap.exists()) return;
         const d = snap.data();
         _ingestSeasons(d.seasons);
-        _ingestAuditLog(d.auditLog);
         let pls, pam, npid;
         if (
           d.players &&
@@ -1888,7 +1897,6 @@ function loadCloudData() {
         }
         const d = snap.data();
         _ingestSeasons(d.seasons);
-        _ingestAuditLog(d.auditLog);
         const { pls, pam, npid } = extractPlayerData(d);
         onData(d.matches || [], pls, pam, npid);
       },
@@ -1944,14 +1952,20 @@ function _updateOfflineIndicator() {
 window.addEventListener("online", () => {
   _updateOfflineIndicator();
   _trySyncNow();
+  if (window.isAdmin) flushAdminLog();
 });
 window.addEventListener("offline", _updateOfflineIndicator);
 _updateOfflineIndicator();
 _setPendingSync(_hasPendingSync());
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   const wasAdmin = window.isAdmin;
-  window.isAdmin = !!user && user.email === ADMIN_EMAIL;
+  // The superadmin, or anyone on the admin list the superadmin keeps.
+  window.isSuperAdmin = !!user && isSuperAdminEmail(user.email);
+  window.isAdmin =
+    window.isSuperAdmin ||
+    (!!user && (await loadAdminEmails()).includes(normEmail(user.email)));
+  if (window.isAdmin) flushAdminLog();
   updateAdminUI(user);
   if (window.isAdmin) scheduleAutoEmail();
   if (window.isAdmin) _scheduleDriveBackup();
@@ -2781,6 +2795,7 @@ function refreshManage() {
   renderStorageBreakdownCard();
   renderPlayerMergeCard();
   renderAuditLogCard();
+  renderAdminsCard();
 }
 
 // ── ADMIN AUDIT LOG ──────────────────────────────────────────
@@ -2806,22 +2821,31 @@ function _writeAuditLog(log) {
 // `undo` (optional) is a recipe that reverses the change — see src/domain/audit.js.
 // Call BEFORE saveCloudData() so the entry travels with that save.
 function logAdminAction(action, detail, undo) {
+  const entry = {
+    id: newLogId(),
+    at: new Date().toISOString(),
+    by: normEmail(auth.currentUser?.email),
+    action,
+    detail,
+    ...(undo ? { undo } : {}),
+  };
+  // A copy on this device, and the shared log only the superadmin can read.
   const log = _readAuditLog();
-  log.unshift({ id: newLogId(), action, detail, at: new Date().toISOString(), ...(undo ? { undo } : {}) });
+  log.unshift(entry);
   _writeAuditLog(log);
+  if (window.isAdmin) appendAdminLog(entry);
+  _adminLogFetchedAt = 0; // the activity card re-reads on its next render
 }
-// The cloud copy of the log (another admin device's actions) merged in.
-function _ingestAuditLog(cloudLog) {
-  if (!Array.isArray(cloudLog) || !cloudLog.length) return;
-  _writeAuditLog(mergeLogs(_readAuditLog(), cloudLog));
-  if (document.querySelector(".page.active")?.id === "pg-add") renderAuditLogCard();
-}
-window._auditUndo = function (id) {
-  if (!window.isAdmin) return;
-  const log = _readAuditLog();
-  const entry = log.find((e) => e.id === id);
+
+// ── ADMIN ACTIVITY LOG (superadmin only) ─────────────────────
+// Every admin's adds, edits and deletes, read from the adminLog collection.
+let _adminLogCache = [];
+let _adminLogFetchedAt = 0;
+window._auditUndo = async function (docId) {
+  if (!window.isSuperAdmin) return;
+  const entry = _adminLogCache.find((e) => e._docId === docId);
   if (!entry || entry.undone || !entry.undo) return;
-  if (!confirm(`Undo "${entry.action}: ${entry.detail || ""}"?`)) return;
+  if (!confirm(`Undo "${entry.action}: ${entry.detail || ""}" by ${entry.by || "an admin"}?`)) return;
   const r = applyUndo(state.matches, entry.undo);
   if (!r.ok) {
     showToast(`Can't undo — ${r.reason}`, "ℹ️");
@@ -2837,50 +2861,136 @@ window._auditUndo = function (id) {
     }
   }
   entry.undone = true;
-  _writeAuditLog(log);
-  logAdminAction("Undo", `${entry.action}: ${entry.detail || ""}`);
+  try {
+    await markAdminLogUndone(docId);
+  } catch (e) {
+    noteError("app:_auditUndo", e);
+  }
+  logAdminAction("Undo", `${entry.action}: ${entry.detail || ""}${entry.by ? ` (by ${entry.by})` : ""}`);
   saveCloudData();
   commit();
   renderTrash();
-  renderAuditLogCard();
+  renderAuditLogCard(true);
   showToast("Undone", "↩️");
 };
-function renderAuditLogCard() {
-  const el = document.getElementById("audit-log-body");
-  if (!el) return;
-  const log = _readAuditLog();
-  if (!log.length) {
-    el.innerHTML =
-      '<div class="sub" style="padding:8px">No admin actions logged yet.</div>';
-    return;
-  }
-  const rows = log
-    .slice(0, 20)
+function _auditRowsHtml(log, live) {
+  return log
+    .slice(0, 100)
     .map((e) => {
       const d = new Date(e.at);
       const when = isNaN(d)
         ? ""
-        : d.toLocaleString("en-GB", {
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+        : d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
       const undoBtn =
-        e.undo && window.isAdmin
+        live && e.undo
           ? e.undone
             ? `<span style="font-size:9px;color:var(--muted);flex-shrink:0">undone</span>`
-            : `<button onclick="_auditUndo(${jsArg(e.id)})" aria-label="Undo ${escHtml(e.action)}" style="font-size:9px;padding:2px 7px;border-radius:6px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.1);color:var(--theme);cursor:pointer;flex-shrink:0">↶ Undo</button>`
+            : `<button onclick="_auditUndo(${jsArg(e._docId)})" aria-label="Undo ${escHtml(e.action)}" style="font-size:9px;padding:2px 7px;border-radius:6px;border:1px solid rgba(var(--theme-rgb),0.4);background:rgba(var(--theme-rgb),0.1);color:var(--theme);cursor:pointer;flex-shrink:0">↶ Undo</button>`
           : "";
       return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-        <div style="font-size:10px;flex:1"><b>${escHtml(e.action)}</b> ${escHtml(e.detail || "")}</div>
+        <div style="font-size:10px;flex:1"><b>${escHtml(e.action)}</b> ${escHtml(e.detail || "")}${e.by ? `<div style="font-size:9px;color:var(--muted)">by ${escHtml(e.by)}</div>` : ""}</div>
         <div style="font-size:9px;color:var(--muted);flex-shrink:0">${when}</div>
         ${undoBtn}
       </div>`;
     })
     .join("");
-  el.innerHTML = rows;
 }
+function renderAuditLogCard(force = false) {
+  const el = document.getElementById("audit-log-body");
+  if (!el) return;
+  const card = el.closest(".mng-card");
+  if (card) card.style.display = window.isSuperAdmin ? "" : "none";
+  if (!window.isSuperAdmin) {
+    el.innerHTML = "";
+    return;
+  }
+  // Manage re-renders often; read the log from the cloud at most once a minute.
+  if (!force && Date.now() - _adminLogFetchedAt < 60000 && el.innerHTML) return;
+  _adminLogFetchedAt = Date.now();
+  el.innerHTML = '<div class="sub" style="padding:8px">Loading activity…</div>';
+  fetchAdminLog(200)
+    .then((log) => {
+      _adminLogCache = log;
+      el.innerHTML = log.length
+        ? `<div style="font-size:9px;color:var(--muted);margin-bottom:6px">Every admin's changes · only you can see this</div>${_auditRowsHtml(log, true)}`
+        : '<div class="sub" style="padding:8px">No admin activity yet.</div>';
+    })
+    .catch((e) => {
+      noteError("app:renderAuditLogCard", e);
+      const local = _readAuditLog();
+      el.innerHTML =
+        `<div style="font-size:9px;color:var(--red);margin-bottom:6px">Couldn't load the shared log (offline, or the security rules aren't published yet). Showing this device's actions.</div>` +
+        (local.length ? _auditRowsHtml(local, false) : '<div class="sub" style="padding:8px">Nothing logged on this device.</div>');
+    });
+}
+
+// ── ADMINS (superadmin only) ─────────────────────────────────
+function renderAdminsCard() {
+  const el = document.getElementById("admins-body");
+  if (!el) return;
+  const card = el.closest(".mng-card");
+  if (card) card.style.display = window.isSuperAdmin ? "" : "none";
+  if (!window.isSuperAdmin) return;
+  loadAdminEmails().then((list) => {
+    el.innerHTML = `
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px">Admins can add, edit and delete matches. Sign-in is with Google, using this email.</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <span style="flex:1;font-size:11px;font-weight:700">${escHtml(SUPERADMIN_EMAIL)}</span><span style="font-size:9px;color:var(--gold)">SUPERADMIN</span>
+      </div>
+      ${list
+        .map(
+          (e) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <span style="flex:1;font-size:11px">${escHtml(e)}</span>
+        <button onclick="_removeAdmin(${jsArg(e)})" aria-label="Remove ${escHtml(e)}" style="font-size:9px;padding:2px 7px;border-radius:6px;border:1px solid rgba(240,80,80,0.4);background:rgba(240,80,80,0.1);color:var(--red);cursor:pointer">Remove</button>
+      </div>`,
+        )
+        .join("")}
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input id="admin-add-email" type="email" class="mei-input" placeholder="name@gmail.com" aria-label="New admin email" style="flex:1">
+        <button class="btn-s" onclick="_addAdmin()">Add admin</button>
+      </div>
+      <div id="admins-msg" class="msg"></div>`;
+  });
+}
+window._addAdmin = async function () {
+  if (!window.isSuperAdmin) return;
+  const input = document.getElementById("admin-add-email");
+  const email = normEmail(input?.value);
+  const msg = document.getElementById("admins-msg");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (msg) {
+      msg.textContent = "Enter a valid email address.";
+      msg.className = "msg err show";
+    }
+    return;
+  }
+  try {
+    const list = await loadAdminEmails();
+    await saveAdminEmails([...list, email]);
+    logAdminAction("Add Admin", email);
+    renderAdminsCard();
+    showToast(`${email} is now an admin`, "👑");
+  } catch (e) {
+    noteError("app:_addAdmin", e);
+    if (msg) {
+      msg.textContent = "Couldn't save — check you're online and the security rules are published.";
+      msg.className = "msg err show";
+    }
+  }
+};
+window._removeAdmin = async function (email) {
+  if (!window.isSuperAdmin) return;
+  if (!confirm(`Remove ${email} as an admin?`)) return;
+  try {
+    const list = await loadAdminEmails();
+    await saveAdminEmails(list.filter((e) => e !== email));
+    logAdminAction("Remove Admin", email);
+    renderAdminsCard();
+  } catch (e) {
+    noteError("app:_removeAdmin", e);
+    showToast("Couldn't save — check you're online", "⚠️");
+  }
+};
 
 // ── BACKUP HEALTH DASHBOARD ──────────────────────────────────
 function renderBackupHealthCard() {
@@ -3782,8 +3892,12 @@ function addMatches() {
 function undoLastAdd() {
   if (!lastMatchSnapshot) return;
   const ids = new Set(lastMatchSnapshot);
+  const gone = state.matches.filter((m) => ids.has(m.id));
   state.matches = state.matches.filter((m) => !ids.has(m.id));
   lastMatchSnapshot = null;
+  gone.forEach((m) =>
+    logAdminAction("Undo Add", `${m.teamA.join("/")} ${m.scoreA}–${m.scoreB} ${m.teamB.join("/")} (${fmtDate(m.date)})`, { kind: "restore", match: { ...m } }),
+  );
   saveCloudData();
   commit();
   refreshManage();
@@ -7225,6 +7339,7 @@ function restoreMatch(i) {
   logAdminAction(
     "Restore Match",
     `${(m.teamA || []).join("/")} vs ${(m.teamB || []).join("/")} on ${fmtDate(m.date)}`,
+    m.id ? { kind: "remove", ids: [m.id] } : undefined,
   );
   delete m.deletedAt;
   state.matches.push(m);
@@ -19932,7 +20047,10 @@ function confirmUndoSession() {
   if (!_sessionMatchHistory.length) return;
   const last = _sessionMatchHistory[_sessionMatchHistory.length - 1];
   const idx = state.matches.findIndex((m) => m.id === last.id);
-  if (idx !== -1) state.matches.splice(idx, 1);
+  if (idx !== -1) {
+    const [gone] = state.matches.splice(idx, 1);
+    logAdminAction("Undo Live Match", `${gone.teamA.join("/")} ${gone.scoreA}–${gone.scoreB} ${gone.teamB.join("/")} (${fmtDate(gone.date)})`, { kind: "restore", match: { ...gone } });
+  }
   _sessionMatchHistory.pop();
   _sessionRedoStack.push(last);
   _liveSlots.a1 = last.teamA[0];
@@ -19969,7 +20087,10 @@ function deleteSessionMatch(histIdx) {
   const mt = _sessionMatchHistory[histIdx];
   if (!mt) return;
   const stateIdx = state.matches.findIndex((m) => m.id === mt.id);
-  if (stateIdx !== -1) state.matches.splice(stateIdx, 1);
+  if (stateIdx !== -1) {
+    const [gone] = state.matches.splice(stateIdx, 1);
+    logAdminAction("Delete Live Match", `${gone.teamA.join("/")} ${gone.scoreA}–${gone.scoreB} ${gone.teamB.join("/")} (${fmtDate(gone.date)})`, { kind: "restore", match: { ...gone } });
+  }
   _sessionMatchHistory.splice(histIdx, 1);
   if (_sessionPendingCount > 0) _sessionPendingCount--;
   _invalidateStatsMemo();
@@ -20074,6 +20195,7 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
     return show("Both teams must have the same size.");
   if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
     return show("All players in a match must be different.");
+  const before = JSON.parse(JSON.stringify(m));
   m.date = date || m.date;
   m.teamA = teamA;
   m.teamB = teamB;
@@ -20081,6 +20203,11 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
   m.scoreB = sb;
   if (note) m.note = note;
   else delete m.note;
+  logAdminAction(
+    "Edit Live Match",
+    `${before.teamA.join("/")} ${before.scoreA}–${before.scoreB} ${before.teamB.join("/")} → ${teamA.join("/")} ${sa}–${sb} ${teamB.join("/")} (${fmtDate(m.date)})`,
+    m.id ? { kind: "replace", before } : undefined,
+  );
   // Sync the session history entry
   const hist = _sessionMatchHistory[histIdx];
   if (hist) {
@@ -20139,6 +20266,7 @@ function redoSessionMatch() {
   }
   const match = _sessionRedoStack.pop();
   state.matches.push({ ...match });
+  logAdminAction("Redo Live Match", `${match.teamA.join("/")} ${match.scoreA}–${match.scoreB} ${match.teamB.join("/")} (${fmtDate(match.date)})`, { kind: "remove", ids: [match.id] });
   _sessionMatchHistory.push(match);
   _liveSlots.a1 = match.teamA[0];
   _liveSlots.a2 = match.teamA[1];
