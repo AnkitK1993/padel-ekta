@@ -23,7 +23,8 @@
     "precache": "node scripts/gen-precache.js",
     "test:sw": "node scripts/sw-update-check.js",
     "test:keyboard": "node scripts/keyboard-check.js",
-    "test:xss": "node scripts/xss-check.js"
+    "test:xss": "node scripts/xss-check.js",
+    "ep:holdout": "node scripts/ep-holdout.mjs"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",

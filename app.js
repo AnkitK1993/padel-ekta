@@ -9486,14 +9486,34 @@ const SCORING_SYSTEM_BLURBS = {
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
 };
 
+// ASS (Earned Points) and ASS CLASSIC are the league's systems; the other three
+// are kept for comparison and live behind "Advanced" so the everyday choice is
+// one of two. The Advanced group opens by itself when one of them is active,
+// so the current selection is never hidden.
+const SCORING_MAIN = ["ep", "ass"];
+const SCORING_ADVANCED = SCORING_SYSTEMS.filter((s) => !SCORING_MAIN.includes(s));
+let _scoringAdvancedOpen = false;
+
 function _scoringSystemPickerRows() {
-  return SCORING_SYSTEMS.map((sys) => {
+  const row = (sys) => {
     const selected = rating.system() === sys;
     return `<button class="live-sheet-item${selected ? " live-sheet-item-selected" : ""}" onclick="_setScoringSystem('${sys}')">
       <div style="flex:1;text-align:left;font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SCORING_SYSTEM_LABELS[sys]}</div>
     </button>`;
-  }).join("");
+  };
+  const open = _scoringAdvancedOpen || SCORING_ADVANCED.includes(rating.system());
+  return (
+    SCORING_MAIN.map(row).join("") +
+    `<button class="live-sheet-item" aria-expanded="${open}" onclick="_toggleScoringAdvanced()">
+      <div style="flex:1;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">${open ? "▾" : "▸"} ADVANCED <span style="font-weight:600">· ${SCORING_ADVANCED.map((s) => SCORING_SYSTEM_LABELS[s]).join(" · ")} — for comparison</span></div>
+    </button>` +
+    (open ? SCORING_ADVANCED.map(row).join("") : "")
+  );
 }
+window._toggleScoringAdvanced = function () {
+  _scoringAdvancedOpen = !_scoringAdvancedOpen;
+  _renderScoringPickerSheet();
+};
 
 function _seasonScoringPickerRows() {
   const season = _activeSeason();
@@ -9519,7 +9539,7 @@ function _renderScoringPickerSheet() {
     ${
       showFormats
         ? `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div>${_seasonScoringPickerRows()}`
-        : `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div><div style="font-size:10px;color:var(--muted);padding:4px 10px 2px">Season formats (Flip/Fair) are ASS-only for now.</div>`
+        : `<div class="live-sheet-section-lbl" style="margin-top:10px">SEASON FORMAT</div><div style="font-size:10px;color:var(--muted);padding:4px 10px 2px">Season formats (Flip/Fair) apply to ASS CLASSIC only.</div>`
     }
   `;
   const note = document.getElementById("season-scoring-note");
@@ -9592,12 +9612,16 @@ const SEASON_SCORING_EXAMPLES = {
 };
 
 function _scoringInfoHtml() {
-  const sysRows = SCORING_SYSTEMS.map((sys) => `
+  const sysRow = (sys) => `
     <div class="scoring-info-row">
       <div class="scoring-info-title">${SCORING_SYSTEM_LABELS[sys]}</div>
       <div class="scoring-info-body">${SCORING_SYSTEM_BLURBS[sys]}</div>
       <div class="scoring-info-example">${SCORING_SYSTEM_EXAMPLES[sys] || ""}</div>
-    </div>`).join("");
+    </div>`;
+  const sysRows =
+    SCORING_MAIN.map(sysRow).join("") +
+    `<div class="scoring-info-section-lbl" style="margin-top:12px">ADVANCED <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(kept for comparison)</span></div>` +
+    SCORING_ADVANCED.map(sysRow).join("");
   const fmtRows = SEASON_SCORING_MODES.map((mode) => `
     <div class="scoring-info-row">
       <div class="scoring-info-title">${SEASON_SCORING_LABELS[mode]}</div>
@@ -9607,9 +9631,9 @@ function _scoringInfoHtml() {
   return `
     <div class="scoring-info-section-lbl">SCORING SYSTEMS</div>
     ${sysRows}
-    <div class="scoring-info-section-lbl" style="margin-top:12px">SEASON FORMATS <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(ASS only)</span></div>
+    <div class="scoring-info-section-lbl" style="margin-top:12px">SEASON FORMATS <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(ASS CLASSIC only)</span></div>
     ${fmtRows}
-    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">Every system starts new players at 1000. "±" columns show how confident the system is — a wide band means "not proven yet," and it narrows the more a player plays.</div>
+    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">ASS starts everyone at 0 and ranks points earned per match; the other systems start new players at 1000. "±" columns show how confident the system is — a wide band means "not proven yet," and it narrows the more a player plays.</div>
   `;
 }
 
