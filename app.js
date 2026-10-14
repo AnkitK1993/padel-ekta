@@ -450,6 +450,55 @@ async function _ensureHtml2Canvas() {
   }
   return !!window.html2canvas;
 }
+// html2canvas 1.4.1 can't parse modern colour syntax: the browser reports
+// color-mix() as color(srgb …), and one such value makes the whole capture
+// throw. Rewrite those values as rgba() on the cloned page before it's drawn.
+const _CAPTURE_COLOR_PROPS = [
+  "color",
+  "background-color",
+  "background-image",
+  "border-top-color",
+  "border-right-color",
+  "border-bottom-color",
+  "border-left-color",
+  "outline-color",
+  "text-decoration-color",
+  "box-shadow",
+  "text-shadow",
+  "fill",
+  "stroke",
+  "-webkit-text-fill-color",
+  "-webkit-text-stroke-color",
+];
+function _srgbToRgba(value) {
+  const n = (x) => parseFloat(x) || 0;
+  const c = (x) => Math.round(Math.min(1, Math.max(0, n(x))) * 255);
+  return value.replace(
+    /color\(srgb\s+([^\s/)]+)\s+([^\s/)]+)\s+([^\s/)]+)(?:\s*\/\s*([^\s)]+))?\s*\)/g,
+    (_, r, g, b, a) => {
+      const alpha = a === undefined ? 1 : a.endsWith("%") ? n(a) / 100 : n(a);
+      return `rgba(${c(r)}, ${c(g)}, ${c(b)}, ${alpha})`;
+    },
+  );
+}
+function _fixColorsForCapture(doc, root) {
+  const win = doc.defaultView || window;
+  const top = root || doc.body;
+  [top, ...top.querySelectorAll("*")].forEach((el) => {
+    const cs = win.getComputedStyle(el);
+    for (const prop of _CAPTURE_COLOR_PROPS) {
+      const v = cs.getPropertyValue(prop);
+      if (v && v.includes("color(")) el.style.setProperty(prop, _srgbToRgba(v), "important");
+    }
+  });
+}
+// Every screenshot goes through here so the colour fix applies everywhere.
+function _captureElement(el, opts) {
+  return window.html2canvas(el, {
+    ...opts,
+    onclone: (doc, clonedEl) => _fixColorsForCapture(doc, clonedEl),
+  });
+}
 async function _ensureEmailjs() {
   if (typeof emailjs !== "undefined") return true;
   try {
@@ -8003,7 +8052,7 @@ async function doSummaryScreenshot(includeMatches) {
     }
   };
   try {
-    const canvas = await window.html2canvas(captureEl, {
+    const canvas = await _captureElement(captureEl, {
       backgroundColor: "#030309",
       scale: 2,
       useCORS: true,
@@ -8013,6 +8062,10 @@ async function doSummaryScreenshot(includeMatches) {
     });
     restore();
     canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast("Capture failed — try a shorter view", "❌");
+        return;
+      }
       _shareBlob = blob;
       const prevImg = document.getElementById("share-preview-img");
       if (prevImg.src.startsWith("blob:")) URL.revokeObjectURL(prevImg.src);
@@ -8190,7 +8243,7 @@ async function shareSnapshot() {
   _shareLabel = fnameMap[cmpFilter] || "Summary";
   _shareCaption = _leaderboardCaption(cmpFilter);
   try {
-    const canvas = await window.html2canvas(snapEl, {
+    const canvas = await _captureElement(snapEl, {
       backgroundColor: "#030309",
       scale: 2,
       useCORS: true,
@@ -8199,6 +8252,10 @@ async function shareSnapshot() {
       windowHeight: snapEl.scrollHeight,
     });
     canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast("Capture failed — try a shorter view", "❌");
+        return;
+      }
       _shareBlob = blob;
       const prevImg = document.getElementById("share-preview-img");
       if (prevImg.src.startsWith("blob:")) URL.revokeObjectURL(prevImg.src);
@@ -19662,7 +19719,7 @@ async function openPlayerReportCard(name) {
   showToast("Capturing...", "📊");
   try {
     const inner = modal.querySelector(".analytics-inner");
-    const canvas = await window.html2canvas(inner || modal, {
+    const canvas = await _captureElement(inner || modal, {
       backgroundColor: "#030309",
       scale: 2,
       useCORS: true,
