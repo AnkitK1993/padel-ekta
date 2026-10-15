@@ -19435,3 +19435,25 @@ body.tv-open {
 .ana-he-chip {
   padding: 0 9px;
 }
+
+/* ── Summary spacing tidy-up ── */
+/* "ASS CHANGE" used to sit centred between the title and the ALL TIME / TODAY
+   toggle; with the toggle gone it floated mid-row. Keep it beside the chevron. */
+#pg-compact .cmp-delta-ctrl {
+  position: static;
+  transform: none;
+  margin-left: auto;
+  margin-right: 12px;
+}
+#pg-compact .cmp-infobar {
+  padding: 3px 14px 7px;
+}
+#pg-compact .summary-strip {
+  padding-bottom: 4px;
+}
+#pg-compact .cmp-matches {
+  padding-bottom: 14px;
+}
+#pg-compact .cmp-body-scroll .hist-summary-card {
+  margin: 14px 10px 16px;
+}
