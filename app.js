@@ -5476,6 +5476,12 @@ function openStripMenu(kind, btn) {
   if (kind === "season") {
     const { activeId, opts } = _seasonPillOptions();
     items = opts.map((o) => ({ label: o.label, on: o.id === activeId, act: `setSeason(${jsArg(o.id)})` }));
+  } else if (kind === "anacat") {
+    const cur = viewState.anaActiveCat || "all";
+    items = (viewState.anaCatList || []).map((c) => ({ label: c.label, on: c.id === cur, act: `anaFilterCategory(${jsArg(c.id)})` }));
+  } else if (kind === "anadate") {
+    const cur = viewState.anaDateFilter || "all";
+    items = _ANA_DATE_OPTS.map((o) => ({ label: o.l, on: o.v === cur, act: `_anaSetDateFilter(${jsArg(o.v)})` }));
   } else {
     const mode = _lbWindow ? _lbWindow.mode : "all";
     items = [
@@ -10165,6 +10171,12 @@ function anaSearchSelect(key) {
 
 function anaFilterCategory(cat, skipPillUpdate) {
   viewState.anaActiveCat = cat;
+  const _catChip = document.getElementById("ana-cat-chip");
+  if (_catChip) {
+    _catChip.classList.toggle("on", cat !== "all");
+    const l = document.getElementById("ana-cat-chip-lbl");
+    if (l) l.textContent = _anaCatChipLabel();
+  }
   if (!skipPillUpdate) {
     document
       .querySelectorAll(".ana-filter-pill")
@@ -10629,10 +10641,10 @@ function toggleAnaHideEmpty() {
   }
   const c = document.getElementById("analytics-page-content");
   if (c) c.classList.toggle("ana-hide-empty", on);
-  const btn = c?.querySelector(".ana-hideempty-btn");
+  const btn = c?.querySelector(".ana-he-chip");
   if (btn) {
-    btn.classList.toggle("active", on);
-    btn.textContent = (on ? "☑" : "☐") + " Hide empty";
+    btn.classList.toggle("on", on);
+    btn.textContent = (on ? "☑" : "☐") + " EMPTY";
   }
 }
 // Heuristic: a section is "empty" when its body strips down to a short
@@ -13568,6 +13580,40 @@ function _renderSeasonQuickSwitch() {
   if (h) h.innerHTML = html;
 }
 
+// Statistics filter strip — one scrollable row of chips (category · season ·
+// period) with Hide-empty pinned at the right; same look as the Summary tab.
+// `cats` is the category list (omitted on the "no matches" screen).
+function _anaCatChipLabel() {
+  const cur = viewState.anaActiveCat || "all";
+  if (cur === "all") return "CATEGORY";
+  return (viewState.anaCatList || []).find((c) => c.id === cur)?.label || "CATEGORY";
+}
+function _analyticsStripHtml(withCats) {
+  const f = viewState.anaDateFilter || "all";
+  const { activeId, opts } = _seasonPillOptions();
+  const seasonChip =
+    activeId === "all" ? "SEASON" : (opts.find((o) => o.id === activeId)?.label || "Season").toUpperCase();
+  const periodChip = _ANA_DATE_OPTS.find((o) => o.v === f)?.l || "ALL TIME";
+  const heOn = getAnaHideEmpty();
+  const range =
+    f === "range"
+      ? `<div class="ana-toolbar ana-date-toolbar">
+        <input class="ana-date-input" type="date" value="${escHtml(viewState.anaDateFrom || "")}" onchange="_anaSetDateRange('from', this.value)" aria-label="From date">
+        <span class="ana-date-range-sep">→</span>
+        <input class="ana-date-input" type="date" value="${escHtml(viewState.anaDateTo || "")}" onchange="_anaSetDateRange('to', this.value)" aria-label="To date">
+        <button class="ana-filter-pill" onclick="_anaSetDateFilter('all')">CLEAR</button>
+      </div>`
+      : "";
+  return `<div class="summary-strip ana-strip">
+    <div class="ss-strip-scroll">
+      ${withCats ? `<button class="ss-chip${(viewState.anaActiveCat || "all") !== "all" ? " on" : ""}" id="ana-cat-chip" onclick="openStripMenu('anacat', this)"><span id="ana-cat-chip-lbl">${escHtml(_anaCatChipLabel())}</span><span class="ss-chev">▾</span></button>` : ""}
+      ${state.seasons.length ? `<button class="ss-chip${activeId !== "all" ? " on" : ""}" onclick="openStripMenu('season', this)">${escHtml(seasonChip)}<span class="ss-chev">▾</span></button>` : ""}
+      <button class="ss-chip${f !== "all" ? " on" : ""}" onclick="openStripMenu('anadate', this)">${escHtml(periodChip)}<span class="ss-chev">▾</span></button>
+    </div>
+    ${withCats ? `<button class="ss-chip ana-he-chip${heOn ? " on" : ""}" onclick="toggleAnaHideEmpty()" aria-label="Hide empty sections">${heOn ? "☑" : "☐"} EMPTY</button>` : ""}
+  </div>${range}`;
+}
+
 function _analyticsDateControlsHtml() {
   const f = viewState.anaDateFilter || "all";
   const pills = _ANA_DATE_OPTS
@@ -13629,8 +13675,7 @@ function renderAnalyticsPage(renderOpts = {}) {
     // nothing can be changed back (it used to leave no way out).
     const _dateFiltered = (viewState.anaDateFilter || "all") !== "all";
     container.innerHTML =
-      _analyticsSeasonControlsHtml() +
-      _analyticsDateControlsHtml() +
+      _analyticsStripHtml(false) +
       emptyState({
         icon: "📊",
         title: "No matches in this view",
@@ -17750,15 +17795,8 @@ function renderAnalyticsPage(renderOpts = {}) {
         ..._catBase.filter((c) => !pillOrder.includes(c.id)),
       ]
     : _catBase;
-  const filterPillsHtml = `<div class="ana-filter-row" id="ana-filter-row" oncontextmenu="event.preventDefault()">${_catLabels
-    .map(
-      (c) =>
-        `<button class="ana-filter-pill${viewState.anaActiveCat === c.id ? " active" : ""}"
-        data-cat="${c.id}"
-        onpointerdown="_pillPointerDown(event,'${c.id}')"
-        oncontextmenu="event.preventDefault()">${c.label}</button>`,
-    )
-    .join("")}</div>`;
+  viewState.anaCatList = _catLabels; // read by the category chip and its menu
+  const filterPillsHtml = _analyticsStripHtml(true);
 
   // Cache sections for search autocomplete
   viewState.anaSections = allSecs.map((s) => ({
@@ -17768,7 +17806,6 @@ function renderAnalyticsPage(renderOpts = {}) {
   }));
 
   const _hideEmptyOn = getAnaHideEmpty();
-  const _hideEmptyToggle = `<div class="ana-toolbar"><button class="ana-hideempty-btn${_hideEmptyOn ? " active" : ""}" onclick="toggleAnaHideEmpty()">${_hideEmptyOn ? "☑" : "☐"} Hide empty</button></div>`;
   container.classList.toggle("ana-hide-empty", _hideEmptyOn);
 
   const sectionsHtml = orderedKeys
@@ -17790,9 +17827,6 @@ function renderAnalyticsPage(renderOpts = {}) {
   if (!isDesktopDashboard) {
     container.innerHTML =
       filterPillsHtml +
-      _analyticsSeasonControlsHtml() +
-      _analyticsDateControlsHtml() +
-      _hideEmptyToggle +
       sectionsHtml.map((sec) => sec.html).join("");
   } else {
     const leftKeys = new Set([
@@ -17853,9 +17887,6 @@ function renderAnalyticsPage(renderOpts = {}) {
     });
     container.innerHTML = `
       ${filterPillsHtml}
-      ${_analyticsSeasonControlsHtml()}
-      ${_analyticsDateControlsHtml()}
-      ${_hideEmptyToggle}
       <div class="ana-dashboard">
         <div class="ana-col ana-col-left">${leftHtml.join("")}</div>
         <div class="ana-col ana-col-right">${rightHtml.join("")}</div>

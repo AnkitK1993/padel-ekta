@@ -16957,6 +16957,7 @@ body.zoomed *::after {
   }
 
   #analytics-page-content > .ana-filter-row,
+  #analytics-page-content > .summary-strip,
   #analytics-page-content > .ana-season-banner,
   #analytics-page-content > .ana-toolbar,
   #analytics-page-content > .ana-dashboard,
@@ -19428,4 +19429,9 @@ body.tv-open {
 .ss-menu-item.on {
   background: rgba(var(--theme-rgb), 0.16);
   color: var(--theme);
+}
+
+/* Statistics: Hide-empty chip is wider than the icon chips */
+.ana-he-chip {
+  padding: 0 9px;
 }
