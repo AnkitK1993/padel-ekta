@@ -5443,17 +5443,17 @@ function _renderSummaryStrip() {
   if (!bar) return;
   closeStripMenu();
   const mode = _lbWindow ? _lbWindow.mode : "all";
-  const gamesLbl = mode === "all" ? "ALL" : `${mode === "first" ? "FIRST" : "LAST"} ${_lbWindow.count}`;
+  const gamesLbl = mode === "all" ? "GAMES" : `${mode === "first" ? "FIRST" : "LAST"} ${_lbWindow.count}`;
   const { activeId, opts } = _seasonPillOptions();
-  // "SEASON: ALL" when unfiltered; a picked season shows just its own name.
-  const seasonChip = activeId === "all" ? "SEASON: ALL" : (opts.find((o) => o.id === activeId)?.label || "Season").toUpperCase();
+  // Default chips just say SEASON / GAMES; once set they show only the value.
+  const seasonChip = activeId === "all" ? "SEASON" : (opts.find((o) => o.id === activeId)?.label || "Season").toUpperCase();
   const n = _excludedCount();
   bar.innerHTML = `<div class="ss-strip-scroll">
       <button class="ss-chip on" onclick="openCmpDateSheet()">${escHtml(_cmpPeriodLabel())}<span class="ss-chev">▾</span></button>
       ${state.seasons.length ? `<button class="ss-chip${activeId !== "all" ? " on" : ""}" onclick="openStripMenu('season', this)">${escHtml(seasonChip)}<span class="ss-chev">▾</span></button>` : ""}
-      <button class="ss-chip${mode !== "all" ? " on" : ""}" onclick="openStripMenu('games', this)">GAMES: ${escHtml(gamesLbl)}<span class="ss-chev">▾</span></button>
+      <button class="ss-chip${mode !== "all" ? " on" : ""}" onclick="openStripMenu('games', this)">${escHtml(gamesLbl)}<span class="ss-chev">▾</span></button>
     </div>
-    <button class="ss-chip ss-chip-icon${n > 0 ? " on" : ""}" id="cmpExcludeBtn" aria-label="Hidden players" onclick="openExcludeSheet()">🚫${n > 0 ? `<span class="ss-exc-badge">${n}</span>` : ""}</button>
+    <button class="ss-chip ss-chip-icon${n > 0 ? " on" : ""}" id="cmpExcludeBtn" aria-label="Hidden players" onclick="openExcludeSheet()">🚫</button>
     <button class="ss-chip ss-chip-icon" aria-label="Share leaderboard screenshot" onclick="openSummaryShare()">📸</button>`;
 }
 // Kept under its old name: other code re-renders the strip after a games-window change.
