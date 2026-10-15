@@ -50,8 +50,27 @@ const get = (n) => r.rows.find((p) => p.name === n);
 ok("favoured / underdog are counted only for unfair matches", get("A").favoured === 1 && get("C").underdog === 1 && get("A").underdog === 0);
 ok("each player's matches add up", r.rows.every((p) => p.fair + p.exception + p.unfair === p.mp));
 ok("average edge is positive for the strong, negative for the weak", get("A").avgEdge > get("D").avgEdge);
-ok("rows are sorted by edge, best first", r.rows[0].avgEdge >= r.rows[r.rows.length - 1].avgEdge);
+ok("rows are sorted by favoured %, best first", r.rows.every((p, i) => i === 0 || r.rows[i - 1].favPct >= p.favPct));
+ok("A (top) is favoured in the unfair match, D (bottom) is not", get("A").favPct > 0 && get("D").favPct === 0);
+const ex = analyzePairingOdds([warm, d1, d2], { history: hist({ A: [90, 90, 90], B: [70, 70, 70], C: [50, 50, 50], D: [30, 30, 30] }) });
+const exA = ex.rows.find((p) => p.name === "A");
+ok("percentages leave exceptions out (A: 2 counted of 3 played)", exA.counted === 2 && exA.mp === 3 && Math.abs(exA.fairPct - 100) < 1e-9);
 ok("non-doubles matches are skipped, not counted", analyzePairingOdds([M("2026-01-01", ["A"], ["B"])], { history: {} }).totals.skipped === 1);
+
+console.log("\n\x1b[36m── worked example: A 90, B 80, C 70, D 60 ─────────────\x1b[0m");
+{
+  const H2 = hist({ A: [90, 90, 90, 90], B: [80, 80, 80, 80], C: [70, 70, 70, 70], D: [60, 60, 60, 60] });
+  const w = M("2026-02-01", ["A", "B"], ["C", "D"]);
+  const ad = M("2026-02-02", ["A", "D"], ["B", "C"]);
+  const ab = M("2026-02-03", ["A", "B"], ["C", "D"]);
+  const ac = M("2026-02-04", ["A", "C"], ["B", "D"]);
+  const x = analyzePairingOdds([w, ad, ab, ac], { history: H2 });
+  ok("A+D vs B+C (150 v 150) is fair", x.matches[1].kind === "fair");
+  ok("A+B vs C+D (170 v 130) is unfair, A & B favoured", x.matches[2].kind === "unfair" && x.matches[2].favouredSide === "A");
+  ok("A+C vs B+D (160 v 140) is unfair, A & C favoured", x.matches[3].kind === "unfair" && x.matches[3].favouredSide === "A");
+  const g = (n) => x.rows.find((p) => p.name === n);
+  ok("favoured counts: A 2, B 1, C 1, D 0", g("A").favoured === 2 && g("B").favoured === 1 && g("C").favoured === 1 && g("D").favoured === 0);
+}
 
 console.log(`\n\x1b[1mPairing odds: ${pass}/${pass + fail} passed\x1b[0m  (${fail} failed)\n`);
 process.exit(fail ? 1 : 0);

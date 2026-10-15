@@ -12110,46 +12110,44 @@ function _pairingOddsHtml(matches) {
   const t = res.totals;
   if (!t.matches)
     return '<div class="sub" style="padding:8px">Need some 2v2 matches in this view.</div>';
-  const pct = (n, of) => (of ? Math.round((n / of) * 100) : 0);
-  const pill = (label, n, col) =>
+  const counted = t.fair + t.unfair;
+  const pctOf = (n, of) => (of ? Math.round((n / of) * 100) : 0);
+  const pill = (label, big, sub, col) =>
     `<div style="flex:1;min-width:0;text-align:center;padding:7px 4px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid ${col}">
-      <div style="font-size:16px;font-weight:900;color:${col}">${pct(n, t.matches)}%</div>
-      <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">${label} · ${n}</div>
+      <div style="font-size:16px;font-weight:900;color:${col}">${big}</div>
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">${label}${sub !== "" ? ` · ${sub}` : ""}</div>
     </div>`;
   const sgn = (v, d = 1) => (v > 0 ? "+" : "") + v.toFixed(d);
-  const cell = (n, of, col) =>
-    `<td style="text-align:center;padding:5px 3px;white-space:nowrap">${n ? `<span style="font-weight:800;color:${col}">${n}</span><span style="font-size:8px;color:var(--muted)"> ${pct(n, of)}%</span>` : '<span style="color:var(--muted)">–</span>'}</td>`;
+  const cell = (n, pct, col, bold = false) =>
+    `<td style="text-align:center;padding:5px 3px;white-space:nowrap">${n ? `<span style="font-weight:800;color:${col}">${n}</span><span style="font-size:${bold ? "10px;font-weight:900;color:" + col : "8px;color:var(--muted)"}"> ${Math.round(pct)}%</span>` : '<span style="color:var(--muted)">–</span>'}</td>`;
   const th = (l, extra = "") =>
     `<th style="padding:4px 3px;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:0.06em;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;${extra}">${l}</th>`;
   const rows = res.rows
     .map((p, i) => {
-      const netCol = p.net > 0 ? "var(--green)" : p.net < 0 ? "var(--red)" : "var(--muted)";
       const edgeCol = p.avgEdge > 0.05 ? "var(--green)" : p.avgEdge < -0.05 ? "var(--red)" : "var(--muted)";
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
         <td style="padding:5px 3px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap"><span style="color:var(--muted);font-weight:800;margin-right:4px">${i + 1}</span>${escHtml(p.name)}</td>
         <td style="text-align:center;color:var(--muted)">${p.mp}</td>
-        ${cell(p.fair, p.mp, "var(--green)")}
-        ${cell(p.exception, p.mp, "var(--gold)")}
-        ${cell(p.unfair, p.mp, "var(--red)")}
-        <td style="text-align:center;font-weight:800;color:var(--green)">${p.favoured || "–"}</td>
-        <td style="text-align:center;font-weight:800;color:var(--red)">${p.underdog || "–"}</td>
-        <td style="text-align:center;font-weight:900;color:${netCol}">${sgn(p.net, 0)}</td>
+        <td style="text-align:center;color:${p.exception ? "var(--gold)" : "var(--muted)"};font-weight:800">${p.exception || "–"}</td>
+        ${cell(p.fair, p.fairPct, "var(--green)")}
+        ${cell(p.favoured, p.favPct, "var(--green)", true)}
+        ${cell(p.underdog, p.dogPct, "var(--red)")}
         <td style="text-align:center;font-weight:800;color:${edgeCol}">${sgn(p.avgEdge)}</td>
       </tr>`;
     })
     .join("");
   return `<div class="ana-card" style="padding:10px 12px">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Each 2v2 is judged on every player's ${_scoringLabel()} just before it. <b style="color:var(--green)">Fair</b> = best + worst vs the middle two. <b style="color:var(--gold)">Exception</b> = not that split, but best and worst had already partnered that day (not counted against anyone). <b style="color:var(--red)">Unfair</b> = a stacked side; the stronger side is <b>favoured</b>.</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Each 2v2 is judged on every player's ${_scoringLabel()} just before it. <b style="color:var(--green)">Fair</b> = best + worst vs the middle two. Any other split is <b style="color:var(--red)">unfair</b>: the side with the higher combined ${_scoringLabel()} is <b style="color:var(--green)">favoured</b>, the other is the <b style="color:var(--red)">underdog</b>. <b style="color:var(--gold)">Exception</b> = not the fair split, but best and worst had already partnered that day — left out of every %.</div>
     <div style="display:flex;gap:6px;margin-bottom:10px">
-      ${pill("FAIR", t.fair, "var(--green)")}${pill("EXCEPTION", t.exception, "var(--gold)")}${pill("UNFAIR", t.unfair, "var(--red)")}
+      ${pill("FAIR", pctOf(t.fair, counted) + "%", t.fair, "var(--green)")}${pill("UNFAIR", pctOf(t.unfair, counted) + "%", t.unfair, "var(--red)")}${pill("EXCEPTIONS", t.exception, "", "var(--gold)")}
     </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <table style="width:100%;border-collapse:collapse;font-size:11px">
-        <thead><tr>${th("PLAYER", "text-align:left")}${th("MP")}${th("FAIR")}${th("EXC.")}${th("UNFAIR")}${th("▲ FAV")}${th("▼ DOG")}${th("NET")}${th("EDGE")}</tr></thead>
+        <thead><tr>${th("PLAYER", "text-align:left")}${th("MP")}${th("EXC.")}${th("FAIR")}${th("▲ FAVOURED")}${th("▼ UNDERDOG")}${th("EDGE")}</tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">▲ FAV / ▼ DOG: unfair matches played on the stronger / weaker side. NET = FAV − DOG. EDGE = average combined-rating advantage of the player's team over the other, across all their matches (best odds first).${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
+    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">Ranked by ▲ FAVOURED % — the share of a player's games (exceptions left out) played on the stronger side. FAIR + FAVOURED + UNDERDOG = 100%. EDGE = average combined-rating advantage of the player's team over the other side. Note: whoever is the strongest of the four is on the favoured side of every unfair split, so top-rated players lean high here by construction.${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
   </div>`;
 }
 

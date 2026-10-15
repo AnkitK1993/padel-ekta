@@ -92,13 +92,24 @@ export function analyzePairingOdds(matches, { history = {}, def = 0 } = {}) {
     four.forEach(advance);
   });
 
-  const rows = Object.values(players).map((r) => ({
-    ...r,
-    net: r.favoured - r.underdog,
-    avgEdge: r.mp ? r.edgeSum / r.mp : 0,
-  }));
-  // Best odds first: biggest average rating edge, then net favoured matches.
-  rows.sort((x, y) => y.avgEdge - x.avgEdge || y.net - x.net || x.name.localeCompare(y.name));
+  // Percentages are of the matches that COUNT: exceptions are left out.
+  const rows = Object.values(players).map((r) => {
+    const counted = r.mp - r.exception;
+    const pct = (n) => (counted ? (100 * n) / counted : 0);
+    return {
+      ...r,
+      counted,
+      fairPct: pct(r.fair),
+      unfairPct: pct(r.unfair),
+      favPct: pct(r.favoured),
+      dogPct: pct(r.underdog),
+      net: r.favoured - r.underdog,
+      avgEdge: r.mp ? r.edgeSum / r.mp : 0,
+    };
+  });
+  // Best odds first: the biggest share of their counted games played on the
+  // favoured side, then the most such games.
+  rows.sort((x, y) => y.favPct - x.favPct || y.favoured - x.favoured || y.mp - x.mp || x.name.localeCompare(y.name));
 
   const totals = { matches: list.length, fair: 0, exception: 0, unfair: 0, skipped };
   list.forEach((x) => totals[x.kind]++);
