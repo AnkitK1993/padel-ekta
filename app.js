@@ -7643,6 +7643,10 @@ function saveMatchEdit(i) {
   if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
     return show("All players in a match must be different.");
   const before = JSON.parse(JSON.stringify(m));
+  // The Add Matches box mirrors saved matches as editable lines. Drop this
+  // match's old line, or the next Add would see it as a new match and save a
+  // second copy with the old score/teams.
+  _removeMatchFromTA(before);
   m.date = date || m.date;
   m.teamA = teamA;
   m.teamB = teamB;
@@ -20295,6 +20299,10 @@ function saveSessionMatchEdit(stateIdx, histIdx) {
   if (new Set([...teamA, ...teamB]).size < teamA.length + teamB.length)
     return show("All players in a match must be different.");
   const before = JSON.parse(JSON.stringify(m));
+  // The Add Matches box mirrors saved matches as editable lines. Drop this
+  // match's old line, or the next Add would see it as a new match and save a
+  // second copy with the old score/teams.
+  _removeMatchFromTA(before);
   m.date = date || m.date;
   m.teamA = teamA;
   m.teamB = teamB;
