@@ -740,7 +740,7 @@ async function main() {
       client,
       // Wait for a render that actually knows about both seasons (not just
       // any render — the section existed even before seasons did).
-      `document.querySelectorAll("#ana-season-row .ana-filter-pill").length >= 3`,
+      `document.querySelectorAll("#analytics-page-content .summary-strip .ss-chip").length >= 4`,
       "Analytics re-rendered with both seasons known",
     );
     const riserFaller = await evaluate(client, `(() => {
@@ -780,9 +780,8 @@ async function main() {
     })();`);
     assert(tapOpensOverlay, "Tapping a Summary match did not open the match-intro overlay");
     await evaluate(client, `closeMatchIntro && closeMatchIntro();`);
-    // Dynamic column layout: no horizontal scroll, table always fills 100%
-    // width. With all columns shown AND with some hidden, the table must
-    // not overflow its container.
+    // Column layout: no horizontal scroll, table always fills 100% width and
+    // must not overflow its container.
     const colLayout = await evaluate(client, `(() => {
       const scroll = document.querySelector("#pg-compact .cmp-scroll");
       const table = document.querySelector("#pg-compact table.cmp");
@@ -792,16 +791,9 @@ async function main() {
       // (ignores table-layout constraints), so offsetWidth is the correct check.
       const allColsNoOverflow = table && scroll
         ? table.offsetWidth <= scroll.clientWidth + 2 : false;
-      // Hide a few columns then check again
-      table && table.classList.add("hide-col-mp", "hide-col-gw", "hide-col-gl");
-      const hiddenColsNoOverflow = table && scroll
-        ? table.offsetWidth <= scroll.clientWidth + 2 : false;
-      // Restore
-      table && table.classList.remove("hide-col-mp", "hide-col-gw", "hide-col-gl");
       return {
         scrollX: scroll ? cs(scroll).overflowX : "",
         allColsNoOverflow,
-        hiddenColsNoOverflow,
       };
     })()`);
     assert(
@@ -811,10 +803,6 @@ async function main() {
     assert(
       colLayout.allColsNoOverflow,
       "Expected table to fit within container with all columns shown",
-    );
-    assert(
-      colLayout.hiddenColsNoOverflow,
-      "Expected table to still fit when some columns are hidden",
     );
 
     await evaluate(client, `toggleExcludePlayer("Puneet");`);
@@ -915,7 +903,7 @@ async function main() {
           window._pairMatrixSetMode({}, "pct"); // exercise the re-render path
           return !!document.getElementById("pair-matrix-box");
         })(),
-        hasHideEmpty: !!document.querySelector(".ana-hideempty-btn"),
+        hasHideEmpty: !!document.querySelector(".ana-he-chip"),
         emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
       };
     })()`);
@@ -977,7 +965,7 @@ async function main() {
     await evaluate(client, `switchMainTab("analytics", true);`);
     await waitFor(
       client,
-      `document.querySelector("#ana-season-row .ana-filter-pill.active")?.textContent === "May 2026"`,
+      `[...document.querySelectorAll("#analytics-page-content .summary-strip .ss-chip.on")].some((c) => /May 2026/i.test(c.textContent))`,
       "active season pill reflects the selected season in analytics",
     );
     await evaluate(client, `setSeason("all"); switchMainTab("home", true);`);
