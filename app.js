@@ -5518,15 +5518,28 @@ function _renderLbWindowBar() {
   </div>`;
 }
 
+// Re-render without the cascade animation, then put the class back the way it
+// was: with the animation level on Medium/Off it must STAY on, or the
+// highlight rows (which start at opacity 0) are left hidden.
+function _withNoCascade(fn) {
+  const had = document.body.classList.contains("no-cascade");
+  document.body.classList.add("no-cascade");
+  try {
+    fn();
+  } finally {
+    if (!had) document.body.classList.remove("no-cascade");
+  }
+}
+
 function _lbSetWindow(mode) {
   if (mode === "all") {
     _lbWindow = null;
     _renderLbWindowBar();
-    document.body.classList.add("no-cascade");
-    const _t = document.getElementById("cmpBody");
-    if (_t) _t.innerHTML = "";
-    renderCompact();
-    document.body.classList.remove("no-cascade");
+    _withNoCascade(() => {
+      const _t = document.getElementById("cmpBody");
+      if (_t) _t.innerHTML = "";
+      renderCompact();
+    });
   } else {
     _cmpCountPickerOpen("lb", mode);
   }
@@ -5537,16 +5550,12 @@ function toggleMatchDeltaWindow(win) {
   document
     .querySelectorAll(".mdw-btn")
     .forEach((b) => b.classList.toggle("active", b.dataset.window === win));
-  document.body.classList.add("no-cascade");
-  renderCompact();
-  document.body.classList.remove("no-cascade");
+  _withNoCascade(renderCompact);
 }
 
 function toggleTopGainersWindow(win) {
   _topGainersWindow = win;
-  document.body.classList.add("no-cascade");
-  renderCompact();
-  document.body.classList.remove("no-cascade");
+  _withNoCascade(renderCompact);
 }
 
 // Manual "Remove Cache" admin action — drops the Statistics page's in-memory

@@ -3876,8 +3876,9 @@ body.no-cascade .analytics-card {
   animation: cardSlideUp 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .hsum-cascade {
-  opacity: 0;
-  animation: rowReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  /* backwards (not opacity:0 + forwards): if the animation is suppressed the
+     row is simply visible instead of stuck invisible. */
+  animation: rowReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* ── HISTORY SUMMARY CARD ───────────────────── */
