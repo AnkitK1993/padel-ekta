@@ -7714,14 +7714,7 @@ body:not(.splash-done) #board .pc {
 }
 #cmp-ass-th { width: 46px; }
 
-/* ── Column visibility toggle ── */
-.cmp.hide-col-mp [data-col="mp"],
-.cmp.hide-col-record [data-col="record"],
-.cmp.hide-col-winPct [data-col="winPct"],
-.cmp.hide-col-gw [data-col="gw"],
-.cmp.hide-col-gl [data-col="gl"],
-.cmp.hide-col-gamePct [data-col="gamePct"] { display: none; }
-.cmp.hide-col-ass [data-col="ass"] { display: none; }
+/* ── Column visibility ── */
 /* "±" confidence column only exists for Glicko-2/OpenSkill — driven by the
    active scoring system, not the user-togglable column-chip preferences. */
 .cmp.hide-col-conf [data-col="conf"] { display: none; }
@@ -7729,32 +7722,6 @@ body:not(.splash-done) #board .pc {
   font-size: 10px;
   color: var(--muted);
   font-weight: 600;
-}
-
-/* ── Column chip strip ── */
-.col-chip-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 16px 4px;
-}
-.col-chip {
-  padding: 7px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  font-family: "DM Sans", sans-serif;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-.col-chip--on {
-  background: rgba(var(--theme-rgb), 0.18);
-  border-color: rgba(var(--theme-rgb), 0.55);
-  color: var(--accent);
 }
 
 .analytics-premium-card,
@@ -19371,4 +19338,97 @@ body.tv-open {
   .tv-clock {
     display: none;
   }
+}
+
+/* ── Summary filter strip: one scrollable row + pinned icon buttons ── */
+.summary-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+.ss-strip-scroll {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* hint that the row scrolls */
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+}
+.ss-strip-scroll::-webkit-scrollbar {
+  display: none;
+}
+.ss-chip {
+  flex: none;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+.ss-chip.on {
+  background: rgba(var(--theme-rgb), 0.14);
+  border-color: rgba(var(--theme-rgb), 0.5);
+  color: var(--theme);
+}
+.ss-chip-icon {
+  width: 36px;
+  padding: 0;
+  font-size: 16px;
+}
+.ss-chev {
+  margin-left: 5px;
+  font-size: 10px;
+}
+.ss-menu {
+  position: fixed;
+  z-index: 9990;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 2px;
+  background: var(--surface, #0b1220);
+  border: 1px solid rgba(var(--theme-rgb), 0.4);
+  border-radius: 14px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.ss-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+}
+.ss-menu-item.on {
+  background: rgba(var(--theme-rgb), 0.16);
+  color: var(--theme);
 }

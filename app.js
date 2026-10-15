@@ -1057,37 +1057,6 @@ let cmpSortAsc = false;
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
-const _CMP_TOGGLE_COLS = [
-  { key: "mp", label: "MP" },
-  { key: "record", label: "W–L" },
-  { key: "winPct", label: "W%" },
-  { key: "gw", label: "GW" },
-  { key: "gl", label: "GL" },
-  { key: "gamePct", label: "G%" },
-  { key: "ass", label: "ASS" },
-];
-function _loadCmpHiddenCols() {
-  try {
-    const s = _INIT_STORAGE["padel_cmp_hidden_cols_v3"];
-    if (s) return new Set(JSON.parse(s));
-  } catch (e) {
-    noteError("app:_loadCmpHiddenCols", e);
-  }
-  return new Set([]);
-}
-let _cmpHiddenCols = _loadCmpHiddenCols();
-// One-time migration (v5): always show both ELO and ASS columns by default,
-// regardless of the active scoring toggle. Clears any previously-hidden
-// scoring column from saved state.
-if (!_INIT_STORAGE["padel_cmp_col_migrate_v5"]) {
-  _cmpHiddenCols.delete("elo");
-  _cmpHiddenCols.delete("ass");
-  localStorage.setItem(
-    "padel_cmp_hidden_cols_v3",
-    JSON.stringify([..._cmpHiddenCols]),
-  );
-  localStorage.setItem("padel_cmp_col_migrate_v5", "1");
-}
 let prevPage = "home";
 let lastMatchSnapshot = null; // ids of the matches the last add/import created
 let _forcedOffline = getForcedOffline();
@@ -4987,15 +4956,15 @@ function _saveExcludedPlayers() {
   }
 }
 
-function _updateExcludeBtn() {
-  const btn = document.getElementById("cmpExcludeBtn");
-  if (!btn) return;
+// Number of players the Summary tab is hiding (guests + manual exclusions).
+function _excludedCount() {
   const guestCount = Object.values(state.players).filter(
     (p) => p.isGuest && !_sessionGuestUnexcluded.has(p.name),
   ).length;
-  const n = guestCount + _excludedPlayers.size;
-  btn.classList.toggle("ss-eq-btn-on", n > 0);
-  btn.innerHTML = n > 0 ? `🚫<span class="ss-exc-badge">${n}</span>` : "🚫";
+  return guestCount + _excludedPlayers.size;
+}
+function _updateExcludeBtn() {
+  _renderSummaryStrip();
 }
 
 function openExcludeSheet() {
@@ -5106,64 +5075,9 @@ function closeExcludeSheet() {
   document.getElementById("exclude-sheet")?.classList.remove("live-sheet-open");
 }
 
-function openColSheet() {
-  _renderColChips();
-  document
-    .getElementById("col-sheet-overlay")
-    ?.classList.add("live-sheet-open");
-  document.getElementById("col-sheet")?.classList.add("live-sheet-open");
-}
-function closeColSheet() {
-  document
-    .getElementById("col-sheet-overlay")
-    ?.classList.remove("live-sheet-open");
-  document.getElementById("col-sheet")?.classList.remove("live-sheet-open");
-}
-function _renderColChips() {
-  const list = document.getElementById("col-chip-list");
-  if (!list) return;
-  const chips = _CMP_TOGGLE_COLS
-    .map(
-      (c) =>
-        `<button class="col-chip${_cmpHiddenCols.has(c.key) ? "" : " col-chip--on"}" onclick="toggleCmpCol(${jsArg(c.key)})">${escHtml(c.label)}</button>`,
-    )
-    .join("");
-  const showAll =
-    _cmpHiddenCols.size > 0
-      ? `<button class="ss-exc-clear-btn" onclick="showAllCmpCols()">SHOW ALL</button>`
-      : "";
-  list.innerHTML = chips + showAll;
-}
-function showAllCmpCols() {
-  _cmpHiddenCols.clear();
-  try {
-    localStorage.setItem("padel_cmp_hidden_cols_v3", JSON.stringify([]));
-  } catch (e) {
-    noteError("app:showAllCmpCols", e);
-  }
-  _applyCmpColClasses();
-  _renderColChips();
-}
-function toggleCmpCol(key) {
-  if (_cmpHiddenCols.has(key)) _cmpHiddenCols.delete(key);
-  else _cmpHiddenCols.add(key);
-  try {
-    localStorage.setItem(
-      "padel_cmp_hidden_cols_v3",
-      JSON.stringify([..._cmpHiddenCols]),
-    );
-  } catch (e) {
-    noteError("app:toggleCmpCol", e);
-  }
-  _applyCmpColClasses();
-  _renderColChips();
-}
 function _applyCmpColClasses() {
   const table = document.querySelector(".cmp");
   if (!table) return;
-  _CMP_TOGGLE_COLS.forEach((c) =>
-    table.classList.toggle(`hide-col-${c.key}`, _cmpHiddenCols.has(c.key)),
-  );
   // The "±" confidence column only has meaning for Glicko-2/OpenSkill — driven
   // by the active scoring system, not a user-togglable column preference.
   table.classList.toggle("hide-col-conf", !SCORING_SYSTEMS_WITH_CONFIDENCE.includes(rating.system()));
@@ -5500,22 +5414,91 @@ function _computeLbWindowStats(baseMatches, system) {
   return { stats: statsList, assMap, confMap };
 }
 
-function _renderLbWindowBar() {
-  const bar = document.getElementById("lbWindowBar");
+// ── SUMMARY FILTER STRIP ───────────────────────────────────
+// One scrollable row: period · season · games chips (each opens a picker),
+// with the hidden-players and screenshot buttons pinned at the right.
+function _cmpPeriodLabel() {
+  const MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const fmt = (iso) => {
+    const [, m, d] = iso.split("-");
+    return `${parseInt(d)} ${MONTHS[parseInt(m)]}`;
+  };
+  if (cmpFilter === "day" && cmpFrom) return fmt(cmpFrom);
+  if (cmpFilter === "range" && cmpFrom && cmpTo) return `${fmt(cmpFrom)}–${fmt(cmpTo)}`;
+  const map = {
+    all: "ALL TIME",
+    today: "TODAY",
+    week: "THIS WEEK",
+    lastweek: "LAST WEEK",
+    weekend: "WEEKEND",
+    month: "THIS MONTH",
+    range: "RANGE",
+    day: "DAY",
+  };
+  return map[cmpFilter] || cmpFilter.toUpperCase();
+}
+
+function _renderSummaryStrip() {
+  const bar = document.getElementById("summaryStrip");
   if (!bar) return;
+  closeStripMenu();
   const mode = _lbWindow ? _lbWindow.mode : "all";
-  const count = _lbWindow ? _lbWindow.count : 10;
-  const chip =
-    mode !== "all"
-      ? `<button class="cmp-count-chip" style="margin-left:2px" onclick="_lbSetWindow('${mode}')">${count}</button>`
-      : "";
-  bar.innerHTML = `<div style="display:flex;gap:4px;align-items:center;padding:4px 12px 6px">
-    <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.1em;flex-shrink:0">GAMES</span>
-    <button class="digest-filter-btn${mode === "all" ? " active" : ""}" onclick="_lbSetWindow('all')" style="padding:2px 7px;font-size:9px">ALL</button>
-    <button class="digest-filter-btn${mode === "first" ? " active" : ""}" onclick="_lbSetWindow('first')" style="padding:2px 7px;font-size:9px">FIRST</button>
-    <button class="digest-filter-btn${mode === "last" ? " active" : ""}" onclick="_lbSetWindow('last')" style="padding:2px 7px;font-size:9px">LAST</button>
-    ${chip}
-  </div>`;
+  const gamesLbl = mode === "all" ? "ALL" : `${mode === "first" ? "FIRST" : "LAST"} ${_lbWindow.count}`;
+  const { activeId, opts } = _seasonPillOptions();
+  // "SEASON: ALL" when unfiltered; a picked season shows just its own name.
+  const seasonChip = activeId === "all" ? "SEASON: ALL" : (opts.find((o) => o.id === activeId)?.label || "Season").toUpperCase();
+  const n = _excludedCount();
+  bar.innerHTML = `<div class="ss-strip-scroll">
+      <button class="ss-chip on" onclick="openCmpDateSheet()">${escHtml(_cmpPeriodLabel())}<span class="ss-chev">▾</span></button>
+      ${state.seasons.length ? `<button class="ss-chip${activeId !== "all" ? " on" : ""}" onclick="openStripMenu('season', this)">${escHtml(seasonChip)}<span class="ss-chev">▾</span></button>` : ""}
+      <button class="ss-chip${mode !== "all" ? " on" : ""}" onclick="openStripMenu('games', this)">GAMES: ${escHtml(gamesLbl)}<span class="ss-chev">▾</span></button>
+    </div>
+    <button class="ss-chip ss-chip-icon${n > 0 ? " on" : ""}" id="cmpExcludeBtn" aria-label="Hidden players" onclick="openExcludeSheet()">🚫${n > 0 ? `<span class="ss-exc-badge">${n}</span>` : ""}</button>
+    <button class="ss-chip ss-chip-icon" aria-label="Share leaderboard screenshot" onclick="openSummaryShare()">📸</button>`;
+}
+// Kept under its old name: other code re-renders the strip after a games-window change.
+function _renderLbWindowBar() {
+  _renderSummaryStrip();
+}
+
+// Small dropdown under a strip chip (season list / games window).
+function closeStripMenu() {
+  document.getElementById("strip-menu")?.remove();
+  document.removeEventListener("pointerdown", _stripMenuOutside, true);
+}
+function _stripMenuOutside(e) {
+  if (!e.target.closest?.("#strip-menu, .ss-chip")) closeStripMenu();
+}
+function openStripMenu(kind, btn) {
+  const had = document.getElementById("strip-menu")?.dataset.kind === kind;
+  closeStripMenu();
+  if (had) return;
+  let items;
+  if (kind === "season") {
+    const { activeId, opts } = _seasonPillOptions();
+    items = opts.map((o) => ({ label: o.label, on: o.id === activeId, act: `setSeason(${jsArg(o.id)})` }));
+  } else {
+    const mode = _lbWindow ? _lbWindow.mode : "all";
+    items = [
+      { label: "ALL GAMES", on: mode === "all", act: "_lbSetWindow('all')" },
+      { label: "FIRST … GAMES", on: mode === "first", act: "_lbSetWindow('first')" },
+      { label: "LAST … GAMES", on: mode === "last", act: "_lbSetWindow('last')" },
+    ];
+  }
+  const menu = document.createElement("div");
+  menu.id = "strip-menu";
+  menu.dataset.kind = kind;
+  menu.className = "ss-menu";
+  menu.innerHTML = items
+    .map((i) => `<button class="ss-menu-item${i.on ? " on" : ""}" onclick="closeStripMenu();${i.act}">${escHtml(i.label)}${i.on ? '<span class="ss-menu-check">✓</span>' : ""}</button>`)
+    .join("");
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  const w = Math.max(menu.offsetWidth, 180);
+  menu.style.minWidth = w + "px";
+  menu.style.top = r.bottom + 6 + "px";
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+  setTimeout(() => document.addEventListener("pointerdown", _stripMenuOutside, true), 0);
 }
 
 // Re-render without the cascade animation, then put the class back the way it
@@ -5586,48 +5569,8 @@ window.removeStatsCache = function removeStatsCache() {
 function renderCompact() {
   _compactRenderedVersion = _dataVersion;
   _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${rating.system()}`;
-  _updateExcludeBtn();
   _renderSeasonQuickSwitch();
   _updateSeasonScoringBadge();
-  const _cmpDateLbl = document.getElementById("cmpDateLabel");
-  if (_cmpDateLbl) {
-    const _LBL_MONTHS = [
-      "",
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    const _fmtLbl = (iso) => {
-      const [, m, d] = iso.split("-");
-      return `${parseInt(d)} ${_LBL_MONTHS[parseInt(m)]}`;
-    };
-    const _cmpLblMap = {
-      all: "ALL TIME",
-      today: "TODAY",
-      week: "THIS WEEK",
-      lastweek: "LAST WEEK",
-      weekend: "WEEKEND",
-      month: "THIS MONTH",
-      range: "RANGE",
-      day: "DAY",
-    };
-    if (cmpFilter === "day" && cmpFrom)
-      _cmpDateLbl.textContent = _fmtLbl(cmpFrom);
-    else if (cmpFilter === "range" && cmpFrom && cmpTo)
-      _cmpDateLbl.textContent = `${_fmtLbl(cmpFrom)}–${_fmtLbl(cmpTo)}`;
-    else
-      _cmpDateLbl.textContent =
-        _cmpLblMap[cmpFilter] || cmpFilter.toUpperCase();
-  }
   _renderLbWindowBar();
   const filtered = filterMatches(cmpFilter, cmpFrom, cmpTo);
   let _cmpASSMap, _cmpConfMap, stats;
@@ -13631,8 +13574,6 @@ function _renderSeasonQuickSwitch() {
   const html = _homeSeasonPillHtml();
   const h = document.getElementById("homeSeasonRow");
   if (h) h.innerHTML = html;
-  const c = document.getElementById("compactSeasonRow");
-  if (c) c.innerHTML = html;
 }
 
 function _analyticsDateControlsHtml() {
@@ -18895,12 +18836,10 @@ Object.assign(window, {
   onCmpFilter,
   openExcludeSheet,
   closeExcludeSheet,
+  openStripMenu,
+  closeStripMenu,
   toggleExcludePlayer,
   clearExcludedPlayers,
-  openColSheet,
-  closeColSheet,
-  toggleCmpCol,
-  showAllCmpCols,
   addMatches,
   saveNames,
   loadNames,
