@@ -7986,7 +7986,13 @@ async function doSummaryScreenshot(includeMatches) {
   };
   _shareLabel = fnameMap[cmpFilter] || "Summary";
   _shareCaption = _leaderboardCaption(cmpFilter);
+  // The "X players · X matches · period" line sits above the scroll area, so
+  // it isn't part of the capture; put a copy at the top for the screenshot.
+  const infoLine = document.querySelector("#pg-compact .cmp-infobar");
+  const infoCopy = infoLine ? infoLine.cloneNode(true) : null;
+  if (infoCopy) captureEl.prepend(infoCopy);
   const restore = () => {
+    infoCopy?.remove();
     highlights.forEach((el) => (el.style.display = ""));
     if (!includeMatches) {
       if (matchesHeader) matchesHeader.style.display = "";
