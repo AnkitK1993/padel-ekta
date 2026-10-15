@@ -884,7 +884,6 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-let _matchDeltaWindow = "alltime"; // "alltime" | "today"
 let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
 // Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS"), "glicko2",
 // "openskill" or "fairshare". SR bands, defaults and printed forms all live
@@ -5528,14 +5527,6 @@ function _lbSetWindow(mode) {
   }
 }
 
-function toggleMatchDeltaWindow(win) {
-  _matchDeltaWindow = win;
-  document
-    .querySelectorAll(".mdw-btn")
-    .forEach((b) => b.classList.toggle("active", b.dataset.window === win));
-  _withNoCascade(renderCompact);
-}
-
 function toggleTopGainersWindow(win) {
   _topGainersWindow = win;
   _withNoCascade(renderCompact);
@@ -5803,27 +5794,22 @@ function renderCompact() {
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
-  // Delta walk base: ALL TIME uses the full active-season trajectory so each
-  // match's delta reflects its true in-season context. TODAY starts fresh and
-  // walks only today's matches (session-relative).
+  // Delta walk follows the period chip: ALL TIME uses the full active-season
+  // trajectory so each match's delta reflects its true in-season context; any
+  // other period starts fresh and walks only the matches it shows (a Today
+  // view is session-relative, a Week view is week-relative, …).
   const _allActive = activeMatches();
+  const _shown = new Set(filtered);
   const _deltaMatches =
-    _matchDeltaWindow === "today"
-      ? _allActive.filter((m) => m.date === todayISO())
-      : _allActive;
-  // EP's expectation learns only from the walked window, so TODAY's walk
-  // (today's matches only) starts level, while the career game counts behind
-  // the 50-game newcomer flag stay intact.
+    cmpFilter === "all" ? _allActive : _allActive.filter((m) => _shown.has(m));
+  // EP's expectation learns only from the walked window, so a period walk
+  // starts level, while the career game counts behind the 50-game newcomer
+  // flag stay intact.
   const matchEloDeltas = rating.deltas(_deltaMatches);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");
   if (_deltaLbl) _deltaLbl.textContent = SCORING_SYSTEM_LABELS[rating.system()];
-  document
-    .querySelectorAll(".mdw-btn")
-    .forEach((b) =>
-      b.classList.toggle("active", b.dataset.window === _matchDeltaWindow),
-    );
   const reversedMatches = [...filtered].reverse();
 
   const cmpMatchesEl = document.getElementById("cmpMatches");
@@ -18881,7 +18867,6 @@ Object.assign(window, {
   shareSeasonRecap,
   toggleOfflineMode,
   renderCompact,
-  toggleMatchDeltaWindow,
   toggleTopGainersWindow,
   setCmpSort,
   _anaSetDateFilter,
