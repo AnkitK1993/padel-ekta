@@ -13,6 +13,7 @@ import {
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
+import { analyzePairingOdds } from "./src/domain/pairing-odds.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
 import {
   SUPERADMIN_EMAIL,
@@ -12099,6 +12100,59 @@ function _buildPowerRankingsHtml() {
   </div>`;
 }
 
+// "Pairing Odds" section: were the teams drawn fairly, and who keeps getting
+// the stronger side? Ratings are each player's score just before the match.
+function _pairingOddsHtml(matches) {
+  const res = analyzePairingOdds(matches, {
+    history: rating.timeline(matches).history,
+    def: rating.def(),
+  });
+  const t = res.totals;
+  if (!t.matches)
+    return '<div class="sub" style="padding:8px">Need some 2v2 matches in this view.</div>';
+  const pct = (n, of) => (of ? Math.round((n / of) * 100) : 0);
+  const pill = (label, n, col) =>
+    `<div style="flex:1;min-width:0;text-align:center;padding:7px 4px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid ${col}">
+      <div style="font-size:16px;font-weight:900;color:${col}">${pct(n, t.matches)}%</div>
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">${label} · ${n}</div>
+    </div>`;
+  const sgn = (v, d = 1) => (v > 0 ? "+" : "") + v.toFixed(d);
+  const cell = (n, of, col) =>
+    `<td style="text-align:center;padding:5px 3px;white-space:nowrap">${n ? `<span style="font-weight:800;color:${col}">${n}</span><span style="font-size:8px;color:var(--muted)"> ${pct(n, of)}%</span>` : '<span style="color:var(--muted)">–</span>'}</td>`;
+  const th = (l, extra = "") =>
+    `<th style="padding:4px 3px;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:0.06em;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;${extra}">${l}</th>`;
+  const rows = res.rows
+    .map((p, i) => {
+      const netCol = p.net > 0 ? "var(--green)" : p.net < 0 ? "var(--red)" : "var(--muted)";
+      const edgeCol = p.avgEdge > 0.05 ? "var(--green)" : p.avgEdge < -0.05 ? "var(--red)" : "var(--muted)";
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+        <td style="padding:5px 3px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap"><span style="color:var(--muted);font-weight:800;margin-right:4px">${i + 1}</span>${escHtml(p.name)}</td>
+        <td style="text-align:center;color:var(--muted)">${p.mp}</td>
+        ${cell(p.fair, p.mp, "var(--green)")}
+        ${cell(p.exception, p.mp, "var(--gold)")}
+        ${cell(p.unfair, p.mp, "var(--red)")}
+        <td style="text-align:center;font-weight:800;color:var(--green)">${p.favoured || "–"}</td>
+        <td style="text-align:center;font-weight:800;color:var(--red)">${p.underdog || "–"}</td>
+        <td style="text-align:center;font-weight:900;color:${netCol}">${sgn(p.net, 0)}</td>
+        <td style="text-align:center;font-weight:800;color:${edgeCol}">${sgn(p.avgEdge)}</td>
+      </tr>`;
+    })
+    .join("");
+  return `<div class="ana-card" style="padding:10px 12px">
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Each 2v2 is judged on every player's ${_scoringLabel()} just before it. <b style="color:var(--green)">Fair</b> = best + worst vs the middle two. <b style="color:var(--gold)">Exception</b> = not that split, but best and worst had already partnered that day (not counted against anyone). <b style="color:var(--red)">Unfair</b> = a stacked side; the stronger side is <b>favoured</b>.</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      ${pill("FAIR", t.fair, "var(--green)")}${pill("EXCEPTION", t.exception, "var(--gold)")}${pill("UNFAIR", t.unfair, "var(--red)")}
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr>${th("PLAYER", "text-align:left")}${th("MP")}${th("FAIR")}${th("EXC.")}${th("UNFAIR")}${th("▲ FAV")}${th("▼ DOG")}${th("NET")}${th("EDGE")}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">▲ FAV / ▼ DOG: unfair matches played on the stronger / weaker side. NET = FAV − DOG. EDGE = average combined-rating advantage of the player's team over the other, across all their matches (best odds first).${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
+  </div>`;
+}
+
 function _buildChemistryLeaderboardHtml() {
   const scores = computeChemistryScores(activeMatches());
   if (!scores.length)
@@ -16982,6 +17036,12 @@ function renderAnalyticsPage(renderOpts = {}) {
       cat: "pairs",
       title: "🧪 Pair Synergy",
       body: `<div class="ana-card" style="padding:10px 12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">How much win% changes when paired with each partner (vs solo avg)</div>${synergyHtml}</div>`,
+    },
+    {
+      key: "pairingodds",
+      cat: "pairs",
+      title: "⚖️ Pairing Odds",
+      body: _pairingOddsHtml(am),
     },
     {
       key: "pairform",

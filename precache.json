@@ -41,6 +41,7 @@
     "src/domain/fingerprint.js",
     "src/domain/glicko2.js",
     "src/domain/openskill.js",
+    "src/domain/pairing-odds.js",
     "src/domain/pairs.js",
     "src/domain/parser.js",
     "src/domain/player-analytics.js",
