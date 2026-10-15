@@ -1,5 +1,5 @@
 {
- "exportedAt": "2026-10-14T00:34:39.074Z",
+ "exportedAt": "2026-10-15T00:03:32.882Z",
  "format": "ekta-padel-backup",
  "matches": [
   {
@@ -7046,20 +7046,6 @@
   },
   {
    "date": "2026-09-25",
-   "id": "mmugdcrqmrnzo5p",
-   "scoreA": 4,
-   "scoreB": 0,
-   "teamA": [
-    "Ankit",
-    "Eshan"
-   ],
-   "teamB": [
-    "Ayaan",
-    "Rahul G"
-   ]
-  },
-  {
-   "date": "2026-09-25",
    "id": "mmugep628l18ys9",
    "scoreA": 4,
    "scoreB": 3,
@@ -7070,34 +7056,6 @@
    "teamB": [
     "Rahul M",
     "Parthiv"
-   ]
-  },
-  {
-   "date": "2026-09-25",
-   "id": "mmugep628754kd7",
-   "scoreA": 4,
-   "scoreB": 0,
-   "teamA": [
-    "Ankit",
-    "Ayaan"
-   ],
-   "teamB": [
-    "Pratik",
-    "Rahul M"
-   ]
-  },
-  {
-   "date": "2026-09-25",
-   "id": "mmugfugh7ugijp7",
-   "scoreA": 4,
-   "scoreB": 1,
-   "teamA": [
-    "Ankit",
-    "Rahul M"
-   ],
-   "teamB": [
-    "Ayaan",
-    "Sachin"
    ]
   },
   {
@@ -7116,20 +7074,6 @@
   },
   {
    "date": "2026-09-25",
-   "id": "mmuggf2ykokxi1g",
-   "scoreA": 4,
-   "scoreB": 1,
-   "teamA": [
-    "Ankit",
-    "Rahul G"
-   ],
-   "teamB": [
-    "Akshay",
-    "Ayaan"
-   ]
-  },
-  {
-   "date": "2026-09-25",
    "id": "mmughoih28krrsl",
    "scoreA": 4,
    "scoreB": 2,
@@ -7140,34 +7084,6 @@
    "teamB": [
     "Sachin",
     "Rahul G"
-   ]
-  },
-  {
-   "date": "2026-09-25",
-   "id": "mmughq6be6atkyq",
-   "scoreA": 3,
-   "scoreB": 4,
-   "teamA": [
-    "Akshay",
-    "Ayaan"
-   ],
-   "teamB": [
-    "Rahul G",
-    "Rahul M"
-   ]
-  },
-  {
-   "date": "2026-09-25",
-   "id": "mmughq6beasf9z2",
-   "scoreA": 4,
-   "scoreB": 0,
-   "teamA": [
-    "Akshay",
-    "Rahul M"
-   ],
-   "teamB": [
-    "Rahul G",
-    "Ayaan"
    ]
   },
   {
@@ -8613,34 +8529,6 @@
    ]
   },
   {
-   "date": "2026-10-11",
-   "id": "mmv3emt8ispg302",
-   "scoreA": 2,
-   "scoreB": 6,
-   "teamA": [
-    "Ankit",
-    "Rahul G"
-   ],
-   "teamB": [
-    "Ayaan",
-    "Tejas"
-   ]
-  },
-  {
-   "date": "2026-10-11",
-   "id": "mmv3emt8ip2mkw0",
-   "scoreA": 4,
-   "scoreB": 2,
-   "teamA": [
-    "Ankit",
-    "Tejas"
-   ],
-   "teamB": [
-    "Ayaan",
-    "Rahul G"
-   ]
-  },
-  {
    "date": "2026-10-12",
    "id": "mmv4qvbvotg8985",
    "scoreA": 4,
@@ -8722,6 +8610,76 @@
    "teamB": [
     "Akshay",
     "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oy71pt0f",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oyv8wavt",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oyfu0etp",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Puneet",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oyrioqu8",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ayaan",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oypmxbux",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Shetty"
    ]
   }
  ],
@@ -8934,7 +8892,7 @@
   "25": {
    "email": "",
    "id": 25,
-   "isGuest": true,
+   "isGuest": false,
    "name": "Ayaan"
   }
  },
