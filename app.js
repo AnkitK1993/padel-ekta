@@ -12102,11 +12102,24 @@ function _buildPowerRankingsHtml() {
 
 // "Pairing Odds" section: were the teams drawn fairly, and who keeps getting
 // the stronger side? Ratings are each player's score just before the match.
+// Last analysis, kept so a header tap re-sorts without re-walking the ratings.
+let _poRes = null;
+// Table sort: favPct (default) or dogPct, -1 = highest first.
+let _poSort = { key: "favPct", dir: -1 };
 function _pairingOddsHtml(matches) {
-  const res = analyzePairingOdds(matches, {
+  _poRes = analyzePairingOdds(matches, {
     history: rating.timeline(matches).history,
     def: rating.def(),
   });
+  return `<div id="pairing-odds-box">${_pairingOddsInner()}</div>`;
+}
+function _pairingOddsSort(key) {
+  _poSort = _poSort.key === key ? { key, dir: -_poSort.dir } : { key, dir: -1 };
+  const box = document.getElementById("pairing-odds-box");
+  if (box && _poRes) box.innerHTML = _pairingOddsInner();
+}
+function _pairingOddsInner() {
+  const res = _poRes;
   const t = res.totals;
   if (!t.matches)
     return '<div class="sub" style="padding:8px">Need some 2v2 matches in this view.</div>';
@@ -12122,7 +12135,16 @@ function _pairingOddsHtml(matches) {
     `<td style="text-align:center;padding:5px 3px;white-space:nowrap">${n ? `<span style="font-weight:800;color:${col}">${n}</span><span style="font-size:${bold ? "10px;font-weight:900;color:" + col : "8px;color:var(--muted)"}"> ${Math.round(pct)}%</span>` : '<span style="color:var(--muted)">–</span>'}</td>`;
   const th = (l, extra = "") =>
     `<th style="padding:4px 3px;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:0.06em;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;${extra}">${l}</th>`;
-  const rows = res.rows
+  const { key, dir } = _poSort;
+  const countKey = key === "dogPct" ? "underdog" : "favoured";
+  const sorted = [...res.rows].sort(
+    (x, y) => dir * (x[key] - y[key]) || dir * (x[countKey] - y[countKey]) || y.mp - x.mp || x.name.localeCompare(y.name),
+  );
+  const sortTh = (k, label) => {
+    const on = key === k;
+    return `<th onclick="_pairingOddsSort('${k}')" style="padding:4px 3px;font-size:8px;font-weight:800;letter-spacing:0.06em;text-align:center;border-bottom:1px solid ${on ? "var(--theme)" : "rgba(255,255,255,0.08)"};white-space:nowrap;cursor:pointer;user-select:none;color:${on ? "var(--theme)" : "var(--muted)"}">${label} ${on ? (dir < 0 ? "↓" : "↑") : "⇅"}</th>`;
+  };
+  const rows = sorted
     .map((p, i) => {
       const edgeCol = p.avgEdge > 0.05 ? "var(--green)" : p.avgEdge < -0.05 ? "var(--red)" : "var(--muted)";
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
@@ -12143,11 +12165,11 @@ function _pairingOddsHtml(matches) {
     </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <table style="width:100%;border-collapse:collapse;font-size:11px">
-        <thead><tr>${th("PLAYER", "text-align:left")}${th("MP")}${th("EXC.")}${th("FAIR")}${th("▲ FAVOURED")}${th("▼ UNDERDOG")}${th("EDGE")}</tr></thead>
+        <thead><tr>${th("PLAYER", "text-align:left")}${th("MP")}${th("EXC.")}${th("FAIR")}${sortTh("favPct", "▲ FAVOURED")}${sortTh("dogPct", "▼ UNDERDOG")}${th("EDGE")}</tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">Ranked by ▲ FAVOURED % — the share of a player's games (exceptions left out) played on the stronger side. FAIR + FAVOURED + UNDERDOG = 100%. EDGE = average combined-rating advantage of the player's team over the other side. Note: whoever is the strongest of the four is on the favoured side of every unfair split, so top-rated players lean high here by construction.${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
+    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">Sorted by ${key === "dogPct" ? "▼ UNDERDOG" : "▲ FAVOURED"} % (${dir < 0 ? "highest" : "lowest"} first) — tap either header to sort or flip the order. FAVOURED / UNDERDOG % = the share of a player's games (exceptions left out) played on the stronger / weaker side. FAIR + FAVOURED + UNDERDOG = 100%. EDGE = average combined-rating advantage of the player's team over the other side. Note: whoever is the strongest of the four is on the favoured side of every unfair split, so top-rated players lean high here by construction.${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
   </div>`;
 }
 
@@ -18963,6 +18985,7 @@ Object.assign(window, {
   toggleOfflineMode,
   renderCompact,
   toggleTopGainersWindow,
+  _pairingOddsSort,
   setCmpSort,
   _anaSetDateFilter,
   _anaSetDateRange,
