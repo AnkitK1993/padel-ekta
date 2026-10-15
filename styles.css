@@ -19457,3 +19457,9 @@ body.tv-open {
 #pg-compact .cmp-body-scroll .hist-summary-card {
   margin: 14px 10px 16px;
 }
+
+/* Filter chips share the whole row up to the pinned buttons (still scrollable
+   if their labels ever need more room than the row has). */
+.ss-strip-scroll .ss-chip {
+  flex: 1 0 auto;
+}
