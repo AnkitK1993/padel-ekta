@@ -12293,7 +12293,7 @@ function _scoringLabInner() {
           const b = e.breakdown[p];
           const role = b.vet ? `veteran (${b.careerGames} games)` : `newcomer (${b.careerGames} games)`;
           const split = b.shift ? ` · split ${b.shift > 0 ? "+" : ""}${b.shift}` : "";
-          return `<div><b>${escHtml(p)}</b> ${b.won ? "won" : "lost"} · ${role} · team win chance ${Math.round(100 * b.teamP)}% · ${b.raw > 0 ? "+" : ""}${b.raw}${split} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+          return `<div><b>${escHtml(p)}</b> ${b.won ? "won" : "lost"} · ${role} · team win chance ${Math.round(100 * b.teamP)}%${e.oddsFrom === "ass" ? " (from team ASS)" : ""} · ${b.raw > 0 ? "+" : ""}${b.raw}${split} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
         detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}</div>`;
       }

@@ -92,6 +92,39 @@ const wp = labWinPct([
 ]);
 ok("win %: wins ÷ matches", wp.A.score === 50 && wp.C.score === 0 && wp.D.score === 50 && wp.B.score === 100 && wp.B.games === 2);
 
+{
+  const ao = labEPDeltas(w, career, labOption("assodds").params);
+  const cgAll = {}; const before = new Map();
+  [...career].sort((a, b) => a.date.localeCompare(b.date)).forEach((m) => { before.set(m, Object.fromEntries([...m.teamA, ...m.teamB].map((p) => [p, cgAll[p] || 0]))); [...m.teamA, ...m.teamB].forEach((p) => (cgAll[p] = (cgAll[p] || 0) + 1)); });
+  const tot = {}, gms = {};
+  let assOk = true, eloOk = true, sawAss = false;
+  w.forEach((m) => {
+    const e = ao.get(m), vets = Object.values(before.get(m)).every((g) => g >= 50);
+    const a = (p) => (2 * (tot[p] || 0)) / ((gms[p] || 0) + 10);
+    if (vets) {
+      sawAss = true;
+      const gap = (a(m.teamA[0]) + a(m.teamA[1]) - a(m.teamB[0]) - a(m.teamB[1])) / 2;
+      if (e.oddsFrom !== "ass" || Math.abs(e.expA - 1 / (1 + Math.pow(10, -gap / 50))) > 1e-12) assOk = false;
+    } else if (e.oddsFrom !== "elo" || Math.abs(e.expA - live.get(m).expA) > 1e-12) eloOk = false;
+    Object.entries(e.playerDeltas).forEach(([p, v]) => { tot[p] = (tot[p] || 0) + v; gms[p] = (gms[p] || 0) + 1; });
+  });
+  ok("ASS-based odds: all-veteran matches take the win chance from the team ASS gap", assOk && sawAss);
+  ok("ASS-based odds: matches with a newcomer keep the hidden-rating win chance", eloOk);
+  let underdogOk = true, gapsSeen = 0;
+  {
+    const tt = {}, gg = {};
+    w.forEach((m) => {
+      const e = ao.get(m), a = (p) => (2 * (tt[p] || 0)) / ((gg[p] || 0) + 10);
+      if (e.oddsFrom === "ass") {
+        const gap = a(m.teamA[0]) + a(m.teamA[1]) - a(m.teamB[0]) - a(m.teamB[1]);
+        if (Math.abs(gap) > 1e-9) { gapsSeen++; if ((gap < 0) !== (e.expA < 0.5)) underdogOk = false; }
+      }
+      Object.entries(e.playerDeltas).forEach(([p, v]) => { tt[p] = (tt[p] || 0) + v; gg[p] = (gg[p] || 0) + 1; });
+    });
+  }
+  ok("ASS-based odds: the lower-ASS team is the underdog (win chance under 50%)", underdogOk && gapsSeen > 50);
+}
+
 console.log("\n\x1b[36m── fair matchup points ──────────────────────────────\x1b[0m");
 const sc = (a, b) => ({ scoreA: a, scoreB: b });
 ok("margin: 4-3 → 0, 4-0 → 1, 4-2 → 1/3, 6-5 → 0, 6-0 → 1", matchupMargin(sc(4, 3)) === 0 && matchupMargin(sc(0, 4)) === 1 && Math.abs(matchupMargin(sc(4, 2)) - 1 / 3) < 1e-12 && matchupMargin(sc(6, 5)) === 0 && matchupMargin(sc(6, 0)) === 1);

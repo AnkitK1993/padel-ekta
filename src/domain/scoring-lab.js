@@ -37,6 +37,13 @@ export const LAB_EP_DEFAULTS = {
   // "window": who's favoured is learned only from the matches being scored;
   // "career": learned from every match ever played
   expectation: "window",
+  // Who's favoured, for the win chance that prices a win / a veteran's loss:
+  // "elo": the hidden strength rating (live);
+  // "ass": when all four players have `maturity`+ career games, from the gap in
+  //        the teams' average ASS so far: 1 / (1 + 10^(−gap / oddsScale));
+  //        otherwise the hidden rating, as live.
+  odds: "elo",
+  oddsScale: 50, // fitted on real veteran-only matches (S1 + S2)
 };
 
 const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
@@ -63,7 +70,18 @@ export function labEPDeltas(matches, career = null, params = {}) {
       if (!(p in careerGames)) careerGames[p] = 0;
     });
     const avg = (t) => t.reduce((s, p) => s + elo[p], 0) / t.length;
-    const expA = 1 / (1 + Math.pow(10, (avg(teamB) - avg(teamA)) / 400));
+    const eloExpA = 1 / (1 + Math.pow(10, (avg(teamB) - avg(teamA)) / 400));
+    let expA = eloExpA;
+    let oddsFrom = "elo";
+    if (
+      P.odds === "ass" &&
+      scoring.has(m) &&
+      [...teamA, ...teamB].every((p) => careerGames[p] >= P.maturity)
+    ) {
+      const teamAss = (t) => t.reduce((s, p) => s + P.scale * rating(p), 0) / t.length;
+      expA = 1 / (1 + Math.pow(10, -(teamAss(teamA) - teamAss(teamB)) / P.oddsScale));
+      oddsFrom = "ass";
+    }
     const aWon = m.scoreA > m.scoreB;
 
     if (scoring.has(m)) {
@@ -126,13 +144,14 @@ export function labEPDeltas(matches, career = null, params = {}) {
         dB: Math.round(sum(teamB) / teamB.length),
         playerDeltas,
         expA,
+        oddsFrom,
         breakdown,
       });
     }
 
     const learn = P.expectation === "career" || scoring.has(m);
-    const dA = learn ? Math.round(32 * ((aWon ? 1 : 0) - expA)) : 0;
-    const dB = learn ? Math.round(32 * ((aWon ? 0 : 1) - (1 - expA))) : 0;
+    const dA = learn ? Math.round(32 * ((aWon ? 1 : 0) - eloExpA)) : 0;
+    const dB = learn ? Math.round(32 * ((aWon ? 0 : 1) - (1 - eloExpA))) : 0;
     teamA.forEach((p) => {
       elo[p] += dA;
       careerGames[p]++;
@@ -330,6 +349,13 @@ export const LAB_OPTIONS = [
     kind: "ep",
     params: { lossMode: "ramp" },
     desc: "Same as live, except there's no switch at 50 games: the newcomer's loss credit fades out and the veteran's loss cost (up to 25) fades in a little with every career game, from game 1 to game 50.",
+  },
+  {
+    id: "assodds",
+    label: "ASS-based odds",
+    kind: "ep",
+    params: { odds: "ass" },
+    desc: "Same as live, except who's the favourite — and so how much a win pays and a veteran's loss costs — comes from the teams' ASS. When all four players have 50+ career games, the team with the higher average ASS so far is the favourite: a 10-point gap makes them about 61% favourites, 20 points 72%, 30 points 80% (fitted on our own veteran-only matches). With a newcomer in the match the hidden strength rating is used, as live. Early in a season everyone's ASS is close, so most matches start near 50–50.",
   },
   {
     id: "noshrink",
