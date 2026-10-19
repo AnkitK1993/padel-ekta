@@ -48,6 +48,7 @@
     "src/domain/players.js",
     "src/domain/rating-service.js",
     "src/domain/records.js",
+    "src/domain/scoring-lab.js",
     "src/domain/season-recap.js",
     "src/domain/season-stats.js",
     "src/domain/selectors.js",

@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-components.mjs && node tests/tests-glicko2.mjs && node tests/tests-openskill.mjs && node tests/tests-fairshare.mjs && node tests/tests-ep.mjs && node tests/tests-season-recap.mjs && node tests/tests-consistency.mjs && node tests/tests-precache.mjs && node tests/tests-data-health.mjs && node tests/tests-sync-merge.mjs && node tests/tests-audit.mjs && node tests/tests-fair-teams.mjs && node tests/tests-nightly-backup.mjs && node tests/tests-pairing-odds.mjs && node scripts/handler-audit.mjs",
+    "test": "node tests/tests.js && node tests/tests-golden.mjs && node tests/tests-components.mjs && node tests/tests-glicko2.mjs && node tests/tests-openskill.mjs && node tests/tests-fairshare.mjs && node tests/tests-ep.mjs && node tests/tests-season-recap.mjs && node tests/tests-consistency.mjs && node tests/tests-precache.mjs && node tests/tests-data-health.mjs && node tests/tests-sync-merge.mjs && node tests/tests-audit.mjs && node tests/tests-fair-teams.mjs && node tests/tests-nightly-backup.mjs && node tests/tests-pairing-odds.mjs && node tests/tests-scoring-lab.mjs && node scripts/handler-audit.mjs",
     "test:golden": "node tests/tests-golden.mjs",
     "test:components": "node tests/tests-components.mjs",
     "test:glicko2": "node tests/tests-glicko2.mjs",
@@ -25,6 +25,7 @@
     "test:xss": "node scripts/xss-check.js",
     "ep:holdout": "node scripts/ep-holdout.mjs",
     "test:pairing-odds": "node tests/tests-pairing-odds.mjs",
+    "test:scoring-lab": "node tests/tests-scoring-lab.mjs",
     "test:sync-merge": "node tests/tests-sync-merge.mjs",
     "backup:nightly": "node scripts/nightly-backup.mjs backups"
   },

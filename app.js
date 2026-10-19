@@ -14,6 +14,7 @@ import {
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { analyzePairingOdds } from "./src/domain/pairing-odds.js";
+import { LAB_OPTIONS, labOption, labEPDeltas, labEPFull, labWinPct } from "./src/domain/scoring-lab.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
 import {
   SUPERADMIN_EMAIL,
@@ -5076,7 +5077,7 @@ function closeExcludeSheet() {
 }
 
 function _applyCmpColClasses() {
-  const table = document.querySelector(".cmp");
+  const table = document.querySelector("#pg-compact table.cmp");
   if (!table) return;
   // The "±" confidence column only has meaning for Glicko-2/OpenSkill — driven
   // by the active scoring system, not a user-togglable column preference.
@@ -5477,6 +5478,8 @@ function openStripMenu(kind, btn) {
   if (kind === "season") {
     const { activeId, opts } = _seasonPillOptions();
     items = opts.map((o) => ({ label: o.label, on: o.id === activeId, act: `setSeason(${jsArg(o.id)})` }));
+  } else if (kind === "lab") {
+    items = LAB_OPTIONS.map((o) => ({ label: o.label, on: o.id === _labId, act: `_labPick(${jsArg(o.id)})` }));
   } else if (kind === "anacat") {
     const cur = viewState.anaActiveCat || "all";
     items = (viewState.anaCatList || []).map((c) => ({ label: c.label, on: c.id === cur, act: `anaFilterCategory(${jsArg(c.id)})` }));
@@ -12100,6 +12103,188 @@ function _buildPowerRankingsHtml() {
   </div>`;
 }
 
+// ── SCORING LAB (Statistics) ───────────────────────────────
+// Pick a way of scoring and see the leaderboard it gives for the matches in
+// view (the page's season + period filters), then every match with the points
+// each player got. Nothing here changes the live leaderboard.
+let _labId = (() => {
+  try {
+    return localStorage.getItem("padel_lab_option") || "live";
+  } catch (e) {
+    return "live";
+  }
+})();
+let _labPlayerSel = null; // filter the match list to one player
+let _labShown = 30; // matches listed before "show more"
+let _labMatches = []; // the matches in view (set on every page render)
+let _labCache = new Map(); // option id -> result, for the current _labMatches
+
+// { rows, deltas, totalLabel, fmt, kind } for one option over `matches`.
+function _labRun(opt, matches) {
+  if (_labCache.has(opt.id)) return _labCache.get(opt.id);
+  const career = _ratingCareerMatches();
+  let full, deltas = null, totalOf = () => null, totalLabel = "", fmt = (v) => v.toFixed(2);
+  if (opt.kind === "ep") {
+    deltas = labEPDeltas(matches, career, opt.params);
+    full = labEPFull(deltas, opt.params);
+    totalOf = (p) => full[p]?.ep ?? null;
+    totalLabel = "PTS";
+  } else if (opt.kind === "winpct") {
+    full = labWinPct(matches);
+    fmt = (v) => `${v.toFixed(1)}%`;
+  } else {
+    const s = opt.system;
+    const map = rating.map(matches, s);
+    const conf = rating.conf(rating.full(matches, s), s) || {};
+    deltas = rating.deltas(matches, s);
+    full = {};
+    Object.keys(map).forEach((p) => (full[p] = { score: map[p] }));
+    totalOf = (p) => (conf[p] != null ? `±${conf[p]}` : null);
+    totalLabel = s === "fairshare" ? "" : "±";
+    fmt = (v) => rating.fmt(v, s);
+  }
+  const st = {};
+  matches.forEach((m) => {
+    const aWon = m.scoreA > m.scoreB;
+    [[m.teamA || [], aWon, m.scoreA, m.scoreB], [m.teamB || [], !aWon, m.scoreB, m.scoreA]].forEach(([t, won, gf, ga]) =>
+      t.forEach((p) => {
+        const r = (st[p] ||= { name: p, mp: 0, mw: 0, ml: 0, gw: 0, gl: 0 });
+        r.mp++;
+        won ? r.mw++ : r.ml++;
+        r.gw += Number(gf) || 0;
+        r.gl += Number(ga) || 0;
+      }),
+    );
+  });
+  const rows = Object.values(st)
+    .filter((r) => full[r.name])
+    .map((r) => ({ ...r, score: full[r.name].score, total: totalOf(r.name) }))
+    .sort((a, b) => b.score - a.score || b.mw - a.mw || b.mp - a.mp || a.name.localeCompare(b.name));
+  rows.forEach((r, i) => (r.rank = i + 1));
+  const res = { rows, deltas, totalLabel, fmt, kind: opt.kind };
+  _labCache.set(opt.id, res);
+  return res;
+}
+
+function _scoringLabHtml(matches) {
+  if (matches !== _labMatches) {
+    _labMatches = matches;
+    _labCache = new Map();
+  }
+  return `<div id="scoring-lab-box">${_scoringLabInner()}</div>`;
+}
+function _labRerender() {
+  const box = document.getElementById("scoring-lab-box");
+  if (box) box.innerHTML = _scoringLabInner();
+}
+function _labPick(id) {
+  _labId = labOption(id).id;
+  try {
+    localStorage.setItem("padel_lab_option", _labId);
+  } catch (e) {
+    noteError("app:_labPick", e);
+  }
+  _labRerender();
+}
+function _labStep(dir) {
+  const i = LAB_OPTIONS.findIndex((o) => o.id === _labId);
+  _labPick(LAB_OPTIONS[(i + dir + LAB_OPTIONS.length) % LAB_OPTIONS.length].id);
+}
+function _labPlayer(name) {
+  _labPlayerSel = _labPlayerSel === name ? null : name;
+  _labShown = 30;
+  _labRerender();
+}
+function _labMore() {
+  _labShown += 50;
+  _labRerender();
+}
+function _labToggleMatch(el) {
+  el.closest(".lab-m")?.classList.toggle("open");
+}
+
+function _scoringLabInner() {
+  const opt = labOption(_labId);
+  const matches = _labMatches;
+  const { activeId, opts } = _seasonPillOptions();
+  const seasonLbl = activeId === "all" ? "All seasons" : opts.find((o) => o.id === activeId)?.label || "Season";
+  const scope = `${seasonLbl} · ${_analyticsDateFilterLabel(viewState.anaDateFilter || "all", viewState.anaDateFrom || "", viewState.anaDateTo || "")} · ${matches.length} match${matches.length === 1 ? "" : "es"}`;
+  const picker = `<div class="lab-picker">
+      <button class="ss-chip ss-chip-icon" onclick="_labStep(-1)" aria-label="Previous option">‹</button>
+      <button class="ss-chip on lab-pick" onclick="openStripMenu('lab', this)">${escHtml(opt.label)}<span class="ss-chev">▾</span></button>
+      <button class="ss-chip ss-chip-icon" onclick="_labStep(1)" aria-label="Next option">›</button>
+    </div>
+    <div class="lab-desc"><div class="lab-desc-t">${escHtml(opt.label)}</div>${escHtml(opt.desc)}<div class="lab-scope">${escHtml(scope)}</div></div>`;
+  if (!matches.length) return `${picker}<div class="sub" style="padding:8px">No matches in this view.</div>`;
+
+  const res = _labRun(opt, matches);
+  const live = opt.id === "live" ? null : _labRun(labOption("live"), matches);
+  const liveRank = live ? Object.fromEntries(live.rows.map((r) => [r.name, r.rank])) : null;
+  const mid = res.rows.length ? (res.rows[0].score + res.rows[res.rows.length - 1].score) / 2 : 0;
+  const scoreCol = (v) => (v > mid ? "var(--green)" : v < mid ? "var(--red)" : "var(--muted)");
+  const body = res.rows
+    .map((p) => {
+      const rc = p.rank === 1 ? "rg" : p.rank === 2 ? "rs" : p.rank === 3 ? "rb2" : "";
+      const ri = p.rank === 1 ? "🥇" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : `<span class="rn">${p.rank}</span>`;
+      let badge = "";
+      if (liveRank && liveRank[p.name]) {
+        const d = liveRank[p.name] - p.rank;
+        if (d > 0) badge = `<span class="wk-rank-delta wk-up" title="vs live ASS">▲${d}</span>`;
+        else if (d < 0) badge = `<span class="wk-rank-delta wk-down" title="vs live ASS">▼${-d}</span>`;
+      }
+      const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
+      const games = p.gw + p.gl;
+      const gp = games ? (100 * p.gw) / games : 0;
+      const sel = _labPlayerSel === p.name ? " lab-sel" : "";
+      return `<tr class="${rc}${sel}" style="cursor:pointer" onclick="_labPlayer(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${badge}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${Math.round((100 * p.mw) / p.mp)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gp >= 50 ? "tp" : "tn"}">${Math.round(gp)}%</td><td data-col="conf">${p.total ?? ""}</td><td data-col="ass" class="cmp-ass-cell"><span style="font-weight:700;color:${scoreCol(p.score)}">${res.fmt(p.score)}</span></td></tr>`;
+    })
+    .join("");
+  const table = `<div class="cmp-scroll lab-table"><table class="cmp"><thead><tr><th>#</th><th>PLAYER</th><th data-col="mp">MP</th><th data-col="record">W–L</th><th data-col="winPct">W%</th><th data-col="gw">GW</th><th data-col="gl">GL</th><th data-col="gamePct">G%</th><th data-col="conf">${res.totalLabel}</th><th data-col="ass">SCORE</th></tr></thead><tbody>${body}</tbody></table></div>
+    <div class="lab-note">${live ? "▲▼ = places gained / lost against the live ASS board. " : ""}Tap a player to list only their matches.</div>`;
+
+  // Matches, newest first, with every player's points.
+  const list = [...matches].filter((m) => !_labPlayerSel || [...(m.teamA || []), ...(m.teamB || [])].includes(_labPlayerSel)).reverse();
+  const pts = (v) => {
+    if (v == null) return "";
+    const r = Math.round(v * 10) / 10;
+    const t = Number.isInteger(r) ? String(r) : r.toFixed(1);
+    return `<span class="smr-ed ${r > 0 ? "smr-ed-pos" : r < 0 ? "smr-ed-neg" : "smr-ed-neu"}">${r > 0 ? "+" : ""}${t}</span>`;
+  };
+  const rowsHtml = list
+    .slice(0, _labShown)
+    .map((m) => {
+      const e = res.deltas?.get(m);
+      const aWon = m.scoreA > m.scoreB;
+      const side = (team, won) =>
+        `<div class="lab-team ${won ? "cmr-win" : "cmr-loss"}">${team
+          .map((p) => `<div class="lab-p${p === _labPlayerSel ? " lab-p-sel" : ""}"><span>${escHtml(p)}</span>${res.kind === "winpct" ? `<span class="smr-ed ${won ? "smr-ed-pos" : "smr-ed-neg"}">${won ? "W" : "L"}</span>` : pts(e?.playerDeltas?.[p])}</div>`)
+          .join("")}</div>`;
+      const chance = e?.expA != null ? `<div class="lab-chance">${Math.round(100 * e.expA)}–${Math.round(100 * (1 - e.expA))}%</div>` : "";
+      let detail = "";
+      if (e?.breakdown) {
+        const line = (p) => {
+          const b = e.breakdown[p];
+          const role = b.vet ? `veteran (${b.careerGames} games)` : `newcomer (${b.careerGames} games)`;
+          const split = b.shift ? ` · split ${b.shift > 0 ? "+" : ""}${b.shift}` : "";
+          return `<div><b>${escHtml(p)}</b> ${b.won ? "won" : "lost"} · ${role} · team win chance ${Math.round(100 * b.teamP)}% · ${b.raw > 0 ? "+" : ""}${b.raw}${split} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+        };
+        detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}</div>`;
+      }
+      return `<div class="lab-m"><div class="lab-row"${detail ? ' onclick="_labToggleMatch(this)"' : ""}>
+          <span class="cmr-date">${fmtDate(m.date).replace(/\s+\d{4}$/, "").toUpperCase()}</span>
+          ${side(m.teamA || [], aWon)}
+          <div class="lab-sc"><span class="cmr-sv ${aWon ? "cmr-win" : "cmr-loss"}">${m.scoreA}</span><span class="cmr-dash">–</span><span class="cmr-sv ${aWon ? "cmr-loss" : "cmr-win"}">${m.scoreB}</span>${chance}</div>
+          ${side(m.teamB || [], !aWon)}
+        </div>${detail}</div>`;
+    })
+    .join("");
+  const more = list.length > _labShown ? `<button class="lab-more" onclick="_labMore()">Show ${Math.min(50, list.length - _labShown)} more of ${list.length - _labShown}</button>` : "";
+  const unit = res.kind === "ep" ? "points" : res.kind === "winpct" ? "results" : "rating change";
+  const head = `<div class="lab-mh"><span>MATCHES <b>PLAYED</b></span><span class="lab-mh-r">${_labPlayerSel ? `<button class="ss-chip on" style="height:24px" onclick="_labPlayer(${jsArg(_labPlayerSel)})">${escHtml(_labPlayerSel.toUpperCase())} ✕</button>` : `${list.length} · ${unit}`}</span></div>
+    ${res.kind === "ep" ? '<div class="lab-note">The % under the score is each team\'s win chance going in. Tap a match for how each player\'s points were worked out.</div>' : ""}`;
+  return `${picker}${table}${head}<div class="lab-list">${rowsHtml || '<div class="sub" style="padding:8px">No matches.</div>'}</div>${more}`;
+}
+
 // "Pairing Odds" section: were the teams drawn fairly, and who keeps getting
 // the stronger side? Ratings are each player's score just before the match.
 // Last analysis, kept so a header tap re-sorts without re-walking the ratings.
@@ -17070,6 +17255,12 @@ function renderAnalyticsPage(renderOpts = {}) {
       body: `<div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
     },
     {
+      key: "scoringlab",
+      cat: "elo",
+      title: "🧪 Scoring Lab",
+      body: _scoringLabHtml(am),
+    },
+    {
       key: "assrankings",
       cat: "elo",
       title: `⚡ ${_scLabel} Rankings`,
@@ -17956,7 +18147,7 @@ function renderAnalyticsPage(renderOpts = {}) {
       "chemlb",
       "pairedh2h",
     ]);
-    const fullKeys = new Set(["partnergrid", "elogap", "hof"]);
+    const fullKeys = new Set(["partnergrid", "elogap", "hof", "scoringlab"]);
     const leftHtml = [];
     const rightHtml = [];
     const fullHtml = [];
@@ -18986,6 +19177,11 @@ Object.assign(window, {
   renderCompact,
   toggleTopGainersWindow,
   _pairingOddsSort,
+  _labPick,
+  _labStep,
+  _labPlayer,
+  _labMore,
+  _labToggleMatch,
   setCmpSort,
   _anaSetDateFilter,
   _anaSetDateRange,
