@@ -12130,7 +12130,7 @@ function _labRun(opt, matches) {
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   } else if (opt.kind === "matchup") {
-    deltas = labMatchupDeltas(matches, career);
+    deltas = labMatchupDeltas(matches, career, { seasonKey: scopeKey });
     full = labEPFull(deltas, { scale: 1 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
@@ -12283,7 +12283,7 @@ function _scoringLabInner() {
         const line = (p) => {
           const r = role(p);
           const won = (m.teamA || []).includes(p) === aWon;
-          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} (rank ${mu.rank[p]} of 4) · ${mu.careerGames[p]} games · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
         detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
       } else if (mu) {

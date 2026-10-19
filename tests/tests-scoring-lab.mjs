@@ -121,6 +121,22 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
   ok("both partners always get the same points (outside newcomer matches)", w.every((m) => { const e = mu.get(m); return e.matchup.kind === "newcomer" || (e.playerDeltas[m.teamA[0]] === e.playerDeltas[m.teamA[1]] && e.playerDeltas[m.teamB[0]] === e.playerDeltas[m.teamB[1]]); }));
   const wholeHist = labMatchupDeltas(career, career), part = labMatchupDeltas(w, career);
   ok("ranks use ALL history: a window gives the same ASS readings as the full history", w.every((m) => same(wholeHist.get(m).matchup.ass, part.get(m).matchup.ass)));
+  // Two seasons (split at 1 Mar): a player is judged on all-history ASS until
+  // their 50th game of the season, then on that season's ASS.
+  const month = (m) => (m.date < "2026-03-01" ? "S1" : "S2");
+  const bm = labMatchupDeltas(career, career, { seasonKey: month });
+  const hist = labMatchupDeltas(career, career);
+  let switchOk = true, sawSeason = false;
+  career.forEach((m) => {
+    const x = bm.get(m).matchup;
+    Object.keys(x.ass).forEach((p) => {
+      if (x.seasonGames[p] < 50) { if (x.assFrom[p] !== "history" || Math.abs(x.ass[p] - hist.get(m).matchup.ass[p]) > 1e-9) switchOk = false; }
+      else { sawSeason = true; if (x.assFrom[p] !== "season") switchOk = false; }
+    });
+  });
+  ok("all-history ASS until 50 games in the season, season ASS after", switchOk && sawSeason);
+  const firstMatchOfMonth = (p, mon) => career.find((m) => month(m) === mon && [...m.teamA, ...m.teamB].includes(p));
+  ok("season games restart at 0 each season", ["Ann", "Ben"].every((p) => bm.get(firstMatchOfMonth(p, "S2")).matchup.seasonGames[p] === 0));
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");

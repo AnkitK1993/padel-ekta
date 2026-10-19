@@ -185,8 +185,9 @@ export function labWinPct(matches) {
 // Rewards winning from a fair or an underdog draw more than winning from a
 // stacked one. If anyone in the match has fewer than `maturity` career games,
 // their ASS isn't trusted yet, so the whole match is scored exactly as live
-// ASS scores it. Otherwise the four are ranked by their ASS over ALL history
-// just before the match:
+// ASS scores it. Otherwise the four are ranked by their ASS just before the
+// match: a player's ASS over ALL history until they've played `seasonGames`
+// (50) games in that match's season, then their ASS for that season:
 //   balanced (1+4 vs 2+3)  win 100 → 120   loss 0 → −20
 //   stronger team          win  50 →  70   loss −30 → −40
 //   weaker team            win 120 → 140   loss 0 → −20
@@ -213,13 +214,24 @@ export function matchupPoints(role, won, g) {
 // side's role, every player's all-history ASS and career games before it, the
 // newcomers, and the margin g. Newcomer matches also carry live ASS's own
 // breakdown/expA.
-export function labMatchupDeltas(matches, career = null, { maturity = 50 } = {}) {
+export function labMatchupDeltas(matches, career = null, { maturity = 50, seasonGames = 50, seasonKey = () => "" } = {}) {
   const walk = [...new Set([...(career || []), ...(matches || [])])].sort(byDate);
   // All-history ASS before each match: the live engine over the whole walk.
   const histDeltas = labEPDeltas(walk, walk);
+  // Season ASS before each match: the live engine over that match's season.
+  const bySeason = new Map();
+  walk.forEach((m) => {
+    const k = seasonKey(m);
+    if (!bySeason.has(k)) bySeason.set(k, []);
+    bySeason.get(k).push(m);
+  });
+  const seasonDeltas = new Map();
+  bySeason.forEach((ms) => labEPDeltas(ms, walk).forEach((e, m) => seasonDeltas.set(m, e)));
   const live = labEPDeltas(matches, career);
   const tot = {};
   const games = {};
+  const sTot = {}; // season key -> { player: points }
+  const sGames = {};
   const careerGames = {};
   const scoring = new Set(matches || []);
   const out = new Map();
@@ -227,17 +239,26 @@ export function labMatchupDeltas(matches, career = null, { maturity = 50 } = {})
     const teamA = m.teamA || [];
     const teamB = m.teamB || [];
     const four = [...teamA, ...teamB];
+    const k = seasonKey(m);
+    const st = (sTot[k] ||= {});
+    const sg = (sGames[k] ||= {});
+    const score = (t, n) => (LAB_EP_DEFAULTS.scale * (t || 0)) / ((n || 0) + LAB_EP_DEFAULTS.shrinkage);
     const ass = {};
+    const assFrom = {}; // "history" until 50 games this season, then "season"
     const cg = {};
+    const sgBefore = {};
     four.forEach((p) => {
-      ass[p] = (LAB_EP_DEFAULTS.scale * (tot[p] || 0)) / ((games[p] || 0) + LAB_EP_DEFAULTS.shrinkage);
+      sgBefore[p] = sg[p] || 0;
+      const season = sgBefore[p] >= seasonGames;
+      ass[p] = season ? score(st[p], sg[p]) : score(tot[p], games[p]);
+      assFrom[p] = season ? "season" : "history";
       cg[p] = careerGames[p] || 0;
     });
     if (scoring.has(m) && teamA.length && teamB.length) {
       const aWon = Number(m.scoreA) > Number(m.scoreB);
       const g = matchupMargin(m);
       const newcomers = four.filter((p) => cg[p] < maturity);
-      const info = { ass, careerGames: cg, newcomers, g, kind: "", roleA: "", roleB: "" };
+      const info = { ass, assFrom, seasonGames: sgBefore, careerGames: cg, newcomers, g, kind: "", roleA: "", roleB: "" };
       if (newcomers.length || teamA.length !== 2 || teamB.length !== 2) {
         const e = live.get(m);
         info.kind = "newcomer";
@@ -259,8 +280,13 @@ export function labMatchupDeltas(matches, career = null, { maturity = 50 } = {})
       }
     }
     const h = histDeltas.get(m);
+    const sd = seasonDeltas.get(m);
     four.forEach((p) => {
       careerGames[p] = (careerGames[p] || 0) + 1;
+      if (sd) {
+        st[p] = (st[p] || 0) + sd.playerDeltas[p];
+        sg[p] = (sg[p] || 0) + 1;
+      }
       if (h) {
         tot[p] = (tot[p] || 0) + h.playerDeltas[p];
         games[p] = (games[p] || 0) + 1;
@@ -345,7 +371,7 @@ export const LAB_OPTIONS = [
     id: "matchup",
     label: "Fair Matchup Points",
     kind: "matchup",
-    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS over all history. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Both partners get the same points. Score = points ÷ (games + 10).",
+    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS: over all history until a player has played 50 games this season, then their ASS for this season. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Both partners get the same points. Score = points ÷ (games + 10).",
   },
   {
     id: "winpct",
