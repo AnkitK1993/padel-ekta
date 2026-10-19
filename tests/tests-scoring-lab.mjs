@@ -169,14 +169,14 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
   });
   ok("all-history ASS until 50 games in the season, season ASS after", switchOk && sawSeason);
   const firstMatchOfMonth = (p, mon) => career.find((m) => month(m) === mon && [...m.teamA, ...m.teamB].includes(p));
-  ok("main option ranks on the season's ASS from the first match; the history-start option waits for 50 season games", labOption("matchup").params.seasonGames === 0 && labOption("matchuphist").params.seasonGames === 50);
+  ok("Fair Matchup Points ranks on the season's ASS from the first match", labOption("matchup").params.seasonGames === 0);
   const s0 = labMatchupDeltas(career, career, { seasonKey: month, seasonGames: 0 });
   ok("with seasonGames 0 every reading is the season's ASS", career.every((m) => Object.values(s0.get(m).matchup.assFrom).every((f) => f === "season")));
   ok("season games restart at 0 each season", ["Ann", "Ben"].every((p) => bm.get(firstMatchOfMonth(p, "S2")).matchup.seasonGames[p] === 0));
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("four options: live, custom sliders and the two Fair Matchup versions", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,matchup,matchuphist" && labOption("custom").kind === "matchup");
+ok("three options: live, custom sliders and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,matchup" && labOption("custom").kind === "matchup");
 ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0 });

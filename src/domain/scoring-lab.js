@@ -366,13 +366,6 @@ export const LAB_OPTIONS = [
     params: { seasonGames: 0 },
     desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Both partners get the same points. Score = points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
   },
-  {
-    id: "matchuphist",
-    label: "Fair Matchup · history start",
-    kind: "matchup",
-    params: { seasonGames: 50 },
-    desc: "Fair Matchup Points, except a player is ranked on their ASS over ALL history until they've played 50 games this season, and on this season's ASS after that — so who's stronger is clear from the first day of a season. Same points: balanced win 100–120 / loss 0–20; stronger team win 50–70 / loss 30–40; weaker team win 120–140 / loss 0–20; matches with a player under 50 career games are scored as live ASS.",
-  },
 ];
 
 // The Custom option's sliders: what they set, their range and starting value.
