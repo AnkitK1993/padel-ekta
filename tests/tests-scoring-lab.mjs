@@ -3,7 +3,7 @@
 // exactly, so the lab's "ASS (live)" option is always the Summary tab's board.
 // Run: node tests/tests-scoring-lab.mjs
 import { computeMatchEPDeltas, computeEPFull } from "../src/domain/ep.js";
-import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS, labMatchupDeltas, matchupPoints, matchupMargin } from "../src/domain/scoring-lab.js";
+import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS, LAB_SLIDERS, labMatchupDeltas, matchupPoints, matchupMargin } from "../src/domain/scoring-lab.js";
 
 let pass = 0,
   fail = 0;
@@ -176,7 +176,15 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("exactly three options: live and the two Fair Matchup versions", LAB_OPTIONS.map((o) => o.id).join() === "live,matchup,matchuphist");
+ok("four options: live, custom sliders and the two Fair Matchup versions", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,matchup,matchuphist");
+ok("the sliders start at the live values", LAB_SLIDERS.every((s) => s.def === (s.key === "winBase" ? 100 : 25)));
+{
+  const hist = labEPDeltas(w, career, { winBase: 150, vetLoss: 0 });
+  let okWin = true, okLoss = true;
+  w.forEach((m) => Object.values(hist.get(m).breakdown).forEach((b) => { if (b.won && b.raw < 100) okWin = false; if (!b.won && b.vet && b.raw !== 0) okLoss = false; }));
+  ok("win points 150: every win pays more than 100 before the split", okWin);
+  ok("veteran loss 0: a veteran's loss costs nothing", okLoss);
+}
 ok("every option has an id, label, kind and description", LAB_OPTIONS.every((o) => o.id && o.label && o.kind && o.desc && o.desc.length > 40));
 ok("ids are unique", new Set(LAB_OPTIONS.map((o) => o.id)).size === LAB_OPTIONS.length);
 ok("an unknown id falls back to live", labOption("nope").id === "live");

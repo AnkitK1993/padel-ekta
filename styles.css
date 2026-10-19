@@ -19623,3 +19623,51 @@ body.tv-open {
 .lab-tag-newcomer {
   color: var(--theme);
 }
+.lab-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.lab-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lab-slider-l {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lab-slider-l b {
+  color: var(--theme);
+  font-size: 14px;
+  margin-left: 4px;
+}
+.lab-slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--theme);
+}
+.lab-slider-r {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--muted);
+}
+.lab-reset {
+  align-self: flex-end;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--theme-rgb), 0.35);
+  background: transparent;
+  color: var(--theme);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}

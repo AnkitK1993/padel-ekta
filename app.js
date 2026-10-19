@@ -14,7 +14,7 @@ import {
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { analyzePairingOdds } from "./src/domain/pairing-odds.js";
-import { LAB_OPTIONS, labOption, labEPDeltas, labEPFull, labMatchupDeltas } from "./src/domain/scoring-lab.js";
+import { LAB_OPTIONS, LAB_SLIDERS, labOption, labEPDeltas, labEPFull, labMatchupDeltas } from "./src/domain/scoring-lab.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
 import {
   SUPERADMIN_EMAIL,
@@ -12118,15 +12118,32 @@ let _labPlayerSel = null; // filter the match list to one player
 let _labShown = 30; // matches listed before "show more"
 let _labMatches = []; // the matches in view (set on every page render)
 let _labCache = new Map(); // option id -> result, for the current _labMatches
+// The Custom option's slider values ({ winBase, vetLoss }), remembered.
+let _labCustom = (() => {
+  const d = Object.fromEntries(LAB_SLIDERS.map((s) => [s.key, s.def]));
+  try {
+    const saved = JSON.parse(localStorage.getItem("padel_lab_custom") || "{}");
+    LAB_SLIDERS.forEach((s) => {
+      const v = Number(saved[s.key]);
+      if (Number.isFinite(v)) d[s.key] = Math.min(s.max, Math.max(s.min, v));
+    });
+  } catch (e) {
+    noteError("app:_labCustom", e);
+  }
+  return d;
+})();
+const _labParams = (opt) => (opt.custom ? { ...opt.params, ..._labCustom } : opt.params);
+const _labKey = (opt) => (opt.custom ? `${opt.id}:${LAB_SLIDERS.map((s) => _labCustom[s.key]).join(":")}` : opt.id);
 
 // { rows, deltas, totalLabel, fmt, kind } for one option over `matches`.
 function _labRun(opt, matches) {
-  if (_labCache.has(opt.id)) return _labCache.get(opt.id);
+  const key = _labKey(opt);
+  if (_labCache.has(key)) return _labCache.get(key);
   const career = _ratingCareerMatches();
   let full, deltas = null, totalOf = () => null, totalLabel = "", fmt = (v) => v.toFixed(2);
   if (opt.kind === "ep") {
-    deltas = labEPDeltas(matches, career, opt.params);
-    full = labEPFull(deltas, opt.params);
+    deltas = labEPDeltas(matches, career, _labParams(opt));
+    full = labEPFull(deltas, _labParams(opt));
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   } else if (opt.kind === "matchup") {
@@ -12154,7 +12171,7 @@ function _labRun(opt, matches) {
     .sort((a, b) => b.score - a.score || b.mw - a.mw || b.mp - a.mp || a.name.localeCompare(b.name));
   rows.forEach((r, i) => (r.rank = i + 1));
   const res = { rows, deltas, totalLabel, fmt, kind: opt.kind };
-  _labCache.set(opt.id, res);
+  _labCache.set(key, res);
   return res;
 }
 
@@ -12191,6 +12208,42 @@ function _labMore() {
   _labShown += 50;
   _labRerender();
 }
+// A slider moved: update its number now, the board a moment later (the
+// sliders themselves aren't re-drawn, so the drag isn't interrupted).
+let _labSlideTimer = null;
+function _labSlide(key, value) {
+  const s = LAB_SLIDERS.find((x) => x.key === key);
+  if (!s) return;
+  _labCustom[key] = Math.min(s.max, Math.max(s.min, Number(value) || 0));
+  const out = document.getElementById(`lab-sv-${key}`);
+  if (out) out.textContent = _labCustom[key];
+  try {
+    localStorage.setItem("padel_lab_custom", JSON.stringify(_labCustom));
+  } catch (e) {
+    noteError("app:_labSlide", e);
+  }
+  clearTimeout(_labSlideTimer);
+  _labSlideTimer = setTimeout(() => {
+    const box = document.getElementById("scoring-lab-box");
+    if (!box) return;
+    const fresh = document.createElement("div");
+    fresh.innerHTML = _scoringLabInner();
+    ["lab-custom-desc", "scoring-lab-results"].forEach((id) => {
+      const now = box.querySelector(`#${id}`);
+      const next = fresh.querySelector(`#${id}`);
+      if (now && next) now.replaceWith(next);
+    });
+  }, 120);
+}
+function _labSlidersReset() {
+  LAB_SLIDERS.forEach((s) => (_labCustom[s.key] = s.def));
+  try {
+    localStorage.setItem("padel_lab_custom", JSON.stringify(_labCustom));
+  } catch (e) {
+    noteError("app:_labSlidersReset", e);
+  }
+  _labRerender();
+}
 function _labToggleMatch(el) {
   el.closest(".lab-m")?.classList.toggle("open");
 }
@@ -12206,7 +12259,19 @@ function _scoringLabInner() {
       <button class="ss-chip on lab-pick" onclick="openStripMenu('lab', this)">${escHtml(opt.label)}<span class="ss-chev">▾</span></button>
       <button class="ss-chip ss-chip-icon" onclick="_labStep(1)" aria-label="Next option">›</button>
     </div>
-    <div class="lab-desc"><div class="lab-desc-t">${escHtml(opt.label)}</div>${escHtml(opt.desc)}<div class="lab-scope">${escHtml(scope)}</div></div>`;
+    <div class="lab-desc"><div class="lab-desc-t">${escHtml(opt.label)}</div>${escHtml(opt.desc)}${
+      opt.custom
+        ? ` <span id="lab-custom-desc">Right now a win pays about <b>${_labCustom.winBase}</b> (live: 100) — a little more against a stronger side, less against a weaker one, and more for a bigger margin — and a loss by a player with 50+ career games costs up to <b>${_labCustom.vetLoss}</b> (live: 25), more when their team was the favourite. Everything else is as live ASS: newcomers' losses still pay a small credit, partners' points are nudged toward the lower-rated partner, and the score is 2 × points ÷ (games + 10).</span>`
+        : ""
+    }<div class="lab-scope">${escHtml(scope)}</div></div>${
+      opt.custom
+        ? `<div class="lab-sliders">${LAB_SLIDERS.map(
+            (s) => `<label class="lab-slider"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key]}</b></span>
+              <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${_labCustom[s.key]}" oninput="_labSlide('${s.key}', this.value)" aria-label="${escHtml(s.label)}">
+              <span class="lab-slider-r"><span>${s.min}</span><span>live ${s.def}</span><span>${s.max}</span></span></label>`,
+          ).join("")}<button class="lab-reset" onclick="_labSlidersReset()">Reset to live values</button></div>`
+        : ""
+    }`;
   if (!matches.length) return `${picker}<div class="sub" style="padding:8px">No matches in this view.</div>`;
 
   const res = _labRun(opt, matches);
@@ -12296,7 +12361,7 @@ function _scoringLabInner() {
   const unit = res.kind === "ep" || res.kind === "matchup" ? "points" : res.kind === "winpct" ? "results" : "rating change";
   const head = `<div class="lab-mh"><span>MATCHES <b>PLAYED</b></span><span class="lab-mh-r">${_labPlayerSel ? `<button class="ss-chip on" style="height:24px" onclick="_labPlayer(${jsArg(_labPlayerSel)})">${escHtml(_labPlayerSel.toUpperCase())} ✕</button>` : `${list.length} · ${unit}`}</span></div>
     ${res.kind === "ep" ? '<div class="lab-note">The % under the score is each team\'s win chance going in. Tap a match for how each player\'s points were worked out.</div>' : ""}${res.kind === "matchup" ? '<div class="lab-note">Under the score: BALANCED, STACKED (the arrow points at the stronger team) or NEWCOMER (scored as live ASS). Tap a match to see the four players\' ASS and ranks.</div>' : ""}`;
-  return `${picker}${table}${head}<div class="lab-list">${rowsHtml || '<div class="sub" style="padding:8px">No matches.</div>'}</div>${more}`;
+  return `${picker}<div id="scoring-lab-results">${table}${head}<div class="lab-list">${rowsHtml || '<div class="sub" style="padding:8px">No matches.</div>'}</div>${more}</div>`;
 }
 
 // "Pairing Odds" section: were the teams drawn fairly, and who keeps getting
@@ -19196,6 +19261,8 @@ Object.assign(window, {
   _labPlayer,
   _labMore,
   _labToggleMatch,
+  _labSlide,
+  _labSlidersReset,
   setCmpSort,
   _anaSetDateFilter,
   _anaSetDateRange,

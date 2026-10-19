@@ -331,6 +331,14 @@ export const LAB_OPTIONS = [
     desc: "Exactly what the Summary tab shows today. A win pays about 100: up to 20% more for beating a stronger side, less for a weaker one, and more for a bigger margin (a shutout earns a little extra). Until a player's 50th career game a loss still pays a small credit; after that a loss costs up to 25 — more when their team was the favourite. Who was favoured is judged only on the matches in this view. Partners' points are nudged (up to 12%) toward the lower-rated partner. Score = 2 × points ÷ (games + 10), so a handful of games can't top the board.",
   },
   {
+    id: "custom",
+    label: "Custom ASS (sliders)",
+    kind: "ep",
+    params: {},
+    custom: true,
+    desc: "Live ASS with your own numbers: drag the sliders to set what a win pays and what a veteran's loss costs, and the board and every match's points update.",
+  },
+  {
     id: "matchup",
     label: "Fair Matchup Points",
     kind: "matchup",
@@ -344,6 +352,12 @@ export const LAB_OPTIONS = [
     params: { seasonGames: 50 },
     desc: "Fair Matchup Points, except a player is ranked on their ASS over ALL history until they've played 50 games this season, and on this season's ASS after that — so who's stronger is clear from the first day of a season. Same points: balanced win 100–120 / loss 0–20; stronger team win 50–70 / loss 30–40; weaker team win 120–140 / loss 0–20; matches with a player under 50 career games are scored as live ASS.",
   },
+];
+
+// The Custom option's sliders: what they set, their range and starting value.
+export const LAB_SLIDERS = [
+  { key: "winBase", label: "Win points", min: 20, max: 200, step: 5, def: LAB_EP_DEFAULTS.winBase },
+  { key: "vetLoss", label: "Veteran loss (up to)", min: 0, max: 100, step: 1, def: LAB_EP_DEFAULTS.vetLoss },
 ];
 
 export const labOption = (id) => LAB_OPTIONS.find((o) => o.id === id) || LAB_OPTIONS[0];
