@@ -317,10 +317,11 @@ export function labMatchupDeltas(matches, career = null, { maturity = 50, season
 }
 
 // What the Statistics page offers. `kind`:
-//   "ep"     — labEPDeltas with `params`
-//   "system" — one of the app's other scoring engines, via the rating service
-//   "winpct" — labWinPct
-//   "matchup" — labMatchupDeltas
+//   "ep"      — labEPDeltas with `params`
+//   "matchup" — labMatchupDeltas with `params`
+// (labEPDeltas also supports other variants — veteran loss, maturity ramp,
+// all-history strength, ASS-based odds, the 2 Oct / first versions — through
+// its parameters; the tests exercise them.)
 export const LAB_OPTIONS = [
   {
     id: "live",
@@ -328,71 +329,6 @@ export const LAB_OPTIONS = [
     kind: "ep",
     params: {},
     desc: "Exactly what the Summary tab shows today. A win pays about 100: up to 20% more for beating a stronger side, less for a weaker one, and more for a bigger margin (a shutout earns a little extra). Until a player's 50th career game a loss still pays a small credit; after that a loss costs up to 25 — more when their team was the favourite. Who was favoured is judged only on the matches in this view. Partners' points are nudged (up to 12%) toward the lower-rated partner. Score = 2 × points ÷ (games + 10), so a handful of games can't top the board.",
-  },
-  {
-    id: "vet40",
-    label: "Veteran loss 40",
-    kind: "ep",
-    params: { vetLoss: 40 },
-    desc: "Same as live, except a veteran's loss (50+ career games) costs up to 40 instead of 25. Losing hurts experienced players more; newcomers are unaffected.",
-  },
-  {
-    id: "career",
-    label: "All-seasons strength",
-    kind: "ep",
-    params: { expectation: "career" },
-    desc: "Same as live, except who was the favourite in each match is judged on strength learned from ALL history (every season), not only the matches in this view. A player who was strong last season starts this one as a favourite, so beating them pays more and losing to them costs less. With every season in view (All seasons, all dates) it's identical to live.",
-  },
-  {
-    id: "ramp",
-    label: "Gradual maturity",
-    kind: "ep",
-    params: { lossMode: "ramp" },
-    desc: "Same as live, except there's no switch at 50 games: the newcomer's loss credit fades out and the veteran's loss cost (up to 25) fades in a little with every career game, from game 1 to game 50.",
-  },
-  {
-    id: "assodds",
-    label: "ASS-based odds",
-    kind: "ep",
-    params: { odds: "ass" },
-    desc: "Same as live, except who's the favourite — and so how much a win pays and a veteran's loss costs — comes from the teams' ASS. When all four players have 50+ career games, the team with the higher average ASS so far is the favourite: a 10-point gap makes them about 61% favourites, 20 points 72%, 30 points 80% (fitted on our own veteran-only matches). With a newcomer in the match the hidden strength rating is used, as live. Early in a season everyone's ASS is close, so most matches start near 50–50.",
-  },
-  {
-    id: "noshrink",
-    label: "Average points",
-    kind: "ep",
-    params: { rankShrinkage: 0 },
-    desc: "Same points per match as live, but ranked by plain average points per game — without the 10 'phantom' zero-point games live adds. A short hot streak counts fully, so players with few games can jump to the top.",
-  },
-  {
-    id: "oct2",
-    label: "2 Oct version",
-    kind: "ep",
-    params: {
-      winMode: "classic",
-      lossMode: "classic",
-      lossBase: 40,
-      penalty: 60,
-      splitMax: 0,
-      expectation: "career",
-      scale: 1,
-    },
-    desc: "The scoring as it was on 2 October. A win pays 50–150 depending on how big an underdog the team was (bigger upsets pay more). A loss pays a 'turned up' credit of up to 40 minus a penalty of up to 60 that grows over a player's first 50 career games. Strength is learned from all history and there's no teammate split. Shown on its original scale (about half of today's numbers) — compare ranks, not numbers.",
-  },
-  {
-    id: "first",
-    label: "First ASS",
-    kind: "ep",
-    params: {
-      winMode: "classic",
-      lossMode: "classic",
-      lossBase: 40,
-      penalty: 60,
-      splitMax: 0.5,
-      expectation: "career",
-      scale: 1,
-    },
-    desc: "The first ASS version: the 2 October formulas plus a large teammate split — up to 50% of a team's points moved toward the lower-rated partner. Original scale (about half of today's numbers) — compare ranks, not numbers.",
   },
   {
     id: "matchup",
@@ -407,33 +343,6 @@ export const LAB_OPTIONS = [
     kind: "matchup",
     params: { seasonGames: 50 },
     desc: "Fair Matchup Points, except a player is ranked on their ASS over ALL history until they've played 50 games this season, and on this season's ASS after that — so who's stronger is clear from the first day of a season. Same points: balanced win 100–120 / loss 0–20; stronger team win 50–70 / loss 30–40; weaker team win 120–140 / loss 0–20; matches with a player under 50 career games are scored as live ASS.",
-  },
-  {
-    id: "winpct",
-    label: "Win %",
-    kind: "winpct",
-    desc: "Plain win percentage: matches won ÷ matches played. No adjustment for the opponents, the margin or how many games someone played (ties go to the player with more wins). A useful baseline: every other option is win % plus adjustments.",
-  },
-  {
-    id: "glicko2",
-    label: "Glicko-2",
-    kind: "system",
-    system: "glicko2",
-    desc: "The chess-style Glicko-2 rating, everyone starting at 1000. Each match moves a player by how surprising the result was against the average of the other pair, and moves new or uncertain players more (the ± column is that uncertainty).",
-  },
-  {
-    id: "openskill",
-    label: "OpenSkill",
-    kind: "system",
-    system: "openskill",
-    desc: "A Bayesian skill rating (the open alternative to Xbox's TrueSkill), starting at 1000. It keeps a skill estimate and an uncertainty per player; upsets and uncertain players move most. The ± column is the uncertainty.",
-  },
-  {
-    id: "fairshare",
-    label: "Fair Share",
-    kind: "system",
-    system: "fairshare",
-    desc: "A 1000-based rating where each match moves the team by the margin and the opposition's strength, then splits it by the partners' skill gap: the weaker partner moves more, up after a win and down after a loss (opponents tend to target the weaker player).",
   },
 ];
 

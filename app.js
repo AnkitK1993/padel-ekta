@@ -14,7 +14,7 @@ import {
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { analyzePairingOdds } from "./src/domain/pairing-odds.js";
-import { LAB_OPTIONS, labOption, labEPDeltas, labEPFull, labWinPct, labMatchupDeltas } from "./src/domain/scoring-lab.js";
+import { LAB_OPTIONS, labOption, labEPDeltas, labEPFull, labMatchupDeltas } from "./src/domain/scoring-lab.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
 import {
   SUPERADMIN_EMAIL,
@@ -12109,7 +12109,7 @@ function _buildPowerRankingsHtml() {
 // each player got. Nothing here changes the live leaderboard.
 let _labId = (() => {
   try {
-    return localStorage.getItem("padel_lab_option") || "live";
+    return labOption(localStorage.getItem("padel_lab_option")).id; // retired option → live
   } catch (e) {
     return "live";
   }
@@ -12134,19 +12134,6 @@ function _labRun(opt, matches) {
     full = labEPFull(deltas, { scale: 1 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
-  } else if (opt.kind === "winpct") {
-    full = labWinPct(matches);
-    fmt = (v) => `${v.toFixed(1)}%`;
-  } else {
-    const s = opt.system;
-    const map = rating.map(matches, s);
-    const conf = rating.conf(rating.full(matches, s), s) || {};
-    deltas = rating.deltas(matches, s);
-    full = {};
-    Object.keys(map).forEach((p) => (full[p] = { score: map[p] }));
-    totalOf = (p) => (conf[p] != null ? `±${conf[p]}` : null);
-    totalLabel = s === "fairshare" ? "" : "±";
-    fmt = (v) => rating.fmt(v, s);
   }
   const st = {};
   matches.forEach((m) => {

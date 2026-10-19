@@ -58,7 +58,7 @@ ok("the live option uses the default parameters", same(labOption("live").params,
 console.log("\n\x1b[36m── the variants do what they say ────────────────────\x1b[0m");
 const w = windows["second half"];
 const live = labEPDeltas(w, career);
-const v40 = labEPDeltas(w, career, labOption("vet40").params);
+const v40 = labEPDeltas(w, career, { vetLoss: 40 });
 let vetLossesDeeper = true, othersSame = true;
 w.forEach((m) => {
   const L = live.get(m), V = v40.get(m);
@@ -71,18 +71,18 @@ w.forEach((m) => {
 ok("veteran loss 40: a veteran's loss costs at least as much as live", vetLossesDeeper);
 ok("veteran loss 40: wins and newcomer losses are unchanged", othersSame);
 
-const ns = labEPFull(live, labOption("noshrink").params);
+const ns = labEPFull(live, { rankShrinkage: 0 });
 const lf = labEPFull(live);
 ok("average points: same points, score is 2 × points ÷ games", Object.keys(ns).every((p) => ns[p].ep === lf[p].ep && Math.abs(ns[p].score - (2 * ns[p].ep) / ns[p].games) < 1e-12));
 
-const ramp = labEPDeltas(w, career, labOption("ramp").params);
+const ramp = labEPDeltas(w, career, { lossMode: "ramp" });
 let rampOk = true;
 w.forEach((m) => Object.entries(ramp.get(m).breakdown).forEach(([p, b]) => {
   if (!b.won && b.careerGames >= 50 && b.raw !== live.get(m).breakdown[p].raw) rampOk = false;
 }));
 ok("gradual maturity: from game 50 on a loss is priced exactly like live", rampOk);
 
-const oct = labEPDeltas(w, career, labOption("oct2").params);
+const oct = labEPDeltas(w, career, { winMode: "classic", lossMode: "classic", lossBase: 40, penalty: 60, splitMax: 0, expectation: "career", scale: 1 });
 ok("2 Oct version: no teammate split", [...oct.values()].every((e) => Object.values(e.breakdown).every((b) => b.shift === 0)));
 ok("2 Oct version: a win pays 50–150 before margin", [...oct.values()].every((e) => Object.values(e.breakdown).every((b) => !b.won || (b.raw >= 50 * 0.8 && b.raw <= 150 * 1.2 * 1.05 + 1))));
 
@@ -93,7 +93,7 @@ const wp = labWinPct([
 ok("win %: wins ÷ matches", wp.A.score === 50 && wp.C.score === 0 && wp.D.score === 50 && wp.B.score === 100 && wp.B.games === 2);
 
 {
-  const ao = labEPDeltas(w, career, labOption("assodds").params);
+  const ao = labEPDeltas(w, career, { odds: "ass" });
   const cgAll = {}; const before = new Map();
   [...career].sort((a, b) => a.date.localeCompare(b.date)).forEach((m) => { before.set(m, Object.fromEntries([...m.teamA, ...m.teamB].map((p) => [p, cgAll[p] || 0]))); [...m.teamA, ...m.teamB].forEach((p) => (cgAll[p] = (cgAll[p] || 0) + 1)); });
   const tot = {}, gms = {};
@@ -176,6 +176,7 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
+ok("exactly three options: live and the two Fair Matchup versions", LAB_OPTIONS.map((o) => o.id).join() === "live,matchup,matchuphist");
 ok("every option has an id, label, kind and description", LAB_OPTIONS.every((o) => o.id && o.label && o.kind && o.desc && o.desc.length > 40));
 ok("ids are unique", new Set(LAB_OPTIONS.map((o) => o.id)).size === LAB_OPTIONS.length);
 ok("an unknown id falls back to live", labOption("nope").id === "live");
