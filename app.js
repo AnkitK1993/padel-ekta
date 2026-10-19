@@ -12130,7 +12130,7 @@ function _labRun(opt, matches) {
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   } else if (opt.kind === "matchup") {
-    deltas = labMatchupDeltas(matches, career, { seasonKey: scopeKey });
+    deltas = labMatchupDeltas(matches, career, { seasonKey: scopeKey, ...opt.params });
     full = labEPFull(deltas, { scale: 1 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";

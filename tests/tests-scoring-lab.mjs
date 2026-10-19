@@ -136,6 +136,9 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
   });
   ok("all-history ASS until 50 games in the season, season ASS after", switchOk && sawSeason);
   const firstMatchOfMonth = (p, mon) => career.find((m) => month(m) === mon && [...m.teamA, ...m.teamB].includes(p));
+  ok("main option ranks on the season's ASS from the first match; the history-start option waits for 50 season games", labOption("matchup").params.seasonGames === 0 && labOption("matchuphist").params.seasonGames === 50);
+  const s0 = labMatchupDeltas(career, career, { seasonKey: month, seasonGames: 0 });
+  ok("with seasonGames 0 every reading is the season's ASS", career.every((m) => Object.values(s0.get(m).matchup.assFrom).every((f) => f === "season")));
   ok("season games restart at 0 each season", ["Ann", "Ben"].every((p) => bm.get(firstMatchOfMonth(p, "S2")).matchup.seasonGames[p] === 0));
 }
 
