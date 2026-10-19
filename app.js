@@ -12147,7 +12147,7 @@ function _labRun(opt, matches) {
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   } else if (opt.kind === "matchup") {
-    deltas = labMatchupDeltas(matches, career, { seasonKey: scopeKey, ...opt.params });
+    deltas = labMatchupDeltas(matches, career, { seasonKey: scopeKey, ..._labParams(opt) });
     full = labEPFull(deltas, { scale: 1 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
@@ -12235,6 +12235,17 @@ function _labSlide(key, value) {
     });
   }, 120);
 }
+// The Custom option's current points table, from the slider values.
+function _labCustomTable() {
+  const w = _labCustom.winBase / 100;
+  const l = _labCustom.lossMax / 20;
+  const r = (v) => Math.round(v) || 0;
+  const fmt = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : "0");
+  const cell = (a, b) => (r(a) === r(b) ? fmt(r(a)) : `${fmt(r(a))} to ${fmt(r(b))}`);
+  const row = (name, wa, wb, la, lb) =>
+    `<tr><td>${name}</td><td class="tp">${cell(wa * w, wb * w)}</td><td class="tn">${cell(-la * l, -lb * l)}</td></tr>`;
+  return `<table class="lab-pts"><thead><tr><th></th><th>WIN (4–3 → 4–0)</th><th>LOSS (4–3 → 4–0)</th></tr></thead><tbody>${row("Balanced", 100, 120, 0, 20)}${row("Stronger team", 50, 70, 30, 40)}${row("Weaker team", 120, 140, 0, 20)}</tbody></table><div class="lab-pts-n">Newcomer matches: live ASS with a win worth about ${r(100 * w)} and a veteran's loss up to ${r(25 * l)}.</div>`;
+}
 function _labSlidersReset() {
   LAB_SLIDERS.forEach((s) => (_labCustom[s.key] = s.def));
   try {
@@ -12261,7 +12272,7 @@ function _scoringLabInner() {
     </div>
     <div class="lab-desc"><div class="lab-desc-t">${escHtml(opt.label)}</div>${escHtml(opt.desc)}${
       opt.custom
-        ? ` <span id="lab-custom-desc">Right now a win pays about <b>${_labCustom.winBase}</b> (live: 100) — a little more against a stronger side, less against a weaker one, and more for a bigger margin — and a loss by a player with 50+ career games costs up to <b>${_labCustom.vetLoss}</b> (live: 25), more when their team was the favourite. Everything else is as live ASS: newcomers' losses still pay a small credit, partners' points are nudged toward the lower-rated partner, and the score is 2 × points ÷ (games + 10).</span>`
+        ? `<div id="lab-custom-desc">${_labCustomTable()}</div>`
         : ""
     }<div class="lab-scope">${escHtml(scope)}</div></div>${
       opt.custom

@@ -224,17 +224,32 @@ export function matchupMargin(m) {
   const l = Math.min(Number(m.scoreA), Number(m.scoreB));
   return w > 1 ? Math.max(0, Math.min(1, (w - l - 1) / (w - 1))) : 1;
 }
-export function matchupPoints(role, won, g) {
+// winScale / lossScale stretch every win / loss number in the table by the
+// same factor (the Custom option's sliders), keeping their proportions.
+export function matchupPoints(role, won, g, winScale = 1, lossScale = 1) {
   const c = MATCHUP_POINTS[role];
-  return Math.round(won ? c.win + c.winUp * g : -(c.loss + c.lossUp * g));
+  return Math.round(won ? (c.win + c.winUp * g) * winScale : -(c.loss + c.lossUp * g) * lossScale);
 }
+// The defaults the Custom sliders scale from: a balanced 4-3 win, and the
+// biggest balanced / weaker-team loss.
+export const MATCHUP_WIN_REF = 100;
+export const MATCHUP_LOSS_REF = 20;
 
 // Map(match -> { playerDeltas, matchup }) for `matches`. `matchup` holds what
 // the match was judged on: kind ("newcomer" | "balanced" | "mismatch"), each
 // side's role, every player's all-history ASS and career games before it, the
 // newcomers, and the margin g. Newcomer matches also carry live ASS's own
 // breakdown/expA.
-export function labMatchupDeltas(matches, career = null, { maturity = 50, seasonGames = 50, seasonKey = () => "" } = {}) {
+// `winBase` / `lossMax` (default 100 / 20) scale the whole table
+// proportionally; newcomer matches then use live ASS with the win base and
+// veteran loss scaled the same way (win 100 → winBase, loss 25 → 25 × lossMax / 20).
+export function labMatchupDeltas(
+  matches,
+  career = null,
+  { maturity = 50, seasonGames = 50, seasonKey = () => "", winBase = MATCHUP_WIN_REF, lossMax = MATCHUP_LOSS_REF } = {},
+) {
+  const winScale = winBase / MATCHUP_WIN_REF;
+  const lossScale = lossMax / MATCHUP_LOSS_REF;
   const walk = [...new Set([...(career || []), ...(matches || [])])].sort(byDate);
   // All-history ASS before each match: the live engine over the whole walk.
   const histDeltas = labEPDeltas(walk, walk);
@@ -247,7 +262,13 @@ export function labMatchupDeltas(matches, career = null, { maturity = 50, season
   });
   const seasonDeltas = new Map();
   bySeason.forEach((ms) => labEPDeltas(ms, walk).forEach((e, m) => seasonDeltas.set(m, e)));
-  const live = labEPDeltas(matches, career);
+  const live = labEPDeltas(
+    matches,
+    career,
+    winScale === 1 && lossScale === 1
+      ? {}
+      : { winBase: LAB_EP_DEFAULTS.winBase * winScale, vetLoss: LAB_EP_DEFAULTS.vetLoss * lossScale },
+  );
   const tot = {};
   const games = {};
   const sTot = {}; // season key -> { player: points }
@@ -294,8 +315,8 @@ export function labMatchupDeltas(matches, career = null, { maturity = 50, season
         info.roleA = balanced ? "balanced" : sA > sB ? "stronger" : "weaker";
         info.roleB = balanced ? "balanced" : sA > sB ? "weaker" : "stronger";
         const playerDeltas = {};
-        teamA.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleA, aWon, g)));
-        teamB.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleB, !aWon, g)));
+        teamA.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleA, aWon, g, winScale, lossScale)));
+        teamB.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleB, !aWon, g, winScale, lossScale)));
         out.set(m, { playerDeltas, dA: playerDeltas[teamA[0]], dB: playerDeltas[teamB[0]], matchup: info });
       }
     }
@@ -332,11 +353,11 @@ export const LAB_OPTIONS = [
   },
   {
     id: "custom",
-    label: "Custom ASS (sliders)",
-    kind: "ep",
-    params: {},
+    label: "Custom Fair Matchup (sliders)",
+    kind: "matchup",
+    params: { seasonGames: 0 },
     custom: true,
-    desc: "Live ASS with your own numbers: drag the sliders to set what a win pays and what a veteran's loss costs, and the board and every match's points update.",
+    desc: "Fair Matchup Points with your own numbers. The sliders set a balanced win and the biggest balanced loss; every other number in the table — stacked and underdog wins and losses, and the live-ASS scoring of newcomer matches — moves in proportion.",
   },
   {
     id: "matchup",
@@ -356,8 +377,8 @@ export const LAB_OPTIONS = [
 
 // The Custom option's sliders: what they set, their range and starting value.
 export const LAB_SLIDERS = [
-  { key: "winBase", label: "Win points", min: 20, max: 200, step: 5, def: LAB_EP_DEFAULTS.winBase },
-  { key: "vetLoss", label: "Veteran loss (up to)", min: 0, max: 100, step: 1, def: LAB_EP_DEFAULTS.vetLoss },
+  { key: "winBase", label: "Win points (balanced 4–3)", min: 20, max: 200, step: 5, def: MATCHUP_WIN_REF },
+  { key: "lossMax", label: "Loss points (balanced 4–0)", min: 0, max: 100, step: 1, def: MATCHUP_LOSS_REF },
 ];
 
 export const labOption = (id) => LAB_OPTIONS.find((o) => o.id === id) || LAB_OPTIONS[0];

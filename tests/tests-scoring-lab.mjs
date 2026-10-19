@@ -176,8 +176,25 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("four options: live, custom sliders and the two Fair Matchup versions", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,matchup,matchuphist");
-ok("the sliders start at the live values", LAB_SLIDERS.every((s) => s.def === (s.key === "winBase" ? 100 : 25)));
+ok("four options: live, custom sliders and the two Fair Matchup versions", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,matchup,matchuphist" && labOption("custom").kind === "matchup");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20");
+{
+  const base = labMatchupDeltas(w, career, { seasonGames: 0 });
+  const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20 });
+  ok("custom at 100 / 20 = Fair Matchup Points exactly", w.every((m) => same(base.get(m).playerDeltas, dflt.get(m).playerDeltas)));
+  const big = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 200, lossMax: 40 });
+  let prop = true;
+  w.forEach((m) => {
+    const b0 = base.get(m), b1 = big.get(m);
+    if (b0.matchup.kind === "newcomer") return;
+    Object.keys(b0.playerDeltas).forEach((p) => { if (Math.abs(b1.playerDeltas[p] - 2 * b0.playerDeltas[p]) > 1) prop = false; });
+  });
+  ok("doubling both sliders doubles every balanced / stacked number", prop);
+  ok("stacked numbers keep their proportions (win 50-70 → 100-140 at win 200)", matchupPoints("stronger", true, 0, 2, 1) === 100 && matchupPoints("stronger", true, 1, 2, 1) === 140 && matchupPoints("stronger", false, 1, 1, 0.5) === -20);
+  const nb = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 150, lossMax: 40 });
+  const lv = labEPDeltas(w, career, { winBase: 150, vetLoss: 50 });
+  ok("newcomer matches use live ASS scaled the same way (win 150, veteran loss 50)", w.every((m) => nb.get(m).matchup.kind !== "newcomer" || same(nb.get(m).playerDeltas, lv.get(m).playerDeltas)));
+}
 {
   const hist = labEPDeltas(w, career, { winBase: 150, vetLoss: 0 });
   let okWin = true, okLoss = true;
