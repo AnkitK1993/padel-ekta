@@ -14,7 +14,7 @@ import {
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { analyzePairingOdds } from "./src/domain/pairing-odds.js";
-import { LAB_OPTIONS, labOption, labEPDeltas, labEPFull, labWinPct } from "./src/domain/scoring-lab.js";
+import { LAB_OPTIONS, labOption, labEPDeltas, labEPFull, labWinPct, labMatchupDeltas } from "./src/domain/scoring-lab.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
 import {
   SUPERADMIN_EMAIL,
@@ -12129,6 +12129,11 @@ function _labRun(opt, matches) {
     full = labEPFull(deltas, opt.params);
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
+  } else if (opt.kind === "matchup") {
+    deltas = labMatchupDeltas(matches, career);
+    full = labEPFull(deltas, { scale: 1 });
+    totalOf = (p) => full[p]?.ep ?? null;
+    totalLabel = "PTS";
   } else if (opt.kind === "winpct") {
     full = labWinPct(matches);
     fmt = (v) => `${v.toFixed(1)}%`;
@@ -12259,9 +12264,31 @@ function _scoringLabInner() {
         `<div class="lab-team ${won ? "cmr-win" : "cmr-loss"}">${team
           .map((p) => `<div class="lab-p${p === _labPlayerSel ? " lab-p-sel" : ""}"><span>${escHtml(p)}</span>${res.kind === "winpct" ? `<span class="smr-ed ${won ? "smr-ed-pos" : "smr-ed-neg"}">${won ? "W" : "L"}</span>` : pts(e?.playerDeltas?.[p])}</div>`)
           .join("")}</div>`;
-      const chance = e?.expA != null ? `<div class="lab-chance">${Math.round(100 * e.expA)}–${Math.round(100 * (1 - e.expA))}%</div>` : "";
+      const mu = e?.matchup;
+      const tagTxt = mu
+        ? mu.kind === "newcomer"
+          ? "NEWCOMER"
+          : mu.kind === "balanced"
+            ? "BALANCED"
+            : `${mu.roleA === "stronger" ? "◀" : ""} STACKED ${mu.roleB === "stronger" ? "▶" : ""}`
+        : "";
+      const chance = mu
+        ? `<div class="lab-chance lab-tag-${mu.kind}">${tagTxt.trim()}</div>`
+        : e?.expA != null
+          ? `<div class="lab-chance">${Math.round(100 * e.expA)}–${Math.round(100 * (1 - e.expA))}%</div>`
+          : "";
       let detail = "";
-      if (e?.breakdown) {
+      if (mu && mu.kind !== "newcomer") {
+        const role = (p) => ((m.teamA || []).includes(p) ? mu.roleA : mu.roleB);
+        const line = (p) => {
+          const r = role(p);
+          const won = (m.teamA || []).includes(p) === aWon;
+          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} (rank ${mu.rank[p]} of 4) · ${mu.careerGames[p]} games · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+        };
+        detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
+      } else if (mu) {
+        detail = `<div class="lab-detail"><div>${mu.newcomers.map((p) => `<b>${escHtml(p)}</b> (${mu.careerGames[p]} games)`).join(", ")} ${mu.newcomers.length === 1 ? "has" : "have"} fewer than 50 career games, so this match is scored exactly as live ASS:</div>${[...(m.teamA || []), ...(m.teamB || [])].map((p) => `<div><b>${escHtml(p)}</b> ${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</div>`).join("")}</div>`;
+      } else if (e?.breakdown) {
         const line = (p) => {
           const b = e.breakdown[p];
           const role = b.vet ? `veteran (${b.careerGames} games)` : `newcomer (${b.careerGames} games)`;
@@ -12279,9 +12306,9 @@ function _scoringLabInner() {
     })
     .join("");
   const more = list.length > _labShown ? `<button class="lab-more" onclick="_labMore()">Show ${Math.min(50, list.length - _labShown)} more of ${list.length - _labShown}</button>` : "";
-  const unit = res.kind === "ep" ? "points" : res.kind === "winpct" ? "results" : "rating change";
+  const unit = res.kind === "ep" || res.kind === "matchup" ? "points" : res.kind === "winpct" ? "results" : "rating change";
   const head = `<div class="lab-mh"><span>MATCHES <b>PLAYED</b></span><span class="lab-mh-r">${_labPlayerSel ? `<button class="ss-chip on" style="height:24px" onclick="_labPlayer(${jsArg(_labPlayerSel)})">${escHtml(_labPlayerSel.toUpperCase())} ✕</button>` : `${list.length} · ${unit}`}</span></div>
-    ${res.kind === "ep" ? '<div class="lab-note">The % under the score is each team\'s win chance going in. Tap a match for how each player\'s points were worked out.</div>' : ""}`;
+    ${res.kind === "ep" ? '<div class="lab-note">The % under the score is each team\'s win chance going in. Tap a match for how each player\'s points were worked out.</div>' : ""}${res.kind === "matchup" ? '<div class="lab-note">Under the score: BALANCED, STACKED (the arrow points at the stronger team) or NEWCOMER (scored as live ASS). Tap a match to see the four players\' ASS and ranks.</div>' : ""}`;
   return `${picker}${table}${head}<div class="lab-list">${rowsHtml || '<div class="sub" style="padding:8px">No matches.</div>'}</div>${more}`;
 }
 

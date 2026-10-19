@@ -19614,3 +19614,12 @@ body.tv-open {
   font-weight: 800;
   cursor: pointer;
 }
+.lab-tag-balanced {
+  color: var(--green);
+}
+.lab-tag-mismatch {
+  color: var(--gold);
+}
+.lab-tag-newcomer {
+  color: var(--theme);
+}

@@ -3,7 +3,7 @@
 // exactly, so the lab's "ASS (live)" option is always the Summary tab's board.
 // Run: node tests/tests-scoring-lab.mjs
 import { computeMatchEPDeltas, computeEPFull } from "../src/domain/ep.js";
-import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS } from "../src/domain/scoring-lab.js";
+import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS, labMatchupDeltas, matchupPoints, matchupMargin } from "../src/domain/scoring-lab.js";
 
 let pass = 0,
   fail = 0;
@@ -91,6 +91,37 @@ const wp = labWinPct([
   { teamA: ["A", "C"], teamB: ["B", "D"], scoreA: 2, scoreB: 4 },
 ]);
 ok("win %: wins ÷ matches", wp.A.score === 50 && wp.C.score === 0 && wp.D.score === 50 && wp.B.score === 100 && wp.B.games === 2);
+
+console.log("\n\x1b[36m── fair matchup points ──────────────────────────────\x1b[0m");
+const sc = (a, b) => ({ scoreA: a, scoreB: b });
+ok("margin: 4-3 → 0, 4-0 → 1, 4-2 → 1/3, 6-5 → 0, 6-0 → 1", matchupMargin(sc(4, 3)) === 0 && matchupMargin(sc(0, 4)) === 1 && Math.abs(matchupMargin(sc(4, 2)) - 1 / 3) < 1e-12 && matchupMargin(sc(6, 5)) === 0 && matchupMargin(sc(6, 0)) === 1);
+ok("stronger team: win 70 at 4-0, 50 at 4-3; loss −40 at 4-0, −30 at 4-3", matchupPoints("stronger", true, 1) === 70 && matchupPoints("stronger", true, 0) === 50 && matchupPoints("stronger", false, 1) === -40 && matchupPoints("stronger", false, 0) === -30);
+ok("weaker team: win 140 / 120, loss −20 / 0", matchupPoints("weaker", true, 1) === 140 && matchupPoints("weaker", true, 0) === 120 && matchupPoints("weaker", false, 1) === -20 && matchupPoints("weaker", false, 0) === 0);
+ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1) === 120 && matchupPoints("balanced", true, 0) === 100 && matchupPoints("balanced", false, 1) === -20 && matchupPoints("balanced", false, 0) === 0);
+{
+  const mu = labMatchupDeltas(w, career);
+  const lv = labEPDeltas(w, career);
+  const kinds = [...labMatchupDeltas(career, career).values()].map((e) => e.matchup.kind);
+  ok("the league has newcomer, balanced and mismatch matches", ["newcomer", "balanced", "mismatch"].every((k) => kinds.includes(k)));
+  ok("a match with a newcomer (< 50 career games) is scored exactly as live ASS", w.every((m) => mu.get(m).matchup.kind !== "newcomer" || same(mu.get(m).playerDeltas, lv.get(m).playerDeltas)));
+  ok("newcomer matches are exactly those with someone under 50 career games", w.every((m) => (mu.get(m).matchup.kind === "newcomer") === Object.values(mu.get(m).matchup.careerGames).some((g) => g < 50)));
+  ok("balanced means best + worst vs the middle two (by all-history ASS)", w.every((m) => {
+    const x = mu.get(m).matchup;
+    if (x.kind !== "balanced") return true;
+    const top = Object.keys(x.rank).find((p) => x.rank[p] === 1), bot = Object.keys(x.rank).find((p) => x.rank[p] === 4);
+    const t = m.teamA.includes(top) ? m.teamA : m.teamB;
+    return t.includes(bot) || Math.abs(x.ass[m.teamA[0]] + x.ass[m.teamA[1]] - x.ass[m.teamB[0]] - x.ass[m.teamB[1]]) < 1e-9;
+  }));
+  ok("in a mismatch the stronger side has the higher combined ASS", w.every((m) => {
+    const x = mu.get(m).matchup;
+    if (x.kind !== "mismatch") return true;
+    const sA = x.ass[m.teamA[0]] + x.ass[m.teamA[1]], sB = x.ass[m.teamB[0]] + x.ass[m.teamB[1]];
+    return (x.roleA === "stronger") === sA > sB && x.roleA !== x.roleB;
+  }));
+  ok("both partners always get the same points (outside newcomer matches)", w.every((m) => { const e = mu.get(m); return e.matchup.kind === "newcomer" || (e.playerDeltas[m.teamA[0]] === e.playerDeltas[m.teamA[1]] && e.playerDeltas[m.teamB[0]] === e.playerDeltas[m.teamB[1]]); }));
+  const wholeHist = labMatchupDeltas(career, career), part = labMatchupDeltas(w, career);
+  ok("ranks use ALL history: a window gives the same ASS readings as the full history", w.every((m) => same(wholeHist.get(m).matchup.ass, part.get(m).matchup.ass)));
+}
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
 ok("every option has an id, label, kind and description", LAB_OPTIONS.every((o) => o.id && o.label && o.kind && o.desc && o.desc.length > 40));

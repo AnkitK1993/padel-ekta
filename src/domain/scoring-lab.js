@@ -181,10 +181,100 @@ export function labWinPct(matches) {
   return out;
 }
 
+// ── FAIR MATCHUP POINTS ────────────────────────────────────
+// Rewards winning from a fair or an underdog draw more than winning from a
+// stacked one. If anyone in the match has fewer than `maturity` career games,
+// their ASS isn't trusted yet, so the whole match is scored exactly as live
+// ASS scores it. Otherwise the four are ranked by their ASS over ALL history
+// just before the match:
+//   balanced (1+4 vs 2+3)  win 100 → 120   loss 0 → −20
+//   stronger team          win  50 →  70   loss −30 → −40
+//   weaker team            win 120 → 140   loss 0 → −20
+// where the arrow runs from the closest result (4-3, 6-5) to a whitewash
+// (4-0, 6-0): g = (winner − loser − 1) ÷ (winner − 1). Both partners get the
+// same points. The board is points ÷ (games + 10), like ASS.
+export const MATCHUP_POINTS = {
+  balanced: { win: 100, winUp: 20, loss: 0, lossUp: 20 },
+  stronger: { win: 50, winUp: 20, loss: 30, lossUp: 10 },
+  weaker: { win: 120, winUp: 20, loss: 0, lossUp: 20 },
+};
+export function matchupMargin(m) {
+  const w = Math.max(Number(m.scoreA), Number(m.scoreB));
+  const l = Math.min(Number(m.scoreA), Number(m.scoreB));
+  return w > 1 ? Math.max(0, Math.min(1, (w - l - 1) / (w - 1))) : 1;
+}
+export function matchupPoints(role, won, g) {
+  const c = MATCHUP_POINTS[role];
+  return Math.round(won ? c.win + c.winUp * g : -(c.loss + c.lossUp * g));
+}
+
+// Map(match -> { playerDeltas, matchup }) for `matches`. `matchup` holds what
+// the match was judged on: kind ("newcomer" | "balanced" | "mismatch"), each
+// side's role, every player's all-history ASS and career games before it, the
+// newcomers, and the margin g. Newcomer matches also carry live ASS's own
+// breakdown/expA.
+export function labMatchupDeltas(matches, career = null, { maturity = 50 } = {}) {
+  const walk = [...new Set([...(career || []), ...(matches || [])])].sort(byDate);
+  // All-history ASS before each match: the live engine over the whole walk.
+  const histDeltas = labEPDeltas(walk, walk);
+  const live = labEPDeltas(matches, career);
+  const tot = {};
+  const games = {};
+  const careerGames = {};
+  const scoring = new Set(matches || []);
+  const out = new Map();
+  walk.forEach((m) => {
+    const teamA = m.teamA || [];
+    const teamB = m.teamB || [];
+    const four = [...teamA, ...teamB];
+    const ass = {};
+    const cg = {};
+    four.forEach((p) => {
+      ass[p] = (LAB_EP_DEFAULTS.scale * (tot[p] || 0)) / ((games[p] || 0) + LAB_EP_DEFAULTS.shrinkage);
+      cg[p] = careerGames[p] || 0;
+    });
+    if (scoring.has(m) && teamA.length && teamB.length) {
+      const aWon = Number(m.scoreA) > Number(m.scoreB);
+      const g = matchupMargin(m);
+      const newcomers = four.filter((p) => cg[p] < maturity);
+      const info = { ass, careerGames: cg, newcomers, g, kind: "", roleA: "", roleB: "" };
+      if (newcomers.length || teamA.length !== 2 || teamB.length !== 2) {
+        const e = live.get(m);
+        info.kind = "newcomer";
+        out.set(m, { ...e, matchup: info });
+      } else {
+        const order = [...four].sort((x, y) => ass[y] - ass[x] || x.localeCompare(y));
+        const sA = ass[teamA[0]] + ass[teamA[1]];
+        const sB = ass[teamB[0]] + ass[teamB[1]];
+        const ideal = Math.abs(ass[order[0]] + ass[order[3]] - ass[order[1]] - ass[order[2]]);
+        const balanced = Math.abs(sA - sB) <= ideal + 1e-9;
+        info.kind = balanced ? "balanced" : "mismatch";
+        info.rank = Object.fromEntries(order.map((p, i) => [p, i + 1]));
+        info.roleA = balanced ? "balanced" : sA > sB ? "stronger" : "weaker";
+        info.roleB = balanced ? "balanced" : sA > sB ? "weaker" : "stronger";
+        const playerDeltas = {};
+        teamA.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleA, aWon, g)));
+        teamB.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleB, !aWon, g)));
+        out.set(m, { playerDeltas, dA: playerDeltas[teamA[0]], dB: playerDeltas[teamB[0]], matchup: info });
+      }
+    }
+    const h = histDeltas.get(m);
+    four.forEach((p) => {
+      careerGames[p] = (careerGames[p] || 0) + 1;
+      if (h) {
+        tot[p] = (tot[p] || 0) + h.playerDeltas[p];
+        games[p] = (games[p] || 0) + 1;
+      }
+    });
+  });
+  return out;
+}
+
 // What the Statistics page offers. `kind`:
 //   "ep"     — labEPDeltas with `params`
 //   "system" — one of the app's other scoring engines, via the rating service
 //   "winpct" — labWinPct
+//   "matchup" — labMatchupDeltas
 export const LAB_OPTIONS = [
   {
     id: "live",
@@ -250,6 +340,12 @@ export const LAB_OPTIONS = [
       scale: 1,
     },
     desc: "The first ASS version: the 2 October formulas plus a large teammate split — up to 50% of a team's points moved toward the lower-rated partner. Original scale (about half of today's numbers) — compare ranks, not numbers.",
+  },
+  {
+    id: "matchup",
+    label: "Fair Matchup Points",
+    kind: "matchup",
+    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS over all history. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Both partners get the same points. Score = points ÷ (games + 10).",
   },
   {
     id: "winpct",
