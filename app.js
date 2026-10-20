@@ -12244,7 +12244,7 @@ function _labCustomTable() {
   const cell = (a, b) => (r(a) === r(b) ? fmt(r(a)) : `${fmt(r(a))} to ${fmt(r(b))}`);
   const row = (name, wa, wb, la, lb) =>
     `<tr><td>${name}</td><td class="tp">${cell(wa * w, wb * w)}</td><td class="tn">${cell(-la * l, -lb * l)}</td></tr>`;
-  return `<table class="lab-pts"><thead><tr><th></th><th>WIN (4–3 → 4–0)</th><th>LOSS (4–3 → 4–0)</th></tr></thead><tbody>${row("Balanced", 100, 120, 0, 20)}${row("Stronger team", 50, 70, 30, 40)}${row("Weaker team", 120, 140, 0, 20)}</tbody></table><div class="lab-pts-n">Newcomer matches: live ASS with a win worth about ${r(100 * w)} and a veteran's loss up to ${r(25 * l)}.</div>`;
+  return `<table class="lab-pts"><thead><tr><th></th><th>WIN (4–3 → 4–0)</th><th>LOSS (4–3 → 4–0)</th></tr></thead><tbody>${row("Balanced", 100, 120, 0, 20)}${row("Stronger team", 50, 70, 30, 40)}${row("Weaker team", 120, 140, 0, 20)}</tbody></table><div class="lab-pts-n">Partner split up to ${_labCustom.splitCap}% (${Math.round((_labCustom.splitCap / 20) * 100) / 100}% per ASS point between partners): the weaker partner gets that much more of a win, the stronger partner takes that much more of a loss. Newcomer matches: live ASS with a win worth about ${r(100 * w)} and a veteran's loss up to ${r(25 * l)}.</div>`;
 }
 function _labSlidersReset() {
   LAB_SLIDERS.forEach((s) => (_labCustom[s.key] = s.def));
@@ -12346,7 +12346,8 @@ function _scoringLabInner() {
         const line = (p) => {
           const r = role(p);
           const won = (m.teamA || []).includes(p) === aWon;
-          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+          const sp = mu.split?.[p] ? ` · partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
+          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"}${sp} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
         detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
       } else if (mu) {

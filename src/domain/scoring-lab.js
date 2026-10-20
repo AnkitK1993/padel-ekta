@@ -234,6 +234,12 @@ export function matchupPoints(role, won, g, winScale = 1, lossScale = 1) {
 // biggest balanced / weaker-team loss.
 export const MATCHUP_WIN_REF = 100;
 export const MATCHUP_LOSS_REF = 20;
+// Partner split: the team's points are shared unevenly by the partners' ASS
+// gap — the weaker partner gets more of a win, the stronger partner takes more
+// of a loss. Share shift = splitCap% × min(1, gap ÷ MATCHUP_SPLIT_FULL_GAP), so
+// at the default 15% cap: 0.75% per ASS point, full 15% from a 20-point gap.
+export const MATCHUP_SPLIT_CAP = 15;
+export const MATCHUP_SPLIT_FULL_GAP = 20;
 
 // Map(match -> { playerDeltas, matchup }) for `matches`. `matchup` holds what
 // the match was judged on: kind ("newcomer" | "balanced" | "mismatch"), each
@@ -246,7 +252,14 @@ export const MATCHUP_LOSS_REF = 20;
 export function labMatchupDeltas(
   matches,
   career = null,
-  { maturity = 50, seasonGames = 50, seasonKey = () => "", winBase = MATCHUP_WIN_REF, lossMax = MATCHUP_LOSS_REF } = {},
+  {
+    maturity = 50,
+    seasonGames = 50,
+    seasonKey = () => "",
+    winBase = MATCHUP_WIN_REF,
+    lossMax = MATCHUP_LOSS_REF,
+    splitCap = MATCHUP_SPLIT_CAP,
+  } = {},
 ) {
   const winScale = winBase / MATCHUP_WIN_REF;
   const lossScale = lossMax / MATCHUP_LOSS_REF;
@@ -315,8 +328,23 @@ export function labMatchupDeltas(
         info.roleA = balanced ? "balanced" : sA > sB ? "stronger" : "weaker";
         info.roleB = balanced ? "balanced" : sA > sB ? "weaker" : "stronger";
         const playerDeltas = {};
-        teamA.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleA, aWon, g, winScale, lossScale)));
-        teamB.forEach((p) => (playerDeltas[p] = matchupPoints(info.roleB, !aWon, g, winScale, lossScale)));
+        info.split = {}; // per player: the share shift applied (+ = got more / lost less)
+        [
+          [teamA, info.roleA, aWon],
+          [teamB, info.roleB, !aWon],
+        ].forEach(([team, role, won]) => {
+          const raw = won ? (MATCHUP_POINTS[role].win + MATCHUP_POINTS[role].winUp * g) * winScale : -(MATCHUP_POINTS[role].loss + MATCHUP_POINTS[role].lossUp * g) * lossScale;
+          const [x, y] = team;
+          const gap = Math.abs(ass[x] - ass[y]);
+          const sh = (Math.max(0, splitCap) / 100) * Math.min(1, gap / MATCHUP_SPLIT_FULL_GAP);
+          const weak = ass[x] < ass[y] ? x : y;
+          team.forEach((p) => {
+            // weaker partner: more of a win, less of a loss; stronger: the reverse
+            const f = p === weak ? (raw >= 0 ? 1 + sh : 1 - sh) : raw >= 0 ? 1 - sh : 1 + sh;
+            playerDeltas[p] = Math.round(raw * f) || 0;
+            info.split[p] = raw === 0 || !sh ? 0 : p === weak ? sh : -sh;
+          });
+        });
         out.set(m, { playerDeltas, dA: playerDeltas[teamA[0]], dB: playerDeltas[teamB[0]], matchup: info });
       }
     }
@@ -357,14 +385,14 @@ export const LAB_OPTIONS = [
     kind: "matchup",
     params: { seasonGames: 0 },
     custom: true,
-    desc: "Fair Matchup Points with your own numbers. The sliders set a balanced win and the biggest balanced loss; every other number in the table — stacked and underdog wins and losses, and the live-ASS scoring of newcomer matches — moves in proportion.",
+    desc: "Fair Matchup Points with your own numbers. The first two sliders set a balanced win and the biggest balanced loss; every other number in the table — stacked and underdog wins and losses, and the live-ASS scoring of newcomer matches — moves in proportion. The third sets the partner split: how much more of a win the weaker partner gets (and of a loss the stronger partner takes), reached at a 20-point ASS gap between partners.",
   },
   {
     id: "matchup",
     label: "Fair Matchup Points",
     kind: "matchup",
     params: { seasonGames: 0 },
-    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Both partners get the same points. Score = points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
+    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Partner split: the team's points are shared by the partners' ASS gap — the weaker partner gets a bigger share of a win and the stronger partner takes a bigger share of a loss, up to 15% each way (0.75% per ASS point of gap). Score = points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
   },
 ];
 
@@ -372,6 +400,7 @@ export const LAB_OPTIONS = [
 export const LAB_SLIDERS = [
   { key: "winBase", label: "Win points (balanced 4–3)", min: 20, max: 200, step: 5, def: MATCHUP_WIN_REF },
   { key: "lossMax", label: "Loss points (balanced 4–0)", min: 0, max: 100, step: 1, def: MATCHUP_LOSS_REF },
+  { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: MATCHUP_SPLIT_CAP },
 ];
 
 export const labOption = (id) => LAB_OPTIONS.find((o) => o.id === id) || LAB_OPTIONS[0];

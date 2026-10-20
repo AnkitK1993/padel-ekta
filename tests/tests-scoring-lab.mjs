@@ -151,7 +151,26 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
     const sA = x.ass[m.teamA[0]] + x.ass[m.teamA[1]], sB = x.ass[m.teamB[0]] + x.ass[m.teamB[1]];
     return (x.roleA === "stronger") === sA > sB && x.roleA !== x.roleB;
   }));
-  ok("both partners always get the same points (outside newcomer matches)", w.every((m) => { const e = mu.get(m); return e.matchup.kind === "newcomer" || (e.playerDeltas[m.teamA[0]] === e.playerDeltas[m.teamA[1]] && e.playerDeltas[m.teamB[0]] === e.playerDeltas[m.teamB[1]]); }));
+  const ns = labMatchupDeltas(w, career, { splitCap: 0 });
+  ok("partner split 0%: both partners get the same points", w.every((m) => { const e = ns.get(m); return e.matchup.kind === "newcomer" || (e.playerDeltas[m.teamA[0]] === e.playerDeltas[m.teamA[1]] && e.playerDeltas[m.teamB[0]] === e.playerDeltas[m.teamB[1]]); }));
+  let splitOk = true, splitSeen = 0;
+  w.forEach((m) => {
+    const e = mu.get(m), e0 = ns.get(m), x = e.matchup;
+    if (x.kind === "newcomer") return;
+    [m.teamA, m.teamB].forEach(([p, q]) => {
+      const tot = e.playerDeltas[p] + e.playerDeltas[q], tot0 = e0.playerDeltas[p] + e0.playerDeltas[q];
+      if (Math.abs(tot - tot0) > 2) splitOk = false; // the team's total doesn't change (± rounding)
+      const [weak, strong] = x.ass[p] < x.ass[q] ? [p, q] : [q, p];
+      const v = e0.playerDeltas[p];
+      if (x.ass[p] === x.ass[q] || v === 0) return;
+      splitSeen++;
+      if (v > 0 && !(e.playerDeltas[weak] >= e.playerDeltas[strong])) splitOk = false; // win: weaker gets more
+      if (v < 0 && !(e.playerDeltas[strong] <= e.playerDeltas[weak])) splitOk = false; // loss: stronger loses more
+      const gap = Math.abs(x.ass[p] - x.ass[q]), sh = 0.15 * Math.min(1, gap / 20);
+      if (Math.abs(e.playerDeltas[weak] - v * (v > 0 ? 1 + sh : 1 - sh)) > 1.5) splitOk = false;
+    });
+  });
+  ok("partner split 15%: weaker partner gets more of a win, stronger takes more of a loss, team total unchanged", splitOk && splitSeen > 50);
   const wholeHist = labMatchupDeltas(career, career), part = labMatchupDeltas(w, career);
   ok("ranks use ALL history: a window gives the same ASS readings as the full history", w.every((m) => same(wholeHist.get(m).matchup.ass, part.get(m).matchup.ass)));
   // Two seasons (split at 1 Mar): a player is judged on all-history ASS until
@@ -177,12 +196,12 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
 ok("three options: live, custom sliders and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,matchup" && labOption("custom").kind === "matchup");
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15");
 {
-  const base = labMatchupDeltas(w, career, { seasonGames: 0 });
-  const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20 });
+  const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
+  const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });
   ok("custom at 100 / 20 = Fair Matchup Points exactly", w.every((m) => same(base.get(m).playerDeltas, dflt.get(m).playerDeltas)));
-  const big = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 200, lossMax: 40 });
+  const big = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 200, lossMax: 40, splitCap: 0 });
   let prop = true;
   w.forEach((m) => {
     const b0 = base.get(m), b1 = big.get(m);
