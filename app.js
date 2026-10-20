@@ -12463,7 +12463,6 @@ function _pairingOddsInner() {
       ${pill("FAIR", pctOf(t.fair, counted) + "%", t.fair, "var(--green)")}${pill("UNFAIR", pctOf(t.unfair, counted) + "%", t.unfair, "var(--red)")}<button onclick="_pairingOddsExc()" aria-pressed="${_poInclExc}" style="flex:1;min-width:0;text-align:center;padding:7px 4px;border-radius:10px;background:${_poInclExc ? "rgba(246,196,83,0.14)" : "rgba(255,255,255,0.05)"};border:1px solid var(--gold);cursor:pointer;font:inherit;color:inherit">
         <div style="font-size:16px;font-weight:900;color:var(--gold)">${t.excSeen}</div>
         <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">EXCEPTIONS</div>
-        <div style="margin-top:3px;font-size:8.5px;font-weight:800;letter-spacing:0.05em;color:${_poInclExc ? "var(--gold)" : "var(--muted)"}">${_poInclExc ? "☑ COUNTED AS UNFAIR" : "☐ LEFT OUT"}</div>
       </button>
     </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
