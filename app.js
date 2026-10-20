@@ -12458,7 +12458,7 @@ function _pairingOddsInner() {
     })
     .join("");
   return `<div class="ana-card" style="padding:10px 12px">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Each 2v2 is judged on every player's ${_scoringLabel()} just before it. <b style="color:var(--green)">Fair</b> = best + worst vs the middle two. Any other split is <b style="color:var(--red)">unfair</b>: the side with the higher combined ${_scoringLabel()} is <b style="color:var(--green)">favoured</b>, the other is the <b style="color:var(--red)">underdog</b>. <b style="color:var(--gold)">Exception</b> = not the fair split, but best and worst had already partnered that day — ${_poInclExc ? "counted here as unfair" : "left out of every %"}.</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Each 2v2 is judged on every player's ${_scoringLabel()} just before it. <b style="color:var(--green)">Fair</b> = best + worst vs the middle two. Any other split is <b style="color:var(--red)">unfair</b>: the side with the higher combined ${_scoringLabel()} is <b style="color:var(--green)">favoured</b>, the other is the <b style="color:var(--red)">underdog</b>. <b style="color:var(--gold)">Exception</b> = not the fair split, but best and worst had already partnered that day.</div>
     <div style="display:flex;gap:6px;margin-bottom:10px">
       ${pill("FAIR", pctOf(t.fair, counted) + "%", t.fair, "var(--green)")}${pill("UNFAIR", pctOf(t.unfair, counted) + "%", t.unfair, "var(--red)")}<button onclick="_pairingOddsExc()" aria-pressed="${_poInclExc}" style="flex:1;min-width:0;text-align:center;padding:7px 4px;border-radius:10px;background:${_poInclExc ? "rgba(246,196,83,0.14)" : "rgba(255,255,255,0.05)"};border:1px solid var(--gold);cursor:pointer;font:inherit;color:inherit">
         <div style="font-size:16px;font-weight:900;color:var(--gold)">${t.excSeen}</div>
@@ -12471,7 +12471,7 @@ function _pairingOddsInner() {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">Sorted by ${sortNames[key]} (${key === "name" ? (dir > 0 ? "A→Z" : "Z→A") : dir < 0 ? "highest first" : "lowest first"}) — tap any header to sort, tap it again to flip. FAVOURED / UNDERDOG % = the share of a player's games (${_poInclExc ? "exceptions counted as unfair" : "exceptions left out"}) played on the stronger / weaker side. FAIR + FAVOURED + UNDERDOG = 100%. EDGE = average combined-rating advantage of the player's team over the other side. Note: whoever is the strongest of the four is on the favoured side of every unfair split, so top-rated players lean high here by construction.${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
+    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">Sorted by ${sortNames[key]} (${key === "name" ? (dir > 0 ? "A→Z" : "Z→A") : dir < 0 ? "highest first" : "lowest first"}) — tap any header to sort, tap it again to flip. FAVOURED / UNDERDOG % = the share of a player's games played on the stronger / weaker side. FAIR + FAVOURED + UNDERDOG = 100%. EDGE = average combined-rating advantage of the player's team over the other side. Note: whoever is the strongest of the four is on the favoured side of every unfair split, so top-rated players lean high here by construction.${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
   </div>`;
 }
 
