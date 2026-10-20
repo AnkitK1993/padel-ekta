@@ -18,10 +18,13 @@ const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
 const EPS = 1e-6;
 
 function blank(name) {
-  return { name, mp: 0, fair: 0, exception: 0, unfair: 0, favoured: 0, underdog: 0, edgeSum: 0, wins: { favoured: 0, underdog: 0 } };
+  return { name, mp: 0, fair: 0, exception: 0, excSeen: 0, unfair: 0, favoured: 0, underdog: 0, edgeSum: 0, wins: { favoured: 0, underdog: 0 } };
 }
 
-export function analyzePairingOdds(matches, { history = {}, def = 0 } = {}) {
+// `includeExceptions`: count exception matches as ordinary unfair ones (the
+// stronger side favoured) instead of leaving them out; `excSeen` still says
+// how many there were.
+export function analyzePairingOdds(matches, { history = {}, def = 0, includeExceptions = false } = {}) {
   const sorted = [...(matches || [])].sort(byDate); // stable: same-day order kept
   const idx = {}; // matches seen so far per player (into history)
   const cur = {}; // rating after the player's latest match
@@ -64,19 +67,23 @@ export function analyzePairingOdds(matches, { history = {}, def = 0 } = {}) {
     const seen = partneredToday.get(day) || new Set();
 
     let kind;
+    let wasException = false;
     if (gap <= idealGap + EPS) kind = "fair";
-    else if (seen.has(pairKey(best, worst))) kind = "exception";
-    else kind = "unfair";
+    else if (seen.has(pairKey(best, worst))) {
+      wasException = true;
+      kind = includeExceptions ? "unfair" : "exception";
+    } else kind = "unfair";
 
     const favouredSide = sumA === sumB ? null : sumA > sumB ? "A" : "B";
     const aWon = Number(m.scoreA) > Number(m.scoreB);
-    list.push({ match: m, kind, gap, favouredSide, best, worst });
+    list.push({ match: m, kind, wasException, gap, favouredSide, best, worst });
 
     [["A", a, sumA - sumB, aWon], ["B", b, sumB - sumA, !aWon]].forEach(([side, team, edge, won]) => {
       team.forEach((p) => {
         const r = (players[p] ||= blank(p));
         r.mp++;
         r[kind]++;
+        if (wasException) r.excSeen++;
         r.edgeSum += edge;
         if (kind === "unfair" && favouredSide) {
           const role = favouredSide === side ? "favoured" : "underdog";
@@ -111,7 +118,10 @@ export function analyzePairingOdds(matches, { history = {}, def = 0 } = {}) {
   // favoured side, then the most such games.
   rows.sort((x, y) => y.favPct - x.favPct || y.favoured - x.favoured || y.mp - x.mp || x.name.localeCompare(y.name));
 
-  const totals = { matches: list.length, fair: 0, exception: 0, unfair: 0, skipped };
-  list.forEach((x) => totals[x.kind]++);
+  const totals = { matches: list.length, fair: 0, exception: 0, unfair: 0, excSeen: 0, skipped };
+  list.forEach((x) => {
+    totals[x.kind]++;
+    if (x.wasException) totals.excSeen++;
+  });
   return { rows, totals, matches: list };
 }

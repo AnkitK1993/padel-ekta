@@ -43,6 +43,15 @@ r = analyzePairingOdds([warm, d1, d2, d3], { history: hist({ A: [90, 90, 90, 90]
 ok("best+worst already partnered the same day → EXCEPTION", r.matches[2].kind === "exception", r.matches.map((x) => x.kind).join());
 ok("the next day it counts as UNFAIR again", r.matches[3].kind === "unfair");
 ok("exceptions are not counted as unfair for anyone", r.rows.every((p) => p.unfair <= 1) && r.totals.exception === 1);
+{
+  const H4 = hist({ A: [90, 90, 90, 90], B: [70, 70, 70, 70], C: [50, 50, 50, 50], D: [30, 30, 30, 30] });
+  const inc = analyzePairingOdds([warm, d1, d2, d3], { history: H4, includeExceptions: true });
+  ok("include exceptions: the same-day repeat counts as unfair", inc.matches[2].kind === "unfair" && inc.matches[2].wasException && inc.totals.exception === 0 && inc.totals.excSeen === 1);
+  const A = inc.rows.find((p) => p.name === "A");
+  ok("include exceptions: A is favoured in it too, and percentages cover every game", A.favoured === 2 && A.exception === 0 && A.excSeen === 1 && A.counted === A.mp);
+  const exc = analyzePairingOdds([warm, d1, d2, d3], { history: H4 });
+  ok("left out (default): still reports how many exceptions each player had", exc.rows.find((p) => p.name === "A").excSeen === 1 && exc.totals.excSeen === 1);
+}
 
 console.log("\n\x1b[36m── per-player numbers ───────────────────────────────\x1b[0m");
 r = analyzePairingOdds([warm, fairM, unfairM], { history: H });

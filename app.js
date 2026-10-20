@@ -12382,15 +12382,35 @@ function _scoringLabInner() {
 let _poRes = null;
 // Table sort: favPct (default) or dogPct, -1 = highest first.
 let _poSort = { key: "favPct", dir: -1 };
+// Exceptions box toggle: count same-day repeat pairings as unfair (remembered).
+let _poInclExc = (() => {
+  try {
+    return localStorage.getItem("padel_po_incl_exc") === "1";
+  } catch (e) {
+    return false;
+  }
+})();
+let _poArgs = null; // { matches, history, def } of the last render, for re-analysis
 function _pairingOddsHtml(matches) {
-  _poRes = analyzePairingOdds(matches, {
-    history: rating.timeline(matches).history,
-    def: rating.def(),
-  });
+  _poArgs = { matches, history: rating.timeline(matches).history, def: rating.def() };
+  _poRes = analyzePairingOdds(matches, { history: _poArgs.history, def: _poArgs.def, includeExceptions: _poInclExc });
   return `<div id="pairing-odds-box">${_pairingOddsInner()}</div>`;
 }
+function _pairingOddsExc() {
+  _poInclExc = !_poInclExc;
+  try {
+    localStorage.setItem("padel_po_incl_exc", _poInclExc ? "1" : "0");
+  } catch (e) {
+    noteError("app:_pairingOddsExc", e);
+  }
+  if (!_poArgs) return;
+  _poRes = analyzePairingOdds(_poArgs.matches, { history: _poArgs.history, def: _poArgs.def, includeExceptions: _poInclExc });
+  const box = document.getElementById("pairing-odds-box");
+  if (box) box.innerHTML = _pairingOddsInner();
+}
 function _pairingOddsSort(key) {
-  _poSort = _poSort.key === key ? { key, dir: -_poSort.dir } : { key, dir: -1 };
+  // Numbers sort highest first, names A→Z; tapping the same header flips it.
+  _poSort = _poSort.key === key ? { key, dir: -_poSort.dir } : { key, dir: key === "name" ? 1 : -1 };
   const box = document.getElementById("pairing-odds-box");
   if (box && _poRes) box.innerHTML = _pairingOddsInner();
 }
@@ -12412,21 +12432,24 @@ function _pairingOddsInner() {
   const th = (l, extra = "") =>
     `<th style="padding:4px 3px;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:0.06em;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;${extra}">${l}</th>`;
   const { key, dir } = _poSort;
-  const countKey = key === "dogPct" ? "underdog" : "favoured";
+  const countKey = { favPct: "favoured", dogPct: "underdog", fairPct: "fair" }[key] || "favoured";
+  const cmp = (x, y) => (key === "name" ? x.name.localeCompare(y.name) : x[key] - y[key]);
   const sorted = [...res.rows].sort(
-    (x, y) => dir * (x[key] - y[key]) || dir * (x[countKey] - y[countKey]) || y.mp - x.mp || x.name.localeCompare(y.name),
+    (x, y) => dir * cmp(x, y) || dir * (x[countKey] - y[countKey]) || y.mp - x.mp || x.name.localeCompare(y.name),
   );
-  const sortTh = (k, label) => {
+  // Every header sorts; the active one is just highlighted (no arrow icons).
+  const sortTh = (k, label, align = "center") => {
     const on = key === k;
-    return `<th onclick="_pairingOddsSort('${k}')" style="padding:4px 3px;font-size:8px;font-weight:800;letter-spacing:0.06em;text-align:center;border-bottom:1px solid ${on ? "var(--theme)" : "rgba(255,255,255,0.08)"};white-space:nowrap;cursor:pointer;user-select:none;color:${on ? "var(--theme)" : "var(--muted)"}">${label} ${on ? (dir < 0 ? "↓" : "↑") : "⇅"}</th>`;
+    return `<th onclick="_pairingOddsSort('${k}')" style="padding:4px 3px;font-size:8px;font-weight:800;letter-spacing:0.06em;text-align:${align};border-bottom:2px solid ${on ? "var(--theme)" : "rgba(255,255,255,0.08)"};white-space:nowrap;cursor:pointer;user-select:none;color:${on ? "var(--theme)" : "var(--muted)"}">${label}</th>`;
   };
+  const sortNames = { name: "PLAYER", mp: "MP", excSeen: "EXC.", fairPct: "FAIR %", favPct: "▲ FAVOURED %", dogPct: "▼ UNDERDOG %", avgEdge: "EDGE" };
   const rows = sorted
     .map((p, i) => {
       const edgeCol = p.avgEdge > 0.05 ? "var(--green)" : p.avgEdge < -0.05 ? "var(--red)" : "var(--muted)";
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
         <td style="padding:5px 3px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap"><span style="color:var(--muted);font-weight:800;margin-right:4px">${i + 1}</span>${escHtml(p.name)}</td>
         <td style="text-align:center;color:var(--muted)">${p.mp}</td>
-        <td style="text-align:center;color:${p.exception ? "var(--gold)" : "var(--muted)"};font-weight:800">${p.exception || "–"}</td>
+        <td style="text-align:center;color:${p.excSeen ? "var(--gold)" : "var(--muted)"};font-weight:800">${p.excSeen || "–"}</td>
         ${cell(p.fair, p.fairPct, "var(--green)")}
         ${cell(p.favoured, p.favPct, "var(--green)", true)}
         ${cell(p.underdog, p.dogPct, "var(--red)")}
@@ -12435,17 +12458,21 @@ function _pairingOddsInner() {
     })
     .join("");
   return `<div class="ana-card" style="padding:10px 12px">
-    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Each 2v2 is judged on every player's ${_scoringLabel()} just before it. <b style="color:var(--green)">Fair</b> = best + worst vs the middle two. Any other split is <b style="color:var(--red)">unfair</b>: the side with the higher combined ${_scoringLabel()} is <b style="color:var(--green)">favoured</b>, the other is the <b style="color:var(--red)">underdog</b>. <b style="color:var(--gold)">Exception</b> = not the fair split, but best and worst had already partnered that day — left out of every %.</div>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Each 2v2 is judged on every player's ${_scoringLabel()} just before it. <b style="color:var(--green)">Fair</b> = best + worst vs the middle two. Any other split is <b style="color:var(--red)">unfair</b>: the side with the higher combined ${_scoringLabel()} is <b style="color:var(--green)">favoured</b>, the other is the <b style="color:var(--red)">underdog</b>. <b style="color:var(--gold)">Exception</b> = not the fair split, but best and worst had already partnered that day — ${_poInclExc ? "counted here as unfair" : "left out of every %"} (tap the box to switch).</div>
     <div style="display:flex;gap:6px;margin-bottom:10px">
-      ${pill("FAIR", pctOf(t.fair, counted) + "%", t.fair, "var(--green)")}${pill("UNFAIR", pctOf(t.unfair, counted) + "%", t.unfair, "var(--red)")}${pill("EXCEPTIONS", t.exception, "", "var(--gold)")}
+      ${pill("FAIR", pctOf(t.fair, counted) + "%", t.fair, "var(--green)")}${pill("UNFAIR", pctOf(t.unfair, counted) + "%", t.unfair, "var(--red)")}<button onclick="_pairingOddsExc()" aria-pressed="${_poInclExc}" style="flex:1;min-width:0;text-align:center;padding:7px 4px;border-radius:10px;background:${_poInclExc ? "rgba(246,196,83,0.14)" : "rgba(255,255,255,0.05)"};border:1px solid var(--gold);cursor:pointer;font:inherit;color:inherit">
+        <div style="font-size:16px;font-weight:900;color:var(--gold)">${t.excSeen}</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:var(--muted)">EXCEPTIONS</div>
+        <div style="margin-top:3px;font-size:8.5px;font-weight:800;letter-spacing:0.05em;color:${_poInclExc ? "var(--gold)" : "var(--muted)"}">${_poInclExc ? "☑ COUNTED AS UNFAIR" : "☐ LEFT OUT"}</div>
+      </button>
     </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <table style="width:100%;border-collapse:collapse;font-size:11px">
-        <thead><tr>${th("PLAYER", "text-align:left")}${th("MP")}${th("EXC.")}${th("FAIR")}${sortTh("favPct", "▲ FAVOURED")}${sortTh("dogPct", "▼ UNDERDOG")}${th("EDGE")}</tr></thead>
+        <thead><tr>${sortTh("name", "PLAYER", "left")}${sortTh("mp", "MP")}${sortTh("excSeen", "EXC.")}${sortTh("fairPct", "FAIR")}${sortTh("favPct", "▲ FAVOURED")}${sortTh("dogPct", "▼ UNDERDOG")}${sortTh("avgEdge", "EDGE")}</tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">Sorted by ${key === "dogPct" ? "▼ UNDERDOG" : "▲ FAVOURED"} % (${dir < 0 ? "highest" : "lowest"} first) — tap either header to sort or flip the order. FAVOURED / UNDERDOG % = the share of a player's games (exceptions left out) played on the stronger / weaker side. FAIR + FAVOURED + UNDERDOG = 100%. EDGE = average combined-rating advantage of the player's team over the other side. Note: whoever is the strongest of the four is on the favoured side of every unfair split, so top-rated players lean high here by construction.${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
+    <div style="font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5">Sorted by ${sortNames[key]} (${key === "name" ? (dir > 0 ? "A→Z" : "Z→A") : dir < 0 ? "highest first" : "lowest first"}) — tap any header to sort, tap it again to flip. FAVOURED / UNDERDOG % = the share of a player's games (${_poInclExc ? "exceptions counted as unfair" : "exceptions left out"}) played on the stronger / weaker side. FAIR + FAVOURED + UNDERDOG = 100%. EDGE = average combined-rating advantage of the player's team over the other side. Note: whoever is the strongest of the four is on the favoured side of every unfair split, so top-rated players lean high here by construction.${t.skipped ? ` ${t.skipped} non-2v2 match(es) skipped.` : ""}</div>
   </div>`;
 }
 
@@ -19268,6 +19295,7 @@ Object.assign(window, {
   renderCompact,
   toggleTopGainersWindow,
   _pairingOddsSort,
+  _pairingOddsExc,
   _labPick,
   _labStep,
   _labPlayer,
