@@ -888,11 +888,12 @@ let _homeRenderedVersion = -1,
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
 let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
-// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS") or "fair"
-// ("FAIR ASS", Fair Matchup Points). Glicko-2 / OpenSkill / Fair Share still
+// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS"), "fair"
+// ("FAIR ASS", Fair Matchup Points) or "fairgap" ("FAIR ASS GAP", the same
+// with the gap rule). Glicko-2 / OpenSkill / Fair Share still
 // exist in the rating service but are no longer offered. SR bands, defaults
 // and printed forms all live in src/domain/rating-service.js.
-const SCORING_PICKABLE = ["ep", "fair"];
+const SCORING_PICKABLE = ["ep", "fair", "fairgap"];
 const _srFnForSystem = (system, ratingMap) => rating.srFn(ratingMap, system);
 // The active system lives in the rating service (one copy, so no screen can
 // hold a different one); this block only restores the saved choice.
@@ -900,7 +901,7 @@ try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
   // ASS CLASSIC ("ass") was retired: a device still set to it moves to the
   // default, and the retired season-format preference is dropped.
-  // Only ASS and FAIR ASS are offered now; a device left on Glicko-2,
+  // Only ASS, FAIR ASS and FAIR ASS GAP are offered now; a device left on Glicko-2,
   // OpenSkill or Fair Share moves back to ASS.
   if (_storedSys && SCORING_PICKABLE.includes(_storedSys)) setActiveSystem(_storedSys);
   else if (_storedSys) localStorage.removeItem("padel_scoring_system");
@@ -9534,6 +9535,7 @@ const SCORING_SYSTEM_BLURBS = {
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
   fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 15%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
+  fairgap: "FAIR ASS, but the teams' gap decides how stacked a match was. Add up both partners' ASS (this season) for each team: a gap of up to 15 is balanced (win 100–120, loss 0 to −20) — in our matches the higher-rated team wins only about half of those. From a gap of 30 it's fully stacked: the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 — past 30 the stronger team wins about 7 in 10. In between, the points slide gradually from balanced to stacked. Partner split, the newcomer rule and the score are as FAIR ASS: score = 2 × points ÷ (games + 10).",
 };
 
 // The Advanced group opens by itself when one of its systems is active, so the
@@ -9595,6 +9597,7 @@ function _setScoringSystem(sys) {
 // tapping ⓘ never accidentally changes a selection.
 const SCORING_SYSTEM_EXAMPLES = {
   fair: `<b>Example:</b> Vinit (ASS 96) + Nilesh (84) beat Rahul M (99) + Sachin (88) 4–3. Rahul M + Sachin were the stronger team, so this is an underdog win: +120 each, split by the partners' gap — <b>Nilesh +131, Vinit +109</b>. The stronger team lost 4–3: −30 each — <b>Rahul M −33, Sachin −27</b>. Had the stronger team won instead, they'd have earned only +50 each.`,
+  fairgap: `<b>Example:</b> Ankit (87) + Rahul G (80) = 167 play Vinit (99) + Sachin (86) = 185 — a gap of 18, a fifth of the way from balanced (15) to fully stacked (30). If Vinit + Sachin win 4–3 they get about <b>+90</b> each instead of +100; if Ankit + Rahul G win 4–3 they get about <b>+104</b>. With a gap of 30 or more those would be +50 and +120; with 15 or less, +100 either way.`,
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
   fairshare: `<b>Example:</b> a 1300-rated player and a 700-rated player team up and beat two 1000-rated players; the win is worth 18 points to the team. Because Puneet (700) is the weaker partner, he gets the bigger share: <b>Puneet +26, Ankit +10</b> (average 18 — the team total either way). Had they LOST instead, Puneet would drop more too — <b>Puneet −35, Ankit −13</b> — the split always favours whichever partner the match rode on more, win or lose.`,
@@ -12165,7 +12168,10 @@ function _labRun(opt, matches) {
   } else if (opt.kind === "grace") {
     // On top of the Summary tab's scoring (ASS or FAIR ASS).
     const sys = rating.system();
-    const base = sys === "fair" ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey }) : labEPDeltas(matches, career);
+    const base =
+      sys === "fair" || sys === "fairgap"
+        ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey, ...(sys === "fairgap" ? { gapRule: true, gapBalanced: 15, gapFull: 30 } : {}) })
+        : labEPDeltas(matches, career);
     deltas = labAddGrace(base, _labGracePlayer, opt.gracePts ?? _labCustom.graceMarks);
     full = labEPFull(deltas, { scale: 2 });
     totalOf = (p) => full[p]?.ep ?? null;

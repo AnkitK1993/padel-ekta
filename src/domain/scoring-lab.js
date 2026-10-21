@@ -464,7 +464,7 @@ export const LAB_OPTIONS = [
     kind: "grace",
     params: {},
     sliders: ["graceMarks"],
-    desc: "The leaderboard on the Summary tab's scoring (ASS or FAIR ASS) — then pick a player and give them extra points in every match they played in this view, and see where that would put them. ▲▼ show places gained or lost against the same board without the grace marks.",
+    desc: "The leaderboard on the Summary tab's scoring (ASS, FAIR ASS or FAIR ASS GAP) — then pick a player and give them extra points in every match they played in this view, and see where that would put them. ▲▼ show places gained or lost against the same board without the grace marks.",
   },
   {
     id: "pre1oct",

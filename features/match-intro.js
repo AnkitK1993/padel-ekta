@@ -659,7 +659,10 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB, rated
       const sign = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v)}`;
       const role = (m.teamA || []).includes(p) ? mu.roleA : mu.roleB;
       const won = wonBy(m, p);
-      const what = role === "balanced" ? "Balanced match" : `${role === "stronger" ? "Stronger" : "Weaker"} team`;
+      const what =
+        role === "balanced"
+          ? "Balanced match"
+          : `${role === "stronger" ? "Stronger" : "Weaker"} team${mu.stack > 0 && mu.stack < 1 ? ` (${Math.round(mu.stack * 100)}% stacked, gap ${mu.gap.toFixed(1)})` : ""}`;
       const sp = mu.split && mu.split[p] ? `, partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
       parts.push(
         `<div class="mio-dc-why">${what} (ASS ${mu.ass[p].toFixed(1)}, #${mu.rank[p]} of 4) · ${won ? "win" : "loss"}${sp} → <b>${sign(pts[p])}</b></div>`,

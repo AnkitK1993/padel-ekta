@@ -283,12 +283,16 @@ for (const sys of SCORING_SYSTEMS) {
     const m0 = matches[matches.length - 1];
     const e = rating.entry(m0);
     ok(`ep: entry() gives win chance and an award breakdown`, e && Number.isFinite(e.expA) && e.breakdown);
-  } else if (sys === "fair") {
+  } else if (sys === "fair" || sys === "fairgap") {
     const m0 = matches[matches.length - 1];
     const e = rating.entry(m0);
     const fromWindow = rating.deltas(scopeFor(m0)).get(m0);
-    ok("fair: entry() gives the match's FAIR ASS points and what it was judged on", e && e.matchup && JSON.stringify(e.playerDeltas) === JSON.stringify(fromWindow.playerDeltas));
-    ok("fair: keeps the 50-game newcomer rule", rating.gamesUntilVeteran("Nobody Yet") === rating.maturityGames());
+    ok(`${sys}: entry() gives the match's points and what it was judged on`, e && e.matchup && JSON.stringify(e.playerDeltas) === JSON.stringify(fromWindow.playerDeltas));
+    ok(`${sys}: keeps the 50-game newcomer rule`, rating.gamesUntilVeteran("Nobody Yet") === rating.maturityGames());
+    if (sys === "fairgap") {
+      const gr = [...rating.deltas(matches).values()].map((x) => x.matchup).filter((x) => x && x.kind !== "newcomer");
+      ok("fairgap: balanced up to a team gap of 15, fully stacked from 30", gr.every((x) => Math.abs(x.stack - Math.max(0, Math.min(1, (x.gap - 15) / 15))) < 1e-9));
+    }
   } else {
     ok(`${sys}: entry() is null (no EP detail)`, rating.entry(matches[0]) === null);
   }

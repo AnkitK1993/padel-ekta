@@ -25,7 +25,7 @@ import { labMatchupDeltas, labEPFull } from "./scoring-lab.js";
 import { withoutGuestMatches, ratedMatches, isRatedMatch, _inSeason } from "./selectors.js";
 import { state } from "./state.js";
 
-export const SCORING_SYSTEMS = ["ep", "fair", "glicko2", "openskill", "fairshare"];
+export const SCORING_SYSTEMS = ["ep", "fair", "fairgap", "glicko2", "openskill", "fairshare"];
 // Earned Points ("ep") carries the house name, "ASS". (The original
 // margin x opponent-strength engine, ASS CLASSIC, was retired.)
 export const SCORING_SYSTEM_LABELS = {
@@ -34,18 +34,23 @@ export const SCORING_SYSTEM_LABELS = {
   fairshare: "FAIR SHARE",
   ep: "ASS",
   fair: "FAIR ASS",
+  fairgap: "FAIR ASS GAP",
 };
 // Systems that fill the extra numeric column beside the rating — a "±"
 // confidence band for Glicko-2/OpenSkill, total points earned for EP.
-export const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep", "fair"];
+export const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep", "fair", "fairgap"];
 // 0-based systems: no 1000 baseline, headline number small enough that the
 // decimal carries real ordering information.
-export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair"];
+export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap"];
 // Points-based systems: a running total of earned points, a newcomer rule and
 // a per-match points entry. "fair" (FAIR ASS) is Fair Matchup Points from the
 // Scoring Lab: balanced / stacked team points + partner split, with any match
-// that has a newcomer (< 50 career games) scored exactly as ASS.
-export const SCORING_SYSTEMS_POINTS = ["ep", "fair"];
+// that has a newcomer (< 50 career games) scored exactly as ASS. "fairgap"
+// (FAIR ASS GAP) is the same with the Lab's gap rule: the teams' combined-ASS
+// gap decides balanced (≤ 15) / graded / fully stacked (≥ 30).
+export const SCORING_SYSTEMS_POINTS = ["ep", "fair", "fairgap"];
+const MATCHUP_SYSTEMS = { fair: {}, fairgap: { gapRule: true, gapBalanced: 15, gapFull: 30 } };
+const isMatchup = (s) => Object.hasOwn(MATCHUP_SYSTEMS, s);
 const FAIR_SCALE = 2; // FAIR ASS score = 2 × points ÷ (games + 10), like ASS
 
 let _system = "ep";
@@ -157,8 +162,6 @@ function minMaxSrFn(ratingMap, round = true) {
 const LADDERS = {
   classic: { steps: [1050, 1100, 1150, 1200, 1250, 1300], elite: 1200, bigGain: 50 },
   zeroBased: { steps: [25, 50, 75, 100], elite: 90, bigGain: 10 },
-  // FAIR ASS prints about half ASS's numbers (no ×2), so its rungs are halved.
-  fair: { steps: [12.5, 25, 37.5, 50], elite: 45, bigGain: 5 },
 };
 
 // Generic running-total timeline for engines without a bespoke one.
@@ -209,12 +212,13 @@ function timelineFromDeltas(matches, deltaMap, base) {
   return { history, peaks, lows };
 }
 
-// FAIR ASS per-match entries for `matches`, ranked on each season's own ASS.
-function fairDeltas(matches) {
-  return labMatchupDeltas(matches, careerMatches(), { seasonGames: 0, seasonKey: scopeKey });
+// FAIR ASS (or FAIR ASS GAP) per-match entries for `matches`, ranked on each
+// season's own ASS.
+function fairDeltas(matches, s = "fair") {
+  return labMatchupDeltas(matches, careerMatches(), { seasonGames: 0, seasonKey: scopeKey, ...MATCHUP_SYSTEMS[s] });
 }
-function fairFull(matches) {
-  return labEPFull(fairDeltas(matches), { scale: FAIR_SCALE });
+function fairFull(matches, s = "fair") {
+  return labEPFull(fairDeltas(matches, s), { scale: FAIR_SCALE });
 }
 // Running-score timeline for a points system (score after each match =
 // scale × points so far ÷ (games so far + shrinkage)), the same shape as ASS's.
@@ -265,7 +269,7 @@ export const rating = {
   def: (s = _system) => (SCORING_SYSTEMS_ZERO_BASED.includes(s) ? 0 : 1000),
   // Underdog margin for badge thresholds, on the system's own scale.
   underdogGap: (s = _system) =>
-    s === "fair" ? 2 * FAIR_SCALE : SCORING_SYSTEMS_ZERO_BASED.includes(s) ? 2 * EP_SCALE : 30,
+    isMatchup(s) ? 2 * FAIR_SCALE : SCORING_SYSTEMS_ZERO_BASED.includes(s) ? 2 * EP_SCALE : 30,
   srFn: (ratingMap, s = _system) =>
     SCORING_SYSTEMS_ZERO_BASED.includes(s) ? minMaxSrFn(ratingMap) : ratingToSr,
   // name -> scale-free strength (unrounded 0-10 SR band). For heuristics that
@@ -280,7 +284,7 @@ export const rating = {
     return (name) => toSr(ratingMap?.[name] ?? def);
   },
   ladder: (s = _system) =>
-    s === "fair" ? LADDERS.fair : SCORING_SYSTEMS_ZERO_BASED.includes(s) ? LADDERS.zeroBased : LADDERS.classic,
+    SCORING_SYSTEMS_ZERO_BASED.includes(s) ? LADDERS.zeroBased : LADDERS.classic,
 
   // Raw per-system detail ({r,rd}/{mu,sigma}/{ep,games,score}/null) — one
   // engine walk yields both the flat rating and the confidence column.
@@ -288,7 +292,7 @@ export const rating = {
     if (s === "glicko2") return computeGlicko2Full(matches);
     if (s === "openskill") return computeOpenSkillFull(matches);
     if (s === "ep") return computeEPFull(matches, careerMatches());
-    if (s === "fair") return fairFull(matches);
+    if (isMatchup(s)) return fairFull(matches, s);
     return null;
   },
   flat(matches, full, s = _system) {
@@ -299,7 +303,7 @@ export const rating = {
     };
     if (s === "glicko2") return pick("r");
     if (s === "openskill") return pick("mu");
-    if (s === "ep" || s === "fair") return pick("score");
+    if (s === "ep" || isMatchup(s)) return pick("score");
     return computeFairShare(matches);
   },
   map(matches, s = _system) {
@@ -339,14 +343,14 @@ export const rating = {
     const bySys = _entryCache.get(m);
     if (!(key in bySys))
       bySys[key] =
-        (s === "fair" ? fairDeltas(scopeFor(m)) : computeMatchEPDeltas(scopeFor(m), careerMatches())).get(m) ||
+        (isMatchup(s) ? fairDeltas(scopeFor(m), s) : computeMatchEPDeltas(scopeFor(m), careerMatches())).get(m) ||
         null;
     return bySys[key];
   },
   // EP only: running total points per player over a window ({} -> null elsewhere).
   totals(matches, s = _system) {
     if (!SCORING_SYSTEMS_POINTS.includes(s)) return null;
-    const full = s === "fair" ? fairFull(matches) : computeEPFull(matches, careerMatches());
+    const full = isMatchup(s) ? fairFull(matches, s) : computeEPFull(matches, careerMatches());
     const out = {};
     Object.keys(full).forEach((n) => (out[n] = full[n].ep));
     return out;
@@ -357,12 +361,12 @@ export const rating = {
     if (s === "glicko2") return computeMatchGlicko2Deltas(matches);
     if (s === "openskill") return computeMatchOpenSkillDeltas(matches);
     if (s === "fairshare") return computeMatchFairShareDeltas(matches);
-    if (s === "fair") return fairDeltas(matches);
+    if (isMatchup(s)) return fairDeltas(matches, s);
     return computeMatchEPDeltas(matches, careerMatches(), opts);
   },
   timeline(matches, s = _system) {
     if (s === "ep") return computeEPTimeline(matches, careerMatches());
-    if (s === "fair") return pointsTimeline(matches, fairDeltas(matches), FAIR_SCALE);
+    if (isMatchup(s)) return pointsTimeline(matches, fairDeltas(matches, s), FAIR_SCALE);
     return timelineFromDeltas(matches, rating.deltas(matches, s), 1000);
   },
   // EP "fresh session" snapshot: expectation restarts level, career counts stay.
@@ -422,7 +426,7 @@ export const rating = {
   // EP only: the leaderboard score a running points total over `games` games
   // would produce (what the board prints), for what-if projections.
   scoreFor(total, games, s = _system) {
-    return ((s === "fair" ? FAIR_SCALE : EP_SCALE) * total) / (games + EP_SHRINKAGE);
+    return ((isMatchup(s) ? FAIR_SCALE : EP_SCALE) * total) / (games + EP_SHRINKAGE);
   },
   // Numeric rounding to the precision the system prints with (whole numbers,
   // or 2 decimals for the 0-based score).
