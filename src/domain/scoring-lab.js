@@ -391,6 +391,22 @@ export function labMatchupDeltas(
   return out;
 }
 
+// Grace marks: `pts` extra points for `player` in every match they played,
+// on top of an existing per-match map. Returns a new map; each touched entry
+// records { grace: { player, pts } } so the match detail can say so.
+export function labAddGrace(deltas, player, pts) {
+  const out = new Map();
+  deltas.forEach((e, m) => {
+    if (!player || !pts || !(player in (e.playerDeltas || {}))) {
+      out.set(m, e);
+      return;
+    }
+    const playerDeltas = { ...e.playerDeltas, [player]: e.playerDeltas[player] + pts };
+    out.set(m, { ...e, playerDeltas, grace: { player, pts } });
+  });
+  return out;
+}
+
 // What the Statistics page offers. `kind`:
 //   "ep"      — labEPDeltas with `params`
 //   "matchup" — labMatchupDeltas with `params`
@@ -423,6 +439,14 @@ export const LAB_OPTIONS = [
     desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven. Best + worst paired together (#1 with #4) is always balanced. Otherwise the gap between the two teams' combined ASS decides: up to the slider value (0–40, default 10) it's balanced; from a gap of 40 it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20); in between the points slide gradually from balanced to stacked. Partner split, newcomer rule and score are as Fair ASS.",
   },
   {
+    id: "grace",
+    label: "Grace Marks",
+    kind: "grace",
+    params: {},
+    sliders: ["graceMarks"],
+    desc: "The leaderboard on the Summary tab's scoring (ASS or FAIR ASS) — then pick a player and give them extra points in every match they played in this view, and see where that would put them. ▲▼ show places gained or lost against the same board without the grace marks.",
+  },
+  {
     id: "matchup",
     label: "Fair Matchup Points",
     kind: "matchup",
@@ -437,6 +461,7 @@ export const LAB_SLIDERS = [
   { key: "lossMax", label: "Loss points (balanced 4–0)", min: 0, max: 100, step: 1, def: MATCHUP_LOSS_REF },
   { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: MATCHUP_SPLIT_CAP },
   { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 10 },
+  { key: "graceMarks", label: "Grace marks per match", min: 0, max: 50, step: 1, def: 10 },
 ];
 
 export const labOption = (id) => LAB_OPTIONS.find((o) => o.id === id) || LAB_OPTIONS[0];

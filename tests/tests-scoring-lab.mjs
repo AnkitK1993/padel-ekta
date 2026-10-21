@@ -3,7 +3,7 @@
 // exactly, so the lab's "ASS (live)" option is always the Summary tab's board.
 // Run: node tests/tests-scoring-lab.mjs
 import { computeMatchEPDeltas, computeEPFull } from "../src/domain/ep.js";
-import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS, LAB_SLIDERS, labMatchupDeltas, matchupPoints, matchupMargin } from "../src/domain/scoring-lab.js";
+import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS, LAB_SLIDERS, labAddGrace, labMatchupDeltas, matchupPoints, matchupMargin } from "../src/domain/scoring-lab.js";
 
 let pass = 0,
   fail = 0;
@@ -235,9 +235,21 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   ok("the gap-rule option has one slider: balanced up to 0–40, default 10", same(labOption("gaprule").sliders, ["gapBalanced"]) && (({ min, max, def }) => min === 0 && max === 40 && def === 10)(LAB_SLIDERS.find((s) => s.key === "gapBalanced")));
 }
 
+console.log("\n\x1b[36m── grace marks ───────────────────────────────────────\x1b[0m");
+{
+  const base = labEPDeltas(w, career);
+  const gr = labAddGrace(base, "Lou", 20);
+  const played = w.filter((m) => [...m.teamA, ...m.teamB].includes("Lou")).length;
+  const f0 = labEPFull(base), f1 = labEPFull(gr);
+  ok("grace marks add the points to every match the player played", f1.Lou.ep === f0.Lou.ep + 20 * played && f1.Lou.games === f0.Lou.games);
+  ok("nobody else changes", Object.keys(f0).every((p) => p === "Lou" || f0[p].ep === f1[p].ep));
+  ok("0 points or no player = the base board", labAddGrace(base, "Lou", 0) === base || [...labAddGrace(base, "Lou", 0).values()].every((e, i) => e === [...base.values()][i]));
+  ok("touched matches say so", [...gr.values()].some((e) => e.grace && e.grace.player === "Lou" && e.grace.pts === 20));
+}
+
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("four options: live, custom sliders, gap rule and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,matchup" && labOption("custom").kind === "matchup");
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15,gapBalanced=10");
+ok("five options: live, custom sliders, gap rule, grace marks and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,matchup" && labOption("custom").kind === "matchup");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15,gapBalanced=10,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });

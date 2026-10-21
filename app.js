@@ -15,7 +15,7 @@ import {
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { analyzePairingOdds } from "./src/domain/pairing-odds.js";
-import { LAB_OPTIONS, LAB_SLIDERS, labOption, labEPDeltas, labEPFull, labMatchupDeltas } from "./src/domain/scoring-lab.js";
+import { LAB_OPTIONS, LAB_SLIDERS, labOption, labEPDeltas, labEPFull, labMatchupDeltas, labAddGrace } from "./src/domain/scoring-lab.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
 import {
   SUPERADMIN_EMAIL,
@@ -12129,7 +12129,26 @@ const _labParams = (opt) => ({
   ...opt.params,
   ...Object.fromEntries(_labSliderKeys(opt).map((k) => [k, _labCustom[k]])),
 });
-const _labKey = (opt) => `${opt.id}:${_labSliderKeys(opt).map((k) => _labCustom[k]).join(":")}`;
+const _labKey = (opt) =>
+  `${opt.id}:${_labSliderKeys(opt).map((k) => _labCustom[k]).join(":")}` +
+  (opt.kind === "grace" ? `:${rating.system()}:${_labGracePlayer}:${opt.gracePts ?? ""}` : "");
+// Grace Marks: the player getting the extra points (remembered).
+let _labGracePlayer = (() => {
+  try {
+    return localStorage.getItem("padel_lab_grace_player") || "";
+  } catch (e) {
+    return "";
+  }
+})();
+function _labGracePick(name) {
+  _labGracePlayer = name || "";
+  try {
+    localStorage.setItem("padel_lab_grace_player", _labGracePlayer);
+  } catch (e) {
+    noteError("app:_labGracePick", e);
+  }
+  _labRerender();
+}
 
 // { rows, deltas, totalLabel, fmt, kind } for one option over `matches`.
 function _labRun(opt, matches) {
@@ -12140,6 +12159,14 @@ function _labRun(opt, matches) {
   if (opt.kind === "ep") {
     deltas = labEPDeltas(matches, career, _labParams(opt));
     full = labEPFull(deltas, _labParams(opt));
+    totalOf = (p) => full[p]?.ep ?? null;
+    totalLabel = "PTS";
+  } else if (opt.kind === "grace") {
+    // On top of the Summary tab's scoring (ASS or FAIR ASS).
+    const sys = rating.system();
+    const base = sys === "fair" ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey }) : labEPDeltas(matches, career);
+    deltas = labAddGrace(base, _labGracePlayer, opt.gracePts ?? _labCustom.graceMarks);
+    full = labEPFull(deltas, { scale: sys === "fair" ? 1 : 2 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   } else if (opt.kind === "matchup") {
@@ -12242,6 +12269,16 @@ function _labCustomTable() {
     `<tr><td>${name}</td><td class="tp">${cell(wa * w, wb * w)}</td><td class="tn">${cell(-la * l, -lb * l)}</td></tr>`;
   return `<table class="lab-pts"><thead><tr><th></th><th>WIN (4–3 → 4–0)</th><th>LOSS (4–3 → 4–0)</th></tr></thead><tbody>${row("Balanced", 100, 120, 0, 20)}${row("Stronger team", 50, 70, 30, 40)}${row("Weaker team", 120, 140, 0, 20)}</tbody></table><div class="lab-pts-n">Partner split up to ${_labCustom.splitCap}% (${Math.round((_labCustom.splitCap / 20) * 100) / 100}% per ASS point between partners): the weaker partner gets that much more of a win, the stronger partner takes that much more of a loss. Newcomer matches: live ASS with a win worth about ${r(100 * w)} and a veteran's loss up to ${r(25 * l)}.</div>`;
 }
+function _labGracePickerHtml(matches) {
+  const names = [...new Set(matches.flatMap((m) => [...(m.teamA || []), ...(m.teamB || [])]))].sort((x, y) => x.localeCompare(y));
+  const cur = names.includes(_labGracePlayer) ? _labGracePlayer : "";
+  return `<label class="lab-slider"><span class="lab-slider-l">Player <b>${cur ? escHtml(cur) : "—"}</b></span>
+    <select class="lab-select" onchange="_labGracePick(this.value)" aria-label="Player getting grace marks">
+      <option value=""${cur ? "" : " selected"}>Choose a player…</option>
+      ${names.map((n) => `<option value="${escHtml(n)}"${n === cur ? " selected" : ""}>${escHtml(n)}</option>`).join("")}
+    </select></label>`;
+}
+
 // The gap-rule option's current thresholds and what a 4–3 pays across the band.
 function _labGapTable() {
   const b = _labCustom.gapBalanced;
@@ -12287,7 +12324,7 @@ function _scoringLabInner() {
           : ""
     }<div class="lab-scope">${escHtml(scope)}</div></div>${
       _labSliderKeys(opt).length
-        ? `<div class="lab-sliders">${LAB_SLIDERS.filter((s) => _labSliderKeys(opt).includes(s.key))
+        ? `<div class="lab-sliders">${opt.kind === "grace" ? _labGracePickerHtml(matches) : ""}${LAB_SLIDERS.filter((s) => _labSliderKeys(opt).includes(s.key))
             .map(
               (s) => `<label class="lab-slider"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key]}</b></span>
               <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${_labCustom[s.key]}" oninput="_labSlide('${s.key}', this.value)" aria-label="${escHtml(s.label)}">
@@ -12299,7 +12336,12 @@ function _scoringLabInner() {
   if (!matches.length) return `${picker}<div class="sub" style="padding:8px">No matches in this view.</div>`;
 
   const res = _labRun(opt, matches);
-  const live = opt.id === "live" ? null : _labRun(labOption("live"), matches);
+  const live =
+    opt.id === "live"
+      ? null
+      : opt.kind === "grace"
+        ? _labRun({ ...opt, id: "grace0", sliders: [], gracePts: 0 }, matches)
+        : _labRun(labOption("live"), matches);
   const liveRank = live ? Object.fromEntries(live.rows.map((r) => [r.name, r.rank])) : null;
   const mid = res.rows.length ? (res.rows[0].score + res.rows[res.rows.length - 1].score) / 2 : 0;
   const scoreCol = (v) => (v > mid ? "var(--green)" : v < mid ? "var(--red)" : "var(--muted)");
@@ -12316,12 +12358,12 @@ function _scoringLabInner() {
       const mc = p.mw > p.ml ? "p" : p.mw < p.ml ? "n" : "m";
       const games = p.gw + p.gl;
       const gp = games ? (100 * p.gw) / games : 0;
-      const sel = _labPlayerSel === p.name ? " lab-sel" : "";
+      const sel = _labPlayerSel === p.name || (opt.kind === "grace" && p.name === _labGracePlayer && _labCustom.graceMarks) ? " lab-sel" : "";
       return `<tr class="${rc}${sel}" style="cursor:pointer" onclick="_labPlayer(${jsArg(p.name)})"><td>${ri}</td><td>${escHtml(p.name.toUpperCase())}${badge}</td><td data-col="mp">${p.mp}</td><td data-col="record"><span class="rec-cell ${mc}">${p.mw}–${p.ml}</span></td><td data-col="winPct">${Math.round((100 * p.mw) / p.mp)}%</td><td data-col="gw" class="tp">${p.gw}</td><td data-col="gl" class="tn">${p.gl}</td><td data-col="gamePct" class="${gp >= 50 ? "tp" : "tn"}">${Math.round(gp)}%</td><td data-col="conf">${p.total ?? ""}</td><td data-col="ass" class="cmp-ass-cell"><span style="font-weight:700;color:${scoreCol(p.score)}">${res.fmt(p.score)}</span></td></tr>`;
     })
     .join("");
   const table = `<div class="cmp-scroll lab-table"><table class="cmp"><thead><tr><th>#</th><th>PLAYER</th><th data-col="mp">MP</th><th data-col="record">W–L</th><th data-col="winPct">W%</th><th data-col="gw">GW</th><th data-col="gl">GL</th><th data-col="gamePct">G%</th><th data-col="conf">${res.totalLabel}</th><th data-col="ass">SCORE</th></tr></thead><tbody>${body}</tbody></table></div>
-    <div class="lab-note">${live ? "▲▼ = places gained / lost against the live ASS board. " : ""}Tap a player to list only their matches.</div>`;
+    <div class="lab-note">${live ? (opt.kind === "grace" ? `▲▼ = places gained / lost against the same ${escHtml(rating.label())} board without grace marks. ` : "▲▼ = places gained / lost against the live ASS board. ") : ""}Tap a player to list only their matches.</div>`;
 
   // Matches, newest first, with every player's points.
   const list = [...matches].filter((m) => !_labPlayerSel || [...(m.teamA || []), ...(m.teamB || [])].includes(_labPlayerSel)).reverse();
@@ -12360,18 +12402,18 @@ function _scoringLabInner() {
           const r = role(p);
           const won = (m.teamA || []).includes(p) === aWon;
           const sp = mu.split?.[p] ? ` · partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
-          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"}${sp} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"}${sp}${e.grace?.player === p ? ` · grace +${e.grace.pts}` : ""} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
         const gapLine = mu.gap != null ? `<div>Team gap ${mu.gap.toFixed(1)} combined ASS · ${mu.stack ? `${Math.round(mu.stack * 100)}% stacked` : "balanced"}.</div>` : "";
         detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}${gapLine}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
       } else if (mu) {
-        detail = `<div class="lab-detail"><div>${mu.newcomers.map((p) => `<b>${escHtml(p)}</b> (${mu.careerGames[p]} games)`).join(", ")} ${mu.newcomers.length === 1 ? "has" : "have"} fewer than 50 career games, so this match is scored exactly as live ASS:</div>${[...(m.teamA || []), ...(m.teamB || [])].map((p) => `<div><b>${escHtml(p)}</b> ${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</div>`).join("")}</div>`;
+        detail = `<div class="lab-detail"><div>${mu.newcomers.map((p) => `<b>${escHtml(p)}</b> (${mu.careerGames[p]} games)`).join(", ")} ${mu.newcomers.length === 1 ? "has" : "have"} fewer than 50 career games, so this match is scored exactly as live ASS:</div>${[...(m.teamA || []), ...(m.teamB || [])].map((p) => `<div><b>${escHtml(p)}</b> ${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}${e.grace?.player === p ? ` (incl. grace +${e.grace.pts})` : ""}</div>`).join("")}</div>`;
       } else if (e?.breakdown) {
         const line = (p) => {
           const b = e.breakdown[p];
           const role = b.vet ? `veteran (${b.careerGames} games)` : `newcomer (${b.careerGames} games)`;
           const split = b.shift ? ` · split ${b.shift > 0 ? "+" : ""}${b.shift}` : "";
-          return `<div><b>${escHtml(p)}</b> ${b.won ? "won" : "lost"} · ${role} · team win chance ${Math.round(100 * b.teamP)}%${e.oddsFrom === "ass" ? " (from team ASS)" : ""} · ${b.raw > 0 ? "+" : ""}${b.raw}${split} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+          return `<div><b>${escHtml(p)}</b> ${b.won ? "won" : "lost"} · ${role} · team win chance ${Math.round(100 * b.teamP)}%${e.oddsFrom === "ass" ? " (from team ASS)" : ""} · ${b.raw > 0 ? "+" : ""}${b.raw}${split}${e.grace?.player === p ? ` · grace +${e.grace.pts}` : ""} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
         detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}</div>`;
       }
@@ -12384,7 +12426,7 @@ function _scoringLabInner() {
     })
     .join("");
   const more = list.length > _labShown ? `<button class="lab-more" onclick="_labMore()">Show ${Math.min(50, list.length - _labShown)} more of ${list.length - _labShown}</button>` : "";
-  const unit = res.kind === "ep" || res.kind === "matchup" ? "points" : res.kind === "winpct" ? "results" : "rating change";
+  const unit = res.kind === "ep" || res.kind === "matchup" || res.kind === "grace" ? "points" : res.kind === "winpct" ? "results" : "rating change";
   const head = `<div class="lab-mh"><span>MATCHES <b>PLAYED</b></span><span class="lab-mh-r">${_labPlayerSel ? `<button class="ss-chip on" style="height:24px" onclick="_labPlayer(${jsArg(_labPlayerSel)})">${escHtml(_labPlayerSel.toUpperCase())} ✕</button>` : `${list.length} · ${unit}`}</span></div>
     ${res.kind === "ep" ? '<div class="lab-note">The % under the score is each team\'s win chance going in. Tap a match for how each player\'s points were worked out.</div>' : ""}${res.kind === "matchup" ? '<div class="lab-note">Under the score: BALANCED, STACKED (the arrow points at the stronger team) or NEWCOMER (scored as live ASS). Tap a match to see the four players\' ASS and ranks.</div>' : ""}`;
   return `${picker}<div id="scoring-lab-results">${table}${head}<div class="lab-list">${rowsHtml || '<div class="sub" style="padding:8px">No matches.</div>'}</div>${more}</div>`;
@@ -19315,6 +19357,7 @@ Object.assign(window, {
   _labMore,
   _labToggleMatch,
   _labSlide,
+  _labGracePick,
   _labSlidersReset,
   setCmpSort,
   _anaSetDateFilter,

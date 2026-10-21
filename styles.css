@@ -19704,3 +19704,13 @@ body.tv-open {
 .lab-pts-n {
   font-size: 9.5px;
 }
+.lab-select {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--theme-rgb), 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
