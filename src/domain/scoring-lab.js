@@ -259,6 +259,13 @@ export function labMatchupDeltas(
     winBase = MATCHUP_WIN_REF,
     lossMax = MATCHUP_LOSS_REF,
     splitCap = MATCHUP_SPLIT_CAP,
+    // Gap rule (the "Fair ASS · gap rule" option): a split counts as stacked
+    // only when #1 isn't paired with #4 AND the teams' combined-ASS gap is
+    // above gapBalanced — then graded, fully stacked from gapFull. Off: any
+    // split other than best + worst vs the middle two is fully stacked.
+    gapRule = false,
+    gapBalanced = 10,
+    gapFull = 40,
   } = {},
 ) {
   const winScale = winBase / MATCHUP_WIN_REF;
@@ -322,8 +329,23 @@ export function labMatchupDeltas(
         const sA = ass[teamA[0]] + ass[teamA[1]];
         const sB = ass[teamB[0]] + ass[teamB[1]];
         const ideal = Math.abs(ass[order[0]] + ass[order[3]] - ass[order[1]] - ass[order[2]]);
-        const balanced = Math.abs(sA - sB) <= ideal + 1e-9;
+        const teamGap = Math.abs(sA - sB);
+        // How stacked the split is, 0 (balanced) … 1 (fully stacked).
+        let stack;
+        if (!gapRule) stack = teamGap <= ideal + 1e-9 ? 0 : 1;
+        else {
+          const sameTeam = (x, y) => (teamA.includes(x) && teamA.includes(y)) || (teamB.includes(x) && teamB.includes(y));
+          const bestWithWorst = sameTeam(order[0], order[3]) || teamGap <= ideal + 1e-9;
+          stack = bestWithWorst
+            ? 0
+            : gapFull <= gapBalanced
+              ? teamGap > gapBalanced ? 1 : 0
+              : Math.max(0, Math.min(1, (teamGap - gapBalanced) / (gapFull - gapBalanced)));
+        }
+        const balanced = stack === 0;
         info.kind = balanced ? "balanced" : "mismatch";
+        info.gap = teamGap;
+        info.stack = stack;
         info.rank = Object.fromEntries(order.map((p, i) => [p, i + 1]));
         info.roleA = balanced ? "balanced" : sA > sB ? "stronger" : "weaker";
         info.roleB = balanced ? "balanced" : sA > sB ? "weaker" : "stronger";
@@ -333,7 +355,10 @@ export function labMatchupDeltas(
           [teamA, info.roleA, aWon],
           [teamB, info.roleB, !aWon],
         ].forEach(([team, role, won]) => {
-          const raw = won ? (MATCHUP_POINTS[role].win + MATCHUP_POINTS[role].winUp * g) * winScale : -(MATCHUP_POINTS[role].loss + MATCHUP_POINTS[role].lossUp * g) * lossScale;
+          // Partly stacked: in between the balanced and the stacked numbers.
+          const pts = (r) => (won ? MATCHUP_POINTS[r].win + MATCHUP_POINTS[r].winUp * g : -(MATCHUP_POINTS[r].loss + MATCHUP_POINTS[r].lossUp * g));
+          const mixed = role === "balanced" ? pts("balanced") : pts("balanced") + stack * (pts(role) - pts("balanced"));
+          const raw = mixed * (won ? winScale : lossScale);
           const [x, y] = team;
           const gap = Math.abs(ass[x] - ass[y]);
           const sh = (Math.max(0, splitCap) / 100) * Math.min(1, gap / MATCHUP_SPLIT_FULL_GAP);
@@ -386,7 +411,16 @@ export const LAB_OPTIONS = [
     kind: "matchup",
     params: { seasonGames: 0 },
     custom: true,
+    sliders: ["winBase", "lossMax", "splitCap"],
     desc: "Fair Matchup Points with your own numbers. The first two sliders set a balanced win and the biggest balanced loss; every other number in the table — stacked and underdog wins and losses, and the live-ASS scoring of newcomer matches — moves in proportion. The third sets the partner split: how much more of a win the weaker partner gets (and of a loss the stronger partner takes), reached at a 20-point ASS gap between partners.",
+  },
+  {
+    id: "gaprule",
+    label: "Fair ASS · gap rule",
+    kind: "matchup",
+    params: { seasonGames: 0, gapRule: true },
+    sliders: ["gapBalanced", "gapFull"],
+    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven. Best + worst paired together (#1 with #4) is always balanced. Otherwise the gap between the two teams' combined ASS decides: up to the first slider it's balanced; from the second it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20); in between the points slide gradually from balanced to stacked. Partner split, newcomer rule and score are as Fair ASS.",
   },
   {
     id: "matchup",
@@ -402,6 +436,8 @@ export const LAB_SLIDERS = [
   { key: "winBase", label: "Win points (balanced 4–3)", min: 20, max: 200, step: 5, def: MATCHUP_WIN_REF },
   { key: "lossMax", label: "Loss points (balanced 4–0)", min: 0, max: 100, step: 1, def: MATCHUP_LOSS_REF },
   { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: MATCHUP_SPLIT_CAP },
+  { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 10 },
+  { key: "gapFull", label: "Fully stacked from team gap", min: 10, max: 80, step: 1, def: 40 },
 ];
 
 export const labOption = (id) => LAB_OPTIONS.find((o) => o.id === id) || LAB_OPTIONS[0];

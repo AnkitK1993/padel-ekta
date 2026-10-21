@@ -12123,8 +12123,13 @@ let _labCustom = (() => {
   }
   return d;
 })();
-const _labParams = (opt) => (opt.custom ? { ...opt.params, ..._labCustom } : opt.params);
-const _labKey = (opt) => (opt.custom ? `${opt.id}:${LAB_SLIDERS.map((s) => _labCustom[s.key]).join(":")}` : opt.id);
+// An option's sliders (LAB_SLIDERS keys it lists) override its params.
+const _labSliderKeys = (opt) => opt.sliders || [];
+const _labParams = (opt) => ({
+  ...opt.params,
+  ...Object.fromEntries(_labSliderKeys(opt).map((k) => [k, _labCustom[k]])),
+});
+const _labKey = (opt) => `${opt.id}:${_labSliderKeys(opt).map((k) => _labCustom[k]).join(":")}`;
 
 // { rows, deltas, totalLabel, fmt, kind } for one option over `matches`.
 function _labRun(opt, matches) {
@@ -12237,8 +12242,21 @@ function _labCustomTable() {
     `<tr><td>${name}</td><td class="tp">${cell(wa * w, wb * w)}</td><td class="tn">${cell(-la * l, -lb * l)}</td></tr>`;
   return `<table class="lab-pts"><thead><tr><th></th><th>WIN (4–3 → 4–0)</th><th>LOSS (4–3 → 4–0)</th></tr></thead><tbody>${row("Balanced", 100, 120, 0, 20)}${row("Stronger team", 50, 70, 30, 40)}${row("Weaker team", 120, 140, 0, 20)}</tbody></table><div class="lab-pts-n">Partner split up to ${_labCustom.splitCap}% (${Math.round((_labCustom.splitCap / 20) * 100) / 100}% per ASS point between partners): the weaker partner gets that much more of a win, the stronger partner takes that much more of a loss. Newcomer matches: live ASS with a win worth about ${r(100 * w)} and a veteran's loss up to ${r(25 * l)}.</div>`;
 }
+// The gap-rule option's current thresholds and what a 4–3 pays across the band.
+function _labGapTable() {
+  const b = _labCustom.gapBalanced;
+  const f = Math.max(_labCustom.gapFull, b);
+  const mid = Math.round((b + f) / 2);
+  const at = (s) => [Math.round(100 - 50 * s), Math.round(-30 * s), Math.round(100 + 20 * s)];
+  const row = (label, s) => {
+    const [sw, sl, ww] = at(s);
+    return `<tr><td>${label}</td><td class="tp">+${sw}</td><td class="tn">${sl || 0}</td><td class="tp">+${ww}</td></tr>`;
+  };
+  return `<table class="lab-pts"><thead><tr><th>4–3, TEAM GAP</th><th>STRONGER WINS</th><th>STRONGER LOSES</th><th>WEAKER WINS</th></tr></thead><tbody>${row(`≤ ${b} (or #1 with #4)`, 0)}${f > b ? row(`${mid}`, 0.5) : ""}${row(`${f}+`, 1)}</tbody></table><div class="lab-pts-n">A 4–0 shifts the same way between +120 / −20 / +120 (balanced) and +70 / −40 / +140 (fully stacked). The weaker team never loses more than a balanced loss.</div>`;
+}
 function _labSlidersReset() {
-  LAB_SLIDERS.forEach((s) => (_labCustom[s.key] = s.def));
+  const keys = _labSliderKeys(labOption(_labId));
+  LAB_SLIDERS.filter((s) => keys.includes(s.key)).forEach((s) => (_labCustom[s.key] = s.def));
   try {
     localStorage.setItem("padel_lab_custom", JSON.stringify(_labCustom));
   } catch (e) {
@@ -12264,14 +12282,18 @@ function _scoringLabInner() {
     <div class="lab-desc"><div class="lab-desc-t">${escHtml(opt.label)}</div>${escHtml(opt.desc)}${
       opt.custom
         ? `<div id="lab-custom-desc">${_labCustomTable()}</div>`
-        : ""
+        : opt.id === "gaprule"
+          ? `<div id="lab-custom-desc">${_labGapTable()}</div>`
+          : ""
     }<div class="lab-scope">${escHtml(scope)}</div></div>${
-      opt.custom
-        ? `<div class="lab-sliders">${LAB_SLIDERS.map(
-            (s) => `<label class="lab-slider"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key]}</b></span>
+      _labSliderKeys(opt).length
+        ? `<div class="lab-sliders">${LAB_SLIDERS.filter((s) => _labSliderKeys(opt).includes(s.key))
+            .map(
+              (s) => `<label class="lab-slider"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key]}</b></span>
               <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${_labCustom[s.key]}" oninput="_labSlide('${s.key}', this.value)" aria-label="${escHtml(s.label)}">
-              <span class="lab-slider-r"><span>${s.min}</span><span>live ${s.def}</span><span>${s.max}</span></span></label>`,
-          ).join("")}<button class="lab-reset" onclick="_labSlidersReset()">Reset to live values</button></div>`
+              <span class="lab-slider-r"><span>${s.min}</span><span>default ${s.def}</span><span>${s.max}</span></span></label>`,
+            )
+            .join("")}<button class="lab-reset" onclick="_labSlidersReset()">Reset to defaults</button></div>`
         : ""
     }`;
   if (!matches.length) return `${picker}<div class="sub" style="padding:8px">No matches in this view.</div>`;
@@ -12324,7 +12346,7 @@ function _scoringLabInner() {
           ? "NEWCOMER"
           : mu.kind === "balanced"
             ? "BALANCED"
-            : `${mu.roleA === "stronger" ? "◀" : ""} STACKED ${mu.roleB === "stronger" ? "▶" : ""}`
+            : `${mu.roleA === "stronger" ? "◀" : ""} STACKED${mu.stack != null && mu.stack < 1 ? ` ${Math.round(mu.stack * 100)}%` : ""} ${mu.roleB === "stronger" ? "▶" : ""}`
         : "";
       const chance = mu
         ? `<div class="lab-chance lab-tag-${mu.kind}">${tagTxt.trim()}</div>`
@@ -12340,7 +12362,8 @@ function _scoringLabInner() {
           const sp = mu.split?.[p] ? ` · partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
           return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"}${sp} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
-        detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
+        const gapLine = mu.gap != null ? `<div>Team gap ${mu.gap.toFixed(1)} combined ASS · ${mu.stack ? `${Math.round(mu.stack * 100)}% stacked` : "balanced"}.</div>` : "";
+        detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}${gapLine}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
       } else if (mu) {
         detail = `<div class="lab-detail"><div>${mu.newcomers.map((p) => `<b>${escHtml(p)}</b> (${mu.careerGames[p]} games)`).join(", ")} ${mu.newcomers.length === 1 ? "has" : "have"} fewer than 50 career games, so this match is scored exactly as live ASS:</div>${[...(m.teamA || []), ...(m.teamB || [])].map((p) => `<div><b>${escHtml(p)}</b> ${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</div>`).join("")}</div>`;
       } else if (e?.breakdown) {
