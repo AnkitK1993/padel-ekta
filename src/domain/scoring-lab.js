@@ -419,8 +419,8 @@ export const LAB_OPTIONS = [
     label: "Fair ASS · gap rule",
     kind: "matchup",
     params: { seasonGames: 0, gapRule: true },
-    sliders: ["gapBalanced", "gapFull"],
-    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven. Best + worst paired together (#1 with #4) is always balanced. Otherwise the gap between the two teams' combined ASS decides: up to the first slider it's balanced; from the second it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20); in between the points slide gradually from balanced to stacked. Partner split, newcomer rule and score are as Fair ASS.",
+    sliders: ["gapBalanced"],
+    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven. Best + worst paired together (#1 with #4) is always balanced. Otherwise the gap between the two teams' combined ASS decides: up to the slider value (0–40, default 10) it's balanced; from a gap of 40 it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20); in between the points slide gradually from balanced to stacked. Partner split, newcomer rule and score are as Fair ASS.",
   },
   {
     id: "matchup",
@@ -437,7 +437,6 @@ export const LAB_SLIDERS = [
   { key: "lossMax", label: "Loss points (balanced 4–0)", min: 0, max: 100, step: 1, def: MATCHUP_LOSS_REF },
   { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: MATCHUP_SPLIT_CAP },
   { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 10 },
-  { key: "gapFull", label: "Fully stacked from team gap", min: 10, max: 80, step: 1, def: 40 },
 ];
 
 export const labOption = (id) => LAB_OPTIONS.find((o) => o.id === id) || LAB_OPTIONS[0];

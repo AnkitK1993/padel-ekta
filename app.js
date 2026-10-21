@@ -12245,7 +12245,7 @@ function _labCustomTable() {
 // The gap-rule option's current thresholds and what a 4–3 pays across the band.
 function _labGapTable() {
   const b = _labCustom.gapBalanced;
-  const f = Math.max(_labCustom.gapFull, b);
+  const f = 40; // fully stacked from a team gap of 40
   const mid = Math.round((b + f) / 2);
   const at = (s) => [Math.round(100 - 50 * s), Math.round(-30 * s), Math.round(100 + 20 * s)];
   const row = (label, s) => {

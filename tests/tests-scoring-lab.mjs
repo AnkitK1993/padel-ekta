@@ -232,12 +232,12 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
     });
   });
   ok("partly stacked points sit between the balanced and the stacked numbers", interp && checked > 10);
-  ok("the gap-rule option has its two sliders (10 and 40 by default)", same(labOption("gaprule").sliders, ["gapBalanced", "gapFull"]) && LAB_SLIDERS.find((s) => s.key === "gapBalanced").def === 10 && LAB_SLIDERS.find((s) => s.key === "gapFull").def === 40);
+  ok("the gap-rule option has one slider: balanced up to 0–40, default 10", same(labOption("gaprule").sliders, ["gapBalanced"]) && (({ min, max, def }) => min === 0 && max === 40 && def === 10)(LAB_SLIDERS.find((s) => s.key === "gapBalanced")));
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
 ok("four options: live, custom sliders, gap rule and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,matchup" && labOption("custom").kind === "matchup");
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15,gapBalanced=10,gapFull=40");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15,gapBalanced=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });
