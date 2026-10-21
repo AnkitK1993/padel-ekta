@@ -1,0 +1,9521 @@
+{
+ "exportedAt": "2026-10-21T00:05:56.812Z",
+ "format": "ekta-padel-backup",
+ "matches": [
+  {
+   "date": "2026-05-08",
+   "id": "mms1r0shmkfzn3d",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-08",
+   "id": "mms1r0shm0fbbcc",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-08",
+   "id": "mms1r0shm2qddq6",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Eshan",
+    "Akhil"
+   ],
+   "teamB": [
+    "Ankit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-05-08",
+   "id": "mms1r0shm5yod55",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul M",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-08",
+   "id": "mms1r0shmdxicx3",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul M",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shm0bkwhp",
+   "scoreA": 5,
+   "scoreB": 7,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmd5auyn",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Puneet",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmtf5281",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmu4d14l",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shm9iykbe",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shm05chko",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmpw98cp",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Eshan",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmf8ettq",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmgt3lpz",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Eshan",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmyqnaed",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Eshan",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-05-09",
+   "id": "mms1r0shmeb7ik7",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-10",
+   "id": "mms1r0shmyrd5ea",
+   "scoreA": 6,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-10",
+   "id": "mms1r0shmxkk402",
+   "scoreA": 2,
+   "scoreB": 6,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-10",
+   "id": "mms1r0shmrixi23",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Eshan",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-10",
+   "id": "mms1r0shmqdqlis",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-10",
+   "id": "mms1r0shmnjxos5",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul G",
+    "Tejas"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-10",
+   "id": "mms1r0shm3unr45",
+   "scoreA": 4,
+   "scoreB": 6,
+   "teamA": [
+    "Rahul G",
+    "Tejas"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-12",
+   "id": "mms1r0shm1gbz06",
+   "scoreA": 6,
+   "scoreB": 8,
+   "teamA": [
+    "Akhil",
+    "Ankit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": "mms1r0shm3pisa7",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Akhil",
+    "Ankit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": "mms1r0shmhjeysf",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": "mms1r0shmsufpy1",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Tejas",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": "mms1r0shmensym8",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": "mms1r0shmi3o6xc",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": "mms1r0shmixk2u2",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-14",
+   "id": "mms1r0shm82o19y",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-14",
+   "id": "mms1r0shmuv9tbh",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-14",
+   "id": "mms1r0shmlsvi8n",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-14",
+   "id": "mms1r0shmxhntx6",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Ankit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-14",
+   "id": "mms1r0shmhuy0h4",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-14",
+   "id": "mms1r0shmpakmmg",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul M",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-15",
+   "id": "mms1r0shmh4kitl",
+   "scoreA": 6,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-15",
+   "id": "mms1r0shmr4u8mp",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-15",
+   "id": "mms1r0shmgi790w",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-15",
+   "id": "mms1r0shmf8olg4",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-15",
+   "id": "mms1r0shm9p3ktl",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shm8k9t3s",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shmsifg56",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shm0dvejc",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Nilesh",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shmbnr4pz",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Eshan"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shmo6ff70",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Puneet"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shmi37wnh",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shmi06bvj",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-16",
+   "id": "mms1r0shm9lqbdn",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Parthiv",
+    "Eshan"
+   ],
+   "teamB": [
+    "Puneet",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-17",
+   "id": "mms1r0shmmy8t1i",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-17",
+   "id": "mms1r0shmj9h2ll",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-05-17",
+   "id": "mms1r0shmewpwwb",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-17",
+   "id": "mms1r0shmj31iwa",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-05-17",
+   "id": "mms1r0shmbl3bai",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Eshan",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-05-17",
+   "id": "mms1r0shm0zt6rj",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Puneet",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-17",
+   "id": "mms1r0shmlvy5me",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-18",
+   "id": "mms1r0shmfcsu2p",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-18",
+   "id": "mms1r0shmo408kz",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-18",
+   "id": "mms1r0shmgtb7ks",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-18",
+   "id": "mms1r0shmrpnk9l",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": "mms1r0shmdyqi7r",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": "mms1r0shmjlrnp2",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": "mms1r0shmewkx9s",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": "mms1r0shmm1j9ph",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Eshan",
+    "Tejas"
+   ],
+   "teamB": [
+    "Akhil",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": "mms1r0shmtbz57f",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Akhil",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": "mms1r0shm2lgzsg",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Eshan",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": "mms1r0shmh1rxo4",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Eshan",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shmp8rxfr",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Akhil",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shmnbsh64",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Akhil",
+    "Ankit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shmnr5j7g",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shmdu2csk",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shmqvhs1b",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Akhil",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shm2p1shy",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shm6fc2b8",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": "mms1r0shmsg7hap",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "id": "mms1r0shmff741a",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "id": "mms1r0shm37snek",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "id": "mms1r0shmclzkf6",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul M",
+    "Akhil"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "id": "mms1r0shmpvke6l",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "id": "mms1r0shmf3c7vj",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "id": "mms1r0shm59seu2",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-22",
+   "id": "mms1r0shm1cdegg",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-05-22",
+   "id": "mms1r0shmxpxt3l",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-22",
+   "id": "mms1r0shmnc5k5a",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-22",
+   "id": "mms1r0shmgh099m",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmnm42t5",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Puneet",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmftqi7g",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmnqkoxq",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Puneet",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmb1jp1o",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmatsca7",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Nilesh",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmg4e270",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmp9180r",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmapk09a",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Akhil",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmvropqm",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-23",
+   "id": "mms1r0shmxjdwyy",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shm56zaai",
+   "scoreA": 7,
+   "scoreB": 6,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shmpotj06",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shm30javj",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shm83kchz",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shm0u6yxw",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shm85jh0l",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shm8dc42d",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shmc8z6os",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-24",
+   "id": "mms1r0shmgajkwk",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Tejas",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-26",
+   "id": "mms1r0shml0iywx",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-26",
+   "id": "mms1r0shmcfhuq3",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-26",
+   "id": "mms1r0shm4k374n",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Tejas",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-26",
+   "id": "mms1r0shmqxeahv",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shm93pob1",
+   "scoreA": 3,
+   "scoreB": 6,
+   "teamA": [
+    "Akhil",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shm03jgd6",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Tejas",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shmd191t7",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Puneet",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shmbazz3v",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shmhi6sjy",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shmaatcai",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Akhil",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shmd8cwet",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": "mms1r0shmvu6502",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shmzne7ze",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Akhil",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shm1ixjfx",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Akhil"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shm3oplgs",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Ankit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shmb3ioie",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shmsmfqeh",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Akhil"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shmcpv1av",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Sachin"
+   ],
+   "teamB": [
+    "Ankit",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shmlywdwg",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shm19we4a",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Tejas",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Ankit"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shmb7g3bm",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-29",
+   "id": "mms1r0shmnb31iu",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-30",
+   "id": "mms1r0shmda688n",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-05-30",
+   "id": "mms1r0shmrr9xba",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-05-30",
+   "id": "mms1r0shm093d0b",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-30",
+   "id": "mms1r0shm0kjy79",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-31",
+   "id": "mms1r0shmbx4al2",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-31",
+   "id": "mms1r0shmq23hr0",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-05-31",
+   "id": "mms1r0shm5y7wq4",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-05-31",
+   "id": "mms1r0shmh7izb4",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-31",
+   "id": "mms1r0shmadg9x7",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-31",
+   "id": "mms1r0shmgmxpev",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-05-31",
+   "id": "mms1r0shmzgk9yh",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-06-01",
+   "id": "mms1r0shmwftdw1",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-01",
+   "id": "mms1r0shm9bk8nx",
+   "scoreA": 6,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-01",
+   "id": "mms1r0shmjtwfeq",
+   "scoreA": 7,
+   "scoreB": 6,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-02",
+   "id": "mms1r0shmlsrs78",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Tejas"
+   ],
+   "teamB": [
+    "Vinit",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-02",
+   "id": "mms1r0shmuaiq45",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-02",
+   "id": "mms1r0shmjggbgo",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-06-02",
+   "id": "mms1r0shmkrzx59",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-02",
+   "id": "mms1r0shmxgdol4",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-06-02",
+   "id": "mms1r0shmhhch6f",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": "mms1r0shm149pt0",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": "mms1r0shm9a5nf6",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": "mms1r0shmzzvjw3",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": "mms1r0shmv5qi2s",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": "mms1r0shmscri10",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": "mms1r0shmwor8xy",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": "mms1r0shmvm2q1v",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shm8pdmtf",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Vinit"
+   ],
+   "teamB": [
+    "Ankit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shmuehd0c",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shmtqd6el",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shmuoxmvd",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shmn1hk7a",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shmk7cau7",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shmgn3h4j",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": "mms1r0shm7pbc5j",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-05",
+   "id": "mms1r0shmtuzi07",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-05",
+   "id": "mms1r0shmn4axzo",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-05",
+   "id": "mms1r0shm94zla1",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shmol2xo3",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shmd2bnxz",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shmcgjvno",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shm8r7f5o",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shmwstdv9",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shmnmsubq",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Puneet",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shmml1731",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-06",
+   "id": "mms1r0shmahxn90",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-07",
+   "id": "mms1r0shmx1ebvw",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-07",
+   "id": "mms1r0shmosrmxg",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Puneet",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-06-07",
+   "id": "mms1r0shm84frsc",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Puneet",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-07",
+   "id": "mms1r0shmd42eia",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Puneet",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-07",
+   "id": "mms1r0shmt5j9ge",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-09",
+   "id": "mms1r0shmgy7vi6",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-09",
+   "id": "mms1r0shm4i12ir",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Puneet"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-09",
+   "id": "mms1r0shm91jt5m",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-10",
+   "id": "mms1r0shmk8usuy",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-06-10",
+   "id": "mms1r0shmve0f7e",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Nilesh",
+    "Akhil"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-10",
+   "id": "mms1r0shmpkzhyu",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-10",
+   "id": "mms1r0shmadkauw",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Akhil",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-06-11",
+   "id": "mms1r0shm2sanir",
+   "scoreA": 6,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-12",
+   "id": "mms1r0shm7t6a2y",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-06-12",
+   "id": "mms1r0shm4851t4",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-12",
+   "id": "mms1r0shm8omcvs",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Akhil",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-06-12",
+   "id": "mms1r0shmi1279g",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Akhil"
+   ],
+   "teamB": [
+    "Vinit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-06-12",
+   "id": "mms1r0shmngh02a",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-13",
+   "id": "mms1r0shmszroew",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-06-13",
+   "id": "mms1r0shm0vcggz",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-06-13",
+   "id": "mms1r0shmr9si9n",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-13",
+   "id": "mms1r0shmyyytm7",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Parthiv",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-14",
+   "id": "mms1r0shmhnoltl",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-14",
+   "id": "mms1r0shmrqs3v1",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-14",
+   "id": "mms1r0shmdulbai",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Vinit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Ankit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-06-14",
+   "id": "mms1r0shmy2pdex",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Parthiv",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-06-14",
+   "id": "mms1r0shm45xjl5",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-16",
+   "id": "mms1r0shmmxt80p",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-16",
+   "id": "mms1r0shmllae58",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-16",
+   "id": "mms1r0shmhly0z4",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-06-16",
+   "id": "mms1r0shm4r1cae",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-17",
+   "id": "mms1r0shm23nh70",
+   "scoreA": 3,
+   "scoreB": 6,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-17",
+   "id": "mms1r0shmbhb03p",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-17",
+   "id": "mms1r0shmtqdvx3",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-17",
+   "id": "mms1r0shmbhbokh",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-17",
+   "id": "mms1r0shm0fjeuj",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-18",
+   "id": "mms1r0shmp20pkm",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-18",
+   "id": "mms1r0shmk6oceg",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-06-18",
+   "id": "mms1r0shm1yi8fu",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-18",
+   "id": "mms1r0shmavwg2n",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-19",
+   "id": "mms1r0shm7ox24l",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-19",
+   "id": "mms1r0shm11p1rk",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-19",
+   "id": "mms1r0shmur58wb",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-19",
+   "id": "mms1r0shm6im3bi",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-20",
+   "id": "mms1r0shmkjhpd2",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Puneet",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-20",
+   "id": "mms1r0shmlc01q4",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-20",
+   "id": "mms1r0shmy71w4k",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-20",
+   "id": "mms1r0shm01kek7",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Parthiv",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-20",
+   "id": "mms1r0shmqknsx0",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-21",
+   "id": "mms1r0shmtj6yak",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-21",
+   "id": "mms1r0shmo8po4w",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-06-21",
+   "id": "mms1r0shmvr1zvy",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-21",
+   "id": "mms1r0shmjgkgcq",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": "mms1r0shmeoeiqd",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": "mms1r0shmfbpppd",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": "mms1r0shm9may6x",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": "mms1r0shm5b2ki1",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": "mms1r0shmy2cezo",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Parthiv",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": "mms1r0shmw2uwkn",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Vinit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": "mms1r0shm4f6tge",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Parthiv",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-27",
+   "id": "mms1r0shmt5tsb8",
+   "scoreA": 6,
+   "scoreB": 3,
+   "teamA": [
+    "Parthiv",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-06-27",
+   "id": "mms1r0shmqnscyp",
+   "scoreA": 6,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-27",
+   "id": "mms1r0shmp5gnb9",
+   "scoreA": 4,
+   "scoreB": 6,
+   "teamA": [
+    "Rahul M",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-27",
+   "id": "mms1r0shm0lasei",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Parthiv",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-06-27",
+   "id": "mms1r0shmhis3cr",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-06-27",
+   "id": "mms1r0shm6scjrs",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmksdxgo",
+   "scoreA": 3,
+   "scoreB": 6,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shme2l4k7",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmfrdygp",
+   "scoreA": 6,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Vinit",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmgc38nh",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmhv3mgg",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmwv2ik1",
+   "scoreA": 3,
+   "scoreB": 6,
+   "teamA": [
+    "Parthiv",
+    "Akhil"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmbnfi41",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Parthiv",
+    "Sachin"
+   ],
+   "teamB": [
+    "Akhil",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmjqog5r",
+   "scoreA": 5,
+   "scoreB": 6,
+   "teamA": [
+    "Parthiv",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-07-11",
+   "id": "mms1r0shmdmn5gc",
+   "scoreA": 6,
+   "scoreB": 2,
+   "teamA": [
+    "Akhil",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-13",
+   "id": "mms1r0shmdmi0qb",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-13",
+   "id": "mms1r0shm5zdadf",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Puneet",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-13",
+   "id": "mms1r0shmk126io",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Ankit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-13",
+   "id": "mms1r0shm7iiws1",
+   "scoreA": 7,
+   "scoreB": 5,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-07-14",
+   "id": "mms1r0shm08ii9c",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-14",
+   "id": "mms1r0shm2vqx06",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-14",
+   "id": "mms1r0shm17fcpu",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-07-14",
+   "id": "mms1r0shmp0wf2x",
+   "scoreA": 7,
+   "scoreB": 5,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-17",
+   "id": "mms1r0shmun8cog",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-17",
+   "id": "mms1r0shm8eo5ot",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-17",
+   "id": "mms1r0shmo9lkz7",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-17",
+   "id": "mms1r0shmmzh7dd",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shmwharbd",
+   "scoreA": 6,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shm4xrxld",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Puneet",
+    "Ankit"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shmktqyuq",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Puneet",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Ankit"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shmznbcdc",
+   "scoreA": 6,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shms3rzhw",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shm85a7s6",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shm7k5bah",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-18",
+   "id": "mms1r0shme182bq",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-07-25",
+   "id": "mms1r0shmleukxz",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-07-25",
+   "id": "mms1r0shmbqer0g",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-07-25",
+   "id": "mms1r0shml16633",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-07-25",
+   "id": "mms1r0shmzx3gml",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Parthiv",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-07-25",
+   "id": "mms1r0shmvey71a",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-07-25",
+   "id": "mms1r0shm9j1jim",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-07-25",
+   "id": "mms1r0shmvy7kkq",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-07-29",
+   "id": "mms5qr1r2w5zfw0",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-07-29",
+   "id": "mms5qr1r2umzbpk",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-07-29",
+   "id": "mms5qr1r2m06sxw",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul G",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-07-29",
+   "id": "mms5qr1r20eqvnk",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9px0f4idv08g",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Parthiv",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9pxwng2uqgxj",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9qtioxcoosnb",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9rs9nzpn4z0p",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9rsznz2kuv2e",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9seppdnxvfdj",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9svs8d0ihceu",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Nilesh",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9swflvwzomwh",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-01",
+   "id": "mms9tj5ka55tknw",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb59neelmnjcb",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb59y3gcf6ks6",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb5s4vmdma4qn",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul M",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb756et5jxc4v",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb75jpharfezy",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb7ws3krc2bxv",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb92d2apr862m",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Parthiv",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb92pg1dg31pf",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb92yawzedbnk",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb96dzmxqzmyp",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb96rgwctjan6",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Vinit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb979u4qzmxiw",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-02",
+   "id": "mmsb991sxv0awg1",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmsclnx001lmu0j",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmsclnx008fxujn",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmsclnx00123n0x",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmscmfsxvo0wahm",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmscn61pz2e2p6t",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmscnj87zzb5ide",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul G",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmscp26b8csv31c",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "id": "mmscp26b8x90j24",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-07",
+   "id": "mmsil5ioxbcns9h",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-07",
+   "id": "mmsil5ioxfk7ba6",
+   "scoreA": 6,
+   "scoreB": 7,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-07",
+   "id": "mmsil5ioxodq2yd",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul G",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-07",
+   "id": "mmsil5ioxbvox4k",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjq1njrwkurhg",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjr988h7q6ej9",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjr988ihgtdrm",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Puneet",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjroma5grdpoe",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjrz6nsifxlsc",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjrzmox18oh3z",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Vinit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjszywuxj3xxn",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-08",
+   "id": "mmsjvgez1d2w8xr",
+   "scoreA": 3,
+   "scoreB": 6,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-10",
+   "id": "mmsmn8pyo4qe9g9",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-10",
+   "id": "mmsmn8pypqcahpv",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-10",
+   "id": "mmsmp1xo3cpzcpr",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-10",
+   "id": "mmsmp1xo3v0cjrx",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-10",
+   "id": "mmsmp1xo3uydqiw",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": "mmspjkxiyicxhm5",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": "mmspjkxiydedbup",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": "mmspjkxiyj46sb0",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": "mmspjkxiyf5a8r2",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": "mmspjkxiy4pozg6",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": "mmspjkxiy8jis8j",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2a6i3fa2zdvd",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Akhil",
+    "Eshan"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2auzzqfqem5p",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2bcrbf3rm6y3",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Parthiv",
+    "Eshan"
+   ],
+   "teamB": [
+    "Puneet",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2bx14mgh1zvs",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2chcpnn81v4d",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Parthiv",
+    "Eshan"
+   ],
+   "teamB": [
+    "Akhil",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2czogat7qt8b",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2dwaoh2wtkqx",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Akhil",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2eu9aeyzi1op",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Eshan",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-21",
+   "id": "mmt2fdn8dn1phkg",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-23",
+   "id": "mmt55ev3u43vbq8",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-23",
+   "id": "mmt55f48vpma1z3",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-23",
+   "id": "mmt56swbmraylqh",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Puneet",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-23",
+   "id": "mmt56tdsch1gx1s",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-23",
+   "id": "mmt56tz418wphmq",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-23",
+   "id": "mmt57aa45extebi",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Vinit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-23",
+   "id": "mmt5a0n9iyik6yh",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": "mmt8281xnzcg4ug",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul M",
+    "Akhil"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": "mmt83paas47381q",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Akhil",
+    "Ankit"
+   ],
+   "teamB": [
+    "Eshan",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": "mmt83paas8u695b",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Eshan",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": "mmt83paat5bbnfu",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": "mmt85ln46c11rco",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": "mmt85ln4616hjo0",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": "mmt85ln46y1crns",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-08-26",
+   "id": "mmt9fx3xfn43nrn",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-08-26",
+   "id": "mmt9g8i37kkit3k",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Eshan",
+    "Vinit"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-26",
+   "id": "mmt9gwqviwv3opp",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-08-26",
+   "id": "mmt9i9kryjojgdd",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-08-26",
+   "id": "mmt9jz6cuq1gefr",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-27",
+   "id": "mmtb41s9f3b48uh",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Puneet",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-08-28",
+   "id": "mmtd1albi5gwiac",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ravi",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-28",
+   "id": "mmtd1albioycyt9",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ravi",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Puneet",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-29",
+   "id": "mmtdtpv54nbeg6b",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-08-29",
+   "id": "mmtdtpv540xz89k",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Tejas",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-08-29",
+   "id": "mmtdv2fypdp6jjc",
+   "scoreA": 5,
+   "scoreB": 7,
+   "teamA": [
+    "Rahul M",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-30",
+   "id": "mmtfb4yuqrtn33w",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-30",
+   "id": "mmtfb4yuq1zedi9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-08-30",
+   "id": "mmtfb4yuq95d85u",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Nilesh",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-08-30",
+   "id": "mmtfb4yuqhyo3fj",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-01",
+   "id": "mmti1c9uswbiqx3",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-01",
+   "id": "mmti1c9usad354n",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-01",
+   "id": "mmti1w2nppgzbm8",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Akhil",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-01",
+   "id": "mmti2yu7ju43q68",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-09-01",
+   "id": "mmti41h6oemul7k",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-01",
+   "id": "mmti5nm7cupgoj3",
+   "scoreA": 6,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "id": "mmtjgwtg6t6ywkg",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Nilesh",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "id": "mmtjhvuhkzia82p",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "id": "mmtjhw5aed9ppjc",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "id": "mmtjin14kogsnjm",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "id": "mmtjj5lr8tp1qrk",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hhro140z",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hht46yim",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hhjpnzdt",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hhgas3v1",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Vinit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hhjye276",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Sachin"
+   ],
+   "teamB": [
+    "Eshan",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hhddngy5",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hh9v5jau",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Akshay"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hhjp0qwy",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Vinit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Puneet",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3p2hhnap08l",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3rxn3fx1uxg",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3rxn318ry90",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-03",
+   "id": "mmtl3ssbzwmwv2q",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmc3ew6z33fvm",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akhil"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmchlntte78yo",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Akhil",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmdndb6j9ju7b",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Akhil",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmdnqm145atke",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtme4yo5id7qpc",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Akshay",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Eshan",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmeivehfkaxdb",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmf2tnj4acv5b",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Akshay",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmft597bcfbe5",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Eshan",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "id": "mmtmgfx7a8pxy7c",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-06",
+   "id": "mmtp93n6zoe8iyg",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-06",
+   "id": "mmtp93n6zqynu88",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-06",
+   "id": "mmtp93n6zii4pqg",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-06",
+   "id": "mmtp93n6ztukm8o",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-07",
+   "id": "mmtrid5frl1oxdu",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ayush",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-07",
+   "id": "mmtrid5fry7mib0",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ayush",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-07",
+   "id": "mmtrid5fr54b8og",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ayush",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-07",
+   "id": "mmtriq10mbfpjsw",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ayush",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-08",
+   "id": "mmtsvkmnr2ydqeu",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-09-08",
+   "id": "mmtswcvrt5j1m7z",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Tejas",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-08",
+   "id": "mmtsyt0g47d9o86",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "id": "mmttl2sb3rgyo7a",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "id": "mmttl2sb3gfess2",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "id": "mmttl2sb3pzlfgi",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Tejas",
+    "Eshan"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "id": "mmttl2sb3pv4xkx",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul G",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "id": "mmttl2sb3kokctn",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik04miq2e",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik088c8g8",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Nilesh",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik0cx0ob4",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik0h15zpi",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Puneet"
+   ],
+   "teamB": [
+    "Pratik",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik07fcw0l",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Sachin"
+   ],
+   "teamB": [
+    "Akshay",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik04a6vek",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Eshan",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik0u6svat",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Akshay"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-10",
+   "id": "mmtv5xik0p771ro",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Eshan",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-11",
+   "id": "mmtwgdx9jozykzx",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-12",
+   "id": "mmtxxgtovjrug3y",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Ankit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-12",
+   "id": "mmtxxgtov715ybi",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Ankit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-12",
+   "id": "mmtxxgtovwpser5",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Puneet",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-12",
+   "id": "mmtxxgtovd7ex48",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtz8ktdn05bq47",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Parthiv",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtz8ktdn8aqfl1",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul M",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtz8ktdn2wa92k",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Parthiv",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtz8ktdn74c5mo",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Puneet",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtz8ktdnaleaz0",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Akshay"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtzaeezqrx1dfk",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtzaeezqush33d",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul G",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtzb0jqiaq5z2l",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-13",
+   "id": "mmtzb0jqieasl8v",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-14",
+   "id": "mmu0paw7ppugdnv",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Vinit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-14",
+   "id": "mmu0paw7p6fku5g",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Tejas",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-14",
+   "id": "mmu0paw7pev8bda",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-09-14",
+   "id": "mmu0paw7pxizabw",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Puneet"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-14",
+   "id": "mmu0paw7pmdyuau",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Tejas",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-15",
+   "id": "mmu26rqc05nxebj",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-15",
+   "id": "mmu26rqc070vsgn",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-15",
+   "id": "mmu26rqc0g5fu6y",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": "mmu3h66wcrdctkw",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": "mmu3hhnq8gcoeub",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Hardik",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": "mmu3hvsqfdzzv94",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Hardik"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": "mmu3ihe4yow7ofk",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": "mmu3k8cs2d7d2y5",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul G",
+    "Hardik"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": "mmu3k9cvokishtl",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Hardik"
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": "mmu3k9ldp7df3ds",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "id": "mmu4x8i9p1u7pme",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Tejas"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Hardik"
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "id": "mmu5j0prgcnfwu7",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "id": "mmu5j0prgcxhtke",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Tejas",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "id": "mmu5jgaqeugdvyp",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Hardik",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-18",
+   "id": "mmu6haq9du6qd1h",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Tanmay",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Hardik"
+   ]
+  },
+  {
+   "date": "2026-09-18",
+   "id": "mmu6haq9d5aglqu",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Eshan"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Hardik"
+   ]
+  },
+  {
+   "date": "2026-09-18",
+   "id": "mmu6haq9d664848",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Tanmay",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-18",
+   "id": "mmu6haq9dr2pchk",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Hardik",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-18",
+   "id": "mmu6haq9duwn3dl",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Eshan",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-18",
+   "id": "mmu6ho3uc2tads7",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Hardik"
+   ],
+   "teamB": [
+    "Tanmay",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt83y35h2",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt8nwx8tx",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt8yuerqq",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Eshan"
+   ],
+   "teamB": [
+    "Puneet",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt89lksis",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt87xsu33",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Hardik",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Eshan",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt84dqagb",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt80fggiz",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu80mdt8fanbf9",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu96umzdjz4v2s",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu974vrn3tsjw9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Tanmay",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu97vxi4802mc8",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu989fzo5o3ghx",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu99zc7xwdbwtd",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu99zc7xvo3ntm",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Shetty"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu9asylidswoqe",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul M",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu9asylj2lbk4d",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu9bycnge1q585",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Hardik"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu9bycngvg6wq9",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Hardik"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu9bycnginku9v",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Hardik",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "id": "mmu9f5unoepu90u",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Parthiv",
+    "Shetty"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Hardik"
+   ]
+  },
+  {
+   "date": "2026-09-20",
+   "id": "mmu9f6s9m3pnyet",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Parthiv",
+    "Shetty"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Hardik"
+   ]
+  },
+  {
+   "date": "2026-09-21",
+   "id": "mmuao5l3bvqgl5g",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-21",
+   "id": "mmuappt98ifwjo5",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-21",
+   "id": "mmuapqfcnloncqt",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Akshay",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-21",
+   "id": "mmuar8wetu7baiz",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "id": "mmuc56tvqv5cetn",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Vinit",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "id": "mmuc56tvqrexly2",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "id": "mmuc56tvqal0rp9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Eshan"
+   ],
+   "teamB": [
+    "Tanmay",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "id": "mmuc56tvq2v0s3g",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "id": "mmuc56tvq1n8tuz",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmueybx8kr4fpzh",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmueybx8l8hm3mg",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmuezzfoz998gk0",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Tanmay",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmuezzfozwnzl6g",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Eshan",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmuf0gyxt8tvszt",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Puneet"
+   ],
+   "teamB": [
+    "Akshay",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmuf0lxr1nbzzdb",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Pratik"
+   ],
+   "teamB": [
+    "Akshay",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmuf3v6npfuqq9y",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Eshan",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "id": "mmuf3v6npbq1bg0",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Akshay"
+   ],
+   "teamB": [
+    "Eshan",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-25",
+   "id": "mmugdcrqlzitq2g",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-25",
+   "id": "mmugdcrqmgk67ki",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Eshan",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-25",
+   "id": "mmugep628l18ys9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-25",
+   "id": "mmugfw2zrmfdakb",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Akshay",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-25",
+   "id": "mmughoih28krrsl",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Pratik",
+    "Akshay"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhrtbc64nalpn",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Eshan",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhrtbc6at6r97",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhsyymfirlyqh",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhtvajx7y45bg",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhuyacy8tkvyp",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Eshan",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhvce01q58i7d",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhvozaz8upzo6",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Pratik",
+    "Akshay"
+   ],
+   "teamB": [
+    "Eshan",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhw81fabhy1ml",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhy04ezi98hnq",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Akshay",
+    "Eshan"
+   ],
+   "teamB": [
+    "Pratik",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "id": "mmuhy04f07idmqt",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Akshay",
+    "Eshan"
+   ],
+   "teamB": [
+    "Pratik",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-09-27",
+   "id": "mmujfbshfu0s4le",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Parthiv",
+    "Eshan"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-09-27",
+   "id": "mmujfbshf3q8ccd",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Tanmay",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-09-27",
+   "id": "mmujfbshfc1aftk",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Akhil",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-27",
+   "id": "mmujfbshf238upu",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Nilesh",
+    "Eshan"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Tanmay"
+   ]
+  },
+  {
+   "date": "2026-09-27",
+   "id": "mmujfbshf93dcof",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Eshan",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-27",
+   "id": "mmujfbshf1kl2os",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmukmclq7fd9ppv",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Vinit"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmukn2thqbtiyhu",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmuknwxfxbcenj7",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmukp0nmvocteye",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Akshay",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmukpsntbn87vyh",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Akshay",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmukr4auqkbaxow",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmukr4auq3aqwhw",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "id": "mmukr4auqwgl9by",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum1sotpw4ag5p",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum29vh1arkbjg",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Vinit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum3ek3o6f42n6",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum3ukflisad3j",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum3zyxmo119ly",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum4atgj8t47mu",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Sachin",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum5qf7j50drmz",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-29",
+   "id": "mmum5qf7jd71s20",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-09-30",
+   "id": "mmunmptzd71fbws",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-30",
+   "id": "mmunmptze7kkaq9",
+   "scoreA": 6,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-09-30",
+   "id": "mmunmptze99qjes",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Vinit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-30",
+   "id": "mmunmptzeh4z73r",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-09-30",
+   "id": "mmunmptzec46sz9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rmlzks3ts",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Puneet",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rml6r8ska",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Akshay",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rmlla5585",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rmlfkd19j",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Puneet"
+   ],
+   "teamB": [
+    "Tejas",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rml650694",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Akshay"
+   ],
+   "teamB": [
+    "Pratik",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rml9qvwqv",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Tejas",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rml49n1sz",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-01",
+   "id": "mmup33rmlvb3sgq",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqfymlazysr1o",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqfymlazafcl0",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Akshay",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqfymlazxn074",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqfymla6vsv7q",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Puneet",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Akhil"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqfymlagb3d34",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqfymla8i978j",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Akshay"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqfymla6czbzm",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqgcndkvggyey",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Tejas",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Akshay",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqgcndl9twoz0",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "id": "mmuqgujc3psxjki",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-03",
+   "id": "mmuryp7a9tgfz7b",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Nilesh",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-10-03",
+   "id": "mmuryp7a90ol8f6",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Puneet",
+    "Eshan"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-03",
+   "id": "mmuryp7a9t31b32",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Sachin",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-03",
+   "id": "mmuryp7a9ejtgqe",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Akshay"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-10-04",
+   "id": "mmut7lola9sr4cy",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Puneet",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-10-04",
+   "id": "mmut7lolaig158g",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-10-04",
+   "id": "mmut7lolantm9q7",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-04",
+   "id": "mmutbuhoj8t0ax3",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Eshan"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-06",
+   "id": "mmuw8zyxycknvv3",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Akshay",
+    "Vinit"
+   ],
+   "teamB": [
+    "Eshan",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-06",
+   "id": "mmuw8zyxy2fcqc6",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Vinit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Akshay",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-06",
+   "id": "mmuw8zyxyqod7uf",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Akshay",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-06",
+   "id": "mmuw8zyxyx5sjc9",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Tejas",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-06",
+   "id": "mmuw8zyxyx4ploz",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Eshan"
+   ],
+   "teamB": [
+    "Akshay",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "id": "mmuxmpyr0tom322",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Sachin",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Vinit",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "id": "mmuxmpyr05bb69c",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "id": "mmuxmpyr0fbguee",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Sachin",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "id": "mmuxmpyr085hfj5",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Vinit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "id": "mmuxmpyr0bbkd90",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Eshan"
+   ]
+  },
+  {
+   "date": "2026-10-08",
+   "id": "mmuyzxnlu5vjtrb",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Vinit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Eshan",
+    "Ankit"
+   ]
+  },
+  {
+   "date": "2026-10-08",
+   "id": "mmuyzxnluce04yg",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Ankit"
+   ]
+  },
+  {
+   "date": "2026-10-08",
+   "id": "mmuyzxnlua815ua",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Vinit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Akshay",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv0iu7c81cif20",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv0iu7c8kzqqq4",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Vinit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Sachin",
+    "Ankit"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv0iu7c8yhvbf5",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Tejas",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv0iu7c8hnk99b",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Eshan"
+   ],
+   "teamB": [
+    "Akshay",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv0iu7c8vxqa4u",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv0iu7c886d4oy",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv0rnwbzxk4op8",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Eshan"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv25phbbcutcdn",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Pratik"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv25phbbvfz00c",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Pratik",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Tejas",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv25phbbyfo021",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Pratik",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "id": "mmv25phbbxyahbi",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Pratik",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s6970xqkjj",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s697fhzau1",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Vinit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s6979c1dcu",
+   "scoreA": 2,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Vinit",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s69763rl2e",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Pratik"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s697oz6d2e",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s697x023rn",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Akshay",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Vinit",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s697qag60b",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s697k63pho",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Pratik",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Tejas",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s697wkuatd",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Pratik",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "id": "mmv25s697yua8f2",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Pratik",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "id": "mmv3emt8iohpxko",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Vinit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Puneet",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "id": "mmv3emt8ipc5mif",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "id": "mmv3emt8ipsl5of",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Puneet",
+    "Vinit"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "id": "mmv3emt8ix7pfyt",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul G",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Akshay",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "id": "mmv3emt8ids7ugk",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "id": "mmv3emt8ijyqkw1",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Vinit"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-12",
+   "id": "mmv4qvbvotg8985",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Sachin",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-12",
+   "id": "mmv529n10326284",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-13",
+   "id": "mmv654cwnlpod0j",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-13",
+   "id": "mmv654cwn8ge4yo",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-13",
+   "id": "mmv67cf44z7ro43",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Akshay",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-13",
+   "id": "mmv67cuprblykp0",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Akshay",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oy71pt0f",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oyv8wavt",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oyfu0etp",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Puneet",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oyrioqu8",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ayaan",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": "mmv7ne0oypmxbux",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Sachin",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-10-15",
+   "id": "mmv8wya9lkqgvzj",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Parthiv"
+   ]
+  },
+  {
+   "date": "2026-10-15",
+   "id": "mmv8xd0krj3ored",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Akshay",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-15",
+   "id": "mmv8yzf5ws9ln09",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Ankit",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Akshay",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-15",
+   "id": "mmv90389phemm8u",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Ayaan"
+   ]
+  },
+  {
+   "date": "2026-10-15",
+   "id": "mmv905oo37t6zr9",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Sachin",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Akshay",
+    "Ayaan"
+   ]
+  },
+  {
+   "date": "2026-10-15",
+   "id": "mmv91iy5xaajpc4",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Sachin",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvaevuj33yhha2",
+   "scoreA": 1,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Shetty"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvaevuj4zgz2d9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Tejas"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvaevuj4sangx3",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Puneet"
+   ],
+   "teamB": [
+    "Akshay",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvafv3x4t5bkby",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Nilesh",
+    "Tejas"
+   ],
+   "teamB": [
+    "Puneet",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvafv3x5gaq2a9",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Rahul M"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvai5g5tcqaers",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Puneet"
+   ],
+   "teamB": [
+    "Sachin",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvai5g5v4n4xyf",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Rahul M",
+    "Sachin"
+   ],
+   "teamB": [
+    "Ankit",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvai5g5v5bdyas",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "id": "mmvaiatz6xq2f87",
+   "scoreA": 0,
+   "scoreB": 4,
+   "teamA": [
+    "Rahul M",
+    "Akshay"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "id": "mmvbyl14ximoail",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Vinit",
+    "Shetty"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Nilesh"
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "id": "mmvbyl14y0xis3f",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "id": "mmvbyl14ymuvtqk",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Akshay",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "id": "mmvbyl14y360meu",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Akshay"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "id": "mmvbyl14yzok24o",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "id": "mmvbyl14y5crbu8",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Ankit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-18",
+   "id": "mmvdjj099t2qjpu",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-10-18",
+   "id": "mmvdjj099ndiq3z",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Rahul M",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-18",
+   "id": "mmvdjj099p5x4zk",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Akshay",
+    "Vinit"
+   ],
+   "teamB": [
+    "Puneet",
+    "Rahul M"
+   ]
+  },
+  {
+   "date": "2026-10-18",
+   "id": "mmvdjj099qwv82n",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul M",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Vinit",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-18",
+   "id": "mmvdjj09960n5el",
+   "scoreA": 3,
+   "scoreB": 4,
+   "teamA": [
+    "Ankit",
+    "Puneet"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-18",
+   "id": "mmvdtwccdzhtvs9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Vinit",
+    "Shetty"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg82n73r1alwi",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ayush",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Tejas",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg82n73w3kpvs",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Ayush",
+    "Tejas"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg82n73bwao2g",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Parthiv",
+    "Sachin"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg82n73690cmh",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Sachin"
+   ],
+   "teamB": [
+    "Parthiv",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg82n73zg1ngx",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Rahul G"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg82n7384f81p",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Rahul M",
+    "Akshay"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Sachin"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg82n736loyyr",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Rahul M",
+    "Parthiv"
+   ],
+   "teamB": [
+    "Nilesh",
+    "Ayaan"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg871n2wzm6h0",
+   "scoreA": 4,
+   "scoreB": 1,
+   "teamA": [
+    "Ayaan",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Tejas",
+    "Akshay"
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": "mmvg871n45t2aeu",
+   "scoreA": 4,
+   "scoreB": 0,
+   "teamA": [
+    "Rahul G",
+    "Nilesh"
+   ],
+   "teamB": [
+    "Ayaan",
+    "Tejas"
+   ]
+  }
+ ],
+ "nextPlayerId": 26,
+ "playerAliasMap": {
+  "1": [
+   "Akh",
+   "AS"
+  ],
+  "2": [
+   "Ank",
+   "AK"
+  ],
+  "3": [
+   "Esh",
+   "EC"
+  ],
+  "4": [
+   "Nil",
+   "Ni",
+   "NM"
+  ],
+  "5": [
+   "Par",
+   "Pa",
+   "PM"
+  ],
+  "6": [
+   "Pun",
+   "Pu",
+   "PK"
+  ],
+  "7": [
+   "RaG",
+   "RaGa",
+   "RG"
+  ],
+  "8": [
+   "RaM",
+   "RaMo",
+   "RM"
+  ],
+  "9": [
+   "God",
+   "ST",
+   "Dr"
+  ],
+  "11": [
+   "Tej",
+   "Teja",
+   "TD"
+  ],
+  "12": [
+   "Vin",
+   "Capt",
+   "VP"
+  ],
+  "16": [
+   "AT",
+   "Aks",
+   "Tiger",
+   "Tig"
+  ],
+  "17": [
+   "Rav"
+  ],
+  "18": [
+   "Tan"
+  ],
+  "19": [
+   "Pra",
+   "PH"
+  ],
+  "22": [
+   "Ayu"
+  ],
+  "23": [
+   "Sac",
+   "She"
+  ],
+  "24": [
+   "Har",
+   "HM"
+  ],
+  "25": [
+   "Aya",
+   "AM"
+  ]
+ },
+ "players": {
+  "1": {
+   "email": "",
+   "id": 1,
+   "image": "",
+   "isGuest": false,
+   "name": "Akhil"
+  },
+  "2": {
+   "email": "",
+   "id": 2,
+   "image": "",
+   "isGuest": false,
+   "name": "Ankit"
+  },
+  "3": {
+   "email": "",
+   "id": 3,
+   "image": "",
+   "isGuest": false,
+   "name": "Eshan"
+  },
+  "4": {
+   "email": "",
+   "id": 4,
+   "image": "",
+   "isGuest": false,
+   "name": "Nilesh"
+  },
+  "5": {
+   "email": "",
+   "id": 5,
+   "image": "",
+   "isGuest": false,
+   "name": "Parthiv"
+  },
+  "6": {
+   "email": "",
+   "id": 6,
+   "image": "",
+   "isGuest": false,
+   "name": "Puneet"
+  },
+  "7": {
+   "email": "",
+   "id": 7,
+   "image": "",
+   "isGuest": false,
+   "name": "Rahul G"
+  },
+  "8": {
+   "email": "",
+   "id": 8,
+   "image": "",
+   "isGuest": false,
+   "name": "Rahul M"
+  },
+  "9": {
+   "email": "",
+   "id": 9,
+   "image": "",
+   "isGuest": false,
+   "name": "Sachin"
+  },
+  "11": {
+   "email": "",
+   "id": 11,
+   "image": "",
+   "isGuest": false,
+   "name": "Tejas"
+  },
+  "12": {
+   "email": "",
+   "id": 12,
+   "image": "",
+   "isGuest": false,
+   "name": "Vinit"
+  },
+  "16": {
+   "email": "",
+   "id": 16,
+   "isGuest": false,
+   "name": "Akshay"
+  },
+  "17": {
+   "email": "",
+   "id": 17,
+   "isGuest": true,
+   "name": "Ravi"
+  },
+  "18": {
+   "email": "",
+   "id": 18,
+   "isGuest": false,
+   "name": "Tanmay"
+  },
+  "19": {
+   "email": "",
+   "id": 19,
+   "isGuest": true,
+   "name": "Pratik"
+  },
+  "22": {
+   "email": "",
+   "id": 22,
+   "isGuest": true,
+   "name": "Ayush"
+  },
+  "23": {
+   "email": "",
+   "id": 23,
+   "isGuest": false,
+   "name": "Shetty"
+  },
+  "24": {
+   "email": "",
+   "id": 24,
+   "isGuest": true,
+   "name": "Hardik"
+  },
+  "25": {
+   "email": "",
+   "id": 25,
+   "isGuest": false,
+   "name": "Ayaan"
+  }
+ },
+ "seasons": [
+  {
+   "end": "2026-12-31",
+   "id": "smti1b7y3heki",
+   "name": "Season 2",
+   "start": "2026-09-01"
+  },
+  {
+   "archived": true,
+   "archivedAt": "2026-08-31",
+   "archivedSnapshot": {
+    "ironMan": {
+     "mp": 237,
+     "name": "Sachin"
+    },
+    "matches": 366,
+    "mostImproved": null,
+    "mvp": {
+     "mp": 225,
+     "mw": 137,
+     "name": "Ankit"
+    },
+    "scoringMode": "ass",
+    "standings": [
+     {
+      "ml": 88,
+      "mp": 225,
+      "mw": 137,
+      "name": "Ankit",
+      "sr": 10.85
+     },
+     {
+      "ml": 42,
+      "mp": 127,
+      "mw": 85,
+      "name": "Vinit",
+      "sr": 8.75
+     },
+     {
+      "ml": 72,
+      "mp": 169,
+      "mw": 97,
+      "name": "Nilesh",
+      "sr": 6.83
+     },
+     {
+      "ml": 93,
+      "mp": 195,
+      "mw": 102,
+      "name": "Rahul M",
+      "sr": 6.02
+     },
+     {
+      "ml": 33,
+      "mp": 57,
+      "mw": 24,
+      "name": "Eshan",
+      "sr": 3.77
+     },
+     {
+      "ml": 120,
+      "mp": 237,
+      "mw": 117,
+      "name": "Sachin",
+      "sr": 3.08
+     },
+     {
+      "ml": 50,
+      "mp": 96,
+      "mw": 46,
+      "name": "Parthiv",
+      "sr": 3.02
+     },
+     {
+      "ml": 33,
+      "mp": 51,
+      "mw": 18,
+      "name": "Akhil",
+      "sr": 1.45
+     },
+     {
+      "ml": 60,
+      "mp": 92,
+      "mw": 32,
+      "name": "Puneet",
+      "sr": 0.78
+     },
+     {
+      "ml": 48,
+      "mp": 65,
+      "mw": 17,
+      "name": "Tejas",
+      "sr": -0.68
+     },
+     {
+      "ml": 93,
+      "mp": 150,
+      "mw": 57,
+      "name": "Rahul G",
+      "sr": -1.75
+     }
+    ],
+    "topPair": {
+     "players": [
+      "Rahul M",
+      "Vinit"
+     ],
+     "winPct": 86
+    }
+   },
+   "end": "2026-08-31",
+   "id": "smtfyqlphsioe",
+   "name": "Season 1",
+   "start": "2026-05-08"
+  }
+ ],
+ "source": "nightly backup (GitHub Actions)",
+ "version": 1
+}
