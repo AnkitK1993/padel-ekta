@@ -46,7 +46,7 @@ export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair"];
 // Scoring Lab: balanced / stacked team points + partner split, with any match
 // that has a newcomer (< 50 career games) scored exactly as ASS.
 export const SCORING_SYSTEMS_POINTS = ["ep", "fair"];
-const FAIR_SCALE = 1; // FAIR ASS score = points ÷ (games + 10)
+const FAIR_SCALE = 2; // FAIR ASS score = 2 × points ÷ (games + 10), like ASS
 
 let _system = "ep";
 export function setActiveSystem(sys) {

@@ -213,7 +213,7 @@ export function labWinPct(matches) {
 //   weaker team            win 120 → 140   loss 0 → −20
 // where the arrow runs from the closest result (4-3, 6-5) to a whitewash
 // (4-0, 6-0): g = (winner − loser − 1) ÷ (winner − 1). Both partners get the
-// same points. The board is points ÷ (games + 10), like ASS.
+// same points. The board is 2 × points ÷ (games + 10), like ASS.
 export const MATCHUP_POINTS = {
   balanced: { win: 100, winUp: 20, loss: 0, lossUp: 20 },
   stronger: { win: 50, winUp: 20, loss: 30, lossUp: 10 },
@@ -486,7 +486,7 @@ export const LAB_OPTIONS = [
     label: "Fair Matchup Points",
     kind: "matchup",
     params: { seasonGames: 0 },
-    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Partner split: the team's points are shared by the partners' ASS gap — the weaker partner gets a bigger share of a win and the stronger partner takes a bigger share of a loss, up to 15% each way (0.75% per ASS point of gap). Score = points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
+    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Partner split: the team's points are shared by the partners' ASS gap — the weaker partner gets a bigger share of a win and the stronger partner takes a bigger share of a loss, up to 15% each way (0.75% per ASS point of gap). Score = 2 × points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
   },
 ];
 

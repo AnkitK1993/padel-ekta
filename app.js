@@ -9533,7 +9533,7 @@ const SCORING_SYSTEM_BLURBS = {
   openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
-  fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 15%). A match with a player under 50 career games is scored as ASS. Score = points ÷ (games + 10).",
+  fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 15%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
 };
 
 // The Advanced group opens by itself when one of its systems is active, so the
@@ -9612,7 +9612,7 @@ function _scoringInfoHtml() {
   return `
     <div class="scoring-info-section-lbl">SCORING SYSTEMS</div>
     ${sysRows}
-    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">Both start everyone at 0 and rank points earned per match (score = points ÷ (games + 10), ×2 on ASS), so showing up counts but mileage alone can't buy a top spot. The TOTAL column is the raw points earned.</div>
+    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">Both start everyone at 0 and rank points earned per match (score = 2 × points ÷ (games + 10)), so showing up counts but mileage alone can't buy a top spot. The TOTAL column is the raw points earned.</div>
   `;
 }
 
@@ -12167,12 +12167,12 @@ function _labRun(opt, matches) {
     const sys = rating.system();
     const base = sys === "fair" ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey }) : labEPDeltas(matches, career);
     deltas = labAddGrace(base, _labGracePlayer, opt.gracePts ?? _labCustom.graceMarks);
-    full = labEPFull(deltas, { scale: sys === "fair" ? 1 : 2 });
+    full = labEPFull(deltas, { scale: 2 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   } else if (opt.kind === "matchup") {
     deltas = labMatchupDeltas(matches, career, { seasonKey: scopeKey, ..._labParams(opt) });
-    full = labEPFull(deltas, { scale: 1 });
+    full = labEPFull(deltas, { scale: 2 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   }
