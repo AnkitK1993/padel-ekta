@@ -9588,6 +9588,9 @@ function _setScoringSystem(sys) {
   const tbody = document.getElementById("cmpBody");
   if (tbody) tbody.innerHTML = "";
   renderCompact();
+  // Detailed repaints on its next visit (its view key carries the system);
+  // repaint now if it's the page on screen.
+  if (document.getElementById("pg-home")?.classList.contains("active")) renderHome();
   document.body.classList.remove("no-cascade");
 }
 
