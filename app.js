@@ -12114,6 +12114,7 @@ let _labCustom = (() => {
   const d = Object.fromEntries(LAB_SLIDERS.map((s) => [s.key, s.def]));
   try {
     const saved = JSON.parse(localStorage.getItem("padel_lab_custom") || "{}");
+    if (saved.v !== 2) delete saved.gapBalanced; // the gap-rule default moved from 10 to 15
     LAB_SLIDERS.forEach((s) => {
       const v = Number(saved[s.key]);
       if (Number.isFinite(v)) d[s.key] = Math.min(s.max, Math.max(s.min, v));
@@ -12239,9 +12240,9 @@ function _labSlide(key, value) {
   if (!s) return;
   _labCustom[key] = Math.min(s.max, Math.max(s.min, Number(value) || 0));
   const out = document.getElementById(`lab-sv-${key}`);
-  if (out) out.textContent = _labCustom[key];
+  if (out) out.textContent = s.toggle ? (_labCustom[key] ? "On" : "Off") : _labCustom[key];
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify(_labCustom));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 2 }));
   } catch (e) {
     noteError("app:_labSlide", e);
   }
@@ -12282,20 +12283,20 @@ function _labGracePickerHtml(matches) {
 // The gap-rule option's current thresholds and what a 4–3 pays across the band.
 function _labGapTable() {
   const b = _labCustom.gapBalanced;
-  const f = 40; // fully stacked from a team gap of 40
+  const f = _labCustom.gapFull;
   const mid = Math.round((b + f) / 2);
   const at = (s) => [Math.round(100 - 50 * s), Math.round(-30 * s), Math.round(100 + 20 * s)];
   const row = (label, s) => {
     const [sw, sl, ww] = at(s);
     return `<tr><td>${label}</td><td class="tp">+${sw}</td><td class="tn">${sl || 0}</td><td class="tp">+${ww}</td></tr>`;
   };
-  return `<table class="lab-pts"><thead><tr><th>4–3, TEAM GAP</th><th>STRONGER WINS</th><th>STRONGER LOSES</th><th>WEAKER WINS</th></tr></thead><tbody>${row(`≤ ${b} (or #1 with #4)`, 0)}${f > b ? row(`${mid}`, 0.5) : ""}${row(`${f}+`, 1)}</tbody></table><div class="lab-pts-n">A 4–0 shifts the same way between +120 / −20 / +120 (balanced) and +70 / −40 / +140 (fully stacked). The weaker team never loses more than a balanced loss.</div>`;
+  return `<table class="lab-pts"><thead><tr><th>4–3, TEAM GAP</th><th>STRONGER WINS</th><th>STRONGER LOSES</th><th>WEAKER WINS</th></tr></thead><tbody>${row(`≤ ${b}`, 0)}${f > b + 1 ? row(`${mid}`, 0.5) : ""}${row(`${Math.max(f, b + 1)}+`, 1)}</tbody></table><div class="lab-pts-n">A 4–0 shifts the same way between +120 / −20 / +120 (balanced) and +70 / −40 / +140 (fully stacked). The weaker team never loses more than a balanced loss.${_labCustom.topTier ? " Top 6 rule on: a team with more of the current top 6 is the stronger team and at least 50% stacked." : ""}</div>`;
 }
 function _labSlidersReset() {
   const keys = _labSliderKeys(labOption(_labId));
   LAB_SLIDERS.filter((s) => keys.includes(s.key)).forEach((s) => (_labCustom[s.key] = s.def));
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify(_labCustom));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 2 }));
   } catch (e) {
     noteError("app:_labSlidersReset", e);
   }
@@ -12325,8 +12326,11 @@ function _scoringLabInner() {
     }<div class="lab-scope">${escHtml(scope)}</div></div>${
       _labSliderKeys(opt).length
         ? `<div class="lab-sliders">${opt.kind === "grace" ? _labGracePickerHtml(matches) : ""}${LAB_SLIDERS.filter((s) => _labSliderKeys(opt).includes(s.key))
-            .map(
-              (s) => `<label class="lab-slider"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key]}</b></span>
+            .map((s) =>
+              s.toggle
+                ? `<label class="lab-slider lab-toggle"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key] ? "On" : "Off"}</b></span>
+              <input type="checkbox" class="lab-switch"${_labCustom[s.key] ? " checked" : ""} onchange="_labSlide('${s.key}', this.checked ? 1 : 0)" aria-label="${escHtml(s.label)}"></label>`
+                : `<label class="lab-slider"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key]}</b></span>
               <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${_labCustom[s.key]}" oninput="_labSlide('${s.key}', this.value)" aria-label="${escHtml(s.label)}">
               <span class="lab-slider-r"><span>${s.min}</span><span>default ${s.def}</span><span>${s.max}</span></span></label>`,
             )
@@ -12404,7 +12408,10 @@ function _scoringLabInner() {
           const sp = mu.split?.[p] ? ` · partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
           return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"}${sp}${e.grace?.player === p ? ` · grace +${e.grace.pts}` : ""} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
-        const gapLine = mu.gap != null ? `<div>Team gap ${mu.gap.toFixed(1)} combined ASS · ${mu.stack ? `${Math.round(mu.stack * 100)}% stacked` : "balanced"}.</div>` : "";
+        const gapLine =
+          mu.gap != null
+            ? `<div>Team gap ${mu.gap.toFixed(1)} combined ASS${mu.top ? ` · top 6: ${mu.topA}–${mu.topB}` : ""} · ${mu.stack ? `${Math.round(mu.stack * 100)}% stacked` : "balanced"}.</div>`
+            : "";
         detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}${gapLine}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
       } else if (mu) {
         detail = `<div class="lab-detail"><div>${mu.newcomers.map((p) => `<b>${escHtml(p)}</b> (${mu.careerGames[p]} games)`).join(", ")} ${mu.newcomers.length === 1 ? "has" : "have"} fewer than 50 career games, so this match is scored exactly as live ASS:</div>${[...(m.teamA || []), ...(m.teamB || [])].map((p) => `<div><b>${escHtml(p)}</b> ${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}${e.grace?.player === p ? ` (incl. grace +${e.grace.pts})` : ""}</div>`).join("")}</div>`;

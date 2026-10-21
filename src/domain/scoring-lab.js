@@ -239,6 +239,8 @@ export const MATCHUP_LOSS_REF = 20;
 // of a loss. Share shift = splitCap% × min(1, gap ÷ MATCHUP_SPLIT_FULL_GAP), so
 // at the default 15% cap: 0.75% per ASS point, full 15% from a 20-point gap.
 export const MATCHUP_SPLIT_CAP = 15;
+export const TOP_TIER_SIZE = 6;
+export const TOP_TIER_GAMES = 10;
 export const MATCHUP_SPLIT_FULL_GAP = 20;
 
 // Map(match -> { playerDeltas, matchup }) for `matches`. `matchup` holds what
@@ -259,13 +261,17 @@ export function labMatchupDeltas(
     winBase = MATCHUP_WIN_REF,
     lossMax = MATCHUP_LOSS_REF,
     splitCap = MATCHUP_SPLIT_CAP,
-    // Gap rule (the "Fair ASS · gap rule" option): a split counts as stacked
-    // only when #1 isn't paired with #4 AND the teams' combined-ASS gap is
-    // above gapBalanced — then graded, fully stacked from gapFull. Off: any
-    // split other than best + worst vs the middle two is fully stacked.
+    // Gap rule (the "Fair ASS · gap rule" option): the teams' combined-ASS
+    // gap alone decides — balanced up to gapBalanced, fully stacked from
+    // gapFull, graded in between. Off: any split other than best + worst vs
+    // the middle two is fully stacked.
     gapRule = false,
-    gapBalanced = 10,
-    gapFull = 40,
+    gapBalanced = 15,
+    gapFull = 30,
+    // With the gap rule: when one team has more of the current top 6 (by
+    // season ASS, among players with 10+ games this season) that team is the
+    // stronger one and the split is at least half stacked.
+    topTier = false,
   } = {},
 ) {
   const winScale = winBase / MATCHUP_WIN_REF;
@@ -332,23 +338,37 @@ export function labMatchupDeltas(
         const teamGap = Math.abs(sA - sB);
         // How stacked the split is, 0 (balanced) … 1 (fully stacked).
         let stack;
+        let aStronger = sA > sB;
         if (!gapRule) stack = teamGap <= ideal + 1e-9 ? 0 : 1;
         else {
-          const sameTeam = (x, y) => (teamA.includes(x) && teamA.includes(y)) || (teamB.includes(x) && teamB.includes(y));
-          const bestWithWorst = sameTeam(order[0], order[3]) || teamGap <= ideal + 1e-9;
-          stack = bestWithWorst
-            ? 0
-            : gapFull <= gapBalanced
+          stack =
+            gapFull <= gapBalanced
               ? teamGap > gapBalanced ? 1 : 0
               : Math.max(0, Math.min(1, (teamGap - gapBalanced) / (gapFull - gapBalanced)));
+          if (topTier) {
+            // The current top 6: season ASS of everyone with 10+ games this
+            // season (same reading as above), plus the four in this match.
+            const read = (p) => (p in ass ? ass[p] : (sg[p] || 0) >= seasonGames ? score(st[p], sg[p]) : score(tot[p], games[p]));
+            const pool = new Set([...Object.keys(sg).filter((p) => sg[p] >= TOP_TIER_GAMES), ...four]);
+            const top = [...pool].sort((x, y) => read(y) - read(x) || x.localeCompare(y)).slice(0, TOP_TIER_SIZE);
+            info.top = top;
+            info.topA = teamA.filter((p) => top.includes(p)).length;
+            info.topB = teamB.filter((p) => top.includes(p)).length;
+            if (info.topA !== info.topB) {
+              const aMore = info.topA > info.topB;
+              if (aMore !== aStronger) stack = 0; // ASS says the other way: start from balanced
+              aStronger = aMore;
+              stack = Math.max(stack, 0.5);
+            }
+          }
         }
         const balanced = stack === 0;
         info.kind = balanced ? "balanced" : "mismatch";
         info.gap = teamGap;
         info.stack = stack;
         info.rank = Object.fromEntries(order.map((p, i) => [p, i + 1]));
-        info.roleA = balanced ? "balanced" : sA > sB ? "stronger" : "weaker";
-        info.roleB = balanced ? "balanced" : sA > sB ? "weaker" : "stronger";
+        info.roleA = balanced ? "balanced" : aStronger ? "stronger" : "weaker";
+        info.roleB = balanced ? "balanced" : aStronger ? "weaker" : "stronger";
         const playerDeltas = {};
         info.split = {}; // per player: the share shift applied (+ = got more / lost less)
         [
@@ -435,8 +455,8 @@ export const LAB_OPTIONS = [
     label: "Fair ASS · gap rule",
     kind: "matchup",
     params: { seasonGames: 0, gapRule: true },
-    sliders: ["gapBalanced"],
-    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven. Best + worst paired together (#1 with #4) is always balanced. Otherwise the gap between the two teams' combined ASS decides: up to the slider value (0–40, default 10) it's balanced; from a gap of 40 it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20); in between the points slide gradually from balanced to stacked. Partner split, newcomer rule and score are as Fair ASS.",
+    sliders: ["gapBalanced", "gapFull", "topTier"],
+    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split, newcomer rule and score are as Fair ASS.",
   },
   {
     id: "grace",
@@ -475,7 +495,9 @@ export const LAB_SLIDERS = [
   { key: "winBase", label: "Win points (balanced 4–3)", min: 20, max: 200, step: 5, def: MATCHUP_WIN_REF },
   { key: "lossMax", label: "Loss points (balanced 4–0)", min: 0, max: 100, step: 1, def: MATCHUP_LOSS_REF },
   { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: MATCHUP_SPLIT_CAP },
-  { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 10 },
+  { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 15 },
+  { key: "gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },
+  { key: "topTier", label: "Top 6 rule", toggle: true, min: 0, max: 1, step: 1, def: 0 },
   { key: "graceMarks", label: "Grace marks per match", min: 0, max: 50, step: 1, def: 10 },
 ];
 

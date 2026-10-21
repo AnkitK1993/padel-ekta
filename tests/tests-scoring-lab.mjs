@@ -198,26 +198,41 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0 });
   const g00 = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, gapBalanced: 0, gapFull: 0 });
-  ok("gap rule at 0 / 0 = Fair ASS exactly", w.every((m) => same(base.get(m).playerDeltas, g00.get(m).playerDeltas)));
+  ok("gap rule at 0 / 0: any team gap is fully stacked", w.every((m) => { const x = g00.get(m).matchup; return x.kind === "newcomer" || x.stack === (x.gap > 0 ? 1 : 0); }));
   const gr = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, gapBalanced: 10, gapFull: 40 });
-  let r14 = true, rSmall = true, rGrade = true, partial = 0, saw14big = false;
+  let rSmall = true, rGrade = true, partial = 0, saw14big = false;
   w.forEach((m) => {
     const x = gr.get(m).matchup;
     if (x.kind === "newcomer") return;
     const best = Object.keys(x.rank).find((p) => x.rank[p] === 1), worst = Object.keys(x.rank).find((p) => x.rank[p] === 4);
     const together = (m.teamA.includes(best) && m.teamA.includes(worst)) || (m.teamB.includes(best) && m.teamB.includes(worst));
-    if (together && x.stack !== 0) r14 = false;
-    if (together && x.gap > 10) saw14big = true;
+    if (together && x.gap > 10 && x.stack > 0) saw14big = true;
     if (x.gap <= 10 && x.stack !== 0) rSmall = false;
-    if (!together && x.gap > 10) {
+    if (x.gap > 10) {
       const want = Math.min(1, (x.gap - 10) / 30);
       if (Math.abs(x.stack - want) > 1e-9) rGrade = false;
       if (x.stack > 0 && x.stack < 1) partial++;
     }
   });
-  ok("#1 paired with #4 is always balanced, even with a big team gap", r14 && saw14big);
+  ok("#1 paired with #4 is no longer always balanced: a big team gap still counts", saw14big);
   ok("a team gap of 10 or less is balanced", rSmall);
   ok("between 10 and 40 the split is graded (gap − 10) ÷ 30", rGrade && partial > 5);
+  const dflt = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true });
+  ok("defaults: balanced up to 15, fully stacked from 30", w.every((m) => { const x = dflt.get(m).matchup; return x.kind === "newcomer" || Math.abs(x.stack - Math.max(0, Math.min(1, (x.gap - 15) / 15))) < 1e-9; }));
+  const tt = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, topTier: true });
+  let tierOk = true, tierSeen = 0, sameOk = true;
+  w.forEach((m) => {
+    const x = tt.get(m).matchup, y = dflt.get(m).matchup;
+    if (x.kind === "newcomer") return;
+    if (!Array.isArray(x.top) || x.top.length > 6) tierOk = false;
+    if (x.topA !== x.topB) {
+      tierSeen++;
+      const more = x.topA > x.topB ? "roleA" : "roleB";
+      if (x.stack < 0.5 || x[more] !== "stronger") tierOk = false;
+    } else if (x.stack !== y.stack || x.roleA !== y.roleA) sameOk = false;
+  });
+  ok("top 6 rule: the team with more top-6 players is stronger and at least half stacked", tierOk && tierSeen > 3);
+  ok("top 6 rule: equal top-6 counts = the plain gap rule", sameOk);
   const half = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, gapBalanced: 10, gapFull: 40, splitCap: 0 });
   let interp = true, checked = 0;
   w.forEach((m) => {
@@ -232,7 +247,7 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
     });
   });
   ok("partly stacked points sit between the balanced and the stacked numbers", interp && checked > 10);
-  ok("the gap-rule option has one slider: balanced up to 0–40, default 10", same(labOption("gaprule").sliders, ["gapBalanced"]) && (({ min, max, def }) => min === 0 && max === 40 && def === 10)(LAB_SLIDERS.find((s) => s.key === "gapBalanced")));
+  ok("the gap-rule option: balanced up to (default 15), fully stacked from (default 30), top 6 toggle (off)", same(labOption("gaprule").sliders, ["gapBalanced", "gapFull", "topTier"]) && LAB_SLIDERS.find((s) => s.key === "gapBalanced").def === 15 && LAB_SLIDERS.find((s) => s.key === "gapFull").def === 30 && LAB_SLIDERS.find((s) => s.key === "topTier").toggle && LAB_SLIDERS.find((s) => s.key === "topTier").def === 0);
 }
 
 console.log("\n\x1b[36m── grace marks ───────────────────────────────────────\x1b[0m");
@@ -249,7 +264,7 @@ console.log("\n\x1b[36m── grace marks ────────────�
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
 ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,matchup" && labOption("custom").kind === "matchup");
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15,gapBalanced=10,graceMarks=10");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15,gapBalanced=15,gapFull=30,topTier=0,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });
