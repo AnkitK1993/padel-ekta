@@ -1069,6 +1069,12 @@ let _pvpLow = 20,
   _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
 let cmpSortKey = "ass";
 let cmpSortAsc = false;
+// The board's default order: the scoring number, except LEAGUE over ALL TIME,
+// which is ordered by win % (then game difference). A header the user taps
+// overrides it until the period or the scoring system changes.
+let _cmpSortUserSet = false;
+let _cmpSortCtx = "";
+const _cmpDefaultSortKey = () => (rating.system() === "league" && cmpFilter === "all" ? "winPct" : "ass");
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
@@ -5582,6 +5588,15 @@ window.removeStatsCache = function removeStatsCache() {
 // runSpeedometerSweep -> ./render-anim.js
 
 function renderCompact() {
+  const _sortCtx = `${rating.system()}|${cmpFilter === "all" ? "all" : "period"}`;
+  if (_sortCtx !== _cmpSortCtx) {
+    _cmpSortCtx = _sortCtx;
+    _cmpSortUserSet = false;
+  }
+  if (!_cmpSortUserSet) {
+    cmpSortKey = _cmpDefaultSortKey();
+    cmpSortAsc = false;
+  }
   _compactRenderedVersion = _dataVersion;
   _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${rating.system()}`;
   _renderSeasonQuickSwitch();
@@ -5619,7 +5634,8 @@ function renderCompact() {
       }
       return 0;
     },
-    winPct: (a, b) => a.winPct - b.winPct,
+    // Level on win %: game difference, then a shared place.
+    winPct: (a, b) => a.winPct - b.winPct || a.gw - a.gl - (b.gw - b.gl),
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
@@ -6009,6 +6025,7 @@ function updateSortArrows() {
 }
 
 function setCmpSort(key) {
+  _cmpSortUserSet = true;
   if (cmpSortKey === key) {
     if (key === "record") {
       cmpRecordSortMode = cmpRecordSortMode === "wins" ? "losses" : "wins";
