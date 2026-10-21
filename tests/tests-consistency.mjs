@@ -230,9 +230,10 @@ for (const sys of SCORING_SYSTEMS) {
       return tl.history[p].length === played;
     }),
   );
+  const twoDp = rating.isZeroBased() && sys !== "league"; // LEAGUE prints whole points
   ok(
-    `${sys}: fmt prints ${rating.isZeroBased() ? "2 decimals" : "whole numbers"}`,
-    rating.isZeroBased() ? rating.fmt(1.005) === "1.00" || rating.fmt(1.005) === "1.01" : rating.fmt(1000.4) === "1000",
+    `${sys}: fmt prints ${twoDp ? "2 decimals" : "whole numbers"}`,
+    twoDp ? rating.fmt(1.005) === "1.00" || rating.fmt(1.005) === "1.01" : rating.fmt(1000.4) === "1000",
   );
   ok(
     `${sys}: def() is the baseline an unrated player reads as`,

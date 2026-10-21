@@ -40,7 +40,7 @@ export const SCORING_SYSTEM_LABELS = {
 };
 // Systems that fill the extra numeric column beside the rating — a "±"
 // confidence band for Glicko-2/OpenSkill, total points earned for EP.
-export const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep", "fair", "fairgap", "league"];
+export const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep", "fair", "fairgap"];
 // 0-based systems: no 1000 baseline, headline number small enough that the
 // decimal carries real ordering information.
 export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap", "league"];
@@ -166,8 +166,8 @@ function minMaxSrFn(ratingMap, round = true) {
 const LADDERS = {
   classic: { steps: [1050, 1100, 1150, 1200, 1250, 1300], elite: 1200, bigGain: 50 },
   zeroBased: { steps: [25, 50, 75, 100], elite: 90, bigGain: 10 },
-  // LEAGUE's number is a win %.
-  league: { steps: [40, 50, 60, 70], elite: 65, bigGain: 10 },
+  // LEAGUE's number is a points total (+3 a win, −2 a loss).
+  league: { steps: [25, 50, 100, 150], elite: 100, bigGain: 5 },
 };
 
 // Generic running-total timeline for engines without a bespoke one.
@@ -269,7 +269,7 @@ export const rating = {
   hasConfidence: (s = _system) => SCORING_SYSTEMS_WITH_CONFIDENCE.includes(s),
   // Header text for the extra numeric column.
   confLabel: (s = _system) =>
-    s === "glicko2" ? "±RD" : s === "openskill" ? "±3σ" : SCORING_SYSTEMS_POINTS.includes(s) ? "TOTAL" : s === "league" ? "PTS" : "",
+    s === "glicko2" ? "±RD" : s === "openskill" ? "±3σ" : SCORING_SYSTEMS_POINTS.includes(s) ? "TOTAL" : "",
   // Stand-in for a player missing from the map: the baseline for 1000-centred
   // engines, zero for 0-based ones (where 1000 would sort an unrated player top).
   def: (s = _system) => (SCORING_SYSTEMS_ZERO_BASED.includes(s) ? 0 : 1000),
@@ -335,7 +335,7 @@ export const rating = {
     if (s === "glicko2") Object.keys(full).forEach((n) => (out[n] = Math.round(full[n].rd)));
     else if (s === "openskill")
       Object.keys(full).forEach((n) => (out[n] = Math.round(3 * full[n].sigma)));
-    else if (SCORING_SYSTEMS_POINTS.includes(s) || s === "league") Object.keys(full).forEach((n) => (out[n] = full[n].ep));
+    else if (SCORING_SYSTEMS_POINTS.includes(s)) Object.keys(full).forEach((n) => (out[n] = full[n].ep));
     return out;
   },
   // EP only: the scoring detail of one match, priced inside the season it was
@@ -434,11 +434,13 @@ export const rating = {
   // EP only: the leaderboard score a running points total over `games` games
   // would produce (what the board prints), for what-if projections.
   scoreFor(total, games, s = _system) {
+    if (s === "league") return total;
     return ((isMatchup(s) ? FAIR_SCALE : EP_SCALE) * total) / (games + EP_SHRINKAGE);
   },
   // Numeric rounding to the precision the system prints with (whole numbers,
   // or 2 decimals for the 0-based score).
   round(v, s = _system) {
+    if (s === "league") return Math.round(v);
     return SCORING_SYSTEMS_ZERO_BASED.includes(s)
       ? Math.round(v * 100) / 100
       : Math.round(v);
@@ -446,6 +448,6 @@ export const rating = {
   // Printed form of a rating OR a rating change.
   fmt(v, s = _system) {
     if (v == null || !Number.isFinite(v)) return "—";
-    return SCORING_SYSTEMS_ZERO_BASED.includes(s) ? v.toFixed(2) : String(Math.round(v));
+    return SCORING_SYSTEMS_ZERO_BASED.includes(s) && s !== "league" ? v.toFixed(2) : String(Math.round(v));
   },
 };

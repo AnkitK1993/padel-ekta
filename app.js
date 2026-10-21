@@ -5105,9 +5105,7 @@ function _applyCmpColClasses() {
           ? "±3σ"
           : SCORING_SYSTEMS_POINTS.includes(rating.system())
             ? "TOTAL"
-            : rating.system() === "league"
-              ? "PTS"
-              : "";
+            : "";
   }
   const assTh = document.getElementById("cmp-ass-th");
   if (assTh) {
@@ -5182,7 +5180,7 @@ function renderHome() {
   // shows — blank for Fair Share, which has no such total.
   const homeConfMap = rating.conf(homeFull);
   const homeConfLabel =
-    SCORING_SYSTEMS_POINTS.includes(rating.system()) || rating.system() === "league"
+    SCORING_SYSTEMS_POINTS.includes(rating.system())
       ? "pts"
       : rating.system() === "glicko2"
         ? "±RD"
@@ -9548,7 +9546,7 @@ const SCORING_SYSTEM_BLURBS = {
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
   fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 15%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
-  league: "Football-style table. A win is 3 points, a loss 0. The table is ordered by win % — the number shown — and players level on win % are split by game difference (games won − games lost); level on both, they share the place. PTS is the points total (3 × wins). Simple and easy to check: no ratings of opponents, no newcomer rules.",
+  league: "Football-style table. A win is +3 points, a loss −2 — the number shown is the points total, and the table is ordered by it. Players level on points are split by game difference (games won − games lost); level on both, they share the place. Playing more helps only while you win more than you lose: a 2–1 day is +4, a 1–2 day −1. Simple and easy to check: no ratings of opponents, no newcomer rules.",
   fairgap: "FAIR ASS, but the teams' gap decides how stacked a match was. Add up both partners' ASS (this season) for each team: a gap of up to 15 is balanced (win 100–120, loss 0 to −20) — in our matches the higher-rated team wins only about half of those. From a gap of 30 it's fully stacked: the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 — past 30 the stronger team wins about 7 in 10. In between, the points slide gradually from balanced to stacked. Partner split, the newcomer rule and the score are as FAIR ASS: score = 2 × points ÷ (games + 10).",
 };
 
@@ -9614,7 +9612,7 @@ function _setScoringSystem(sys) {
 // tapping ⓘ never accidentally changes a selection.
 const SCORING_SYSTEM_EXAMPLES = {
   fair: `<b>Example:</b> Vinit (ASS 96) + Nilesh (84) beat Rahul M (99) + Sachin (88) 4–3. Rahul M + Sachin were the stronger team, so this is an underdog win: +120 each, split by the partners' gap — <b>Nilesh +131, Vinit +109</b>. The stronger team lost 4–3: −30 each — <b>Rahul M −33, Sachin −27</b>. Had the stronger team won instead, they'd have earned only +50 each.`,
-  league: `<b>Example:</b> Ankit is 14W–6L (70%, 42 pts, games 110–85 = +25) and Sachin 7W–3L (70%, 21 pts, games 52–40 = +12). Both are on 70%, so game difference decides: <b>Ankit above Sachin</b>. Had Sachin's games been 60–35 (+25), they'd be <b>tied</b> on the same place.`,
+  league: `<b>Example:</b> Nilesh goes 3W–1L (games 14–9) and Ankit 3W–2L (games 14–12). Nilesh: 3×3 − 2×1 = <b>7</b>; Ankit: 3×3 − 2×2 = <b>5</b> — Nilesh above. Vinit 2W–1L (10–7) is on <b>4</b>. Had Ankit finished on 4 too, game difference would split him and Vinit (+2 vs +3: <b>Vinit above</b>); level on that as well, they'd share the place.`,
   fairgap: `<b>Example:</b> Ankit (87) + Rahul G (80) = 167 play Vinit (99) + Sachin (86) = 185 — a gap of 18, a fifth of the way from balanced (15) to fully stacked (30). If Vinit + Sachin win 4–3 they get about <b>+90</b> each instead of +100; if Ankit + Rahul G win 4–3 they get about <b>+104</b>. With a gap of 30 or more those would be +50 and +120; with 15 or less, +100 either way.`,
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
