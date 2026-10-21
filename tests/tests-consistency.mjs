@@ -58,7 +58,7 @@ const code = (text) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 
-const ENGINE_FILES = new Set(["ep.js", "glicko2.js", "openskill.js", "fairshare.js"]);
+const ENGINE_FILES = new Set(["ep.js", "glicko2.js", "openskill.js", "fairshare.js", "league.js"]);
 // Modules allowed to talk to an engine directly:
 //  - the rating service itself (the single dispatcher),
 //  - the engines (they build on each other and on their own helpers).

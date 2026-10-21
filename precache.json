@@ -40,6 +40,7 @@
     "src/domain/fairshare.js",
     "src/domain/fingerprint.js",
     "src/domain/glicko2.js",
+    "src/domain/league.js",
     "src/domain/openskill.js",
     "src/domain/pairing-odds.js",
     "src/domain/pairs.js",
