@@ -283,6 +283,12 @@ for (const sys of SCORING_SYSTEMS) {
     const m0 = matches[matches.length - 1];
     const e = rating.entry(m0);
     ok(`ep: entry() gives win chance and an award breakdown`, e && Number.isFinite(e.expA) && e.breakdown);
+  } else if (sys === "fair") {
+    const m0 = matches[matches.length - 1];
+    const e = rating.entry(m0);
+    const fromWindow = rating.deltas(scopeFor(m0)).get(m0);
+    ok("fair: entry() gives the match's FAIR ASS points and what it was judged on", e && e.matchup && JSON.stringify(e.playerDeltas) === JSON.stringify(fromWindow.playerDeltas));
+    ok("fair: keeps the 50-game newcomer rule", rating.gamesUntilVeteran("Nobody Yet") === rating.maturityGames());
   } else {
     ok(`${sys}: entry() is null (no EP detail)`, rating.entry(matches[0]) === null);
   }

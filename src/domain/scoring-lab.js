@@ -345,7 +345,8 @@ export function labMatchupDeltas(
             info.split[p] = raw === 0 || !sh ? 0 : p === weak ? sh : -sh;
           });
         });
-        out.set(m, { playerDeltas, dA: playerDeltas[teamA[0]], dB: playerDeltas[teamB[0]], matchup: info });
+        const avg = (t) => Math.round(t.reduce((x, p) => x + playerDeltas[p], 0) / t.length);
+        out.set(m, { playerDeltas, dA: avg(teamA), dB: avg(teamB), matchup: info });
       }
     }
     const h = histDeltas.get(m);

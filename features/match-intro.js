@@ -557,7 +557,10 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB, rated
   const ka = allSorted.indexOf(m);
   const lifetimeBefore = ka >= 0 ? allSorted.slice(0, ka) : allSorted;
   const entry = rating.entry(m);
-  const detail = entry ? { expA: entry.expA, breakdown: entry.breakdown } : null;
+  // ASS (and FAIR ASS newcomer matches) carry a win chance + award breakdown;
+  // a FAIR ASS balanced / stacked match carries `matchup` instead.
+  const detail = entry && Number.isFinite(entry.expA) ? { expA: entry.expA, breakdown: entry.breakdown } : null;
+  const mu = entry && entry.matchup && entry.matchup.kind !== "newcomer" ? entry.matchup : null;
   const careerN = careerGamesBefore(m);
 
   const involves = (x, p) => (x.teamA || []).includes(p) || (x.teamB || []).includes(p);
@@ -652,6 +655,16 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB, rated
     parts.push(
       `<div class="mio-dc-row"><span>Form</span><b class="mio-form">${form || "—"}</b></div>`,
     );
+    if (mu && pts && pts[p] !== undefined) {
+      const sign = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v)}`;
+      const role = (m.teamA || []).includes(p) ? mu.roleA : mu.roleB;
+      const won = wonBy(m, p);
+      const what = role === "balanced" ? "Balanced match" : `${role === "stronger" ? "Stronger" : "Weaker"} team`;
+      const sp = mu.split && mu.split[p] ? `, partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
+      parts.push(
+        `<div class="mio-dc-why">${what} (ASS ${mu.ass[p].toFixed(1)}, #${mu.rank[p]} of 4) · ${won ? "win" : "loss"}${sp} → <b>${sign(pts[p])}</b></div>`,
+      );
+    }
     if (bd) {
       const sign = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v)}`;
       const fin = pts && pts[p] !== undefined ? pts[p] : bd.raw + bd.shift;

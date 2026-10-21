@@ -10,6 +10,7 @@ import {
   SCORING_SYSTEM_LABELS,
   SCORING_SYSTEMS_WITH_CONFIDENCE,
   SCORING_SYSTEMS_ZERO_BASED,
+  SCORING_SYSTEMS_POINTS,
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
@@ -887,9 +888,11 @@ let _homeRenderedVersion = -1,
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
 let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
-// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS"), "glicko2",
-// "openskill" or "fairshare". SR bands, defaults and printed forms all live
-// in src/domain/rating-service.js.
+// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS") or "fair"
+// ("FAIR ASS", Fair Matchup Points). Glicko-2 / OpenSkill / Fair Share still
+// exist in the rating service but are no longer offered. SR bands, defaults
+// and printed forms all live in src/domain/rating-service.js.
+const SCORING_PICKABLE = ["ep", "fair"];
 const _srFnForSystem = (system, ratingMap) => rating.srFn(ratingMap, system);
 // The active system lives in the rating service (one copy, so no screen can
 // hold a different one); this block only restores the saved choice.
@@ -897,7 +900,9 @@ try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
   // ASS CLASSIC ("ass") was retired: a device still set to it moves to the
   // default, and the retired season-format preference is dropped.
-  if (_storedSys && SCORING_SYSTEMS.includes(_storedSys)) setActiveSystem(_storedSys);
+  // Only ASS and FAIR ASS are offered now; a device left on Glicko-2,
+  // OpenSkill or Fair Share moves back to ASS.
+  if (_storedSys && SCORING_PICKABLE.includes(_storedSys)) setActiveSystem(_storedSys);
   else if (_storedSys) localStorage.removeItem("padel_scoring_system");
   localStorage.removeItem("padel_season_scoring_mode");
   localStorage.removeItem("padel_goals"); // the retired Goals feature
@@ -5089,7 +5094,7 @@ function _applyCmpColClasses() {
         ? "±RD"
         : rating.system() === "openskill"
           ? "±3σ"
-          : rating.system() === "ep"
+          : SCORING_SYSTEMS_POINTS.includes(rating.system())
             ? "TOTAL"
             : "";
   }
@@ -5166,7 +5171,7 @@ function renderHome() {
   // shows — blank for Fair Share, which has no such total.
   const homeConfMap = rating.conf(homeFull);
   const homeConfLabel =
-    rating.system() === "ep"
+    SCORING_SYSTEMS_POINTS.includes(rating.system())
       ? "pts"
       : rating.system() === "glicko2"
         ? "±RD"
@@ -9528,13 +9533,12 @@ const SCORING_SYSTEM_BLURBS = {
   openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
+  fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 15%). A match with a player under 50 career games is scored as ASS. Score = points ÷ (games + 10).",
 };
 
 // The Advanced group opens by itself when one of its systems is active, so the
 // current selection is never hidden.
-const SCORING_MAIN = ["ep"];
-const SCORING_ADVANCED = SCORING_SYSTEMS.filter((s) => !SCORING_MAIN.includes(s));
-let _scoringAdvancedOpen = false;
+const SCORING_MAIN = SCORING_PICKABLE;
 
 function _scoringSystemPickerRows() {
   const row = (sys) => {
@@ -9543,19 +9547,8 @@ function _scoringSystemPickerRows() {
       <div style="flex:1;text-align:left;font-size:12px;font-weight:800">${selected ? "✓ " : ""}${SCORING_SYSTEM_LABELS[sys]}</div>
     </button>`;
   };
-  const open = _scoringAdvancedOpen || SCORING_ADVANCED.includes(rating.system());
-  return (
-    SCORING_MAIN.map(row).join("") +
-    `<button class="live-sheet-item" aria-expanded="${open}" onclick="_toggleScoringAdvanced()">
-      <div style="flex:1;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">${open ? "▾" : "▸"} ADVANCED <span style="font-weight:600">· ${SCORING_ADVANCED.map((s) => SCORING_SYSTEM_LABELS[s]).join(" · ")} — for comparison</span></div>
-    </button>` +
-    (open ? SCORING_ADVANCED.map(row).join("") : "")
-  );
+  return SCORING_MAIN.map(row).join("");
 }
-window._toggleScoringAdvanced = function () {
-  _scoringAdvancedOpen = !_scoringAdvancedOpen;
-  _renderScoringPickerSheet();
-};
 
 function _renderScoringPickerSheet() {
   const list = document.getElementById("season-scoring-list");
@@ -9578,7 +9571,7 @@ function closeSeasonScoringPicker() {
 }
 
 function _setScoringSystem(sys) {
-  if (!SCORING_SYSTEMS.includes(sys)) return;
+  if (!SCORING_PICKABLE.includes(sys)) return;
   setActiveSystem(sys);
   // Period/reign caches are keyed on the data, not the system.
   _clearAnalyticsCache();
@@ -9601,6 +9594,7 @@ function _setScoringSystem(sys) {
 // worked numeric example — a floating popup (not the picker sheet) so
 // tapping ⓘ never accidentally changes a selection.
 const SCORING_SYSTEM_EXAMPLES = {
+  fair: `<b>Example:</b> Vinit (ASS 96) + Nilesh (84) beat Rahul M (99) + Sachin (88) 4–3. Rahul M + Sachin were the stronger team, so this is an underdog win: +120 each, split by the partners' gap — <b>Nilesh +131, Vinit +109</b>. The stronger team lost 4–3: −30 each — <b>Rahul M −33, Sachin −27</b>. Had the stronger team won instead, they'd have earned only +50 each.`,
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
   fairshare: `<b>Example:</b> a 1300-rated player and a 700-rated player team up and beat two 1000-rated players; the win is worth 18 points to the team. Because Puneet (700) is the weaker partner, he gets the bigger share: <b>Puneet +26, Ankit +10</b> (average 18 — the team total either way). Had they LOST instead, Puneet would drop more too — <b>Puneet −35, Ankit −13</b> — the split always favours whichever partner the match rode on more, win or lose.`,
@@ -9614,14 +9608,11 @@ function _scoringInfoHtml() {
       <div class="scoring-info-body">${SCORING_SYSTEM_BLURBS[sys]}</div>
       <div class="scoring-info-example">${SCORING_SYSTEM_EXAMPLES[sys] || ""}</div>
     </div>`;
-  const sysRows =
-    SCORING_MAIN.map(sysRow).join("") +
-    `<div class="scoring-info-section-lbl" style="margin-top:12px">ADVANCED <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">(kept for comparison)</span></div>` +
-    SCORING_ADVANCED.map(sysRow).join("");
+  const sysRows = SCORING_MAIN.map(sysRow).join("");
   return `
     <div class="scoring-info-section-lbl">SCORING SYSTEMS</div>
     ${sysRows}
-    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">ASS starts everyone at 0 and ranks points earned per match; the other systems start new players at 1000. "±" columns show how confident the system is — a wide band means "not proven yet," and it narrows the more a player plays.</div>
+    <div style="font-size:9px;color:var(--muted);padding:10px 10px 2px;line-height:1.5">Both start everyone at 0 and rank points earned per match (score = points ÷ (games + 10), ×2 on ASS), so showing up counts but mileage alone can't buy a top spot. The TOTAL column is the raw points earned.</div>
   `;
 }
 
