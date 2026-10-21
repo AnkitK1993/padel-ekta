@@ -1,5 +1,5 @@
 // ── LEAGUE ─────────────────────────────────────────────────────────────
-// Football-style standings: a win is worth 3 points, a loss costs 2. The table
+// Football-style standings: a win is worth 3 points, a loss costs 1. The table
 // is ordered by points, then game difference (games won − games lost); two
 // players level on both share the place.
 //
@@ -9,7 +9,7 @@
 // gets near 1000), so sorting on the number alone gives exactly points → game
 // difference → tie.
 export const LEAGUE_WIN_POINTS = 3;
-export const LEAGUE_LOSS_POINTS = -2;
+export const LEAGUE_LOSS_POINTS = -1;
 const LEAGUE_GD_STEP = 1e-4;
 
 const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
@@ -40,7 +40,7 @@ export function computeLeagueFull(matches) {
 }
 
 // Per-match { playerDeltas (change in the headline number), playerAfter
-// (the number after the match), points (+3 / −2) }, walked in date order.
+// (the number after the match), points (+3 / −1) }, walked in date order.
 export function computeMatchLeagueDeltas(matches) {
   const run = {};
   const out = new Map();

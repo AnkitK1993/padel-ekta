@@ -166,7 +166,7 @@ function minMaxSrFn(ratingMap, round = true) {
 const LADDERS = {
   classic: { steps: [1050, 1100, 1150, 1200, 1250, 1300], elite: 1200, bigGain: 50 },
   zeroBased: { steps: [25, 50, 75, 100], elite: 90, bigGain: 10 },
-  // LEAGUE's number is a points total (+3 a win, −2 a loss).
+  // LEAGUE's number is a points total (+3 a win, −1 a loss).
   league: { steps: [25, 50, 100, 150], elite: 100, bigGain: 5 },
 };
 
