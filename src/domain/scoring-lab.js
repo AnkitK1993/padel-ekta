@@ -447,6 +447,21 @@ export const LAB_OPTIONS = [
     desc: "The leaderboard on the Summary tab's scoring (ASS or FAIR ASS) — then pick a player and give them extra points in every match they played in this view, and see where that would put them. ▲▼ show places gained or lost against the same board without the grace marks.",
   },
   {
+    id: "pre1oct",
+    label: "ASS before 1 Oct",
+    kind: "ep",
+    params: {
+      winMode: "classic",
+      lossMode: "classic",
+      lossBase: 40,
+      penalty: 60,
+      splitMax: 0,
+      expectation: "career",
+      scale: 2,
+    },
+    desc: "ASS exactly as the app scored it up to 1 October (the engine was unchanged from 21 Sep to 11 Oct). A win pays 50–150 depending on how big an underdog the team was — bigger upsets pay much more — times the margin. A loss pays a 'turned up' credit of up to 40 minus a penalty of up to 60 that grows over a player's first 50 career games, so veterans lose up to about 60 for a loss as heavy favourites. Who's favoured is learned from all history, both partners always get the same points, and score = 2 × points ÷ (games + 10).",
+  },
+  {
     id: "matchup",
     label: "Fair Matchup Points",
     kind: "matchup",

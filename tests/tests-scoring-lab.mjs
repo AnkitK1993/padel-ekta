@@ -248,7 +248,7 @@ console.log("\n\x1b[36m── grace marks ────────────�
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("five options: live, custom sliders, gap rule, grace marks and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,matchup" && labOption("custom").kind === "matchup");
+ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,matchup" && labOption("custom").kind === "matchup");
 ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=15,gapBalanced=10,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
