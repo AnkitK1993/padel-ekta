@@ -5101,13 +5101,8 @@ function _applyCmpColClasses() {
             ? "TOTAL"
             : "";
   }
-  const assTh = document.getElementById("cmp-ass-th");
-  if (assTh) {
-    const prevArrow = assTh.querySelector(".sort-arrow");
-    const arrowText = prevArrow ? prevArrow.textContent : "";
-    const arrowActive = prevArrow ? prevArrow.classList.contains("active") : false;
-    assTh.innerHTML = `${SCORING_SYSTEM_LABELS[rating.system()]} <span class="sort-arrow${arrowActive ? " active" : ""}" id="sort-ass">${arrowText}</span>`;
-  }
+  // The score column keeps its "ASS" header (index.html) whatever system is
+  // picked — the scoring badge beside the title names the active one.
 }
 
 function onCmpFilter() {
