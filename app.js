@@ -888,13 +888,12 @@ let _homeRenderedVersion = -1,
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
 let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
-// Summary-tab scoring SYSTEM — "league" (default, football-style "LEAGUE"),
-// "ep" ("ASS"), "fair"
+// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS"), "fair"
 // ("FAIR ASS", Fair Matchup Points) or "fairgap" ("FAIR ASS GAP", the same
 // with the gap rule). Glicko-2 / OpenSkill / Fair Share still
 // exist in the rating service but are no longer offered. SR bands, defaults
 // and printed forms all live in src/domain/rating-service.js.
-const SCORING_PICKABLE = ["league", "ep", "fair", "fairgap"];
+const SCORING_PICKABLE = ["ep", "fair", "fairgap"];
 const _srFnForSystem = (system, ratingMap) => rating.srFn(ratingMap, system);
 // The active system lives in the rating service (one copy, so no screen can
 // hold a different one); this block only restores the saved choice.
@@ -906,16 +905,11 @@ try {
   // OpenSkill or Fair Share moves back to ASS.
   if (_storedSys && SCORING_PICKABLE.includes(_storedSys)) setActiveSystem(_storedSys);
   else if (_storedSys) localStorage.removeItem("padel_scoring_system");
-  // LEAGUE became the default: every device starts on it once, whatever it
-  // had picked before; a pick made after that sticks.
-  if (!localStorage.getItem("padel_scoring_league_v1")) {
-    setActiveSystem("league");
-    localStorage.removeItem("padel_scoring_system");
-    localStorage.setItem("padel_scoring_league_v1", "1");
-  }
   localStorage.removeItem("padel_season_scoring_mode");
   localStorage.removeItem("padel_goals"); // the retired Goals feature
   localStorage.removeItem("padel_scoring_renamed_v1");
+  // LEAGUE was retired: a device left on it was dropped to ASS above.
+  localStorage.removeItem("padel_scoring_league_v1");
 } catch (e) {
   noteError("app:restoreScoringSystem", e);
 }
@@ -1069,12 +1063,6 @@ let _pvpLow = 20,
   _pvpHigh = 32; // partner % color thresholds: red ≤ low, low < orange ≤ high, green > high
 let cmpSortKey = "ass";
 let cmpSortAsc = false;
-// The board's default order: the scoring number, except LEAGUE over ALL TIME,
-// which is ordered by win % (then game difference). A header the user taps
-// overrides it until the period or the scoring system changes.
-let _cmpSortUserSet = false;
-let _cmpSortCtx = "";
-const _cmpDefaultSortKey = () => (rating.system() === "league" && cmpFilter === "all" ? "winPct" : "ass");
 let cmpRecordSortMode = "wins";
 let _cmpLeaderHtmls = [];
 let _cmpFiltered = [];
@@ -5588,15 +5576,6 @@ window.removeStatsCache = function removeStatsCache() {
 // runSpeedometerSweep -> ./render-anim.js
 
 function renderCompact() {
-  const _sortCtx = `${rating.system()}|${cmpFilter === "all" ? "all" : "period"}`;
-  if (_sortCtx !== _cmpSortCtx) {
-    _cmpSortCtx = _sortCtx;
-    _cmpSortUserSet = false;
-  }
-  if (!_cmpSortUserSet) {
-    cmpSortKey = _cmpDefaultSortKey();
-    cmpSortAsc = false;
-  }
   _compactRenderedVersion = _dataVersion;
   _compactRenderedFilter = `${cmpFilter}|${cmpFrom || ""}|${cmpTo || ""}|${cmpSortKey}|${cmpSortAsc}|${[..._excludedPlayers].sort().join(",")}|${_lbWindow ? `${_lbWindow.mode}:${_lbWindow.count}` : "none"}|${rating.system()}`;
   _renderSeasonQuickSwitch();
@@ -5634,8 +5613,7 @@ function renderCompact() {
       }
       return 0;
     },
-    // Level on win %: game difference, then a shared place.
-    winPct: (a, b) => a.winPct - b.winPct || a.gw - a.gl - (b.gw - b.gl),
+    winPct: (a, b) => a.winPct - b.winPct,
     gw: (a, b) => a.gw - b.gw,
     gl: (a, b) => a.gl - b.gl,
     gamePct: (a, b) => a.gamePct - b.gamePct,
@@ -5645,9 +5623,6 @@ function renderCompact() {
     conf: (a, b) =>
       (_cmpConfMap?.[a.name] ?? 0) - (_cmpConfMap?.[b.name] ?? 0),
     sr: (a, b) => {
-      // LEAGUE: the table order itself (win %, then game difference).
-      if (rating.system() === "league")
-        return (_cmpASSMap[a.name] ?? 0) - (_cmpASSMap[b.name] ?? 0);
       // Compare at display precision (SR 2dp, G% 0dp) so two players that
       // look identical on screen resolve to a real tie instead of being
       // split by sub-pixel float noise. Order: SR -> G% -> GW.
@@ -6025,7 +6000,6 @@ function updateSortArrows() {
 }
 
 function setCmpSort(key) {
-  _cmpSortUserSet = true;
   if (cmpSortKey === key) {
     if (key === "record") {
       cmpRecordSortMode = cmpRecordSortMode === "wins" ? "losses" : "wins";
@@ -9563,7 +9537,6 @@ const SCORING_SYSTEM_BLURBS = {
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
   fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 15%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
-  league: "Football-style table. A win is +3 points, a loss −1 — the number shown is the points total, and the table is ordered by it. Players level on points are split by game difference (games won − games lost); level on both, they share the place. A win is worth three losses, so a 1–4 day (−1) still finishes above a 0–2 day (−2), but a long losing run pulls you down. Simple and easy to check: no ratings of opponents, no newcomer rules.",
   fairgap: "FAIR ASS, but the teams' gap decides how stacked a match was. Add up both partners' ASS (this season) for each team: a gap of up to 15 is balanced (win 100–120, loss 0 to −20) — in our matches the higher-rated team wins only about half of those. From a gap of 30 it's fully stacked: the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 — past 30 the stronger team wins about 7 in 10. In between, the points slide gradually from balanced to stacked. Partner split, the newcomer rule and the score are as FAIR ASS: score = 2 × points ÷ (games + 10).",
 };
 
@@ -9629,7 +9602,6 @@ function _setScoringSystem(sys) {
 // tapping ⓘ never accidentally changes a selection.
 const SCORING_SYSTEM_EXAMPLES = {
   fair: `<b>Example:</b> Vinit (ASS 96) + Nilesh (84) beat Rahul M (99) + Sachin (88) 4–3. Rahul M + Sachin were the stronger team, so this is an underdog win: +120 each, split by the partners' gap — <b>Nilesh +131, Vinit +109</b>. The stronger team lost 4–3: −30 each — <b>Rahul M −33, Sachin −27</b>. Had the stronger team won instead, they'd have earned only +50 each.`,
-  league: `<b>Example:</b> Nilesh goes 3W–1L (games 14–9) and Ankit 3W–2L (games 14–12). Nilesh: 3×3 − 1 = <b>8</b>; Ankit: 3×3 − 2 = <b>7</b> — Nilesh above. Puneet 1W–4L is on 3 − 4 = <b>−1</b>, above Ayaan 0W–2L on <b>−2</b>. Level on points, game difference decides; level on that too, they share the place.`,
   fairgap: `<b>Example:</b> Ankit (87) + Rahul G (80) = 167 play Vinit (99) + Sachin (86) = 185 — a gap of 18, a fifth of the way from balanced (15) to fully stacked (30). If Vinit + Sachin win 4–3 they get about <b>+90</b> each instead of +100; if Ankit + Rahul G win 4–3 they get about <b>+104</b>. With a gap of 30 or more those would be +50 and +120; with 15 or less, +100 either way.`,
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,

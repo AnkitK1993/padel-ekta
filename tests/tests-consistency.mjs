@@ -58,7 +58,7 @@ const code = (text) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 
-const ENGINE_FILES = new Set(["ep.js", "glicko2.js", "openskill.js", "fairshare.js", "league.js"]);
+const ENGINE_FILES = new Set(["ep.js", "glicko2.js", "openskill.js", "fairshare.js"]);
 // Modules allowed to talk to an engine directly:
 //  - the rating service itself (the single dispatcher),
 //  - the engines (they build on each other and on their own helpers).
@@ -230,10 +230,9 @@ for (const sys of SCORING_SYSTEMS) {
       return tl.history[p].length === played;
     }),
   );
-  const twoDp = rating.isZeroBased() && sys !== "league"; // LEAGUE prints whole points
   ok(
-    `${sys}: fmt prints ${twoDp ? "2 decimals" : "whole numbers"}`,
-    twoDp ? rating.fmt(1.005) === "1.00" || rating.fmt(1.005) === "1.01" : rating.fmt(1000.4) === "1000",
+    `${sys}: fmt prints ${rating.isZeroBased() ? "2 decimals" : "whole numbers"}`,
+    rating.isZeroBased() ? rating.fmt(1.005) === "1.00" || rating.fmt(1.005) === "1.01" : rating.fmt(1000.4) === "1000",
   );
   ok(
     `${sys}: def() is the baseline an unrated player reads as`,

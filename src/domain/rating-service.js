@@ -20,13 +20,12 @@ import {
   EP_SHRINKAGE,
   MATURITY_GAMES,
 } from "./ep.js";
-import { computeLeagueFull, computeMatchLeagueDeltas } from "./league.js";
 import { computeStats, ratingToSr } from "./stats.js";
 import { labMatchupDeltas, labEPFull } from "./scoring-lab.js";
 import { withoutGuestMatches, ratedMatches, isRatedMatch, _inSeason } from "./selectors.js";
 import { state } from "./state.js";
 
-export const SCORING_SYSTEMS = ["league", "ep", "fair", "fairgap", "glicko2", "openskill", "fairshare"];
+export const SCORING_SYSTEMS = ["ep", "fair", "fairgap", "glicko2", "openskill", "fairshare"];
 // Earned Points ("ep") carries the house name, "ASS". (The original
 // margin x opponent-strength engine, ASS CLASSIC, was retired.)
 export const SCORING_SYSTEM_LABELS = {
@@ -36,14 +35,13 @@ export const SCORING_SYSTEM_LABELS = {
   ep: "ASS",
   fair: "FAIR ASS",
   fairgap: "FAIR ASS GAP",
-  league: "LEAGUE",
 };
 // Systems that fill the extra numeric column beside the rating — a "±"
 // confidence band for Glicko-2/OpenSkill, total points earned for EP.
 export const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep", "fair", "fairgap"];
 // 0-based systems: no 1000 baseline, headline number small enough that the
 // decimal carries real ordering information.
-export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap", "league"];
+export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap"];
 // Points-based systems: a running total of earned points, a newcomer rule and
 // a per-match points entry. "fair" (FAIR ASS) is Fair Matchup Points from the
 // Scoring Lab: balanced / stacked team points + partner split, with any match
@@ -55,9 +53,7 @@ const MATCHUP_SYSTEMS = { fair: {}, fairgap: { gapRule: true, gapBalanced: 15, g
 const isMatchup = (s) => Object.hasOwn(MATCHUP_SYSTEMS, s);
 const FAIR_SCALE = 2; // FAIR ASS score = 2 × points ÷ (games + 10), like ASS
 
-// LEAGUE (football-style: win % then game difference, 3 points a win) is the
-// default.
-let _system = "league";
+let _system = "ep";
 export function setActiveSystem(sys) {
   if (SCORING_SYSTEMS.includes(sys)) _system = sys;
   return _system;
@@ -166,8 +162,6 @@ function minMaxSrFn(ratingMap, round = true) {
 const LADDERS = {
   classic: { steps: [1050, 1100, 1150, 1200, 1250, 1300], elite: 1200, bigGain: 50 },
   zeroBased: { steps: [25, 50, 75, 100], elite: 90, bigGain: 10 },
-  // LEAGUE's number is a points total (+3 a win, −1 a loss).
-  league: { steps: [25, 50, 100, 150], elite: 100, bigGain: 5 },
 };
 
 // Generic running-total timeline for engines without a bespoke one.
@@ -275,7 +269,7 @@ export const rating = {
   def: (s = _system) => (SCORING_SYSTEMS_ZERO_BASED.includes(s) ? 0 : 1000),
   // Underdog margin for badge thresholds, on the system's own scale.
   underdogGap: (s = _system) =>
-    s === "league" ? 10 : isMatchup(s) ? 2 * FAIR_SCALE : SCORING_SYSTEMS_ZERO_BASED.includes(s) ? 2 * EP_SCALE : 30,
+    isMatchup(s) ? 2 * FAIR_SCALE : SCORING_SYSTEMS_ZERO_BASED.includes(s) ? 2 * EP_SCALE : 30,
   srFn: (ratingMap, s = _system) =>
     SCORING_SYSTEMS_ZERO_BASED.includes(s) ? minMaxSrFn(ratingMap) : ratingToSr,
   // name -> scale-free strength (unrounded 0-10 SR band). For heuristics that
@@ -290,7 +284,7 @@ export const rating = {
     return (name) => toSr(ratingMap?.[name] ?? def);
   },
   ladder: (s = _system) =>
-    s === "league" ? LADDERS.league : SCORING_SYSTEMS_ZERO_BASED.includes(s) ? LADDERS.zeroBased : LADDERS.classic,
+    SCORING_SYSTEMS_ZERO_BASED.includes(s) ? LADDERS.zeroBased : LADDERS.classic,
 
   // Raw per-system detail ({r,rd}/{mu,sigma}/{ep,games,score}/null) — one
   // engine walk yields both the flat rating and the confidence column.
@@ -299,7 +293,6 @@ export const rating = {
     if (s === "openskill") return computeOpenSkillFull(matches);
     if (s === "ep") return computeEPFull(matches, careerMatches());
     if (isMatchup(s)) return fairFull(matches, s);
-    if (s === "league") return computeLeagueFull(matches);
     return null;
   },
   flat(matches, full, s = _system) {
@@ -310,7 +303,7 @@ export const rating = {
     };
     if (s === "glicko2") return pick("r");
     if (s === "openskill") return pick("mu");
-    if (s === "ep" || isMatchup(s) || s === "league") return pick("score");
+    if (s === "ep" || isMatchup(s)) return pick("score");
     return computeFairShare(matches);
   },
   map(matches, s = _system) {
@@ -369,13 +362,12 @@ export const rating = {
     if (s === "openskill") return computeMatchOpenSkillDeltas(matches);
     if (s === "fairshare") return computeMatchFairShareDeltas(matches);
     if (isMatchup(s)) return fairDeltas(matches, s);
-    if (s === "league") return computeMatchLeagueDeltas(matches);
     return computeMatchEPDeltas(matches, careerMatches(), opts);
   },
   timeline(matches, s = _system) {
     if (s === "ep") return computeEPTimeline(matches, careerMatches());
     if (isMatchup(s)) return pointsTimeline(matches, fairDeltas(matches, s), FAIR_SCALE);
-    return timelineFromDeltas(matches, rating.deltas(matches, s), rating.def(s));
+    return timelineFromDeltas(matches, rating.deltas(matches, s), 1000);
   },
   // EP "fresh session" snapshot: expectation restarts level, career counts stay.
   fresh(matches, s = _system) {
@@ -434,13 +426,11 @@ export const rating = {
   // EP only: the leaderboard score a running points total over `games` games
   // would produce (what the board prints), for what-if projections.
   scoreFor(total, games, s = _system) {
-    if (s === "league") return total;
     return ((isMatchup(s) ? FAIR_SCALE : EP_SCALE) * total) / (games + EP_SHRINKAGE);
   },
   // Numeric rounding to the precision the system prints with (whole numbers,
   // or 2 decimals for the 0-based score).
   round(v, s = _system) {
-    if (s === "league") return Math.round(v);
     return SCORING_SYSTEMS_ZERO_BASED.includes(s)
       ? Math.round(v * 100) / 100
       : Math.round(v);
@@ -448,6 +438,6 @@ export const rating = {
   // Printed form of a rating OR a rating change.
   fmt(v, s = _system) {
     if (v == null || !Number.isFinite(v)) return "—";
-    return SCORING_SYSTEMS_ZERO_BASED.includes(s) && s !== "league" ? v.toFixed(2) : String(Math.round(v));
+    return SCORING_SYSTEMS_ZERO_BASED.includes(s) ? v.toFixed(2) : String(Math.round(v));
   },
 };
