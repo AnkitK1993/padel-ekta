@@ -47,9 +47,11 @@ export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap"];
 // Scoring Lab: balanced / stacked team points + partner split, with any match
 // that has a newcomer (< 50 career games) scored exactly as ASS. "fairgap"
 // (FAIR ASS GAP) is the same with the Lab's gap rule: the teams' combined-ASS
-// gap decides balanced (≤ 15) / graded / fully stacked (≥ 30).
+// gap decides balanced (≤ 15) / graded / fully stacked (≥ 30), with the
+// early-season fix — a player's all-history ASS sets the gap until they have
+// 10 games in the season.
 export const SCORING_SYSTEMS_POINTS = ["ep", "fair", "fairgap"];
-const MATCHUP_SYSTEMS = { fair: {}, fairgap: { gapRule: true, gapBalanced: 15, gapFull: 30 } };
+const MATCHUP_SYSTEMS = { fair: {}, fairgap: { gapRule: true, gapBalanced: 15, gapFull: 30, earlyCareer: true, earlyGames: 10 } };
 const isMatchup = (s) => Object.hasOwn(MATCHUP_SYSTEMS, s);
 const FAIR_SCALE = 2; // FAIR ASS score = 2 × points ÷ (games + 10), like ASS
 
