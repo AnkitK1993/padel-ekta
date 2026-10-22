@@ -12177,7 +12177,7 @@ function _labRun(opt, matches) {
     const sys = rating.system();
     const base =
       sys === "fair" || sys === "fairgap"
-        ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey, ...(sys === "fairgap" ? { gapRule: true, gapBalanced: 15, gapFull: 30, earlyCareer: true, earlyGames: 10 } : {}) })
+        ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey, ...(sys === "fairgap" ? { gapRule: true, gapBalanced: 15, gapFull: 30, earlyCareer: true, earlyGames: 10, earlyPrevGames: 50 } : {}) })
         : labEPDeltas(matches, career);
     deltas = labAddGrace(base, _labGracePlayer, opt.gracePts ?? _labCustom.graceMarks);
     full = labEPFull(deltas, { scale: 2 });
@@ -12421,7 +12421,7 @@ function _scoringLabInner() {
           const r = role(p);
           const won = (m.teamA || []).includes(p) === aWon;
           const sp = mu.split?.[p] ? ` · partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
-          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : mu.assFrom[p] === "previous" ? "last 50 before this season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"}${sp}${e.grace?.player === p ? ` · grace +${e.grace.pts}` : ""} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
+          return `<div><b>${escHtml(p)}</b> · ASS ${mu.ass[p].toFixed(1)} ${mu.assFrom[p] === "season" ? "this season" : mu.assFrom[p] === "previous" ? "previous season" : "all-history"} (rank ${mu.rank[p]} of 4) · ${mu.seasonGames[p]} games this season · ${r === "balanced" ? "balanced match" : r + " team"} · ${won ? "won" : "lost"}${sp}${e.grace?.player === p ? ` · grace +${e.grace.pts}` : ""} = <b>${e.playerDeltas[p] > 0 ? "+" : ""}${e.playerDeltas[p]}</b></div>`;
         };
         const gapLine =
           mu.gap != null

@@ -51,7 +51,7 @@ export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap"];
 // early-season fix — a player's ASS over their last 50 games before the season
 // sets the gap until they have 10 games in the season.
 export const SCORING_SYSTEMS_POINTS = ["ep", "fair", "fairgap"];
-const MATCHUP_SYSTEMS = { fair: {}, fairgap: { gapRule: true, gapBalanced: 15, gapFull: 30, earlyCareer: true, earlyGames: 10 } };
+const MATCHUP_SYSTEMS = { fair: {}, fairgap: { gapRule: true, gapBalanced: 15, gapFull: 30, earlyCareer: true, earlyGames: 10, earlyPrevGames: 50 } };
 const isMatchup = (s) => Object.hasOwn(MATCHUP_SYSTEMS, s);
 const FAIR_SCALE = 2; // FAIR ASS score = 2 × points ÷ (games + 10), like ASS
 
