@@ -12301,7 +12301,7 @@ function _labGapTable() {
     const [sw, sl, ww] = at(s);
     return `<tr><td>${label}</td><td class="tp">+${sw}</td><td class="tn">${sl || 0}</td><td class="tp">+${ww}</td></tr>`;
   };
-  return `<table class="lab-pts"><thead><tr><th>4–3, TEAM GAP</th><th>STRONGER WINS</th><th>STRONGER LOSES</th><th>WEAKER WINS</th></tr></thead><tbody>${row(`≤ ${b}`, 0)}${f > b + 1 ? row(`${mid}`, 0.5) : ""}${row(`${Math.max(f, b + 1)}+`, 1)}</tbody></table><div class="lab-pts-n">A 4–0 shifts the same way between +120 / −20 / +120 (balanced) and +70 / −40 / +140 (fully stacked). The weaker team never loses more than a balanced loss.${_labCustom.topTier ? " Top 6 rule on: a team with more of the current top 6 is the stronger team and at least 50% stacked." : ""}</div>`;
+  return `<table class="lab-pts"><thead><tr><th>4–3, TEAM GAP</th><th>STRONGER WINS</th><th>STRONGER LOSES</th><th>WEAKER WINS</th></tr></thead><tbody>${row(`≤ ${b}`, 0)}${f > b + 1 ? row(`${mid}`, 0.5) : ""}${row(`${Math.max(f, b + 1)}+`, 1)}</tbody></table><div class="lab-pts-n">A 4–0 shifts the same way between +120 / −20 / +120 (balanced) and +70 / −40 / +140 (fully stacked). The weaker team never loses more than a balanced loss. Partner split up to ${_labCustom.splitCap}% (${Math.round((_labCustom.splitCap / 20) * 100) / 100}% per ASS point between partners).${_labCustom.topTier ? " Top 6 rule on: a team with more of the current top 6 is the stronger team and at least 50% stacked." : ""}</div>`;
 }
 function _labSlidersReset() {
   const keys = _labSliderKeys(labOption(_labId));
@@ -12336,7 +12336,9 @@ function _scoringLabInner() {
           : ""
     }<div class="lab-scope">${escHtml(scope)}</div></div>${
       _labSliderKeys(opt).length
-        ? `<div class="lab-sliders">${opt.kind === "grace" ? _labGracePickerHtml(matches) : ""}${LAB_SLIDERS.filter((s) => _labSliderKeys(opt).includes(s.key))
+        ? `<div class="lab-sliders">${opt.kind === "grace" ? _labGracePickerHtml(matches) : ""}${_labSliderKeys(opt)
+            .map((k) => LAB_SLIDERS.find((s) => s.key === k))
+            .filter(Boolean)
             .map((s) =>
               s.toggle
                 ? `<label class="lab-slider lab-toggle"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key] ? "On" : "Off"}</b></span>

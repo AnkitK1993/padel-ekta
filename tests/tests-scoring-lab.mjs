@@ -247,7 +247,7 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
     });
   });
   ok("partly stacked points sit between the balanced and the stacked numbers", interp && checked > 10);
-  ok("the gap-rule option: balanced up to (default 15), fully stacked from (default 30), top 6 toggle (off)", same(labOption("gaprule").sliders, ["gapBalanced", "gapFull", "topTier"]) && LAB_SLIDERS.find((s) => s.key === "gapBalanced").def === 15 && LAB_SLIDERS.find((s) => s.key === "gapFull").def === 30 && LAB_SLIDERS.find((s) => s.key === "topTier").toggle && LAB_SLIDERS.find((s) => s.key === "topTier").def === 0);
+  ok("the gap-rule option: balanced up to (default 15), fully stacked from (default 30), partner split (default 15%), top 6 toggle (off)", same(labOption("gaprule").sliders, ["gapBalanced", "gapFull", "splitCap", "topTier"]) && LAB_SLIDERS.find((s) => s.key === "gapBalanced").def === 15 && LAB_SLIDERS.find((s) => s.key === "gapFull").def === 30 && LAB_SLIDERS.find((s) => s.key === "topTier").toggle && LAB_SLIDERS.find((s) => s.key === "topTier").def === 0);
 }
 
 console.log("\n\x1b[36m── grace marks ───────────────────────────────────────\x1b[0m");
