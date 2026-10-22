@@ -235,18 +235,29 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   ok("top 6 rule: equal top-6 counts = the plain gap rule", sameOk);
   const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
   const early = labMatchupDeltas(w, career, { seasonGames: 0, seasonKey: half2, gapRule: true, earlyCareer: true, earlyGames: 5 });
-  const asSg5 = labMatchupDeltas(w, career, { seasonGames: 5, seasonKey: half2, gapRule: true });
-  let earlyOk = true, hist = 0, seas = 0;
+  // Expected: ASS over the player's last 50 games before their season, points as scored in that season.
+  const walkAll = [...career].sort((a, b) => a.date.localeCompare(b.date));
+  const s1 = walkAll.filter((m) => half2(m) === "S1");
+  const s1Pts = labEPDeltas(s1, walkAll);
+  const prevWant = (p) => {
+    const ms = s1.filter((m) => [...m.teamA, ...m.teamB].includes(p)).slice(-50);
+    return ms.length ? (2 * ms.reduce((t, m) => t + s1Pts.get(m).playerDeltas[p], 0)) / (ms.length + 10) : null;
+  };
+  let earlyOk = true, prev = 0, seas = 0;
   w.forEach((m) => {
     const x = early.get(m).matchup;
-    if (!same(x.ass, asSg5.get(m).matchup.ass)) earlyOk = false;
     Object.keys(x.assFrom).forEach((p) => {
-      const want = x.seasonGames[p] < 5 ? "history" : "season";
-      if (x.assFrom[p] !== want) earlyOk = false;
-      want === "history" ? hist++ : seas++;
+      if (half2(m) === "S2" && x.seasonGames[p] < 5) {
+        const want = prevWant(p);
+        if (want === null ? x.assFrom[p] !== "season" : x.assFrom[p] !== "previous" || Math.abs(x.ass[p] - want) > 1e-9) earlyOk = false;
+        prev++;
+      } else if (half2(m) === "S2") {
+        if (x.assFrom[p] !== "season") earlyOk = false;
+        seas++;
+      }
     });
   });
-  ok("early-season fix: all-history ASS until N games this season, then the season's", earlyOk && hist > 0 && seas > 0);
+  ok("early-season fix: ASS over the last 50 games before the season until N games this season, then the season's", earlyOk && prev > 0 && seas > 0);
   const off = labMatchupDeltas(w, career, { seasonGames: 0, seasonKey: half2, gapRule: true, earlyCareer: false, earlyGames: 5 });
   ok("early-season fix off = season ASS from the first game", w.every((m) => Object.values(off.get(m).matchup.assFrom).every((f) => f === "season")));
   const half = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, gapBalanced: 10, gapFull: 40, splitCap: 0 });

@@ -272,14 +272,15 @@ export function labMatchupDeltas(
     // season ASS, among players with 10+ games this season) that team is the
     // stronger one and the split is at least half stacked.
     topTier = false,
-    // Early-season fix: read all-history ASS (instead of this season's) for a
-    // player until they have earlyGames games this season — overrides
-    // seasonGames when on.
+    // Early-season fix: until a player has earlyGames games this season, read
+    // their ASS over their last earlyPrevGames games before the season (points
+    // as scored in those seasons), instead of this season's near-zero ASS.
+    // A player with no earlier games keeps this season's.
     earlyCareer = false,
     earlyGames = 10,
+    earlyPrevGames = 50,
   } = {},
 ) {
-  if (earlyCareer) seasonGames = Math.max(0, Number(earlyGames) || 0);
   const winScale = winBase / MATCHUP_WIN_REF;
   const lossScale = lossMax / MATCHUP_LOSS_REF;
   const walk = [...new Set([...(career || []), ...(matches || [])])].sort(byDate);
@@ -303,6 +304,22 @@ export function labMatchupDeltas(
   );
   const tot = {};
   const games = {};
+  const recent = {}; // player -> [{ k, d }] season-scored points, in order
+  const prevCache = new Map();
+  // ASS over p's last earlyPrevGames games before season k (null: none).
+  const prevAss = (p, k) => {
+    const key = `${k}|${p}`;
+    if (!prevCache.has(key)) {
+      const before = (recent[p] || []).filter((e) => e.k !== k).slice(-Math.max(1, earlyPrevGames));
+      prevCache.set(
+        key,
+        before.length
+          ? (LAB_EP_DEFAULTS.scale * before.reduce((t, e) => t + e.d, 0)) / (before.length + LAB_EP_DEFAULTS.shrinkage)
+          : null,
+      );
+    }
+    return prevCache.get(key);
+  };
   const sTot = {}; // season key -> { player: points }
   const sGames = {};
   const careerGames = {};
@@ -317,14 +334,22 @@ export function labMatchupDeltas(
     const sg = (sGames[k] ||= {});
     const score = (t, n) => (LAB_EP_DEFAULTS.scale * (t || 0)) / ((n || 0) + LAB_EP_DEFAULTS.shrinkage);
     const ass = {};
-    const assFrom = {}; // "history" until 50 games this season, then "season"
+    const assFrom = {}; // "season", "history" (all-history) or "previous" (early-season fix)
     const cg = {};
     const sgBefore = {};
+    // One player's reading: the early-season fix first, then season / history.
+    const readAss = (p) => {
+      const n = sg[p] || 0;
+      if (earlyCareer && n < earlyGames) {
+        const prev = prevAss(p, k);
+        if (prev !== null) return [prev, "previous"];
+        return [score(st[p], sg[p]), "season"];
+      }
+      return n >= seasonGames ? [score(st[p], sg[p]), "season"] : [score(tot[p], games[p]), "history"];
+    };
     four.forEach((p) => {
       sgBefore[p] = sg[p] || 0;
-      const season = sgBefore[p] >= seasonGames;
-      ass[p] = season ? score(st[p], sg[p]) : score(tot[p], games[p]);
-      assFrom[p] = season ? "season" : "history";
+      [ass[p], assFrom[p]] = readAss(p);
       cg[p] = careerGames[p] || 0;
     });
     if (scoring.has(m) && teamA.length && teamB.length) {
@@ -354,7 +379,7 @@ export function labMatchupDeltas(
           if (topTier) {
             // The current top 6: season ASS of everyone with 10+ games this
             // season (same reading as above), plus the four in this match.
-            const read = (p) => (p in ass ? ass[p] : (sg[p] || 0) >= seasonGames ? score(st[p], sg[p]) : score(tot[p], games[p]));
+            const read = (p) => (p in ass ? ass[p] : readAss(p)[0]);
             const pool = new Set([...Object.keys(sg).filter((p) => sg[p] >= TOP_TIER_GAMES), ...four]);
             const top = [...pool].sort((x, y) => read(y) - read(x) || x.localeCompare(y)).slice(0, TOP_TIER_SIZE);
             info.top = top;
@@ -407,6 +432,7 @@ export function labMatchupDeltas(
       if (sd) {
         st[p] = (st[p] || 0) + sd.playerDeltas[p];
         sg[p] = (sg[p] || 0) + 1;
+        (recent[p] ||= []).push({ k, d: sd.playerDeltas[p] });
       }
       if (h) {
         tot[p] = (tot[p] || 0) + h.playerDeltas[p];
@@ -462,7 +488,7 @@ export const LAB_OPTIONS = [
     kind: "matchup",
     params: { seasonGames: 0, gapRule: true },
     sliders: ["gapBalanced", "gapFull", "splitCap", "topTier", "earlyCareer", "earlyGames"],
-    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split (slider, default 10%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Early-season fix (on/off, on by default — as FAIR ASS GAP on the Summary tab): at the start of a season everyone's ASS is near 0, so gaps mean little — when on, a player's ASS from all their history is used until they have played the chosen number of games this season (default 10), then this season's ASS. Newcomer rule and score are as Fair ASS.",
+    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split (slider, default 10%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Early-season fix (on/off, on by default — as FAIR ASS GAP on the Summary tab): at the start of a season everyone's ASS is near 0, so gaps mean little — when on, a player's ASS over their last 50 games before this season (normally the end of last season) is used until they have played the chosen number of games this season (default 10), then this season's ASS. A player with no earlier games uses this season's. Newcomer rule and score are as Fair ASS.",
   },
   {
     id: "grace",
@@ -505,7 +531,7 @@ export const LAB_SLIDERS = [
   { key: "gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },
   { key: "topTier", label: "Top 6 rule", toggle: true, min: 0, max: 1, step: 1, def: 0 },
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
-  { key: "earlyGames", label: "All-history ASS until season game", min: 0, max: 30, step: 1, def: 10 },
+  { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
   { key: "graceMarks", label: "Grace marks per match", min: 0, max: 50, step: 1, def: 10 },
 ];
 

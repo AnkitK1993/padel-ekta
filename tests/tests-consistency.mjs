@@ -292,7 +292,7 @@ for (const sys of SCORING_SYSTEMS) {
     if (sys === "fairgap") {
       const gr = [...rating.deltas(matches).values()].map((x) => x.matchup).filter((x) => x && x.kind !== "newcomer");
       ok("fairgap: balanced up to a team gap of 15, fully stacked from 30", gr.every((x) => Math.abs(x.stack - Math.max(0, Math.min(1, (x.gap - 15) / 15))) < 1e-9));
-      ok("fairgap: all-history ASS until 10 games in the season, then the season's", gr.every((x) => Object.keys(x.assFrom).every((p) => x.assFrom[p] === (x.seasonGames[p] < 10 ? "history" : "season"))));
+      ok("fairgap: previous-season ASS until 10 games in the season, then the season's", gr.every((x) => Object.keys(x.assFrom).every((p) => (x.seasonGames[p] < 10 ? ["previous", "season"] : ["season"]).includes(x.assFrom[p]))));
     }
   } else {
     ok(`${sys}: entry() is null (no EP detail)`, rating.entry(matches[0]) === null);
