@@ -9536,7 +9536,7 @@ const SCORING_SYSTEM_BLURBS = {
   openskill: "An open alternative to Xbox's TrueSkill, built for team games — tracks a skill estimate and how sure it is per player.",
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
-  fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 15%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
+  fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 10%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
   fairgap: "FAIR ASS, but the teams' gap decides how stacked a match was. Add up both partners' ASS (this season) for each team: a gap of up to 15 is balanced (win 100–120, loss 0 to −20) — in our matches the higher-rated team wins only about half of those. From a gap of 30 it's fully stacked: the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 — past 30 the stronger team wins about 7 in 10. In between, the points slide gradually from balanced to stacked. Partner split, the newcomer rule and the score are as FAIR ASS: score = 2 × points ÷ (games + 10).",
 };
 
@@ -9601,7 +9601,7 @@ function _setScoringSystem(sys) {
 // worked numeric example — a floating popup (not the picker sheet) so
 // tapping ⓘ never accidentally changes a selection.
 const SCORING_SYSTEM_EXAMPLES = {
-  fair: `<b>Example:</b> Vinit (ASS 96) + Nilesh (84) beat Rahul M (99) + Sachin (88) 4–3. Rahul M + Sachin were the stronger team, so this is an underdog win: +120 each, split by the partners' gap — <b>Nilesh +131, Vinit +109</b>. The stronger team lost 4–3: −30 each — <b>Rahul M −33, Sachin −27</b>. Had the stronger team won instead, they'd have earned only +50 each.`,
+  fair: `<b>Example:</b> Vinit (ASS 96) + Nilesh (84) beat Rahul M (99) + Sachin (88) 4–3. Rahul M + Sachin were the stronger team, so this is an underdog win: +120 each, split by the partners' gap — <b>Nilesh +127, Vinit +113</b>. The stronger team lost 4–3: −30 each — <b>Rahul M −32, Sachin −28</b>. Had the stronger team won instead, they'd have earned only +50 each.`,
   fairgap: `<b>Example:</b> Ankit (87) + Rahul G (80) = 167 play Vinit (99) + Sachin (86) = 185 — a gap of 18, a fifth of the way from balanced (15) to fully stacked (30). If Vinit + Sachin win 4–3 they get about <b>+90</b> each instead of +100; if Ankit + Rahul G win 4–3 they get about <b>+104</b>. With a gap of 30 or more those would be +50 and +120; with 15 or less, +100 either way.`,
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
@@ -12122,7 +12122,8 @@ let _labCustom = (() => {
   const d = Object.fromEntries(LAB_SLIDERS.map((s) => [s.key, s.def]));
   try {
     const saved = JSON.parse(localStorage.getItem("padel_lab_custom") || "{}");
-    if (saved.v !== 2) delete saved.gapBalanced; // the gap-rule default moved from 10 to 15
+    if (!(saved.v >= 2)) delete saved.gapBalanced; // the gap-rule default moved from 10 to 15
+    if (!(saved.v >= 3)) delete saved.splitCap; // the partner-split default moved from 15 to 10
     LAB_SLIDERS.forEach((s) => {
       const v = Number(saved[s.key]);
       if (Number.isFinite(v)) d[s.key] = Math.min(s.max, Math.max(s.min, v));
@@ -12253,7 +12254,7 @@ function _labSlide(key, value) {
   const out = document.getElementById(`lab-sv-${key}`);
   if (out) out.textContent = s.toggle ? (_labCustom[key] ? "On" : "Off") : _labCustom[key];
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 2 }));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 3 }));
   } catch (e) {
     noteError("app:_labSlide", e);
   }
@@ -12307,7 +12308,7 @@ function _labSlidersReset() {
   const keys = _labSliderKeys(labOption(_labId));
   LAB_SLIDERS.filter((s) => keys.includes(s.key)).forEach((s) => (_labCustom[s.key] = s.def));
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 2 }));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 3 }));
   } catch (e) {
     noteError("app:_labSlidersReset", e);
   }

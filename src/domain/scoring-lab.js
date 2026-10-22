@@ -237,8 +237,8 @@ export const MATCHUP_LOSS_REF = 20;
 // Partner split: the team's points are shared unevenly by the partners' ASS
 // gap — the weaker partner gets more of a win, the stronger partner takes more
 // of a loss. Share shift = splitCap% × min(1, gap ÷ MATCHUP_SPLIT_FULL_GAP), so
-// at the default 15% cap: 0.75% per ASS point, full 15% from a 20-point gap.
-export const MATCHUP_SPLIT_CAP = 15;
+// at the default 10% cap: 0.5% per ASS point, full 10% from a 20-point gap.
+export const MATCHUP_SPLIT_CAP = 10;
 export const TOP_TIER_SIZE = 6;
 export const TOP_TIER_GAMES = 10;
 export const MATCHUP_SPLIT_FULL_GAP = 20;
@@ -456,7 +456,7 @@ export const LAB_OPTIONS = [
     kind: "matchup",
     params: { seasonGames: 0, gapRule: true },
     sliders: ["gapBalanced", "gapFull", "splitCap", "topTier"],
-    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split (slider, default 15%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Newcomer rule and score are as Fair ASS.",
+    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split (slider, default 10%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Newcomer rule and score are as Fair ASS.",
   },
   {
     id: "grace",
@@ -486,7 +486,7 @@ export const LAB_OPTIONS = [
     label: "Fair Matchup Points",
     kind: "matchup",
     params: { seasonGames: 0 },
-    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Partner split: the team's points are shared by the partners' ASS gap — the weaker partner gets a bigger share of a win and the stronger partner takes a bigger share of a loss, up to 15% each way (0.75% per ASS point of gap). Score = 2 × points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
+    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Partner split: the team's points are shared by the partners' ASS gap — the weaker partner gets a bigger share of a win and the stronger partner takes a bigger share of a loss, up to 10% each way (0.5% per ASS point of gap). Score = 2 × points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
   },
 ];
 
