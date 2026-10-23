@@ -4874,6 +4874,21 @@ body.no-cascade .analytics-card {
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+.h2h-modal-scope,
+.pair-detail-scope {
+  display: block;
+  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* History filters: an odd last chip (Tags, once Season joins the grid) spans
+   the row instead of leaving a hole beside it. */
+.top-filter-row > .compact-filter-item:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
 
 .h2h-modal-close {
   background: rgba(255, 255, 255, 0.06);
@@ -5871,6 +5886,15 @@ select.input-modern option[value=""] {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+}
+/* Which season + dates a History stats card counts. */
+.psc-scope {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: -4px 0 8px;
 }
 .psc-badge {
   font-size: 10px;

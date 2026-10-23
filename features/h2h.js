@@ -56,10 +56,13 @@ function computeH2HStreak(pA, pB, matches) {
   return { leader: curLeader, streak };
 }
 
-function openH2HDetail(a, b) {
+// `pool` (optional): the matches to count — e.g. the History tab's season +
+// date selection; defaults to the active season. `scope` labels it.
+function openH2HDetail(a, b, pool = null, scope = "") {
   const existing = document.getElementById("h2h-detail-modal");
   if (existing) existing.remove();
-  const h2h = getHeadToHeadStats(a, b, activeMatches());
+  const matches = pool || activeMatches();
+  const h2h = getHeadToHeadStats(a, b, matches);
   const total = h2h.aWins + h2h.bWins || 1;
   const aWinPct = Math.round((h2h.aWins / total) * 100);
   const bWinPct = 100 - aWinPct;
@@ -182,7 +185,7 @@ function openH2HDetail(a, b) {
     <div id="h2h-detail-modal" class="h2h-modal-overlay" onclick="if(event.target===this)this.remove()">
       <div class="h2h-modal-card">
         <div class="h2h-modal-header">
-          <span class="h2h-modal-title">⚔️ H2H DEEP DIVE</span>
+          <span class="h2h-modal-title">⚔️ H2H DEEP DIVE${scope ? `<span class="h2h-modal-scope">${escHtml(scope)}</span>` : ""}</span>
           <button class="h2h-modal-close" onclick="document.getElementById('h2h-detail-modal').remove()">✕</button>
         </div>
         <div class="h2h-modern">
@@ -278,7 +281,7 @@ function openH2HDetail(a, b) {
           </div>
 
           ${(() => {
-            const rs = computeH2HStreak(a, b, activeMatches());
+            const rs = computeH2HStreak(a, b, matches);
             if (!rs.leader || rs.streak < 2) return "";
             const rCol = rs.leader === a ? col1 : col2;
             return `<div class="h2h-streak-line" style="border-color:${rCol}20;background:${rCol}10"><span style="color:${rCol};font-weight:800">${escHtml(rs.leader)}</span> is on a <span style="color:${rCol};font-weight:800">${rs.streak}-match</span> win streak in this rivalry 🔥</div>`;

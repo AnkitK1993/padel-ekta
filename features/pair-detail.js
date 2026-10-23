@@ -6,10 +6,12 @@ import { badge, emptyState } from "../src/ui/components.js";
 import { escHtml, fmtDate } from "../src/ui/format.js";
 import { isFireMatch, isDominatingMatch } from "../src/ui/render-match-rows.js";
 
-function openPairDetail(key) {
+// `pool` (optional): the matches to count — e.g. the History tab's season +
+// date selection; defaults to the active season. `scope` labels it.
+function openPairDetail(key, pool = null, scope = "") {
   document.getElementById("pair-detail-modal")?.remove();
   const players = key.split(" & ");
-  const matches = activeMatches().filter(
+  const matches = (pool || activeMatches()).filter(
     (m) =>
       m.teamA.length === 2 &&
       m.teamB.length === 2 &&
@@ -142,7 +144,7 @@ function openPairDetail(key) {
           <div id="pair-detail-modal">
             <div class="analytics-inner">
               <div class="analytics-header">
-                <div class="analytics-title" style="font-size:15px">🤝 ${escHtml(key)}</div>
+                <div class="analytics-title" style="font-size:15px">🤝 ${escHtml(key)}${scope ? `<div class="pair-detail-scope">${escHtml(scope)}</div>` : ""}</div>
                 <button class="analytics-close" onclick="document.getElementById('pair-detail-modal').remove()">✕</button>
               </div>
               <div class="analytics-cards">

@@ -588,8 +588,17 @@
         </div>
 
         <div class="history-filter-panel compact-history-panel">
-          <!-- Row 1: Date · Player · Result · Tags -->
+          <!-- Row 1: Season · Date · Player · Result · Tags -->
           <div class="hist-filter-row compact-row top-filter-row">
+            <div class="compact-filter-item">
+              <select
+                class="hist-select compact-select"
+                id="histSeasonFilter" aria-label="Filter by season"
+                onchange="setSeason(this.value)"
+              >
+                <option value="all">ALL SEASONS</option>
+              </select>
+            </div>
             <div class="compact-filter-item">
               <select
                 class="hist-select compact-select"

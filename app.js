@@ -6348,13 +6348,8 @@ function _histShowMore() {
 }
 
 let _renderModernGen = 0;
-function renderModernMatches() {
-  // Generation token: any later render invalidates a still-running first-paint
-  // cascade, so stale setTimeout callbacks (which append cards + run the score
-  // count-up) bail instead of clobbering/duplicating the freshly-rendered feed.
-  // Without this, a re-render mid-cascade (commit / Firebase snapshot / filter)
-  // could make the Thriller & Upset feature cards intermittently fail to load.
-  const _gen = ++_renderModernGen;
+// The History tab's date selection as { mfrom, mto } for the selectors.
+function _histDateArgs() {
   const mfrom =
     matchTabFilter === "range"
       ? document.getElementById("matchFrom")?.value || null
@@ -6365,6 +6360,55 @@ function renderModernMatches() {
     matchTabFilter === "range"
       ? document.getElementById("matchTo")?.value || null
       : null;
+  return { mfrom, mto };
+}
+// What the History stats cards (H2H, pair) and their "Full stats" overlays
+// count: the rated (guest-free) matches of the chosen season + date filter.
+function _histStatsScope() {
+  const { mfrom, mto } = _histDateArgs();
+  return filterMatches(matchTabFilter, mfrom, mto);
+}
+function _histScopeLabel() {
+  const { activeId, opts } = _seasonPillOptions();
+  const season = activeId === "all" ? "All seasons" : opts.find((o) => o.id === activeId)?.label || "Season";
+  const { mfrom, mto } = _histDateArgs();
+  const dates = matchTabFilter === "day" ? fmtDate(mfrom) : _analyticsDateFilterLabel(matchTabFilter, mfrom, mto);
+  return `${season} · ${dates}`;
+}
+function _histOpenH2H() {
+  if (h2hFilterA && h2hFilterB) openH2HDetail(h2hFilterA, h2hFilterB, _histStatsScope(), _histScopeLabel());
+}
+function _histOpenPair() {
+  if (histPairFilter) openPairDetail(histPairFilter, _histStatsScope(), _histScopeLabel());
+}
+// The History season picker: ALL SEASONS + every season, newest first. It
+// drives the same season as the other tabs.
+function _syncHistSeasonSelect() {
+  const sel = document.getElementById("histSeasonFilter");
+  if (!sel) return;
+  const { activeId, opts } = _seasonPillOptions();
+  const item = sel.closest(".compact-filter-item");
+  if (item) item.style.display = state.seasons.length ? "" : "none";
+  const html = opts.map((o) => `<option value="${escHtml(o.id)}">${escHtml(o.label.toUpperCase())}</option>`).join("");
+  if (sel.dataset.opts !== html) {
+    sel.innerHTML = html;
+    sel.dataset.opts = html;
+  }
+  if (sel.value !== activeId) sel.value = activeId;
+}
+
+function renderModernMatches() {
+  // Generation token: any later render invalidates a still-running first-paint
+  // cascade, so stale setTimeout callbacks (which append cards + run the score
+  // count-up) bail instead of clobbering/duplicating the freshly-rendered feed.
+  // Without this, a re-render mid-cascade (commit / Firebase snapshot / filter)
+  // could make the Thriller & Upset feature cards intermittently fail to load.
+  const _gen = ++_renderModernGen;
+  _syncHistSeasonSelect();
+  const { mfrom, mto } = _histDateArgs();
+  // The stats cards count the chosen season + date filter (rated matches only).
+  const statsScope = _histStatsScope();
+  const scopeLbl = escHtml(_histScopeLabel());
   // History is a raw log → guest-inclusive (filterHistoryMatches), unlike the
   // stats-facing Summary which uses the guest-excluded filterMatches.
   let matches = filterHistoryMatches(matchTabFilter, mfrom, mto);
@@ -6411,7 +6455,7 @@ function renderModernMatches() {
   }
   let summary = "";
   if (h2hFilterA && h2hFilterB) {
-    const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, activeMatches());
+    const h2h = getHeadToHeadStats(h2hFilterA, h2hFilterB, statsScope);
     // Never played each other: 50/50 rather than "Played 1, 0% vs 100%".
     const total = h2h.aWins + h2h.bWins;
     const aWinPct = total ? Math.round((h2h.aWins / total) * 100) : 50;
@@ -6430,11 +6474,14 @@ function renderModernMatches() {
           : "var(--text)";
     const diffStr = h2h.diff >= 0 ? `+${h2h.diff}` : `${h2h.diff}`;
     const h2hEloHist = _memoRatingHistory();
-    const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter((pt) =>
-      pt.opponent.split(" & ").includes(h2hFilterB),
+    // Only the meetings inside the date filter (the season's rating walk is
+    // per day, so a date check is exact).
+    const scopeDays = new Set(statsScope.map((m) => m.date));
+    const h2hP1Pts = (h2hEloHist[h2hFilterA] || []).filter(
+      (pt) => scopeDays.has(pt.date) && pt.opponent.split(" & ").includes(h2hFilterB),
     );
-    const h2hP2Pts = (h2hEloHist[h2hFilterB] || []).filter((pt) =>
-      pt.opponent.split(" & ").includes(h2hFilterA),
+    const h2hP2Pts = (h2hEloHist[h2hFilterB] || []).filter(
+      (pt) => scopeDays.has(pt.date) && pt.opponent.split(" & ").includes(h2hFilterA),
     );
     // Change in the leaderboard score across these matches (each entry's score
     // minus the one before it). On ASS `delta` is raw points earned, which
@@ -6454,8 +6501,9 @@ function renderModernMatches() {
         : n < 0
           ? `<span style="color:var(--red)">${rating.fmt(n)}</span>`
           : `<span style="color:var(--muted)">0</span>`;
-    summary = `<div class="pair-stats-card" style="margin-bottom:10px" onclick="openH2HDetail(${jsArg(h2hFilterA)},${jsArg(h2hFilterB)})">
+    summary = `<div class="pair-stats-card" style="margin-bottom:10px" onclick="_histOpenH2H()">
             <div class="psc-header"><span class="psc-badge">⚔️ Head-to-Head</span><span class="psc-tap">Full stats →</span></div>
+            <div class="psc-scope">${scopeLbl}</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <div style="font-size:15px;font-weight:900;color:var(--text);text-transform:uppercase">${escHtml(h2hFilterA)}</div>
               <div style="font-size:11px;font-weight:800;color:var(--muted)">VS</div>
@@ -6494,9 +6542,7 @@ function renderModernMatches() {
           </div>`;
   }
   if (histPairFilter) {
-    const pairMatches = activeMatches().filter((m) =>
-      pairInMatch(m, histPairFilter),
-    );
+    const pairMatches = statsScope.filter((m) => pairInMatch(m, histPairFilter));
     if (pairMatches.length) {
       let pw = 0,
         pgw = 0,
@@ -6518,11 +6564,12 @@ function renderModernMatches() {
         wpct >= 60 ? "var(--green)" : wpct <= 40 ? "var(--red)" : "var(--text)";
       const gpct = Math.round((pgw / (pgw + pgl || 1)) * 100);
       summary =
-        `<div class="pair-stats-card" onclick="openPairDetail(${jsArg(histPairFilter)})">
+        `<div class="pair-stats-card" onclick="_histOpenPair()">
               <div class="psc-header">
                 <span class="psc-badge">🤝 Pair Stats</span>
                 <span class="psc-tap">Full stats →</span>
               </div>
+              <div class="psc-scope">${scopeLbl}</div>
               <div class="psc-hero">
                 <div class="psc-name">${escHtml(histPairFilter)}</div>
                 <div class="psc-winrate" style="color:${col}">${wpct}%</div>
@@ -6693,6 +6740,7 @@ function renderModernMatches() {
 function _histFilterKey() {
   return [
     rating.system(),
+    _activeSeasonId,
     matchTabFilter,
     histPlayerFilter || "",
     histOutcomeFilter,
@@ -19595,6 +19643,8 @@ Object.assign(window, {
   _closePodiumDrill,
   _openRankCalendar,
   _openPairDetail,
+  _histOpenH2H,
+  _histOpenPair,
   _closePairDetail,
   _renderPairDetailSummary,
   _renderPairDetailBreakdown,
