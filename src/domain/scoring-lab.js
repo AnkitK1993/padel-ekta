@@ -112,7 +112,11 @@ export function labEPDeltas(matches, career = null, params = {}) {
         } else {
           raw = Math.round(-P.vetLoss * teamP * (2 - lossQ));
         }
-        breakdown[p] = { won, careerGames: games, vet, teamP, raw, shift: 0 };
+        // The same shape as the live engine's breakdown (oppF / qualityF), so
+        // the match overlay can explain a lab-scored newcomer match too.
+        const oppF = won ? (P.winMode === "classic" ? 0.5 + (1 - teamP) : 1 + P.oppW * (0.5 - teamP)) : null;
+        const qualityF = won ? winQ : vet ? 2 - lossQ : lossQ;
+        breakdown[p] = { won, careerGames: games, vet, teamP, oppF, qualityF, raw, shift: 0 };
         return raw;
       };
       const playerDeltas = {};

@@ -18864,6 +18864,59 @@ body.kb-open #pg-add #ip-matches .match-preview:empty {
   color: var(--gold, #f5c842);
   margin-left: 4px;
 }
+/* FAIR ASS GAP matchup panel in the match overlay */
+.mio-mu {
+  margin-bottom: 10px;
+  text-align: center;
+}
+.mio-mu-chip {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+.mio-mu-chip.bal {
+  color: var(--green);
+  background: rgba(74, 222, 128, 0.12);
+}
+.mio-mu-chip.stk {
+  color: var(--gold, #f5c842);
+  background: rgba(245, 200, 66, 0.12);
+}
+.mio-mu-chip.nc {
+  color: var(--accent);
+  background: rgba(var(--theme-rgb), 0.12);
+}
+.mio-mu-line {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+.mio-mu-teams {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.mio-mu-teams b {
+  color: var(--text);
+  font-weight: 800;
+}
+.mio-mu-gap {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.mio-mu-note {
+  margin-top: 3px;
+  font-size: 9px;
+  color: var(--muted);
+}
 .mio-wc-bar {
   display: flex;
   border-radius: 6px;

@@ -525,6 +525,42 @@ function openMatchIntro(idx) {
 }
 
 
+// FAIR ASS / FAIR ASS GAP: how the match was judged before it was played —
+// newcomer (scored as ASS), balanced, or in one team's favour (and how
+// stacked), with both teams' combined ASS and whether the favourites won.
+function matchupPanelHtml(m, mu, aWon, nameA, nameB) {
+  const a = mu.ass || {};
+  const sum = (t) => (t || []).reduce((s, p) => s + (Number.isFinite(a[p]) ? a[p] : 0), 0);
+  const sA = sum(m.teamA);
+  const sB = sum(m.teamB);
+  const gap = Number.isFinite(mu.gap) ? mu.gap : Math.abs(sA - sB);
+  const prev = Object.keys(mu.assFrom || {}).filter((p) => mu.assFrom[p] === "previous");
+  const early = prev.length
+    ? `<div class="mio-mu-note">Early season: last season's ASS used for ${prev.map((p) => escHtml(normPlayer(p))).join(", ")}</div>`
+    : "";
+  const teams = `<div class="mio-mu-teams"><span><b>${escHtml(nameA)}</b> ${sA.toFixed(1)}</span><span class="mio-mu-gap">gap ${gap.toFixed(1)}</span><span>${sB.toFixed(1)} <b>${escHtml(nameB)}</b></span></div>`;
+  let chip;
+  let line;
+  if (mu.kind === "newcomer") {
+    const who = (mu.newcomers || []).map((p) => `${escHtml(normPlayer(p))} (${(mu.careerGames || {})[p] ?? 0} games)`);
+    chip = `<span class="mio-mu-chip nc">🌱 NEWCOMER</span>`;
+    line = `${who.join(", ") || "A player"} under 50 career games — scored as ASS`;
+    return `<div class="mio-mu"><div class="mio-wc-lbl">MATCHUP BEFORE THE MATCH ${chip}</div><div class="mio-mu-line">${line}</div>${early}</div>`;
+  }
+  if (mu.kind === "balanced") {
+    chip = `<span class="mio-mu-chip bal">⚖️ BALANCED</span>`;
+    line = "Neither team favoured";
+  } else {
+    const favA = mu.roleA === "stronger";
+    const fav = favA ? nameA : nameB;
+    const favWon = favA === aWon;
+    const pct = Math.round((mu.stack ?? 1) * 100);
+    chip = `<span class="mio-mu-chip stk">${pct >= 100 ? "🏋️ FULLY STACKED" : `🔀 ${pct}% STACKED`}</span>`;
+    line = `In <b>${escHtml(fav)}</b>'s favour · ${favWon ? "favourites won" : "⚡ underdogs won"}`;
+  }
+  return `<div class="mio-mu"><div class="mio-wc-lbl">MATCHUP BEFORE THE MATCH ${chip}</div><div class="mio-mu-line">${line}</div>${teams}${early}</div>`;
+}
+
 // Win-chance bar, pair records and a card per player (rank, win %, total
 // points, game number / newcomer flag, recent form and how the points were
 // built). Everything beyond rank/win%/form/pair record is EP-only and simply
@@ -587,15 +623,21 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB, rated
   };
   const totBefore = rating.totals(beforeScope);
 
-  // 2 — win chance
+  // 2 — FAIR ASS matchup (who was favoured) and/or the ASS win chance
+  let wcHtml = "";
   if (detail) {
     const pA = Math.round(detail.expA * 100);
     const pB = 100 - pA;
     const winnerP = aWon ? pA : pB;
     const upset = winnerP < 40 ? `<span class="mio-wc-upset">⚡ UPSET</span>` : "";
-    wcEl.innerHTML = `<div class="mio-wc-lbl">WIN CHANCE BEFORE THE MATCH ${upset}</div>
+    wcHtml = `<div class="mio-wc-lbl">WIN CHANCE BEFORE THE MATCH ${upset}</div>
       <div class="mio-wc-bar"><div class="mio-wc-a" style="flex:${pA}">${pA}%</div><div class="mio-wc-b" style="flex:${pB}">${pB}%</div></div>
       <div class="mio-wc-names"><span>${escHtml(nameA)}</span><span>${escHtml(nameB)}</span></div>`;
+  }
+  const muInfo = entry && entry.matchup ? entry.matchup : null;
+  const muHtml = muInfo ? matchupPanelHtml(m, muInfo, aWon, nameA, nameB) : "";
+  if (muHtml || wcHtml) {
+    wcEl.innerHTML = muHtml + wcHtml;
     wcEl.style.display = "";
   } else {
     wcEl.innerHTML = "";
@@ -665,7 +707,7 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB, rated
           : `${role === "stronger" ? "Stronger" : "Weaker"} team${mu.stack > 0 && mu.stack < 1 ? ` (${Math.round(mu.stack * 100)}% stacked, gap ${mu.gap.toFixed(1)})` : ""}`;
       const sp = mu.split && mu.split[p] ? `, partner split ${mu.split[p] > 0 ? "+" : "−"}${Math.round(Math.abs(mu.split[p]) * 1000) / 10}%` : "";
       parts.push(
-        `<div class="mio-dc-why">${what} (ASS ${mu.ass[p].toFixed(1)}, #${mu.rank[p]} of 4) · ${won ? "win" : "loss"}${sp} → <b>${sign(pts[p])}</b></div>`,
+        `<div class="mio-dc-why">${what} (ASS ${Number.isFinite(mu.ass[p]) ? mu.ass[p].toFixed(1) : "—"}${mu.assFrom?.[p] === "previous" ? " last season" : ""}, #${mu.rank[p]} of 4) · ${won ? "win" : "loss"}${sp} → <b>${sign(pts[p])}</b></div>`,
       );
     }
     if (bd) {
@@ -673,7 +715,9 @@ function renderMatchDetail(m, priorAss, afterAss, pts, aWon, nameA, nameB, rated
       const fin = pts && pts[p] !== undefined ? pts[p] : bd.raw + bd.shift;
       const split = bd.shift ? `, partner split ${sign(bd.shift)}` : "";
       const txt = bd.won
-        ? `Win: 100 × ${bd.oppF.toFixed(2)} opposition × ${bd.qualityF.toFixed(2)} margin = ${bd.raw}${split} → <b>${sign(fin)}</b>`
+        ? Number.isFinite(bd.oppF) && Number.isFinite(bd.qualityF)
+          ? `Win: 100 × ${bd.oppF.toFixed(2)} opposition × ${bd.qualityF.toFixed(2)} margin = ${bd.raw}${split} → <b>${sign(fin)}</b>`
+          : `Win: ${sign(bd.raw)}${split} → <b>${sign(fin)}</b>`
         : bd.vet
           ? `Veteran loss (team ${Math.round(bd.teamP * 100)}% favoured): ${sign(bd.raw)}${split} → <b>${sign(fin)}</b>`
           : `Newcomer loss credit: ${sign(bd.raw)}${split} → <b>${sign(fin)}</b>`;

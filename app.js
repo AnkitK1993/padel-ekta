@@ -888,12 +888,12 @@ let _homeRenderedVersion = -1,
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
 let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
-// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS"), "fair"
-// ("FAIR ASS", Fair Matchup Points) or "fairgap" ("FAIR ASS GAP", the same
-// with the gap rule). Glicko-2 / OpenSkill / Fair Share still
-// exist in the rating service but are no longer offered. SR bands, defaults
+// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS") or "fairgap"
+// ("FAIR ASS GAP", Fair Matchup Points with the gap rule). FAIR ASS ("fair"),
+// Glicko-2 / OpenSkill / Fair Share still exist in the rating service but are
+// no longer offered. SR bands, defaults
 // and printed forms all live in src/domain/rating-service.js.
-const SCORING_PICKABLE = ["ep", "fair", "fairgap"];
+const SCORING_PICKABLE = ["ep", "fairgap"];
 const _srFnForSystem = (system, ratingMap) => rating.srFn(ratingMap, system);
 // The active system lives in the rating service (one copy, so no screen can
 // hold a different one); this block only restores the saved choice.
@@ -901,9 +901,13 @@ try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
   // ASS CLASSIC ("ass") was retired: a device still set to it moves to the
   // default, and the retired season-format preference is dropped.
-  // Only ASS, FAIR ASS and FAIR ASS GAP are offered now; a device left on Glicko-2,
+  // Only ASS and FAIR ASS GAP are offered now; a device left on Glicko-2,
   // OpenSkill or Fair Share moves back to ASS.
-  if (_storedSys && SCORING_PICKABLE.includes(_storedSys)) setActiveSystem(_storedSys);
+  // FAIR ASS left the picker: a device on it moves to FAIR ASS GAP.
+  if (_storedSys === "fair") {
+    setActiveSystem("fairgap");
+    localStorage.setItem("padel_scoring_system", "fairgap");
+  } else if (_storedSys && SCORING_PICKABLE.includes(_storedSys)) setActiveSystem(_storedSys);
   else if (_storedSys) localStorage.removeItem("padel_scoring_system");
   localStorage.removeItem("padel_season_scoring_mode");
   localStorage.removeItem("padel_goals"); // the retired Goals feature
