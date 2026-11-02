@@ -11,6 +11,7 @@ import {
   SCORING_SYSTEMS_WITH_CONFIDENCE,
   SCORING_SYSTEMS_ZERO_BASED,
   SCORING_SYSTEMS_POINTS,
+  FAIR_GAP_PARAMS,
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
@@ -9584,7 +9585,7 @@ const SCORING_SYSTEM_BLURBS = {
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
   fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 10%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
-  fairgap: "FAIR ASS, but the teams' gap decides how stacked a match was. Add up both partners' ASS (this season — or, for a player's first 10 games of the season, their ASS over their last 40 games of the previous season, so the opening days aren't judged on near-zero ratings) for each team: a gap of up to 15 is balanced (win 100–120, loss 0 to −20) — in our matches the higher-rated team wins only about half of those. From a gap of 30 it's fully stacked: the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 — past 30 the stronger team wins about 7 in 10. In between, the points slide gradually from balanced to stacked. Partner split, the newcomer rule and the score are as FAIR ASS: score = 2 × points ÷ (games + 10).",
+  fairgap: "FAIR ASS, but the teams' gap decides how stacked a match was. Add up both partners' ASS (this season — or, for a player's first 10 games of the season, their ASS over their last 25 games of the previous season, so the opening days aren't judged on near-zero ratings) for each team: a gap of up to 15 is balanced (win 100–120, loss 0 to −20) — in our matches the higher-rated team wins only about half of those. From a gap of 30 it's fully stacked: the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 — past 30 the stronger team wins about 7 in 10. In between, the points slide gradually from balanced to stacked. Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 5%). A match with a player under 10 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
 };
 
 // The Advanced group opens by itself when one of its systems is active, so the
@@ -12172,6 +12173,7 @@ let _labCustom = (() => {
     if (!(saved.v >= 2)) delete saved.gapBalanced; // the gap-rule default moved from 10 to 15
     if (!(saved.v >= 3)) delete saved.splitCap; // the partner-split default moved from 15 to 10
     if (!(saved.v >= 4)) delete saved.earlyCareer; // the early-season fix now starts on
+    if (!(saved.v >= 5)) ["splitCap", "maturity", "earlyPrevGames"].forEach((k) => delete saved[k]); // new FAIR ASS GAP defaults
     LAB_SLIDERS.forEach((s) => {
       const v = Number(saved[s.key]);
       if (Number.isFinite(v)) d[s.key] = Math.min(s.max, Math.max(s.min, v));
@@ -12224,7 +12226,7 @@ function _labRun(opt, matches) {
     const sys = rating.system();
     const base =
       sys === "fair" || sys === "fairgap"
-        ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey, ...(sys === "fairgap" ? { gapRule: true, gapBalanced: 15, gapFull: 30, earlyCareer: true, earlyGames: 10, earlyPrevGames: 40 } : {}) })
+        ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey, ...(sys === "fairgap" ? FAIR_GAP_PARAMS : {}) })
         : labEPDeltas(matches, career);
     deltas = labAddGrace(base, _labGracePlayer, opt.gracePts ?? _labCustom.graceMarks);
     full = labEPFull(deltas, { scale: 2 });
@@ -12302,7 +12304,7 @@ function _labSlide(key, value) {
   const out = document.getElementById(`lab-sv-${key}`);
   if (out) out.textContent = s.toggle ? (_labCustom[key] ? "On" : "Off") : _labCustom[key];
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 4 }));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 5 }));
   } catch (e) {
     noteError("app:_labSlide", e);
   }
@@ -12356,7 +12358,7 @@ function _labSlidersReset() {
   const keys = _labSliderKeys(labOption(_labId));
   LAB_SLIDERS.filter((s) => keys.includes(s.key)).forEach((s) => (_labCustom[s.key] = s.def));
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 4 }));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 5 }));
   } catch (e) {
     noteError("app:_labSlidersReset", e);
   }

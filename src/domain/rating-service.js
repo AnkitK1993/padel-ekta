@@ -51,7 +51,21 @@ export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap"];
 // early-season fix — a player's ASS over their last 40 games before the season
 // sets the gap until they have 10 games in the season.
 export const SCORING_SYSTEMS_POINTS = ["ep", "fair", "fairgap"];
-const MATCHUP_SYSTEMS = { fair: {}, fairgap: { gapRule: true, gapBalanced: 15, gapFull: 30, earlyCareer: true, earlyGames: 10, earlyPrevGames: 40 } };
+// FAIR ASS GAP's settings (the Scoring Lab's gap-rule defaults are the same):
+// balanced up to a team gap of 15, fully stacked from 30, partner split up to
+// 5%, veteran from 10 career games, and for a player's first 10 games of a
+// season their ASS over their last 25 games of the previous season.
+export const FAIR_GAP_PARAMS = Object.freeze({
+  gapRule: true,
+  gapBalanced: 15,
+  gapFull: 30,
+  splitCap: 5,
+  maturity: 10,
+  earlyCareer: true,
+  earlyGames: 10,
+  earlyPrevGames: 25,
+});
+const MATCHUP_SYSTEMS = { fair: {}, fairgap: FAIR_GAP_PARAMS };
 const isMatchup = (s) => Object.hasOwn(MATCHUP_SYSTEMS, s);
 const FAIR_SCALE = 2; // FAIR ASS score = 2 × points ÷ (games + 10), like ASS
 
@@ -393,9 +407,10 @@ export const rating = {
   // systems, which have no such rule.
   gamesUntilVeteran(name, s = _system) {
     if (!SCORING_SYSTEMS_POINTS.includes(s)) return null;
-    return Math.max(0, MATURITY_GAMES - (careerGameCounts()[name] || 0));
+    return Math.max(0, rating.maturityGames(s) - (careerGameCounts()[name] || 0));
   },
-  maturityGames: () => MATURITY_GAMES,
+  // Career games to become a veteran: 50 on ASS, FAIR ASS GAP's own line.
+  maturityGames: (s = _system) => MATCHUP_SYSTEMS[s]?.maturity ?? MATURITY_GAMES,
   // What a match about to be played is worth to each of its players on the
   // active system: the change to their leaderboard number — and on ASS the
   // points it pays — if their side wins and if it loses, for the given score.

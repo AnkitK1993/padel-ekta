@@ -291,6 +291,7 @@ for (const sys of SCORING_SYSTEMS) {
     ok(`${sys}: keeps the 50-game newcomer rule`, rating.gamesUntilVeteran("Nobody Yet") === rating.maturityGames());
     if (sys === "fairgap") {
       const gr = [...rating.deltas(matches).values()].map((x) => x.matchup).filter((x) => x && x.kind !== "newcomer");
+      ok("fairgap: veteran from 10 career games", rating.maturityGames("fairgap") === 10 && rating.maturityGames("ep") === 50);
       ok("fairgap: balanced up to a team gap of 15, fully stacked from 30", gr.every((x) => Math.abs(x.stack - Math.max(0, Math.min(1, (x.gap - 15) / 15))) < 1e-9));
       ok("fairgap: previous-season ASS (last 40 games) until 10 games in the season, then the season's", gr.every((x) => Object.keys(x.assFrom).every((p) => (x.seasonGames[p] < 10 ? ["previous", "season"] : ["season"]).includes(x.assFrom[p]))));
     }

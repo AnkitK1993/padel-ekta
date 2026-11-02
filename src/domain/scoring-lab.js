@@ -492,7 +492,7 @@ export const LAB_OPTIONS = [
     kind: "matchup",
     params: { seasonGames: 0, gapRule: true },
     sliders: ["gapBalanced", "gapFull", "splitCap", "maturity", "topTier", "earlyCareer", "earlyGames", "earlyPrevGames"],
-    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split (slider, default 10%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Veteran from career game (slider, default 50): a match with anyone below it is a newcomer match, scored as ASS — where a newcomer's loss pays a small credit and only veterans' losses cost. Early-season fix (on/off, on by default — as FAIR ASS GAP on the Summary tab): at the start of a season everyone's ASS is near 0, so gaps mean little — when on, a player's ASS over their last games before this season (normally the end of last season — how many: the last slider, default 40) decides the team gap until they have played the chosen number of games this season (default 10), then this season's ASS. A player with no earlier games uses this season's. Newcomer rule and score are as Fair ASS.",
+    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split (slider, default 5%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Veteran from career game (slider, default 10): a match with anyone below it is a newcomer match, scored as ASS — where a newcomer's loss pays a small credit and only veterans' losses cost. Early-season fix (on/off, on by default — as FAIR ASS GAP on the Summary tab): at the start of a season everyone's ASS is near 0, so gaps mean little — when on, a player's ASS over their last games before this season (normally the end of last season — how many: the last slider, default 25) decides the team gap until they have played the chosen number of games this season (default 10), then this season's ASS. A player with no earlier games uses this season's. Newcomer rule and score are as Fair ASS.",
   },
   {
     id: "grace",
@@ -530,14 +530,14 @@ export const LAB_OPTIONS = [
 export const LAB_SLIDERS = [
   { key: "winBase", label: "Win points (balanced 4–3)", min: 20, max: 200, step: 5, def: MATCHUP_WIN_REF },
   { key: "lossMax", label: "Loss points (balanced 4–0)", min: 0, max: 100, step: 1, def: MATCHUP_LOSS_REF },
-  { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: MATCHUP_SPLIT_CAP },
+  { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 5 },
   { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 15 },
   { key: "gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },
   { key: "topTier", label: "Top 6 rule", toggle: true, min: 0, max: 1, step: 1, def: 0 },
-  { key: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 50 },
+  { key: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 10 },
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
-  { key: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 40 },
+  { key: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
   { key: "graceMarks", label: "Grace marks per match", min: 0, max: 50, step: 1, def: 10 },
 ];
 
