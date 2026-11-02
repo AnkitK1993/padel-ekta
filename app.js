@@ -12187,7 +12187,12 @@ let _labCustom = (() => {
 const _labSliderKeys = (opt) => opt.sliders || [];
 const _labParams = (opt) => ({
   ...opt.params,
-  ...Object.fromEntries(_labSliderKeys(opt).map((k) => [LAB_SLIDERS.find((s) => s.key === k)?.param || k, _labCustom[k]])),
+  ...Object.fromEntries(
+    _labSliderKeys(opt).map((k) => {
+      const s = LAB_SLIDERS.find((x) => x.key === k);
+      return [s?.param || k, _labCustom[k] * (s?.paramScale ?? 1)];
+    }),
+  ),
 });
 const _labKey = (opt) =>
   `${opt.id}:${_labSliderKeys(opt).map((k) => _labCustom[k]).join(":")}` +
@@ -12405,7 +12410,7 @@ function _scoringLabInner() {
 
   const res = _labRun(opt, matches);
   const live =
-    opt.id === "live" && _labCustom.assMaturity === 50
+    opt.id === "live" && _labCustom.assMaturity === 50 && _labCustom.assSplit === 12
       ? null
       : opt.kind === "grace"
         ? _labRun({ ...opt, id: "grace0", sliders: [], gracePts: 0 }, matches)

@@ -475,8 +475,8 @@ export const LAB_OPTIONS = [
     label: "ASS (live)",
     kind: "ep",
     params: {},
-    sliders: ["assMaturity"],
-    desc: "Exactly what the Summary tab shows today (with the veteran slider at 50 — move it to see the board with a different newcomer line; ▲▼ then compare against the real board). A win pays about 100: up to 20% more for beating a stronger side, less for a weaker one, and more for a bigger margin (a shutout earns a little extra). Until a player's 50th career game a loss still pays a small credit; after that a loss costs up to 25 — more when their team was the favourite. Who was favoured is judged only on the matches in this view. Partners' points are nudged (up to 12%) toward the lower-rated partner. Score = 2 × points ÷ (games + 10), so a handful of games can't top the board.",
+    sliders: ["assSplit", "assMaturity"],
+    desc: "Exactly what the Summary tab shows today (with the sliders at their defaults, 12% and 50 — move them to see the board with a different partner split or newcomer line; ▲▼ then compare against the real board). A win pays about 100: up to 20% more for beating a stronger side, less for a weaker one, and more for a bigger margin (a shutout earns a little extra). Until a player's 50th career game a loss still pays a small credit; after that a loss costs up to 25 — more when their team was the favourite. Who was favoured is judged only on the matches in this view. Partners' points are nudged (up to 12%) toward the lower-rated partner. Score = 2 × points ÷ (games + 10), so a handful of games can't top the board.",
   },
   {
     id: "custom",
@@ -536,7 +536,9 @@ export const LAB_SLIDERS = [
   { key: "gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },
   { key: "topTier", label: "Top 6 rule", toggle: true, min: 0, max: 1, step: 1, def: 0 },
   { key: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 10 },
-  // ASS (live)'s own veteran line; `param` is the engine option it sets.
+  // ASS (live)'s own sliders; `param` is the engine option each sets (times
+  // `paramScale`, when the engine takes a fraction).
+  { key: "assSplit", param: "splitMax", paramScale: 0.01, label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 12 },
   { key: "assMaturity", param: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 50 },
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
