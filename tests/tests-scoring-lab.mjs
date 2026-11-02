@@ -281,6 +281,15 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   ok("the gap-rule option: balanced up to (default 15), fully stacked from (default 30), partner split (default 10%), top 6 toggle (off)", same(labOption("gaprule").sliders, ["gapBalanced", "gapFull", "splitCap", "maturity", "topTier", "earlyCareer", "earlyGames", "earlyPrevGames"]) && LAB_SLIDERS.find((s) => s.key === "gapBalanced").def === 15 && LAB_SLIDERS.find((s) => s.key === "gapFull").def === 30 && LAB_SLIDERS.find((s) => s.key === "topTier").toggle && LAB_SLIDERS.find((s) => s.key === "topTier").def === 0);
 }
 
+{
+  const live = labOption("live");
+  const sl = LAB_SLIDERS.find((s) => s.key === "assMaturity");
+  ok("ASS (live) has its own veteran slider (0–50, default 50) that sets the engine's maturity", same(live.sliders, ["assMaturity"]) && sl.param === "maturity" && sl.min === 0 && sl.max === 50 && sl.def === 50);
+  const at50 = labEPDeltas(w, career, { maturity: 50 }), base = labEPDeltas(w, career);
+  ok("at 50 it is the live engine exactly", w.every((m) => same(at50.get(m).playerDeltas, base.get(m).playerDeltas)));
+  const at0 = labEPDeltas(w, career, { maturity: 0 });
+  ok("at 0 every loss costs (no newcomer credit)", w.every((m) => Object.values(at0.get(m).breakdown).every((b) => b.won || b.raw <= 0)));
+}
 console.log("\n\x1b[36m── grace marks ───────────────────────────────────────\x1b[0m");
 {
   const base = labEPDeltas(w, career);
@@ -295,7 +304,7 @@ console.log("\n\x1b[36m── grace marks ────────────�
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
 ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,matchup" && labOption("custom").kind === "matchup");
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,topTier=0,maturity=10,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,topTier=0,maturity=10,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });

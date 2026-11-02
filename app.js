@@ -12187,7 +12187,7 @@ let _labCustom = (() => {
 const _labSliderKeys = (opt) => opt.sliders || [];
 const _labParams = (opt) => ({
   ...opt.params,
-  ...Object.fromEntries(_labSliderKeys(opt).map((k) => [k, _labCustom[k]])),
+  ...Object.fromEntries(_labSliderKeys(opt).map((k) => [LAB_SLIDERS.find((s) => s.key === k)?.param || k, _labCustom[k]])),
 });
 const _labKey = (opt) =>
   `${opt.id}:${_labSliderKeys(opt).map((k) => _labCustom[k]).join(":")}` +
@@ -12405,11 +12405,11 @@ function _scoringLabInner() {
 
   const res = _labRun(opt, matches);
   const live =
-    opt.id === "live"
+    opt.id === "live" && _labCustom.assMaturity === 50
       ? null
       : opt.kind === "grace"
         ? _labRun({ ...opt, id: "grace0", sliders: [], gracePts: 0 }, matches)
-        : _labRun(labOption("live"), matches);
+        : _labRun({ ...labOption("live"), id: "live0", sliders: [] }, matches); // the real live board
   const liveRank = live ? Object.fromEntries(live.rows.map((r) => [r.name, r.rank])) : null;
   const mid = res.rows.length ? (res.rows[0].score + res.rows[res.rows.length - 1].score) / 2 : 0;
   const scoreCol = (v) => (v > mid ? "var(--green)" : v < mid ? "var(--red)" : "var(--muted)");
