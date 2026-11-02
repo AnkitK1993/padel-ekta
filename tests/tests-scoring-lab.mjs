@@ -284,7 +284,7 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
 {
   const live = labOption("live");
   const sl = LAB_SLIDERS.find((s) => s.key === "assMaturity");
-  ok("ASS (live) has its own veteran slider (0–50, default 50) that sets the engine's maturity", same(live.sliders, ["assSplit", "assMaturity"]) && sl.param === "maturity" && sl.min === 0 && sl.max === 50 && sl.def === 50);
+  ok("ASS (live) has its own veteran slider (0–50, default 50) that sets the engine's maturity", same(live.sliders, ["assSplit", "assMaturity", "assEarly", "assEarlyGames", "assEarlyPrev"]) && sl.param === "maturity" && sl.min === 0 && sl.max === 50 && sl.def === 50);
   const at50 = labEPDeltas(w, career, { maturity: 50 }), base = labEPDeltas(w, career);
   ok("at 50 it is the live engine exactly", w.every((m) => same(at50.get(m).playerDeltas, base.get(m).playerDeltas)));
   const sp = LAB_SLIDERS.find((s) => s.key === "assSplit");
@@ -293,6 +293,24 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   ok("split at 12% is the live engine exactly", w.every((m) => same(at12.get(m).playerDeltas, base.get(m).playerDeltas)));
   const s0 = labEPDeltas(w, career, { splitMax: 0 });
   ok("split at 0%: partners get the same points", w.every((m) => [m.teamA, m.teamB].every(([x, y]) => s0.get(m).playerDeltas[x] === s0.get(m).playerDeltas[y])));
+  const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
+  const s2 = career.filter((m) => half2(m) === "S2");
+  const fixOff = labEPDeltas(s2, career, { seasonKey: half2, earlyFix: false });
+  const plain2 = labEPDeltas(s2, career);
+  ok("ASS early-season fix off = the live engine exactly", s2.every((m) => same(fixOff.get(m).playerDeltas, plain2.get(m).playerDeltas)));
+  const fix = labEPDeltas(s2, career, { seasonKey: half2, earlyFix: true, earlyGames: 5, earlyPrevGames: 25 });
+  const seen = {};
+  let fixOk = true, early = 0, later = 0;
+  [...s2].sort((a, b) => a.date.localeCompare(b.date)).forEach((m) => {
+    const e = fix.get(m);
+    const anyEarly = [...m.teamA, ...m.teamB].some((p) => (seen[p] || 0) < 5);
+    if (anyEarly !== (e.oddsFrom === "early")) fixOk = false;
+    if (!Object.values(e.playerDeltas).every(Number.isFinite)) fixOk = false;
+    anyEarly ? early++ : later++;
+    [...m.teamA, ...m.teamB].forEach((p) => (seen[p] = (seen[p] || 0) + 1));
+  });
+  ok("ASS early-season fix on: previous-season strength for a player's first N games, then the live rating", fixOk && early > 0 && later > 0);
+  ok("ASS early-season fix changes the early win chances", s2.some((m) => fix.get(m).oddsFrom === "early" && Math.abs(fix.get(m).expA - plain2.get(m).expA) > 0.02));
   const at0 = labEPDeltas(w, career, { maturity: 0 });
   ok("at 0 every loss costs (no newcomer credit)", w.every((m) => Object.values(at0.get(m).breakdown).every((b) => b.won || b.raw <= 0)));
 }
@@ -310,7 +328,7 @@ console.log("\n\x1b[36m── grace marks ────────────�
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
 ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,matchup" && labOption("custom").kind === "matchup");
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,topTier=0,maturity=10,assSplit=12,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,topTier=0,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });

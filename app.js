@@ -12222,7 +12222,7 @@ function _labRun(opt, matches) {
   const career = _ratingCareerMatches();
   let full, deltas = null, totalOf = () => null, totalLabel = "", fmt = (v) => v.toFixed(2);
   if (opt.kind === "ep") {
-    deltas = labEPDeltas(matches, career, _labParams(opt));
+    deltas = labEPDeltas(matches, career, { seasonKey: scopeKey, ..._labParams(opt) });
     full = labEPFull(deltas, _labParams(opt));
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
@@ -12410,7 +12410,7 @@ function _scoringLabInner() {
 
   const res = _labRun(opt, matches);
   const live =
-    opt.id === "live" && _labCustom.assMaturity === 50 && _labCustom.assSplit === 12
+    opt.id === "live" && _labSliderKeys(opt).every((k) => _labCustom[k] === LAB_SLIDERS.find((s) => s.key === k)?.def)
       ? null
       : opt.kind === "grace"
         ? _labRun({ ...opt, id: "grace0", sliders: [], gracePts: 0 }, matches)

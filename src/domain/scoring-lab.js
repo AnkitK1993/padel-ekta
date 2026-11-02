@@ -44,6 +44,17 @@ export const LAB_EP_DEFAULTS = {
   //        otherwise the hidden rating, as live.
   odds: "elo",
   oddsScale: 50, // fitted on real veteran-only matches (S1 + S2)
+  // Early-season fix: until a player has `earlyGames` games in the scored
+  // window, their strength for the win chance — and their ASS for the partner
+  // split — come from their ASS over their last `earlyPrevGames` games before
+  // the window (points as scored in those games' own season, `seasonKey`),
+  // instead of the hidden rating that starts everyone level. The ASS is put
+  // on the hidden rating's scale with the fitted odds above (400 ÷ oddsScale
+  // rating points per ASS point, centred on the players' average).
+  earlyFix: false,
+  earlyGames: 10,
+  earlyPrevGames: 25,
+  seasonKey: null,
 };
 
 const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
@@ -59,7 +70,38 @@ export function labEPDeltas(matches, career = null, params = {}) {
   const epTot = {};
   const epGames = {};
   const map = new Map();
-  const rating = (p) => (epTot[p] || 0) / ((epGames[p] || 0) + P.shrinkage);
+  const baseRating = (p) => (epTot[p] || 0) / ((epGames[p] || 0) + P.shrinkage);
+
+  // Early-season fix: each player's ASS over their last earlyPrevGames games
+  // before the window, and the rating it stands for.
+  const prevAss = {};
+  if (P.earlyFix) {
+    const first = walk.find((m) => scoring.has(m));
+    const pre = first ? walk.filter((m) => !scoring.has(m) && byDate(m, first) < 0) : [];
+    const key = P.seasonKey || (() => "");
+    const groups = new Map();
+    pre.forEach((m) => {
+      const k = key(m);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(m);
+    });
+    const pts = {};
+    const plain = { ...params, earlyFix: false };
+    groups.forEach((ms) =>
+      labEPDeltas(ms, walk, plain).forEach((e, m) =>
+        Object.entries(e.playerDeltas).forEach(([p, d]) => (pts[p] ||= []).push({ m, d })),
+      ),
+    );
+    Object.entries(pts).forEach(([p, list]) => {
+      const last = list.sort((a, b) => byDate(a.m, b.m)).slice(-Math.max(1, P.earlyPrevGames));
+      prevAss[p] = last.reduce((t, e) => t + e.d, 0) / (last.length + P.shrinkage); // unscaled, like rating()
+    });
+  }
+  const prevVals = Object.values(prevAss);
+  const prevMean = prevVals.length ? prevVals.reduce((a, b) => a + b, 0) / prevVals.length : 0;
+  const early = (p) => P.earlyFix && p in prevAss && (epGames[p] || 0) < P.earlyGames;
+  const rating = (p) => (early(p) ? prevAss[p] : baseRating(p));
+  const strength = (p, elo) => (early(p) ? 1000 + (400 / P.oddsScale) * P.scale * (prevAss[p] - prevMean) : elo[p]);
 
   walk.forEach((m) => {
     const teamA = m.teamA || [];
@@ -73,6 +115,11 @@ export function labEPDeltas(matches, career = null, params = {}) {
     const eloExpA = 1 / (1 + Math.pow(10, (avg(teamB) - avg(teamA)) / 400));
     let expA = eloExpA;
     let oddsFrom = "elo";
+    if (P.earlyFix && scoring.has(m) && [...teamA, ...teamB].some(early)) {
+      const avgS = (t) => t.reduce((s, p) => s + strength(p, elo), 0) / t.length;
+      expA = 1 / (1 + Math.pow(10, (avgS(teamB) - avgS(teamA)) / 400));
+      oddsFrom = "early";
+    }
     if (
       P.odds === "ass" &&
       scoring.has(m) &&
@@ -475,8 +522,8 @@ export const LAB_OPTIONS = [
     label: "ASS (live)",
     kind: "ep",
     params: {},
-    sliders: ["assSplit", "assMaturity"],
-    desc: "Exactly what the Summary tab shows today (with the sliders at their defaults, 12% and 50 — move them to see the board with a different partner split or newcomer line; ▲▼ then compare against the real board). A win pays about 100: up to 20% more for beating a stronger side, less for a weaker one, and more for a bigger margin (a shutout earns a little extra). Until a player's 50th career game a loss still pays a small credit; after that a loss costs up to 25 — more when their team was the favourite. Who was favoured is judged only on the matches in this view. Partners' points are nudged (up to 12%) toward the lower-rated partner. Score = 2 × points ÷ (games + 10), so a handful of games can't top the board.",
+    sliders: ["assSplit", "assMaturity", "assEarly", "assEarlyGames", "assEarlyPrev"],
+    desc: "Exactly what the Summary tab shows today (with the sliders at their defaults — move them to see the board with a different partner split, newcomer line or the early-season fix; ▲▼ then compare against the real board). Early-season fix (off by default): the hidden rating that decides who's favoured starts everyone level each season, so the first days are judged near 50–50 — when on, a player's ASS over their last games before the season (default 25) decides their strength and their partner split until they've played the chosen number of games this season (default 10). A win pays about 100: up to 20% more for beating a stronger side, less for a weaker one, and more for a bigger margin (a shutout earns a little extra). Until a player's 50th career game a loss still pays a small credit; after that a loss costs up to 25 — more when their team was the favourite. Who was favoured is judged only on the matches in this view. Partners' points are nudged (up to 12%) toward the lower-rated partner. Score = 2 × points ÷ (games + 10), so a handful of games can't top the board.",
   },
   {
     id: "custom",
@@ -539,6 +586,9 @@ export const LAB_SLIDERS = [
   // ASS (live)'s own sliders; `param` is the engine option each sets (times
   // `paramScale`, when the engine takes a fraction).
   { key: "assSplit", param: "splitMax", paramScale: 0.01, label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 12 },
+  { key: "assEarly", param: "earlyFix", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 0 },
+  { key: "assEarlyGames", param: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
+  { key: "assEarlyPrev", param: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
   { key: "assMaturity", param: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 50 },
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
