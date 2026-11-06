@@ -89,6 +89,9 @@ function resolveInitial(init) {
 // Parse one match line → {match, reason?} where match is {teamA, teamB, scoreA, scoreB} or null on error.
 function parseMatchLine(line) {
   line = line.trim().replace(/\s+/g, " ");
+  // A separator before a trailing score ("… Par Sac : 4-2", "… = 4-2",
+  // "… , 4-2", "… | 4-2") is just punctuation: drop it.
+  line = line.replace(/\s*[:=,|]\s*(\d+\s*[-–]\s*\d+)$/, " $1");
 
   // Shorthand format: NiGo v PaPu 6-1  (2-char initials, no spaces)
   const sh = line.match(_REGEX_SHORTHAND);
