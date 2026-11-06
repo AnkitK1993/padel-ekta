@@ -299,6 +299,21 @@ for (const sys of SCORING_SYSTEMS) {
     ok(`${sys}: entry() is null (no EP detail)`, rating.entry(matches[0]) === null);
   }
 }
+console.log("\n\x1b[36m── season-priced views (points systems) ──────────────────\x1b[0m");
+for (const sys of ["ep", "fairgap"]) {
+  setActiveSystem(sys);
+  invalidate();
+  // A "day" view inside S2 and a cross-season pick.
+  const day = matches.filter((m) => m.date === "2025-06-05");
+  const mixed = [...matches.filter((m) => m.date === "2025-03-05"), ...day];
+  const sd = rating.seasonDeltas(mixed);
+  ok(`${sys}: a period view's match points = the match's own (overlay) points`, mixed.every((m) => JSON.stringify(sd.get(m).playerDeltas) === JSON.stringify(rating.entry(m).playerDeltas)));
+  const s2 = matches.filter((m) => m.date >= "2025-06-01");
+  const a = rating.seasonFull(s2), b = rating.full(s2);
+  ok(`${sys}: over a whole season, season-priced = the season board`, Object.keys(b).every((p) => a[p].ep === b[p].ep && Math.abs(a[p].score - b[p].score) < 1e-9));
+  const fd = rating.seasonFull(day);
+  ok(`${sys}: a day board adds up those match points`, Object.keys(fd).every((p) => fd[p].ep === day.reduce((t, m) => t + (sd.get(m).playerDeltas[p] || 0), 0)));
+}
 setActiveSystem("ep");
 
 console.log(

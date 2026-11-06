@@ -5163,7 +5163,7 @@ function renderHome() {
   _renderSeasonQuickSwitch();
   const filtered = filterMatches(homeFilter, homeFrom, homeTo);
   // One engine pass yields both the rating and the secondary figure.
-  const homeFull = rating.full(filtered);
+  const homeFull = rating.seasonFull(filtered);
   const homeASSMap = rating.flat(filtered, homeFull);
   // SR (the gauge/rating on every card) and the card ordering both follow the
   // active system. computeStats already sorts by SR desc, so this orders cards
@@ -5592,9 +5592,10 @@ function renderCompact() {
     _cmpConfMap = r.confMap;
     stats = r.stats;
   } else {
-    // The active system over the filtered window, one
-    // engine pass for both the rating and the secondary column.
-    const _full = rating.full(filtered);
+    // The active system over the filtered window, every match priced inside
+    // its own season (so a Today / Week board adds up the points each match
+    // really earned), one pass for both the rating and the secondary column.
+    const _full = rating.seasonFull(filtered);
     _cmpASSMap = rating.flat(filtered, _full);
     _cmpConfMap = rating.conf(_full);
     stats = rating.stats(filtered, _cmpASSMap);
@@ -5693,7 +5694,8 @@ function renderCompact() {
   const _allTimeRankMap = {};
   {
     const _atMs = activeMatches();
-    const _atAss = _memoRating();
+    // Season-priced like the board itself, so the ▲▼ compare like with like.
+    const _atAss = rating.flat(_atMs, rating.seasonFull(_atMs));
     // For the score column substitute the all-time map; other columns reuse sortFns.
     const _atConf =
       cmpSortKey === "conf" ? rating.conf(rating.full(_atMs)) : null;
@@ -5726,7 +5728,7 @@ function renderCompact() {
   if (cmpFilter === "all") {
     const _mMonth = filterMatches("month");
     if (_mMonth.length > 0) {
-      const _mFull = rating.full(_mMonth);
+      const _mFull = rating.seasonFull(_mMonth);
       const _mAss = rating.flat(_mMonth, _mFull);
       const _mStats = rating.stats(_mMonth, _mAss);
       const _mConf = cmpSortKey === "conf" ? rating.conf(_mFull) : null;
@@ -5812,18 +5814,9 @@ function renderCompact() {
   _cmpLeaderHtmls = leaderRowHtmls;
   _cmpFiltered = filtered;
 
-  // Delta walk follows the period chip: ALL TIME uses the full active-season
-  // trajectory so each match's delta reflects its true in-season context; any
-  // other period starts fresh and walks only the matches it shows (a Today
-  // view is session-relative, a Week view is week-relative, …).
-  const _allActive = activeMatches();
-  const _shown = new Set(filtered);
-  const _deltaMatches =
-    cmpFilter === "all" ? _allActive : _allActive.filter((m) => _shown.has(m));
-  // EP's expectation learns only from the walked window, so a period walk
-  // starts level, while the career game counts behind the 50-game newcomer
-  // flag stay intact.
-  const matchEloDeltas = rating.deltas(_deltaMatches);
+  // Each match's points as priced inside its season — the same number its
+  // overlay and History card show, whatever period is picked.
+  const matchEloDeltas = rating.seasonDeltas(filtered);
 
   // Sync MATCHES PLAYED header controls
   const _deltaLbl = document.getElementById("cmp-delta-mode-lbl");

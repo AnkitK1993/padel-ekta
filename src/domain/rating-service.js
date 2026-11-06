@@ -101,7 +101,10 @@ let _entryCache = new Map();
 // history (state.matches) is unchanged; any data change also clears it.
 let _mapCache = new WeakMap();
 let _careerCounts = null; // { key, counts } — see careerGameCounts()
+// Per system + season: { src: the rated-match list it was built from, d: Map }.
+let _seasonDeltaCache = new Map();
 export function invalidate() {
+  _seasonDeltaCache = new Map();
   _entryCache = new Map();
   _mapCache = new WeakMap();
   _careerCounts = null;
@@ -362,6 +365,50 @@ export const rating = {
         (isMatchup(s) ? fairDeltas(scopeFor(m), s) : computeMatchEPDeltas(scopeFor(m), careerMatches())).get(m) ||
         null;
     return bySys[key];
+  },
+  // Each match priced inside its own season — the points it earned on that
+  // season's table, the same number as entry() / the match overlay — for any
+  // selection of matches (a day, a week, several seasons). On the points
+  // systems a Today or Week view must not re-price its matches from a level
+  // start; the other systems keep their plain window walk.
+  seasonDeltas(matches, s = _system) {
+    if (!SCORING_SYSTEMS_POINTS.includes(s)) return rating.deltas(matches, s);
+    const src = ratedMatches();
+    const groups = new Map();
+    (matches || []).forEach((m) => {
+      const k = scopeKey(m);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(m);
+    });
+    const out = new Map();
+    groups.forEach((ms, k) => {
+      const key = `${s}|${k}`;
+      let hit = _seasonDeltaCache.get(key);
+      if (!hit || hit.src !== src) {
+        hit = { src, d: rating.deltas(scopeFor(ms[0], src), s) };
+        _seasonDeltaCache.set(key, hit);
+      }
+      ms.forEach((m) => {
+        const e = hit.d.get(m);
+        if (e) out.set(m, e);
+      });
+    });
+    return out;
+  },
+  // full() from season-priced points: { name: { ep, games, score } }.
+  seasonFull(matches, s = _system) {
+    if (!SCORING_SYSTEMS_POINTS.includes(s)) return rating.full(matches, s);
+    const ep = {};
+    const games = {};
+    rating.seasonDeltas(matches, s).forEach(({ playerDeltas }) =>
+      Object.entries(playerDeltas).forEach(([p, d]) => {
+        ep[p] = (ep[p] || 0) + d;
+        games[p] = (games[p] || 0) + 1;
+      }),
+    );
+    const out = {};
+    Object.keys(ep).forEach((p) => (out[p] = { ep: ep[p], games: games[p], score: rating.scoreFor(ep[p], games[p], s) }));
+    return out;
   },
   // EP only: running total points per player over a window ({} -> null elsewhere).
   totals(matches, s = _system) {
