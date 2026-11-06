@@ -888,7 +888,6 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-let _topGainersWindow = "today"; // "alltime" | "today" — HIGHLIGHTS card's Top Points Gainers
 // Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS") or "fairgap"
 // ("FAIR ASS GAP", Fair Matchup Points with the gap rule). FAIR ASS ("fair"),
 // Glicko-2 / OpenSkill / Fair Share still exist in the rating service but are
@@ -1265,7 +1264,6 @@ initSelectorsDeps({
 initHistorySummaryDeps({
   normPlayer,
   getPairStats,
-  topGainersWindow: () => _topGainersWindow,
 });
 // Award badges: pure compute, fed the stats/ass/pair + date helpers it needs.
 // Pairs engine — normPlayer injected; getPairStats/etc. now exported from pairs.js.
@@ -5543,11 +5541,6 @@ function _lbSetWindow(mode) {
   } else {
     _cmpCountPickerOpen("lb", mode);
   }
-}
-
-function toggleTopGainersWindow(win) {
-  _topGainersWindow = win;
-  _withNoCascade(renderCompact);
 }
 
 // Manual "Remove Cache" admin action — drops the Statistics page's in-memory
@@ -19417,7 +19410,6 @@ Object.assign(window, {
   shareSeasonRecap,
   toggleOfflineMode,
   renderCompact,
-  toggleTopGainersWindow,
   _pairingOddsSort,
   _pairingOddsExc,
   _labPick,

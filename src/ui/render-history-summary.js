@@ -9,11 +9,10 @@ import { activeMatches } from "../domain/selectors.js";
 
 // Ratings, deltas and labels come straight from the rating service (so this
 // card follows the Summary tab's scoring picker by construction). Only the two
-// app-coupled helpers and the TODAY/ALL-TIME toggle are injected.
+// app-coupled helpers are injected.
 let _deps = {
   normPlayer: (n) => n,
   getPairStats: () => [],
-  topGainersWindow: () => "today",
 };
 export function initHistorySummaryDeps(d) {
   _deps = { ..._deps, ...d };
@@ -51,18 +50,11 @@ export function buildHistorySummary(matches, filter = "all") {
     return v;
   };
 
-  // ── TOP POINTS GAINERS — replaces the old static leaderboard-rank podium.
-  // Scope is always `matches` — whatever the date filter above (which already
-  // folds in the active season) is currently showing — same as every other
-  // number on this card. The toggle only changes HOW each player's rating is
-  // priced, exactly like the MATCHES PLAYED section right above it — TODAY
-  // reprices the whole shown window as its own fresh, zero-baseline session;
-  // ALL TIME prices with the real, full active-season trajectory. Both are
-  // expressed as a rating SNAPSHOT diff (before vs after), never a summed
-  // per-match delta — for a shrinkage-based engine like EP, summing raw
-  // per-match deltas across more than a couple of matches wildly overstates
-  // the real, bounded score (the same bug the History-page pill had).
-  const _tgWindow = _deps.topGainersWindow();
+  // ── TOP POINTS GAINERS — how much each player's leaderboard number moved
+  // over the matches shown: their rating just before the first shown day vs
+  // just after the last one, on the real active-season walk (every match at
+  // its season price, like the MATCHES PLAYED list above). A snapshot diff,
+  // never a sum of per-match deltas, which overstates a shrinkage score.
   const _ratingDef = _ratingDefault();
   const _allActiveForGains = activeMatches();
   const _lbl = _ratingLabel();
@@ -75,23 +67,11 @@ export function buildHistorySummary(matches, filter = "all") {
         mpByPlayer[p] = (mpByPlayer[p] || 0) + 1;
       }),
     );
-    let preScore, postScore;
-    if (_tgWindow === "today") {
-      preScore = {};
-      // TODAY: score the session as its own whole (expectation restarts level
-      // for a shrinkage engine like EP; career game counts stay intact).
-      postScore = rating.fresh(matches);
-    } else {
-      const periodDatesG = matches.map((m) => m.date || "").filter(Boolean);
-      const firstDateG = periodDatesG.length
-        ? periodDatesG.reduce((a, b) => (a < b ? a : b))
-        : null;
-      const beforeMsG = firstDateG
-        ? _allActiveForGains.filter((m) => (m.date || "") < firstDateG)
-        : [];
-      preScore = _ratingMap(beforeMsG);
-      postScore = _ratingMap(_allActiveForGains);
-    }
+    const dates = matches.map((m) => m.date || "").filter(Boolean);
+    const first = dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : null;
+    const last = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null;
+    const preScore = first ? _ratingMap(_allActiveForGains.filter((m) => (m.date || "") < first)) : {};
+    const postScore = last ? _ratingMap(_allActiveForGains.filter((m) => (m.date || "") <= last)) : {};
     return [...periodPlayers]
       .map((p) => ({
         name: normPlayer(p),
@@ -113,10 +93,6 @@ export function buildHistorySummary(matches, filter = "all") {
           </div>`;
     })
     .join("");
-  const gainersToggleHtml = `<div class="mdw-wrap" style="display:inline-flex;margin-left:8px;vertical-align:middle">
-    <button class="mdw-btn${_tgWindow === "alltime" ? " active" : ""}" onclick="event.stopPropagation();window.toggleTopGainersWindow('alltime')">ALL TIME</button>
-    <button class="mdw-btn${_tgWindow === "today" ? " active" : ""}" onclick="event.stopPropagation();window.toggleTopGainersWindow('today')">TODAY</button>
-  </div>`;
   const highlights = [];
   const pairs = getPairStats(matches).filter((p) => p.played >= 2);
   if (pairs.length) {
@@ -285,7 +261,7 @@ export function buildHistorySummary(matches, filter = "all") {
             <div class="hsum-stat hsum-cascade" style="animation-delay:195ms"><div class="hsum-val">±${avgMargin}</div><div class="hsum-lbl">Avg Margin</div></div>
           </div>
           ${potwHtml}
-          ${topGainers.length ? `<div class="hsum-section-lbl" style="display:flex;align-items:center;justify-content:space-between">Top Points Gainers${gainersToggleHtml}</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
+          ${topGainers.length ? `<div class="hsum-section-lbl">Top Points Gainers</div><div class="hsum-podium">${podiumHtml}</div>` : ""}
           ${highlights.length ? `<div class="hsum-section-lbl">AWARDS</div><div class="hsum-highlights">${highlights.join("")}</div>` : ""}
           ${hotColdHtml}
           ${sessionRecapHtml}
