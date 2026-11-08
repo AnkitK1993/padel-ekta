@@ -290,8 +290,6 @@ export const MATCHUP_LOSS_REF = 20;
 // of a loss. Share shift = splitCap% × min(1, gap ÷ MATCHUP_SPLIT_FULL_GAP), so
 // at the default 10% cap: 0.5% per ASS point, full 10% from a 20-point gap.
 export const MATCHUP_SPLIT_CAP = 10;
-export const TOP_TIER_SIZE = 6;
-export const TOP_TIER_GAMES = 10;
 export const MATCHUP_SPLIT_FULL_GAP = 20;
 
 // Map(match -> { playerDeltas, matchup }) for `matches`. `matchup` holds what
@@ -319,10 +317,6 @@ export function labMatchupDeltas(
     gapRule = false,
     gapBalanced = 15,
     gapFull = 30,
-    // With the gap rule: when one team has more of the current top 6 (by
-    // season ASS, among players with 10+ games this season) that team is the
-    // stronger one and the split is at least half stacked.
-    topTier = false,
     // Early-season fix: until a player has earlyGames games this season, read
     // their ASS over their last earlyPrevGames games before the season (points
     // as scored in those seasons), instead of this season's near-zero ASS.
@@ -333,8 +327,24 @@ export function labMatchupDeltas(
     // Extra options for the live ASS engine that scores newcomer matches
     // (partner split, newcomer line, its own early-season fix).
     liveParams = {},
+    // Season 3: the ASS engine for newcomer matches follows this option's own
+    // partner split, veteran line and early-season fix (one set of sliders).
+    liveFollows = false,
+    // Gap rule only: a win's 4–3 points at a balanced gap, halfway, and fully
+    // stacked ({ bal, strongMid, weakMid, strongFull, weakFull }); in between
+    // they slide straight from one to the next. A 4–0 still adds +20.
+    winPoints = null,
   } = {},
 ) {
+  if (liveFollows)
+    liveParams = {
+      splitMax: Math.max(0, splitCap) / 100,
+      maturity,
+      earlyFix: !!earlyCareer,
+      earlyGames,
+      earlyPrevGames,
+      ...liveParams,
+    };
   const winScale = winBase / MATCHUP_WIN_REF;
   const lossScale = lossMax / MATCHUP_LOSS_REF;
   const walk = [...new Set([...(career || []), ...(matches || [])])].sort(byDate);
@@ -431,22 +441,6 @@ export function labMatchupDeltas(
             gapFull <= gapBalanced
               ? teamGap > gapBalanced ? 1 : 0
               : Math.max(0, Math.min(1, (teamGap - gapBalanced) / (gapFull - gapBalanced)));
-          if (topTier) {
-            // The current top 6: season ASS of everyone with 10+ games this
-            // season (same reading as above), plus the four in this match.
-            const read = (p) => (p in ass ? ass[p] : readAss(p)[0]);
-            const pool = new Set([...Object.keys(sg).filter((p) => sg[p] >= TOP_TIER_GAMES), ...four]);
-            const top = [...pool].sort((x, y) => read(y) - read(x) || x.localeCompare(y)).slice(0, TOP_TIER_SIZE);
-            info.top = top;
-            info.topA = teamA.filter((p) => top.includes(p)).length;
-            info.topB = teamB.filter((p) => top.includes(p)).length;
-            if (info.topA !== info.topB) {
-              const aMore = info.topA > info.topB;
-              if (aMore !== aStronger) stack = 0; // ASS says the other way: start from balanced
-              aStronger = aMore;
-              stack = Math.max(stack, 0.5);
-            }
-          }
         }
         const balanced = stack === 0;
         info.kind = balanced ? "balanced" : "mismatch";
@@ -463,7 +457,15 @@ export function labMatchupDeltas(
         ].forEach(([team, role, won]) => {
           // Partly stacked: in between the balanced and the stacked numbers.
           const pts = (r) => (won ? MATCHUP_POINTS[r].win + MATCHUP_POINTS[r].winUp * g : -(MATCHUP_POINTS[r].loss + MATCHUP_POINTS[r].lossUp * g));
-          const mixed = role === "balanced" ? pts("balanced") : pts("balanced") + stack * (pts(role) - pts("balanced"));
+          let mixed = role === "balanced" ? pts("balanced") : pts("balanced") + stack * (pts(role) - pts("balanced"));
+          if (won && winPoints && gapRule) {
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const W = winPoints;
+            const midV = role === "stronger" ? W.strongMid : W.weakMid;
+            const fullV = role === "stronger" ? W.strongFull : W.weakFull;
+            const at43 = role === "balanced" ? W.bal : stack <= 0.5 ? lerp(W.bal, midV, stack / 0.5) : lerp(midV, fullV, (stack - 0.5) / 0.5);
+            mixed = at43 + MATCHUP_POINTS.balanced.winUp * g;
+          }
           const raw = mixed * (won ? winScale : lossScale);
           const [x, y] = team;
           const gap = Math.abs(ass[x] - ass[y]);
@@ -543,8 +545,8 @@ export const LAB_OPTIONS = [
     label: "Fair ASS · gap rule",
     kind: "matchup",
     params: { seasonGames: 0, gapRule: true },
-    sliders: ["gapBalanced", "gapFull", "splitCap", "maturity", "topTier", "earlyCareer", "earlyGames", "earlyPrevGames"],
-    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Top 6 rule (on/off): when one team has more of the current top 6 by season ASS (among players with 10+ games this season), that team is the stronger one and the split is at least half stacked — two top-6 players beat one top-6 plus another about 3 times in 4, even when the ASS gap is small. Partner split (slider, default 5%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Veteran from career game (slider, default 10): a match with anyone below it is a newcomer match, scored as ASS — where a newcomer's loss pays a small credit and only veterans' losses cost. Early-season fix (on/off, on by default — as FAIR ASS GAP on the Summary tab): at the start of a season everyone's ASS is near 0, so gaps mean little — when on, a player's ASS over their last games before this season (normally the end of last season — how many: the last slider, default 25) decides the team gap until they have played the chosen number of games this season (default 10), then this season's ASS. A player with no earlier games uses this season's. Newcomer rule and score are as Fair ASS.",
+    sliders: ["gapBalanced", "gapFull", "splitCap", "maturity", "earlyCareer", "earlyGames", "earlyPrevGames"],
+    desc: "Fair ASS, but a split only counts as stacked when the teams were really uneven: the gap between the two teams' combined ASS decides. Up to the first slider (default 15) it's balanced — in our matches the higher-ASS team wins only about half of those. From the second (default 30) it's fully stacked (stronger team wins 50–70 and loses 30–40, weaker team wins 120–140 and loses 0–20) — past about 30 the stronger team wins about 7 in 10 and that doesn't climb further. In between the points slide gradually from balanced to stacked. Partner split (slider, default 5%): the weaker partner gets that much more of a win and the stronger partner takes that much more of a loss, reached at a 20-point ASS gap between partners. Veteran from career game (slider, default 10): a match with anyone below it is a newcomer match, scored as ASS — where a newcomer's loss pays a small credit and only veterans' losses cost. Early-season fix (on/off, on by default — as FAIR ASS GAP on the Summary tab): at the start of a season everyone's ASS is near 0, so gaps mean little — when on, a player's ASS over their last games before this season (normally the end of last season — how many: the last slider, default 25) decides the team gap until they have played the chosen number of games this season (default 10), then this season's ASS. A player with no earlier games uses this season's. Newcomer rule and score are as Fair ASS.",
   },
   {
     id: "grace",
@@ -573,23 +575,22 @@ export const LAB_OPTIONS = [
     id: "season3",
     label: "Season 3",
     kind: "matchup",
-    params: { seasonGames: 0, gapRule: true },
+    params: { seasonGames: 0, gapRule: true, liveFollows: true },
     sliders: [
       "gapBalanced",
       "gapFull",
+      "winBal",
+      "winStrongMid",
+      "winWeakMid",
+      "winStrongFull",
+      "winWeakFull",
       "splitCap",
       "maturity",
-      "topTier",
       "earlyCareer",
       "earlyGames",
       "earlyPrevGames",
-      "assSplit",
-      "assMaturity",
-      "assEarly",
-      "assEarlyGames",
-      "assEarlyPrev",
     ],
-    desc: "FAIR ASS GAP and ASS together, each with its own sliders. Every match where all four players are veterans (the 'Veteran from career game' line, default 10) is scored by the gap rule: the gap between the teams' combined season ASS decides balanced (default up to 15) / partly / fully stacked (default from 30), the partner split (default 5%), the Top 6 rule and the early-season fix (previous season's last 25 games for a player's first 10 this season). A match with a newer player is scored as ASS, using the ASS sliders below: its partner split (default 12%), its own newcomer line for loss credit (default 50) and its early-season fix (off by default; when on, a player's ASS over their last games before the season decides who's favoured until they've played the chosen number of games this season). Score = 2 × points ÷ (games + 10).",
+    desc: "FAIR ASS GAP for veterans, ASS for newer players, with one set of sliders. A match where all four players have reached the veteran line (default 10 career games) is scored by the team gap — the difference between the teams' combined season ASS: balanced up to the first slider (default 15), fully stacked from the second (default 30). The win sliders set what a 4–3 win pays at a balanced gap (default 100 for either team), at the halfway gap (default 23: stronger team 75, weaker team 110) and when fully stacked (default stronger 50, weaker 120); between those points it slides straight, and a 4–0 adds 20. Losses: balanced 0 to −20, stronger team up to −30 to −40, weaker team never more than −20. A match with a newer player is scored as ASS. The partner split (default 5%), the veteran line and the early-season fix (previous season's last 25 games for a player's first 10 this season) apply to both kinds of match. Score = 2 × points ÷ (games + 10).",
   },
 ];
 
@@ -600,7 +601,11 @@ export const LAB_SLIDERS = [
   { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 5 },
   { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 15 },
   { key: "gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },
-  { key: "topTier", label: "Top 6 rule", toggle: true, min: 0, max: 1, step: 1, def: 0 },
+  { key: "winBal", wp: "bal", label: "Win at a balanced gap (4–3)", min: 0, max: 200, step: 5, def: 100 },
+  { key: "winStrongMid", wp: "strongMid", label: "Stronger team win, halfway gap", min: 0, max: 200, step: 5, def: 75 },
+  { key: "winWeakMid", wp: "weakMid", label: "Weaker team win, halfway gap", min: 0, max: 200, step: 5, def: 110 },
+  { key: "winStrongFull", wp: "strongFull", label: "Stronger team win, fully stacked", min: 0, max: 200, step: 5, def: 50 },
+  { key: "winWeakFull", wp: "weakFull", label: "Weaker team win, fully stacked", min: 0, max: 200, step: 5, def: 120 },
   { key: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 10 },
   // ASS (live)'s own sliders; `param` is the engine option each sets (times
   // `paramScale`, when the engine takes a fraction).

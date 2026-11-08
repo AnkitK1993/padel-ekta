@@ -12176,9 +12176,17 @@ const _labParams = (opt) => ({
   ...Object.fromEntries(
     _labSliderKeys(opt)
       .map((k) => LAB_SLIDERS.find((x) => x.key === k))
-      .filter((s) => s && !(s.live && opt.kind === "matchup"))
+      .filter((s) => s && !(s.live && opt.kind === "matchup") && !s.wp)
       .map((s) => [s.param || s.key, _labCustom[s.key] * (s.paramScale ?? 1)]),
   ),
+  // The win sliders (Season 3) become one winPoints table.
+  ...(_labSliderKeys(opt).some((k) => LAB_SLIDERS.find((x) => x.key === k)?.wp)
+    ? {
+        winPoints: Object.fromEntries(
+          LAB_SLIDERS.filter((s) => s.wp && _labSliderKeys(opt).includes(s.key)).map((s) => [s.wp, _labCustom[s.key]]),
+        ),
+      }
+    : {}),
   // ASS sliders on a matchup option (Season 3) set the ASS engine it uses
   // for newcomer matches.
   ...(opt.kind === "matchup" && _labSliderKeys(opt).some((k) => LAB_SLIDERS.find((x) => x.key === k)?.live)
@@ -12350,12 +12358,19 @@ function _labGapTable() {
   const b = _labCustom.gapBalanced;
   const f = _labCustom.gapFull;
   const mid = Math.round((b + f) / 2);
-  const at = (s) => [Math.round(100 - 50 * s), Math.round(-30 * s), Math.round(100 + 20 * s)];
-  const row = (label, s) => {
-    const [sw, sl, ww] = at(s);
-    return `<tr><td>${label}</td><td class="tp">+${sw}</td><td class="tn">${sl || 0}</td><td class="tp">+${ww}</td></tr>`;
-  };
-  return `<table class="lab-pts"><thead><tr><th>4–3, TEAM GAP</th><th>STRONGER WINS</th><th>STRONGER LOSES</th><th>WEAKER WINS</th></tr></thead><tbody>${row(`≤ ${b}`, 0)}${f > b + 1 ? row(`${mid}`, 0.5) : ""}${row(`${Math.max(f, b + 1)}+`, 1)}</tbody></table><div class="lab-pts-n">A 4–0 shifts the same way between +120 / −20 / +120 (balanced) and +70 / −40 / +140 (fully stacked). The weaker team never loses more than a balanced loss. Partner split up to ${_labCustom.splitCap}% (${Math.round((_labCustom.splitCap / 20) * 100) / 100}% per ASS point between partners).${_labCustom.topTier ? " Top 6 rule on: a team with more of the current top 6 is the stronger team and at least 50% stacked." : ""}</div>`;
+  // Season 3's win sliders, else the fixed Fair ASS numbers.
+  const s3 = _labId === "season3";
+  const W = s3
+    ? { bal: _labCustom.winBal, strongMid: _labCustom.winStrongMid, weakMid: _labCustom.winWeakMid, strongFull: _labCustom.winStrongFull, weakFull: _labCustom.winWeakFull }
+    : { bal: 100, strongMid: 75, weakMid: 110, strongFull: 50, weakFull: 120 };
+  const rows = [
+    [`≤ ${b}`, W.bal, 0, W.bal],
+    ...(f > b + 1 ? [[`${mid}`, W.strongMid, -15, W.weakMid]] : []),
+    [`${Math.max(f, b + 1)}+`, W.strongFull, -30, W.weakFull],
+  ];
+  const row = ([label, sw, sl, ww]) =>
+    `<tr><td>${label}</td><td class="tp">+${Math.round(sw)}</td><td class="tn">${sl || 0}</td><td class="tp">+${Math.round(ww)}</td></tr>`;
+  return `<table class="lab-pts"><thead><tr><th>4–3, TEAM GAP</th><th>STRONGER WINS</th><th>STRONGER LOSES</th><th>WEAKER WINS</th></tr></thead><tbody>${rows.map(row).join("")}</tbody></table><div class="lab-pts-n">A 4–0 win adds 20 to these. Losses run from 0 / −20 (balanced) to −30 / −40 for the stronger team when fully stacked; the weaker team never loses more than a balanced loss. Partner split up to ${_labCustom.splitCap}% (${Math.round((_labCustom.splitCap / 20) * 100) / 100}% per ASS point between partners).</div>`;
 }
 function _labSlidersReset() {
   const keys = _labSliderKeys(labOption(_labId));
@@ -12483,7 +12498,7 @@ function _scoringLabInner() {
         };
         const gapLine =
           mu.gap != null
-            ? `<div>Team gap ${mu.gap.toFixed(1)} combined ASS${mu.top ? ` · top 6: ${mu.topA}–${mu.topB}` : ""} · ${mu.stack ? `${Math.round(mu.stack * 100)}% stacked` : "balanced"}.</div>`
+            ? `<div>Team gap ${mu.gap.toFixed(1)} combined ASS · ${mu.stack ? `${Math.round(mu.stack * 100)}% stacked` : "balanced"}.</div>`
             : "";
         detail = `<div class="lab-detail">${[...(m.teamA || []), ...(m.teamB || [])].map(line).join("")}${gapLine}<div>Margin ${m.scoreA}–${m.scoreB} → ${Math.round(100 * mu.g)}% of the way from the closest result to a whitewash.</div></div>`;
       } else if (mu) {

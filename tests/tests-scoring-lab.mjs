@@ -219,20 +219,29 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   ok("between 10 and 40 the split is graded (gap − 10) ÷ 30", rGrade && partial > 5);
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true });
   ok("defaults: balanced up to 15, fully stacked from 30", w.every((m) => { const x = dflt.get(m).matchup; return x.kind === "newcomer" || Math.abs(x.stack - Math.max(0, Math.min(1, (x.gap - 15) / 15))) < 1e-9; }));
-  const tt = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, topTier: true });
-  let tierOk = true, tierSeen = 0, sameOk = true;
+  const wp = { bal: 100, strongMid: 75, weakMid: 110, strongFull: 50, weakFull: 120 };
+  const asIs = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, splitCap: 0 });
+  const withWp = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, splitCap: 0, winPoints: wp });
+  // At the default win points only the halfway shape differs from the straight slide: same at 0, ½ and 1.
+  let wpOk = true, wpSeen = 0;
   w.forEach((m) => {
-    const x = tt.get(m).matchup, y = dflt.get(m).matchup;
+    const x = withWp.get(m).matchup;
     if (x.kind === "newcomer") return;
-    if (!Array.isArray(x.top) || x.top.length > 6) tierOk = false;
-    if (x.topA !== x.topB) {
-      tierSeen++;
-      const more = x.topA > x.topB ? "roleA" : "roleB";
-      if (x.stack < 0.5 || x[more] !== "stronger") tierOk = false;
-    } else if (x.stack !== y.stack || x.roleA !== y.roleA) sameOk = false;
+    const aWon = m.scoreA > m.scoreB;
+    const role = aWon ? x.roleA : x.roleB;
+    const t = aWon ? m.teamA : m.teamB;
+    const lerp = (a, b, f) => a + (b - a) * f;
+    const s0 = x.stack;
+    const mid = role === "stronger" ? wp.strongMid : wp.weakMid, full = role === "stronger" ? wp.strongFull : wp.weakFull;
+    const want = (role === "balanced" ? wp.bal : s0 <= 0.5 ? lerp(wp.bal, mid, s0 / 0.5) : lerp(mid, full, (s0 - 0.5) / 0.5)) + 20 * x.g;
+    if (Math.abs(withWp.get(m).playerDeltas[t[0]] - want) > 0.51) wpOk = false;
+    wpSeen++;
+    const loser = aWon ? m.teamB : m.teamA;
+    if (withWp.get(m).playerDeltas[loser[0]] !== asIs.get(m).playerDeltas[loser[0]]) wpOk = false;
   });
-  ok("top 6 rule: the team with more top-6 players is stronger and at least half stacked", tierOk && tierSeen > 3);
-  ok("top 6 rule: equal top-6 counts = the plain gap rule", sameOk);
+  ok("win sliders: a win pays the balanced / halfway / fully-stacked points, sliding straight between; losses unchanged", wpOk && wpSeen > 10);
+  const big = labMatchupDeltas(w, career, { seasonGames: 0, gapRule: true, splitCap: 0, winPoints: { ...wp, strongFull: 10 } });
+  ok("win sliders: lowering the fully-stacked win lowers only stacked wins", w.some((m) => { const x = big.get(m).matchup; return x.kind === "mismatch" && x.stack === 1 && big.get(m).playerDeltas[m.teamA[0]] !== withWp.get(m).playerDeltas[m.teamA[0]]; }) && w.every((m) => { const x = big.get(m).matchup; return x.kind !== "balanced" || same(big.get(m).playerDeltas, withWp.get(m).playerDeltas); }));
   const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
   const early = labMatchupDeltas(w, career, { seasonGames: 0, seasonKey: half2, gapRule: true, earlyCareer: true, earlyGames: 5, earlyPrevGames: 40 });
   // Expected: ASS over the player's last 50 games before their season, points as scored in that season.
@@ -278,7 +287,7 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
     });
   });
   ok("partly stacked points sit between the balanced and the stacked numbers", interp && checked > 10);
-  ok("the gap-rule option: balanced up to (default 15), fully stacked from (default 30), partner split, top 6 toggle (off)", same(labOption("gaprule").sliders, ["gapBalanced", "gapFull", "splitCap", "maturity", "topTier", "earlyCareer", "earlyGames", "earlyPrevGames"]) && LAB_SLIDERS.find((s) => s.key === "gapBalanced").def === 15 && LAB_SLIDERS.find((s) => s.key === "gapFull").def === 30 && LAB_SLIDERS.find((s) => s.key === "topTier").toggle && LAB_SLIDERS.find((s) => s.key === "topTier").def === 0);
+  ok("the gap-rule option: balanced up to (default 15), fully stacked from (default 30), partner split, no top 6 rule", same(labOption("gaprule").sliders, ["gapBalanced", "gapFull", "splitCap", "maturity", "earlyCareer", "earlyGames", "earlyPrevGames"]) && LAB_SLIDERS.find((s) => s.key === "gapBalanced").def === 15 && LAB_SLIDERS.find((s) => s.key === "gapFull").def === 30 && !LAB_SLIDERS.some((s) => s.key === "topTier"));
 }
 
 {
@@ -330,7 +339,11 @@ console.log("\n\x1b[36m── option list ────────────�
 ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Season 3", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,season3" && labOption("custom").kind === "matchup");
 {
   const s3 = labOption("season3");
-  ok("Season 3 has the gap-rule sliders and the ASS sliders", s3.params.gapRule && ["gapBalanced", "gapFull", "splitCap", "maturity", "topTier", "earlyCareer", "earlyGames", "earlyPrevGames", "assSplit", "assMaturity", "assEarly", "assEarlyGames", "assEarlyPrev"].every((k) => s3.sliders.includes(k)));
+  const half2s = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
+  ok("Season 3: one set of sliders (gap, wins, split, veteran line, early-season fix), no repeats, no top 6", s3.params.gapRule && s3.params.liveFollows && same(s3.sliders, ["gapBalanced", "gapFull", "winBal", "winStrongMid", "winWeakMid", "winStrongFull", "winWeakFull", "splitCap", "maturity", "earlyCareer", "earlyGames", "earlyPrevGames"]));
+  const follow = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2s, gapRule: true, maturity: 30, splitCap: 0, liveFollows: true });
+  const liveSame = labEPDeltas(career, career, { maturity: 30, splitMax: 0, seasonKey: half2s, earlyFix: false });
+  ok("Season 3: newcomer matches use the same split and veteran line (ASS)", career.every((m) => follow.get(m).matchup.kind !== "newcomer" || same(follow.get(m).playerDeltas, liveSame.get(m).playerDeltas)) && career.some((m) => follow.get(m).matchup.kind === "newcomer"));
   const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
   const s2 = career.filter((m) => half2(m) === "S2");
   const base = labMatchupDeltas(s2, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30 });
@@ -349,7 +362,7 @@ ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct a
   });
   ok("Season 3's ASS split slider changes only the newcomer (ASS-scored) matches", nc > 0 && ncOk && vetSame, `nc=${nc} ncOk=${ncOk} vetSame=${vetSame}`);
 }
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,topTier=0,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,winBal=100,winStrongMid=75,winWeakMid=110,winStrongFull=50,winWeakFull=120,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });
