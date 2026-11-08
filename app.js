@@ -12244,11 +12244,28 @@ function _labRun(opt, matches) {
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
   } else if (opt.kind === "form") {
+    // Each Form slider says where its value goes (fp: "form.half", "ass.vetLoss", …).
+    const P = { form: {}, ass: {}, gap: {}, win: {}, loss: {} };
+    _labSliderKeys(opt).forEach((k) => {
+      const s = LAB_SLIDERS.find((x) => x.key === k);
+      if (!s?.fp) return;
+      const [grp, name] = s.fp.split(".");
+      P[grp][name] = s.toggle ? !!_labCustom[k] : _labCustom[k] * (s.paramScale ?? 1) + (s.paramAdd ?? 0);
+    });
     // Previous seasons on: every rated match up to the last day shown counts.
     const lastDay = matches.reduce((d, m) => ((m.date || "") > d ? m.date : d), "");
-    const pool = _labCustom.formAll ? career.filter((m) => (m.date || "") <= lastDay) : matches;
-    const all = labFormDeltas(pool, career, { seasonKey: scopeKey });
-    const fullAll = labFormFull(all, { half: _labCustom.formHalf, k: _labCustom.formK });
+    const pool = P.form.all ? career.filter((m) => (m.date || "") <= lastDay) : matches;
+    const all = labFormDeltas(pool, career, {
+      seasonKey: scopeKey,
+      engine: P.form.gap ? "gap" : "ass",
+      assParams: P.ass,
+      gapParams: {
+        ...P.gap,
+        winPoints: P.win,
+        lossPoints: { ...P.loss, weakMid: ((P.loss.bal ?? 0) + (P.loss.weakFull ?? 0)) / 2 },
+      },
+    });
+    const fullAll = labFormFull(all, { half: P.form.half, k: P.form.k });
     const shown = new Set(matches);
     deltas = new Map([...all].filter(([m]) => shown.has(m)));
     full = fullAll;
@@ -12420,12 +12437,11 @@ function _scoringLabInner() {
             .map((k) => LAB_SLIDERS.find((s) => s.key === k))
             .filter(Boolean)
             .map((s, i, all) => {
-              // Season 3 mixes both engines: head each group of sliders.
-              const mixed = opt.kind === "matchup" && all.some((x) => x.live);
-              const head =
-                mixed && (i === 0 || s.live !== all[i - 1].live)
-                  ? `<div class="lab-slider-sec">${s.live ? "ASS · matches with a newer player" : "FAIR ASS GAP · matches of veterans"}</div>`
-                  : "";
+              // Head each group of sliders (Form ASS's groups; options that
+              // mix both engines).
+              const grp = (x) => x.group || (opt.kind === "matchup" && all.some((y) => y.live) ? (x.live ? "ASS · matches with a newer player" : "FAIR ASS GAP · matches of veterans") : "");
+              const g0 = grp(s);
+              const head = g0 && (i === 0 || g0 !== grp(all[i - 1])) ? `<div class="lab-slider-sec">${escHtml(g0)}</div>` : "";
               return head + (s.toggle
                 ? `<label class="lab-slider lab-toggle"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key] ? "On" : "Off"}</b></span>
               <input type="checkbox" class="lab-switch"${_labCustom[s.key] ? " checked" : ""} onchange="_labSlide('${s.key}', this.checked ? 1 : 0)" aria-label="${escHtml(s.label)}"></label>`

@@ -239,7 +239,18 @@ export function labEPFull(deltas, params = {}) {
 // its weight halves every `half` days, counted back from the latest match in
 // `matches` — and previous seasons still count. Score = 2 × Σ(weight × points)
 // ÷ (Σ weight + k). `ep` is the weighted points total.
-export function labFormDeltas(matches, career = null, { seasonKey = () => "" } = {}) {
+// `engine`: "ass" — each season scored by the ASS engine with `assParams`;
+// "gap" — by the team-gap rule with `gapParams` (its newcomer matches by ASS
+// with `assParams`).
+export function labFormDeltas(matches, career = null, { seasonKey = () => "", engine = "ass", assParams = {}, gapParams = {} } = {}) {
+  if (engine === "gap")
+    return labMatchupDeltas(matches, career || matches, {
+      seasonGames: 0,
+      gapRule: true,
+      ...gapParams,
+      seasonKey,
+      liveParams: { ...assParams },
+    });
   const groups = new Map();
   (matches || []).forEach((m) => {
     const k = seasonKey(m);
@@ -247,7 +258,7 @@ export function labFormDeltas(matches, career = null, { seasonKey = () => "" } =
     groups.get(k).push(m);
   });
   const out = new Map();
-  groups.forEach((ms) => labEPDeltas(ms, career || matches).forEach((e, m) => out.set(m, e)));
+  groups.forEach((ms) => labEPDeltas(ms, career || matches, { ...assParams, seasonKey }).forEach((e, m) => out.set(m, e)));
   return out;
 }
 export function labFormFull(deltas, { half = 45, k = 10 } = {}) {
@@ -375,6 +386,12 @@ export function labMatchupDeltas(
     // stacked ({ bal, strongMid, weakMid, strongFull, weakFull }); in between
     // they slide straight from one to the next. A 4–0 still adds +20.
     winPoints = null,
+    // With winPoints: the extra a 4–0 win adds (a 4–2 a third of it, …).
+    winUp = MATCHUP_POINTS.balanced.winUp,
+    // Gap rule only: a loss's 4–3 points (as positive numbers) at a balanced
+    // gap, halfway and fully stacked ({ bal, strongMid, strongFull, weakMid,
+    // weakFull }); a heavier loss adds the usual margin extra on top.
+    lossPoints = null,
   } = {},
 ) {
   if (liveFollows)
@@ -505,7 +522,16 @@ export function labMatchupDeltas(
             const midV = role === "stronger" ? W.strongMid : W.weakMid;
             const fullV = role === "stronger" ? W.strongFull : W.weakFull;
             const at43 = role === "balanced" ? W.bal : stack <= 0.5 ? lerp(W.bal, midV, stack / 0.5) : lerp(midV, fullV, (stack - 0.5) / 0.5);
-            mixed = at43 + MATCHUP_POINTS.balanced.winUp * g;
+            mixed = at43 + winUp * g;
+          }
+          if (!won && lossPoints && gapRule) {
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const Lp = lossPoints;
+            const midV = role === "stronger" ? Lp.strongMid : Lp.weakMid;
+            const fullV = role === "stronger" ? Lp.strongFull : Lp.weakFull;
+            const at43 = role === "balanced" ? Lp.bal : stack <= 0.5 ? lerp(Lp.bal, midV, stack / 0.5) : lerp(midV, fullV, (stack - 0.5) / 0.5);
+            const up = role === "balanced" ? MATCHUP_POINTS.balanced.lossUp : lerp(MATCHUP_POINTS.balanced.lossUp, MATCHUP_POINTS[role].lossUp, stack);
+            mixed = -(at43 + up * g);
           }
           const raw = mixed * (won ? winScale : lossScale);
           const [x, y] = team;
@@ -617,8 +643,41 @@ export const LAB_OPTIONS = [
     label: "Form ASS",
     kind: "form",
     params: {},
-    sliders: ["formHalf", "formK", "formAll"],
-    desc: "ASS that follows current form. Every match keeps the points ASS gave it in its own season, but recent matches count more: a match's weight halves every N days (first slider, default 45), counted back from the latest match shown — so a 45-day-old match counts half, a 90-day-old one a quarter (0 = no fading: every match counts fully). With 'Previous seasons count' on (default), last season's matches still count at their faded weight, so nobody restarts from zero. Score = 2 × weighted points ÷ (weighted games + the second slider, default 10). Of the options tried, this came closest to how the group ranks its players (93% of player pairs in the same order, against 86% for ASS).",
+    sliders: [
+      "formHalf",
+      "formK",
+      "formAll",
+      "fGap",
+      "fWin",
+      "fOpp",
+      "fMargin",
+      "fShutout",
+      "fVetLoss",
+      "fMaturity",
+      "fNewCredit",
+      "fSplit",
+      "fEarly",
+      "fEarlyGames",
+      "fEarlyPrev",
+      "fGapBal",
+      "fGapFull",
+      "fWinBal",
+      "fWinStrongMid",
+      "fWinWeakMid",
+      "fWinStrongFull",
+      "fWinWeakFull",
+      "fWinUp",
+      "fLossBal",
+      "fLossStrongMid",
+      "fLossStrongFull",
+      "fLossWeakFull",
+      "fGapSplit",
+      "fGapMaturity",
+      "fGapEarly",
+      "fGapEarlyGames",
+      "fGapEarlyPrev",
+    ],
+    desc: "ASS that follows current form. Every match keeps the points it earned in its own season, but recent matches count more: a match's weight halves every N days (first slider, default 45), counted back from the latest match shown — a 45-day-old match counts half, a 90-day-old one a quarter (0 = no fading). With 'Previous seasons count' on (default) last season's matches still count at their faded weight. Score = 2 × weighted points ÷ (weighted games + the cushion, default 10). How each match's points are worked out: by default live ASS (a win about 100, more for beating a stronger side and for a bigger margin; a veteran's loss up to −25; a beginner's loss a small credit until the chosen career game; partner split; optional early-season fix) — every part has its slider. Turn on 'Team-gap points' to score veterans' matches by the gap between the teams' combined ASS instead: balanced / halfway / fully stacked win and loss points each have a slider, so a stacked win can pay 50 and a stacked loss cost more; matches with a newer player keep the ASS points above. At the defaults (team-gap off) this came closest to how the group ranks its players (93% of player pairs in the same order).",
   },
   {
     id: "season3",
@@ -666,9 +725,41 @@ export const LAB_SLIDERS = [
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
   { key: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
-  { key: "formHalf", label: "Weight halves every (days)", min: 0, max: 120, step: 1, def: 45 },
-  { key: "formK", label: "Small-sample cushion (games)", min: 0, max: 30, step: 1, def: 10 },
-  { key: "formAll", label: "Previous seasons count", toggle: true, min: 0, max: 1, step: 1, def: 1 },
+  // ── Form ASS (its own sliders; `group` heads them in the Lab, `fp` says
+  // where each value goes: form.* / ass.* / gap.* / win.* / loss.*, times
+  // `paramScale`, plus `paramAdd`).
+  { key: "formHalf", group: "Form", fp: "form.half", label: "Weight halves every (days)", min: 0, max: 120, step: 1, def: 45 },
+  { key: "formK", group: "Form", fp: "form.k", label: "Small-sample cushion (games)", min: 0, max: 30, step: 1, def: 10 },
+  { key: "formAll", group: "Form", fp: "form.all", label: "Previous seasons count", toggle: true, min: 0, max: 1, step: 1, def: 1 },
+  { key: "fGap", group: "Form", fp: "form.gap", label: "Team-gap points (stacked wins pay less)", toggle: true, min: 0, max: 1, step: 1, def: 0 },
+  { key: "fWin", group: "ASS points", fp: "ass.winBase", label: "Win points (a neutral win)", min: 20, max: 200, step: 5, def: 100 },
+  { key: "fOpp", group: "ASS points", fp: "ass.oppW", paramScale: 0.02, label: "Beating a stronger side: up to +% (and − vs weaker)", min: 0, max: 50, step: 1, def: 20 },
+  { key: "fMargin", group: "ASS points", fp: "ass.marginW", paramScale: 0.01, label: "Margin effect: a 4–0 pays +½ this % over a 4–2", min: 0, max: 80, step: 5, def: 40 },
+  { key: "fShutout", group: "ASS points", fp: "ass.shutout", paramScale: 0.01, paramAdd: 1, label: "Shutout bonus (%)", min: 0, max: 20, step: 1, def: 5 },
+  { key: "fVetLoss", group: "ASS points", fp: "ass.vetLoss", label: "Veteran loss: up to (when favoured)", min: 0, max: 60, step: 1, def: 25 },
+  { key: "fMaturity", group: "ASS points", fp: "ass.maturity", label: "Beginner bonus: losses pay until career game", min: 0, max: 100, step: 1, def: 50 },
+  { key: "fNewCredit", group: "ASS points", fp: "ass.lossBase", label: "Beginner loss credit: up to", min: 0, max: 30, step: 1, def: 10 },
+  { key: "fSplit", group: "ASS points", fp: "ass.splitMax", paramScale: 0.01, label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 12 },
+  { key: "fEarly", group: "ASS points", fp: "ass.earlyFix", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 0 },
+  { key: "fEarlyGames", group: "ASS points", fp: "ass.earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
+  { key: "fEarlyPrev", group: "ASS points", fp: "ass.earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
+  { key: "fGapBal", group: "Team-gap points", fp: "gap.gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 15 },
+  { key: "fGapFull", group: "Team-gap points", fp: "gap.gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },
+  { key: "fWinBal", group: "Team-gap points", fp: "win.bal", label: "Win at a balanced gap (4–3)", min: 0, max: 200, step: 5, def: 100 },
+  { key: "fWinStrongMid", group: "Team-gap points", fp: "win.strongMid", label: "Stronger team win, halfway gap", min: 0, max: 200, step: 5, def: 75 },
+  { key: "fWinWeakMid", group: "Team-gap points", fp: "win.weakMid", label: "Weaker team win, halfway gap", min: 0, max: 200, step: 5, def: 110 },
+  { key: "fWinStrongFull", group: "Team-gap points", fp: "win.strongFull", label: "Stronger team win, fully stacked", min: 0, max: 200, step: 5, def: 50 },
+  { key: "fWinWeakFull", group: "Team-gap points", fp: "win.weakFull", label: "Weaker team win, fully stacked", min: 0, max: 200, step: 5, def: 120 },
+  { key: "fWinUp", group: "Team-gap points", fp: "gap.winUp", label: "Extra for a 4–0 win", min: 0, max: 60, step: 1, def: 20 },
+  { key: "fLossBal", group: "Team-gap points", fp: "loss.bal", label: "Loss at a balanced gap (4–3)", min: 0, max: 60, step: 1, def: 0 },
+  { key: "fLossStrongMid", group: "Team-gap points", fp: "loss.strongMid", label: "Stronger team loss, halfway gap", min: 0, max: 80, step: 1, def: 15 },
+  { key: "fLossStrongFull", group: "Team-gap points", fp: "loss.strongFull", label: "Stronger team loss, fully stacked", min: 0, max: 80, step: 1, def: 30 },
+  { key: "fLossWeakFull", group: "Team-gap points", fp: "loss.weakFull", label: "Weaker team loss, fully stacked", min: 0, max: 60, step: 1, def: 0 },
+  { key: "fGapSplit", group: "Team-gap points", fp: "gap.splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 5 },
+  { key: "fGapMaturity", group: "Team-gap points", fp: "gap.maturity", label: "Gap rule from career game (newer → ASS points)", min: 0, max: 50, step: 1, def: 10 },
+  { key: "fGapEarly", group: "Team-gap points", fp: "gap.earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
+  { key: "fGapEarlyGames", group: "Team-gap points", fp: "gap.earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
+  { key: "fGapEarlyPrev", group: "Team-gap points", fp: "gap.earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
   { key: "graceMarks", label: "Grace marks per match", min: 0, max: 50, step: 1, def: 10 },
 ];
 

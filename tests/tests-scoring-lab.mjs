@@ -337,7 +337,31 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   const tf = labFormFull(labFormDeltas(toy, toy), { half: 30, k: 10 });
   ok("Form ASS: recent wins count more than old ones", tf.New.score > tf.Old.score && tf.New.games === tf.Old.games);
   const sl = (k) => LAB_SLIDERS.find((s) => s.key === k);
-  ok("Form ASS sliders: half-life 0–120 days (45), cushion 0–30 (10), previous seasons on", same(labOption("form").sliders, ["formHalf", "formK", "formAll"]) && sl("formHalf").min === 0 && sl("formHalf").max === 120 && sl("formHalf").def === 45 && sl("formK").def === 10 && sl("formAll").toggle && sl("formAll").def === 1);
+  ok("Form ASS sliders: half-life 0–120 days (45), cushion 0–30 (10), previous seasons on, team-gap switch, 32 in all", labOption("form").sliders.slice(0, 4).join() === "formHalf,formK,formAll,fGap" && labOption("form").sliders.length === 32 && sl("formHalf").min === 0 && sl("formHalf").max === 120 && sl("formHalf").def === 45 && sl("formK").def === 10 && sl("formAll").toggle && sl("formAll").def === 1);
+}
+{
+  // Form ASS's own sliders: their defaults must give exactly the live engine's
+  // points (ASS mode) / the team-gap points (team-gap mode).
+  const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
+  const val = (k) => { const s = LAB_SLIDERS.find((x) => x.key === k); return s.toggle ? !!s.def : s.def * (s.paramScale ?? 1) + (s.paramAdd ?? 0); };
+  const P = { ass: {}, gap: {}, win: {}, loss: {} };
+  labOption("form").sliders.forEach((k) => { const s = LAB_SLIDERS.find((x) => x.key === k); const [g, n] = s.fp.split("."); if (P[g]) P[g][n] = val(k); });
+  const plain = labFormDeltas(career, career, { seasonKey: half2 });
+  const viaSliders = labFormDeltas(career, career, { seasonKey: half2, assParams: P.ass });
+  ok("Form ASS: the ASS sliders at their defaults = live ASS points", career.every((m) => same(plain.get(m).playerDeltas, viaSliders.get(m).playerDeltas)));
+  const gapP = { ...P.gap, winPoints: P.win, lossPoints: { ...P.loss, weakMid: (P.loss.bal + P.loss.weakFull) / 2 } };
+  const gapVia = labFormDeltas(career, career, { seasonKey: half2, engine: "gap", assParams: P.ass, gapParams: gapP });
+  const gapRef = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2, gapRule: true, gapBalanced: 15, gapFull: 30, splitCap: 5, maturity: 10, earlyCareer: true, earlyGames: 10, earlyPrevGames: 25, winPoints: P.win, liveParams: { ...P.ass } });
+  ok("Form ASS team-gap mode at the defaults = the gap rule's own loss points", career.every((m) => same(gapVia.get(m).playerDeltas, gapRef.get(m).playerDeltas)));
+  const harsh = labFormDeltas(career, career, { seasonKey: half2, engine: "gap", assParams: P.ass, gapParams: { ...gapP, lossPoints: { ...gapP.lossPoints, strongFull: 60, strongMid: 30 } } });
+  let harder = 0, otherSame = true;
+  career.forEach((m) => { const x = harsh.get(m).matchup, y = gapVia.get(m); if (!x || x.kind === "newcomer") return;
+    const aWon = m.scoreA > m.scoreB; const loserRole = aWon ? x.roleB : x.roleA; const l = aWon ? m.teamB : m.teamA, w = aWon ? m.teamA : m.teamB;
+    if (loserRole === "stronger") { if (harsh.get(m).playerDeltas[l[0]] < y.playerDeltas[l[0]]) harder++; } else if (harsh.get(m).playerDeltas[l[0]] !== y.playerDeltas[l[0]]) otherSame = false;
+    if (harsh.get(m).playerDeltas[w[0]] !== y.playerDeltas[w[0]]) otherSame = false; });
+  ok("Form ASS: raising the stacked-loss sliders costs the stronger losing team more, nothing else", harder > 3 && otherSame);
+  const noVet = labFormDeltas(career, career, { seasonKey: half2, assParams: { ...P.ass, vetLoss: 0 } });
+  ok("Form ASS: veteran loss at 0 = veterans' losses cost nothing", career.every((m) => Object.values(noVet.get(m).breakdown).every((b) => b.won || !b.vet || b.raw === 0)));
 }
 console.log("\n\x1b[36m── grace marks ───────────────────────────────────────\x1b[0m");
 {
@@ -378,7 +402,7 @@ ok("seven options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct
   });
   ok("Season 3's ASS split slider changes only the newcomer (ASS-scored) matches", nc > 0 && ncOk && vetSame, `nc=${nc} ncOk=${ncOk} vetSame=${vetSame}`);
 }
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,winBal=100,winStrongMid=75,winWeakMid=110,winStrongFull=50,winWeakFull=120,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,formHalf=45,formK=10,formAll=1,graceMarks=10");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.filter((s) => !s.fp).map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,winBal=100,winStrongMid=75,winWeakMid=110,winStrongFull=50,winWeakFull=120,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });
