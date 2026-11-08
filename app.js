@@ -12245,12 +12245,20 @@ function _labRun(opt, matches) {
     totalLabel = "PTS";
   } else if (opt.kind === "form") {
     // Each Form slider says where its value goes (fp: "form.half", "ass.vetLoss", …).
+    // Hidden sliders (the other kind of points) don't apply; shared ones also
+    // set the team-gap rule's own setting in team-gap mode.
     const P = { form: {}, ass: {}, gap: {}, win: {}, loss: {} };
+    const gapOn = !!_labCustom.fGap;
+    const set = (path, v) => {
+      const [grp, name] = path.split(".");
+      P[grp][name] = v;
+    };
     _labSliderKeys(opt).forEach((k) => {
       const s = LAB_SLIDERS.find((x) => x.key === k);
-      if (!s?.fp) return;
-      const [grp, name] = s.fp.split(".");
-      P[grp][name] = s.toggle ? !!_labCustom[k] : _labCustom[k] * (s.paramScale ?? 1) + (s.paramAdd ?? 0);
+      if (!s?.fp || !_labSliderShown(s)) return;
+      const raw = _labCustom[k];
+      set(s.fp, s.toggle ? !!raw : raw * (s.paramScale ?? 1) + (s.paramAdd ?? 0));
+      if (gapOn && s.fpGap) set(s.fpGap, s.toggle ? !!raw : raw);
     });
     // Previous seasons on: every rated match up to the last day shown counts.
     const lastDay = matches.reduce((d, m) => ((m.date || "") > d ? m.date : d), "");
@@ -12339,7 +12347,27 @@ let _labSlideTimer = null;
 function _labSlide(key, value) {
   const s = LAB_SLIDERS.find((x) => x.key === key);
   if (!s) return;
+  const before = _labCustom[key];
   _labCustom[key] = Math.min(s.max, Math.max(s.min, Number(value) || 0));
+  // Flipping Form ASS's points switch moves the shared sliders to the other
+  // kind's defaults — unless they were changed from this kind's defaults.
+  if (key === "fGap" && before !== _labCustom[key]) {
+    const on = !!_labCustom[key];
+    LAB_SLIDERS.filter((x) => x.defGap != null).forEach((x) => {
+      const from = on ? x.def : x.defGap;
+      if (_labCustom[x.key] === from) _labCustom[x.key] = on ? x.defGap : x.def;
+    });
+  }
+  // A toggle that shows or hides other sliders redraws the panel.
+  if (s.toggle && LAB_SLIDERS.some((x) => x.showIf?.key === key || (key === "fGap" && x.defGap != null))) {
+    try {
+      localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 5 }));
+    } catch (e) {
+      noteError("app:_labSlide", e);
+    }
+    _labRerender();
+    return;
+  }
   const out = document.getElementById(`lab-sv-${key}`);
   if (out) out.textContent = s.toggle ? (_labCustom[key] ? "On" : "Off") : _labCustom[key];
   try {
@@ -12359,6 +12387,11 @@ function _labSlide(key, value) {
       if (now && next) now.replaceWith(next);
     });
   }, 120);
+}
+// A slider with showIf is shown — and applied — only while that toggle has
+// that value (Form ASS: the points switch, the early-season fix).
+function _labSliderShown(s) {
+  return !s.showIf || (_labCustom[s.showIf.key] ? 1 : 0) === s.showIf.is;
 }
 // The Custom option's current points table, from the slider values.
 function _labCustomTable() {
@@ -12435,7 +12468,7 @@ function _scoringLabInner() {
       _labSliderKeys(opt).length
         ? `<div class="lab-sliders">${opt.kind === "grace" ? _labGracePickerHtml(matches) : ""}${_labSliderKeys(opt)
             .map((k) => LAB_SLIDERS.find((s) => s.key === k))
-            .filter(Boolean)
+            .filter((s) => s && _labSliderShown(s))
             .map((s, i, all) => {
               // Head each group of sliders (Form ASS's groups; options that
               // mix both engines).

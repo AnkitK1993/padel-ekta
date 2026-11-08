@@ -337,23 +337,31 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   const tf = labFormFull(labFormDeltas(toy, toy), { half: 30, k: 10 });
   ok("Form ASS: recent wins count more than old ones", tf.New.score > tf.Old.score && tf.New.games === tf.Old.games);
   const sl = (k) => LAB_SLIDERS.find((s) => s.key === k);
-  ok("Form ASS sliders: half-life 0–120 days (45), cushion 0–30 (10), previous seasons on, team-gap switch, 32 in all", labOption("form").sliders.slice(0, 4).join() === "formHalf,formK,formAll,fGap" && labOption("form").sliders.length === 32 && sl("formHalf").min === 0 && sl("formHalf").max === 120 && sl("formHalf").def === 45 && sl("formK").def === 10 && sl("formAll").toggle && sl("formAll").def === 1);
+  ok("Form ASS sliders: half-life 0–120 days (45), cushion 0–30 (10), previous seasons on, shared split / beginners / early fix, then the points switch, 27 in all", labOption("form").sliders.slice(0, 9).join() === "formHalf,formK,formAll,fSplit,fMaturity,fEarly,fEarlyGames,fEarlyPrev,fGap" && labOption("form").sliders.length === 27 && sl("formHalf").min === 0 && sl("formHalf").max === 120 && sl("formHalf").def === 45 && sl("formK").def === 10 && sl("formAll").toggle && sl("formAll").def === 1);
 }
 {
   // Form ASS's own sliders: their defaults must give exactly the live engine's
   // points (ASS mode) / the team-gap points (team-gap mode).
   const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
   const val = (k) => { const s = LAB_SLIDERS.find((x) => x.key === k); return s.toggle ? !!s.def : s.def * (s.paramScale ?? 1) + (s.paramAdd ?? 0); };
+  // ASS mode: every slider not hidden by the points switch, at its default.
   const P = { ass: {}, gap: {}, win: {}, loss: {} };
-  labOption("form").sliders.forEach((k) => { const s = LAB_SLIDERS.find((x) => x.key === k); const [g, n] = s.fp.split("."); if (P[g]) P[g][n] = val(k); });
+  const shownIn = (sl, gapOn) => !sl.showIf || sl.showIf.key !== "fGap" || sl.showIf.is === (gapOn ? 1 : 0);
+  labOption("form").sliders.forEach((k) => { const sl = LAB_SLIDERS.find((x) => x.key === k); if (!shownIn(sl, false)) return; const [g, n] = sl.fp.split("."); if (P[g]) P[g][n] = val(k); });
+  // Team-gap mode: shared sliders at their team-gap defaults, set on both.
+  const G = { ass: {}, gap: {}, win: {}, loss: {} };
+  labOption("form").sliders.forEach((k) => { const sl = LAB_SLIDERS.find((x) => x.key === k); if (!shownIn(sl, true)) return;
+    const raw = sl.defGap ?? sl.def; const v = sl.toggle ? !!raw : raw * (sl.paramScale ?? 1) + (sl.paramAdd ?? 0);
+    const [g, n] = sl.fp.split("."); if (G[g]) G[g][n] = v; if (sl.fpGap) { const [g2, n2] = sl.fpGap.split("."); G[g2][n2] = sl.toggle ? !!raw : raw; } });
+  ok("Form ASS: shared sliders move to 5% / game 10 / fix on in team-gap mode", G.gap.splitCap === 5 && G.gap.maturity === 10 && G.gap.earlyCareer === true && Math.abs(G.ass.splitMax - 0.05) < 1e-12);
   const plain = labFormDeltas(career, career, { seasonKey: half2 });
   const viaSliders = labFormDeltas(career, career, { seasonKey: half2, assParams: P.ass });
   ok("Form ASS: the ASS sliders at their defaults = live ASS points", career.every((m) => same(plain.get(m).playerDeltas, viaSliders.get(m).playerDeltas)));
-  const gapP = { ...P.gap, winPoints: P.win, lossPoints: { ...P.loss, weakMid: (P.loss.bal + P.loss.weakFull) / 2 } };
-  const gapVia = labFormDeltas(career, career, { seasonKey: half2, engine: "gap", assParams: P.ass, gapParams: gapP });
-  const gapRef = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2, gapRule: true, gapBalanced: 15, gapFull: 30, splitCap: 5, maturity: 10, earlyCareer: true, earlyGames: 10, earlyPrevGames: 25, winPoints: P.win, liveParams: { ...P.ass } });
+  const gapP = { ...G.gap, winPoints: G.win, lossPoints: { ...G.loss, weakMid: (G.loss.bal + G.loss.weakFull) / 2 } };
+  const gapVia = labFormDeltas(career, career, { seasonKey: half2, engine: "gap", assParams: G.ass, gapParams: gapP });
+  const gapRef = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2, gapRule: true, gapBalanced: 15, gapFull: 30, splitCap: 5, maturity: 10, earlyCareer: true, earlyGames: 10, earlyPrevGames: 25, winPoints: G.win, liveParams: { ...G.ass } });
   ok("Form ASS team-gap mode at the defaults = the gap rule's own loss points", career.every((m) => same(gapVia.get(m).playerDeltas, gapRef.get(m).playerDeltas)));
-  const harsh = labFormDeltas(career, career, { seasonKey: half2, engine: "gap", assParams: P.ass, gapParams: { ...gapP, lossPoints: { ...gapP.lossPoints, strongFull: 60, strongMid: 30 } } });
+  const harsh = labFormDeltas(career, career, { seasonKey: half2, engine: "gap", assParams: G.ass, gapParams: { ...gapP, lossPoints: { ...gapP.lossPoints, strongFull: 60, strongMid: 30 } } });
   let harder = 0, otherSame = true;
   career.forEach((m) => { const x = harsh.get(m).matchup, y = gapVia.get(m); if (!x || x.kind === "newcomer") return;
     const aWon = m.scoreA > m.scoreB; const loserRole = aWon ? x.roleB : x.roleA; const l = aWon ? m.teamB : m.teamA, w = aWon ? m.teamA : m.teamB;
