@@ -16,7 +16,7 @@ import {
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
 import { mergeLocalIntoCloud, mergeRoster } from "./src/domain/sync-merge.js";
 import { analyzePairingOdds } from "./src/domain/pairing-odds.js";
-import { LAB_OPTIONS, LAB_SLIDERS, labOption, labEPDeltas, labEPFull, labMatchupDeltas, labAddGrace } from "./src/domain/scoring-lab.js";
+import { LAB_OPTIONS, LAB_SLIDERS, labOption, labEPDeltas, labEPFull, labMatchupDeltas, labAddGrace, labFormDeltas, labFormFull } from "./src/domain/scoring-lab.js";
 import { applyUndo, newLogId } from "./src/domain/audit.js";
 import {
   SUPERADMIN_EMAIL,
@@ -12243,6 +12243,17 @@ function _labRun(opt, matches) {
     full = labEPFull(deltas, { scale: 2 });
     totalOf = (p) => full[p]?.ep ?? null;
     totalLabel = "PTS";
+  } else if (opt.kind === "form") {
+    // Previous seasons on: every rated match up to the last day shown counts.
+    const lastDay = matches.reduce((d, m) => ((m.date || "") > d ? m.date : d), "");
+    const pool = _labCustom.formAll ? career.filter((m) => (m.date || "") <= lastDay) : matches;
+    const all = labFormDeltas(pool, career, { seasonKey: scopeKey });
+    const fullAll = labFormFull(all, { half: _labCustom.formHalf, k: _labCustom.formK });
+    const shown = new Set(matches);
+    deltas = new Map([...all].filter(([m]) => shown.has(m)));
+    full = fullAll;
+    totalOf = (p) => full[p]?.ep ?? null;
+    totalLabel = "PTS";
   } else if (opt.kind === "matchup") {
     deltas = labMatchupDeltas(matches, career, { seasonKey: scopeKey, ..._labParams(opt) });
     full = labEPFull(deltas, { scale: 2 });
@@ -12521,7 +12532,7 @@ function _scoringLabInner() {
     })
     .join("");
   const more = list.length > _labShown ? `<button class="lab-more" onclick="_labMore()">Show ${Math.min(50, list.length - _labShown)} more of ${list.length - _labShown}</button>` : "";
-  const unit = res.kind === "ep" || res.kind === "matchup" || res.kind === "grace" ? "points" : res.kind === "winpct" ? "results" : "rating change";
+  const unit = res.kind === "ep" || res.kind === "matchup" || res.kind === "grace" || res.kind === "form" ? "points" : res.kind === "winpct" ? "results" : "rating change";
   const head = `<div class="lab-mh"><span>MATCHES <b>PLAYED</b></span><span class="lab-mh-r">${_labPlayerSel ? `<button class="ss-chip on" style="height:24px" onclick="_labPlayer(${jsArg(_labPlayerSel)})">${escHtml(_labPlayerSel.toUpperCase())} ✕</button>` : `${list.length} · ${unit}`}</span></div>
     ${res.kind === "ep" ? '<div class="lab-note">The % under the score is each team\'s win chance going in. Tap a match for how each player\'s points were worked out.</div>' : ""}${res.kind === "matchup" ? '<div class="lab-note">Under the score: BALANCED, STACKED (the arrow points at the stronger team) or NEWCOMER (scored as live ASS). Tap a match to see the four players\' ASS and ranks.</div>' : ""}`;
   return `${picker}<div id="scoring-lab-results">${table}${head}<div class="lab-list">${rowsHtml || '<div class="sub" style="padding:8px">No matches.</div>'}</div>${more}</div>`;

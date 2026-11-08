@@ -3,7 +3,7 @@
 // exactly, so the lab's "ASS (live)" option is always the Summary tab's board.
 // Run: node tests/tests-scoring-lab.mjs
 import { computeMatchEPDeltas, computeEPFull } from "../src/domain/ep.js";
-import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS, LAB_SLIDERS, labAddGrace, labMatchupDeltas, matchupPoints, matchupMargin } from "../src/domain/scoring-lab.js";
+import { labEPDeltas, labEPFull, labWinPct, labOption, LAB_OPTIONS, LAB_SLIDERS, labAddGrace, labMatchupDeltas, matchupPoints, matchupMargin, labFormDeltas, labFormFull } from "../src/domain/scoring-lab.js";
 
 let pass = 0,
   fail = 0;
@@ -323,6 +323,22 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   const at0 = labEPDeltas(w, career, { maturity: 0 });
   ok("at 0 every loss costs (no newcomer credit)", w.every((m) => Object.values(at0.get(m).breakdown).every((b) => b.won || b.raw <= 0)));
 }
+{
+  const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
+  const fd = labFormDeltas(career, career, { seasonKey: half2 });
+  const s2 = career.filter((m) => half2(m) === "S2");
+  const live2 = labEPDeltas(s2, career);
+  ok("Form ASS: each match keeps its own season's ASS points", s2.every((m) => same(fd.get(m).playerDeltas, live2.get(m).playerDeltas)));
+  const flat = labFormFull(fd, { half: 0, k: 10 }), plain = labEPFull(fd);
+  ok("Form ASS with no fading = plain ASS over the same matches", Object.keys(plain).every((p) => Math.abs(flat[p].score - plain[p].score) < 1e-9));
+  // A player whose wins are all recent beats one whose identical wins are old.
+  const mk = (date, a, b) => ({ date, teamA: a, teamB: b, scoreA: 4, scoreB: 2 });
+  const toy = [mk("2026-01-01", ["Old", "X"], ["Y", "Z"]), mk("2026-01-02", ["Old", "X"], ["Y", "Z"]), mk("2026-06-01", ["New", "X"], ["Y", "Z"]), mk("2026-06-02", ["New", "X"], ["Y", "Z"])];
+  const tf = labFormFull(labFormDeltas(toy, toy), { half: 30, k: 10 });
+  ok("Form ASS: recent wins count more than old ones", tf.New.score > tf.Old.score && tf.New.games === tf.Old.games);
+  const sl = (k) => LAB_SLIDERS.find((s) => s.key === k);
+  ok("Form ASS sliders: half-life 7–180 (45), cushion 0–30 (10), previous seasons on", same(labOption("form").sliders, ["formHalf", "formK", "formAll"]) && sl("formHalf").def === 45 && sl("formK").def === 10 && sl("formAll").toggle && sl("formAll").def === 1);
+}
 console.log("\n\x1b[36m── grace marks ───────────────────────────────────────\x1b[0m");
 {
   const base = labEPDeltas(w, career);
@@ -336,7 +352,7 @@ console.log("\n\x1b[36m── grace marks ────────────�
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Season 3", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,season3" && labOption("custom").kind === "matchup");
+ok("seven options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct, Form ASS and Season 3", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,form,season3" && labOption("custom").kind === "matchup");
 {
   const s3 = labOption("season3");
   const half2s = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
@@ -362,7 +378,7 @@ ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct a
   });
   ok("Season 3's ASS split slider changes only the newcomer (ASS-scored) matches", nc > 0 && ncOk && vetSame, `nc=${nc} ncOk=${ncOk} vetSame=${vetSame}`);
 }
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,winBal=100,winStrongMid=75,winWeakMid=110,winStrongFull=50,winWeakFull=120,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,winBal=100,winStrongMid=75,winWeakMid=110,winStrongFull=50,winWeakFull=120,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,formHalf=45,formK=10,formAll=1,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });

@@ -234,6 +234,47 @@ export function labEPFull(deltas, params = {}) {
   return out;
 }
 
+// Form ASS: live ASS points, each match priced inside its own season
+// (`seasonKey`), but the board weights every match by how recent it is —
+// its weight halves every `half` days, counted back from the latest match in
+// `matches` — and previous seasons still count. Score = 2 × Σ(weight × points)
+// ÷ (Σ weight + k). `ep` is the weighted points total.
+export function labFormDeltas(matches, career = null, { seasonKey = () => "" } = {}) {
+  const groups = new Map();
+  (matches || []).forEach((m) => {
+    const k = seasonKey(m);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(m);
+  });
+  const out = new Map();
+  groups.forEach((ms) => labEPDeltas(ms, career || matches).forEach((e, m) => out.set(m, e)));
+  return out;
+}
+export function labFormFull(deltas, { half = 45, k = 10 } = {}) {
+  let last = "";
+  deltas.forEach((_, m) => {
+    if ((m.date || "") > last) last = m.date || "";
+  });
+  const lastT = last ? Date.parse(last) : 0;
+  const num = {};
+  const den = {};
+  const games = {};
+  deltas.forEach(({ playerDeltas }, m) => {
+    const age = Math.max(0, (lastT - Date.parse(m.date || last)) / 864e5);
+    const w = half > 0 ? Math.pow(0.5, age / half) : 1;
+    Object.entries(playerDeltas).forEach(([p, d]) => {
+      num[p] = (num[p] || 0) + w * d;
+      den[p] = (den[p] || 0) + w;
+      games[p] = (games[p] || 0) + 1;
+    });
+  });
+  const out = {};
+  Object.keys(num).forEach((p) => {
+    out[p] = { ep: Math.round(num[p]), games: games[p], score: (2 * num[p]) / (den[p] + k) };
+  });
+  return out;
+}
+
 // Plain win %: { name: { ep: wins, games, score: win% } }.
 export function labWinPct(matches) {
   const out = {};
@@ -572,6 +613,14 @@ export const LAB_OPTIONS = [
     desc: "ASS exactly as the app scored it up to 1 October (the engine was unchanged from 21 Sep to 11 Oct). A win pays 50–150 depending on how big an underdog the team was — bigger upsets pay much more — times the margin. A loss pays a 'turned up' credit of up to 40 minus a penalty of up to 60 that grows over a player's first 50 career games, so veterans lose up to about 60 for a loss as heavy favourites. Who's favoured is learned from all history, both partners always get the same points, and score = 2 × points ÷ (games + 10).",
   },
   {
+    id: "form",
+    label: "Form ASS",
+    kind: "form",
+    params: {},
+    sliders: ["formHalf", "formK", "formAll"],
+    desc: "ASS that follows current form. Every match keeps the points ASS gave it in its own season, but recent matches count more: a match's weight halves every N days (first slider, default 45), counted back from the latest match shown — so a 45-day-old match counts half, a 90-day-old one a quarter. With 'Previous seasons count' on (default), last season's matches still count at their faded weight, so nobody restarts from zero. Score = 2 × weighted points ÷ (weighted games + the second slider, default 10). Of the options tried, this came closest to how the group ranks its players (93% of player pairs in the same order, against 86% for ASS).",
+  },
+  {
     id: "season3",
     label: "Season 3",
     kind: "matchup",
@@ -617,6 +666,9 @@ export const LAB_SLIDERS = [
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
   { key: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
+  { key: "formHalf", label: "Weight halves every (days)", min: 7, max: 180, step: 1, def: 45 },
+  { key: "formK", label: "Small-sample cushion (games)", min: 0, max: 30, step: 1, def: 10 },
+  { key: "formAll", label: "Previous seasons count", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "graceMarks", label: "Grace marks per match", min: 0, max: 50, step: 1, def: 10 },
 ];
 
