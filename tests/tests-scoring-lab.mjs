@@ -337,7 +337,7 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
   const tf = labFormFull(labFormDeltas(toy, toy), { half: 30, k: 10 });
   ok("Form ASS: recent wins count more than old ones", tf.New.score > tf.Old.score && tf.New.games === tf.Old.games);
   const sl = (k) => LAB_SLIDERS.find((s) => s.key === k);
-  ok("Form ASS sliders: half-life 7–180 (45), cushion 0–30 (10), previous seasons on", same(labOption("form").sliders, ["formHalf", "formK", "formAll"]) && sl("formHalf").def === 45 && sl("formK").def === 10 && sl("formAll").toggle && sl("formAll").def === 1);
+  ok("Form ASS sliders: half-life 0–120 days (45), cushion 0–30 (10), previous seasons on", same(labOption("form").sliders, ["formHalf", "formK", "formAll"]) && sl("formHalf").min === 0 && sl("formHalf").max === 120 && sl("formHalf").def === 45 && sl("formK").def === 10 && sl("formAll").toggle && sl("formAll").def === 1);
 }
 console.log("\n\x1b[36m── grace marks ───────────────────────────────────────\x1b[0m");
 {

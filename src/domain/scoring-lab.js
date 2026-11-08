@@ -618,7 +618,7 @@ export const LAB_OPTIONS = [
     kind: "form",
     params: {},
     sliders: ["formHalf", "formK", "formAll"],
-    desc: "ASS that follows current form. Every match keeps the points ASS gave it in its own season, but recent matches count more: a match's weight halves every N days (first slider, default 45), counted back from the latest match shown — so a 45-day-old match counts half, a 90-day-old one a quarter. With 'Previous seasons count' on (default), last season's matches still count at their faded weight, so nobody restarts from zero. Score = 2 × weighted points ÷ (weighted games + the second slider, default 10). Of the options tried, this came closest to how the group ranks its players (93% of player pairs in the same order, against 86% for ASS).",
+    desc: "ASS that follows current form. Every match keeps the points ASS gave it in its own season, but recent matches count more: a match's weight halves every N days (first slider, default 45), counted back from the latest match shown — so a 45-day-old match counts half, a 90-day-old one a quarter (0 = no fading: every match counts fully). With 'Previous seasons count' on (default), last season's matches still count at their faded weight, so nobody restarts from zero. Score = 2 × weighted points ÷ (weighted games + the second slider, default 10). Of the options tried, this came closest to how the group ranks its players (93% of player pairs in the same order, against 86% for ASS).",
   },
   {
     id: "season3",
@@ -666,7 +666,7 @@ export const LAB_SLIDERS = [
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
   { key: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
-  { key: "formHalf", label: "Weight halves every (days)", min: 7, max: 180, step: 1, def: 45 },
+  { key: "formHalf", label: "Weight halves every (days)", min: 0, max: 120, step: 1, def: 45 },
   { key: "formK", label: "Small-sample cushion (games)", min: 0, max: 30, step: 1, def: 10 },
   { key: "formAll", label: "Previous seasons count", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "graceMarks", label: "Grace marks per match", min: 0, max: 50, step: 1, def: 10 },
