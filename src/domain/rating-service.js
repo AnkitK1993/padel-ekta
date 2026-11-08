@@ -21,11 +21,11 @@ import {
   MATURITY_GAMES,
 } from "./ep.js";
 import { computeStats, ratingToSr } from "./stats.js";
-import { labMatchupDeltas, labEPFull } from "./scoring-lab.js";
+import { labMatchupDeltas, labEPFull, labFormDeltas, labFormFull } from "./scoring-lab.js";
 import { withoutGuestMatches, ratedMatches, isRatedMatch, _inSeason } from "./selectors.js";
 import { state } from "./state.js";
 
-export const SCORING_SYSTEMS = ["ep", "fair", "fairgap", "glicko2", "openskill", "fairshare"];
+export const SCORING_SYSTEMS = ["ep", "next", "fair", "fairgap", "glicko2", "openskill", "fairshare"];
 // Earned Points ("ep") carries the house name, "ASS". (The original
 // margin x opponent-strength engine, ASS CLASSIC, was retired.)
 export const SCORING_SYSTEM_LABELS = {
@@ -35,13 +35,14 @@ export const SCORING_SYSTEM_LABELS = {
   ep: "ASS",
   fair: "FAIR ASS",
   fairgap: "FAIR ASS GAP",
+  next: "NEXT SEASON",
 };
 // Systems that fill the extra numeric column beside the rating — a "±"
 // confidence band for Glicko-2/OpenSkill, total points earned for EP.
-export const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep", "fair", "fairgap"];
+export const SCORING_SYSTEMS_WITH_CONFIDENCE = ["glicko2", "openskill", "ep", "fair", "fairgap", "next"];
 // 0-based systems: no 1000 baseline, headline number small enough that the
 // decimal carries real ordering information.
-export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap"];
+export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap", "next"];
 // Points-based systems: a running total of earned points, a newcomer rule and
 // a per-match points entry. "fair" (FAIR ASS) is Fair Matchup Points from the
 // Scoring Lab: balanced / stacked team points + partner split, with any match
@@ -50,7 +51,18 @@ export const SCORING_SYSTEMS_ZERO_BASED = ["ep", "fair", "fairgap"];
 // gap decides balanced (≤ 15) / graded / fully stacked (≥ 30), with the
 // early-season fix — a player's ASS over their last 40 games before the season
 // sets the gap until they have 10 games in the season.
-export const SCORING_SYSTEMS_POINTS = ["ep", "fair", "fairgap"];
+export const SCORING_SYSTEMS_POINTS = ["ep", "fair", "fairgap", "next"];
+// NEXT SEASON (the Scoring Lab's "Next Season" at its defaults): ASS points per
+// match — priced inside the match's season, with a win paying up to 30% more
+// against a stronger side, no margin bonus, a veteran's loss up to −15 and a
+// 20% partner split — on a board that fades every match by age: its weight
+// halves every 45 days, counted back from the latest match shown, and earlier
+// seasons still count. Score = 2 × Σ(weight × points) ÷ (Σ weight + 10).
+export const NEXT_PARAMS = Object.freeze({
+  half: 45,
+  k: 10,
+  ass: Object.freeze({ oppW: 0.6, splitMax: 0.2, vetLoss: 15, marginW: 0 }),
+});
 // FAIR ASS GAP's settings (the Scoring Lab's gap-rule defaults are the same):
 // balanced up to a team gap of 15, fully stacked from 30, partner split up to
 // 5%, veteran from 10 career games, and for a player's first 10 games of a
@@ -103,7 +115,9 @@ let _mapCache = new WeakMap();
 let _careerCounts = null; // { key, counts } — see careerGameCounts()
 // Per system + season: { src: the rated-match list it was built from, d: Map }.
 let _seasonDeltaCache = new Map();
+let _nextCache = null; // { src, d } — NEXT SEASON points for every rated match
 export function invalidate() {
+  _nextCache = null;
   _seasonDeltaCache = new Map();
   _entryCache = new Map();
   _mapCache = new WeakMap();
@@ -239,6 +253,93 @@ function fairDeltas(matches, s = "fair") {
 function fairFull(matches, s = "fair") {
   return labEPFull(fairDeltas(matches, s), { scale: FAIR_SCALE });
 }
+// NEXT SEASON: every rated match's points (each priced inside its season).
+// `extra`: matches that may not be saved yet (a "what's at stake" probe) —
+// then they're priced too, without touching the cache.
+function nextAllDeltas(extra = null) {
+  const src = ratedMatches();
+  if (!_nextCache || _nextCache.src !== src)
+    _nextCache = { src, d: labFormDeltas(src, careerMatches(), { seasonKey: scopeKey, assParams: NEXT_PARAMS.ass }) };
+  const d = _nextCache.d;
+  const missing = (extra || []).filter((m) => !d.has(m));
+  if (!missing.length) return d;
+  const pool = [...src, ...missing];
+  return labFormDeltas(pool, [...careerMatches(), ...missing], { seasonKey: scopeKey, assParams: NEXT_PARAMS.ass });
+}
+function nextDeltas(matches) {
+  const all = nextAllDeltas(matches);
+  const out = new Map();
+  (matches || []).forEach((m) => {
+    const e = all.get(m);
+    if (e) out.set(m, e);
+  });
+  return out;
+}
+const _lastDay = (matches) => (matches || []).reduce((d, m) => ((m.date || "") > d ? m.date || "" : d), "");
+// { name: { ep (points in the shown matches), games, score (form as of the
+// last day shown, over every rated match up to it) } } for the players shown.
+function nextFull(matches) {
+  if (!matches || !matches.length) return {};
+  const all = nextAllDeltas(matches);
+  const last = _lastDay(matches);
+  const pool = new Map([...all].filter(([m]) => (m.date || "") <= last));
+  const form = labFormFull(pool, { half: NEXT_PARAMS.half, k: NEXT_PARAMS.k });
+  const ep = {};
+  const games = {};
+  matches.forEach((m) => {
+    const e = all.get(m);
+    if (!e) return;
+    Object.entries(e.playerDeltas).forEach(([p, d]) => {
+      ep[p] = (ep[p] || 0) + d;
+      games[p] = (games[p] || 0) + 1;
+    });
+  });
+  const out = {};
+  Object.keys(ep).forEach((p) => (out[p] = { ep: ep[p], games: games[p], score: form[p]?.score ?? 0 }));
+  return out;
+}
+// NEXT SEASON timeline: each shown match's form score for its players, with
+// the fading walked up to that match's day (so a player's line ends at their
+// own last match; the board reads on to the last day shown).
+function nextTimeline(matches) {
+  const all = nextAllDeltas(matches);
+  const shown = new Set(matches || []);
+  const last = _lastDay(matches);
+  const walk = [...all.keys()].filter((m) => (m.date || "") <= last).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const num = {};
+  const den = {};
+  const at = {};
+  const history = {};
+  const peaks = {};
+  const lows = {};
+  walk.forEach((m) => {
+    const e = all.get(m);
+    const t = Date.parse(m.date);
+    const aWon = m.scoreA > m.scoreB;
+    Object.entries(e.playerDeltas).forEach(([p, d]) => {
+      const f = at[p] != null ? Math.pow(0.5, (t - at[p]) / 864e5 / NEXT_PARAMS.half) : 1;
+      const before = num[p] != null ? (2 * num[p] * f) / (den[p] * f + NEXT_PARAMS.k) : 0;
+      num[p] = (num[p] || 0) * f + d;
+      den[p] = (den[p] || 0) * f + 1;
+      at[p] = t;
+      if (!shown.has(m)) return;
+      const score = (2 * num[p]) / (den[p] + NEXT_PARAMS.k);
+      const inA = (m.teamA || []).includes(p);
+      (history[p] ||= []).push({
+        date: m.date,
+        elo: score,
+        delta: score - before,
+        won: inA ? aWon : !aWon,
+        opponent: (inA ? m.teamB : m.teamA).join(" & "),
+        scoreA: inA ? m.scoreA : m.scoreB,
+        scoreB: inA ? m.scoreB : m.scoreA,
+      });
+      peaks[p] = Math.max(peaks[p] ?? -Infinity, score);
+      lows[p] = Math.min(lows[p] ?? Infinity, score);
+    });
+  });
+  return { history, peaks, lows };
+}
 // Running-score timeline for a points system (score after each match =
 // scale × points so far ÷ (games so far + shrinkage)), the same shape as ASS's.
 function pointsTimeline(matches, deltaMap, scale) {
@@ -312,6 +413,7 @@ export const rating = {
     if (s === "openskill") return computeOpenSkillFull(matches);
     if (s === "ep") return computeEPFull(matches, careerMatches());
     if (isMatchup(s)) return fairFull(matches, s);
+    if (s === "next") return nextFull(matches);
     return null;
   },
   flat(matches, full, s = _system) {
@@ -322,7 +424,7 @@ export const rating = {
     };
     if (s === "glicko2") return pick("r");
     if (s === "openskill") return pick("mu");
-    if (s === "ep" || isMatchup(s)) return pick("score");
+    if (s === "ep" || isMatchup(s) || s === "next") return pick("score");
     return computeFairShare(matches);
   },
   map(matches, s = _system) {
@@ -362,7 +464,7 @@ export const rating = {
     const bySys = _entryCache.get(m);
     if (!(key in bySys))
       bySys[key] =
-        (isMatchup(s) ? fairDeltas(scopeFor(m), s) : computeMatchEPDeltas(scopeFor(m), careerMatches())).get(m) ||
+        (s === "next" ? nextAllDeltas() : isMatchup(s) ? fairDeltas(scopeFor(m), s) : computeMatchEPDeltas(scopeFor(m), careerMatches())).get(m) ||
         null;
     return bySys[key];
   },
@@ -373,6 +475,7 @@ export const rating = {
   // start; the other systems keep their plain window walk.
   seasonDeltas(matches, s = _system) {
     if (!SCORING_SYSTEMS_POINTS.includes(s)) return rating.deltas(matches, s);
+    if (s === "next") return nextDeltas(matches);
     const src = ratedMatches();
     const groups = new Map();
     (matches || []).forEach((m) => {
@@ -398,6 +501,7 @@ export const rating = {
   // full() from season-priced points: { name: { ep, games, score } }.
   seasonFull(matches, s = _system) {
     if (!SCORING_SYSTEMS_POINTS.includes(s)) return rating.full(matches, s);
+    if (s === "next") return nextFull(matches);
     const ep = {};
     const games = {};
     rating.seasonDeltas(matches, s).forEach(({ playerDeltas }) =>
@@ -413,7 +517,7 @@ export const rating = {
   // EP only: running total points per player over a window ({} -> null elsewhere).
   totals(matches, s = _system) {
     if (!SCORING_SYSTEMS_POINTS.includes(s)) return null;
-    const full = isMatchup(s) ? fairFull(matches, s) : computeEPFull(matches, careerMatches());
+    const full = s === "next" ? nextFull(matches) : isMatchup(s) ? fairFull(matches, s) : computeEPFull(matches, careerMatches());
     const out = {};
     Object.keys(full).forEach((n) => (out[n] = full[n].ep));
     return out;
@@ -425,11 +529,13 @@ export const rating = {
     if (s === "openskill") return computeMatchOpenSkillDeltas(matches);
     if (s === "fairshare") return computeMatchFairShareDeltas(matches);
     if (isMatchup(s)) return fairDeltas(matches, s);
+    if (s === "next") return nextDeltas(matches);
     return computeMatchEPDeltas(matches, careerMatches(), opts);
   },
   timeline(matches, s = _system) {
     if (s === "ep") return computeEPTimeline(matches, careerMatches());
     if (isMatchup(s)) return pointsTimeline(matches, fairDeltas(matches, s), FAIR_SCALE);
+    if (s === "next") return nextTimeline(matches);
     return timelineFromDeltas(matches, rating.deltas(matches, s), 1000);
   },
   // EP "fresh session" snapshot: expectation restarts level, career counts stay.

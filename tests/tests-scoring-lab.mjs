@@ -188,7 +188,7 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
   });
   ok("all-history ASS until 50 games in the season, season ASS after", switchOk && sawSeason);
   const firstMatchOfMonth = (p, mon) => career.find((m) => month(m) === mon && [...m.teamA, ...m.teamB].includes(p));
-  ok("Season 3 ranks on the season's ASS from the first match", labOption("season3").params.seasonGames === 0);
+  ok("the gap rule ranks on the season's ASS from the first match", labOption("gaprule").params.seasonGames === 0);
   const s0 = labMatchupDeltas(career, career, { seasonKey: month, seasonGames: 0 });
   ok("with seasonGames 0 every reading is the season's ASS", career.every((m) => Object.values(s0.get(m).matchup.assFrom).every((f) => f === "season")));
   ok("season games restart at 0 each season", ["Ann", "Ben"].every((p) => bm.get(firstMatchOfMonth(p, "S2")).matchup.seasonGames[p] === 0));
@@ -354,9 +354,9 @@ console.log("\n\x1b[36m── gap rule (graded) ──────────�
     const raw = sl.defGap ?? sl.def; const v = sl.toggle ? !!raw : raw * (sl.paramScale ?? 1) + (sl.paramAdd ?? 0);
     const [g, n] = sl.fp.split("."); if (G[g]) G[g][n] = v; if (sl.fpGap) { const [g2, n2] = sl.fpGap.split("."); G[g2][n2] = sl.toggle ? !!raw : raw; } });
   ok("Form ASS: shared sliders move to 5% / game 10 / fix on in team-gap mode", G.gap.splitCap === 5 && G.gap.maturity === 10 && G.gap.earlyCareer === true && Math.abs(G.ass.splitMax - 0.05) < 1e-12);
-  const plain = labFormDeltas(career, career, { seasonKey: half2 });
+  const plain = labFormDeltas(career, career, { seasonKey: half2, assParams: { oppW: 0.6, splitMax: 0.2, vetLoss: 15, marginW: 0 } });
   const viaSliders = labFormDeltas(career, career, { seasonKey: half2, assParams: P.ass });
-  ok("Form ASS: the ASS sliders at their defaults = live ASS points", career.every((m) => same(plain.get(m).playerDeltas, viaSliders.get(m).playerDeltas)));
+  ok("Next Season: the ASS sliders default to the tuned settings (+30% vs stronger, 20% split, loss up to 15, no margin)", career.every((m) => same(plain.get(m).playerDeltas, viaSliders.get(m).playerDeltas)) && Math.abs(P.ass.oppW - 0.6) < 1e-12 && Math.abs(P.ass.splitMax - 0.2) < 1e-12 && P.ass.vetLoss === 15 && P.ass.marginW === 0);
   const gapP = { ...G.gap, winPoints: G.win, lossPoints: { ...G.loss, weakMid: (G.loss.bal + G.loss.weakFull) / 2 } };
   const gapVia = labFormDeltas(career, career, { seasonKey: half2, engine: "gap", assParams: G.ass, gapParams: gapP });
   const gapRef = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2, gapRule: true, gapBalanced: 15, gapFull: 30, splitCap: 5, maturity: 10, earlyCareer: true, earlyGames: 10, earlyPrevGames: 25, winPoints: G.win, liveParams: { ...G.ass } });
@@ -384,19 +384,17 @@ console.log("\n\x1b[36m── grace marks ────────────�
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("seven options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct, Form ASS and Season 3", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,form,season3" && labOption("custom").kind === "matchup");
+ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Next Season (no Season 3)", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,form" && labOption("form").label === "Next Season" && labOption("custom").kind === "matchup");
 {
-  const s3 = labOption("season3");
   const half2s = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
-  ok("Season 3: one set of sliders (gap, wins, split, veteran line, early-season fix), no repeats, no top 6", s3.params.gapRule && s3.params.liveFollows && same(s3.sliders, ["gapBalanced", "gapFull", "winBal", "winStrongMid", "winWeakMid", "winStrongFull", "winWeakFull", "splitCap", "maturity", "earlyCareer", "earlyGames", "earlyPrevGames"]));
   const follow = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2s, gapRule: true, maturity: 30, splitCap: 0, liveFollows: true });
   const liveSame = labEPDeltas(career, career, { maturity: 30, splitMax: 0, seasonKey: half2s, earlyFix: false });
-  ok("Season 3: newcomer matches use the same split and veteran line (ASS)", career.every((m) => follow.get(m).matchup.kind !== "newcomer" || same(follow.get(m).playerDeltas, liveSame.get(m).playerDeltas)) && career.some((m) => follow.get(m).matchup.kind === "newcomer"));
+  ok("liveFollows: newcomer matches use the same split and veteran line (ASS)", career.every((m) => follow.get(m).matchup.kind !== "newcomer" || same(follow.get(m).playerDeltas, liveSame.get(m).playerDeltas)) && career.some((m) => follow.get(m).matchup.kind === "newcomer"));
   const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
   const s2 = career.filter((m) => half2(m) === "S2");
   const base = labMatchupDeltas(s2, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30 });
   const sameLive = labMatchupDeltas(s2, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30, liveParams: { splitMax: 0.12, maturity: 50, earlyFix: false } });
-  ok("Season 3 at the ASS defaults = the gap rule with live ASS newcomer matches", s2.every((m) => same(base.get(m).playerDeltas, sameLive.get(m).playerDeltas)));
+  ok("liveParams at the ASS defaults = the gap rule with live ASS newcomer matches", s2.every((m) => same(base.get(m).playerDeltas, sameLive.get(m).playerDeltas)));
   const noSplit = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30, liveParams: { splitMax: 0 } });
   const liveNoSplit = labEPDeltas(career, career, { maturity: 30, splitMax: 0 });
   let nc = 0, ncOk = true, vetSame = true;
@@ -408,9 +406,9 @@ ok("seven options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct
       if (!same(x.playerDeltas, liveNoSplit.get(m).playerDeltas)) ncOk = false;
     } else if (!same(x.playerDeltas, baseAll.get(m).playerDeltas)) vetSame = false;
   });
-  ok("Season 3's ASS split slider changes only the newcomer (ASS-scored) matches", nc > 0 && ncOk && vetSame, `nc=${nc} ncOk=${ncOk} vetSame=${vetSame}`);
+  ok("liveParams split changes only the newcomer (ASS-scored) matches", nc > 0 && ncOk && vetSame, `nc=${nc} ncOk=${ncOk} vetSame=${vetSame}`);
 }
-ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.filter((s) => !s.fp).map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,winBal=100,winStrongMid=75,winWeakMid=110,winStrongFull=50,winWeakFull=120,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
+ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.filter((s) => !s.fp).map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });
   const dflt = labMatchupDeltas(w, career, { seasonGames: 0, winBase: 100, lossMax: 20, splitCap: 0 });

@@ -11,6 +11,7 @@ import {
   SCORING_SYSTEMS_WITH_CONFIDENCE,
   SCORING_SYSTEMS_ZERO_BASED,
   SCORING_SYSTEMS_POINTS,
+  NEXT_PARAMS,
   FAIR_GAP_PARAMS,
 } from "./src/domain/rating-service.js";
 import { checkDataHealth, formatHealthReport } from "./src/domain/data-health.js";
@@ -888,12 +889,12 @@ let _homeRenderedVersion = -1,
   _homeRenderedFilter = "";
 let _compactRenderedVersion = -1,
   _compactRenderedFilter = "";
-// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS") or "fairgap"
-// ("FAIR ASS GAP", Fair Matchup Points with the gap rule). FAIR ASS ("fair"),
-// Glicko-2 / OpenSkill / Fair Share still exist in the rating service but are
-// no longer offered. SR bands, defaults
+// Summary-tab scoring SYSTEM — "ep" (default, shown as "ASS") or "next"
+// ("NEXT SEASON": ASS points on a board that follows current form). FAIR ASS,
+// FAIR ASS GAP, Glicko-2 / OpenSkill / Fair Share still exist in the rating
+// service but are no longer offered. SR bands, defaults
 // and printed forms all live in src/domain/rating-service.js.
-const SCORING_PICKABLE = ["ep", "fairgap"];
+const SCORING_PICKABLE = ["ep", "next"];
 const _srFnForSystem = (system, ratingMap) => rating.srFn(ratingMap, system);
 // The active system lives in the rating service (one copy, so no screen can
 // hold a different one); this block only restores the saved choice.
@@ -901,13 +902,11 @@ try {
   const _storedSys = localStorage.getItem("padel_scoring_system");
   // ASS CLASSIC ("ass") was retired: a device still set to it moves to the
   // default, and the retired season-format preference is dropped.
-  // Only ASS and FAIR ASS GAP are offered now; a device left on Glicko-2,
-  // OpenSkill or Fair Share moves back to ASS.
-  // FAIR ASS left the picker: a device on it moves to FAIR ASS GAP.
-  if (_storedSys === "fair") {
-    setActiveSystem("fairgap");
-    localStorage.setItem("padel_scoring_system", "fairgap");
-  } else if (_storedSys && SCORING_PICKABLE.includes(_storedSys)) setActiveSystem(_storedSys);
+  // Only ASS and NEXT SEASON are offered now; a device left on any other
+  // system moves back to ASS.
+  // FAIR ASS / FAIR ASS GAP left the picker: a device on either falls back to
+  // ASS (the line below drops any choice no longer offered).
+  if (_storedSys && SCORING_PICKABLE.includes(_storedSys)) setActiveSystem(_storedSys);
   else if (_storedSys) localStorage.removeItem("padel_scoring_system");
   localStorage.removeItem("padel_season_scoring_mode");
   localStorage.removeItem("padel_goals"); // the retired Goals feature
@@ -9571,6 +9570,7 @@ const SCORING_SYSTEM_BLURBS = {
   fairshare: "Individual points, doubles-aware: since opponents target the weaker partner, that player's rating swings more (both up and down) than a stronger partner's — same team result, split by who the match really rode on.",
   ep: "No free 1000 to sit on. Everyone starts at 0 and earns from every match — wins always pay, losses pay too while you're new, and only start costing once you have 50 games behind you. Ranked on points per match, so showing up counts but mileage alone can't buy a top spot.",
   fair: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by this season's ASS: best + worst vs the middle two is balanced (win 100–120, loss 0 to −20); otherwise the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 (4–3 to 4–0). Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 10%). A match with a player under 50 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
+  next: "ASS that follows current form. Every match pays ASS points (a win about 100 — up to 30% more for beating a stronger side, no extra for the margin; a veteran's loss up to −15; a newcomer's loss a small credit; up to 20% of a win moved to the lower-rated partner), but recent matches count more: a match's weight halves every 45 days, and last season's matches still count at their faded weight, so nobody restarts from zero. Score = 2 × weighted points ÷ (weighted matches + 10). TOTAL is the plain points earned in the matches shown.",
   fairgap: "FAIR ASS, but the teams' gap decides how stacked a match was. Add up both partners' ASS (this season — or, for a player's first 10 games of the season, their ASS over their last 25 games of the previous season, so the opening days aren't judged on near-zero ratings) for each team: a gap of up to 15 is balanced (win 100–120, loss 0 to −20) — in our matches the higher-rated team wins only about half of those. From a gap of 30 it's fully stacked: the stronger team wins only 50–70 and loses 30–40, the weaker team wins 120–140 and loses 0–20 — past 30 the stronger team wins about 7 in 10. In between, the points slide gradually from balanced to stacked. Partners' points are split by their ASS gap — the weaker partner gets more of a win, the stronger takes more of a loss (up to 5%). A match with a player under 10 career games is scored as ASS. Score = 2 × points ÷ (games + 10).",
 };
 
@@ -9636,6 +9636,7 @@ function _setScoringSystem(sys) {
 // tapping ⓘ never accidentally changes a selection.
 const SCORING_SYSTEM_EXAMPLES = {
   fair: `<b>Example:</b> Vinit (ASS 96) + Nilesh (84) beat Rahul M (99) + Sachin (88) 4–3. Rahul M + Sachin were the stronger team, so this is an underdog win: +120 each, split by the partners' gap — <b>Nilesh +127, Vinit +113</b>. The stronger team lost 4–3: −30 each — <b>Rahul M −32, Sachin −28</b>. Had the stronger team won instead, they'd have earned only +50 each.`,
+  next: `<b>Example:</b> a win today counts in full, a win 45 days ago counts half, one 90 days ago a quarter. Vinit's 211 matches add up to about 77 "effective" matches and 4,235 weighted points: 2 × 4,235 ÷ (77 + 10) ≈ <b>97.7</b>. A player who stops playing slowly drifts down; one on a good run climbs faster than on ASS.`,
   fairgap: `<b>Example:</b> Ankit (87) + Rahul G (80) = 167 play Vinit (99) + Sachin (86) = 185 — a gap of 18, a fifth of the way from balanced (15) to fully stacked (30). If Vinit + Sachin win 4–3 they get about <b>+90</b> each instead of +100; if Ankit + Rahul G win 4–3 they get about <b>+104</b>. With a gap of 30 or more those would be +50 and +120; with 15 or less, +100 either way.`,
   glicko2: `<b>Example:</b> two brand-new players (rating 1000, confidence band ±350) play their first match. The winner might jump to about 1050 with their band narrowing to ±290 — the system is a little more sure of them now. After 20+ matches, that band can shrink under ±100, so each new result moves the rating much less than it did on day one.`,
   openskill: `<b>Example:</b> a proven veteran (low uncertainty) partners a total newcomer (high uncertainty) and they win. The newcomer's rating jumps a lot — the system has a lot left to learn about them — while the veteran's barely moves, since their skill is already well established.`,
@@ -12160,6 +12161,7 @@ let _labCustom = (() => {
     if (!(saved.v >= 3)) delete saved.splitCap; // the partner-split default moved from 15 to 10
     if (!(saved.v >= 4)) delete saved.earlyCareer; // the early-season fix now starts on
     if (!(saved.v >= 5)) ["splitCap", "maturity", "earlyPrevGames"].forEach((k) => delete saved[k]); // new FAIR ASS GAP defaults
+    if (!(saved.v >= 6)) ["fSplit", "fOpp", "fVetLoss", "fMargin"].forEach((k) => delete saved[k]); // Next Season's tuned defaults
     LAB_SLIDERS.forEach((s) => {
       const v = Number(saved[s.key]);
       if (Number.isFinite(v)) d[s.key] = Math.min(s.max, Math.max(s.min, v));
@@ -12176,30 +12178,11 @@ const _labParams = (opt) => ({
   ...Object.fromEntries(
     _labSliderKeys(opt)
       .map((k) => LAB_SLIDERS.find((x) => x.key === k))
-      .filter((s) => s && !(s.live && opt.kind === "matchup") && !s.wp)
+      .filter((s) => s && !s.fp)
       .map((s) => [s.param || s.key, _labCustom[s.key] * (s.paramScale ?? 1)]),
   ),
-  // The win sliders (Season 3) become one winPoints table.
-  ...(_labSliderKeys(opt).some((k) => LAB_SLIDERS.find((x) => x.key === k)?.wp)
-    ? {
-        winPoints: Object.fromEntries(
-          LAB_SLIDERS.filter((s) => s.wp && _labSliderKeys(opt).includes(s.key)).map((s) => [s.wp, _labCustom[s.key]]),
-        ),
-      }
-    : {}),
-  // ASS sliders on a matchup option (Season 3) set the ASS engine it uses
-  // for newcomer matches.
-  ...(opt.kind === "matchup" && _labSliderKeys(opt).some((k) => LAB_SLIDERS.find((x) => x.key === k)?.live)
-    ? {
-        liveParams: Object.fromEntries(
-          _labSliderKeys(opt)
-            .map((k) => LAB_SLIDERS.find((x) => x.key === k))
-            .filter((s) => s?.live)
-            .map((s) => [s.param || s.key, _labCustom[s.key] * (s.paramScale ?? 1)]),
-        ),
-      }
-    : {}),
 });
+
 const _labKey = (opt) =>
   `${opt.id}:${_labSliderKeys(opt).map((k) => _labCustom[k]).join(":")}` +
   (opt.kind === "grace" ? `:${rating.system()}:${_labGracePlayer}:${opt.gracePts ?? ""}` : "");
@@ -12236,7 +12219,9 @@ function _labRun(opt, matches) {
     // On top of the Summary tab's scoring (ASS or FAIR ASS).
     const sys = rating.system();
     const base =
-      sys === "fair" || sys === "fairgap"
+      sys === "next"
+        ? labEPDeltas(matches, career, { seasonKey: scopeKey, ...NEXT_PARAMS.ass })
+        : sys === "fair" || sys === "fairgap"
         ? labMatchupDeltas(matches, career, { seasonGames: 0, seasonKey: scopeKey, ...(sys === "fairgap" ? FAIR_GAP_PARAMS : {}) })
         : labEPDeltas(matches, career);
     deltas = labAddGrace(base, _labGracePlayer, opt.gracePts ?? _labCustom.graceMarks);
@@ -12361,7 +12346,7 @@ function _labSlide(key, value) {
   // A toggle that shows or hides other sliders redraws the panel.
   if (s.toggle && LAB_SLIDERS.some((x) => x.showIf?.key === key || (key === "fGap" && x.defGap != null))) {
     try {
-      localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 5 }));
+      localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 6 }));
     } catch (e) {
       noteError("app:_labSlide", e);
     }
@@ -12371,7 +12356,7 @@ function _labSlide(key, value) {
   const out = document.getElementById(`lab-sv-${key}`);
   if (out) out.textContent = s.toggle ? (_labCustom[key] ? "On" : "Off") : _labCustom[key];
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 5 }));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 6 }));
   } catch (e) {
     noteError("app:_labSlide", e);
   }
@@ -12419,11 +12404,7 @@ function _labGapTable() {
   const b = _labCustom.gapBalanced;
   const f = _labCustom.gapFull;
   const mid = Math.round((b + f) / 2);
-  // Season 3's win sliders, else the fixed Fair ASS numbers.
-  const s3 = _labId === "season3";
-  const W = s3
-    ? { bal: _labCustom.winBal, strongMid: _labCustom.winStrongMid, weakMid: _labCustom.winWeakMid, strongFull: _labCustom.winStrongFull, weakFull: _labCustom.winWeakFull }
-    : { bal: 100, strongMid: 75, weakMid: 110, strongFull: 50, weakFull: 120 };
+  const W = { bal: 100, strongMid: 75, weakMid: 110, strongFull: 50, weakFull: 120 };
   const rows = [
     [`≤ ${b}`, W.bal, 0, W.bal],
     ...(f > b + 1 ? [[`${mid}`, W.strongMid, -15, W.weakMid]] : []),
@@ -12437,7 +12418,7 @@ function _labSlidersReset() {
   const keys = _labSliderKeys(labOption(_labId));
   LAB_SLIDERS.filter((s) => keys.includes(s.key)).forEach((s) => (_labCustom[s.key] = s.def));
   try {
-    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 5 }));
+    localStorage.setItem("padel_lab_custom", JSON.stringify({ ..._labCustom, v: 6 }));
   } catch (e) {
     noteError("app:_labSlidersReset", e);
   }
@@ -12461,7 +12442,7 @@ function _scoringLabInner() {
     <div class="lab-desc"><div class="lab-desc-t">${escHtml(opt.label)}</div>${escHtml(opt.desc)}${
       opt.custom
         ? `<div id="lab-custom-desc">${_labCustomTable()}</div>`
-        : opt.id === "gaprule" || opt.id === "season3"
+        : opt.id === "gaprule"
           ? `<div id="lab-custom-desc">${_labGapTable()}</div>`
           : ""
     }<div class="lab-scope">${escHtml(scope)}</div></div>${

@@ -640,7 +640,7 @@ export const LAB_OPTIONS = [
   },
   {
     id: "form",
-    label: "Form ASS",
+    label: "Next Season",
     kind: "form",
     params: {},
     sliders: [
@@ -672,28 +672,7 @@ export const LAB_OPTIONS = [
       "fLossStrongFull",
       "fLossWeakFull",
     ],
-    desc: "ASS that follows current form. Every match keeps the points it earned in its own season, but recent matches count more: a match's weight halves every N days (first slider, default 45), counted back from the latest match shown — a 45-day-old match counts half, a 90-day-old one a quarter (0 = no fading). With 'Previous seasons count' on (default) last season's matches still count at their faded weight. Score = 2 × weighted points ÷ (weighted games + the cushion, default 10). Shared settings apply to both kinds of points: the partner split (default 12%), who counts as a beginner (until career game 50) and the early-season fix (off). Then pick the points: by default every win pays about the same as ASS (about 100, a little more for beating a stronger side and for a bigger margin; a loss up to −25; a beginner's loss a small credit) — or switch on 'Stacked wins pay less', which judges veterans' matches by the gap between the teams' combined ASS: balanced / halfway / fully stacked win and loss points each get a slider (a stacked win can pay 50 and a stacked loss cost more), and the shared settings move to 5% / game 10 / fix on unless you changed them. Only the sliders for the chosen points are shown. At the defaults this came closest to how the group ranks its players (93% of player pairs in the same order).",
-  },
-  {
-    id: "season3",
-    label: "Season 3",
-    kind: "matchup",
-    params: { seasonGames: 0, gapRule: true, liveFollows: true },
-    sliders: [
-      "gapBalanced",
-      "gapFull",
-      "winBal",
-      "winStrongMid",
-      "winWeakMid",
-      "winStrongFull",
-      "winWeakFull",
-      "splitCap",
-      "maturity",
-      "earlyCareer",
-      "earlyGames",
-      "earlyPrevGames",
-    ],
-    desc: "FAIR ASS GAP for veterans, ASS for newer players, with one set of sliders. A match where all four players have reached the veteran line (default 10 career games) is scored by the team gap — the difference between the teams' combined season ASS: balanced up to the first slider (default 15), fully stacked from the second (default 30). The win sliders set what a 4–3 win pays at a balanced gap (default 100 for either team), at the halfway gap (default 23: stronger team 75, weaker team 110) and when fully stacked (default stronger 50, weaker 120); between those points it slides straight, and a 4–0 adds 20. Losses: balanced 0 to −20, stronger team up to −30 to −40, weaker team never more than −20. A match with a newer player is scored as ASS. The partner split (default 5%), the veteran line and the early-season fix (previous season's last 25 games for a player's first 10 this season) apply to both kinds of match. Score = 2 × points ÷ (games + 10).",
+    desc: "Next Season — ASS that follows current form (the Summary tab's NEXT SEASON scoring uses these defaults). Every match keeps the points it earned in its own season, but recent matches count more: a match's weight halves every N days (first slider, default 45), counted back from the latest match shown — a 45-day-old match counts half, a 90-day-old one a quarter (0 = no fading). With 'Previous seasons count' on (default) last season's matches still count at their faded weight. Score = 2 × weighted points ÷ (weighted games + the cushion, default 10). Shared settings apply to both kinds of points: the partner split (default 20%), who counts as a beginner (until career game 50) and the early-season fix (off). Then pick the points: by default every win pays about the same as ASS (about 100, up to 30% more for beating a stronger side; no extra for the margin; a loss up to −15; a beginner's loss a small credit) — or switch on 'Stacked wins pay less', which judges veterans' matches by the gap between the teams' combined ASS: balanced / halfway / fully stacked win and loss points each get a slider (a stacked win can pay 50 and a stacked loss cost more), and the shared settings move to 5% / game 10 / fix on unless you changed them. Only the sliders for the chosen points are shown. These defaults were tuned so the top of the table isn't stretched out (Vinit about 5 clear, Ankit / Rahul M / Parthiv within about 5) while matching how the group ranks its players (95% of player pairs in the same order).",
   },
 ];
 
@@ -704,11 +683,6 @@ export const LAB_SLIDERS = [
   { key: "splitCap", label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 5 },
   { key: "gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 15 },
   { key: "gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },
-  { key: "winBal", wp: "bal", label: "Win at a balanced gap (4–3)", min: 0, max: 200, step: 5, def: 100 },
-  { key: "winStrongMid", wp: "strongMid", label: "Stronger team win, halfway gap", min: 0, max: 200, step: 5, def: 75 },
-  { key: "winWeakMid", wp: "weakMid", label: "Weaker team win, halfway gap", min: 0, max: 200, step: 5, def: 110 },
-  { key: "winStrongFull", wp: "strongFull", label: "Stronger team win, fully stacked", min: 0, max: 200, step: 5, def: 50 },
-  { key: "winWeakFull", wp: "weakFull", label: "Weaker team win, fully stacked", min: 0, max: 200, step: 5, def: 120 },
   { key: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 10 },
   // ASS (live)'s own sliders; `param` is the engine option each sets (times
   // `paramScale`, when the engine takes a fraction).
@@ -729,7 +703,7 @@ export const LAB_SLIDERS = [
   // Shared by both kinds of points (fpGap: where the value goes in team-gap
   // mode; defGap: its default there — the slider moves to it when the points
   // switch flips, unless it was changed).
-  { key: "fSplit", group: "Shared · both kinds of points", fp: "ass.splitMax", paramScale: 0.01, fpGap: "gap.splitCap", defGap: 5, label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 12 },
+  { key: "fSplit", group: "Shared · both kinds of points", fp: "ass.splitMax", paramScale: 0.01, fpGap: "gap.splitCap", defGap: 5, label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 20 },
   { key: "fMaturity", group: "Shared · both kinds of points", fp: "ass.maturity", fpGap: "gap.maturity", defGap: 10, label: "Beginners until career game", min: 0, max: 100, step: 1, def: 50 },
   { key: "fEarly", group: "Shared · both kinds of points", fp: "ass.earlyFix", fpGap: "gap.earlyCareer", defGap: 1, label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 0 },
   { key: "fEarlyGames", group: "Shared · both kinds of points", fp: "ass.earlyGames", fpGap: "gap.earlyGames", showIf: { key: "fEarly", is: 1 }, label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
@@ -737,10 +711,10 @@ export const LAB_SLIDERS = [
   // The either/or: every win about the same (ASS) vs stacked wins pay less.
   { key: "fGap", group: "Points per match", fp: "form.gap", label: "Stacked wins pay less (team-gap points)", toggle: true, min: 0, max: 1, step: 1, def: 0 },
   { key: "fWin", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.winBase", label: "Win points (a neutral win)", min: 20, max: 200, step: 5, def: 100 },
-  { key: "fOpp", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.oppW", paramScale: 0.02, label: "Beating a stronger side: up to +% (and − vs weaker)", min: 0, max: 50, step: 1, def: 20 },
-  { key: "fMargin", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.marginW", paramScale: 0.01, label: "Margin effect: a 4–0 pays +½ this % over a 4–2", min: 0, max: 80, step: 5, def: 40 },
+  { key: "fOpp", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.oppW", paramScale: 0.02, label: "Beating a stronger side: up to +% (and − vs weaker)", min: 0, max: 50, step: 1, def: 30 },
+  { key: "fMargin", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.marginW", paramScale: 0.01, label: "Margin effect: a 4–0 pays +½ this % over a 4–2", min: 0, max: 80, step: 5, def: 0 },
   { key: "fShutout", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.shutout", paramScale: 0.01, paramAdd: 1, label: "Shutout bonus (%)", min: 0, max: 20, step: 1, def: 5 },
-  { key: "fVetLoss", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.vetLoss", label: "Loss: up to (more when favoured)", min: 0, max: 60, step: 1, def: 25 },
+  { key: "fVetLoss", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.vetLoss", label: "Loss: up to (more when favoured)", min: 0, max: 60, step: 1, def: 15 },
   { key: "fNewCredit", group: "Points per match", showIf: { key: "fGap", is: 0 }, fp: "ass.lossBase", label: "Beginner's loss credit: up to", min: 0, max: 30, step: 1, def: 10 },
   { key: "fGapBal", group: "Points per match", showIf: { key: "fGap", is: 1 }, fp: "gap.gapBalanced", label: "Balanced up to team gap", min: 0, max: 40, step: 1, def: 15 },
   { key: "fGapFull", group: "Points per match", showIf: { key: "fGap", is: 1 }, fp: "gap.gapFull", label: "Fully stacked from team gap", min: 0, max: 60, step: 1, def: 30 },

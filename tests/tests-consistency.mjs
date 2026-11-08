@@ -22,7 +22,9 @@ import {
   scopeFor,
   invalidate,
   SCORING_SYSTEMS,
+  NEXT_PARAMS,
 } from "../src/domain/rating-service.js";
+import { labFormDeltas, labFormFull } from "../src/domain/scoring-lab.js";
 import { state } from "../src/domain/state.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -283,6 +285,16 @@ for (const sys of SCORING_SYSTEMS) {
     const m0 = matches[matches.length - 1];
     const e = rating.entry(m0);
     ok(`ep: entry() gives win chance and an award breakdown`, e && Number.isFinite(e.expA) && e.breakdown);
+  } else if (sys === "next") {
+    const m0 = matches[matches.length - 1];
+    {
+      const sk = (m) => scopeFor(m) && (state.seasons.find((sn) => m.date >= sn.start && (!sn.end || m.date <= sn.end))?.id ?? "__none__");
+      const lab = labFormFull(labFormDeltas(matches, matches, { seasonKey: sk, assParams: NEXT_PARAMS.ass }), { half: NEXT_PARAMS.half, k: NEXT_PARAMS.k });
+      const full = rating.full(matches);
+      ok("next: the Summary board = the Scoring Lab's Next Season at its defaults", Object.keys(full).every((p) => Math.abs(full[p].score - lab[p].score) < 1e-9));
+    }
+    const e = rating.entry(m0);
+    ok("next: entry() gives the match's ASS points, win chance and breakdown", e && Number.isFinite(e.expA) && e.breakdown && JSON.stringify(e.playerDeltas) === JSON.stringify(rating.deltas(matches).get(m0).playerDeltas));
   } else if (sys === "fair" || sys === "fairgap") {
     const m0 = matches[matches.length - 1];
     const e = rating.entry(m0);
