@@ -330,6 +330,9 @@ export function labMatchupDeltas(
     earlyCareer = false,
     earlyGames = 10,
     earlyPrevGames = 50,
+    // Extra options for the live ASS engine that scores newcomer matches
+    // (partner split, newcomer line, its own early-season fix).
+    liveParams = {},
   } = {},
 ) {
   const winScale = winBase / MATCHUP_WIN_REF;
@@ -352,6 +355,7 @@ export function labMatchupDeltas(
       ? {}
       : { winBase: LAB_EP_DEFAULTS.winBase * winScale, vetLoss: LAB_EP_DEFAULTS.vetLoss * lossScale }),
     ...(maturity !== LAB_EP_DEFAULTS.maturity ? { maturity } : {}),
+    ...(Object.keys(liveParams).length ? { seasonKey, ...liveParams } : {}),
   });
   const tot = {};
   const games = {};
@@ -566,11 +570,26 @@ export const LAB_OPTIONS = [
     desc: "ASS exactly as the app scored it up to 1 October (the engine was unchanged from 21 Sep to 11 Oct). A win pays 50–150 depending on how big an underdog the team was — bigger upsets pay much more — times the margin. A loss pays a 'turned up' credit of up to 40 minus a penalty of up to 60 that grows over a player's first 50 career games, so veterans lose up to about 60 for a loss as heavy favourites. Who's favoured is learned from all history, both partners always get the same points, and score = 2 × points ÷ (games + 10).",
   },
   {
-    id: "matchup",
-    label: "Fair Matchup Points",
+    id: "season3",
+    label: "Season 3",
     kind: "matchup",
-    params: { seasonGames: 0 },
-    desc: "Rewards winning from a fair or underdog draw more than from a stacked one. Before each match the four players are ranked by their ASS for the season so far. Balanced (best + worst vs the middle two): a win pays 100 (4–3) up to 120 (4–0), a loss costs 0 up to 20. Mismatch — the stronger team wins only 50 up to 70 and loses 30 up to 40; the weaker team wins 120 up to 140 and loses 0 up to 20. If anyone in the match has fewer than 50 career games their ASS isn't trusted yet, so that match is scored exactly as live ASS. Partner split: the team's points are shared by the partners' ASS gap — the weaker partner gets a bigger share of a win and the stronger partner takes a bigger share of a loss, up to 10% each way (0.5% per ASS point of gap). Score = 2 × points ÷ (games + 10). Early in a season everyone's ASS is near 0, so the first few days' rankings are rough.",
+    params: { seasonGames: 0, gapRule: true },
+    sliders: [
+      "gapBalanced",
+      "gapFull",
+      "splitCap",
+      "maturity",
+      "topTier",
+      "earlyCareer",
+      "earlyGames",
+      "earlyPrevGames",
+      "assSplit",
+      "assMaturity",
+      "assEarly",
+      "assEarlyGames",
+      "assEarlyPrev",
+    ],
+    desc: "FAIR ASS GAP and ASS together, each with its own sliders. Every match where all four players are veterans (the 'Veteran from career game' line, default 10) is scored by the gap rule: the gap between the teams' combined season ASS decides balanced (default up to 15) / partly / fully stacked (default from 30), the partner split (default 5%), the Top 6 rule and the early-season fix (previous season's last 25 games for a player's first 10 this season). A match with a newer player is scored as ASS, using the ASS sliders below: its partner split (default 12%), its own newcomer line for loss credit (default 50) and its early-season fix (off by default; when on, a player's ASS over their last games before the season decides who's favoured until they've played the chosen number of games this season). Score = 2 × points ÷ (games + 10).",
   },
 ];
 
@@ -585,11 +604,11 @@ export const LAB_SLIDERS = [
   { key: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 10 },
   // ASS (live)'s own sliders; `param` is the engine option each sets (times
   // `paramScale`, when the engine takes a fraction).
-  { key: "assSplit", param: "splitMax", paramScale: 0.01, label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 12 },
-  { key: "assEarly", param: "earlyFix", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 0 },
-  { key: "assEarlyGames", param: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
-  { key: "assEarlyPrev", param: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
-  { key: "assMaturity", param: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 50 },
+  { key: "assSplit", live: true, param: "splitMax", paramScale: 0.01, label: "Partner split (max %)", min: 0, max: 30, step: 1, def: 12 },
+  { key: "assEarly", live: true, param: "earlyFix", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 0 },
+  { key: "assEarlyGames", live: true, param: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
+  { key: "assEarlyPrev", live: true, param: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },
+  { key: "assMaturity", live: true, param: "maturity", label: "Veteran from career game", min: 0, max: 50, step: 1, def: 50 },
   { key: "earlyCareer", label: "Early-season fix", toggle: true, min: 0, max: 1, step: 1, def: 1 },
   { key: "earlyGames", label: "Previous-season ASS until season game", min: 0, max: 30, step: 1, def: 10 },
   { key: "earlyPrevGames", label: "Previous-season games used", min: 10, max: 100, step: 5, def: 25 },

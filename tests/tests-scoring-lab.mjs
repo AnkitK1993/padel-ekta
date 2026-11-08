@@ -188,7 +188,7 @@ ok("balanced: win 120 / 100, loss −20 / 0", matchupPoints("balanced", true, 1)
   });
   ok("all-history ASS until 50 games in the season, season ASS after", switchOk && sawSeason);
   const firstMatchOfMonth = (p, mon) => career.find((m) => month(m) === mon && [...m.teamA, ...m.teamB].includes(p));
-  ok("Fair Matchup Points ranks on the season's ASS from the first match", labOption("matchup").params.seasonGames === 0);
+  ok("Season 3 ranks on the season's ASS from the first match", labOption("season3").params.seasonGames === 0);
   const s0 = labMatchupDeltas(career, career, { seasonKey: month, seasonGames: 0 });
   ok("with seasonGames 0 every reading is the season's ASS", career.every((m) => Object.values(s0.get(m).matchup.assFrom).every((f) => f === "season")));
   ok("season games restart at 0 each season", ["Ann", "Ben"].every((p) => bm.get(firstMatchOfMonth(p, "S2")).matchup.seasonGames[p] === 0));
@@ -327,7 +327,28 @@ console.log("\n\x1b[36m── grace marks ────────────�
 }
 
 console.log("\n\x1b[36m── option list ──────────────────────────────────────\x1b[0m");
-ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Fair Matchup Points", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,matchup" && labOption("custom").kind === "matchup");
+ok("six options: live, custom sliders, gap rule, grace marks, ASS before 1 Oct and Season 3", LAB_OPTIONS.map((o) => o.id).join() === "live,custom,gaprule,grace,pre1oct,season3" && labOption("custom").kind === "matchup");
+{
+  const s3 = labOption("season3");
+  ok("Season 3 has the gap-rule sliders and the ASS sliders", s3.params.gapRule && ["gapBalanced", "gapFull", "splitCap", "maturity", "topTier", "earlyCareer", "earlyGames", "earlyPrevGames", "assSplit", "assMaturity", "assEarly", "assEarlyGames", "assEarlyPrev"].every((k) => s3.sliders.includes(k)));
+  const half2 = (m) => (m.date < "2026-03-20" ? "S1" : "S2");
+  const s2 = career.filter((m) => half2(m) === "S2");
+  const base = labMatchupDeltas(s2, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30 });
+  const sameLive = labMatchupDeltas(s2, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30, liveParams: { splitMax: 0.12, maturity: 50, earlyFix: false } });
+  ok("Season 3 at the ASS defaults = the gap rule with live ASS newcomer matches", s2.every((m) => same(base.get(m).playerDeltas, sameLive.get(m).playerDeltas)));
+  const noSplit = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30, liveParams: { splitMax: 0 } });
+  const liveNoSplit = labEPDeltas(career, career, { maturity: 30, splitMax: 0 });
+  let nc = 0, ncOk = true, vetSame = true;
+  const baseAll = labMatchupDeltas(career, career, { seasonGames: 0, seasonKey: half2, gapRule: true, maturity: 30 });
+  career.forEach((m) => {
+    const x = noSplit.get(m);
+    if (x.matchup.kind === "newcomer") {
+      nc++;
+      if (!same(x.playerDeltas, liveNoSplit.get(m).playerDeltas)) ncOk = false;
+    } else if (!same(x.playerDeltas, baseAll.get(m).playerDeltas)) vetSame = false;
+  });
+  ok("Season 3's ASS split slider changes only the newcomer (ASS-scored) matches", nc > 0 && ncOk && vetSame, `nc=${nc} ncOk=${ncOk} vetSame=${vetSame}`);
+}
 ok("the sliders start at the Fair Matchup values", LAB_SLIDERS.map((s) => `${s.key}=${s.def}`).join() === "winBase=100,lossMax=20,splitCap=5,gapBalanced=15,gapFull=30,topTier=0,maturity=10,assSplit=12,assEarly=0,assEarlyGames=10,assEarlyPrev=25,assMaturity=50,earlyCareer=1,earlyGames=10,earlyPrevGames=25,graceMarks=10");
 {
   const base = labMatchupDeltas(w, career, { seasonGames: 0, splitCap: 0 });

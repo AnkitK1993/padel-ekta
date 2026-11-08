@@ -12174,11 +12174,23 @@ const _labSliderKeys = (opt) => opt.sliders || [];
 const _labParams = (opt) => ({
   ...opt.params,
   ...Object.fromEntries(
-    _labSliderKeys(opt).map((k) => {
-      const s = LAB_SLIDERS.find((x) => x.key === k);
-      return [s?.param || k, _labCustom[k] * (s?.paramScale ?? 1)];
-    }),
+    _labSliderKeys(opt)
+      .map((k) => LAB_SLIDERS.find((x) => x.key === k))
+      .filter((s) => s && !(s.live && opt.kind === "matchup"))
+      .map((s) => [s.param || s.key, _labCustom[s.key] * (s.paramScale ?? 1)]),
   ),
+  // ASS sliders on a matchup option (Season 3) set the ASS engine it uses
+  // for newcomer matches.
+  ...(opt.kind === "matchup" && _labSliderKeys(opt).some((k) => LAB_SLIDERS.find((x) => x.key === k)?.live)
+    ? {
+        liveParams: Object.fromEntries(
+          _labSliderKeys(opt)
+            .map((k) => LAB_SLIDERS.find((x) => x.key === k))
+            .filter((s) => s?.live)
+            .map((s) => [s.param || s.key, _labCustom[s.key] * (s.paramScale ?? 1)]),
+        ),
+      }
+    : {}),
 });
 const _labKey = (opt) =>
   `${opt.id}:${_labSliderKeys(opt).map((k) => _labCustom[k]).join(":")}` +
@@ -12373,7 +12385,7 @@ function _scoringLabInner() {
     <div class="lab-desc"><div class="lab-desc-t">${escHtml(opt.label)}</div>${escHtml(opt.desc)}${
       opt.custom
         ? `<div id="lab-custom-desc">${_labCustomTable()}</div>`
-        : opt.id === "gaprule"
+        : opt.id === "gaprule" || opt.id === "season3"
           ? `<div id="lab-custom-desc">${_labGapTable()}</div>`
           : ""
     }<div class="lab-scope">${escHtml(scope)}</div></div>${
@@ -12381,14 +12393,20 @@ function _scoringLabInner() {
         ? `<div class="lab-sliders">${opt.kind === "grace" ? _labGracePickerHtml(matches) : ""}${_labSliderKeys(opt)
             .map((k) => LAB_SLIDERS.find((s) => s.key === k))
             .filter(Boolean)
-            .map((s) =>
-              s.toggle
+            .map((s, i, all) => {
+              // Season 3 mixes both engines: head each group of sliders.
+              const mixed = opt.kind === "matchup" && all.some((x) => x.live);
+              const head =
+                mixed && (i === 0 || s.live !== all[i - 1].live)
+                  ? `<div class="lab-slider-sec">${s.live ? "ASS · matches with a newer player" : "FAIR ASS GAP · matches of veterans"}</div>`
+                  : "";
+              return head + (s.toggle
                 ? `<label class="lab-slider lab-toggle"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key] ? "On" : "Off"}</b></span>
               <input type="checkbox" class="lab-switch"${_labCustom[s.key] ? " checked" : ""} onchange="_labSlide('${s.key}', this.checked ? 1 : 0)" aria-label="${escHtml(s.label)}"></label>`
                 : `<label class="lab-slider"><span class="lab-slider-l">${escHtml(s.label)} <b id="lab-sv-${s.key}">${_labCustom[s.key]}</b></span>
               <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${_labCustom[s.key]}" oninput="_labSlide('${s.key}', this.value)" aria-label="${escHtml(s.label)}">
-              <span class="lab-slider-r"><span>${s.min}</span><span>default ${s.def}</span><span>${s.max}</span></span></label>`,
-            )
+              <span class="lab-slider-r"><span>${s.min}</span><span>default ${s.def}</span><span>${s.max}</span></span></label>`);
+            })
             .join("")}<button class="lab-reset" onclick="_labSlidersReset()">Reset to defaults</button></div>`
         : ""
     }`;

@@ -19702,6 +19702,19 @@ body.tv-open {
   width: 100%;
   accent-color: var(--theme);
 }
+.lab-slider-sec {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.lab-slider-sec:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
 .lab-toggle {
   flex-direction: row;
   align-items: center;
