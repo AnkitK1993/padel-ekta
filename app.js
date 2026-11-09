@@ -43,9 +43,7 @@ import {
   partnerLoyalty,
   attendanceStreaks,
   hallOfFameRecords,
-  buildMilestoneTimeline,
   weightedMvpScore,
-  streakSegments,
   rollingWinPct,
   waterfallTopMoves,
 } from "./src/domain/records.js";
@@ -14268,7 +14266,6 @@ function renderAnalyticsPage(renderOpts = {}) {
     monthlyStats,
     dateCounts,
     scoreDist,
-    rivalryCount,
     closeWins,
     closePlayed,
     mostActive,
@@ -14552,13 +14549,6 @@ function renderAnalyticsPage(renderOpts = {}) {
   const destroyer = compList
     .filter((p) => p.mp >= 3)
     .sort((a, b) => b.avgMargin - a.avgMargin)[0];
-
-  const topRivalEntry = Object.entries(rivalryCount).sort(
-    (a, b) => b[1] - a[1],
-  )[0];
-  const [rivalA, rivalB] = topRivalEntry?.[0]?.split("|") || [null, null];
-  const rivalry =
-    rivalA && rivalB ? getHeadToHeadStats(rivalA, rivalB, am) : null;
 
   const uniqueMonths = Object.keys(monthlyStats).sort();
   const top5 = [...players]
@@ -15328,89 +15318,6 @@ function renderAnalyticsPage(renderOpts = {}) {
         : "")
     : '<div class="sub" style="padding:8px">Need more pair data.</div>';
 
-  // ── RIVALRY ────────────────────────────────────────────
-  let rivalHtml = '<div class="sub" style="padding:8px">Not enough data.</div>';
-  if (rivalry && rivalA && rivalB) {
-    const tot = rivalry.aWins + rivalry.bWins;
-    const aPct = Math.round((rivalry.aWins / tot) * 100);
-    const bPct = 100 - aPct;
-
-    // Series leader
-    const leader =
-      rivalry.aWins > rivalry.bWins
-        ? rivalA
-        : rivalry.bWins > rivalry.aWins
-          ? rivalB
-          : null;
-    const leaderWins = leader ? Math.max(rivalry.aWins, rivalry.bWins) : null;
-    const leaderHtml = leader
-      ? `<div class="rival-leader"><span class="rival-leader-name">${escHtml(leader)}</span><span class="rival-leader-lbl">leads ${leaderWins}–${tot - leaderWins}</span></div>`
-      : `<div class="rival-leader"><span class="rival-leader-lbl" style="color:var(--muted)">Series tied ${rivalry.aWins}–${rivalry.bWins}</span></div>`;
-
-    // Current run within rivalry
-    const chronoMeetings = [...rivalry.matches].sort((a, b) =>
-      (a.date || "").localeCompare(b.date || ""),
-    );
-    let runCount = 0,
-      runWinner = null;
-    for (let i = chronoMeetings.length - 1; i >= 0; i--) {
-      const m = chronoMeetings[i];
-      const aWon =
-        (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) ||
-        (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
-      const w = aWon ? rivalA : rivalB;
-      if (runWinner === null) {
-        runWinner = w;
-        runCount = 1;
-      } else if (w === runWinner) runCount++;
-      else break;
-    }
-    const runHtml =
-      runCount >= 2
-        ? `<div class="rival-run">🔥 <strong>${escHtml(runWinner)}</strong> has won the last <strong>${runCount}</strong> in this rivalry</div>`
-        : "";
-
-    // W/L dots (last 10, chronological left→right, from rivalA's perspective)
-    const dotMeetings = chronoMeetings.slice(-10);
-    const dots = dotMeetings
-      .map((m) => {
-        const aWon =
-          (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) ||
-          (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
-        return `<span class="rival-dot ${aWon ? "rival-dot-w" : "rival-dot-l"}" title="${escHtml(aWon ? rivalA : rivalB)} won ${m.scoreA}-${m.scoreB}"></span>`;
-      })
-      .join("");
-    const dotsHtml = `<div class="rival-dots-row"><span class="rival-dots-name">${escHtml(rivalA)}</span><div class="rival-dots">${dots}</div><span class="rival-dots-name">${escHtml(rivalB)}</span></div>`;
-
-    // Recent 5 matches
-    const recent = [...rivalry.matches]
-      .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-      .slice(0, 5);
-    const recentRows = recent
-      .map((m) => {
-        const aWon =
-          (m.teamA.includes(rivalA) && m.scoreA > m.scoreB) ||
-          (m.teamB.includes(rivalA) && m.scoreB > m.scoreA);
-        const winScore = Math.max(m.scoreA, m.scoreB);
-        const loseScore = Math.min(m.scoreA, m.scoreB);
-        return `<div class="rival-match-row"><span class="rival-match-winner" style="color:${aWon ? "var(--green)" : "var(--red)"}">${escHtml(aWon ? rivalA : rivalB)} won</span><span class="rival-match-score">${winScore}–${loseScore} · ${fmtDate(m.date)}</span></div>`;
-      })
-      .join("");
-
-    rivalHtml = `
-      <div class="rivalry-header"><div class="rivalry-player">${escHtml(rivalA)}</div><div class="rivalry-vs">VS</div><div class="rivalry-player">${escHtml(rivalB)}</div></div>
-      <div class="rivalry-record">
-        <div class="rivalry-stat"><div class="rivalry-val p">${rivalry.aWins}</div><div class="rivalry-lbl">${aPct}%</div></div>
-        <div class="rivalry-stat"><div class="rivalry-val m">${tot}</div><div class="rivalry-lbl">Meetings</div></div>
-        <div class="rivalry-stat"><div class="rivalry-val n">${rivalry.bWins}</div><div class="rivalry-lbl">${bPct}%</div></div>
-      </div>
-      ${leaderHtml}
-      ${dotsHtml}
-      ${runHtml}
-      <div class="rival-recent-title">Recent Meetings</div>
-      ${recentRows}`;
-  }
-
   // ── SESSIONS ───────────────────────────────────────────
   const allSessionEntries = Object.entries(sessionMap).sort((a, b) =>
     b[0].localeCompare(a[0]),
@@ -15564,65 +15471,6 @@ function renderAnalyticsPage(renderOpts = {}) {
         })
         .join("")}</div>`
     : '<div class="sub" style="padding:8px">No data yet.</div>';
-
-  // ── ELO VOLATILITY ─────────────────────────────────────
-  const eloVolatilityHtml = (() => {
-    const players = Object.keys(eloHistoryAll).filter(
-      (p) => eloHistoryAll[p].length >= 3,
-    );
-    if (!players.length)
-      return '<div class="sub" style="padding:8px">Need more matches.</div>';
-    const rows = players
-      .map((p) => {
-        const deltas = eloHistoryAll[p].map((pt) => pt.delta);
-        const mean = deltas.reduce((s, d) => s + d, 0) / deltas.length;
-        const stdDev = Math.sqrt(
-          deltas.reduce((s, d) => s + Math.pow(d - mean, 2), 0) / deltas.length,
-        );
-        return { name: p, stdDev, matches: deltas.length, avgDelta: mean };
-      })
-      .sort((a, b) => a.stdDev - b.stdDev);
-    const maxStd = rows[rows.length - 1]?.stdDev || 1;
-    // Labels are relative to the league's median swing, so they mean the same
-    // on every scoring scale (fixed 10/14/18 cut-offs suited ±16 ELO swings and
-    // called everyone "Volatile" on ASS, where a win pays ~100 points).
-    const medStd = rows[Math.floor(rows.length / 2)]?.stdDev || 1;
-    return `<div class="ana-card" style="padding:10px 12px">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Lower deviation = more consistent ASS swings per match.</div>
-      ${rows
-        .map((r, i) => {
-          const barW = Math.max(5, (r.stdDev / maxStd) * 100).toFixed(0);
-          const rel = r.stdDev / medStd;
-          const label =
-            rel < 0.8
-              ? "🪨 Rock"
-              : rel < 1
-                ? "✅ Steady"
-                : rel < 1.25
-                  ? "⚡ Variable"
-                  : "🎲 Volatile";
-          const avgStr =
-            r.avgDelta > 0
-              ? `+${r.avgDelta.toFixed(1)}`
-              : r.avgDelta.toFixed(1);
-          const avgCol =
-            r.avgDelta > 0
-              ? "var(--green)"
-              : r.avgDelta < 0
-                ? "var(--red)"
-                : "var(--muted)";
-          return `<div class="elo-row">
-          <div class="elo-rank">#${i + 1}</div>
-          <div class="elo-name">${escHtml(r.name)}</div>
-          <div class="elo-bar-wrap"><div class="elo-bar" style="width:${barW}%;background:var(--theme);opacity:0.7"></div></div>
-          <div style="font-size:9px;color:var(--muted);min-width:26px;text-align:right">±${r.stdDev.toFixed(0)}</div>
-          <div style="font-size:9px;min-width:30px;text-align:right;color:${avgCol}">${avgStr}</div>
-          <div style="font-size:8px;color:var(--muted);min-width:56px;text-align:right">${label}</div>
-        </div>`;
-        })
-        .join("")}
-    </div>`;
-  })();
 
   // ── PAIR CHEMISTRY MATRIX ──────────────────────────────
   const pairMatrixPlayers = [
@@ -16565,79 +16413,6 @@ function renderAnalyticsPage(renderOpts = {}) {
     return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % per player per day of week</div><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs2}</tr></thead><tbody>${rows2}</tbody></table></div>`;
   })();
 
-  // 2: Score Margin Trend (avg margin per month)
-  const _scoreMargTrendHtml = (() => {
-    if (uniqueMonths.length < 2)
-      return '<div class="sub" style="padding:8px">Need matches across 2+ months.</div>';
-    const moMargins = {};
-    sortedM.forEach((m) => {
-      const mo = (m.date || "").slice(0, 7);
-      if (!mo) return;
-      if (!moMargins[mo]) moMargins[mo] = { total: 0, count: 0 };
-      moMargins[mo].total += Math.abs(m.scoreA - m.scoreB);
-      moMargins[mo].count++;
-    });
-    const moN3 = [
-      "",
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    const pts = uniqueMonths
-      .map((mo) => ({
-        mo,
-        avg: moMargins[mo] ? moMargins[mo].total / moMargins[mo].count : null,
-      }))
-      .filter((p) => p.avg !== null);
-    if (pts.length < 2)
-      return '<div class="sub" style="padding:8px">Not enough data.</div>';
-    const W = 300,
-      H = 90,
-      pl = 30,
-      pr = 8,
-      pt2 = 8,
-      pb = 18,
-      cW = W - pl - pr,
-      cH = H - pt2 - pb;
-    const maxA = Math.max(...pts.map((p) => p.avg)) + 0.5;
-    const minA = Math.max(0, Math.min(...pts.map((p) => p.avg)) - 0.5);
-    const toX2 = (i) => pl + (i / (pts.length - 1 || 1)) * cW;
-    const toY2 = (v) => pt2 + (1 - (v - minA) / (maxA - minA || 1)) * cH;
-    const polyline2 = pts
-      .map((p, i) => `${toX2(i).toFixed(1)},${toY2(p.avg).toFixed(1)}`)
-      .join(" ");
-    const xLbls = pts
-      .map(
-        (p, i) =>
-          `<text x="${toX2(i).toFixed(1)}" y="${H - 3}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.35)">${moN3[parseInt(p.mo.slice(5))]}</text>`,
-      )
-      .join("");
-    const circles2 = pts
-      .map(
-        (p, i) =>
-          `<circle cx="${toX2(i).toFixed(1)}" cy="${toY2(p.avg).toFixed(1)}" r="2.5" fill="var(--theme)"><title>${p.mo}: ${p.avg.toFixed(1)}</title></circle>`,
-      )
-      .join("");
-    const lastAvg = pts[pts.length - 1].avg,
-      prevAvg = pts[pts.length - 2]?.avg;
-    const trend =
-      lastAvg < prevAvg - 0.1
-        ? "getting tighter"
-        : lastAvg > prevAvg + 0.1
-          ? "more one-sided"
-          : "steady";
-    return `<div class="ana-card" style="padding:12px"><div style="font-size:9px;color:var(--muted);margin-bottom:6px">Average score margin per month — ${trend}</div><div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible"><polyline points="${polyline2}" fill="none" stroke="var(--theme)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${circles2}${xLbls}</svg></div></div>`;
-  })();
-
   // 2: Dominance Index
   const _dominanceHtml = (() => {
     const beatenCounts = {};
@@ -16889,48 +16664,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       <div class="ana-sec-body">${body}</div>
     </div>`;
   };
-
-  // Avg ELO gained per win, by weekday — extracted so the Day-of-Week section
-  // can fold Volume / Win% / ELO Gain into one tabbed card.
-  const _eloDowHtml = (() => {
-    const hist = _statsTimeline(am).history;
-    const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const byDay = Array.from({ length: 7 }, () => ({
-      wSum: 0,
-      wCnt: 0,
-      lSum: 0,
-      lCnt: 0,
-    }));
-    Object.values(hist).forEach((entries) => {
-      entries.forEach((e) => {
-        if (!e.date || e.delta === 0) return;
-        const d = new Date(e.date + "T00:00:00").getDay();
-        if (e.delta > 0) {
-          byDay[d].wSum += e.delta;
-          byDay[d].wCnt++;
-        } else {
-          byDay[d].lSum += Math.abs(e.delta);
-          byDay[d].lCnt++;
-        }
-      });
-    });
-    const wAvgs = byDay.map((d) => (d.wCnt ? d.wSum / d.wCnt : null));
-    const maxW = Math.max(...wAvgs.filter((v) => v !== null), 1);
-    const cells = DAY.map((dayName, i) => {
-      const avg = wAvgs[i];
-      const cnt = byDay[i].wCnt + byDay[i].lCnt;
-      if (avg === null)
-        return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:rgba(255,255,255,0.04);border-radius:8px"><div style="font-size:10px;color:var(--muted)">—</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:4px">${dayName}</div><div style="font-size:7px;color:var(--muted)">0g</div></div>`;
-      const intensity = Math.min(1, avg / maxW);
-      const bg = `rgba(72,199,116,${(0.1 + 0.7 * intensity).toFixed(2)})`;
-      return `<div style="flex:1;min-width:38px;padding:8px 4px;text-align:center;background:${bg};border-radius:8px">
-            <div style="font-size:11px;font-weight:800;color:var(--green)">+${avg.toFixed(1)}</div>
-            <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px">${dayName}</div>
-            <div style="font-size:7px;color:rgba(255,255,255,0.35)">${cnt}g</div>
-          </div>`;
-    }).join("");
-    return `<div class="ana-card"><div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px">${cells}</div><div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:center">Avg ASS gained per win by day — higher = more upsets / ASS at stake</div></div>`;
-  })();
 
   // ── DOW × PLAYER GAIN MATRIX (active scoring mode) ─────────
   const _dowPlayerMatrixHtml = (() => {
@@ -17252,41 +16985,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       body: _buildStreakLeaderboardHtml(),
     },
     {
-      key: "streaktl",
-      cat: "players",
-      title: "📊 Streak Timeline",
-      body: (() => {
-        const names = playersByMatches.slice(0, 12);
-        if (!names.length)
-          return '<div class="sub" style="padding:8px">No data.</div>';
-        const rows = names
-          .map((n) => {
-            const segs = streakSegments(sortedM, n);
-            if (!segs.length) return "";
-            const total = segs.reduce((s, g) => s + g.length, 0) || 1;
-            const bars = segs
-              .map((g) => {
-                const w = (g.length / total) * 100;
-                const col =
-                  g.type === "W"
-                    ? "rgba(54,212,126,0.75)"
-                    : "rgba(240,80,80,0.6)";
-                return `<div style="width:${w.toFixed(2)}%;background:${col};height:100%" title="${g.type === "W" ? "Won" : "Lost"} ${g.length} in a row (${fmtDate(g.startDate)}–${fmtDate(g.endDate)})"></div>`;
-              })
-              .join("");
-            return `<div style="margin-bottom:8px">
-              <div style="font-size:10px;font-weight:700;margin-bottom:3px">${escHtml(n)}</div>
-              <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">${bars}</div>
-            </div>`;
-          })
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win (green) / loss (red) streak segments across each player's career, left = earliest</div>
-          ${rows}
-        </div>`;
-      })(),
-    },
-    {
       key: "powerrank",
       cat: "players",
       title: "⚡ Power Rankings",
@@ -17381,12 +17079,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       body: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
     },
     {
-      key: "assvolatility",
-      cat: "players",
-      title: "📉 ASS Volatility",
-      body: eloVolatilityHtml,
-    },
-    {
       key: "playerform",
       cat: "players",
       title: "🔥 Player Form",
@@ -17405,22 +17097,10 @@ function renderAnalyticsPage(renderOpts = {}) {
       body: _scoreHeatmapHtml,
     },
     {
-      key: "margintrend",
-      cat: "activity",
-      title: "📉 Margin Trend",
-      body: _scoreMargTrendHtml,
-    },
-    {
       key: "shutouts",
       cat: "activity",
       title: "💀 Shutout Leaderboard",
       body: _shutoutLeaderboardHtml,
-    },
-    {
-      key: "rivalspotlight",
-      cat: "players",
-      title: "🔥 Rivalry Spotlight",
-      body: `<div class="ana-card">${rivalHtml}</div>`,
     },
     {
       key: "rivalmatrix",
@@ -17520,12 +17200,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       cat: "activity",
       title: "📅 Day-of-Week Win %",
       body: _dowPlayerHtml,
-    },
-    {
-      key: "dowassgain",
-      cat: "activity",
-      title: "📅 Day-of-Week ASS Gain",
-      body: _eloDowHtml,
     },
     {
       key: "dowmatrix",
@@ -17760,57 +17434,6 @@ function renderAnalyticsPage(renderOpts = {}) {
             ${dots}${labels}
           </svg>
           <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:4px">${trend}</div>
-        </div>`;
-      })(),
-    },
-    {
-      key: "activitystacked",
-      cat: "activity",
-      title: "📶 Activity Over Time",
-      body: (() => {
-        const months = uniqueMonths.slice(-12);
-        if (months.length < 2)
-          return '<div class="sub" style="padding:8px">Need more months of data.</div>';
-        const topPlayers = playersByMatches.slice(0, 8);
-        const W = 300,
-          H = 150,
-          PAD = 8;
-        const maxTotal = Math.max(
-          ...months.map((mo) =>
-            topPlayers.reduce((s, p) => s + (monthlyStats[mo]?.[p]?.m || 0), 0),
-          ),
-          1,
-        );
-        const colW = (W - PAD * 2) / months.length;
-        const areas = topPlayers
-          .map((p, pi) => {
-            const col = playerColor(p);
-            const topPts = [],
-              botPts = [];
-            months.forEach((mo, mi) => {
-              const x = PAD + mi * colW + colW / 2;
-              let below = 0;
-              for (let k = 0; k < pi; k++)
-                below += monthlyStats[mo]?.[topPlayers[k]]?.m || 0;
-              const val = monthlyStats[mo]?.[p]?.m || 0;
-              const yTop = H - PAD - ((below + val) / maxTotal) * (H - PAD * 2);
-              const yBot = H - PAD - (below / maxTotal) * (H - PAD * 2);
-              topPts.push(`${x.toFixed(1)},${yTop.toFixed(1)}`);
-              botPts.unshift(`${x.toFixed(1)},${yBot.toFixed(1)}`);
-            });
-            return `<polygon points="${topPts.join(" ")} ${botPts.join(" ")}" fill="${col}" opacity="0.55" stroke="${col}" stroke-width="0.5"/>`;
-          })
-          .join("");
-        const legend = topPlayers
-          .map(
-            (p) =>
-              `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);margin-right:8px"><span style="width:8px;height:8px;border-radius:2px;background:${playerColor(p)};display:inline-block"></span>${escHtml(p.split(" ")[0])}</span>`,
-          )
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Matches played per month, stacked by player (top 8 by volume)</div>
-          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${areas}</svg>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap">${legend}</div>
         </div>`;
       })(),
     },
@@ -18070,30 +17693,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       })(),
     },
     {
-      key: "milestonetimeline",
-      cat: "records",
-      title: "🕰️ Milestone Timeline",
-      body: (() => {
-        const events = buildMilestoneTimeline(sortedM).slice(-25).reverse();
-        if (!events.length)
-          return '<div class="sub" style="padding:8px">No milestones yet.</div>';
-        const rows = events
-          .map(
-            (
-              e,
-            ) => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-          <div style="font-size:16px;width:24px;text-align:center;flex-shrink:0">${e.icon}</div>
-          <div style="flex:1">
-            <div style="font-size:11px;font-weight:700">${escHtml(e.text)}</div>
-            <div style="font-size:9px;color:var(--muted)">${fmtDate(e.date)}</div>
-          </div>
-        </div>`,
-          )
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px;max-height:340px;overflow-y:auto">${rows}</div>`;
-      })(),
-    },
-    {
       key: "attendancestreaks",
       cat: "activity",
       title: "📌 Attendance Streaks",
@@ -18295,48 +17894,6 @@ function renderAnalyticsPage(renderOpts = {}) {
         </div>`;
       })(),
     },
-    {
-      key: "ratingsmultiples",
-      cat: "elo",
-      title: "🔬 Ratings Small Multiples",
-      body: (() => {
-        const hist = _activeHistory();
-        const names = playersByMatches
-          .filter((n) => (hist[n] || []).length >= 3)
-          .slice(0, 16);
-        if (!names.length)
-          return '<div class="sub" style="padding:8px">Need more match history.</div>';
-        const W = 100,
-          H = 40,
-          PAD = 3;
-        const cards = names
-          .map((n) => {
-            const h = hist[n];
-            const vals = h.map((pt) => pt.elo);
-            const min = Math.min(...vals),
-              max = Math.max(...vals);
-            const range = Math.max(max - min, 1);
-            const pts = vals
-              .map((v, i) => {
-                const x =
-                  PAD + (i / Math.max(vals.length - 1, 1)) * (W - PAD * 2);
-                const y = H - PAD - ((v - min) / range) * (H - PAD * 2);
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-              })
-              .join(" ");
-            const last = vals[vals.length - 1],
-              first = vals[0];
-            const col = last >= first ? "#36d47e" : "#f04f4f";
-            return `<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:6px">
-              <div style="font-size:9px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(n.split(" ")[0])}</div>
-              <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2"/></svg>
-              <div style="font-size:9px;color:var(--muted);text-align:right">${Math.round(last)}</div>
-            </div>`;
-          })
-          .join("");
-        return `<div class="ana-card" style="padding:10px 12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cards}</div></div>`;
-      })(),
-    },
   ];
 
   const storedOrder = getAnaOrder();
@@ -18414,14 +17971,11 @@ function renderAnalyticsPage(renderOpts = {}) {
       "personalbests",
       "currentform",
       "streaklb",
-      "streaktl",
       "playerform",
       "scoredist",
       "scoreheatmap",
-      "margintrend",
       "shutouts",
       "consistency",
-      "assvolatility",
     ]);
     const rightKeys = new Set([
       "powerrank",
@@ -18437,12 +17991,10 @@ function renderAnalyticsPage(renderOpts = {}) {
       "quality",
       "dominance",
       "carry",
-      "rivalspotlight",
       "rivalmatrix",
       "h2h",
       "dowvolume",
       "dowwinpct",
-      "dowassgain",
       "dowmatrix",
       "toppairs",
       "allpairs",
