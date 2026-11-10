@@ -17379,6 +17379,17 @@ function renderAnalyticsPage(renderOpts = {}) {
     });
   });
 
+  // Default order is alphabetical by title, ignoring the leading icon (emoji,
+  // punctuation, spaces). A drag-reordered layout saved by the user still wins.
+  const _secSortTitle = (t) =>
+    String(t).replace(/^[^\p{L}\p{N}]+/u, "");
+  allSecs.sort((a, b) =>
+    _secSortTitle(a.title).localeCompare(_secSortTitle(b.title), undefined, {
+      sensitivity: "base",
+      numeric: true,
+    }),
+  );
+
   const storedOrder = getAnaOrder();
   const validKeys = allSecs.map((s) => s.key);
   const orderedKeys = [

@@ -11,7 +11,9 @@
 // stay in app.js — they are controller logic (DOM + active-category state) that
 // merely *consume* this adapter.
 
-const ANA_ORDER_KEY = "ekta_ana_order";
+// v2: the default order became alphabetical (2026-11-10); the new key drops
+// layouts saved against the old default so everyone starts alphabetical.
+const ANA_ORDER_KEY = "ekta_ana_order_v2";
 const ANA_COL_KEY = "ekta_ana_col";
 const ANA_PILL_ORDER_KEY = "ekta_ana_pill_order";
 const ANA_FAV_KEY = "ekta_ana_favs";
