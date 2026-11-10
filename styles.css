@@ -19711,3 +19711,18 @@ body.tv-open {
   font-size: 13px;
   font-weight: 700;
 }
+
+/* ── Combined Statistics cards: pill row switching between parts ── */
+.ana-part-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+.ana-part[hidden] {
+  display: none;
+}
+/* A part with no data yet stays selectable but reads as empty. */
+.ana-part-pills .digest-filter-btn.is-empty:not(.active) {
+  opacity: 0.45;
+}

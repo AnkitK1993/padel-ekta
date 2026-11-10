@@ -84,6 +84,8 @@ import {
   getAnaCollapsed,
   saveAnaCollapsed,
   hasAnaCollapsedPref,
+  getAnaPartPicks,
+  saveAnaPartPick,
 } from "./src/infra/ana-prefs.js";
 import { viewState } from "./src/ui/view-state.js";
 import {
@@ -10081,6 +10083,28 @@ function toggleAnaSection(key) {
   }
 }
 
+// Pill switch inside a combined Statistics card: show one part, hide the rest.
+function _anaPickPart(btn, host, part) {
+  const sec = btn.closest(".ana-sec");
+  if (!sec) return;
+  sec
+    .querySelectorAll(".ana-part-pills .digest-filter-btn")
+    .forEach((b) => b.classList.toggle("active", b.dataset.part === part));
+  sec.querySelectorAll(".ana-part").forEach((el) => {
+    const on = el.dataset.part === part;
+    el.hidden = !on;
+    // Cards in a part that was hidden at render never got their reveal
+    // animation; make sure they aren't left invisible.
+    if (on)
+      el.querySelectorAll(
+        ".ana-card, .award-card, .awards-grid, .pair-stats-card, .h2h-cascade-item",
+      ).forEach((c) => (c.style.opacity = ""));
+  });
+  saveAnaPartPick(host, part);
+  if (part === "calendar") renderMatchCalendar();
+  window._renderHiLoTable?.();
+}
+
 let _anaDragKey = null;
 let _anaClone = null;
 let _anaDragOffsetY = 0;
@@ -10116,12 +10140,16 @@ function anaSearchInput(q) {
     return;
   }
 
+  const _norm = (t) =>
+    String(t)
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "");
+  // A combined card also matches on the titles of the cards inside its pills.
   const matches = viewState.anaSections.filter(
     (s) =>
-      s.title
-        .toLowerCase()
-        .replace(/[^\w\s]/g, "")
-        .includes(query) || s.key.toLowerCase().includes(query),
+      _norm(s.title).includes(query) ||
+      s.key.toLowerCase().includes(query) ||
+      (s.partTitles || []).some((t) => _norm(t).includes(query)),
   );
 
   if (!matches.length) {
@@ -17350,32 +17378,65 @@ function renderAnalyticsPage(renderOpts = {}) {
     },
   ];
 
-  // Related cards shown together as one section: the first key's slot, order,
-  // favourite and hidden state carry the merged card; each part keeps its own
-  // sub-heading. The card counts as empty only when every part is empty.
+  // Related cards combined into one section with a pill row to switch between
+  // them. `key` is the host: its slot, favourite, hidden and collapsed state
+  // carry the combined card. Every part stays in the DOM (inactive ones are
+  // `hidden`) so ids and post-render hooks keep working; the last pill picked
+  // per card is remembered. The card is empty only when every part is empty.
+  const _partPicks = getAnaPartPicks();
   [
-    { key: "streaklb", title: "🏅 Streak Leaderboard", parts: ["streaklb", "currentform"] },
-    { key: "podium", title: "🥇 Podium & Anti-Podium Tracker", parts: ["podium", "antipodium"] },
-    { key: "rankreign", title: "👑 Rank Reign & Rank Timeline", parts: ["rankreign", "ranktimeline"] },
-    { key: "lbrace", title: "🏁 Leaderboard Race & Replay", parts: ["lbrace", "lbreplay"] },
-    { key: "powerrank", title: "⚡ Power Rankings & Player Form", parts: ["powerrank", "playerform"] },
-    { key: "scoredist", title: "📊 Score Distribution & Heatmap", parts: ["scoredist", "scoreheatmap"] },
-    { key: "dowvolume", title: "📅 Day of the Week", parts: ["dowvolume", "dowwinpct", "dowmatrix"] },
-    { key: "attendancestreaks", title: "📌 Attendance & Absence", parts: ["attendancestreaks", "absencetracker"] },
-  ].forEach(({ key, title, parts }) => {
-    const defs = parts.map((k) => allSecs.find((s) => s.key === k)).filter(Boolean);
-    const host = defs.find((d) => d.key === key);
+    { key: "streaklb", title: "🏅 Streaks & Form", parts: [["streaklb", "Streaks"], ["currentform", "Current Form"]] },
+    { key: "podium", title: "🥇 Podium Tracker", parts: [["podium", "Podium"], ["antipodium", "Anti-Podium"]] },
+    { key: "rankreign", title: "👑 Rank Reign & Timeline", parts: [["rankreign", "Rank Reign"], ["ranktimeline", "Rank Timeline"]] },
+    { key: "lbrace", title: "🏁 Leaderboard Race", parts: [["lbrace", "Race"], ["lbreplay", "Replay"], ["ratingsrace", "Ratings Race"]] },
+    { key: "powerrank", title: "⚡ Power Rankings & Form", parts: [["powerrank", "Power Rankings"], ["playerform", "Player Form"], ["formclass", "Form vs Class"]] },
+    { key: "scoredist", title: "📊 Scores & Margins", parts: [["scoredist", "Distribution"], ["scoreheatmap", "Heatmap"], ["marginhist", "Margin of Victory"], ["shutouts", "Shutouts"]] },
+    { key: "dowvolume", title: "📅 Day of the Week", parts: [["dowvolume", "Volume"], ["dowwinpct", "Win %"], ["dowmatrix", "Matrix"]] },
+    { key: "attendancestreaks", title: "📌 Attendance & Absence", parts: [["attendancestreaks", "Attendance Streaks"], ["absencetracker", "Absence Tracker"]] },
+    { key: "hof", title: "🏆 Hall of Fame", parts: [["hof", "Champions"], ["hallfame", "Records"]] },
+    { key: "seasonmode", title: "🗓️ Seasons", parts: [["seasonmode", state.seasons.length ? "Awards" : "Monthly Recap"], ["seasoncompare", "Comparison"], ["seasonmovers", "Risers & Fallers"]] },
+    { key: "assrankings", title: `⚡ ${_scLabel} Ratings`, parts: [["assrankings", "Rankings"], ["asshistory", "History"], ["asspeaklow", "Peak / Low"], ["ratingdist", "Distribution"]] },
+    { key: "predacc", title: "🎯 Predictions & Competitiveness", parts: [["predacc", "Prediction Accuracy"], ["favwincurve", "Favourite-Wins Curve"], ["competitiveness", "Competitiveness"]] },
+    { key: "rivalmatrix", title: "⚔️ Rivalries", parts: [["rivalmatrix", "Rivalry Matrix"], ["h2h", "Head-to-Head"], ["nemesisbunny", "Nemesis & Bunny"]] },
+    { key: "chemmatrix", title: "🧪 Pair Chemistry", parts: [["chemmatrix", "Matrix"], ["chemlb", "Leaderboard"], ["pairsynergy", "Synergy"]] },
+    { key: "calendar", title: "📅 Calendar & Sessions", parts: [["calendar", "Calendar"], ["sessions", "Session Log"]] },
+    { key: "clutch", title: "🎯 Player Rankings", parts: [["clutch", "Clutch"], ["quality", "Quality"], ["carry", "Carry"], ["elogap", "Opponent Gap"]] },
+    { key: "awards", title: "🏅 Awards & Badges", parts: [["awards", "Awards Board"], ["badgegallery", "Badge Gallery"], ["weightedmvp", "Weighted MVP"]] },
+    { key: "partnergrid", cat: "pairs", title: "🤝 Partners", parts: [["allpairs", "All Pairs"], ["pairedh2h", "Paired H2H"], ["partnerloyalty", "Partner Loyalty"], ["partnergrid", "Partner / Opponent Grid"]] },
+    { key: "winratecalc", title: "🎯 Win Rate & Pairing Odds", parts: [["winratecalc", "Win Rate Calculator"], ["pairingodds", "Pairing Odds"]] },
+  ].forEach(({ key, title, parts, cat }) => {
+    const defs = parts
+      .map(([k, label]) => {
+        const d = allSecs.find((s) => s.key === k);
+        return d && { def: d, key: k, label, body: d.body, title: d.title, empty: _secIsEmpty(d.body) };
+      })
+      .filter(Boolean);
+    const host = defs.find((p) => p.key === key)?.def;
     if (!host) return;
-    host.title = title;
-    host.empty = defs.every((d) => _secIsEmpty(d.body));
-    host.body = defs
+    if (defs.length < 2) return; // nothing to switch between
+    const active = defs.some((p) => p.key === _partPicks[key])
+      ? _partPicks[key]
+      : defs[0].key;
+    const pills = defs
       .map(
-        (d, i) =>
-          `<div style="${i ? "margin-top:14px;" : ""}"><div style="font-size:10px;font-weight:800;letter-spacing:0.06em;color:var(--muted);text-transform:uppercase;margin:0 0 6px 2px">${d.title}</div>${d.body}</div>`,
+        (p) =>
+          `<button class="digest-filter-btn${p.key === active ? " active" : ""}${p.empty ? " is-empty" : ""}" data-part="${p.key}" onclick="_anaPickPart(this,'${key}','${p.key}')">${escHtml(p.label)}</button>`,
       )
       .join("");
-    defs.forEach((d) => {
-      if (d !== host) allSecs.splice(allSecs.indexOf(d), 1);
+    host.empty = defs.every((p) => p.empty);
+    host.partTitles = defs.map((p) => p.title);
+    host.title = title;
+    if (cat) host.cat = cat;
+    host.body =
+      `<div class="ana-part-pills" role="group" aria-label="Choose view">${pills}</div>` +
+      defs
+        .map(
+          (p) =>
+            `<div class="ana-part${p.empty ? " is-empty" : ""}" data-part="${p.key}"${p.key === active ? "" : " hidden"}>${p.body}</div>`,
+        )
+        .join("");
+    defs.forEach((p) => {
+      if (p.def !== host) allSecs.splice(allSecs.indexOf(p.def), 1);
     });
   });
 
@@ -17434,6 +17495,7 @@ function renderAnalyticsPage(renderOpts = {}) {
     key: s.key,
     title: s.title,
     cat: s.cat,
+    partTitles: s.partTitles || [],
   }));
 
   const _hideEmptyOn = getAnaHideEmpty();
@@ -18730,6 +18792,7 @@ Object.assign(window, {
   savePlayerPhoto,
   removePlayerPhoto,
   openPlayerReportCard,
+  _anaPickPart,
   _podiumSetPeriod,
   _antiPodiumSetPeriod,
   _reignSetPeriod,

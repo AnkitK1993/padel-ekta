@@ -18,6 +18,7 @@ const ANA_COL_KEY = "ekta_ana_col";
 const ANA_PILL_ORDER_KEY = "ekta_ana_pill_order";
 const ANA_FAV_KEY = "ekta_ana_favs";
 const ANA_HIDDEN_KEY = "ekta_ana_hidden";
+const ANA_PART_KEY = "ekta_ana_parts";
 
 function _readArr(key) {
   try {
@@ -56,6 +57,25 @@ export function getAnaOrder() {
 }
 export function saveAnaOrder(a) {
   _writeJSON(ANA_ORDER_KEY, a);
+}
+
+// Which pill (part) each combined section last showed: { hostKey: partKey }.
+export function getAnaPartPicks() {
+  try {
+    const v = JSON.parse(localStorage.getItem(ANA_PART_KEY));
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch {
+    return {};
+  }
+}
+export function saveAnaPartPick(host, part) {
+  const picks = getAnaPartPicks();
+  picks[host] = part;
+  try {
+    _writeJSON(ANA_PART_KEY, picks);
+  } catch {
+    // Storage full or blocked: the pick just isn't remembered.
+  }
 }
 
 export function getAnaCollapsed() {

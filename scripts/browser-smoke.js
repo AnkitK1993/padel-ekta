@@ -746,7 +746,7 @@ async function main() {
     const riserFaller = await evaluate(client, `(() => {
       // Collapsed sections insert their body only when opened — open them all.
       document.querySelectorAll(".ana-sec.collapsed").forEach((s) => toggleAnaSection(s.dataset.key));
-      const body = document.querySelector('.ana-sec[data-key="seasonmovers"] .ana-sec-body');
+      const body = document.querySelector('.ana-sec[data-key="seasonmovers"] .ana-sec-body, .ana-part[data-part="seasonmovers"]');
       return { found: !!body, text: body ? body.textContent : "" };
     })()`);
     assert(riserFaller.found, "Expected the Season Risers & Fallers section to render");
@@ -870,15 +870,17 @@ async function main() {
       // Collapsed sections insert their body only when opened — open them all.
       document.querySelectorAll(".ana-sec.collapsed").forEach((s) => toggleAnaSection(s.dataset.key));
       const html = document.getElementById("analytics-page-content").innerHTML;
-      const hasSec = (key) => !!document.querySelector('.ana-sec[data-key="' + key + '"]');
+      // A section is present either as its own card or as a pill inside a
+      // combined card (.ana-part[data-part=key]).
+      const hasSec = (key) => !!document.querySelector('.ana-sec[data-key="' + key + '"], .ana-part[data-part="' + key + '"]');
       return {
         hasMay: html.includes("May 2026"),
         hasRecap: html.includes("Monthly Recap"),
         hasOldMonthly: html.includes("Monthly Awards"),
         hasFeared: html.includes("MOST FEARED"),
         subtabCount: document.querySelectorAll(".ana-subtab").length,
-        hasAntiPodium: html.includes("Anti-Podium Tracker"),
-        hasDayOfWeek: html.includes("Day-of-Week"),
+        hasAntiPodium: hasSec("antipodium"),
+        hasDayOfWeek: hasSec("dowvolume") && hasSec("dowwinpct") && hasSec("dowmatrix"),
         // Statistics page split: every former sub-tab now renders as its own
         // top-level section (no more bundling several topics into one card).
         hasSeasonCompare: hasSec("seasoncompare"),
@@ -886,7 +888,7 @@ async function main() {
         hasRivalMatrix: hasSec("rivalmatrix"),
         hasStreakLb: hasSec("streaklb"),
         hasPowerRank: hasSec("powerrank"),
-        hasLbReplay: hasSec("lbrace") && html.includes("Leaderboard Replay"),
+        hasLbReplay: hasSec("lbreplay"),
         hasCarry: hasSec("carry"),
         // Underdog Leaderboard runs on ASS's own logic.
         hasUnderdogBoard: hasSec("underdogboard"),
@@ -903,7 +905,8 @@ async function main() {
           return !!document.getElementById("pair-matrix-box");
         })(),
         hasHideEmpty: !!document.querySelector(".ana-he-chip"),
-        emptyCount: document.querySelectorAll(".ana-sec.is-empty").length,
+        // Whole cards, or parts inside a combined card, with nothing to show yet.
+        emptyCount: document.querySelectorAll(".ana-sec.is-empty, .ana-part.is-empty").length,
       };
     })()`);
     assert(awards.hasHideEmpty, "Expected Hide-empty toggle present");
