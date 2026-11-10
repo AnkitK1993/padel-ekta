@@ -10042,7 +10042,6 @@ function _anaInsertDeferredBody(key, el) {
   _anaDeferredBodies.delete(key);
   // Tables filled after render need their container to exist.
   window._renderHiLoTable?.();
-  window._renderAssProjTable?.();
 }
 
 function toggleAnaSection(key) {
@@ -10085,16 +10084,6 @@ function toggleAnaSection(key) {
 let _anaDragKey = null;
 let _anaClone = null;
 let _anaDragOffsetY = 0;
-
-function _togglePairForm(btn) {
-  const expanded = btn.dataset.expanded === "1";
-  const rows = btn.closest(".ana-card")?.querySelectorAll(".pform-extra");
-  if (!rows) return;
-  rows.forEach((r) => (r.style.display = expanded ? "none" : ""));
-  btn.dataset.expanded = expanded ? "0" : "1";
-  const extra = [...rows].length;
-  btn.textContent = expanded ? `Show ${extra} more ▼` : `Show less ▲`;
-}
 
 // ── ANALYTICS SECTION SEARCH ───────────────────────────────
 
@@ -13896,108 +13885,6 @@ window._hiLoSortBy = function (col) {
   window._renderHiLoTable();
 };
 
-// ── ASS RATING PROJECTION ───────────────────────────────────
-// Rebuilt on the new ASS (EP) engine's own logic — see computeEPProjection
-// in src/domain/ep.js. Always computed from EP data regardless of which
-// system is active in the Summary tab picker: the title says which engine, so
-// the numbers never disagree with it.
-window._assProj = {
-  formN: 10,
-  futureM: 20,
-  sortCol: "currentRank",
-  sortAsc: true,
-};
-
-window._assProjAdj = function (type, delta) {
-  const state = window._assProj;
-  if (!state) return;
-  if (type === "form") {
-    state.formN = Math.max(1, state.formN + delta);
-    const el = document.getElementById("assproj-form-n");
-    if (el) el.textContent = state.formN;
-  } else {
-    state.futureM = Math.max(1, state.futureM + delta);
-    const el = document.getElementById("assproj-future-n");
-    if (el) el.textContent = state.futureM;
-  }
-  window._renderAssProjTable();
-};
-
-window._assProjSort = function (col) {
-  const state = window._assProj;
-  if (!state) return;
-  if (state.sortCol === col) {
-    state.sortAsc = !state.sortAsc;
-  } else {
-    state.sortCol = col;
-    state.sortAsc = col === "name";
-  }
-  window._renderAssProjTable();
-};
-
-window._renderAssProjTable = function () {
-  const tableEl = document.getElementById("assproj-table");
-  if (!tableEl) return;
-  const { formN, futureM, sortCol, sortAsc } = window._assProj;
-  const ratingLbl = SCORING_SYSTEM_LABELS.ep;
-  const am2 = activeMatches();
-  const rows = rating.projection(am2, formN, futureM, "ep").filter(
-    (r) => r.games >= 3,
-  );
-  if (!rows.length) {
-    tableEl.innerHTML =
-      '<div class="sub" style="padding:8px">Not enough data (need 3+ matches).</div>';
-    return;
-  }
-  const sorted = [...rows].sort((a, b) => {
-    if (sortCol === "name") {
-      return sortAsc
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name);
-    }
-    const va = a[sortCol],
-      vb = b[sortCol];
-    return sortAsc ? va - vb : vb - va;
-  });
-  const arrow = (c) => (sortCol === c ? (sortAsc ? " ↑" : " ↓") : "");
-  const pg = "grid-template-columns:32px 1fr 52px 52px 60px 40px 50px";
-  const rowsHtml = sorted
-    .map((r) => {
-      const deltaCol =
-        r.avgDelta > 0
-          ? "var(--green)"
-          : r.avgDelta < 0
-            ? "var(--red)"
-            : "var(--muted)";
-      const rankArrow =
-        r.rankDiff > 0
-          ? `<span style="color:var(--green)">▲${r.rankDiff}</span>`
-          : r.rankDiff < 0
-            ? `<span style="color:var(--red)">▼${Math.abs(r.rankDiff)}</span>`
-            : `<span style="color:var(--muted)">—</span>`;
-      return `<div class="lrace-row" style="${pg}">
-        <div class="lrace-rank">#${r.currentRank}</div>
-        <div class="lrace-name">${escHtml(r.name)}</div>
-        <div style="text-align:center;font-weight:700">${r.currentScore.toFixed(2)}</div>
-        <div style="text-align:center;font-weight:700;color:${deltaCol}">${r.avgDelta > 0 ? "+" : ""}${r.avgDelta.toFixed(1)}</div>
-        <div style="text-align:center;font-weight:800">${r.projScore.toFixed(2)}</div>
-        <div style="text-align:center">#${r.projRank}</div>
-        <div style="text-align:center">${rankArrow}</div>
-      </div>`;
-    })
-    .join("");
-  const hdr = `<div class="lrace-header" style="${pg}">
-    <span></span>
-    <span style="cursor:pointer" onclick="window._assProjSort('name')">Player${arrow("name")}</span>
-    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('currentScore')">${escHtml(ratingLbl)}${arrow("currentScore")}</span>
-    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('avgDelta')">Avg Δ${arrow("avgDelta")}</span>
-    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('projScore')">After ${futureM}${arrow("projScore")}</span>
-    <span style="cursor:pointer;text-align:center" onclick="window._assProjSort('projRank')">#New${arrow("projRank")}</span>
-    <span style="text-align:center">Δ Rank</span>
-  </div>`;
-  tableEl.innerHTML = hdr + rowsHtml;
-};
-
 function _showShutoutMatches(name, type) {
   document.getElementById("shutout-drill-modal")?.remove();
   const data = window._shutoutMatchData || {};
@@ -14329,7 +14216,6 @@ function renderAnalyticsPage(renderOpts = {}) {
   // (pair leaderboard, pair form, pair chemistry matrix) instead of each
   // recomputing pair stats over the full match history separately.
   const _pairStatsAm = getPairStats(am);
-  const pairLeaderboard = _pairStatsAm.slice(0, 8);
   const playersByMatches = _h2hSortPlayers([
     ...new Set(
       am.flatMap((m) =>
@@ -14409,46 +14295,6 @@ function renderAnalyticsPage(renderOpts = {}) {
           .join("") +
         `</div>`
       : "";
-
-  // ── CONSISTENCY RANKINGS ─────────────────────────────────
-  // grid: Rank | Player | Matches | Consistency
-  const conGrid = "grid-template-columns:40px 1fr 56px 86px";
-  const consistencyStats = compList
-    .filter((p) => p.mp >= 3 && p.consistency !== null)
-    .sort((a, b) => a.consistency - b.consistency);
-  const consistencyRankHtml = consistencyStats.length
-    ? `<div style="font-size:9px;color:var(--muted);margin-bottom:8px">Lower = more consistent (std dev of score margins)</div>` +
-      `<div class="lrace-header" style="${conGrid}"><span>Rank</span><span>Player</span><span>Matches</span><span>Consistency</span></div>` +
-      consistencyStats
-        .map((p, i) => {
-          const col =
-            p.consistency <= 2
-              ? "var(--green)"
-              : p.consistency <= 4
-                ? "var(--gold)"
-                : "var(--red)";
-          const lbl =
-            p.consistency <= 2
-              ? "SOLID"
-              : p.consistency <= 4
-                ? "STEADY"
-                : "ERRATIC";
-          return `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(p.name)}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:${col}">±${p.consistency} <span style="font-size:9px">${lbl}</span></div></div>`;
-        })
-        .join("") +
-      (consistencyStats.length >= 3
-        ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07)"><div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">⚡ MOST VOLATILE</div>` +
-          [...consistencyStats]
-            .reverse()
-            .slice(0, 3)
-            .map(
-              (p, i) =>
-                `<div class="lrace-row" style="${conGrid}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(p.name)}</div><div class="lrace-1mo">${p.mp}</div><div class="lrace-delta" style="color:var(--red)">±${p.consistency} <span style="font-size:9px">VOLATILE</span></div></div>`,
-            )
-            .join("") +
-          `</div>`
-        : "")
-    : '<div class="sub" style="padding:8px">Need 3+ matches per player.</div>';
 
   // ── QUALITY WINS (OPPONENT STRENGTH WEIGHTING) ───────────
   const _qwScoreMap = eloMap;
@@ -14640,25 +14486,6 @@ function renderAnalyticsPage(renderOpts = {}) {
   const bestPairPerP = compList
     .map((p) => ({ name: p.name, partner: p.bestPartner, wins: p.mw }))
     .filter((p) => p.partner && p.wins >= 1);
-  const pairFormData = _pairStatsAm
-    .filter((p) => p.played >= 3)
-    .map((pair) => {
-      const pm = sortedM
-        .filter((m) => {
-          const ak = [...m.teamA].sort().join(" & "),
-            bk = [...m.teamB].sort().join(" & ");
-          return ak === pair.key || bk === pair.key;
-        })
-        .slice(-5);
-      const form = pm.map((m) => {
-        const won =
-          [...m.teamA].sort().join(" & ") === pair.key
-            ? m.scoreA > m.scoreB
-            : m.scoreB > m.scoreA;
-        return won ? "W" : "L";
-      });
-      return { ...pair, form };
-    });
 
   const sessionMap = {};
   sortedM.forEach((m) => {
@@ -15306,18 +15133,6 @@ function renderAnalyticsPage(renderOpts = {}) {
     ? `<div id="all-pairs-table">${_pairsHeaderHtml()}${_pairsSortedRows()}</div>`
     : '<div class="sub" style="padding:8px">No pair data.</div>';
 
-  const pfHtml = pairFormData.length
-    ? pairFormData
-        .map(
-          (p, i) =>
-            `<div class="pform-row pform-extra${i >= 6 ? " pform-hidden" : ""}" style="${i >= 6 ? "display:none" : ""}"><div class="pform-name">${escHtml(p.key)}</div><div class="pform-dots">${fdots(p.form)}</div><div class="pform-stat">${p.winPct}% · ${p.played}g</div></div>`,
-        )
-        .join("") +
-      (pairFormData.length > 6
-        ? `<div class="pform-row" style="justify-content:center;padding:4px 0"><button onclick="_togglePairForm(this)" data-expanded="0" style="font-size:10px;font-weight:700;color:var(--theme);background:transparent;border:none;cursor:pointer;padding:4px 8px">Show ${pairFormData.length - 6} more ▼</button></div>`
-        : "")
-    : '<div class="sub" style="padding:8px">Need more pair data.</div>';
-
   // ── SESSIONS ───────────────────────────────────────────
   const allSessionEntries = Object.entries(sessionMap).sort((a, b) =>
     b[0].localeCompare(a[0]),
@@ -15812,127 +15627,6 @@ function renderAnalyticsPage(renderOpts = {}) {
     </div>`;
   })();
 
-  // ── CLUTCH TRENDS ──────────────────────────────────────
-  const clutchTrendHtml = (() => {
-    const MONTHS = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    const playerList = _statPlayerNames();
-    const byPlayer = {};
-    sortedM.forEach((m) => {
-      if (!m.date || Math.abs(m.scoreA - m.scoreB) > 1) return;
-      const yrmo = m.date.slice(0, 7);
-      const aWon = m.scoreA > m.scoreB;
-      const process = (players, won) => {
-        players.forEach((p) => {
-          if (!byPlayer[p]) byPlayer[p] = {};
-          if (!byPlayer[p][yrmo]) byPlayer[p][yrmo] = { w: 0, p: 0 };
-          byPlayer[p][yrmo].p++;
-          if (won) byPlayer[p][yrmo].w++;
-        });
-      };
-      process(m.teamA || [], aWon);
-      process(m.teamB || [], !aWon);
-    });
-    const allMonths = [
-      ...new Set(sortedM.filter((m) => m.date).map((m) => m.date.slice(0, 7))),
-    ]
-      .sort()
-      .slice(-6);
-    if (!allMonths.length)
-      return '<div class="sub" style="padding:10px 8px">Not enough data.</div>';
-    const topPlayers = playerList
-      .filter(
-        (p) => byPlayer[p] && Object.values(byPlayer[p]).some((d) => d.p >= 1),
-      )
-      .sort((a, b) => a.localeCompare(b));
-    if (!topPlayers.length)
-      return '<div class="sub" style="padding:10px 8px">Not enough clutch matches.</div>';
-    // Enhancement 20: unified clutch summary table
-    const clutchSummary = (() => {
-      const totals = {};
-      sortedM.forEach((m) => {
-        if (Math.abs(m.scoreA - m.scoreB) > 1) return;
-        const aWon20 = m.scoreA > m.scoreB;
-        const process20 = (players, won) =>
-          players.forEach((p) => {
-            if (!totals[p]) totals[p] = { w: 0, p: 0 };
-            totals[p].p++;
-            if (won) totals[p].w++;
-          });
-        process20(m.teamA || [], aWon20);
-        process20(m.teamB || [], !aWon20);
-      });
-      const summaryRows = Object.entries(totals)
-        .filter(([, d]) => d.p >= 2)
-        .sort((a, b) => b[1].w / b[1].p - a[1].w / a[1].p)
-        .map(([p, d]) => {
-          const pct = Math.round((d.w / d.p) * 100);
-          const col =
-            pct >= 60
-              ? "var(--green)"
-              : pct <= 40
-                ? "var(--red)"
-                : "var(--gold)";
-          const rating = pct >= 60 ? "CLUTCH" : pct <= 40 ? "CHOKER" : "STEADY";
-          return `<tr><td style="font-size:11px;font-weight:700;padding:5px 0;color:${playerColor(p)}">${escHtml(p)}</td><td style="text-align:center;font-size:10px;color:var(--muted)">${d.w}W–${d.p - d.w}L</td><td style="text-align:center;font-size:11px;font-weight:800;color:${col}">${pct}%</td><td style="text-align:center;font-size:9px;font-weight:700;color:${col}">${rating}</td></tr>`;
-        })
-        .join("");
-      if (!summaryRows) return "";
-      return `<div class="ana-card" style="padding:10px 12px;margin-bottom:8px">
-        <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.08em;margin-bottom:8px">CLUTCH RANKING — ALL TIME (close matches, margin ≤1)</div>
-        <table style="width:100%;border-collapse:collapse"><thead><tr>
-          <th style="text-align:left;font-size:9px;color:var(--muted);padding-bottom:4px">Player</th>
-          <th style="text-align:center;font-size:9px;color:var(--muted)">Played</th>
-          <th style="text-align:center;font-size:9px;color:var(--muted)">Win%</th>
-          <th style="text-align:center;font-size:9px;color:var(--muted)">Rating</th>
-        </tr></thead><tbody>${summaryRows}</tbody></table>
-      </div>`;
-    })();
-
-    return (
-      clutchSummary +
-      `<div class="ana-card" style="padding:12px;overflow-x:auto">
-      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win% in close matches (margin ≤1) per month</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10px">
-        <tr><th style="text-align:left;color:var(--muted);font-weight:600;padding-bottom:6px">Player</th>${allMonths.map((m) => `<th style="color:var(--muted);font-weight:600;padding:0 4px 6px;text-align:center">${MONTHS[parseInt(m.slice(5)) - 1]}</th>`).join("")}</tr>
-        ${topPlayers
-          .map((p) => {
-            const pCol = playerColor(p);
-            const cells = allMonths
-              .map((mo) => {
-                const d = byPlayer[p]?.[mo];
-                if (!d || !d.p)
-                  return `<td style="text-align:center;color:var(--muted)">—</td>`;
-                const pct = Math.round((d.w / d.p) * 100);
-                const col =
-                  pct >= 60
-                    ? "var(--green)"
-                    : pct >= 40
-                      ? "var(--gold)"
-                      : "var(--red)";
-                return `<td style="text-align:center;color:${col};font-weight:700">${pct}%</td>`;
-              })
-              .join("");
-            return `<tr><td style="padding:4px 0;color:${pCol};font-weight:700">${escHtml(p)}</td>${cells}</tr>`;
-          })
-          .join("")}
-      </table>
-    </div>`
-    );
-  })();
-
   // ── DIGEST CARD ────────────────────────────────────────
   viewState.digestFilter = "week";
   viewState.digestPlayer = "";
@@ -16124,86 +15818,6 @@ function renderAnalyticsPage(renderOpts = {}) {
         </div>
       </div>
     </div>`;
-  })();
-
-  // 1b: Pair Leaderboard Top 10 with streak + against quality
-  const _pairLeaderboardHtml = (() => {
-    const pairAQ = {},
-      pairStrk = {};
-    // Build a pair-key → matches index in this same pass, so the per-partnership
-    // loop below is an O(1) lookup instead of re-filtering sortedM per pair
-    // (was O(pairs × matches), and pairs grows ~quadratically with players).
-    const matchesByPairKey = {};
-    sortedM.forEach((m) => {
-      if (m.teamA.length !== 2 || m.teamB.length !== 2) return;
-      const tkA = [...m.teamA].sort().join(" & "),
-        tkB = [...m.teamB].sort().join(" & ");
-      (matchesByPairKey[tkA] || (matchesByPairKey[tkA] = [])).push(m);
-      (matchesByPairKey[tkB] || (matchesByPairKey[tkB] = [])).push(m);
-      [tkA, tkB].forEach((tk, ti) => {
-        const opp = ti === 0 ? m.teamB : m.teamA;
-        if (!pairAQ[tk]) pairAQ[tk] = { t: 0, c: 0 };
-        pairAQ[tk].t +=
-          opp.reduce((s, p) => s + (eloMap[p] ?? _statsDefault()), 0) /
-          opp.length;
-        pairAQ[tk].c++;
-      });
-    });
-    Object.entries(partnerships).forEach(([key, pd]) => {
-      const pms = matchesByPairKey[key] || [];
-      let sk = 0,
-        st = null;
-      for (let i = pms.length - 1; i >= 0; i--) {
-        const m = pms[i];
-        const ak = [...m.teamA].sort().join(" & ");
-        const won = ak === key ? m.scoreA > m.scoreB : m.scoreB > m.scoreA;
-        if (st === null) {
-          st = won ? "W" : "L";
-          sk = 1;
-        } else if ((won && st === "W") || (!won && st === "L")) sk++;
-        else break;
-      }
-      pairStrk[key] = { sk, st };
-    });
-    const top10 = Object.entries(partnerships)
-      .filter(([, pd]) => pd.played >= 2)
-      .sort(
-        (a, b) =>
-          b[1].wins / b[1].played - a[1].wins / a[1].played ||
-          b[1].played - a[1].played,
-      )
-      .slice(0, 10);
-    if (!top10.length)
-      return '<div class="sub" style="padding:8px">Need 2+ games per pair.</div>';
-    const pg2 = "grid-template-columns:1fr 44px 52px 54px 54px";
-    return (
-      `<div class="ana-card" style="padding:8px 12px"><div class="lrace-header" style="${pg2}"><span>Pair</span><span>Played</span><span>Win%</span><span>vs ASS</span><span>Streak</span></div>` +
-      top10
-        .map(([key, pd], i) => {
-          const pct = Math.round((pd.wins / pd.played) * 100);
-          const col =
-            pct >= 60
-              ? "var(--green)"
-              : pct <= 40
-                ? "var(--red)"
-                : "var(--muted)";
-          const aq = pairAQ[key]
-            ? Math.round(pairAQ[key].t / pairAQ[key].c)
-            : "—";
-          const s = pairStrk[key];
-          const sStr = s?.sk >= 1 ? `${s.sk}${s.st}` : "—";
-          const sCol =
-            s?.st === "W"
-              ? "var(--green)"
-              : s?.st === "L"
-                ? "var(--red)"
-                : "var(--muted)";
-          const shortKey = pd.players.map((p) => p.split(" ")[0]).join(" & ");
-          return `<div class="lrace-row" style="${pg2}"><div class="lrace-name" style="font-size:10px">#${i + 1} ${escHtml(shortKey)}</div><div style="text-align:center;font-weight:700">${pd.played}</div><div style="text-align:center;font-weight:700;color:${col}">${pct}%</div><div style="text-align:center;font-weight:700;font-size:10px">${aq}</div><div style="text-align:center;font-weight:700;color:${sCol}">${sStr}</div></div>`;
-        })
-        .join("") +
-      `</div>`
-    );
   })();
 
   // 1c: Monthly Stats Table
@@ -16413,102 +16027,6 @@ function renderAnalyticsPage(renderOpts = {}) {
     return `<div class="ana-card" style="padding:12px;overflow-x:auto"><div style="font-size:9px;color:var(--muted);margin-bottom:8px">Win % per player per day of week</div><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:9px;padding-bottom:6px">Player</th>${hdrs2}</tr></thead><tbody>${rows2}</tbody></table></div>`;
   })();
 
-  // 2: Dominance Index
-  const _dominanceHtml = (() => {
-    const beatenCounts = {};
-    sortedM.forEach((m) => {
-      const aWon2 = m.scoreA > m.scoreB;
-      const winners = aWon2 ? m.teamA : m.teamB;
-      const losers = aWon2 ? m.teamB : m.teamA;
-      winners.forEach((w) => {
-        if (!beatenCounts[w]) beatenCounts[w] = {};
-        losers.forEach((l) => {
-          beatenCounts[w][l] = (beatenCounts[w][l] || 0) + 1;
-        });
-      });
-    });
-    if (!Object.keys(beatenCounts).length)
-      return '<div class="sub" style="padding:8px">No data.</div>';
-    window._domCounts = beatenCounts;
-    window._domShowBeaten = function (playerName, minN) {
-      const n = Math.max(1, +minN || 1);
-      const oppCounts = window._domCounts?.[playerName] || {};
-      const beaten = Object.entries(oppCounts)
-        .filter(([, c]) => c >= n)
-        .sort((a, b) => b[1] - a[1]);
-      if (!beaten.length) return;
-      document.getElementById("dom-beaten-popup")?.remove();
-      const lbl = n === 1 ? "at least once" : `${n}+ times`;
-      const rows = beaten
-        .map(
-          ([opp, c]) =>
-            `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
-              <span style="font-size:12px;font-weight:700;color:var(--text)">${escHtml(opp)}</span>
-              <span style="font-size:14px;font-weight:900;color:var(--theme)">${c}×</span>
-            </div>`,
-        )
-        .join("");
-      const el = document.createElement("div");
-      el.id = "dom-beaten-popup";
-      el.setAttribute("role", "dialog");
-      el.style.cssText =
-        "position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
-      el.onclick = (e) => {
-        if (e.target === el) el.remove();
-      };
-      el.innerHTML = `<div style="background:var(--bg-card,#12121c);border:1px solid rgba(var(--theme-rgb),0.25);border-radius:16px;padding:16px;max-width:320px;width:100%;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
-          <div>
-            <div style="font-size:13px;font-weight:900;color:var(--text)">${escHtml(playerName)}</div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px">beaten ${lbl}</div>
-          </div>
-          <button onclick="document.getElementById('dom-beaten-popup').remove()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">✕</button>
-        </div>
-        <div style="font-size:24px;font-weight:900;color:var(--theme);margin-bottom:10px">${beaten.length} opponent${beaten.length !== 1 ? "s" : ""}</div>
-        <div style="overflow-y:auto;flex:1">${rows}</div>
-      </div>`;
-      document.body.appendChild(el);
-    };
-    window._domRebuild = function (minN) {
-      const n = Math.max(1, Math.floor(+minN) || 1);
-      const pg = "grid-template-columns:40px 1fr 60px";
-      const lbl = n === 1 ? "beaten at least once" : `beaten ${n}+ times`;
-      const rows = Object.entries(beatenCounts)
-        .map(([p, opp]) => ({
-          name: p,
-          count: Object.values(opp).filter((c) => c >= n).length,
-        }))
-        .filter((r) => r.count > 0)
-        .sort((a, b) => b.count - a.count);
-      const el = document.getElementById("dominance-card");
-      if (!el) return;
-      el.querySelector(".dom-desc").textContent = `Distinct opponents ${lbl}`;
-      el.querySelector(".dom-rows").innerHTML = rows.length
-        ? rows
-            .map(
-              (r, i) =>
-                `<div class="lrace-row" style="${pg}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme);cursor:pointer;text-decoration:underline dotted" onclick="window._domShowBeaten(${jsArg(r.name)},${n})" title="Tap to see opponents">${r.count}</div></div>`,
-            )
-            .join("")
-        : `<div style="font-size:11px;color:var(--muted);padding:8px 0">No player has beaten any opponent ${n}+ times.</div>`;
-    };
-    const pg4 = "grid-template-columns:40px 1fr 60px";
-    const initRows = Object.entries(beatenCounts)
-      .map(([p, opp]) => ({ name: p, count: Object.keys(opp).length }))
-      .sort((a, b) => b.count - a.count);
-    return `<div class="ana-card" style="padding:8px 12px" id="dominance-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
-        <div class="dom-desc" style="font-size:9px;color:var(--muted)">Distinct opponents beaten at least once</div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <span style="font-size:9px;color:var(--muted);white-space:nowrap">Min wins vs same opp</span>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="99" value="1" class="dom-threshold-inp" oninput="window._domRebuild(this.value)">
-        </div>
-      </div>
-      <div class="lrace-header" style="${pg4}"><span>Rank</span><span>Player</span><span>Opp</span></div>
-      <div class="dom-rows">${initRows.map((r, i) => `<div class="lrace-row" style="${pg4}"><div class="lrace-rank">#${i + 1}</div><div class="lrace-name">${escHtml(r.name)}</div><div style="text-align:center;font-weight:800;color:var(--theme);cursor:pointer;text-decoration:underline dotted" onclick="window._domShowBeaten(${jsArg(r.name)},1)" title="Tap to see opponents">${r.count}</div></div>`).join("")}</div>
-    </div>`;
-  })();
-
   // 2: Most One-Sided Rivalries
   const _oneSidedHtml = (() => {
     const rivalries = Object.entries(teamMatchups)
@@ -16636,10 +16154,10 @@ function renderAnalyticsPage(renderOpts = {}) {
   const favKeys = getAnaFavs();
   const hiddenKeys = getAnaHidden();
   _anaDeferredBodies.clear();
-  const makeSec = (key, title, body, col, cat) => {
+  const makeSec = (key, title, body, col, cat, empty) => {
     const isFav = favKeys.includes(key);
     const isHid = hiddenKeys.includes(key);
-    const emptyCls = _secIsEmpty(body) ? " is-empty" : "";
+    const emptyCls = (empty ?? _secIsEmpty(body)) ? " is-empty" : "";
     // A collapsed section's body is kept out of the page until it is opened
     // (toggleAnaSection inserts it): most sections start collapsed, and
     // parsing + styling ~12k hidden elements made every visit slow.
@@ -16927,40 +16445,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       body: predAccHtml,
     },
     {
-      key: "ratingproj",
-      cat: "elo",
-      title: `📈 Rating Projection (${SCORING_SYSTEM_LABELS.ep})`,
-      body: (() => {
-        const formN = window._assProj?.formN || 10;
-        const futureM = window._assProj?.futureM || 20;
-        return `<div class="ana-card" style="padding:10px 12px">
-          <div class="ep-controls">
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">FORM WINDOW</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._assProjAdj('form',-5)" aria-label="Decrease form window" title="Decrease form window">−</button>
-                <span class="ep-step-val" id="assproj-form-n">${formN}</span>
-                <span class="ep-step-unit">games</span>
-                <button class="ep-step-btn" onclick="window._assProjAdj('form',5)" aria-label="Increase form window" title="Increase form window">+</button>
-              </div>
-            </div>
-            <div class="ep-ctrl-divider"></div>
-            <div class="ep-ctrl-group">
-              <div class="ep-ctrl-label">PROJECT AHEAD</div>
-              <div class="ep-stepper">
-                <button class="ep-step-btn" onclick="window._assProjAdj('future',-10)" aria-label="Decrease matches to project ahead" title="Decrease matches to project ahead">−</button>
-                <span class="ep-step-val" id="assproj-future-n">${futureM}</span>
-                <span class="ep-step-unit">matches</span>
-                <button class="ep-step-btn" onclick="window._assProjAdj('future',10)" aria-label="Increase matches to project ahead" title="Increase matches to project ahead">+</button>
-              </div>
-            </div>
-          </div>
-          <div style="font-size:9px;color:var(--muted);margin:8px 0">Projects each player's leaderboard score forward from their average points earned over their last FORM WINDOW matches. A simple rate projection — it doesn't re-simulate future opponents or maturity.</div>
-          <div id="assproj-table"></div>
-        </div>`;
-      })(),
-    },
-    {
       key: "awards",
       cat: "records",
       title: "🏅 Awards Board",
@@ -17049,34 +16533,16 @@ function renderAnalyticsPage(renderOpts = {}) {
       body: `<div class="ana-card" style="padding:8px 12px">${clutchRankHtml}${_antiClutchHtml}</div>`,
     },
     {
-      key: "clutchtrends",
-      cat: "players",
-      title: "📈 Clutch Trends",
-      body: clutchTrendHtml,
-    },
-    {
       key: "quality",
       cat: "players",
       title: "💎 Quality Rankings",
       body: `<div class="ana-card" style="padding:8px 12px">${_hardestWinCallout}${qualityRankHtml}</div>`,
     },
     {
-      key: "dominance",
-      cat: "players",
-      title: "💪 Dominance Rankings",
-      body: _dominanceHtml,
-    },
-    {
       key: "carry",
       cat: "players",
       title: "🚀 Carry Rankings",
       body: carryHtml,
-    },
-    {
-      key: "consistency",
-      cat: "players",
-      title: "📐 Consistency Rankings",
-      body: `<div class="ana-card" style="padding:8px 12px">${consistencyRankHtml}</div>`,
     },
     {
       key: "playerform",
@@ -17208,12 +16674,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       body: _dowPlayerMatrixHtml,
     },
     {
-      key: "toppairs",
-      cat: "pairs",
-      title: "🏅 Top Pairs",
-      body: _pairLeaderboardHtml,
-    },
-    {
       key: "allpairs",
       cat: "pairs",
       title: "📋 All Pairs",
@@ -17230,12 +16690,6 @@ function renderAnalyticsPage(renderOpts = {}) {
       cat: "pairs",
       title: "⚖️ Pairing Odds",
       body: _pairingOddsHtml(am),
-    },
-    {
-      key: "pairform",
-      cat: "pairs",
-      title: "🔥 Pair Form",
-      body: `<div class="ana-card" style="padding:10px 12px">${pfHtml}</div>`,
     },
     {
       key: "scoringlab",
@@ -17896,6 +17350,35 @@ function renderAnalyticsPage(renderOpts = {}) {
     },
   ];
 
+  // Related cards shown together as one section: the first key's slot, order,
+  // favourite and hidden state carry the merged card; each part keeps its own
+  // sub-heading. The card counts as empty only when every part is empty.
+  [
+    { key: "streaklb", title: "🏅 Streak Leaderboard", parts: ["streaklb", "currentform"] },
+    { key: "podium", title: "🥇 Podium & Anti-Podium Tracker", parts: ["podium", "antipodium"] },
+    { key: "rankreign", title: "👑 Rank Reign & Rank Timeline", parts: ["rankreign", "ranktimeline"] },
+    { key: "lbrace", title: "🏁 Leaderboard Race & Replay", parts: ["lbrace", "lbreplay"] },
+    { key: "powerrank", title: "⚡ Power Rankings & Player Form", parts: ["powerrank", "playerform"] },
+    { key: "scoredist", title: "📊 Score Distribution & Heatmap", parts: ["scoredist", "scoreheatmap"] },
+    { key: "dowvolume", title: "📅 Day of the Week", parts: ["dowvolume", "dowwinpct", "dowmatrix"] },
+    { key: "attendancestreaks", title: "📌 Attendance & Absence", parts: ["attendancestreaks", "absencetracker"] },
+  ].forEach(({ key, title, parts }) => {
+    const defs = parts.map((k) => allSecs.find((s) => s.key === k)).filter(Boolean);
+    const host = defs.find((d) => d.key === key);
+    if (!host) return;
+    host.title = title;
+    host.empty = defs.every((d) => _secIsEmpty(d.body));
+    host.body = defs
+      .map(
+        (d, i) =>
+          `<div style="${i ? "margin-top:14px;" : ""}"><div style="font-size:10px;font-weight:800;letter-spacing:0.06em;color:var(--muted);text-transform:uppercase;margin:0 0 6px 2px">${d.title}</div>${d.body}</div>`,
+      )
+      .join("");
+    defs.forEach((d) => {
+      if (d !== host) allSecs.splice(allSecs.indexOf(d), 1);
+    });
+  });
+
   const storedOrder = getAnaOrder();
   const validKeys = allSecs.map((s) => s.key);
   const orderedKeys = [
@@ -17952,7 +17435,7 @@ function renderAnalyticsPage(renderOpts = {}) {
       return {
         key,
         cat: def.cat,
-        html: makeSec(key, def.title, def.body, collapsed.has(key), def.cat),
+        html: makeSec(key, def.title, def.body, collapsed.has(key), def.cat, def.empty),
       };
     })
     .filter(Boolean);
@@ -17969,37 +17452,24 @@ function renderAnalyticsPage(renderOpts = {}) {
     const leftKeys = new Set([
       "awards",
       "personalbests",
-      "currentform",
       "streaklb",
-      "playerform",
       "scoredist",
-      "scoreheatmap",
       "shutouts",
-      "consistency",
     ]);
     const rightKeys = new Set([
       "powerrank",
       "seasonmovers",
       "lbrace",
       "podium",
-      "antipodium",
       "rankreign",
-      "ranktimeline",
-      "lbreplay",
       "clutch",
-      "clutchtrends",
       "quality",
-      "dominance",
       "carry",
       "rivalmatrix",
       "h2h",
       "dowvolume",
-      "dowwinpct",
-      "dowmatrix",
-      "toppairs",
       "allpairs",
       "pairsynergy",
-      "pairform",
       "assrankings",
       "asshistory",
       "asspeaklow",
@@ -18037,7 +17507,6 @@ function renderAnalyticsPage(renderOpts = {}) {
     requestAnimationFrame(() => renderMatchCalendar());
 
   requestAnimationFrame(() => window._renderHiLoTable?.());
-  requestAnimationFrame(() => window._renderAssProjTable?.());
 
   // Animate cards and section titles as they scroll into view
   if (_anaObserver) {
@@ -19115,7 +18584,6 @@ Object.assign(window, {
   selectEloTLPlayer,
   filterEloTimeline,
   showEloMatchDetail,
-  _togglePairForm,
   openAnaSearch,
   closeAnaSearch,
   anaSearchInput,

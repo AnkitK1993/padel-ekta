@@ -886,10 +886,9 @@ async function main() {
         hasRivalMatrix: hasSec("rivalmatrix"),
         hasStreakLb: hasSec("streaklb"),
         hasPowerRank: hasSec("powerrank"),
-        hasLbReplay: hasSec("lbreplay"),
+        hasLbReplay: hasSec("lbrace") && html.includes("Leaderboard Replay"),
         hasCarry: hasSec("carry"),
-        // Rating Projection and Underdog Leaderboard run on ASS's own logic.
-        hasRatingProj: hasSec("ratingproj"),
+        // Underdog Leaderboard runs on ASS's own logic.
         hasUnderdogBoard: hasSec("underdogboard"),
         hasPairSynergy: hasSec("pairsynergy"),
         hasPairedH2H: hasSec("pairedh2h"),
@@ -920,7 +919,6 @@ async function main() {
       "hasPowerRank",
       "hasLbReplay",
       "hasCarry",
-      "hasRatingProj",
       "hasUnderdogBoard",
       "hasPairSynergy",
       "hasPairedH2H",
