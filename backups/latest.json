@@ -1,5 +1,5 @@
 {
- "exportedAt": "2026-11-12T02:29:22.002Z",
+ "exportedAt": "2026-11-13T02:05:35.700Z",
  "format": "ekta-padel-backup",
  "matches": [
   {
@@ -10014,20 +10014,6 @@
   },
   {
    "date": "2026-11-03",
-   "id": "mmw08yincn33htz",
-   "scoreA": 4,
-   "scoreB": 0,
-   "teamA": [
-    "Parthiv",
-    "Akshay"
-   ],
-   "teamB": [
-    "Vinit",
-    "Sahil"
-   ]
-  },
-  {
-   "date": "2026-11-03",
    "id": "mmw08yindi2ydmh",
    "scoreA": 4,
    "scoreB": 3,
@@ -10056,20 +10042,6 @@
   },
   {
    "date": "2026-11-03",
-   "id": "mmw08yindwkmx5p",
-   "scoreA": 4,
-   "scoreB": 1,
-   "teamA": [
-    "Vinit",
-    "Sahil"
-   ],
-   "teamB": [
-    "Akshay",
-    "Tejas"
-   ]
-  },
-  {
-   "date": "2026-11-03",
    "id": "mmw08yindtjeq0y",
    "scoreA": 4,
    "scoreB": 2,
@@ -10080,34 +10052,6 @@
    "teamB": [
     "Ankit",
     "Pratik"
-   ]
-  },
-  {
-   "date": "2026-11-03",
-   "id": "mmw08yind0592pe",
-   "scoreA": 4,
-   "scoreB": 2,
-   "teamA": [
-    "Tejas",
-    "Vinit"
-   ],
-   "teamB": [
-    "Akshay",
-    "Sahil"
-   ]
-  },
-  {
-   "date": "2026-11-03",
-   "id": "mmw08yind4fqcfo",
-   "scoreA": 3,
-   "scoreB": 4,
-   "teamA": [
-    "Parthiv",
-    "Sahil"
-   ],
-   "teamB": [
-    "Akshay",
-    "Tejas"
    ]
   },
   {
@@ -10136,20 +10080,6 @@
    "teamB": [
     "Tanmay",
     "Vinit"
-   ]
-  },
-  {
-   "date": "2026-11-04",
-   "id": "mmw1qh9qvutw2ur",
-   "scoreA": 4,
-   "scoreB": 1,
-   "teamA": [
-    "Parthiv",
-    "Ayaan"
-   ],
-   "teamB": [
-    "Sahil",
-    "Akhil"
    ]
   },
   {
@@ -10739,6 +10669,62 @@
     "Nilesh",
     "Tejas"
    ]
+  },
+  {
+   "date": "2026-11-12",
+   "id": "mmwd49977tbbbz9",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Ankit",
+    "Tejas"
+   ],
+   "teamB": [
+    "Sachin",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-11-12",
+   "id": "mmwd49977gz4vq1",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Tejas"
+   ],
+   "teamB": [
+    "Ankit",
+    "Puneet"
+   ]
+  },
+  {
+   "date": "2026-11-12",
+   "id": "mmwd49977rs096b",
+   "scoreA": 4,
+   "scoreB": 2,
+   "teamA": [
+    "Tejas",
+    "Tanmay"
+   ],
+   "teamB": [
+    "Rahul G",
+    "Shetty"
+   ]
+  },
+  {
+   "date": "2026-11-12",
+   "id": "mmwd49977o0lsz0",
+   "scoreA": 4,
+   "scoreB": 3,
+   "teamA": [
+    "Sachin",
+    "Rahul G"
+   ],
+   "teamB": [
+    "Tanmay",
+    "Shetty"
+   ]
   }
  ],
  "nextPlayerId": 27,
@@ -10961,7 +10947,7 @@
   "26": {
    "email": "",
    "id": 26,
-   "isGuest": true,
+   "isGuest": false,
    "name": "Sahil"
   }
  },
